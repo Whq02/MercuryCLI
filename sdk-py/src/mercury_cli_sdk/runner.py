@@ -81,6 +81,7 @@ class MercurySession(TypedRequests):
 
     async def _write(self, value: Any) -> None:
         if self._closed: raise self._closed
+        if self._closing: return
         if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryError('runner input is not open', self.exit.result() if self.exit.done() else None)
         try:
             self._stdin.write((json.dumps(value) + '\n').encode())
@@ -314,9 +315,12 @@ class MercurySession(TypedRequests):
     async def claim(self, **params: Any) -> SessionClaimResult: return await self.request('session/claim', params)
 
     async def close(self) -> None:
-        """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""
+        """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten. Asks still in flight are cancelled, so nothing is written to the closed input."""
         self._closing = True
         if self._tools: self._tools.cancel()
+        for context, task in tuple(self._asks.values()):
+            context.cancelled.set()
+            task.cancel()
         self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:

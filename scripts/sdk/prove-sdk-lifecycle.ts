@@ -131,6 +131,39 @@ setTimeout(() => process.exit(0), 200)
     for (let i = 0; i < 40 && pids.some(alive); i++) await sleep(50)
     assert.deepEqual(pids.filter(alive), [], 'children outlived the host')
   })
+  await check('closing a session while a runner ask is in flight stays graceful under node: no error event, no write after stdin ended, exit 0', async () => {
+    const built = spawnSync('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], { encoding: 'utf8', timeout: 120000 })
+    assert.equal(built.status, 0, built.stdout + built.stderr)
+    const host = join(scratch, 'close-mid-ask.mjs')
+    writeFileSync(host, `import { connect } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/index.js')).href)}
+import { startFixtureServer } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/testing.js')).href)}
+const ask = { jsonrpc: '2.0', id: 1000, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'u1', tool_name: 'Read', input: {} } }
+const fixture = await startFixtureServer({ methods: { initialize: [{ result: ${JSON.stringify(init)}, after: [ask] }] } })
+let rejections = 0
+process.on('unhandledRejection', () => { rejections++ })
+let open
+const gate = new Promise(resolve => { open = resolve })
+let asked = 0
+const session = await connect({ mercury: fixture.mercury, onPermissionRequest: async () => { asked++; await gate; return { outcome: 'deny' } } })
+while (asked === 0) await new Promise(resolve => setTimeout(resolve, 5))
+const errors = []
+session.on('error', error => errors.push(error.message))
+const closing = session.close()
+open()
+await closing
+const exit = await session.exit
+await new Promise(resolve => setTimeout(resolve, 50))
+await fixture.close()
+console.log(JSON.stringify({ errors, exit, rejections }))
+`)
+    const result = spawnSync('node', [host], { encoding: 'utf8', timeout: 20000 })
+    assert.equal(result.status, 0, result.stderr)
+    const report = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    assert.deepEqual(report.errors, [], `the graceful close raised an error event: ${JSON.stringify(report)}`)
+    assert.equal(report.exit.code, 0, `the close escalated to a signal: ${JSON.stringify(report.exit)}`)
+    assert.equal(report.rejections, 0, 'an unhandled rejection escaped the close')
+    assert.doesNotMatch(result.stderr, /write after end|ERR_STREAM_WRITE_AFTER_END/, result.stderr)
+  })
   await check('the package version is the manifest version', async () => {
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
     assert.equal(sdk.VERSION, pkg.version)

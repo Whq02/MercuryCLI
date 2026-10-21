@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import json
 import os
 import signal
@@ -8,7 +9,7 @@ import tempfile
 import time
 from pathlib import Path
 from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, row_of, run, __version__
-from mercury_cli_sdk.testing import fixture_session_row, fixture_turn
+from mercury_cli_sdk.testing import fixture_outcome_row, fixture_session_row, fixture_turn, start_fixture_server
 
 WINDOWS = os.name == 'nt'
 init = {'protocol': 1, 'runner': {'version': 'fixture', 'pid': 1}, 'session_id': 's'}
@@ -177,8 +178,60 @@ asyncio.run(main())
         await asyncio.sleep(0.05)
     assert not [p for p in pids if alive(p)], 'children outlived the host'
 
+async def fixture_close():
+    big = [fixture_session_row(), fixture_outcome_row(answer='x' * 1_000_000)] * 8
+    for shape, rows, inputs in (('a bridge holding the socket open with its hello sent and nothing more', [], 1), ('a bridge that stopped reading an 8 MB replay', big, 1)):
+        server = await start_fixture_server({'rows': rows, 'inputCount': inputs})
+        bridge = await asyncio.create_subprocess_exec(*server.mercury, 'run', '--format', 'rows', stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        assert bridge.stdin is not None
+        if rows:
+            bridge.stdin.write(b'{"type":"prompt","content":"x"}\n')
+            await bridge.stdin.drain()
+        await asyncio.sleep(0.3)
+        started = time.monotonic()
+        try: await asyncio.wait_for(server.close(), 1)
+        except asyncio.TimeoutError: raise AssertionError(f'close() did not return within a second on {shape}')
+        finally:
+            bridge.kill()
+            await bridge.wait()
+        assert time.monotonic() - started < 0.05, f'close() took {time.monotonic() - started:.3f} s on {shape}'
+
+
+async def close_mid_ask():
+    loop = asyncio.get_running_loop()
+    unhandled = []
+    loop.set_exception_handler(lambda loop, context: unhandled.append(context.get('message')))
+    try:
+        gate, asked = asyncio.Event(), asyncio.Event()
+        async def guard(params, context):
+            asked.set()
+            await gate.wait()
+            return {'outcome': 'deny'}
+        ask = {'jsonrpc': '2.0', 'id': 1000, 'method': 'permission/request', 'params': {'kind': 'tool', 'tool_use_id': 'u1', 'tool_name': 'Read', 'input': {}}}
+        async with await start_fixture_server({'methods': {'initialize': [{'result': init, 'after': [ask]}]}}) as fixture:
+            session = await connect(mercury=fixture.mercury, on_permission_request=guard)
+            await asyncio.wait_for(asked.wait(), 5)
+            errors = []
+            session.on('error', errors.append)
+            closing = asyncio.create_task(session.close())
+            await asyncio.sleep(0)
+            gate.set()
+            await closing
+            exit = await session.exit
+            del session, closing
+            for _ in range(3):
+                gc.collect()
+                await asyncio.sleep(0.02)
+            assert not errors, [str(e) for e in errors]
+            assert exit.code == 0, exit
+            assert not unhandled, unhandled
+    finally: loop.set_exception_handler(None)
+
+
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
+    await check('Python FixtureServer.close() returns at once with a peer still on the socket: hello sent and nothing more, and a reader that stopped taking the replay', fixture_close)
+    await check('Python closing a session while a runner ask is in flight: no error event, no unretrieved task exception, exit 0', close_mid_ask)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
     await check('Python termination after a fatal wire failure: the child is gone within the bound and the receipt names ' + ('SIGTERM (Windows: the first step ends it)' if WINDOWS else 'the SIGKILL escalation'), escalation)
     await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)

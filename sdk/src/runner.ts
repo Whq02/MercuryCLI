@@ -95,6 +95,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #emit(type: string, value: unknown): void { for (const fn of this.#listeners.get(type) ?? []) fn(value) }
   #write(value: unknown): void {
     if (this.#closed) throw this.#closed
+    if (this.#closing) return
     this.child.stdin!.write(JSON.stringify(value) + '\n')
   }
 
@@ -287,6 +288,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   close(): Promise<void> {
     this.#closing = true
     this.toolServer?.cancel()
+    for (const ask of this.#asks.values()) ask.abort()
     return endChild(this.child, this.exit)
   }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }

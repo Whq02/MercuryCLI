@@ -3,6 +3,7 @@ import asyncio
 import json
 import secrets
 import sys
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any, Mapping, NotRequired, Sequence, TypedDict
 from .generated import METHODS, ROW_SCHEMAS, OUTCOME_EXIT_CODES, OutcomeRow, SessionRow, TurnRow
@@ -34,12 +35,15 @@ class FixtureServer:
     received: list[dict[str, Any]]
     _server: asyncio.Server
     _writers: set[asyncio.StreamWriter] = field(repr=False)
+    _handlers: set[asyncio.Task[None]] = field(repr=False)
 
     async def close(self) -> None:
-        for writer in tuple(self._writers): writer.close()
+        """Stop listening and end every connection at once: a handler still parked on a peer that neither reads nor writes is cancelled and its socket aborted, so ``close`` never waits on the peer."""
         self._server.close()
+        for handler in tuple(self._handlers): handler.cancel()
+        for writer in tuple(self._writers): writer.transport.abort()
+        await asyncio.gather(*self._handlers, return_exceptions=True)
         await self._server.wait_closed()
-        for writer in tuple(self._writers): await writer.wait_closed()
 
     async def __aenter__(self) -> FixtureServer: return self
     async def __aexit__(self, *exc: Any) -> None: await self.close()
@@ -50,9 +54,12 @@ async def start_fixture_server(fixture: Fixture) -> FixtureServer:
     if fixture.get('validate', True): _validate_fixture(fixture)
     received: list[dict[str, Any]] = []
     writers: set[asyncio.StreamWriter] = set()
+    handlers: set[asyncio.Task[None]] = set()
     token = secrets.token_hex(32)
 
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        handler = asyncio.current_task()
+        if handler is not None: handlers.add(handler)
         writers.add(writer)
         def send(message: Any) -> None: writer.write((json.dumps(message) + '\n').encode())
         try:
@@ -91,8 +98,9 @@ async def start_fixture_server(fixture: Fixture) -> FixtureServer:
                 await writer.drain()
         finally:
             writer.close()
-            await writer.wait_closed()
+            with suppress(Exception): await writer.wait_closed()
             writers.discard(writer)
+            if handler is not None: handlers.discard(handler)
 
     server = await asyncio.start_server(serve, '127.0.0.1', 0, limit=32 * 1024 * 1024)
     port = server.sockets[0].getsockname()[1]
@@ -124,7 +132,7 @@ finally: s.close()
 out.flush()
 os._exit(code)
 '''
-    return FixtureServer([sys.executable, '-u', '-c', bridge], received, server, writers)
+    return FixtureServer([sys.executable, '-u', '-c', bridge], received, server, writers, handlers)
 
 
 def _defaults(schema: dict[str, Any]) -> Any:
