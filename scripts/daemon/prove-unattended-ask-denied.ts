@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { seatForensics } from '../lib/seatForensics.ts'
+import { seatForensics, silentSeatReport } from '../lib/seatForensics.ts'
+import { describeSeat, seatRuntime } from '../lib/seatLauncher.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'unattended-ask-')))
@@ -57,7 +58,7 @@ const guard = setTimeout(() => {
   const ps = spawnSync('ps', ['-eo', 'pid,ppid,etime,stat,args'], { encoding: 'utf8' })
   const ours = (ps.stdout ?? '').split('\n').filter(l => /launcher\.ts|mercury|bun/.test(l) && !/ps -eo/.test(l)).map(l => l.slice(0, 200))
   console.log(`  processes:\n    ${ours.join('\n    ') || '(none)'}`)
-  for (const line of ours.filter(l => /launcher\.ts/.test(l))) {
+  for (const line of ours.filter(l => /launcher\.ts|mercury\.mjs/.test(l))) {
     const pid = Number(line.trim().split(/\s+/)[0])
     if (Number.isFinite(pid) && pid !== process.pid) console.log(`  ${seatForensics(pid)}`)
   }
@@ -273,13 +274,13 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
   writeFileSync(join(work2, 'README.md'), '# fixture two\n')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi([...turns, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
-  const launcher = join(root, 'launcher.ts')
-  writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${j(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
+  const seat = seatRuntime(root)
+  console.log(`  ${label}: the daemon boots ${describeSeat(seat)}`)
   const logPath = join(root, 'daemon.log')
   const debugPath = join(root, 'daemon-debug.txt')
   daemonLogs.push({ label, path: logPath, debug: debugPath })
   const logFd = openSync(logPath, 'a')
-  const daemon = spawn(process.execPath, ['run', launcher, 'daemon', 'run', work, '--log-file', debugPath], {
+  const daemon = spawn(seat.exe, [seat.script, 'daemon', 'run', work, '--log-file', debugPath], {
     cwd: work,
     env: {
       ...process.env,
@@ -309,15 +310,15 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
     }
     await api.close()
   }
-  leg = `${label}: the daemon boot from the source`
+  leg = `${label}: the daemon boot (${seat.from})`
   const serves = await until(async () => ((await daemonControlRpc({ op: 'ping' } as never)) as { ok?: boolean }).ok === true, 60_000)
-  check(`${label}: the daemon serves from the source (${owned ? 'owned by this process' : 'ownerless'})`, serves)
+  check(`${label}: the daemon serves (${describeSeat(seat)}, ${owned ? 'owned by this process' : 'ownerless'})`, serves, serves || daemon.pid === undefined ? '' : `the daemon did not answer ping within 60 s\n  ${silentSeatReport(daemon.pid, { logFile: debugPath }).split('\n').join('\n  ')}`)
   if (!serves) {
     await close()
     return null
   }
   const dispatch = async (tag: string, prompt: string, folder: string = work): Promise<Session | null> => {
-    leg = `${label}: dispatching session ${tag} (the daemon admits it and spawns its runner from the source)`
+    leg = `${label}: dispatching session ${tag} (the daemon admits it and spawns its runner from ${seat.from})`
     const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-${tag}`, prompt, workspaceDir: folder, title: `Ask probe ${tag}`, modelKey, effort: 'high' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; error?: string }
     leg = `${label}: session ${tag} dispatched, its ask awaited`
     check(`${label}: session ${tag} dispatched`, d.ok === true && typeof d.sessionId === 'string', j(d))

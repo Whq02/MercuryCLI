@@ -37,7 +37,7 @@ const packBesideBundle = whisperPackDirFor(join(ROOT, 'dist'), PLATFORM)
 const packCheck = checkWhisperPackDir(packBesideBundle, { digest: true })
 if (packCheck.state !== 'ok') {
   console.log(`prove-voice-local-journey: SKIPPED — no on-device transcriber pack beside the bundle for ${PLATFORM} (${packCheck.note}); the host that built dist had no cargo or cmake, and the build degraded honestly`)
-  process.exit(0)
+  process.exit(1)
 }
 const MODEL = whisperDefaultModel()
 const MODEL_PIN: WhisperModelPin = { kind: 'catalogue', row: MODEL, pinned: false }
@@ -56,7 +56,7 @@ const modelSourceNote = (path: string): string => {
 const MODEL_SOURCE = MODEL_CANDIDATES.find(path => modelSourceNote(path) === 'ok') ?? null
 if (MODEL_SOURCE === null) {
   console.log(`prove-voice-local-journey: SKIPPED — no ${MODEL.file} verified against the lock to seed the scratch homes from; looked at ${MODEL_CANDIDATES.map(path => `${path} (${modelSourceNote(path)})`).join('; ')} (bun run scripts/vendor/fetch-whisper-models.ts fetches it into ${WHISPER_MODELS_VENDOR_PATH})`)
-  process.exit(0)
+  process.exit(1)
 }
 
 const scratch = mkdtempSync(join(tmpdir(), 'voice-local-journey-'))
@@ -101,12 +101,26 @@ globalThis.fetch = (input, init) => {
   const target = typeof input === 'string' ? input : String((input && input.url) || input)
   let host = ''
   try { host = new URL(target).hostname } catch {}
+  if (process.env.PROOF_MODEL_URL === target) { log('model-fixture ' + target); return Promise.resolve(new Response(fs.readFileSync(process.env.PROOF_MODEL_FILE))) }
   if (isLocal(host)) { log('fetch-local ' + target); return origFetch(input, init) }
   log('fetch ' + target)
   return Promise.reject(new Error('tripwire: fetch ' + target))
 }
 `,
 )
+
+function voiceWords(screen: string): string {
+  const words: string[] = []
+  let message = false
+  for (const row of screen.split('\n')) {
+    const left = row.indexOf('│'), right = row.lastIndexOf('│')
+    const text = left >= 0 && right > left ? row.slice(left + 1, right).trim() : ''
+    if (text.startsWith('❯ /voice')) message = true
+    else if (text === '') message = false
+    if (message) words.push(text)
+  }
+  return words.join(' ')
+}
 
 const DEAD = 'http://127.0.0.1:9'
 function childEnv(home: string, netlog: string, extra: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
@@ -148,7 +162,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     'MERCURY_VOICE_BOUND_MS',
     'MERCURY_WHISPER_PACK_DIR',
     'MERCURY_WHISPER_MODEL',
-    'MERCURY_VOICE_TRANSCRIBER',
+    'MERCURY_HOME',
     'MERCURY_OPENAI_API_BASE',
     'MERCURY_GEMINI_API_BASE',
     'MERCURY_CONCOURSE',
@@ -359,114 +373,37 @@ console.log('[B] an OpenAI key AND the pack — the order law on the bundle: sti
   check('nothing left loopback', nonLoopback(lines).length === 0, nonLoopback(lines).join(' · '))
 }
 
-console.log('[C] the pin openai — the cloud road serves: exactly one loopback POST')
+console.log('[C] first on downloads once, the bare command captures, off persists across restart')
 {
-  const netlog = join(scratch, 'pinned-net.log')
-  const fx = await startFixture('pinned', 800)
-  const res = drive(
-    'pinned',
-    seededHome('home-c'),
-    netlog,
-    [
-      ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
-      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
-      { afterPrevTicks: 3, data: '' },
-    ],
-    170,
-    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_TRANSCRIBER: 'openai' },
-  )
-  fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, stuckWords(res))
-  check('/voice on names OpenAI and says the on-device road is held back by the pin', (res.marks.on ?? '').includes('transcriber: OpenAI') && (res.marks.on ?? '').includes('held back by MERCURY_VOICE_TRANSCRIBER'), gridLines(res.marks.on ?? '', 'transcriber'))
-  check('the canned cloud words land, the receipt names the family', (res.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(res.marks.landed ?? '', '❯'))
-  const served = ledgerPosts(fx.ledger)
-  check('the loopback transcriber served exactly ONE take', served.length === 1 && served[0]!.includes('/audio/transcriptions') && served[0]!.includes('wav=yes'), served.join(' | '))
-  const stray = nonLoopback(netlines(netlog))
-  check('nothing left loopback', stray.length === 0, stray.join(' · '))
-}
-
-console.log('[D] the pack present, the model absent — the download door at /voice on; a hold answers the receipt before any take')
-{
-  const netlog = join(scratch, 'nomodel-net.log')
-  const res = drive(
-    'nomodel',
-    seededHome('home-d', false),
-    netlog,
-    [
-      ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
-      { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device model: /voice download; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
-      { afterPrevTicks: 3, data: '' },
-    ],
-    170,
-    {},
-  )
-  check('the drive delivered', res.status === 0, stuckWords(res))
-  const on = res.marks.on ?? ''
-  const door = paneFlow(on)
-  check('/voice on carries the download door: the size, the model, the licence, the verb (read from the pane flowed whole, wherever the rows wrap)', door.includes('one-time 60 MB download') && door.includes('Whisper base.en') && door.includes('(MIT)') && door.includes('/voice download starts it'), gridLines(on, 'download'))
-  check('the receipt names the download door then the cloud doors, before any take', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device model: /voice download; or /logins openai (API key) or /logins gemini') && !(res.marks.receipt ?? '').includes('recording ·'), gridLines(res.marks.receipt ?? '', 'transcribes'))
-  const lines = netlines(netlog)
-  check('nothing left loopback, and no download was attempted', nonLoopback(lines).length === 0 && !lines.some(l => l.includes('huggingface')), lines.join(' · '))
-}
-
-console.log('[E] /voice options — the rows, the switch, the take through the saved family; a second boot names the saved choice gone and serves on-device')
-{
-  const home = seededHome('home-e')
-  const netlog1 = join(scratch, 'options-1-net.log')
-  const fx = await startFixture('options', 800)
-  const first = drive(
-    'options-1',
-    home,
-    netlog1,
-    [
-      ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/voice options' },
-      { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'the shipped default', awaitStableTicks: 2, mark: 'rows', data: '/voice options openai' },
-      { afterPrevTicks: 3, data: '\r' },
-      ...hold({ requireAwait: true, awaitText: 'default transcriber: openai (saved)', awaitStableTicks: 2, mark: 'switched' }, { mark: 'recording' }),
-      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
-      { afterPrevTicks: 3, data: '' },
-    ],
-    230,
-    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
-  )
-  fx.child.kill('SIGTERM')
-  check('the first boot delivered every send', first.status === 0, `vshot ${first.status}: ${first.stderr.slice(-300)}`)
-  const rows = first.marks.rows ?? ''
-  check('/voice options lists on-device (serves now, the shipped default), OpenAI signed in, Gemini not signed in', rows.includes('● on-device — whisper.cpp') && rows.includes('(serves now, the shipped default)') && rows.includes('○ openai — OpenAI: OpenAI API key (env)') && rows.includes('○ gemini — Gemini: not signed in'), gridLines(rows, '— '))
-  check('/voice options openai saves the choice and marks the row', (first.marks.switched ?? '').includes('default transcriber: openai (saved)') && (first.marks.switched ?? '').includes('● openai — OpenAI: OpenAI API key (env) (serves now, your saved choice)'), gridLines(first.marks.switched ?? '', 'openai'))
-  check('the take goes to the saved family: the cloud words land, the receipt names OpenAI', (first.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (first.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(first.marks.landed ?? '', '❯'))
-  const served = ledgerPosts(fx.ledger)
-  check('the loopback transcriber served exactly ONE take', served.length === 1, served.join(' | '))
-  check('nothing left loopback', nonLoopback(netlines(netlog1)).length === 0, nonLoopback(netlines(netlog1)).join(' · '))
-
-  const netlog2 = join(scratch, 'options-2-net.log')
-  const second = drive(
-    'options-2',
-    home,
-    netlog2,
-    [
-      ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status' }, { mark: 'recording' }),
-      { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '\x15' },
-      { afterPrevTicks: 2, data: '/voice options default' },
-      { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'the shipped default (saved choice cleared)', awaitStableTicks: 2, mark: 'cleared', data: '' },
-      { afterPrevTicks: 2, data: '' },
-    ],
-    230,
-    {},
-  )
-  check('the second boot delivered every send', second.status === 0, `vshot ${second.status}: ${second.stderr.slice(-300)}`)
-  check('the saved choice persisted and is named as not signed in; the on-device road serves', (second.marks.status ?? '').includes('your saved choice (OpenAI) cannot serve: not signed in') && (second.marks.status ?? '').includes('on-device serves'), gridLines(second.marks.status ?? '', 'saved'))
-  check('a hold opens a take: the footer paints ● recording', (second.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(second.marks.recording ?? '', 'recording'))
-  check('the words land on this machine', SPOKEN.test(second.marks.landed ?? '') && (second.marks.landed ?? '').includes('transcribed on this machine'), gridLines(second.marks.landed ?? '', '❯'))
-  check('/voice options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
-  const lines = netlines(netlog2)
-  check('the second boot made no request of any kind', voiceWires(lines).length === 0 && nonLoopback(lines).length === 0 && !lines.some(l => l.startsWith('fetch')), lines.filter(l => !l.startsWith('tcp-local')).join(' · '))
+  const home = seededHome('home-c', false)
+  const netlog = join(scratch, 'setup-net.log')
+  const first = drive('setup', home, netlog, [
+    ...OPENING,
+    { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'downloaded', data: '/voice' },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: RECORDING_LINE, awaitStableTicks: 2, mark: 'recording', data: '/voice' },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '\x15/voice off' },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'voice input OFF — space is a space', awaitStableTicks: 2, mark: 'off', data: '' },
+  ], 200, { PROOF_MODEL_URL: MODEL.url, PROOF_MODEL_FILE: MODEL_SOURCE })
+  check('first boot delivered', first.status === 0, stuckWords(first))
+  check('first on names the downloaded model, size and verification', paneFlow(first.marks.downloaded ?? '').includes(`${MODEL.file} (60 MB, sha256 verified)`), paneFlow(first.marks.downloaded ?? ''))
+  check('the downloaded bytes match the lock', checkWhisperModel(MODEL_PIN, { home, digest: true }).state === 'present')
+  check('a bare voice take transcribes on-device', SPOKEN.test(first.marks.landed ?? '') && (first.marks.landed ?? '').includes('transcribed on this machine'))
+  check('one fixture model request, no voice upload', netlines(netlog).filter(l => l.startsWith('model-fixture')).length === 1 && voiceWires(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0 && nonLoopback(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0)
+  const secondNet = join(scratch, 'restart-net.log')
+  const second = drive('restart', home, secondNet, [
+    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 110, data: '/voice', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'voice input is off', awaitStableTicks: 2, mark: 'off', data: '/voice on' },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: '' },
+  ], 130, {})
+  check('restart delivered; off persisted and on reused the model', second.status === 0 && (second.marks.off ?? '').includes('voice input is off') && (second.marks.on ?? '').includes('voice input ON'), stuckWords(second))
+  check('restart has no download or upload', !netlines(secondNet).some(l => l.startsWith('fetch')) && voiceWires(netlines(secondNet)).length === 0)
+  for (const screen of [first.marks.downloaded, first.marks.off, second.marks.off, second.marks.on]) check('voice screen has no cloud door', voiceWords(screen ?? '').includes('/voice') && !/API key|\/logins|openai|gemini/i.test(voiceWords(screen ?? '')))
 }
 
 if (failures > 0) {

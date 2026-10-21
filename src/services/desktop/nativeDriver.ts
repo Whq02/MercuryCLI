@@ -233,6 +233,14 @@ class NativeDesktopDriver implements DesktopDriver {
     return { ok: true, value: { act: kind, at, completedAt: Date.now() } }
   }
 
+  async keyboardIdleMs(): Promise<number | null> {
+    try {
+      const value = this.addon.keyboardIdleMs?.()
+      return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
+    } catch {
+      return null
+    }
+  }
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
     return this.permissionsNow()
   }

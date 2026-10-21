@@ -198,7 +198,9 @@ try {
   const rented = hostRecords().find(row => row.watchedFrom === watch.id)!; workers.add(rented.id)
   check('the watch-rented pod is recorded like a door rental and its setup runs in its own project service', rented.sessionId === 'rental-session' && rented.sshKey === join(f.home, 'host', 'keys', 'id_ed25519') && rented.workspace === process.cwd() && reconcileRecord(join(f.home, 'host'), 'host-' + rented.id)?.spec.lifecycle === 'project' && !readHostRecord(watch.id) && rp.state.creates === 3)
   deliverHostNotices('rental-session')
-  check('the rented notice reaches the renting session', getCommandQueue().some(row => String(row.value) === 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'))
+  const { taskNoticeBlock } = await import('../../src/utils/messages/noticeRows.ts')
+  const { isHeldNotice } = await import('../../src/input-core/command-queue.ts')
+  check('the rented notice reaches the renting session on the settled-task road', getCommandQueue().some(row => isHeldNotice(row) && taskNoticeBlock(String(row.value))?.lines.join('\n') === 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'))
   open(); await screen('Where should the model run?'); await choose(rented.id); await screen('Pod controls'); await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Pod terminated')
   rp.state.stockAfterReads = 0
   const calls = readFileSync(join(f.home, 'ssh-fixture-calls.jsonl'), 'utf8')

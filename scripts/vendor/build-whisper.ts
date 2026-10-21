@@ -241,7 +241,23 @@ function installPack(cargo: string): void {
   console.log(`build-whisper: installed ${WHISPER_ADDON_FILE} + ${crates.length} crate licences + ${WHISPER_ENGINE_NAME} ${engine.version} → ${WHISPER_PACK_PATH}/${PLATFORM} (treeDigest ${manifest.treeDigest.slice(0, 12)}…)`)
 }
 
+function toolchainEnv(): Record<string, string> {
+  if (SHIP.platform !== 'win32' || SHIP.arch !== 'arm64') return {}
+  return {
+    CMAKE_GENERATOR: 'Ninja',
+    CC: 'clang-cl', CXX: 'clang-cl',
+    CMAKE_C_COMPILER: 'clang-cl', CMAKE_CXX_COMPILER: 'clang-cl',
+    CMAKE_C_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
+    CMAKE_CXX_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
+    WHISPER_DONT_GENERATE_BINDINGS: '1',
+  }
+}
+
 function main(): void {
+  if (argv.includes('--plan')) {
+    console.log(JSON.stringify({ target: TARGET_ARG, platform: PLATFORM, triple: TRIPLE, env: { ...kernelFloorEnv(), ...toolchainEnv() } }))
+    return
+  }
   if (checkOnly) {
     const invalid = packInvalidReason()
     if (invalid === null) {
@@ -270,7 +286,7 @@ function main(): void {
     dropStale()
     console.log(
       `build-whisper: SKIPPED — no cargo on PATH, so the on-device transcriber pack is not built for ${PLATFORM}. ` +
-        `The build ships without it (${DEGRADED}) and /health says so; install a Rust toolchain (https://rustup.rs) and cmake, and re-run bun run scripts/vendor/build-whisper.ts — the cloud transcribers serve meanwhile.`,
+        `The build ships without it (${DEGRADED}) and /health says so; install a Rust toolchain (https://rustup.rs) and cmake, and re-run bun run scripts/vendor/build-whisper.ts.`,
     )
     process.exit(0)
   }
@@ -279,7 +295,7 @@ function main(): void {
     dropStale()
     console.log(
       `build-whisper: SKIPPED — no cmake on PATH (whisper.cpp compiles through it), so the on-device transcriber pack is not built for ${PLATFORM}. ` +
-        `The build ships without it (${DEGRADED}) and /health says so; install cmake (${cmakeRemedy()}) and re-run bun run scripts/vendor/build-whisper.ts — the cloud transcribers serve meanwhile.`,
+        `The build ships without it (${DEGRADED}) and /health says so; install cmake (${cmakeRemedy()}) and re-run bun run scripts/vendor/build-whisper.ts.`,
     )
     process.exit(0)
   }
@@ -305,7 +321,7 @@ function main(): void {
   const bindings = hasLibclang() ? {} : { WHISPER_DONT_GENERATE_BINDINGS: '1' }
   if ('WHISPER_DONT_GENERATE_BINDINGS' in bindings) console.log('build-whisper: no libclang found — whisper-rs uses its bundled bindings')
   console.log(`build-whisper: ${cargo} · ${cmake} — cargo build --release (${WHISPER_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''}; ${Object.entries(floor).map(([k, v]) => `${k}=${v}`).join(' ')})`)
-  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])], { env: { ...floor, ...bindings } })
+  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])], { env: { ...floor, ...bindings, ...toolchainEnv() } })
   if (build.error) fail(`cargo could not be started: ${build.error.message}`)
   if (build.status !== 0) {
     fail(

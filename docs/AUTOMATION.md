@@ -57,6 +57,17 @@ Each input row accepts an optional `id`; `prompt` and `shell` rows also accept
 line whose shape is invalid emits a `notice` row with `code: "input_refused"`
 and is skipped; a line that is not valid JSON ends the run with exit `1`.
 
+A `prompt` row may also carry `schema`, a JSON Schema object for that turn's
+structured output: the turn offers the `StructuredOutput` tool bound to it,
+the model answers through the tool, and the turn's `outcome` row carries the
+validated object as `structured`. A prompt without `schema` keeps the
+session's schema (`--schema`, or the runner's `initialize`), and a prompt
+with its own never joins another prompt's turn. A `schema` the validation
+engine refuses is refused on that row alone and the session goes on: with
+`--input rows` a `notice` row with `code: "input_refused"` names the row's
+`id` and the fault; on the runner `queue/add` answers `-32602` with the same
+words under `error.data.issues` (path `schema`).
+
 ### TypeScript (Node 24, zero dependencies)
 
 ```ts
@@ -121,7 +132,22 @@ for both.
   `{"protocol":1,"host":{"name":"...","version":"..."},"capabilities":{"holds_asks":true,"elicitation":false,"partial_rows":false}}`
   and wait for its result (`{"protocol":1,"runner":{"version":"...","pid":123},"session_id":"..."}`)
   before sending other requests. A request sent before `initialize` answers
-  `-32002`.
+  `-32002`. `initialize` also takes an optional `schema`, a JSON Schema object
+  every turn without a `schema` of its own answers through; one the
+  validation engine refuses answers `-32602` (path `schema`) and `initialize`
+  may be sent again.
+- **File checkpoints:** A hosted runner captures no per-turn file checkpoints
+  by default, so `session/rewind` with `mode: "code"` refuses `capture-off`.
+  Send `"file_checkpoints": true` in `initialize` to capture them: every turn
+  then saves the pre-edit bytes of each file its tools change, `session/rewind`
+  can restore them, and the session's crewmates run as usual. The result of
+  `initialize` and `session/facts` both carry `file_checkpoints` with
+  `capture` (`true` or `false`) and `source`: `initialize` (the host asked),
+  `headless` (nothing asked, the default), `setting` (the operator's
+  `fileCheckpointingEnabled: false` setting turned capture off, which it does
+  for every process), `seat` (the Mercury screen's own session runner) or
+  `interactive`. `session/facts` adds `restorable`, the prompt ids that carry
+  a saved point.
 - **Send a prompt and read rows:** Call `queue/add` with a `prompt`, `shell` or
   `note` input row; the runner answers `{"accepted":true}` (or
   `{"accepted":false,"reason":"duplicate"}` when `id` was already processed, so

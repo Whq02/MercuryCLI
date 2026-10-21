@@ -5,6 +5,7 @@ import { createRowStamper, type RowDraft } from '../rows/project.js'
 import { InputRowSchema, type InputRow, type Row } from '../rows/vocabulary.js'
 import { MAX_LINE_BYTES } from '../runner/wire/errors.js'
 import type { ParamsOf } from '../runner/wire/methods.js'
+import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { stripBOM } from '../utils/jsonRead.js'
@@ -42,12 +43,21 @@ export function emptyInputRow(row: InputRow): string | null {
   return null
 }
 
+export function promptSchemaRefusal(row: InputRow): string | null {
+  if (row.type !== 'prompt' || row.schema === undefined) return null
+  const compiled = compileJsonSchema(row.schema)
+  if (compiled.ok) return null
+  return `the prompt row${row.id === undefined ? '' : ` ${row.id}`} carries a schema that is not a JSON schema — ${compiled.error}`
+}
+
 export function inputRefusal(parsed: unknown): string | null {
   const check = InputRowSchema().safeParse(parsed)
   const type = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined
   if (check.success) {
     const empty = emptyInputRow(check.data)
-    return empty === null ? null : `input refused: ${empty}`
+    if (empty !== null) return `input refused: ${empty}`
+    const schema = promptSchemaRefusal(check.data)
+    return schema === null ? null : `input refused: ${schema}`
   }
   if (typeof type !== 'string') return 'input refused: a row needs a type (prompt, shell or note)'
   if (type !== 'prompt' && type !== 'shell' && type !== 'note') return `input refused: unknown row type '${type}' (prompt, shell or note)`

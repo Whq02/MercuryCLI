@@ -1,5 +1,7 @@
 import type { JsonOutputFormat, MessageParam, TextPhase } from '../../../types/wire.js'
 import { toOpenaiStrictSchema } from '../../../utils/messages/structuredOutputDialect.js'
+import { toOpenaiStrictToolSchema } from '../../../utils/messages/toolSchemaDialect.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import { requestTurnOf } from '../../../rows/request.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import type {
@@ -95,14 +97,27 @@ export function decodeOpenaiTurnRecord(raw: unknown): OpenaiTurnRecord | undefin
 }
 
 
+const nonStrictToolsLogged = new Set<string>()
+
 export function mapToolsToOpenai(tools: readonly ApiShapedTool[], deferred?: ReadonlySet<string>): OpenaiFunctionTool[] {
-  return tools.map(t => ({
-    type: 'function',
-    name: t.name,
-    ...(t.description ? { description: t.description } : {}),
-    parameters: t.input_schema,
-    ...(deferred?.has(t.name) ? { defer_loading: true } : {}),
-  }))
+  return tools.map(t => {
+    const form = toOpenaiStrictToolSchema(t.input_schema)
+    if (!form.strict) {
+      const key = `${t.name}\n${form.reason}`
+      if (!nonStrictToolsLogged.has(key)) {
+        nonStrictToolsLogged.add(key)
+        logForDebugging(`[openai] tool ${t.name} is sent non-strict (the model may omit optional fields; its schema cannot be made strict: ${form.reason})`)
+      }
+    }
+    return {
+      type: 'function',
+      name: t.name,
+      ...(t.description ? { description: t.description } : {}),
+      parameters: form.strict ? form.schema : t.input_schema,
+      strict: form.strict,
+      ...(deferred?.has(t.name) ? { defer_loading: true } : {}),
+    }
+  })
 }
 
 const OPENAI_TOOL_SEARCH_TOOL: OpenaiToolSearchTool = { type: 'tool_search' }

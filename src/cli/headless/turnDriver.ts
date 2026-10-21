@@ -33,7 +33,9 @@ export function canBatchWith(
     next !== undefined &&
     next.mode === 'prompt' &&
     next.workload === head.workload &&
-    next.isMeta === head.isMeta
+    next.isMeta === head.isMeta &&
+    next.schema === undefined &&
+    head.schema === undefined
   )
 }
 

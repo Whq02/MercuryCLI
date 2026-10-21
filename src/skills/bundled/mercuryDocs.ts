@@ -7,6 +7,19 @@ export const MERCURY_DOCS_MAP_URL = 'https://mercury-cli.ai/llms.txt'
 
 const SUMMARY_CHARS = 180
 const SHORT_PARAGRAPH = 60
+const NOT_ABOUT_THE_PAGE = /\bin the README\b|^Measured in\b/
+const SENTENCE_BREAK = /(?<=[.?!])(?<!\b(?:e\.g|i\.e|vs)\.)\s+(?=[A-Z`"'(])/
+
+const occurrences = (text: string, mark: string): number => text.split(mark).length - 1
+const balanced = (text: string): boolean => occurrences(text, '`') % 2 === 0 && occurrences(text, '(') <= occurrences(text, ')')
+
+function clip(text: string): string {
+  if (text.length <= SUMMARY_CHARS) return text
+  const space = text.lastIndexOf(' ', SUMMARY_CHARS)
+  let cut = text.slice(0, space > 0 ? space : SUMMARY_CHARS)
+  while (!balanced(cut)) cut = cut.slice(0, occurrences(cut, '`') % 2 === 1 ? cut.lastIndexOf('`') : cut.lastIndexOf('('))
+  return `${cut.replace(/[\s,;:(]+$/, '')}…`
+}
 
 const PAGES: Readonly<Record<string, string>> = Object.freeze(bundledDocPages())
 
@@ -16,28 +29,31 @@ export function mercuryDocPages(): Readonly<Record<string, string>> {
 
 export function describeDocPage(text: string): { title: string; summary: string } {
   const lines = text.split('\n')
-  const heading = lines.find(line => line.startsWith('# '))
-  const title = heading ? heading.slice(2).trim() : ''
-  const start = heading ? lines.indexOf(heading) + 1 : 0
-  let summary = ''
-  let paragraph: string[] = []
-  for (const line of [...lines.slice(start), '']) {
-    if (line.trim() !== '' && !/^(#|[-*] |\d+\. |\||!\[|```|<)/.test(line.trimStart())) {
-      paragraph.push(line.trim())
+  const h1 = lines.findIndex(line => line.startsWith('# '))
+  const title = h1 === -1 ? '' : lines[h1]!.slice(2).trim()
+  const h2 = lines.findIndex((line, index) => index > h1 && line.startsWith('## '))
+  const opening = lines.slice(0, h2 === -1 ? undefined : h2)
+  const answers = /<!--\s*answers:\s*([\s\S]*?)-->/i.exec(opening.join('\n'))?.[1]?.trim()
+  if (answers) return { title, summary: answers.replace(/\s+/g, ' ') }
+  const paragraphs: string[] = []
+  let current: string[] = []
+  let fenced = false
+  for (const line of [...opening.slice(h1 + 1), '']) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('```')) fenced = !fenced
+    if (!fenced && trimmed !== '' && !/^(#|[-*] |\d+\. |\||!\[|```|<|---)/.test(trimmed)) {
+      current.push(trimmed)
       continue
     }
-    const joined = paragraph.join(' ')
-    paragraph = []
-    if (joined.length >= SHORT_PARAGRAPH) {
-      summary = joined
-      break
-    }
+    if (current.length > 0) paragraphs.push(current.join(' '))
+    current = []
   }
-  if (summary.length > SUMMARY_CHARS) {
-    const cut = summary.slice(0, SUMMARY_CHARS)
-    summary = `${cut.slice(0, Math.max(cut.lastIndexOf(' '), SUMMARY_CHARS - 30)).trimEnd()}…`
-  }
-  return { title, summary }
+  const prose = paragraphs.filter(paragraph => paragraph.length >= SHORT_PARAGRAPH)
+  const chosen = (prose.find(paragraph => !NOT_ABOUT_THE_PAGE.test(paragraph)) ?? prose[0] ?? paragraphs[0] ?? '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const [first = '', second] = chosen.split(SENTENCE_BREAK)
+  return { title, summary: clip(first.length < SHORT_PARAGRAPH && second ? `${first} ${second}` : first) }
 }
 
 export function mercuryDocsMap(pages: Readonly<Record<string, string>> = mercuryDocPages()): string {
@@ -50,7 +66,7 @@ export function mercuryDocsMap(pages: Readonly<Record<string, string>> = mercury
     .join('\n')
 }
 
-const GUIDANCE = `Answer the question from Mercury's own documentation. It ships with this install and stands extracted under the base directory above: README.md (what Mercury is, the install, the daily loop, providers and models, the headless verbs and the slash-command table) and docs/*.md, one page per surface. Pick the page from the map below, read it with the Read tool (Grep across the folder when the map does not settle it), and answer from what the page says — the exact command, setting, flag, skill, tool or screen it names — in a few plain sentences, with a short example where one helps, naming the page you drew from. The same pages are published at ${MERCURY_DOCS_SITE} with ${MERCURY_DOCS_MAP_URL} as their map; fetch there only when the local pages leave the question open, and fetch no other site. When the documentation does not cover the question, say so and name the nearest page instead of guessing. Mercury is the harness; describe it in its own terms.`
+const GUIDANCE = `Answer the question from Mercury's own documentation under the base directory above: README.md (install, updates, provider sign-ins, headless \`mercury run\`/\`runner\`/CLI verbs, and the slash-command table) and docs/*.md, one guide per surface. Pick the page from the map below. When the map does not settle it, or the page is long, Grep across the folder first, then read it with the Read tool, only the lines the match points at. State the exact command, setting, flag, skill, tool or screen the page names in a few plain sentences, with a short example when one helps, and name the page path. The same docs publish at ${MERCURY_DOCS_SITE} (map: ${MERCURY_DOCS_MAP_URL}); fetch there only if the local pages leave the question open, and fetch no other site. If the documentation does not cover the question, say so and name the nearest page instead of guessing.`
 
 export function mercuryDocsPrompt(question: string): string {
   const parts = [GUIDANCE, `## The pages\n${mercuryDocsMap()}`]
@@ -62,7 +78,7 @@ export function registerMercuryDocsSkill(): void {
   registerBundledSkill({
     name: MERCURY_DOCS_SKILL_NAME,
     description:
-      'Use when the user asks how to use Mercury itself or what a Mercury surface does — a command, a setting, a flag, a mode, agents, sessions, scheduling, providers, any screen or feature. A question about how something is done is answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists; that skill is for when the user asks for the thing to be done.',
+      'Use when the user asks how to use Mercury itself (commands, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
     argumentHint: '<question about using Mercury>',
     allowedTools: ['Read', 'Grep', 'Glob'],
     files: { ...mercuryDocPages() },

@@ -681,7 +681,7 @@ let whisperMeta: { version: string; platform: string; addon: string; addonSha256
   } else if (forceNo) {
     console.warn('MERCURY_BUILD_NO_VENDOR_WHISPER=1 — on-device transcriber pack NOT vendored (degraded: on-device-transcriber; proof seam).');
   } else {
-    console.warn(`no on-device transcriber pack for ${packPlatform} — the artifact ships WITHOUT it (degraded: on-device-transcriber; the cloud transcribers serve). Prepare it: bun run scripts/vendor/build-whisper.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo and cmake${CROSS ? ' and the rustup target it names' : ''})`);
+    console.warn(`no on-device transcriber pack for ${packPlatform} — the artifact ships WITHOUT it (degraded: on-device-transcriber; voice is unavailable). Prepare it: bun run scripts/vendor/build-whisper.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo and cmake${CROSS ? ' and the rustup target it names' : ''})`);
   }
 }
 
@@ -1227,7 +1227,7 @@ const manifest = {
         vendored: false,
         path: whisperRelPath,
         remedy:
-          'build the on-device transcriber pack (`bun run scripts/vendor/build-whisper.ts`, needs cargo and cmake), then re-run `bun run build.ts` — the cloud transcribers serve meanwhile (an OpenAI or Gemini API key)',
+          'install the complete Mercury archive for this platform; for a source build, run `bun run scripts/vendor/build-whisper.ts` (cargo and cmake), then `bun run build.ts`',
       },
   semanticEmbedder: embedVendored && embedMeta
     ? {

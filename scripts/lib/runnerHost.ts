@@ -2,9 +2,10 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { createPeer, type Peer } from '../../src/runner/wire/peer.ts'
+import { createPeer, PeerDeadline, type Peer } from '../../src/runner/wire/peer.ts'
 import type { Capabilities, ElicitationRequestParams, InitializeResult, ParamsOf, PermissionRequestParams, ResultOf } from '../../src/runner/wire/methods.ts'
 import type { Frame } from './rows.ts'
+import { silentSeatReport } from './seatForensics.ts'
 
 export type HostVerb = 'session/claim' | 'session/facts' | 'session/set_model' | 'session/set_effort' | 'session/set_mode' | 'session/set_spawn_switch' | 'session/set_kit' | 'session/rewind' | 'session/pause_gate' | 'session/quiesce' | 'queue/add' | 'queue/withdraw' | 'turn/interrupt' | 'agent/stop' | 'agent/resume' | 'shell/background' | 'schedule/roster'
 
@@ -17,6 +18,7 @@ export type HostedRunner = {
   withdrawn: Set<number>
   stderr: () => string
   exited: Promise<number | null>
+  silent(label: string): string | null
   initialize(capabilities?: Partial<Capabilities>, deadlineMs?: number): Promise<InitializeResult>
   request<M extends HostVerb>(method: M, params: ParamsOf<M>, deadlineMs?: number | null): Promise<ResultOf<M>>
   send<M extends HostVerb>(method: M, params: ParamsOf<M>, deadlineMs?: number | null): { id: number; answer: Promise<ResultOf<M>> }
@@ -41,6 +43,7 @@ type HostOptions = {
   raw?: (line: string) => void
   onRow?: (row: Frame) => void
   onNotification?: (method: string, params: unknown) => void
+  report?: (text: string) => void
 }
 
 export function scratchHome(prefix = 'runner-host-'): { home: string; cwd: string; env: Record<string, string> } {
@@ -117,6 +120,23 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     })
   })
   const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+  const logFile = (() => {
+    const argv = opts.argv ?? []
+    const at = argv.indexOf('--log-file')
+    return at >= 0 ? argv[at + 1] : undefined
+  })()
+  const report = opts.report ?? ((text: string) => console.log(text))
+  const silent = (label: string): string | null => {
+    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return null
+    const block = `[seat forensics] ${label} — the seat ${child.pid} (${opts.node} ${opts.dist}) is alive and has not answered\n  ${silentSeatReport(child.pid, { logFile }).split('\n').join('\n  ')}`
+    report(block)
+    return block
+  }
+  const onDeadline = <T,>(answer: Promise<T>): Promise<T> =>
+    answer.catch((error: unknown) => {
+      if (error instanceof PeerDeadline) silent(error.message)
+      throw error
+    })
   const host: HostedRunner = {
     child,
     peer,
@@ -126,18 +146,21 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     withdrawn,
     stderr: () => stderr,
     exited,
+    silent,
     initialize: (capabilities = {}, deadlineMs = 60_000) =>
-      peer.request(
-        'initialize',
-        { protocol: 1, host: { name: 'proof-host', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false, ...capabilities } },
-        { deadlineMs },
+      onDeadline(
+        peer.request(
+          'initialize',
+          { protocol: 1, host: { name: 'proof-host', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false, ...capabilities } },
+          { deadlineMs },
+        ),
       ),
-    request: (method, params, deadlineMs) => peer.request(method, params as never, deadlineMs === undefined ? {} : { deadlineMs }) as never,
+    request: (method, params, deadlineMs) => onDeadline(peer.request(method, params as never, deadlineMs === undefined ? {} : { deadlineMs })) as never,
     send: (method, params, deadlineMs) => {
       const sent = peer.send(method, params as never, deadlineMs === undefined ? {} : { deadlineMs })
       return { id: Number(sent.id), answer: sent.answer as never }
     },
-    prompt: (content, extra = {}) => peer.request('queue/add', { type: 'prompt', content, ...extra } as never, { deadlineMs: 10_000 }),
+    prompt: (content, extra = {}) => onDeadline(peer.request('queue/add', { type: 'prompt', content, ...extra } as never, { deadlineMs: 10_000 })),
     waitFor: (label, pred, timeoutMs = 60_000) =>
       new Promise<Frame>((resolve, reject) => {
         const hit = rows.find(pred)

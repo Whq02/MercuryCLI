@@ -28,7 +28,7 @@ map and `/keybindings` opens your keybindings file.
 - [APOLLO-MODE.md](APOLLO-MODE.md): the specification interview and review that lead into a prototype build.
 - [MNEME.md](MNEME.md): Mneme is Mercury's project memory, on by default, storing facts in plain markdown topic pages under the config home, managed through four tools and the `/memory` centre.
 - [MEMORY-FINDINGS.md](MEMORY-FINDINGS.md): what the handoff note does and what it costs, measured on 1.0.0-beta.32 over 250 sessions in chains of five, with a control.
-- [VOICE.md](VOICE.md): hold-to-talk dictation, capture backends, transcriber selection and audio privacy.
+- [VOICE.md](VOICE.md): on-device dictation, `/voice on` and `/voice off`, microphone setup and audio privacy.
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
 
 ## Loading, extending and delegating
@@ -60,6 +60,7 @@ map and `/keybindings` opens your keybindings file.
 - [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor package, play and scene operations, tests and reconnects after a reload.
 - [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender add-on, scene and render operations, and Python execution inside Blender.
 - [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): Aseprite batch operations, sprite exports, sheets and Lua scripts.
+- [VIDEO.md](VIDEO.md): configure a billable MiniMax video generator, send prompts and project reference files, and save MP4 results with optional preview frames.
 
 ## Reference
 
@@ -67,9 +68,8 @@ map and `/keybindings` opens your keybindings file.
 - [CONTRIBUTING.md](../CONTRIBUTING.md): issues, pull-request policy, checks and generated-file conventions.
 - [templates/extension-source-README.md](templates/extension-source-README.md): the source README template written by `mercury extensions scaffold --source`.
 - Releases: [releases/README.md](releases/README.md) lists the release pages,
-  each naming what was added and fixed. [1.0.0-beta.39](releases/1.0.0-beta.39.md)
-  is the newest tag; [1.0.0-beta.40](releases/1.0.0-beta.40.md) is ready for
-  the tag; [1.0.0-beta.41](releases/1.0.0-beta.41.md) is queued.
+  each naming what was added and fixed. [1.0.0-beta.40](releases/1.0.0-beta.40.md)
+  is the newest tag; [1.0.0-beta.41](releases/1.0.0-beta.41.md) is queued.
   `/update-notes` shows the running release's notes in the chat, with earlier
   releases behind the transcript key. `mercury run /update-notes` prints the
   full release history.

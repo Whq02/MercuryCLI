@@ -44,7 +44,7 @@ for (const size of SIZES) {
   check(`${size.cols}: the turn ended (Done.) with no card on the second act`, rowsHaving(done, 'Done.') && !rowsHaving(done, CARD_NEEDLE))
   check(`${size.cols}: the footer is gone after the turn`, !rowsHaving(done, 'hands off'))
   const log = actLog(leg.log).map(a => `${a.act}:${a.outcome}`)
-  check(`${size.cols}: the fake log carries capture, click, capture, click, capture`, log.join(',') === 'capture:done,click:done,capture:done,click:done,capture:done', log.join(','))
+  check(`${size.cols}: the fake log carries each captcha tree preflight before its click and the same three captures`, log.join(',') === 'capture:done,accessibilityTree:done,click:done,capture:done,accessibilityTree:done,click:done,capture:done', log.join(','))
   const files = sessionFiles(join(leg.home, 'projects'))
   const persisted = files.map(f => readFileSync(f, 'utf8')).join('\n')
   check(`${size.cols}: a session file was written`, files.length > 0)

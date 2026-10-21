@@ -38,7 +38,7 @@ if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — r
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
-const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input', 'on-device-transcriber', 'desktop-driver'])
+const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input', 'desktop-driver'])
 const ALLOW_DEGRADED = process.argv.includes('--allow-degraded')
 for (const pack of bundledVendorPacks(TARGET)) {
   if (degraded.includes(pack.degradation) && !ALLOW_DEGRADED) {
@@ -50,7 +50,7 @@ if (blocking.length > 0 && !ALLOW_DEGRADED) {
   fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
 }
 if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
-if (degraded.includes('on-device-transcriber')) ok('the on-device transcriber pack is absent from this build — the archive ships without it, the cloud transcribers serve (degraded: on-device-transcriber, publishable)')
+if (degraded.includes('on-device-transcriber')) fail('the archive requires the on-device transcriber pack — build-whisper.ts must succeed for this target, then rebuild')
 if (degraded.includes('desktop-driver')) ok('the desktop driver pack is absent from this build — the archive ships without computer use (degraded: desktop-driver, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
@@ -94,7 +94,7 @@ cpSync(join(dist, 'manifest.json'), join(pkgDir, 'manifest.json'))
 cpSync(join(dist, 'vendor'), join(pkgDir, 'vendor'), { recursive: true })
 if (!ALLOW_DEGRADED) {
   const bundled = checkBundledVendorPacks(pkgDir, TARGET)
-  if (!bundled.ok) fail(`the ${TARGET} archive carries the bundled shell engine, and the staged payload does not: ${bundled.findings.join('; ')} — bun run scripts/vendor/build-brush.ts --target ${TARGET}, then rebuild`)
+  if (!bundled.ok) fail(`the ${TARGET} archive is missing or has an invalid required pack: ${bundled.findings.join('; ')} — rebuild the named pack with build-whisper.ts or build-brush.ts --target ${TARGET}, then rebuild the payload`)
   for (const pack of bundled.packs) ok(`bundled ${pack.name} ${pack.version} rides the archive at ${pack.dir}: ${pack.binary}, its record and its licence files, the binary's digest matching the record`)
 }
 

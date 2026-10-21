@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 
+import { VideoProviderSettingsSchema } from '../../services/video/types.js'
 import { CompatProviderSchema } from './compatProvider.js'
 import { ModelFactsSchema } from './modelFacts.js'
 import { EFFORT_LEVELS } from '../effortLadder.js'
@@ -92,6 +93,7 @@ export const SettingsSchema = lazySchema(() => {
     $schema: z.string().optional(),
     models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
+    videoProvider: VideoProviderSettingsSchema.optional().describe('Named video generators: kind (minimax), optional baseUrl and model; billable calls use the existing /logins minimax key, never a key in settings'),
     credentials: z.object({
       keyCommand: z.string().optional(),
       keyCommands: z.record(z.string().min(1), z.string()).optional(),

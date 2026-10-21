@@ -147,8 +147,24 @@ section('B. refusals: outside the image, inverted, malformed, or on a text file'
   const text = join(fixtures, 'notes.txt')
   writeFileSync(text, 'plain\n')
   const onText = await read({ file_path: text, crop: [0, 0, 1, 1] })
-  check('B8 a crop on a text file is refused as image-only', !onText.ok && onText.message.includes('The crop parameter applies to image files only'), messageOf(onText))
+  check('B8 a crop on a text file is never refused: the file is read and one note says crop was ignored', onText.ok && (onText.data as unknown as { type: string }).type === 'text' && onText.notes.some(note => note.includes('crop ignored — .txt is not an image') && note.includes('Send crop only for an image file')), messageOf(onText))
+  const onTextPages = await read({ file_path: text, pages: '1-2' })
+  check('B8b pages on a text file is never refused: the file is read and one note says pages was ignored', onTextPages.ok && onTextPages.notes.some(note => note.includes('pages ignored — .txt is not a PDF')), messageOf(onTextPages))
   check('B9 the refusals wrote nothing and the image is intact', readFileSync(small).length > 0 && imageDimensionsFromHeader(readFileSync(small))?.width === 8)
+}
+
+section('D. the zero box [0, 0, 0, 0] is no crop at all (the placeholder a model fills an unused box with)')
+{
+  const zeroOnImage = await read({ file_path: small, crop: [0, 0, 0, 0] })
+  check('D1 on an image the zero box reads the whole image, no refusal, no crop note (8x4 as the control)', zeroOnImage.ok && sizeOf(zeroOnImage.data)?.width === 8 && sizeOf(zeroOnImage.data)?.height === 4 && !zeroOnImage.notes.some(note => note.includes('the crop [')), messageOf(zeroOnImage))
+  const text = join(fixtures, 'zero.txt')
+  writeFileSync(text, 'plain\n')
+  const zeroOnText = await read({ file_path: text, crop: [0, 0, 0, 0] })
+  check('D2 on a text file the zero box reads the file with no "crop ignored" note (there was no crop to ignore)', zeroOnText.ok && (zeroOnText.data as unknown as { type: string }).type === 'text' && !zeroOnText.notes.some(note => note.includes('crop ignored')), messageOf(zeroOnText))
+  const threeZeros = await read({ file_path: small, crop: [0, 0, 0] })
+  check('D3 three zeros are not the zero box: still refused (the box is four numbers)', !threeZeros.ok, messageOf(threeZeros))
+  const emptyNonZero = await read({ file_path: small, crop: [2, 2, 2, 4] })
+  check('D4 an empty box with real coordinates is still refused (B4 holds: only the all-zero box is a placeholder)', !emptyNonZero.ok && emptyNonZero.message.includes('is inverted or empty'), messageOf(emptyNonZero))
 }
 
 section('C. unresolved merge-conflict blocks in the lines returned are counted in one line, the bytes untouched')

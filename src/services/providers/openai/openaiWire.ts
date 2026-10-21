@@ -292,8 +292,86 @@ function readMessagePhase(item: Record<string, unknown>): TextPhase | undefined 
   return item.phase === 'commentary' || item.phase === 'final_answer' ? item.phase : undefined
 }
 
-export function stripNullArgs(parsed: unknown): unknown {
+type ArgSchema = Record<string, unknown>
+
+const ARG_SCHEMA_ARMS = ['anyOf', 'oneOf', 'allOf'] as const
+
+function objectArmsOf(schemas: readonly ArgSchema[]): ArgSchema[] {
+  const arms: ArgSchema[] = []
+  const visit = (node: ArgSchema, depth: number): void => {
+    if (depth > 8) return
+    if (asRecord(node.properties) !== undefined) {
+      arms.push(node)
+      return
+    }
+    for (const key of ARG_SCHEMA_ARMS) {
+      const list = node[key]
+      if (!Array.isArray(list)) continue
+      for (const arm of list) {
+        const record = asRecord(arm)
+        if (record !== undefined) visit(record, depth + 1)
+      }
+    }
+  }
+  for (const schema of schemas) visit(schema, 0)
+  return arms
+}
+
+function itemSchemasOf(schemas: readonly ArgSchema[]): ArgSchema[] {
+  const items: ArgSchema[] = []
+  const visit = (node: ArgSchema, depth: number): void => {
+    if (depth > 8) return
+    const own = asRecord(node.items)
+    if (own !== undefined) items.push(own)
+    for (const key of ARG_SCHEMA_ARMS) {
+      const list = node[key]
+      if (!Array.isArray(list)) continue
+      for (const arm of list) {
+        const record = asRecord(arm)
+        if (record !== undefined) visit(record, depth + 1)
+      }
+    }
+  }
+  for (const schema of schemas) visit(schema, 0)
+  return items
+}
+
+function openToExtraKeys(arm: ArgSchema): boolean {
+  return arm.additionalProperties === true || asRecord(arm.additionalProperties) !== undefined
+}
+
+function stripNullsBySchemas(value: unknown, schemas: readonly ArgSchema[], depth: number): unknown {
+  if (depth > 32) return value
+  if (Array.isArray(value)) {
+    const items = itemSchemasOf(schemas)
+    return items.length === 0 ? value : value.map(item => stripNullsBySchemas(item, items, depth + 1))
+  }
+  const record = asRecord(value)
+  if (record === undefined) return value
+  const arms = objectArmsOf(schemas)
+  if (arms.length === 0) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, v] of Object.entries(record)) {
+    const declaring = arms.filter(arm => Object.prototype.hasOwnProperty.call(arm.properties as ArgSchema, key))
+    if (v === null) {
+      if (declaring.length === 0) {
+        if (arms.some(openToExtraKeys)) out[key] = v
+        continue
+      }
+      const optionalSomewhere = declaring.some(arm => !(Array.isArray(arm.required) && arm.required.includes(key)))
+      if (!optionalSomewhere) out[key] = v
+      continue
+    }
+    const children = declaring.map(arm => asRecord((arm.properties as ArgSchema)[key])).filter((child): child is ArgSchema => child !== undefined)
+    out[key] = children.length === 0 ? v : stripNullsBySchemas(v, children, depth + 1)
+  }
+  return out
+}
+
+export function stripNullArgs(parsed: unknown, schema?: unknown): unknown {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return parsed
+  const root = asRecord(schema)
+  if (root !== undefined && objectArmsOf([root]).length > 0) return stripNullsBySchemas(parsed, [root], 0)
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
     if (v !== null) out[k] = v

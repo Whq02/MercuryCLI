@@ -39,6 +39,7 @@
     "inputRefusal",
     "isBrokenPipeError",
     "isRowLine",
+    "promptSchemaRefusal",
     "type:OutboundLine",
     "type:OutboundNotification"
    ]
@@ -672,6 +673,7 @@
   "routing",
   "shell",
   "turns",
+  "videoProvider",
   "view",
   "voice",
   "workspace"

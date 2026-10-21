@@ -133,6 +133,20 @@ replace hyphens with underscores. The default endpoint also honours
 `MERCURY_COMPAT_API_KEY`, `MERCURY_COMPAT_BASE_URL`,
 `MERCURY_COMPAT_LABEL` and `MERCURY_COMPAT_MODELS`.
 
+## Video generators
+
+`videoProvider` names video generators the `Video` tool may call, in user
+or project settings. Each map key is a name of your choosing; the tool
+appears in the roster only when at least one generator is configured, and
+with several it must be told which one with `provider`. Keys stay with
+`/logins minimax`, never in this setting ([VIDEO.md](VIDEO.md)).
+
+| Key | What it sets |
+| --- | --- |
+| `videoProvider.<name>.kind` | The generator family: `minimax`. |
+| `videoProvider.<name>.model` | The generator's model id, for example `MiniMax-H3`. |
+| `videoProvider.<name>.baseUrl` | Optional. An HTTPS origin without a path, query or credentials; defaults to the vendor's API base. HTTP is accepted only for a loopback provider. |
+
 ## Permissions
 
 | Key | What it sets |

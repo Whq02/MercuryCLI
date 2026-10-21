@@ -283,9 +283,9 @@ section('§2 THE PROBE — the OpenAI shape, the classifier, the store key')
   const marked = mapToolsToOpenai([{ name: 'A', input_schema: {} }, { name: 'B', input_schema: {} }], new Set(['B']))
   check('the codec marks only the named tools (unmarked by default)', marked[0]!.defer_loading === undefined && marked[1]!.defer_loading === true && mapToolsToOpenai([{ name: 'B', input_schema: {} }])[0]!.defer_loading === undefined)
   const request = buildOpenaiResponsesRequest({ model: 'gpt-6-astra', messages: [], tools: [{ name: 'A', input_schema: {} }], deferredToolNames: new Set(['A']), toolSearch: true })
-  check('the request builder appends {type:"tool_search"} after the function tools', JSON.stringify(request.tools) === JSON.stringify([{ type: 'function', name: 'A', parameters: {}, defer_loading: true }, { type: 'tool_search' }]), JSON.stringify(request.tools))
+  check('the request builder appends {type:"tool_search"} after the function tools (an empty schema is no object root, so it rides non-strict as written)', JSON.stringify(request.tools) === JSON.stringify([{ type: 'function', name: 'A', parameters: {}, strict: false, defer_loading: true }, { type: 'tool_search' }]), JSON.stringify(request.tools))
   const plain = buildOpenaiResponsesRequest({ model: 'gpt-5.3-codex', messages: [], tools: [{ name: 'A', input_schema: {} }] })
-  check('without the native form nothing changes on the wire (no mark, no tool_search)', JSON.stringify(plain.tools) === JSON.stringify([{ type: 'function', name: 'A', parameters: {} }]))
+  check('without the native form nothing changes on the wire (no mark, no tool_search)', JSON.stringify(plain.tools) === JSON.stringify([{ type: 'function', name: 'A', parameters: {}, strict: false }]), JSON.stringify(plain.tools))
 }
 
 const SYSTEM_PROMPT = ['You are a fixture assistant.']

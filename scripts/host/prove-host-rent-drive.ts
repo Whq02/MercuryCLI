@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
 
+pinSourceRef()
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const option = (name: string): string | undefined => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at + 1] }
 const frames = option('--frames')
@@ -98,6 +99,7 @@ try {
   check('listing offers creates nothing', rp.state.creates === 0)
   await choose('Qwen3.8-27B')
   await heading('Confirm the hourly price'); await until('1× RTX PRO 6000'); await until('verified'); capture('04-price-confirm')
+  check('decorated confirmation retains the recipe verification category and fact', m.screen().includes('documented · verified'))
   check('separate confirmation precedes all paid work', rp.state.creates === 0 && ssh.commands.length === 0)
   await choose('Confirm $2.49/hr')
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.jobState === 'ready', 15000))
@@ -118,6 +120,7 @@ try {
   check('selecting terminate alone cannot delete', rp.state.deletes === 0)
   await choose('Confirm terminate'); await until('Pod terminated'); capture('07-deleted')
   check('termination verified against live pod list', rp.state.pods.size === 0 && rp.state.deletes === 1)
+  check('termination removes the registered provider as well as the pod record', !namedCompatModelOptions().some(row => row.value.startsWith('compat/pod-fixture-pod-1/')) && !readHostRecord('fixture-pod-1'))
   await close()
 
   open(); await heading('Where should the model run?'); await choose('reach by SSH')

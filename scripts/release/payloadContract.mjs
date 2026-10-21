@@ -127,6 +127,29 @@ export function bundledVendorPacks(target) {
 
 export function checkBundledVendorPacks(payloadDir, target) {
   const findings = []
+  const platform = { 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'linux-arm64': 'linux-arm64', 'linux-x64': 'linux-x64', 'windows-arm64': 'win32-arm64', 'windows-x64': 'win32-x64' }[target]
+  const whisperPath = `vendor/whisper/${platform}`
+  const whisperDir = join(payloadDir, ...whisperPath.split('/'))
+  try {
+    const manifest = JSON.parse(readFileSync(join(payloadDir, 'manifest.json'), 'utf8'))
+    const shipped = manifest.onDeviceTranscriber
+    if (!shipped?.vendored || shipped.platform !== platform || shipped.path !== whisperPath || manifest.degraded?.includes('on-device-transcriber')) findings.push(`${target} must carry its on-device transcriber in the archive manifest`)
+    const record = JSON.parse(readFileSync(join(whisperDir, '.vendor-manifest.json'), 'utf8'))
+    if (record.name !== 'mercury-whisper' || record.platform !== platform || record.addon !== 'mercury_whisper.node' || !record.version || record.engine?.name !== 'whisper.cpp') findings.push(`${whisperPath} carries an invalid pack record`)
+    const digest = sha256File(join(whisperDir, 'mercury_whisper.node'))
+    if (digest !== record.addonSha256 || digest !== shipped?.addonSha256 || shipped?.addon !== record.addon || shipped?.version !== record.version) findings.push(`${whisperPath}/mercury_whisper.node does not match the pack and archive records`)
+    for (const file of ['NOTICES.json', `licenses/whisper.cpp-${record.engine?.version}/LICENSE`]) {
+      if (!existsSync(join(whisperDir, ...file.split('/')))) findings.push(`${whisperPath}/${file} is missing`)
+    }
+    if (!Array.isArray(record.crates) || record.crates.length === 0) findings.push(`${whisperPath} carries no crate licence inventory`)
+    for (const crate of record.crates ?? []) {
+      if (crate.name === 'mercury_whisper') continue
+      const licence = join(whisperDir, 'licenses', `${crate.name}-${crate.version}`)
+      if (!existsSync(licence) && !existsSync(`${licence}.txt`)) findings.push(`${whisperPath} is missing the licence for ${crate.name} ${crate.version}`)
+    }
+  } catch (error) {
+    findings.push(`${whisperPath}: the required on-device transcriber pack could not be verified (${error instanceof Error ? error.message : String(error)})`)
+  }
   const packs = bundledVendorPacks(target)
   for (const pack of packs) {
     const dir = join(payloadDir, ...pack.dir.split('/'))

@@ -168,6 +168,11 @@ function selectedPages(pages: string | undefined): string | undefined {
   return pages && pages.trim() !== '' ? pages : undefined
 }
 
+function selectedCrop(crop: readonly number[] | undefined): CropBox | undefined {
+  if (crop === undefined || (crop.length === 4 && crop.every(value => value === 0))) return undefined
+  return crop as unknown as CropBox
+}
+
 export type Input = z.infer<WidestReadSchema>
 
 
@@ -1694,16 +1699,7 @@ export const FileReadTool = buildTool({
 
     if (readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
-      if (target.kind === 'resource' || target.kind === 'url') {
-        if (pages !== undefined) {
-          return {
-            result: false as const,
-            message: 'The pages parameter applies to PDF files only.',
-            errorCode: 7,
-          }
-        }
-        return { result: true as const }
-      }
+      if (target.kind === 'resource' || target.kind === 'url') return { result: true as const }
     }
 
     const rawExpanded = expandPath(input.file_path)
@@ -1725,13 +1721,6 @@ export const FileReadTool = buildTool({
     if (windowsPathNeedsPermission(targetRawPath)) return { result: true as const }
 
     const ext = extensionOf(targetRawPath)
-    if (input.crop !== undefined && !IMAGE_EXTENSIONS.has(ext)) {
-      return {
-        result: false as const,
-        message: `The crop parameter applies to image files only; .${ext || '(no extension)'} is read as text.`,
-        errorCode: 7,
-      }
-    }
     if (
       ext !== '' &&
       (hasBinaryExtension(input.file_path) || hasBinaryExtension(targetRawPath)) &&
@@ -1778,11 +1767,19 @@ export const FileReadTool = buildTool({
         ? { ...input, file_path: effectiveRawPath, ranges: splitTarget.ranges }
         : input
     const ext = extensionOf(effectiveRawPath)
+    const ignoredParameterNotes = (): Message[] => {
+      const kind = ext === '' ? 'a file with no extension' : `.${ext}`
+      const notes: string[] = []
+      if (selectedCrop(effectiveInput.crop) !== undefined && !IMAGE_EXTENSIONS.has(ext)) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
+      if (selectedPages(effectiveInput.pages) !== undefined && !isPDFExtension(ext)) notes.push(`pages ignored — ${kind} is not a PDF; the file was read as usual. Send pages only for a PDF.`)
+      return notes.map(content => createUserMessage({ content, isMeta: true }))
+    }
     const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {
       if (ownRead && lane.data.type === 'text' && lane.data.file.content !== '' && !takeReminder(parentMessage, context.messages)) {
         resultsWithoutReminder.add(lane.data)
       }
-      return { data: lane.data, ...(lane.newMessages ? { newMessages: lane.newMessages } : {}) }
+      const newMessages = [...(lane.newMessages ?? []), ...ignoredParameterNotes()]
+      return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
     }
 
     if (readTargetsEnabled()) {
@@ -1891,7 +1888,7 @@ export const FileReadTool = buildTool({
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), effectiveInput.crop === undefined ? undefined : (effectiveInput.crop as [number, number, number, number]))
+      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), selectedCrop(effectiveInput.crop))
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
       if (richTarget !== null) {
         return readRichFormatLane(

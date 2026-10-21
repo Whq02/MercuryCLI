@@ -19,7 +19,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$CLASS" in release|drives|all) ;; *) printf 'unknown pool class: %s\n' "$CLASS" >&2; exit 2 ;; esac
-is_drive_suite() { case "$1" in *-drives) return 0 ;; *) return 1 ;; esac; }
+is_drive_suite() { case "$1" in host|*-drives) return 0 ;; *) return 1 ;; esac; }
 want=("$@")
 in_want() {
   [ "${#want[@]}" -eq 0 ] && return 0

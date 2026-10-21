@@ -176,6 +176,7 @@ type Credentials = {
   anthropicPreferredSource?: 'subscription' | 'api-key'
   defaultProvider?: string
   compatProvider?: import('../settings/compatProvider.js').CompatProviderSettings
+  videoProvider?: import('../../services/video/types.js').VideoProviderSettings
 }
 
 type Servers = {
@@ -267,7 +268,6 @@ type TerminalSetup = {
 
 type Voice = {
   voiceInputEnabled?: boolean
-  voiceTranscriber?: string
   voiceNoticeSeenCount?: number
   voiceLangHintShownCount?: number
   voiceLangHintLastLanguage?: string

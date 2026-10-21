@@ -13,6 +13,7 @@ import {
 } from '../../src/services/providers/zai/zaiCodec.js'
 import type { MessageParam } from '../../src/types/wire.js'
 import { toOpenaiStrictSchema } from '../../src/utils/messages/structuredOutputDialect.js'
+import { toOpenaiStrictToolSchema } from '../../src/utils/messages/toolSchemaDialect.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -153,10 +154,16 @@ section('§D B08 — one tool-schema truth, two wire spellings')
   const nested = mapToolsToZai([tool])
   check('Responses spelling is FLAT', flat[0]?.type === 'function' && flat[0]?.name === 'Bash')
   check('Z.AI spelling is NESTED', nested[0]?.type === 'function' && nested[0]?.function.name === 'Bash')
+  check('the nested chat spelling carries the IDENTICAL input_schema object', nested[0]?.function.parameters === tool.input_schema)
+  const strictForm = toOpenaiStrictToolSchema(tool.input_schema)
   check(
-    'both carry the IDENTICAL input_schema object',
-    flat[0]?.parameters === tool.input_schema && nested[0]?.function.parameters === tool.input_schema,
+    'the Responses spelling carries the strict-dialect derivation of the one truth with strict: true (the tool-schema sibling of §C, never a second hand-held copy)',
+    strictForm.strict && flat[0]?.strict === true && JSON.stringify(flat[0]?.parameters) === JSON.stringify(strictForm.schema),
+    JSON.stringify(flat[0]),
   )
+  check('the caller schema object is never mutated by the tool dialect', !('required' in tool.input_schema) && !('additionalProperties' in tool.input_schema))
+  const openTool: ApiShapedTool = { name: 'Free', input_schema: { type: 'object' } }
+  check('a schema the dialect cannot make strict rides as written with strict: false (one bad schema never sinks a request)', mapToolsToOpenai([openTool])[0]?.strict === false && mapToolsToOpenai([openTool])[0]?.parameters === openTool.input_schema)
 }
 
 console.log(failures === 0 ? '\n ✅ PROVIDER CODEC LAWS PROVEN' : `\n ❌ ${failures} FAILED`)

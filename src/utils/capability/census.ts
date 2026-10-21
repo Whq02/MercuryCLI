@@ -35,6 +35,7 @@ export const CAPABILITY_UNITS = [
   'browser-drive',
   'pixel-art',
   'desktop-drive',
+  'video-generation',
 ] as const
 
 type SupportState = 'available' | 'conditional' | 'degraded' | 'unavailable'
@@ -188,6 +189,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/GodotTool/GodotTool.js').GodotTool,
     () => require('../../tools/AsepriteTool/AsepriteTool.js').AsepriteTool,
     () => require('../../tools/ComputerTool/ComputerTool.js').ComputerTool,
+    () => require('../../tools/VideoTool/VideoTool.js').VideoTool,
     () => require('../../tools/ToolSearchTool/ToolSearchTool.js').ToolSearchTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').RetainTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').RecallTool,

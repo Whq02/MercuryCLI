@@ -141,9 +141,10 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (action === 'terminate') {
           await terminateHostResource(api, pod)
           closeHostTunnel(pod.id)
-          if (record?.provider) {
-            const { removeLlmHostProvider } = await import('../llmHost/index.js')
-            removeLlmHostProvider(record.provider)
+          const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
+          const { removeLlmHostProvider } = await import('../llmHost/index.js')
+          for (const endpoint of configuredCompatEndpoints()) {
+            if (endpoint.hostPodId === pod.id || endpoint.name === record?.provider) removeLlmHostProvider(endpoint.name)
           }
           removeHostRecord(pod.id)
           if (weightsChoice === 'delete' && volumeId) {

@@ -5,6 +5,7 @@ import { FAINT } from '../../components/mercuryPalette.js'
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js'
 import { Box, Text } from '../../ink.js'
 import type { Input, Output } from './ComputerTool.js'
+import { targetWords } from './fastRoad.js'
 
 export function userFacingName(): string {
   return 'Computer'
@@ -24,13 +25,13 @@ export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: bo
     case 'doubleClick':
     case 'rightClick':
     case 'move':
-      parts.push(`(${input.x}, ${input.y})${modifiers}`)
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`}${modifiers}${input.count ? ` ×${input.count}` : ''}`)
       break
     case 'drag':
-      parts.push(`(${input.x}, ${input.y}) → (${input.toX}, ${input.toY})${modifiers}`)
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`} → ${input.toTarget ? targetWords(input.toTarget) : `(${input.toX}, ${input.toY})`}${modifiers}`)
       break
     case 'scroll':
-      parts.push(`(${input.x}, ${input.y}) by ${input.dx ?? 0}, ${input.dy ?? 0}${modifiers}`)
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`} by ${input.dx ?? 0}, ${input.dy ?? 0}${modifiers}`)
       break
     case 'type':
       if (typeof input.text === 'string') parts.push(`"${clip(JSON.stringify(input.text).slice(1, -1), 30)}" (${input.text.length} chars)`)
@@ -42,7 +43,13 @@ export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: bo
       parts.push(`${input.key ?? ''} ${input.durationMs ?? 0}ms`)
       break
     case 'wait':
-      parts.push(`${input.durationMs ?? 1000}ms`)
+      parts.push(input.until ? `until ${targetWords(input.until)}` : `${input.durationMs ?? 1000}ms`)
+      break
+    case 'find':
+      if (input.target) parts.push(targetWords(input.target))
+      break
+    case 'sequence':
+      parts.push(`${input.steps?.length ?? 0} acts`)
       break
     default:
       break
