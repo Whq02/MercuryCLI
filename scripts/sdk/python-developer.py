@@ -73,6 +73,17 @@ async def capabilities():
     try: await sdk.connect(mercury=[sys.executable, '-c', 'raise SystemExit(2)'], warm=True, resume='saved')
     except sdk.MercuryError as error: assert str(error) == 'warm cannot be combined with session identity options'
     else: raise AssertionError('warm identity flags accepted')
+    for options, stamped in (({}, False), ({'checkpoint_files': False}, False), ({'checkpoint_files': True}, True)):
+        replies = [{'result': {'accepted': False, 'reason': 'duplicate'}}, {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': outcome}]}]
+        async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': replies}}) as fixture:
+            async with await sdk.connect(mercury=fixture.mercury, **options) as session:
+                assert (session.options.session_id is not None) is stamped and ('MERCURY_CONCOURSE_WORKER' in (session.options.env or {})) is stamped, options
+                try: await session.prompt('refused by the queue')
+                except sdk.MercuryError as error: assert 'prompt was not accepted' in str(error)
+                else: raise AssertionError('a refused prompt resolved')
+                assert session.last_prompt_id is None
+                assert (await session.prompt('accepted'))['status'] == 'completed'
+                assert isinstance(session.last_prompt_id, str)
 
 
 async def structured():

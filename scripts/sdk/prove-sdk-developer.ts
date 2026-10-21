@@ -69,10 +69,18 @@ try {
       finally { await session.close(); await fixture.close() }
     }
   })
-  await check('rows 3 and 5 checkpoint opt out and identity validation', async () => {
-    const fixture = await testing.startFixtureServer({ methods: { initialize: [init] } })
-    const session = await sdk.connect({ mercury: fixture.mercury, checkpointFiles: false })
-    try { assert(!session.child.spawnargs.includes('--session-id')) } finally { await session.close(); await fixture.close() }
+  await check('rows 3 and 5 checkpoint opt in, identity validation and an accepted prompt id', async () => {
+    for (const [options, stamped] of [[{}, false], [{ checkpointFiles: false }, false], [{ checkpointFiles: true }, true]] as const) {
+      const fixture = await testing.startFixtureServer({ methods: { initialize: [init], 'queue/add': [{ result: { accepted: false, reason: 'duplicate' } }, { result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: outcome }] }] } })
+      const session = await sdk.connect({ mercury: fixture.mercury, ...options })
+      try {
+        assert.equal(session.child.spawnargs.includes('--session-id'), stamped, `checkpointFiles ${JSON.stringify(options)} must ${stamped ? '' : 'not '}pin a boot identity`)
+        await assert.rejects(session.prompt('refused by the queue'), /prompt was not accepted/)
+        assert.equal(session.lastPromptId, undefined, 'a prompt the queue refused is not the last accepted prompt')
+        assert.equal((await session.prompt('accepted')).status, 'completed')
+        assert.equal(typeof session.lastPromptId, 'string')
+      } finally { await session.close(); await fixture.close() }
+    }
     await assert.rejects(sdk.connect({ mercury: ['node', '-e', 'process.exit(2)', '--'], warm: true, resume: 'saved' }), /warm cannot be combined/)
   })
   await check('row 4 generated concrete replies carry wire field names', () => {

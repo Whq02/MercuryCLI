@@ -273,7 +273,6 @@ class MercurySession(TypedRequests):
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         self._prompting = True
         id = str(uuid.uuid4())
-        self.last_prompt_id = id
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
@@ -285,6 +284,7 @@ class MercurySession(TypedRequests):
         try:
             receipt = await self.send_prompt(content, id=id)
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
+            self.last_prompt_id = id
             row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)

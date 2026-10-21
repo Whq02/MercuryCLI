@@ -262,7 +262,6 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
     const id = randomUUID()
-    this.lastPromptId = id
     let done!: (row: OutcomeRow) => void
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
@@ -274,6 +273,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     try {
       const receipt = await this.sendPrompt(content, { id })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
+      this.lastPromptId = id
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
