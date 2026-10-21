@@ -18,7 +18,9 @@ try {
   assert.equal(readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8'), before)
   assert(readFileSync(join(scratch, 'generated/wire.ts'), 'utf8').includes('WIRE_GENERATED_FROM'))
   assert(readFileSync(join(scratch, 'generated/python/generated.py'), 'utf8').includes('GENERATED_BY ='))
-  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: p => !/(\/dist|\/node_modules|\/__pycache__)(\/|$)/.test(p) })
+  const excluded = (p: string) => /[\\/](dist|node_modules|__pycache__)([\\/]|$)/.test(p)
+  assert(excluded('C:\\scratch\\sdk\\dist\\index.js') && excluded('C:\\scratch\\sdk\\dist') && excluded('/scratch/sdk/node_modules/x') && excluded('/scratch/sdk-py/src/__pycache__') && !excluded('/scratch/sdk/distant/x') && !excluded('C:\\scratch\\sdk\\src\\index.ts'), 'the copy filter excludes dist, node_modules and __pycache__ on both path separators')
+  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: p => !excluded(p) })
   const pkg = JSON.parse(readFileSync(join(scratch, 'sdk/package.json'), 'utf8'))
   assert.equal(pkg.homepage, 'https://mercury-cli.ai'); assert.equal(pkg.repository.directory, 'sdk')
   const venvPython = (name: string) => { run(PYTHON, ['-m', 'venv', '--without-pip', join(scratch, name)]); return join(scratch, name, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python') }

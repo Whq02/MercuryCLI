@@ -79,7 +79,7 @@ const command = (cmd: string, args: string[], cwd: string, env = process.env) =>
   return result.stdout
 }
 try {
-  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: path => !/(\/dist|\/node_modules|\/__pycache__)(\/|$)/.test(path) })
+  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: path => !/[\\/](dist|node_modules|__pycache__)([\\/]|$)/.test(path) })
   const pkg = JSON.parse(readFileSync(join(scratch, 'sdk/package.json'), 'utf8'))
   assert.equal(pkg.name, 'mercury-cli-sdk'); assert.equal(pkg.version, '0.1.0'); assert.equal(pkg.license, 'Apache-2.0'); assert.notEqual(pkg.private, true)
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0)
@@ -127,7 +127,7 @@ try {
   }
   console.log('PASS pyright strict refuses seven wrong keyword options on run, run_sync, connect, connect_sync and prewarm')
   mkdirSync(join(scratch, 'consumer/node_modules'), { recursive: true })
-  cpSync(join(scratch, 'sdk'), join(scratch, 'consumer/node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !p.includes('/src/') })
+  cpSync(join(scratch, 'sdk'), join(scratch, 'consumer/node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !/[\\/]src[\\/]/.test(p) })
   symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'consumer/node_modules/@types'), 'junction')
   symlinkSync(join(root, 'node_modules/undici-types'), join(scratch, 'consumer/node_modules/undici-types'), 'junction')
   writeFileSync(join(scratch, 'consumer/package.json'), JSON.stringify({ type: 'module' }))

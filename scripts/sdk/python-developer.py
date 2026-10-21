@@ -633,7 +633,7 @@ async def discovery_deeper():
             else: raise AssertionError('a missing MERCURY_NODE was accepted')
         named(lambda: executable_of(str(entry), {**hermetic, 'MERCURY_NODE': '/no/such/node'}))
         named(lambda: executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}, str(deeper), 'win32'))
-        assert executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}) == ['node', str(entry)], 'on POSIX the keys stay case-sensitive'
+        assert executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}, str(deeper), 'linux') == ['node', str(entry)], 'on POSIX the keys stay case-sensitive (pinned, so a Windows host proves the POSIX rule too)'
         named(lambda: sdk.argv_of(sdk.RunOptions(mercury=str(entry), env={**hermetic, 'MERCURY_NODE': '/no/such/node'})))
         assert executable_of(str(entry), {**hermetic, 'MERCURY_NODE': ''}) == ['node', str(entry)], 'an empty MERCURY_NODE is unset'
         if WINDOWS_HOST:

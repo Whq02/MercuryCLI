@@ -517,7 +517,7 @@ try {
     const named = (error: unknown) => error instanceof sdk.MercuryError && error.message.includes('MERCURY_NODE names no executable file: /no/such/node')
     assert.throws(() => executableOf(entry, { ...hermetic, MERCURY_NODE: '/no/such/node' }), named, 'a pinned-but-missing MERCURY_NODE refuses by name, as the launcher does')
     assert.throws(() => executableOf(entry, { ...hermetic, mercury_node: '/no/such/node' }, deeper, 'win32'), named, 'on Windows any spelling of the key is read')
-    assert.deepEqual(executableOf(entry, { ...hermetic, mercury_node: '/no/such/node' }), ['node', entry], 'on POSIX the keys stay case-sensitive')
+    assert.deepEqual(executableOf(entry, { ...hermetic, mercury_node: '/no/such/node' }, deeper, 'linux'), ['node', entry], 'on POSIX the keys stay case-sensitive (pinned, so a Windows host proves the POSIX rule too)')
     assert.throws(() => sdk.argvOf({ mercury: entry, env: { ...hermetic, MERCURY_NODE: '/no/such/node' } }), named, 'argvOf carries the refusal')
     assert.deepEqual(executableOf(entry, { ...hermetic, MERCURY_NODE: '' }), ['node', entry], 'an empty MERCURY_NODE is unset')
     if (WINDOWS_HOST) { console.log('SKIP the Homebrew keg and the relative executable live: this host is Windows (sh wrappers and symlinks)'); return }
