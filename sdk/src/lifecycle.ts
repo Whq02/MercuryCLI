@@ -1,8 +1,21 @@
 import type { ChildProcess } from 'node:child_process'
+import { setMaxListeners } from 'node:events'
 import { statSync } from 'node:fs'
+import type { StreamRow } from './parse.js'
 
 const live = new Set<ChildProcess>()
 let hooked = false
+
+export function unlimitedSignal(signal: AbortSignal | undefined): void {
+  if (signal !== undefined) try { setMaxListeners(0, signal) } catch {}
+}
+
+export function capRows(rows: StreamRow[], max: number | undefined): void {
+  if (max === undefined) return
+  if (max <= 0) { rows.length = 0; return }
+  const drop = rows[0]?.type === 'session' && max > 1 ? 1 : 0
+  while (rows.length > max) rows.splice(drop, 1)
+}
 
 export function missingCwd(cwd: string | undefined): string | undefined {
   if (cwd === undefined) return undefined

@@ -14,7 +14,7 @@ from .framing import read_lines
 from .executable import executable_of
 from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
-from .parse import Issue, StreamRow, parse_row, input_row_of
+from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, parse_row, input_row_of
 
 Listener = Callable[[Any], object]
 
@@ -56,6 +56,7 @@ class RunOptions:
     brief_add: str | None = None
     schema: str | dict[str, Any] | StructuredSchema[Any] | None = None
     max_turns: int | None = None
+    max_rows: int | None = None
     max_time: str | None = None
     budget_usd: float | None = None
     partial: bool = False
@@ -107,6 +108,7 @@ class ConnectKwargs(TypedDict, total=False):
     brief: str | None
     brief_add: str | None
     max_turns: int | None
+    max_rows: int | None
     max_time: str | None
     budget_usd: float | None
     partial: bool
@@ -322,11 +324,13 @@ class MercuryRun:
                 row = read.row
                 assert row is not None
                 self.rows.append(row)
+                cap_rows(self.rows, self.options.max_rows)
                 if row['type'] == 'session' and not self.session.done():
                     self.session.set_result(row)
                     if self._interrupt_requested: self.interrupt()
                 if row['type'] == 'outcome': last = row
                 self._queue.put_nowait(row)
+                cap_queue(self._queue, self.options.max_rows)
                 self._emit('row', row)
                 self._emit(row['type'], row)
         except Exception as error:
@@ -405,6 +409,10 @@ class MercuryRun:
     def close_input(self) -> None:
         """End stdin; the run finishes its queued work and exits."""
         self._stdin.close()
+
+    def clear_rows(self) -> None:
+        self.rows.clear()
+        clear_queue(self._queue)
 
     def interrupt(self) -> None:
         """End the running turn with SIGINT; before the session row arrives the signal waits for it, so the turn ends as ``interrupted`` rather than killing a booting CLI."""

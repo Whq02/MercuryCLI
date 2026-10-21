@@ -189,3 +189,30 @@ def parse_row(line: str) -> RowRead[StreamRow]:
         return row_of(json.loads(line.lstrip('\ufeff')))
     except (ValueError, TypeError):
         return RowRead(False, reason='not_json')
+
+
+def cap_rows(rows: list[StreamRow], max_rows: int | None) -> None:
+    if max_rows is None: return
+    if max_rows <= 0:
+        rows.clear()
+        return
+    drop = 1 if len(rows) > 1 and rows[0]['type'] == 'session' and max_rows > 1 else 0
+    while len(rows) > max_rows: del rows[drop]
+
+
+def cap_queue(queue: Any, max_rows: int | None) -> None:
+    if max_rows is None or queue.qsize() <= max(0, max_rows): return
+    items = [queue.get_nowait() for _ in range(queue.qsize())]
+    if max_rows <= 0:
+        for item in items:
+            if item is None: queue.put_nowait(None)
+        return
+    drop = 1 if len(items) > 1 and items[0] is not None and items[0]['type'] == 'session' and max_rows > 1 else 0
+    while len(items) > max_rows: del items[drop]
+    for item in items: queue.put_nowait(item)
+
+
+def clear_queue(queue: Any) -> None:
+    items = [queue.get_nowait() for _ in range(queue.qsize())]
+    for item in items:
+        if item is None: queue.put_nowait(None)

@@ -1,7 +1,7 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readLines } from './framing.js'
-import { endChild, missingCwd, track } from './lifecycle.js'
+import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, warmOptions, type RunOptions } from './client.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -126,6 +126,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       const ms = options.deadlineMs === undefined ? spec.deadlineMs : options.deadlineMs
       if (ms !== null) timer = setTimeout(() => cancel(`${method}: no answer within ${ms} ms`), ms)
       if (options.signal?.aborted) { abort(); return }
+      unlimitedSignal(options.signal)
       options.signal?.addEventListener('abort', abort, { once: true })
       try { this.#write({ jsonrpc: '2.0', id, method, params }) } catch (error) { this.#pending.delete(id); cleanup(); reject(error) }
     })
@@ -173,8 +174,9 @@ export class MercurySession implements AsyncIterable<StreamRow> {
         const read = rowOf(msg.params)
         if (!read.ok) throw new MercuryWireError(line, read.reason, read.type, read.issues, null)
         this.rows.push(read.row)
+        capRows(this.rows, this.options.maxRows)
         const waiter = this.#waiters.shift()
-        if (waiter) waiter.resolve({ value: read.row, done: false }); else this.#queue.push(read.row)
+        if (waiter) waiter.resolve({ value: read.row, done: false }); else { this.#queue.push(read.row); capRows(this.#queue, this.options.maxRows) }
         const row = read.row
         if (row.type === 'turn' && row.parent_call_id === undefined && row.message_ids !== undefined) {
           this.#correlatedTurns = true
@@ -302,6 +304,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       fail(new MercuryError(message, null))
     }
     const abort = () => cancel('prompt: cancelled')
+    unlimitedSignal(options.signal)
     options.signal?.addEventListener('abort', abort, { once: true })
     if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
     this.#promptReject = fail
@@ -321,6 +324,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
     }
   }
+
+  clearRows(): void { this.rows.length = 0; this.#queue.length = 0 }
 
   close(): Promise<void> {
     this.#closing = true
@@ -344,6 +349,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
     }, { signal: options.signal })
     if (options.signal) {
       const signal = options.signal
+      unlimitedSignal(signal)
       const end = () => void session.close()
       signal.addEventListener('abort', end, { once: true })
       void session.exit.then(() => signal.removeEventListener('abort', end))

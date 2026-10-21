@@ -258,6 +258,36 @@ loop.close()
         assert json.loads(await asyncio.wait_for(call2, 5))['result']['content'][0]['text'] == 'cancelled'
 
 
+async def bounded_rows():
+    from mercury_cli_sdk import connect_sync
+    from mercury_cli_sdk.testing import start_fixture_server
+    s_row = fixture_session_row(seq=1)
+    deltas = [{'type': 'text_delta', 'seq': i + 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': s_row['session_id'], 'message_id': 'm1', 'block': 0, 'text': f'd{i}'} for i in range(18)]
+    _, out_row = fixture_turn({'seq': 20})
+    rows = [s_row, *deltas, out_row]
+    rpc_rows = [{'jsonrpc': '2.0', 'method': 'row', 'params': r} for r in rows]
+    async with await start_fixture_server({'rows': rows, 'methods': {'initialize': [{'result': init}, {'result': init}], 'queue/add': [{'result': {'accepted': True}, 'after': rpc_rows}, {'result': {'accepted': True}, 'after': rpc_rows}]}}) as fixture:
+        task = await run('x', mercury=fixture.mercury, max_rows=5)
+        await task.outcome
+        assert len(task.rows) == 5 and task.rows[0]['type'] == 'session'
+        assert [r['seq'] for r in task.rows] == [1, 17, 18, 19, 20]
+        task.clear_rows()
+        assert len(task.rows) == 0
+        async with await connect(mercury=fixture.mercury, max_rows=5) as session:
+            await session.prompt('x')
+            assert len(session.rows) == 5 and session.rows[0]['type'] == 'session'
+            assert [r['seq'] for r in session.rows] == [1, 17, 18, 19, 20]
+            session.clear_rows()
+            assert len(session.rows) == 0
+        def sync_bounded():
+            with connect_sync(mercury=fixture.mercury, max_rows=5) as sync_session:
+                sync_session.prompt('x')
+                assert len(sync_session.rows) == 5 and sync_session.rows[0]['type'] == 'session'
+                sync_session.clear_rows()
+                assert len(sync_session.rows) == 0
+        await asyncio.to_thread(sync_bounded)
+
+
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
@@ -266,6 +296,7 @@ async def main():
     await check('Python Windows road' + ('' if WINDOWS else ' driven on this host') + ': cancel ends the child and settles interrupted, terminate and the wire escalation report the signal sent, a natural exit 1 stays exit 1', windows_road)
     await check('Python host exit terminates live children', host_exit)
     await check('Python fork safety and thread-safe tool cancellation', fork_and_thread_cancel)
+    await check('Python max_rows cap and clear_rows()', bounded_rows)
     pyproject = Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
     assert __version__ in pyproject and 'Programming Language :: Python :: 3.14' in pyproject
     assert not failures, failures

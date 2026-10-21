@@ -4,7 +4,7 @@ import { readLines } from './framing.js'
 import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
-import { endChild, missingCwd, track } from './lifecycle.js'
+import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -48,6 +48,7 @@ export interface RunOptions<T = unknown> {
   briefAdd?: string
   schema?: OutputSchema<T>
   maxTurns?: number
+  maxRows?: number
   budgetUsd?: number
   partial?: boolean
   config?: string | Record<string, unknown>
@@ -259,6 +260,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     if (options.input !== 'rows') this.child.stdin!.end()
     if (options.prompt !== undefined && typeof options.prompt !== 'string') void this.#feed(options.prompt)
     if (options.signal !== undefined) {
+      unlimitedSignal(options.signal)
       if (options.signal.aborted) this.#abortRequested = true
       else {
         const abort = () => { if (this.#sessionRow) this.interrupt(); else this.#abortRequested = true }
@@ -339,7 +341,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     return this.child.kill('SIGKILL')
   }
 
-  async close(): Promise<void> { await this.ready.catch(() => undefined); if (this.child) await endChild(this.child, this.exit); else await this.exit }
+  close(): Promise<void> { return this.ready.catch(() => undefined).then(() => this.child ? endChild(this.child, this.exit) : this.exit.then(() => undefined)) }
+  clearRows(): void { this.rows.length = 0; this.#queue.length = 0 }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 
   get error(): MercuryError | null {
@@ -392,6 +395,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
 
   #deliver(row: StreamRow): void {
     this.rows.push(row)
+    capRows(this.rows, this.options.maxRows)
     if (row.type === 'session' && this.#sessionRow === null) {
       this.#sessionRow = row
       this.#resolveSession(row)
@@ -402,7 +406,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     this.#emit(row.type, row)
     const waiter = this.#waiters.shift()
     if (waiter !== undefined) waiter.resolve({ value: row, done: false })
-    else this.#queue.push(row)
+    else { this.#queue.push(row); capRows(this.#queue, this.options.maxRows) }
   }
 
   async #settle(code: number | null, signal: NodeJS.Signals | null): Promise<void> {

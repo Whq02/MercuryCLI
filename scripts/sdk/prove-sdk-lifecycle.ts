@@ -140,6 +140,41 @@ setTimeout(() => process.exit(0), 200)
     for (let i = 0; i < 40 && pids.some(alive); i++) await sleep(50)
     assert.deepEqual(pids.filter(alive), [], 'children outlived the host')
   })
+  await check('maxRows caps retained rows while preserving the session row, clearRows() empties buffers, and a shared AbortSignal emits no MaxListenersExceededWarning', async () => {
+    const sRow = fixtureSessionRow({ seq: 1 })
+    const deltas = Array.from({ length: 18 }, (_, i) => ({ type: 'text_delta' as const, seq: i + 2, timestamp: '2000-01-01T00:00:00.000Z', session_id: sRow.session_id, message_id: 'm1', block: 0, text: `d${i}` }))
+    const [, outRow] = fixtureTurn({ seq: 20 })
+    const rows = [sRow, ...deltas, outRow]
+    const fixture = await startFixtureServer({ rows, methods: { initialize: Array.from({ length: 16 }, () => ({ result: init })), 'queue/add': [{ result: { accepted: true }, after: rows.map(params => ({ jsonrpc: '2.0', method: 'row', params })) }] } })
+    try {
+      const task = run({ mercury: fixture.mercury, prompt: 'x', maxRows: 5 })
+      await task.outcome
+      assert.equal(task.rows.length, 5)
+      assert.equal(task.rows[0]?.type, 'session')
+      assert.deepEqual(task.rows.map(r => r.seq), [1, 17, 18, 19, 20])
+      task.clearRows()
+      assert.equal(task.rows.length, 0)
+      const session = await connect({ mercury: fixture.mercury, maxRows: 5 })
+      try {
+        await session.prompt('x')
+        assert.equal(session.rows.length, 5)
+        assert.equal(session.rows[0]?.type, 'session')
+        assert.deepEqual(session.rows.map(r => r.seq), [1, 17, 18, 19, 20])
+        session.clearRows()
+        assert.equal(session.rows.length, 0)
+      } finally { await session.close() }
+      const warnings: string[] = []
+      const onWarning = (w: Error) => { if (w.name === 'MaxListenersExceededWarning') warnings.push(w.message) }
+      process.on('warning', onWarning)
+      const shared = new AbortController()
+      try {
+        const fleet = await Promise.all(Array.from({ length: 15 }, () => connect({ mercury: fixture.mercury, signal: shared.signal })))
+        shared.abort()
+        await Promise.all(fleet.map(s => s.exit))
+        assert.deepEqual(warnings, [])
+      } finally { process.off('warning', onWarning) }
+    } finally { await fixture.close() }
+  })
   await check('the package version is the manifest version', async () => {
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
     assert.equal(sdk.VERSION, pkg.version)

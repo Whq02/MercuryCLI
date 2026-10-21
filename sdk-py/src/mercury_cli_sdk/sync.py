@@ -137,10 +137,15 @@ class SyncSession(TypedSyncRequests):
         self._loop.call_soon_threadsafe(self.session.off, type, listener)
         return self
 
+    def clear_rows(self) -> None:
+        async def _clear() -> None: self.session.clear_rows()
+        self._wait(_clear())
+
     def _stop(self) -> None:
         if self._closed: return
         self._closed = True
         atexit.unregister(self.close)
+        if not self._thread.is_alive(): return
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join()
         self._loop.close()
@@ -148,6 +153,9 @@ class SyncSession(TypedSyncRequests):
     def close(self) -> None:
         """Close the session and stop its loop thread; registered with atexit so a forgotten close still ends cleanly."""
         if self._closed: return
+        if not self._thread.is_alive():
+            self._stop()
+            return
         try: self._wait(self.session.close())
         finally: self._stop()
 

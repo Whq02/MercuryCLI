@@ -14,7 +14,7 @@ from .structured import MercurySchemaError, StructuredSchema, schema_object, sch
 
 T = TypeVar('T')
 from .helpers import ToolServer
-from .parse import Issue, StreamRow, row_of, input_row_of, validate
+from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, row_of, input_row_of, validate
 from .version import __version__
 
 
@@ -202,7 +202,9 @@ class MercurySession(TypedRequests):
                     row = read.row
                     assert row is not None
                     self.rows.append(row)
+                    cap_rows(self.rows, self.options.max_rows)
                     self._queue.put_nowait(row)
+                    cap_queue(self._queue, self.options.max_rows)
                     if row['type'] == 'turn' and 'parent_call_id' not in row and 'message_ids' in row:
                         self._correlated_turns = True
                         for id in row['message_ids']:
@@ -357,6 +359,10 @@ class MercurySession(TypedRequests):
         receipt = await self.request('session/claim', params)
         self.initialized['session_id'] = receipt['session_id']
         return receipt
+
+    def clear_rows(self) -> None:
+        self.rows.clear()
+        clear_queue(self._queue)
 
     async def close(self) -> None:
         """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""
