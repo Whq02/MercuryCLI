@@ -1,7 +1,7 @@
 {
-  "source": "the owner-approved reference renderings of 2026-10-21 (template.html, example-plain.html, example-review.html): ordered body nodes as tag#id.class[data-part], and the digests of their shared stylesheet and script without comment lines",
+  "source": "the owner-approved reference renderings of 2026-10-21 (template.html, example-plain.html, example-review.html): ordered body nodes as tag#id.class[data-part], the stylesheet without comment lines, and the script with the note-preservation correction proved by prove-samples-decision.ts",
   "styleSha256": "5cac02593e529cea782d86c32838827d31eb1126f1456311f3eab6ccb429a089",
-  "scriptSha256": "0320db4564ea7f3aff2571895c756443cf4a017960b85b0e0e002c953d620848",
+  "scriptSha256": "aa1db800ac63c6fd8d608cc503a472152dd5e46842efb0430f148e19d5f15e73",
   "plain": {
     "payload": {
       "name": "paginate-fix",

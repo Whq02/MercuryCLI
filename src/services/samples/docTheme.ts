@@ -416,8 +416,10 @@ export const DOC_SCRIPT = `
       if (!pd) return false;
       var note = pd.getElementById('note'), shellStatus = pd.getElementById('status');
       if (!note) return false;
-      var cur = String(note.value || '').trim(), re = /^Decision \\([^)]+\\): [^\\n]+/;
-      note.value = re.test(cur) ? cur.replace(re, line) : (cur ? line + ' · ' + cur : line);
+      var cur = String(note.value || '').trim(), previous = note.getAttribute('data-sample-decision');
+      if (previous && (cur === previous || cur.indexOf(previous + ' · ') === 0)) cur = cur.slice(previous.length).replace(/^ · /, '');
+      note.value = cur ? line + ' · ' + cur : line;
+      note.setAttribute('data-sample-decision', line);
       if (shellStatus) shellStatus.textContent = 'decision staged in the note — s sends it';
       return true;
     } catch (e) { return false; }
