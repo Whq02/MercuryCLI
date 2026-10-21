@@ -62,3 +62,32 @@ async def main() -> None:
 
 
 asyncio.run(main())
+
+
+from typing import Any, assert_type
+from mercury_cli_sdk import SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, structured_schema, prewarm
+
+
+async def typed_output_and_warm() -> None:
+    def decode(value: Any) -> int: return int(value['count'])
+    descriptor = structured_schema({'type': 'object', 'properties': {'count': {'type': 'integer'}}}, decode)
+    task = await run('typed', schema=descriptor)
+    assert_type(await task.outcome, TypedOutcome[int])
+    session = await connect()
+    assert_type(await session.prompt('typed', schema=descriptor), TypedOutcome[int])
+    warm = await prewarm()
+    assert_type(warm, MercurySession)
+    await warm.close()
+
+
+def typed_sync() -> None:
+    with connect_sync() as session:
+        assert_type(session.prompt('test'), OutcomeRow)
+        assert_type(session.facts(), SessionFactsResult)
+        assert_type(session.request('session/facts'), SessionFactsResult)
+        assert_type(session.rewind('id', 'code'), SessionRewindResult)
+        assert_type(session.stop_agent('a'), AgentStopResult)
+        assert_type(session.resume_agent('a'), AgentResumeResult)
+        assert_type(session.send_prompt('test'), QueueAddResult)
+        assert_type(session.last_prompt_id, str | None)
+        assert_type(next(iter(session)), StreamRow)
