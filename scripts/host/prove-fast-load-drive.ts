@@ -312,7 +312,7 @@ try {
   await watching
   const rentedHere = hostRecords().find(row => row.watchedFrom === elsewhere.id)!
   const rentedNotices = readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8')).words as string)
-  check('the watch rents in the disk’s data centre and its rented words name the shape and price it bought', rentedHere?.volumeId === watchDisk.id && rp.state.createBodies.at(-1).dataCenterIds[0] === 'EU-NL-1' && rp.state.createBodies.at(-1).gpu.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition' && rentedNotices.some(words => words.startsWith('Rented Qwen3.8-27B · 1× RTX PRO 6000 · $2.49/hr in EU-NL-1')) && !rentedNotices.some(words => words.startsWith('Rented Qwen3.8-27B · 1× H200 · $4.49/hr in US-CA-2')))
+  check('the watch rents in the disk’s data centre and its rented words name the shape and price it bought', rentedHere?.volumeId === watchDisk.id && rp.state.createBodies.at(-1).dataCenterIds[0] === 'EU-NL-1' && rp.state.createBodies.at(-1).gpu.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition' && rentedNotices.some(words => words.includes('Rented Qwen3.8-27B · 1× RTX PRO 6000 · $2.49/hr in EU-NL-1')) && !rentedNotices.some(words => words.includes('Rented Qwen3.8-27B · 1× H200 · $4.49/hr in US-CA-2')))
   rp.state.customGpus = stocked
   await api.terminate(rentedHere.id); removeHostRecord(rentedHere.id)
   await volumes.deleteKeptVolume(api, watchDisk.id)

@@ -7,6 +7,7 @@ import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { fitMeasuredWindow, paneWindow } from './mercury-ui/geometry.js'
 import { wrapPlain } from './BootHealthScreen.js'
 import { truncateToWidth } from './mercury-ui/glyphs.js'
+import { POPUP_PAGE_HINT, PopupListViewport, popupListMotion } from './CustomSelect/popup-list.js'
 import { LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostEvent, type LlmHostQuestion, type LlmHostResult, type LlmHostRoad } from '../services/llmHost/index.js'
 
@@ -99,7 +100,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const hostLines = compact || result && host?.status === 'TERMINATED' ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
   const rowDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
   const rowLabels = rows.map((row, index) => rowDividers[index] ? row.label.slice(rowDividers[index]!.length + 1) : row.label)
-  const rowLines = rowLabels.map((label, index) => [...(rowDividers[index] ? [rowDividers[index]!] : []), ...(compact ? [truncateToWidth(label, Math.max(1, width - 2))] : wrapRow(label, Math.max(1, width - 2)))])
+  const rowLines = rowLabels.map((label, index) => [...(rowDividers[index] ? [rowDividers[index]!] : []), ...(compact ? [truncateToWidth(label, Math.max(1, width - 3))] : wrapRow(label, Math.max(1, width - 3)))])
   const rowsHeight = rowLines.reduce((sum, lines) => sum + lines.length, 0)
   const minimumChoices = question?.rows ? Math.min(8, rowsHeight, Math.max(1, budget - titleLines.length - hostLines.length - (compact ? 1 : 3))) : question ? 1 : 3
   const allDetails = question?.step === 'rent-confirm' ? [...wrapRow(question.found, width), ...disclosure, ...wrapRow(question.willRun, width)].filter(Boolean) : baseDetails
@@ -118,14 +119,21 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const logEnd = Math.max(historyBudget, allHistory.length - Math.min(logOffset, maxLogOffset))
   const shownHistory = historyBudget ? allHistory.slice(Math.max(0, logEnd - historyBudget), logEnd) : []
   const available = budget - fixed - shownHistory.length
-  const choiceBudget = Math.max(1, rowsHeight <= available ? available : available - (compact ? 0 : 2))
+  const choiceBudget = Math.max(1, available)
   const window = fitMeasuredWindow(rows.length, choiceBudget, span => paneWindow(rows.length, cursor ?? 0, span), win => rowLines.slice(win.start, win.end).reduce((sum, lines) => sum + lines.length, 0))
   const activeHost = host && !['TERMINATED', 'EXITED'].includes(host.status)
   const exit = activeHost ? host.status === 'WATCHING' ? 'esc closes · the stock watch keeps running' : host.step === 'ready' ? 'esc closes · the model keeps running' : 'esc closes · the setup keeps running' : 'esc closes'
-  const hint = (question?.rows ? '↑↓ choose · ↵ continue · ' : '') + exit + (scrollDetails ? ' · pgup/pgdn details' : maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
+  const choicesPage = Boolean(question?.rows) && detailsFit && !scrollDetails && window.end - window.start < rows.length
+  const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + exit + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
   useLayoutEffect(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
+    if ((key.pageUp || key.pageDown) && choicesPage) {
+      event.stopImmediatePropagation()
+      const target = popupListMotion(_input, key, cursor ?? 0, rows.length, Math.max(1, window.end - window.start))
+      if (target !== null) setCursor(target)
+      return
+    }
     if (key.pageUp || key.pageDown) {
       event.stopImmediatePropagation()
       setLogOffset(current => scrollDetails ? Math.max(0, Math.min(maxDetailOffset, current + (key.pageDown ? 1 : -1) * detailPage)) : Math.max(0, Math.min(maxLogOffset, current + (key.pageUp ? 1 : -1) * Math.max(1, historyBudget))))
@@ -149,11 +157,9 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
       {detailMarker ? <Text color={tokens.textMuted}>Details {detailOffset + 1}–{detailOffset + detailLines.length} of {allDetails.length} · pgup/pgdn</Text> : null}
       {!detailsFit ? <Text color={tokens.warning} wrap="wrap">Enlarge the terminal to see the full setup plan before confirming · esc closes</Text> : null}
       {!compact && detailsFit ? <Text color={tokens.textMuted}>{choiceHint}</Text> : null}
-      {!detailsFit ? null : question.rows ? <>
-        {!compact && window.above > 0 ? <Text color={tokens.textMuted}>↑ {window.above} more</Text> : null}
+      {!detailsFit ? null : question.rows ? <PopupListViewport above={window.above} below={window.below} rows={rowLines.slice(window.start, window.end).reduce((sum, lines) => sum + lines.length, 0)}>
         {rowLines.slice(window.start, window.end).map((lines, index) => { const at = window.start + index; const first = rowDividers[at] ? 1 : 0; return <Box key={rows[at]!.value} flexDirection="column">{lines.map((text, part) => part < first ? <Text key={part} color={tokens.textMuted}>{text}</Text> : <Text key={part} color={cursor === at ? tokens.textPrimary : tokens.textSecondary} bold={cursor === at}>{part === first && cursor === at ? '› ' : '  '}{text}</Text>)}</Box> })}
-        {!compact && window.below > 0 ? <Text color={tokens.textMuted}>↓ {window.below} more</Text> : null}
-      </> : <TextInput key={question.step} value={value} onChange={setValue} cursorOffset={offset} onChangeCursorOffset={setOffset} columns={Math.max(1, width - 2)} maxVisibleLines={1} mask={question.secret ? '*' : undefined} multiline={false} onSubmit={text => { if (pastOpenEvent()) answer(text) }} onEscape={stop} disableEscapeDoublePress />}
+      </PopupListViewport> : <TextInput key={question.step} value={value} onChange={setValue} cursorOffset={offset} onChangeCursorOffset={setOffset} columns={Math.max(1, width - 2)} maxVisibleLines={1} mask={question.secret ? '*' : undefined} multiline={false} onSubmit={text => { if (pastOpenEvent()) answer(text) }} onEscape={stop} disableEscapeDoublePress />}
     </> : result ? <>
       {wrapPlain(result.words, width).slice(0, Math.max(1, budget - shownHistory.length - hostLines.length - 1)).map((text, index) => <Text key={index} bold color={result.ok ? tokens.success : tokens.warning}>{text}</Text>)}
       {!onHint ? <Text color={tokens.textMuted}>{words.finished}</Text> : null}

@@ -126,12 +126,12 @@ try {
   await until('$2.49/hr')
 
   await choose('Qwen3.8-27B'); await heading('Qwen3.8-27B'); await choose('Rent · Runpod')
-  await heading('Confirm the rental')
-  await until('Rent 1× RTX PRO 6000 at $2.49/hr')
+  await heading('Confirm the hourly price')
+  await until('1× RTX PRO 6000 · $2.49/hr')
   check('the model’s WHERE row opens confirm with the chosen shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
   check('the price confirmation pre-chooses nothing and says so', m.screen().includes('↑↓ then ↵ · nothing is pre-chosen') && !selected())
   for (let n = 0; n < 5; n++) { const before = selected(); m.push(KEY.down); await waitFor(() => selected() !== before, 300) }
-  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('Keep things as they are') && rp.state.creates === 0)
+  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('keep things as they are') && rp.state.creates === 0)
   m.push(KEY.enter)
   await close()
 
@@ -163,7 +163,7 @@ try {
   }, 15_000), 'watch job creates the pod once stock appears')
   check('watch job polls catalogue and creates pod on the first read that shows stock without a second read', readsAtCreate === readsBeforeWatch + 3 && rp.state.catalogReads === readsBeforeWatch + 3)
 
-  check('chat receives the rented notice with model, shape, price and data centre', await waitFor(() => notices().includes('Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'), 5000))
+  check('chat receives the rented notice with model, shape, price and data centre', await waitFor(() => notices().some(n => n.includes('Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up')), 5000))
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.jobState === 'ready', 15_000), 'setup job handed off from watch reaches ready')
   check('watch job hands off to normal setup job which reaches ready', readHostRecord('fixture-pod-1')?.jobState === 'ready' && readHostRecord('fixture-pod-1')?.jobKind === 'setup')
   await close()
@@ -300,7 +300,7 @@ try {
   const expiring = watchRecord('watch-window-probe', { pollWindowMs: 2000 })
   await runHostJob(expiring.id, expiring.generation!, { runner: ssh.runner, pauseMs: 25, keepAlive: false })
   const expired = readHostRecord(expiring.id)
-  check('the watch window ends with a stopped record and a notice that names the real window', expired?.jobState === 'stopped' && expired.status === 'EXPIRED' && expired.step === 'watch ended after 2 s without stock ≤ $8.99/hr · no pod was created' && notices().includes('GLM-5.3-Flash · UD-Q4_K_XL · watch ended after 2 s without stock ≤ $8.99/hr · no pod was created'))
+  check('the watch window ends with a stopped record and a notice that names the real window', expired?.jobState === 'stopped' && expired.status === 'EXPIRED' && expired.step === 'watch ended after 2 s without stock ≤ $8.99/hr · no pod was created' && notices().some(n => n.includes('GLM-5.3-Flash · UD-Q4_K_XL · watch ended after 2 s without stock ≤ $8.99/hr · no pod was created')))
   removeHostRecord(expiring.id)
 
   const gone = watchRecord('watch-sweep-gone')
@@ -308,7 +308,7 @@ try {
   patchHostRecord(gone.id, { jobState: 'running' })
   patchHostRecord(inflight.id, { jobState: 'running', creating: 'mercury-sweep-inflight' })
   await sweepHostJobs({ alive: row => !row.id.startsWith('watch-sweep-') })
-  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row === 'GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again') && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
+  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row.includes('GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again')) && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
   removeHostRecord(gone.id); removeHostRecord(inflight.id)
 
   stockNow()
