@@ -4,6 +4,7 @@ import atexit
 import json
 import os
 import signal
+import uuid
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, AsyncIterator, Literal, cast
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
@@ -18,6 +19,9 @@ Listener = Callable[[Any], object]
 @dataclass
 class RunOptions:
     """Everything ``run()`` and ``connect()`` accept; each field is one ``mercury run`` option (``continue_`` is ``--continue``)."""
+    checkpoint_files: bool | None = None
+    replay_to: str | None = None
+    restore_files: str | None = None
     tools: list[ToolDefinition] = field(default_factory=list)
     auto_allow_tools: bool = True
     prompt: str | None = None
@@ -71,7 +75,7 @@ def argv_of(options: RunOptions) -> list[str]:
     if not args or not args[0]: raise MercuryError('the mercury executable is empty')
     if options.project is not None: args += ['--project', options.project]
     args += ['run', '--format', 'rows']
-    values = ['model', 'effort', 'mode', 'agent', 'backup_model', 'brief', 'brief_add', 'max_turns', 'max_time', 'session_id', 'title', 'resume', 'log_file', 'input']
+    values = ['model', 'effort', 'mode', 'agent', 'backup_model', 'brief', 'brief_add', 'max_turns', 'max_time', 'session_id', 'title', 'resume', 'log_file', 'input', 'replay_to', 'restore_files']
     for name in values:
         value = getattr(options, name)
         if value is not None: args += ['--' + name.replace('_', '-'), str(value)]
@@ -286,6 +290,7 @@ async def run(prompt: str | None = None, *, options: RunOptions | None = None, *
     opts = replace(options, **overrides) if options is not None else RunOptions(**overrides)
     if opts.input not in (None, 'rows'): raise MercuryError('input must be rows')
     if opts.input == 'rows' and opts.stdin is not None: raise MercuryError('stdin text cannot be combined with input rows')
+    opts = checkpoint_options(opts)
     opts, tools = await prepare_tools(opts)
     try: child = await spawn(argv_of(opts), opts)
     except BaseException:
@@ -308,3 +313,10 @@ async def prepare_tools(options: RunOptions) -> tuple[RunOptions, ToolServer | N
     if options.auto_allow_tools and agents is not None:
         agents = {name: {**agent, 'tools': list(dict.fromkeys([*agent.get('tools', []), *names]))} if isinstance(agent, dict) else agent for name, agent in agents.items()}
     return replace(options, mcp=[*options.mcp, server.mcp], allowed_tools=list(dict.fromkeys([*options.allowed_tools, *names])) if options.auto_allow_tools else list(options.allowed_tools), agent_defs=agents), server
+
+
+def checkpoint_options(options: RunOptions, warm: bool = False) -> RunOptions:
+    if not options.checkpoint_files and not warm: return options
+    id = options.session_id
+    if not warm and not id and not options.resume and not options.continue_: id = str(uuid.uuid4())
+    return replace(options, session_id=id, env={**(options.env if options.env is not None else os.environ), 'MERCURY_CONCOURSE_WORKER': '1'})

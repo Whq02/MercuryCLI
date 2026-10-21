@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { readLines } from './framing.js'
 import { endChild, missingCwd, track } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
-import { argvOf, type RunOptions } from './client.js'
+import { argvOf, checkpointOptions, type RunOptions } from './client.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
 import { inputRowOf, rowOf, type StreamRow } from './parse.js'
 import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.js'
@@ -15,11 +15,14 @@ import { serveTools, withTools, type ToolServer } from './helpers.js'
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
+  warm?: boolean
   host?: { name: string; version: string }
   capabilities?: Partial<ParamsOf<'initialize'>['capabilities']>
   handlers?: HostHandlers
   onPermissionRequest?: HostHandlers['permission/request']
   onElicitation?: HostHandlers['elicitation/request']
+  onReadTextFile?: HostHandlers['fs/read_text_file']
+  onWriteTextFile?: HostHandlers['fs/write_text_file']
 }
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
 export type PromptOptions = { signal?: AbortSignal }
@@ -31,6 +34,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   readonly rows: StreamRow[] = []
   initialized!: ResultOf<'initialize'>
   stderr = ''
+  lastPromptId: string | undefined
   #pending = new Map<number, Pending>()
   #asks = new Map<number, AbortController>()
   #listeners = new Map<string, Set<(value: any) => void>>()
@@ -48,6 +52,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #promptReject: ((error: Error) => void) | undefined
 
   constructor(options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
+    if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
+    options = checkpointOptions({ ...options, checkpointFiles: options.checkpointFiles ?? true }, options.warm)
     const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined })
     const lead = Array.isArray(options.mercury) ? options.mercury.length - 1 : 0
     const door = lead + (options.project !== undefined ? 2 : 0)
@@ -55,6 +61,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#handlers = { ...options.handlers }
     if (options.onPermissionRequest) this.#handlers['permission/request'] = options.onPermissionRequest
     if (options.onElicitation) this.#handlers['elicitation/request'] = options.onElicitation
+    if (options.onReadTextFile) this.#handlers['fs/read_text_file'] = options.onReadTextFile
+    if (options.onWriteTextFile) this.#handlers['fs/write_text_file'] = options.onWriteTextFile
     const cwdProblem = missingCwd(options.cwd)
     this.child = spawn(argv.command, argv.args, { cwd: options.cwd, env: options.env ?? process.env, stdio: 'pipe', windowsHide: true })
     track(this.child)
@@ -252,6 +260,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
     const id = randomUUID()
+    this.lastPromptId = id
     let done!: (row: OutcomeRow) => void
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
@@ -284,8 +293,12 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
   try {
     session.initialized = await session.request('initialize', {
       protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },
-      capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, ...options.capabilities },
+      capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, fs_read_text_file: Boolean(options.onReadTextFile || options.handlers?.['fs/read_text_file']), fs_write_text_file: Boolean(options.onWriteTextFile || options.handlers?.['fs/write_text_file']), terminal: ['terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'].every(method => Boolean(options.handlers?.[method as RunnerRequestName])), ...options.capabilities },
     })
     return session
   } catch (error) { await session.close(); throw error }
+}
+
+export function prewarm(options: Omit<ConnectOptions, 'warm' | 'sessionId' | 'resume' | 'continue' | 'fork'> = {}): Promise<MercurySession> {
+  return connect({ ...options, warm: true })
 }

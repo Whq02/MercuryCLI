@@ -7,9 +7,9 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, cast
-from .client import Listener, RunOptions, argv_of, end_child, prepare_tools, spawn, untrack
+from .client import Listener, RunOptions, argv_of, checkpoint_options, end_child, prepare_tools, spawn, untrack
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
 from .helpers import ToolServer
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
@@ -29,6 +29,10 @@ PermissionHandler = Callable[[PermissionRequestParams, RequestContext], Permissi
 ElicitationHandler = Callable[[ElicitationRequestParams, RequestContext], ElicitationRequestResult | Awaitable[ElicitationRequestResult]]
 
 
+ReadTextFileHandler = Callable[[FsReadTextFileParams, RequestContext], FsReadTextFileResult | Awaitable[FsReadTextFileResult]]
+WriteTextFileHandler = Callable[[FsWriteTextFileParams, RequestContext], FsWriteTextFileResult | None | Awaitable[FsWriteTextFileResult | None]]
+
+
 class MercurySession(TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
@@ -44,6 +48,7 @@ class MercurySession(TypedRequests):
         self.initialized: InitializeResult
         self.rows: list[StreamRow] = []
         self.stderr = ''
+        self.last_prompt_id: str | None = None
         self.exit: asyncio.Future[RunExit] = asyncio.get_running_loop().create_future()
         self._closed: Exception | None = None
         self._pending: dict[int, tuple[str, asyncio.Future[Any]]] = {}
@@ -257,6 +262,7 @@ class MercurySession(TypedRequests):
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         self._prompting = True
         id = str(uuid.uuid4())
+        self.last_prompt_id = id
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
@@ -315,9 +321,11 @@ class MercurySession(TypedRequests):
         return row
 
 
-async def connect(*, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
+async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
     """Start ``mercury runner`` and complete ``initialize``; the keyword arguments are ``RunOptions`` fields."""
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
+    if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
+    opts = checkpoint_options(replace(opts, checkpoint_files=True if opts.checkpoint_files is None else opts.checkpoint_files), warm)
     opts, tools = await prepare_tools(opts)
     args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None))
     i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
@@ -325,15 +333,21 @@ async def connect(*, on_permission_request: PermissionHandler | None = None, on_
     callbacks: dict[str, HostHandler] = dict(handlers or {})
     if on_permission_request: callbacks['permission/request'] = on_permission_request
     if on_elicitation: callbacks['elicitation/request'] = on_elicitation
+    if on_read_text_file: callbacks['fs/read_text_file'] = on_read_text_file
+    if on_write_text_file: callbacks['fs/write_text_file'] = on_write_text_file
     try: child = await spawn(args, opts)
     except BaseException:
         if tools: await tools.close()
         raise
     session = MercurySession(child, callbacks, tools)
     try:
-        declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial}
+        declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, 'fs_read_text_file': 'fs/read_text_file' in callbacks, 'fs_write_text_file': 'fs/write_text_file' in callbacks, 'terminal': all(name in callbacks for name in ('terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'))}
         session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}})
         return session
     except BaseException:
         await session.close()
         raise
+
+
+async def prewarm(**options: Any) -> MercurySession:
+    return await connect(**{**options, 'warm': True})

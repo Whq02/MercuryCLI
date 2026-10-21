@@ -58,7 +58,7 @@ try {
       const session = await connect({ mercury, cwd: identity.cwd, env: identity.env, ...options })
       try { assert.equal(session.initialized.session_id, id) } finally { await session.close() }
     }
-    const warm = await connect({ mercury, cwd: identity.cwd, env: { ...identity.env, MERCURY_CONCOURSE_WORKER: '1' } })
+    const warm = await connect({ mercury, cwd: identity.cwd, env: identity.env, warm: true })
     try {
       assert.equal(warm.initialized.session_id, null)
       await warm.claim({ session_id: '00000000-0000-4000-8000-000000000099' })

@@ -3,6 +3,7 @@
 import { readLines } from './framing.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
 import { endChild, missingCwd, track } from './lifecycle.js'
+import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -12,6 +13,9 @@ import type { InputRow, PromptRow, ShellRow, NoteRow, OutcomeRow, SessionRow } f
 export type ConfigLayer = 'user' | 'project' | 'local'
 
 export interface RunOptions {
+  checkpointFiles?: boolean
+  replayTo?: string
+  restoreFiles?: string
   tools?: readonly ToolDefinition[]
   autoAllowTools?: boolean
   prompt?: string
@@ -107,6 +111,8 @@ export function argvOf(options: RunOptions): RunArgv {
   value('--session-id', options.sessionId)
   value('--title', options.title)
   value('--resume', options.resume)
+  value('--replay-to', options.replayTo)
+  value('--restore-files', options.restoreFiles)
   flag('--continue', options.continue)
   flag('--fork', options.fork)
   flag('--ephemeral', options.ephemeral)
@@ -155,6 +161,7 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
   #done = false
 
   constructor(options: RunOptions) {
+    options = checkpointOptions(options)
     if (options.input === 'rows' && options.stdin !== undefined) throw new MercuryError('stdin text cannot be combined with input rows', null)
     this.#streaming = options.input === 'rows'
     const { command, args } = argvOf(options)
@@ -366,4 +373,10 @@ export class MercuryRun implements AsyncIterable<StreamRow> {
 
 export function run(options: RunOptions): MercuryRun {
   return new MercuryRun(options)
+}
+
+export function checkpointOptions<T extends RunOptions>(options: T, warm = false): T {
+  if (!options.checkpointFiles && !warm) return options
+  const identity = !warm && !options.sessionId && !options.resume && !options.continue ? { sessionId: randomUUID() } : {}
+  return { ...options, ...identity, env: { ...(options.env ?? process.env), MERCURY_CONCOURSE_WORKER: '1' } }
 }

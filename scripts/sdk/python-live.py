@@ -69,7 +69,7 @@ async def main():
     for options in ({'resume': id}, {'continue_': True}):
         async with await connect(mercury=mercury, cwd=cwd, **options) as resumed:
             assert resumed.initialized['session_id'] == id
-    async with await connect(mercury=mercury, cwd=cwd, env=dict(os.environ, MERCURY_CONCOURSE_WORKER='1')) as warm:
+    async with await connect(mercury=mercury, cwd=cwd, warm=True) as warm:
         assert warm.initialized['session_id'] is None
         await warm.claim(session_id='00000000-0000-4000-8000-000000000098')
     print('PASS Python real runner resume, continue and warm claim', flush=True)
