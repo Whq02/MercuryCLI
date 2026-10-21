@@ -35,9 +35,15 @@ function capture(arm: string): Capture {
   assert.ok(line, `${arm}: no capture`)
   return JSON.parse(line.slice(8)) as Capture
 }
+const withoutClientVersion = (text: string): string => text.replace(/cc_version=\d+\.\d+\.\d+\./g, 'cc_version=<release>.')
 function comparable(request: Request): Request {
   assert.match(request.headers.host!, /^127\.0\.0\.1:\d+$/)
-  return { ...request, headers: Object.fromEntries(Object.entries(request.headers).filter(([name]) => !(name in HEADER_ALLOW_LIST))) }
+  return {
+    ...request,
+    raw: withoutClientVersion(request.raw),
+    body: JSON.parse(withoutClientVersion(JSON.stringify(request.body))) as unknown,
+    headers: Object.fromEntries(Object.entries(request.headers).filter(([name]) => !(name in HEADER_ALLOW_LIST))),
+  }
 }
 const actual = ['key', 'subscriber', 'bearer'].map(capture)
 const imports = sdkImports(join(root, 'src'))

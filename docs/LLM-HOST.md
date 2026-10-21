@@ -237,5 +237,5 @@ that's already running** and pick a registered server to:
   the saved address and key.
 - **Change the address and check it:** run discovery at a new address without
   sending the old stored key, credential command or custom headers.
-- **Remove this provider and its stored key:** delete the endpoint and its
+- **Remove the provider and its stored key:** delete the endpoint and its
   stored key from Mercury while leaving the server running.
