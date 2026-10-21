@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
+import { resultSchemas } from './result-schemas.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'sdk-generate-'))
@@ -17,6 +18,7 @@ const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
 const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
 const WIRE = 'src/runner/wire/methods.ts'
 const ERRORS = 'src/runner/wire/errors.ts'
+const RESULT_SOURCES = ['src/services/engine-connector/seatProjections.ts', 'src/services/engine-connector/types.ts', 'src/services/engine-connector/seatWire.ts', 'src/daemon/protocol.ts', 'src/cli/run.ts', 'scripts/sdk/result-schemas.ts']
 const VOCABULARY = 'src/rows/vocabulary.ts'
 const PERMISSIONS = 'src/types/permissions.ts'
 const EFFORT = 'src/utils/effortLadder.ts'
@@ -362,20 +364,23 @@ const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(
   ...(spec.capability ? { capability: spec.capability } : {}),
   params: jsonSchemaOf(spec.params, `${name}.params`), result: jsonSchemaOf(spec.result, `${name}.result`),
 }]))
-const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
+const resultShapes = await resultSchemas(ROOT)
+for (const [method, schema] of Object.entries(resultShapes)) { audit(schema, method); methodSchemas[method]!.result = schema }
+const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY, ...RESULT_SOURCES].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
 for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
 const rowRefs = new Set([...named.values()].map(e => e.typeName))
 const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
+for (const method of Object.keys(resultShapes)) wire.push(`export type ${method.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('')}Result = ${wireType(methodSchemas[method]!.result)}`)
 wire.push('export interface MethodParams {')
 for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.params)}`)
 wire.push('}', 'export interface MethodResults {')
-for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.result)}`)
+for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${resultShapes[name] ? name.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('') + 'Result' : wireType(spec.result)}`)
 wire.push('}', 'export type MethodName = keyof MethodParams', 'export type ParamsOf<M extends MethodName> = MethodParams[M]', 'export type ResultOf<M extends MethodName> = MethodResults[M]')
 for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']]) wire.push(`export type ${alias} = ${Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => JSON.stringify(n)).join(' | ')}`)
 wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
 wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
 const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict, overload', '']
-py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN])}`, '')
+py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN, ...RESULT_SOURCES])}`, '')
 const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
 const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
 function pyType(schema: Schema, name: string, top = false): string {

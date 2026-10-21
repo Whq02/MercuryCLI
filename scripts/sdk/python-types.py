@@ -35,3 +35,16 @@ async def consumer() -> None:
     assert_type(METHODS, dict[str, MethodSchema])
     assert_type(ROW_SCHEMAS, dict[str, Any])
     assert_type(MercuryWireError('', 'invalid').issues, list[Issue])
+
+
+async def typed_results() -> None:
+    session = await connect()
+    facts = await session.facts()
+    assert_type(facts['usage']['total_cost_usd'], float)
+    if 'work' in facts:
+        assert_type(facts['work'][0]['status'], str)
+    if 'file_checkpoints' in facts:
+        assert_type(facts['file_checkpoints']['restorable'], list[str])
+    rewind = await session.rewind('id', 'both')
+    if 'code' in rewind:
+        assert_type(rewind['code']['files_changed'], list[str])
