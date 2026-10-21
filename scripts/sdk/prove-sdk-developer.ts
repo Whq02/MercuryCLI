@@ -380,5 +380,18 @@ await check('item 9 propertyNames validation and reasoning_output_tokens fold on
   const folded = interruptedOutcome([testing.fixtureSessionRow({ session_id: 's' }), { ...turn, seq: 1 }, step1, step2], 0, 1000)
   assert.equal(folded.usage.reasoning_output_tokens, 30)
   assert.equal(folded.models.m?.reasoning_output_tokens, 30)
+  const asks = [
+    { jsonrpc: '2.0', id: 70, method: 'not/a_method', params: {} },
+    { jsonrpc: '2.0', id: 71, method: 'fs/read_text_file', params: { path: '/x' } },
+    { jsonrpc: '2.0', id: 72, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'u', tool_name: 'Read', input: {} } },
+  ]
+  const fixture = await testing.startFixtureServer({ validate: false, methods: { initialize: [init], 'session/facts': [{ result: {}, before: asks }] } })
+  try {
+    const session = await sdk.connect({ mercury: fixture.mercury, onPermissionRequest: (() => ({ outcome: 'wrong' })) as any })
+    try { await session.facts() } finally { await session.close() }
+    assert.equal((fixture.received.find(m => m.id === 70)?.error as any)?.message, 'unknown host method not/a_method')
+    assert.equal((fixture.received.find(m => m.id === 71)?.error as any)?.message, 'no handler for fs/read_text_file')
+    assert(String((fixture.received.find(m => m.id === 72)?.error as any)?.message).startsWith('invalid host answer: '))
+  } finally { await fixture.close() }
 })
 if (failures) process.exitCode = 1

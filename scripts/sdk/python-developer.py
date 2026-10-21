@@ -462,6 +462,17 @@ async def item9_property_names_and_interrupt_fold():
     folded = interrupted_outcome([testing.fixture_session_row(session_id='s'), {**turn, 'seq': 1}, step1, step2], 0.0, 1.0)
     assert folded['usage'].get('reasoning_output_tokens') == 30, folded['usage']
     assert folded['models']['m'].get('reasoning_output_tokens') == 30, folded['models']
+    asks = [
+        {'jsonrpc': '2.0', 'id': 70, 'method': 'not/a_method', 'params': {}},
+        {'jsonrpc': '2.0', 'id': 71, 'method': 'fs/read_text_file', 'params': {'path': '/x'}},
+        {'jsonrpc': '2.0', 'id': 72, 'method': 'permission/request', 'params': {'kind': 'tool', 'tool_use_id': 'u', 'tool_name': 'Read', 'input': {}}},
+    ]
+    async with await testing.start_fixture_server({'validate': False, 'methods': {'initialize': [init], 'session/facts': [{'result': {}, 'before': asks}]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury, on_permission_request=lambda ask, ctx: {'outcome': 'wrong'}) as session:
+            await session.facts()
+        assert next(m for m in fixture.received if m.get('id') == 70)['error']['message'] == 'unknown host method not/a_method'
+        assert next(m for m in fixture.received if m.get('id') == 71)['error']['message'] == 'no handler for fs/read_text_file'
+        assert next(m for m in fixture.received if m.get('id') == 72)['error']['message'].startswith('invalid host answer: ')
 
 
 asyncio.run(check('item 9 propertyNames validation and reasoning_output_tokens fold', item9_property_names_and_interrupt_fold))

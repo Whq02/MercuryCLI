@@ -126,11 +126,11 @@ class MercurySession(TypedRequests):
         try:
             spec = METHODS.get(method)
             if not spec or spec['kind'] != 'request' or spec['from'] == 'host':
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'unknown host method'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': f'unknown host method {method}'}})
                 return
             issues = validate(spec['params'], message.get('params', {}))
             if issues:
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': 'invalid request params'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': 'invalid request params', 'data': [{'path': i.path, 'message': i.message} for i in issues]}})
                 return
             handler = self.handlers.get(method)
             if handler:
@@ -139,11 +139,11 @@ class MercurySession(TypedRequests):
             elif method == 'permission/request': value = {'outcome': 'deny', 'message': 'No permission handler installed'}
             elif method == 'elicitation/request': value = {'action': 'decline'}
             else:
-                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'no host handler installed'}})
+                await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': f'no handler for {method}'}})
                 return
             if value is None and not validate(spec['result'], {}): value = {}
             issues = validate(spec['result'], value)
-            if issues: raise MercuryWireError(json.dumps(value), 'invalid', method, issues)
+            if issues: raise MercuryError(f"invalid host answer: {json.dumps([{'path': i.path, 'message': i.message} for i in issues])}")
             if not context.cancelled.is_set(): await self._write({'jsonrpc': '2.0', 'id': id, 'result': value})
         except Exception as error:
             if not context.cancelled.is_set() and not self._closed:
