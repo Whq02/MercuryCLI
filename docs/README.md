@@ -60,6 +60,7 @@ map and `/keybindings` opens your keybindings file.
 - [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor package, play and scene operations, tests and reconnects after a reload.
 - [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender add-on, scene and render operations, and Python execution inside Blender.
 - [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): Aseprite batch operations, sprite exports, sheets and Lua scripts.
+- [VIDEO.md](VIDEO.md): configure a billable MiniMax video generator, send prompts and project reference files, and save MP4 results with optional preview frames.
 
 ## Reference
 

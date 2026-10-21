@@ -672,6 +672,7 @@
   "routing",
   "shell",
   "turns",
+  "videoProvider",
   "view",
   "voice",
   "workspace"
