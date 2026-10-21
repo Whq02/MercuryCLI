@@ -229,7 +229,7 @@ class MercurySession(TypedRequests):
                         for id in row['message_ids']:
                             if id in self._prompt_turns: self._prompt_turns[id] = row['turn_id']
                     if row['type'] == 'text' and 'parent_call_id' not in row and row.get('in_reply_to') and self._correlated_turns and self._active_turn is not None:
-                        for mark in row['in_reply_to']:
+                        for mark in row.get('in_reply_to') or []:
                             if self._uncorrelated(mark['id']): self._prompt_turns[mark['id']] = self._active_turn
                     self._emit('row', row)
                     self._emit(row['type'], row)
@@ -285,7 +285,8 @@ class MercurySession(TypedRequests):
         if row['type'] != 'prompt': return await self.request('queue/add', row)
         if self.session_id is None: raise MercuryError('session is unclaimed; call claim() before prompting')
         if row.get('schema') is not None and not self.supports['per_turn_schema']: raise unsupported_feature('per_turn_schema', self.runner_version or 'unknown')
-        problem = None if row.get('schema') is None else schema_problem(row['schema'])
+        turn_schema = row.get('schema')
+        problem = None if turn_schema is None else schema_problem(turn_schema)
         if problem is not None: raise MercurySchemaError([Issue('schema', problem)], None, problem)
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
