@@ -63,8 +63,8 @@ writeFileSync(
     "  process.stdout.write(JSON.stringify({ frames: frames.map(f => ({ type: f.type, state: f.state, status: f.status, line: f.line, head: typeof f.text === 'string' ? f.text.slice(0, 40) : undefined, answer: typeof f.answer === 'string' ? f.answer.slice(0, 40) : undefined })), bytes, exit, signal, stderr, aliveAfterStall, exitedAtMs, resumedAtMs, t0 }) + '\\n')",
     '  process.exit(0)',
     '}',
-    'const deadline = setTimeout(() => { try { child.kill(\'SIGKILL\') } catch {} ; setTimeout(finish, 500) }, Number(budgetMs))',
-    "child.on('exit', () => { clearTimeout(deadline); setTimeout(finish, 300) })",
+    "const deadline = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; child.stdout.resume() }, Number(budgetMs))",
+    "child.on('close', () => { clearTimeout(deadline); finish() })",
   ].join('\n') + '\n',
 )
 
@@ -90,7 +90,7 @@ async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow'): Promis
   reader.stderr!.on('data', (chunk: Buffer) => {
     readerLog += chunk.toString('utf8')
   })
-  await new Promise<void>(resolve => reader.on('exit', () => resolve()))
+  await new Promise<void>(resolve => reader.on('close', () => resolve()))
   await fixture.close()
   const line = out.split('\n').find(l => l.trim().startsWith('{'))
   if (line === undefined) return { frames: [], bytes: 0, exit: null, signal: null, stderr: '', aliveAfterStall: false, exitedAtMs: null, resumedAtMs: 0, t0: 0, readerLog }

@@ -101,12 +101,23 @@ async function runLeg(leg: LegName): Promise<LegReport> {
   const home = getShellCwd()
   const target = realpathSync(mkdtempSync(join(scratch, 'cwd-target-')))
   const other = realpathSync(mkdtempSync(join(scratch, 'cwd-other-')))
+  const recordNames = (): string[] => readdirSync(tmpdir()).filter(name => name.startsWith('mercury-cwd-'))
+  const recordsBefore = new Set(recordNames())
   await (await exec(`cd ${q(target)} && echo moved`, signal(), 'bash', { timeout: 30_000, inheritSessionEnv: true })).result
   const moved = getShellCwd() === target
   await (await exec(`cd ${q(other)} && false`, signal(), 'bash', { timeout: 30_000, inheritSessionEnv: true })).result
   const keptAfterFailure = getShellCwd() === target
   setCwd(home)
-  const records = (): number => readdirSync(tmpdir()).filter(name => name.startsWith('mercury-cwd-')).length
+  const records = (): number => recordNames().filter(name => {
+    if (recordsBefore.has(name)) return false
+    try {
+      const cwd = readFileSync(join(tmpdir(), name), 'utf8').split('\n')[0]?.trim()
+      return cwd === target || cwd === other
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+      throw error
+    }
+  }).length
   for (let i = 0; i < 240 && records() > 0; i++) await sleep(50)
 
   const crewmate = await (await exec('echo crewmate-ran', signal(), 'bash', { timeout: 10_000, owner: 'agent-engine-roads' })).result
