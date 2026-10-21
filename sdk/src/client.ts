@@ -150,6 +150,10 @@ export function interruptedOutcome(rows: readonly StreamRow[], startedAt: number
   for (const step of steps) {
     const model = models[step.model] ?? (models[step.model] = { ...zero(), web_searches: 0 })
     for (const key of USAGE_KEYS) { usage[key] += step.usage[key]; model[key] += step.usage[key] }
+    if (step.usage.reasoning_output_tokens !== undefined) {
+      usage.reasoning_output_tokens = (usage.reasoning_output_tokens ?? 0) + step.usage.reasoning_output_tokens
+      model.reasoning_output_tokens = (model.reasoning_output_tokens ?? 0) + step.usage.reasoning_output_tokens
+    }
   }
   const last = rows.at(-1)
   return { type: 'outcome', seq: (last?.seq ?? 0) + 1, timestamp: new Date(now).toISOString(), session_id: last?.session_id ?? '', turn: turn?.turn ?? Math.max(1, opened.length), schema: 1, turn_id: turn?.turn_id ?? '', status: 'interrupted', error: { message: 'Interrupted', class: 'interrupt' }, steps: steps.length, wall_ms: Math.max(0, now - (turn === undefined ? startedAt : Date.parse(turn.timestamp))), usage, models, denials: [] }

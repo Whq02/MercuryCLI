@@ -81,6 +81,7 @@ def validate(schema: Mapping[str, Any], value: Any, path: str = '') -> list[Issu
             if key not in value: issues.append(Issue(f'{path}.{key}'.lstrip('.'), 'required'))
         for key, item in value.items():
             p = f'{path}.{key}'.lstrip('.')
+            if 'propertyNames' in schema: issues.extend(validate(schema['propertyNames'], key, p))
             if key in props: issues.extend(validate(props[key], item, p))
             elif schema.get('additionalProperties') is False: issues.append(Issue(p, 'not a declared key'))
             elif isinstance(schema.get('additionalProperties'), dict): issues.extend(validate(schema['additionalProperties'], item, p))

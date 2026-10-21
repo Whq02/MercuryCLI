@@ -302,4 +302,21 @@ async def main():
 
 
 asyncio.run(main())
+
+
+async def item9_property_names_and_interrupt_fold():
+    from mercury_cli_sdk.client import interrupted_outcome
+    issues = sdk.validate({'type': 'object', 'propertyNames': {'enum': ['a', 'b']}}, {'a': 1, 'c': 2})
+    assert [i.path for i in issues] == ['c'], issues
+    issues2 = sdk.validate({'type': 'object', 'propertyNames': {'minLength': 2}}, {'ok': 1, 'x': 2})
+    assert [i.path for i in issues2] == ['x'], issues2
+    turn, _ = testing.fixture_turn({'session_id': 's', 'turn': 1, 'turn_id': 't1'})
+    step1 = {'type': 'step', 'seq': 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm1', 'model': 'm', 'usage': {'input_tokens': 10, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 5, 'reasoning_output_tokens': 12}}
+    step2 = {'type': 'step', 'seq': 3, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm2', 'model': 'm', 'usage': {'input_tokens': 20, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 8, 'reasoning_output_tokens': 18}}
+    folded = interrupted_outcome([testing.fixture_session_row(session_id='s'), {**turn, 'seq': 1}, step1, step2], 0.0, 1.0)
+    assert folded['usage'].get('reasoning_output_tokens') == 30, folded['usage']
+    assert folded['models']['m'].get('reasoning_output_tokens') == 30, folded['models']
+
+
+asyncio.run(check('item 9 propertyNames validation and reasoning_output_tokens fold', item9_property_names_and_interrupt_fold))
 if failures: raise SystemExit(1)

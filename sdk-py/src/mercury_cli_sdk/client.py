@@ -235,6 +235,10 @@ def interrupted_outcome(rows: list[StreamRow], started_at: float, now: float | N
         for key in _USAGE_KEYS:
             usage[key] += int(step['usage'][key])
             model[key] += int(step['usage'][key])
+        if 'reasoning_output_tokens' in step['usage']:
+            reasoning = int(step['usage']['reasoning_output_tokens'])
+            usage['reasoning_output_tokens'] = usage.get('reasoning_output_tokens', 0) + reasoning
+            model['reasoning_output_tokens'] = model.get('reasoning_output_tokens', 0) + reasoning
     last = rows[-1] if rows else None
     started = datetime.fromisoformat(str(turn['timestamp']).replace('Z', '+00:00')).timestamp() if turn else started_at
     row = {'type': 'outcome', 'seq': int(last.get('seq', 0) if last else 0) + 1, 'timestamp': datetime.fromtimestamp(at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'), 'session_id': str(last.get('session_id', '')) if last else '', 'turn': int(turn.get('turn', max(1, len(opened)))) if turn else max(1, len(opened)), 'schema': 1, 'turn_id': str(turn['turn_id']) if turn else '', 'status': 'interrupted', 'error': {'message': 'Interrupted', 'class': 'interrupt'}, 'steps': len(steps), 'wall_ms': max(0, int((at - started) * 1000)), 'usage': usage, 'models': models, 'denials': []}

@@ -268,4 +268,15 @@ try {
   const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
   await check('Python developer API mirrors', async () => { assert.equal(await new Promise(r => child.once('close', r)), 0) })
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }
+await check('item 9 propertyNames validation and reasoning_output_tokens fold on interruptedOutcome', async () => {
+  const { interruptedOutcome } = await import('../../sdk/src/client.ts')
+  assert.deepEqual(sdk.validate({ type: 'object', propertyNames: { enum: ['a', 'b'] } }, { a: 1, c: 2 }), [{ path: 'c', message: 'expected one of "a", "b", found "c"' }])
+  assert.deepEqual(sdk.validate({ type: 'object', propertyNames: { minLength: 2 } }, { ok: 1, x: 2 }), [{ path: 'x', message: 'string too short' }])
+  const [turn] = testing.fixtureTurn({ session_id: 's', turn: 1, turn_id: 't1' })
+  const step1: sdk.StepRow = { type: 'step', seq: 2, timestamp: '2000-01-01T00:00:00.000Z', session_id: 's', message_id: 'm1', model: 'm', usage: { input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 5, reasoning_output_tokens: 12 } }
+  const step2: sdk.StepRow = { type: 'step', seq: 3, timestamp: '2000-01-01T00:00:00.000Z', session_id: 's', message_id: 'm2', model: 'm', usage: { input_tokens: 20, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 8, reasoning_output_tokens: 18 } }
+  const folded = interruptedOutcome([testing.fixtureSessionRow({ session_id: 's' }), { ...turn, seq: 1 }, step1, step2], 0, 1000)
+  assert.equal(folded.usage.reasoning_output_tokens, 30)
+  assert.equal(folded.models.m?.reasoning_output_tokens, 30)
+})
 if (failures) process.exitCode = 1
