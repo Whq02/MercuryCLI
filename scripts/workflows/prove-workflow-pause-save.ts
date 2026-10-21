@@ -311,14 +311,27 @@ const fixtureEnv = {
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_DAEMON_NO_SELF_WARM: '1',
 }
-type Child = { proc: ChildProcess; out: () => string; err: () => string }
+type Child = { proc: ChildProcess; out: () => string; err: () => string; closed: Promise<void> }
 function launchChild(mode: string, extra: Record<string, string> = {}): Child {
   let out = ''
   let err = ''
   const proc = spawn(BUN, ['run', join(scratch, 'child.ts')], { cwd, env: { ...process.env, ...fixtureEnv, PAUSE_MODE: mode, ...extra } })
   proc.stdout?.on('data', (d: Buffer) => (out += d.toString()))
   proc.stderr?.on('data', (d: Buffer) => (err += d.toString()))
-  return { proc, out: () => out, err: () => err }
+  const closed = new Promise<void>(resolve => proc.once('close', () => resolve()))
+  return { proc, out: () => out, err: () => err, closed }
+}
+
+async function controlRun(...args: Parameters<typeof requestWorkflowControl>): ReturnType<typeof requestWorkflowControl> {
+  const reply = await requestWorkflowControl(...args)
+  if (reply.outcome !== 'pending') return reply
+  const deadline = Date.now() + 30_000
+  do {
+    const answer = await runControl.readWorkflowControlAnswer(args[0], reply.requestId)
+    if (answer?.id === reply.requestId) return answer.result
+    await wait(50)
+  } while (Date.now() < deadline)
+  return reply
 }
 
 async function pauseAfterTheFirst(child: Child, who: string): Promise<{ runDir: string; scriptPath: string; runId: string } | undefined> {
@@ -330,19 +343,21 @@ async function pauseAfterTheFirst(child: Child, who: string): Promise<{ runDir: 
   const runDir = String(line.runDir)
   const firstOnTheWire = await until(() => requestsOf('first') >= 1, 60_000)
   check(`${who}: the first call is on the wire (held by the fixture)`, firstOnTheWire, child.err().slice(-300))
-  const paused = await requestWorkflowControl(runDir, { action: 'pause', by: 'operator' })
+  const paused = await controlRun(runDir, { action: 'pause', by: 'operator' })
   check(`${who}: p over the run: the pause verb is applied`, paused.outcome === 'applied', JSON.stringify(paused))
   releaseFirst()
   const firstCached = await until(() => journalRows(runDir).some(r => r.type === 'result'), 20_000)
   check(`${who}: the first call finishes and the cache holds it`, firstCached, JSON.stringify(journalRows(runDir)))
-  await wait(2_500)
+  const saved = await until(() => {
+    const manifest = readManifest(runDir)
+    return manifest.status === 'paused' && manifest.pausedAt?.after === 1 && manifest.agents.some(agent => agent.label === 'first' && agent.state === 'done')
+  }, 20_000)
   const rows = journalRows(runDir)
   const started = rows.filter(r => r.type === 'started')
   const results = rows.filter(r => r.type === 'result')
   check(`${who}: the second never starts — one started row, one result row (the first), no second key`, started.length === 1 && results.length === 1 && started[0]?.key === results[0]?.key, `started ${started.length} results ${results.length}`)
   check(`${who}: the cache holds the first's answer`, results[0]?.result === 'ALPHA', JSON.stringify(results[0]))
   check(`${who}: no request for the second reached the wire`, requestsOf('second') === 0, `second ${requestsOf('second')}`)
-  const saved = await until(() => readManifest(runDir).status === 'paused', 5_000)
   const m = readManifest(runDir)
   check(`${who}: run.json says paused, by whom`, saved && m.pausedBy === 'operator', `status ${m.status} pausedBy ${m.pausedBy ?? 'none'}`)
   check(`${who}: run.json carries the position — after 1 call, next "second" in Work`, m.pausedAt?.after === 1 && m.pausedAt.next.length === 1 && m.pausedAt.next[0]?.label === 'second' && m.pausedAt.next[0]?.phaseTitle === 'Work', JSON.stringify(m.pausedAt ?? null))
@@ -357,7 +372,7 @@ let child: Child | undefined = launchChild('run')
   const run = await pauseAfterTheFirst(child, 'toggle')
   if (run) {
     const resumeAt = Date.now()
-    const resumed = await requestWorkflowControl(run.runDir, { action: 'resume', by: 'operator' })
+    const resumed = await controlRun(run.runDir, { action: 'resume', by: 'operator' })
     check('toggle: p again: the resume verb is applied to the parked run', resumed.outcome === 'applied', JSON.stringify(resumed))
     const settledSeen = await until(() => child!.out().includes('"ev":"settled"'), 40_000)
     check('toggle: the run finishes after the resume', settledSeen, (child.out() + child.err()).slice(-400))
@@ -376,7 +391,7 @@ child = launchChild('park')
 {
   const run = await pauseAfterTheFirst(child, 'saved')
   child.proc.kill('SIGKILL')
-  await wait(300)
+  await child.closed
   if (run) {
     const old = (Date.now() - 120_000) / 1000
     utimesSync(join(run.runDir, 'run.json'), old, old)
@@ -402,7 +417,7 @@ child = launchChild('run')
 {
   const run = await pauseAfterTheFirst(child, 'kill')
   if (run) {
-    const stopped = await requestWorkflowControl(run.runDir, { action: 'stop', by: 'operator' }, { answerMs: 30_000 })
+    const stopped = await controlRun(run.runDir, { action: 'stop', by: 'operator' })
     check('kill: x over the parked run is applied', stopped.outcome === 'applied', JSON.stringify(stopped))
     const settledSeen = await until(() => child!.out().includes('"ev":"settled"'), 30_000)
     const settled = readLines(child.out()).find(l => l.ev === 'settled') as Record<string, unknown> | undefined
