@@ -167,10 +167,19 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
 
 _live: dict[int, asyncio.subprocess.Process] = {}
 _sent: dict[int, str] = {}
+_owner_pid = os.getpid()
 WINDOWS = os.name == 'nt'
 
 
+def _reset_after_fork() -> None:
+    global _owner_pid
+    _owner_pid = os.getpid()
+    _live.clear()
+    _sent.clear()
+
+
 def _end_live_children() -> None:
+    if os.getpid() != _owner_pid: return
     for pid, child in list(_live.items()):
         if child.returncode is None:
             try: os.kill(pid, signal.SIGTERM)
@@ -178,6 +187,7 @@ def _end_live_children() -> None:
 
 
 atexit.register(_end_live_children)
+if hasattr(os, 'register_at_fork'): os.register_at_fork(after_in_child=_reset_after_fork)
 
 
 def track(child: asyncio.subprocess.Process) -> None:

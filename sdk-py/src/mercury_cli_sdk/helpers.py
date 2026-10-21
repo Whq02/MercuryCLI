@@ -109,10 +109,16 @@ class ToolServer:
     _server: ThreadingHTTPServer
     _thread: threading.Thread
     _pending: dict[Any, ToolContext]
+    _loop: asyncio.AbstractEventLoop | None = None
     _closed: bool = False
 
     def cancel(self) -> None:
-        for context in self._pending.values(): context.cancelled.set()
+        def _set() -> None:
+            for context in list(self._pending.values()): context.cancelled.set()
+        try: same_loop = asyncio.get_running_loop() is self._loop
+        except RuntimeError: same_loop = False
+        if not same_loop and self._loop is not None and self._loop.is_running(): self._loop.call_soon_threadsafe(_set)
+        else: _set()
 
     async def close(self) -> None:
         if self._closed: return
@@ -161,8 +167,8 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                 message = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
                 id = message.get('id')
                 if message.get('method') == 'notifications/cancelled':
-                    context = pending.get(message.get('params', {}).get('requestId'))
-                    if context: loop.call_soon_threadsafe(context.cancelled.set)
+                    request_id = message.get('params', {}).get('requestId')
+                    loop.call_soon_threadsafe(lambda: context.cancelled.set() if (context := pending.get(request_id)) else None)
                 if id is None:
                     self.send_response(202); self.end_headers(); return
                 method, params = message['method'], message.get('params', {})
@@ -198,7 +204,7 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
-    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending)
+    return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending, loop)
 
 
 def text_block(text: str) -> InputBlock:

@@ -7,7 +7,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, row_of, run, __version__
+from urllib.request import Request, urlopen
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, define_tool, row_of, run, serve_tools, __version__
 from mercury_cli_sdk.testing import fixture_session_row, fixture_turn
 
 WINDOWS = os.name == 'nt'
@@ -177,6 +178,60 @@ asyncio.run(main())
         await asyncio.sleep(0.05)
     assert not [p for p in pids if alive(p)], 'children outlived the host'
 
+
+async def fork_and_thread_cancel():
+    if hasattr(os, 'fork'):
+        script = f'''import asyncio, json, os, sys, time
+sys.path.insert(0, {json.dumps(str(Path(__file__).resolve().parents[2] / 'sdk-py/src'))})
+from mercury_cli_sdk import run
+from mercury_cli_sdk.runner import MercurySession
+from mercury_cli_sdk.client import spawn, RunOptions
+idle = [sys.executable, '-c', 'import time\\nwhile True: time.sleep(1)']
+async def start():
+    task = await run(input='rows', mercury=idle)
+    session = MercurySession(await spawn([*idle, 'runner'], RunOptions()), {{}})
+    return task, session
+async def stop(task, session):
+    task.terminate()
+    await task.exit
+    await session.close()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+task, session = loop.run_until_complete(start())
+pid = os.fork()
+if pid == 0:
+    sys.exit(0)
+_, status = os.waitpid(pid, 0)
+assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0, status
+time.sleep(0.1)
+os.kill(task.child.pid, 0)
+os.kill(session.child.pid, 0)
+loop.run_until_complete(stop(task, session))
+loop.close()
+'''
+        result = await asyncio.to_thread(subprocess.run, [sys.executable, '-c', script], capture_output=True, text=True, timeout=20)
+        assert result.returncode == 0, result.stderr
+    began = asyncio.Event()
+    async def wait_tool(_params, context):
+        began.set()
+        await context.cancelled.wait()
+        return 'cancelled'
+    tool = define_tool('wait', 'Wait', {}, wait_tool)
+    async with await serve_tools([tool]) as server:
+        def post(body):
+            req = Request(server.config['url'], json.dumps(body).encode(), {**server.config['headers'], 'Content-Type': 'application/json'})
+            with urlopen(req, timeout=10) as resp: return resp.read()
+        call1 = asyncio.create_task(asyncio.to_thread(post, {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': 'wait', 'arguments': {}}}))
+        await asyncio.wait_for(began.wait(), 5)
+        await asyncio.to_thread(post, {'jsonrpc': '2.0', 'method': 'notifications/cancelled', 'params': {'requestId': 1}})
+        assert json.loads(await asyncio.wait_for(call1, 5))['result']['content'][0]['text'] == 'cancelled'
+        began.clear()
+        call2 = asyncio.create_task(asyncio.to_thread(post, {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'wait', 'arguments': {}}}))
+        await asyncio.wait_for(began.wait(), 5)
+        await asyncio.to_thread(server.cancel)
+        assert json.loads(await asyncio.wait_for(call2, 5))['result']['content'][0]['text'] == 'cancelled'
+
+
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
@@ -184,7 +239,9 @@ async def main():
     await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)
     await check('Python Windows road' + ('' if WINDOWS else ' driven on this host') + ': cancel ends the child and settles interrupted, terminate and the wire escalation report the signal sent, a natural exit 1 stays exit 1', windows_road)
     await check('Python host exit terminates live children', host_exit)
-    assert __version__ in Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
+    await check('Python fork safety and thread-safe tool cancellation', fork_and_thread_cancel)
+    pyproject = Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
+    assert __version__ in pyproject and 'Programming Language :: Python :: 3.14' in pyproject
     assert not failures, failures
     print('PASS Python lifecycle')
 
