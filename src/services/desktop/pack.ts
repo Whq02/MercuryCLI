@@ -242,6 +242,7 @@ export interface DesktopAddonTree {
 
 export interface DesktopAddon {
   packVersion(): string
+  keyboardIdleMs?(): number | null
   permissions(): DesktopAddonPermissions
   requestPermissions(): DesktopAddonPermissions
   displays(): DesktopAddonDisplays

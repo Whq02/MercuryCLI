@@ -156,6 +156,7 @@ export interface DesktopDriver {
   describe(): DesktopDriverFacts
   permissions(): Promise<DesktopAnswer<DesktopPermissions>>
   permissionsNow?(): DesktopAnswer<DesktopPermissions>
+  keyboardIdleMs?(): Promise<number | null>
   requestPermissions(): Promise<DesktopAnswer<DesktopPermissions>>
   displays(): Promise<DesktopAnswer<DesktopDisplays>>
   capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>

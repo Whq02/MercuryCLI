@@ -70,6 +70,7 @@ extern "C" {
     fn CGDataProviderCopyData(provider: CGDataProviderRef) -> CFTypeRef;
     fn CGImageRelease(image: CGImageRef);
     fn CGEventSourceCreate(state: i32) -> CGEventSourceRef;
+    fn CGEventSourceSecondsSinceLastEventType(state: i32, kind: u32) -> f64;
     fn CGEventCreate(source: CGEventSourceRef) -> CGEventRef;
     fn CGEventGetLocation(event: CGEventRef) -> CGPoint;
     fn CGEventCreateMouseEvent(source: CGEventSourceRef, kind: u32, position: CGPoint, button: u32) -> CGEventRef;
@@ -98,6 +99,14 @@ extern "C" {
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
 }
 
+pub fn keyboard_idle_ms() -> Option<f64> {
+    let seconds = unsafe {
+        [10, 11, 12].into_iter()
+            .map(|kind| CGEventSourceSecondsSinceLastEventType(EVENT_SOURCE_HID_SYSTEM_STATE, kind))
+            .fold(f64::INFINITY, f64::min)
+    };
+    if seconds.is_finite() && seconds >= 0.0 { Some(seconds * 1000.0) } else { None }
+}
 const NUMBER_FLOAT64: isize = 13;
 const TREE_MESSAGING_TIMEOUT_S: f32 = 1.0;
 
