@@ -52,15 +52,25 @@ export const InitializeParamsSchema = lazySchema(() =>
     host: z.object({ name: z.string(), version: z.string() }),
     capabilities: CapabilitiesSchema(),
     schema: z.record(z.string(), z.unknown()).optional(),
+    file_checkpoints: z.boolean().optional(),
   }),
 )
 export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>>
+
+export const FileCheckpointsFactSchema = lazySchema(() =>
+  z.object({
+    capture: z.boolean(),
+    source: z.enum(['interactive', 'seat', 'initialize', 'setting', 'headless']),
+  }),
+)
+export type FileCheckpointsFact = z.infer<ReturnType<typeof FileCheckpointsFactSchema>>
 
 export const InitializeResultSchema = lazySchema(() =>
   z.object({
     protocol: z.literal(RUNNER_PROTOCOL),
     runner: z.object({ version: z.string(), pid: z.number().int() }),
     session_id: z.string().nullable(),
+    file_checkpoints: FileCheckpointsFactSchema().optional(),
   }),
 )
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>

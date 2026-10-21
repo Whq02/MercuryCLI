@@ -104,7 +104,7 @@ import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/r
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RequestRef, type RunnerArms } from './headless/runnerMethods.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
-import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
+import type { Capabilities, FileCheckpointsFact, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { anthropicObservedUsage, anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
@@ -157,7 +157,7 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
-import { fileHistoryEnabled } from '../utils/fileHistory.js'
+import { fileCheckpointSource, fileHistoryEnabled, requestFileCheckpoints } from '../utils/fileHistory.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { isBareMode, isEnvTruthy, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { toError, errorMessage } from '../utils/errors.js'
@@ -410,6 +410,10 @@ function priorTurnCount(messages: readonly Message[]): number {
   return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
 }
 
+function fileCheckpointsFact(): FileCheckpointsFact {
+  return { capture: fileHistoryEnabled(), source: fileCheckpointSource() }
+}
+
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
   getAppState: GetAppState,
@@ -533,13 +537,14 @@ export async function runHeadless(
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
       capabilities = params.capabilities
+      if (params.file_checkpoints !== undefined) requestFileCheckpoints(params.file_checkpoints)
       await bootReady
       if (params.schema !== undefined) {
         const compiled = compileJsonSchema(params.schema)
         if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
         initializeJsonSchema = params.schema
       }
-      return initializeResultOf(awaitingSessionClaim ? null : String(getSessionId()))
+      return initializeResultOf(awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
     })
     bindRunnerMethods(peer, () => arms)
   }
@@ -2137,7 +2142,7 @@ export async function runHeadless(
         streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
         buildTree: runningBuildTree(),
         fileCheckpoints: {
-          capture: fileHistoryEnabled(),
+          ...fileCheckpointsFact(),
           restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),
         },
       }

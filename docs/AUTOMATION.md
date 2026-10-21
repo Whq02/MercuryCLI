@@ -136,6 +136,18 @@ for both.
   every turn without a `schema` of its own answers through; one the
   validation engine refuses answers `-32602` (path `schema`) and `initialize`
   may be sent again.
+- **File checkpoints:** A hosted runner captures no per-turn file checkpoints
+  by default, so `session/rewind` with `mode: "code"` refuses `capture-off`.
+  Send `"file_checkpoints": true` in `initialize` to capture them: every turn
+  then saves the pre-edit bytes of each file its tools change, `session/rewind`
+  can restore them, and the session's crewmates run as usual. The result of
+  `initialize` and `session/facts` both carry `file_checkpoints` with
+  `capture` (`true` or `false`) and `source`: `initialize` (the host asked),
+  `headless` (nothing asked, the default), `setting` (the operator's
+  `fileCheckpointingEnabled: false` setting turned capture off, which it does
+  for every process), `seat` (the Mercury screen's own session runner) or
+  `interactive`. `session/facts` adds `restorable`, the prompt ids that carry
+  a saved point.
 - **Send a prompt and read rows:** Call `queue/add` with a `prompt`, `shell` or
   `note` input row; the runner answers `{"accepted":true}` (or
   `{"accepted":false,"reason":"duplicate"}` when `id` was already processed, so
