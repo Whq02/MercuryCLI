@@ -1,4 +1,4 @@
-import { RUNNER_PROTOCOL, methodsFrom, type Capabilities, type HostNotificationName, type HostRequestName, type InitializeParams, type InitializeResult, type ParamsOf, type ResultOf } from '../../runner/wire/methods.js'
+import { RUNNER_PROTOCOL, methodsFrom, type Capabilities, type FileCheckpointsFact, type HostNotificationName, type HostRequestName, type InitializeParams, type InitializeResult, type ParamsOf, type ResultOf } from '../../runner/wire/methods.js'
 import { refused } from '../../runner/wire/errors.js'
 import type { Peer } from '../../runner/wire/peer.js'
 
@@ -27,8 +27,8 @@ export function bindRunnerMethods(peer: Peer, armsOf: () => RunnerArms): void {
 
 export const DEFAULT_CAPABILITIES: Capabilities = { holds_asks: false, elicitation: false, partial_rows: false }
 
-export function initializeResultOf(sessionId: string | null): InitializeResult {
-  return { protocol: RUNNER_PROTOCOL, runner: { version: MACRO.VERSION, pid: process.pid }, session_id: sessionId }
+export function initializeResultOf(sessionId: string | null, fileCheckpoints: FileCheckpointsFact): InitializeResult {
+  return { protocol: RUNNER_PROTOCOL, runner: { version: MACRO.VERSION, pid: process.pid }, session_id: sessionId, file_checkpoints: fileCheckpoints }
 }
 
 export function checkProtocol(params: InitializeParams): void {

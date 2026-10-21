@@ -67,6 +67,7 @@ export interface SessionFactsAnswerV1 {
 
 export interface FileCheckpointFactsV1 {
   capture: boolean
+  source?: 'interactive' | 'seat' | 'initialize' | 'setting' | 'headless'
   restorable: string[]
 }
 

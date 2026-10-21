@@ -77,9 +77,25 @@ function isSessionRunnerProcess(): boolean {
   return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
 }
 
+export const FILE_CHECKPOINT_SOURCES = ['interactive', 'seat', 'initialize', 'setting', 'headless'] as const
+export type FileCheckpointSource = (typeof FILE_CHECKPOINT_SOURCES)[number]
+
+let fileCheckpointsRequested = false
+
+export function requestFileCheckpoints(on: boolean): void {
+  fileCheckpointsRequested = on
+}
+
+export function fileCheckpointSource(): FileCheckpointSource {
+  const road: FileCheckpointSource = !getIsNonInteractiveSession() ? 'interactive' : isSessionRunnerProcess() ? 'seat' : fileCheckpointsRequested ? 'initialize' : 'headless'
+  if (road === 'headless') return road
+  if ((getGlobalConfig() as { fileCheckpointingEnabled?: unknown }).fileCheckpointingEnabled === false) return 'setting'
+  return road
+}
+
 export function fileHistoryEnabled(): boolean {
-  if (getIsNonInteractiveSession() && !isSessionRunnerProcess()) return false
-  return (getGlobalConfig() as { fileCheckpointingEnabled?: unknown }).fileCheckpointingEnabled !== false
+  const source = fileCheckpointSource()
+  return source === 'interactive' || source === 'seat' || source === 'initialize'
 }
 
 

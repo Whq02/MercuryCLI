@@ -490,7 +490,7 @@ const inputStamp = {
 }
 
 export const PromptRowSchema = lazySchema(() =>
-  z.object({ type: z.literal('prompt'), content: z.union([z.string(), z.array(InputBlockSchema())]), ...inputStamp }),
+  z.object({ type: z.literal('prompt'), content: z.union([z.string(), z.array(InputBlockSchema())]), schema: z.record(z.string(), z.unknown()).optional(), ...inputStamp }),
 )
 export type PromptRow = z.infer<ReturnType<typeof PromptRowSchema>>
 export const ShellRowSchema = lazySchema(() => z.object({ type: z.literal('shell'), command: z.string(), ...inputStamp }))

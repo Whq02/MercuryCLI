@@ -10,7 +10,7 @@ import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
 import { type AppState } from 'src/state/AppStateStore.js'
 import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
-import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
+import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isSovereignDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
 
@@ -105,7 +105,8 @@ export async function handleRewindSession(
   const receipt: SessionRewindOutcomeV1 = { outcome: 'applied', mode, ...(dryRun ? { dryRun: true } : {}) }
   if (wantsCode) {
     if (!fileHistoryEnabled()) {
-      return refusedRewind(mode, 'capture-off', 'file checkpoints are off for this session (Settings › File checkpointing) — the conversation can still be restored')
+      const why = fileCheckpointSource() === 'headless' ? 'a hosted run asks for them with file_checkpoints on initialize' : 'Settings › File checkpointing'
+      return refusedRewind(mode, 'capture-off', `file checkpoints are off for this session (${why}) — the conversation can still be restored`)
     }
     const state = ctx.getAppState()
     if (!fileHistoryCanRestore(state.fileHistory, uuid as UUID)) {

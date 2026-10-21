@@ -39,6 +39,7 @@
     "inputRefusal",
     "isBrokenPipeError",
     "isRowLine",
+    "promptSchemaRefusal",
     "type:OutboundLine",
     "type:OutboundNotification"
    ]

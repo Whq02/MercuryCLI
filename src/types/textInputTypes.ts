@@ -117,6 +117,7 @@ export type QueuePriority = 'now' | 'next' | 'later'
 type QueuePayload = {
   value: string | ContentBlockParam[]
   mode: PromptInputMode
+  schema?: Record<string, unknown>
   pastedContents?: Record<number, PastedContent>
   preExpansionValue?: string
   agentCompletion?: { agentId: string; start: number; end: number }

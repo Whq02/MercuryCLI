@@ -32,7 +32,7 @@ import { fileHistoryEnabled, fileHistoryMakeSnapshot } from '../utils/fileHistor
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import { engageCommitGate } from '../guards/commitGate.js'
 import { registerForcedReadGuard } from '../guards/forcedRead.js'
-import { registerStructuredOutputGuard } from '../guards/structuredOutput.js'
+import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../guards/structuredOutput.js'
 import { registerRunStopGuard } from '../guards/runStop.js'
 import { registerWardsGuard } from '../guards/wardsGuard.js'
 import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
@@ -400,6 +400,7 @@ export class Conversation {
     const sessionId = getSessionId()
     const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
     if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputGuard(sessionId)
+    else releaseStructuredOutputGuard(sessionId)
     const forcedReadList = (flagEnv('MERCURY_FORCE_READ_FILES') ?? '')
       .split(',')
       .map(entry => entry.trim())
