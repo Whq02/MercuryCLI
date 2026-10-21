@@ -10,7 +10,7 @@ from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exi
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
-from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
+from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_problem, schema_refusal, validate_outcome
 from .support import RunnerSupport, runner_support, unsupported_feature
 
 T = TypeVar('T')
@@ -285,6 +285,8 @@ class MercurySession(TypedRequests):
         if row['type'] != 'prompt': return await self.request('queue/add', row)
         if self.session_id is None: raise MercuryError('session is unclaimed; call claim() before prompting')
         if row.get('schema') is not None and not self.supports['per_turn_schema']: raise unsupported_feature('per_turn_schema', self.runner_version or 'unknown')
+        problem = None if row.get('schema') is None else schema_problem(row['schema'])
+        if problem is not None: raise MercurySchemaError([Issue('schema', problem)], None, problem)
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
         try:

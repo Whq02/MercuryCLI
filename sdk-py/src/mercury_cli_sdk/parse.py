@@ -60,7 +60,7 @@ def validate(schema: Mapping[str, Any], value: Any, path: str = '') -> list[Issu
     }
     if 'type' in schema:
         types = schema['type'] if isinstance(schema['type'], list) else [schema['type']]
-        if not any(tests[t](value) for t in types):
+        if not any(t in tests and tests[t](value) for t in types):
             return [Issue(path, f'expected {types}')]
     if 'const' in schema and (value != schema['const'] or isinstance(value, bool) != isinstance(schema['const'], bool)):
         return [Issue(path, f"expected constant {schema['const']!r}")]

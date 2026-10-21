@@ -44,22 +44,30 @@ async def main():
         count = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}
         name = {'type': 'object', 'properties': {'name': {'type': 'string'}}, 'required': ['name']}
         malformed = {'type': 'nonsense-type', 'properties': 5}
+        cli_refused = {'type': 'object', 'pattern': 5}
+        def locally(error): assert error.code is None and error.outcome is None and error.issues[0].path == 'schema' and str(error).startswith('not a JSON schema — schema.type') and str(error) == error.issues[0].message, error
         async with await connect(mercury=mercury, cwd=cwd) as session:
             assert (await session.prompt('the count turn', schema=count)).get('structured') == {'count': 3}
             assert (await session.prompt('the name turn', schema=structured_schema(name, lambda value: value['name'].upper())))['structured'] == 'PELICAN'
             plain = await session.prompt('the plain turn')
             assert plain['status'] == 'completed' and 'structured' not in plain
             try: await session.prompt('the refused turn', schema=malformed)
+            except MercurySchemaError as error: locally(error)
+            else: raise AssertionError('a malformed per-turn schema was accepted')
+            try: await session.prompt('the refused turn', schema=cli_refused)
             except MercurySchemaError as error:
                 assert error.code == -32602 and error.outcome is None and error.issues[0].path == 'schema' and 'not a JSON schema' in error.issues[0].message and str(error) == error.issues[0].message, error
-            else: raise AssertionError('a malformed per-turn schema was accepted')
+            else: raise AssertionError('a schema the CLI refuses was accepted')
             assert isinstance(session.last_prompt_id, str)
         async with await connect(mercury=mercury, cwd=cwd, schema=structured_schema(count, lambda value: value['count'] * 2)) as boot:
             assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'
             assert (await boot.prompt('the boot schema turn'))['structured'] == 18
         try: await connect(mercury=mercury, cwd=cwd, schema=malformed)
-        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        except MercurySchemaError as error: locally(error)
         else: raise AssertionError('a malformed boot schema was accepted')
+        try: await connect(mercury=mercury, cwd=cwd, schema=cli_refused)
+        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        else: raise AssertionError('a boot schema the CLI refuses was accepted')
     elif scenario == 'midturn':
         for shape in ('folded', 'queued', 'swallowed'):
             async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Sleep']) as session:

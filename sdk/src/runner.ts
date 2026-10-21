@@ -10,7 +10,7 @@ import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
-import { MercurySchemaError, StructuredSchema, schemaObject, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
+import { MercurySchemaError, StructuredSchema, schemaObject, schemaProblem, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolServer } from './helpers.js'
 import { runnerSupport, unsupportedFeature, type RunnerSupport } from './support.js'
 
@@ -269,6 +269,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (row.type !== 'prompt') return this.request('queue/add', row)
     if (this.sessionId === null) throw new MercuryError('session is unclaimed; call claim() before prompting', null)
     if (row.schema !== undefined && !this.supports.perTurnSchema) throw unsupportedFeature('perTurnSchema', this.runnerVersion ?? 'unknown')
+    const problem = row.schema === undefined ? undefined : schemaProblem(row.schema)
+    if (problem !== undefined) throw new MercurySchemaError([{ path: 'schema', message: problem }], null, problem)
     const id = row.id ?? randomUUID()
     this.#promptTurns.set(id, undefined)
     try {

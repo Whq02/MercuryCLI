@@ -191,6 +191,27 @@ try {
       } finally { await session.close(); await fixture.close() }
     }
   })
+  await check('row 12 a schema that is not a JSON Schema is refused by the package before anything is sent: MercurySchemaError at path schema, outcome null, no code, on prompt, the row roads, connect and run', async () => {
+    const malformed = { type: 'banana', properties: 7 } as unknown as sdk.JsonSchema
+    const words = 'not a JSON schema — schema.type must be object, array, string, number, integer, boolean, null or an array of them (found "banana")'
+    const refused = (error: unknown) => error instanceof sdk.MercurySchemaError && error.message === words && error.outcome === null && error.code === undefined && error.issues.length === 1 && error.issues[0]!.path === 'schema' && error.issues[0]!.message === words
+    assert.equal(sdk.schemaProblem(malformed), words)
+    assert.equal(sdk.schemaProblem({ type: 'object', properties: 7 }), 'not a JSON schema — schema.properties must be an object of schemas (found number)')
+    assert.equal(sdk.schemaProblem({ type: 'object', properties: { a: { type: 'integer', minimum: 'x' } } }), 'not a JSON schema — schema.properties.a.minimum must be a number (found string)')
+    assert.equal(sdk.schemaProblem({ type: ['string', 'null'], enum: ['a', null], properties: { b: { items: { type: 'number' } } }, additionalProperties: false }), undefined)
+    const fixture = await testing.startFixtureServer({ methods: { initialize: [init], 'queue/add': [{ result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: outcome }] }] } })
+    const session = await sdk.connect({ mercury: fixture.mercury })
+    try {
+      for (const send of [() => session.prompt('x', { schema: malformed }), () => session.prompt('x', { schema: JSON.stringify(malformed) }), () => session.prompt('x', { schema: sdk.structuredSchema(malformed, value => value) }), () => session.steer('x', { schema: malformed }), () => session.followUp('x', { schema: malformed }), () => session.sendPrompt('x', { schema: malformed }), () => session.send({ type: 'prompt', content: 'x', schema: malformed })]) await assert.rejects(send(), refused)
+      assert.equal(fixture.received.filter(r => r.method === 'queue/add').length, 0, 'a schema the package refuses never reaches the wire')
+      assert.equal((await session.prompt('plain')).status, 'completed', 'the refusal leaves the session free')
+    } finally { await session.close() }
+    await assert.rejects(sdk.connect({ mercury: fixture.mercury, schema: malformed }), refused)
+    assert.equal(fixture.received.filter(r => r.method === 'initialize').length, 1, 'connect refuses the schema before starting a runner')
+    await fixture.close()
+    assert.throws(() => sdk.run({ mercury: 'mercury-sdk-no-such-binary-proof', prompt: 'x', schema: malformed }), refused)
+    assert.throws(() => sdk.argvOf({ mercury: 'fixture', schema: malformed }), refused)
+  })
   await check('row 7 blocks and image bytes feed input rows', async () => {
     const fixture = await testing.startFixtureServer({ rows: [sessionRow, outcome], inputCount: 1 })
     try {

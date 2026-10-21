@@ -417,6 +417,42 @@ async def version_floors():
         await asyncio.to_thread(consume)
 
 
+async def malformed_schema_refused_locally():
+    malformed = {'type': 'banana', 'properties': 7}
+    words = 'not a JSON schema — schema.type must be object, array, string, number, integer, boolean, null or an array of them (found "banana")'
+    def refused(error):
+        assert type(error) is sdk.MercurySchemaError and str(error) == words and error.outcome is None and error.code is None and error.issues == [sdk.Issue('schema', words)], repr(error)
+    assert sdk.schema_problem(malformed) == words
+    assert sdk.schema_problem({'type': 'object', 'properties': 7}) == 'not a JSON schema — schema.properties must be an object of schemas (found number)'
+    assert sdk.schema_problem({'type': 'object', 'properties': {'a': {'type': 'integer', 'minimum': 'x'}}}) == 'not a JSON schema — schema.properties.a.minimum must be a number (found string)'
+    assert sdk.schema_problem({'type': ['string', 'null'], 'enum': ['a', None], 'properties': {'b': {'items': {'type': 'number'}}}, 'additionalProperties': False}) is None
+    assert sdk.validate({'type': 'banana'}, {}) == [sdk.Issue('', "expected ['banana']")], 'an unknown type keyword is a mismatch, never a KeyError'
+    accepted = {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': outcome}]}
+    async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': [accepted]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury) as session:
+            for send in (lambda: session.prompt('x', schema=malformed), lambda: session.prompt('x', schema=json.dumps(malformed)), lambda: session.prompt('x', schema=sdk.structured_schema(malformed, lambda value: value)), lambda: session.steer('x', schema=malformed), lambda: session.follow_up('x', schema=malformed), lambda: session.send_prompt('x', schema=malformed), lambda: session.send({'type': 'prompt', 'content': 'x', 'schema': malformed})):
+                try: await send()
+                except sdk.MercuryError as error: refused(error)
+                else: raise AssertionError('a schema that is not a JSON Schema was sent')
+            assert not any(m.get('method') == 'queue/add' for m in fixture.received), 'a schema the package refuses never reaches the wire'
+            assert (await session.prompt('plain'))['status'] == 'completed', 'the refusal leaves the session free'
+        try: await sdk.connect(mercury=fixture.mercury, schema=malformed)
+        except sdk.MercuryError as error: refused(error)
+        else: raise AssertionError('connect accepted a schema that is not a JSON Schema')
+        assert len([m for m in fixture.received if m.get('method') == 'initialize']) == 1, 'connect refuses the schema before starting a runner'
+    try: await sdk.run('x', mercury='mercury-sdk-no-such-binary-proof', schema=malformed)
+    except sdk.MercuryError as error: refused(error)
+    else: raise AssertionError('run accepted a schema that is not a JSON Schema')
+    try: sdk.argv_of(sdk.RunOptions(mercury='fixture', schema=malformed))
+    except sdk.MercuryError as error: refused(error)
+    else: raise AssertionError('argv_of accepted a schema that is not a JSON Schema')
+    def consume():
+        try: sdk.run_sync('x', mercury='mercury-sdk-no-such-binary-proof', schema=malformed)
+        except sdk.MercuryError as error: refused(error)
+        else: raise AssertionError('run_sync accepted a schema that is not a JSON Schema')
+    await asyncio.to_thread(consume)
+
+
 async def rich():
     blocks = [sdk.text_block('hello'), sdk.image_block(b'image', 'image/png')]
     async with await testing.start_fixture_server({'rows': [session_row, outcome], 'inputCount': 1}) as fixture:
@@ -637,7 +673,7 @@ async def discovery_deeper():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('a prompt sent while a turn is running settles: folded, queued, or rejected with the words within the grace', mid_turn_prompt), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('a prompt sent while a turn is running settles: folded, queued, or rejected with the words within the grace', mid_turn_prompt), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 12 a schema that is not a JSON Schema is refused by the package before anything is sent', malformed_schema_refused_locally), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
     await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 

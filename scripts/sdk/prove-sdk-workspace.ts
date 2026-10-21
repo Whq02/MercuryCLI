@@ -81,19 +81,25 @@ for (const language of ['ts', 'py']) {
         const count = { type: 'object', properties: { count: { type: 'integer' } }, required: ['count'] } as const
         const name = { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } as const
         const malformed = { type: 'nonsense-type', properties: 5 } as unknown as sdk.JsonSchema
+        const cliRefused = { type: 'object', pattern: 5 } as unknown as sdk.JsonSchema
+        const locally = (e: unknown) => e instanceof MercurySchemaError && e.code === undefined && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema — schema\.type/.test(e.message) && e.message === e.issues[0].message
         const session = await connect({ mercury, cwd: c.cwd, env: c.env })
         try {
           assert.deepEqual((await session.prompt('the count turn', { schema: count })).structured, { count: 3 })
           assert.deepEqual((await session.prompt('the name turn', { schema: structuredSchema(name, value => ({ who: (value as { name: string }).name.toUpperCase() })) })).structured, { who: 'PELICAN' })
           const plain = await session.prompt('the plain turn'); assert.equal(plain.status, 'completed'); assert(!('structured' in plain), 'a turn without a schema carries no structured output')
-          await assert.rejects(session.prompt('the refused turn', { schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema/.test(e.issues[0].message) && e.message === e.issues[0].message)
+          const before = c.api.requests.length
+          await assert.rejects(session.prompt('the refused turn', { schema: malformed }), locally)
+          await assert.rejects(session.prompt('the refused turn', { schema: cliRefused }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema/.test(e.issues[0].message) && e.message === e.issues[0].message)
+          assert.equal(c.api.requests.length, before, 'neither refused schema cost a model turn')
           assert.equal(typeof session.lastPromptId, 'string')
           const shapes = c.api.requests.map(r => JSON.stringify(((r.body as { tools?: { name: string; input_schema?: unknown }[] }).tools ?? []).find(t => t.name === 'StructuredOutput')?.input_schema ?? null))
           assert(shapes.includes(JSON.stringify(count)) && shapes.includes(JSON.stringify(name)) && shapes.includes('null'), `each turn's schema reaches the model as that turn's StructuredOutput tool, and the plain turn has none: ${shapes.join(' | ')}`)
         } finally { await session.close() }
         const boot = await connect({ mercury, cwd: c.cwd, env: c.env, schema: structuredSchema(count, value => (value as { count: number }).count * 2) })
         try { assert(boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
-        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
+        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), locally)
+        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: cliRefused }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
       } else if (scenario === 'midturn') {
         for (const shape of ['folded', 'queued', 'swallowed'] as const) {
           const session = await connect({ mercury, cwd: c.cwd, env: c.env, onPermissionRequest: () => ({ outcome: 'allow' }), allowedTools: ['Sleep'] })

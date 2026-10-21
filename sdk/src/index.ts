@@ -9,5 +9,5 @@ export { connect, prewarm, MercurySession, type ConnectOptions, type Elicitation
 export { allowPermission, denyPermission, textBlock, imageBlock, defineAgent, defineTool, serveTools, type AgentDefinition, type AllowPermissionResult, type DenyPermissionResult, type ToolDefinition, type ToolResult, type ToolContext, type ToolServer } from './helpers.js'
 export type { StreamRow, UnknownRow } from './parse.js'
 export { VERSION } from './version.js'
-export { StructuredSchema, structuredSchema, MercurySchemaError, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
+export { StructuredSchema, structuredSchema, MercurySchemaError, schemaProblem, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
 export { FEATURE_FLOORS, compareVersions, parseVersion, runnerSupport, type RunnerFeature, type RunnerSupport } from './support.js'
