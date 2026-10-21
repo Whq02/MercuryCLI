@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync, type ChildProcess } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -119,17 +120,22 @@ function liveKernel(manager: Manager): { kernel: ProcKernel; child: ChildProcess
 function watchSpawns(manager: Manager): { exits: Exit[]; pids: number[]; stop: () => void } {
   const exits: Exit[] = []
   const pids: number[] = []
-  const timer = setInterval(() => {
-    for (const entry of (manager as unknown as Seam).kernels.values()) {
-      const child = (entry.kernel as unknown as { child: ChildProcess }).child
-      if (child.pid && !pids.includes(child.pid)) {
-        pids.push(child.pid)
-        if (child.exitCode !== null || child.signalCode !== null) exits.push({ code: child.exitCode, signal: child.signalCode, at: Date.now() })
-        else child.once('exit', (code, signal) => exits.push({ code, signal, at: Date.now() }))
-      }
+  const kernels = (manager as unknown as Seam).kernels
+  const set = kernels.set
+  const observe = (entry: { kernel: ProcKernel }): void => {
+    const child = (entry.kernel as unknown as { child: ChildProcess }).child
+    if (child.pid && !pids.includes(child.pid)) {
+      pids.push(child.pid)
+      if (child.exitCode !== null || child.signalCode !== null) exits.push({ code: child.exitCode, signal: child.signalCode, at: Date.now() })
+      else child.once('exit', (code, signal) => exits.push({ code, signal, at: Date.now() }))
     }
-  }, 2)
-  return { exits, pids, stop: () => clearInterval(timer) }
+  }
+  kernels.set = function (key, entry) {
+    observe(entry)
+    return set.call(this, key, entry)
+  }
+  for (const entry of kernels.values()) observe(entry)
+  return { exits, pids, stop: () => { kernels.set = set } }
 }
 
 async function runMarker(manager: Manager, owner: string, n: number): Promise<{ ok: boolean; detail: string }> {
@@ -143,6 +149,15 @@ async function runMarker(manager: Manager, owner: string, n: number): Promise<{ 
   }))
   return { ok: outcome.status === 'ok' && outcome.stdout.text === `${marker}\n`, detail: JSON.stringify({ status: outcome.status, stdout: outcome.stdout.text, notes: outcome.annotations }) }
 }
+
+const observerMap: Seam['kernels'] = new Map()
+const observer = watchSpawns({ kernels: observerMap } as unknown as Manager)
+const observerChild = Object.assign(new EventEmitter(), { pid: 1_000_000, exitCode: null, signalCode: null })
+observerMap.set('briefly-live', { kernel: { child: observerChild } as unknown as ProcKernel })
+observerChild.emit('exit', 1, null)
+observerMap.delete('briefly-live')
+observer.stop()
+check('§0: a kernel registered and exited in one turn is still observed', observer.pids.length === 1 && observer.exits.length === 1 && observer.exits[0]?.code === 1, JSON.stringify(observer.exits))
 
 const allPids: number[] = []
 const reportsBefore = pythonReports()
