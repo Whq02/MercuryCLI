@@ -11,10 +11,15 @@ T = TypeVar('T')
 
 
 @dataclass(frozen=True)
-class TypedRunResult(Generic[T]):
-    outcome: TypedOutcome[T]
+class RunResult:
+    """What run_sync returns: the outcome, received rows and exit receipt."""
+    outcome: OutcomeRow
     rows: list[StreamRow]
     exit: RunExit
+
+
+class TypedRunResult(RunResult, Generic[T]):
+    outcome: TypedOutcome[T]
 
 
 @dataclass(frozen=True)

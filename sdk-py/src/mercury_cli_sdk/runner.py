@@ -14,7 +14,7 @@ from .structured import MercurySchemaError, StructuredSchema, schema_object, sch
 
 T = TypeVar('T')
 from .helpers import ToolServer
-from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, row_of, input_row_of, validate
+from .parse import Issue, PromptContent, StreamRow, cap_queue, cap_rows, clear_queue, row_of, input_row_of, validate
 from .version import __version__
 
 
@@ -255,12 +255,12 @@ class MercurySession(TypedRequests):
             self._prompt_turns.pop(id, None)
             raise
 
-    async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
-        return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
+    async def send_prompt(self, content: PromptContent, **options: Any) -> QueueAddResult:
+        return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content if isinstance(content, str) else list(content)}))
 
-    async def steer(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+    async def steer(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
         return await self.send_prompt(content, priority='now', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
-    async def follow_up(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+    async def follow_up(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
         return await self.send_prompt(content, priority='later', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
 
     async def send_shell(self, command: str, **options: Any) -> QueueAddResult:
@@ -270,10 +270,10 @@ class MercurySession(TypedRequests):
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     @overload
-    async def prompt(self, content: Any, *, schema: StructuredSchema[T], timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> TypedOutcome[T]: ...
+    async def prompt(self, content: PromptContent, *, schema: StructuredSchema[T], timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> TypedOutcome[T]: ...
     @overload
-    async def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow: ...
-    async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow:
+    async def prompt(self, content: PromptContent, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow: ...
+    async def prompt(self, content: PromptContent, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow:
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         if cancel is not None and cancel.is_set(): raise MercuryError('prompt: cancelled')

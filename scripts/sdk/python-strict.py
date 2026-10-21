@@ -84,14 +84,21 @@ from mercury_cli_sdk import (
 async def typed_output_and_warm() -> None:
     def decode(value: Any) -> int: return int(value['count'])
     descriptor = structured_schema({'type': 'object', 'properties': {'count': {'type': 'integer'}}}, decode)
-    content: PromptContent = [text_block('hi'), image_block(b'x', 'image/png')]
+    blocks = [text_block('hi'), image_block(b'x', 'image/png')]
+    content: PromptContent = blocks
     prompt_input: PromptInput = content
     task = await run(prompt_input, schema=descriptor)
     assert_type(await task.outcome, TypedOutcome[int])
+    sync_typed = run_sync(blocks, schema=descriptor)
+    assert_type(sync_typed, TypedRunResult[int])
+    assert_type(sync_typed.outcome, TypedOutcome[int])
     opt_tool = define_tool('opt', 'Optional mapping field', {'q': str, 'limit': NotRequired[int]}, lambda _: 'ok')
     assert opt_tool.input_schema['required'] == ['q']
     session = await connect()
-    assert_type(await session.prompt('typed', schema=descriptor), TypedOutcome[int])
+    assert_type(await session.prompt(blocks, schema=descriptor), TypedOutcome[int])
+    await session.send_prompt(blocks)
+    await session.steer(blocks)
+    await session.follow_up(blocks)
     warm = await prewarm()
     assert_type(warm, MercurySession)
     await warm.close()
@@ -140,6 +147,9 @@ def typed_sync() -> None:
         assert_type(session.background_shell(), ShellBackgroundResult)
         session.notify_credentials_changed()
         assert_type(session.send_prompt('test'), QueueAddResult)
+        assert_type(session.send_prompt([text_block('hi')]), QueueAddResult)
+        assert_type(session.steer([text_block('hi')]), QueueAddResult)
+        assert_type(session.follow_up([text_block('hi')]), QueueAddResult)
         assert_type(session.last_prompt_id, str | None)
         assert_type(session.file_checkpoints, InitializeResultFile_checkpoints | None)
         assert_type(next(iter(session)), StreamRow)

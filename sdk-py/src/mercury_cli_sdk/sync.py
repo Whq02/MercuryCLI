@@ -3,28 +3,23 @@ import asyncio
 import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
-from typing import Any, Coroutine, Iterator, Literal, Mapping, TypeVar, Unpack, overload
+from typing import Any, AsyncIterable, Coroutine, Iterator, Literal, Mapping, TypeVar, Unpack, overload
 from .client import ConnectKwargs, Listener, RunKwargs, RunOptions, run
-from .generated import InitializeParamsHost
+from .generated import InitializeParamsHost, InputBlock
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
 from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
-from .parse import StreamRow
+from .parse import PromptContent, StreamRow
 from .errors import MercuryError, RunExit
-from .structured import StructuredSchema
+from .structured import RunResult as RunResult, StructuredSchema, TypedRunResult as TypedRunResult
 
 T = TypeVar('T')
 
 
-@dataclass(frozen=True)
-class RunResult:
-    """What run_sync returns: the outcome, received rows and exit receipt."""
-    outcome: OutcomeRow
-    rows: list[StreamRow]
-    exit: RunExit
-
-
-def run_sync(prompt: str | None = None, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> RunResult:
+@overload
+def run_sync(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[T], timeout: float | None = None, interrupt_on_timeout: bool = False, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> TypedRunResult[T]: ...
+@overload
+def run_sync(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> RunResult: ...
+def run_sync(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> RunResult:
     """Collect one run, using a worker when the caller has an active event loop."""
     async def collect() -> RunResult:
         async with await run(prompt, schema=schema, options=options, **kwargs) as handle:
@@ -89,18 +84,18 @@ class SyncSession(TypedSyncRequests):
         return self.session.exit.result() if self.session.exit.done() else self._wait(wait())
 
     @overload
-    def prompt(self, content: Any, *, schema: StructuredSchema[T], timeout: float | None = None, interrupt_on_timeout: bool = False) -> TypedOutcome[T]: ...
+    def prompt(self, content: PromptContent, *, schema: StructuredSchema[T], timeout: float | None = None, interrupt_on_timeout: bool = False) -> TypedOutcome[T]: ...
     @overload
-    def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow: ...
-    def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow:
+    def prompt(self, content: PromptContent, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow: ...
+    def prompt(self, content: PromptContent, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow:
         return self._wait(self.session.prompt(content, schema=schema, timeout=timeout, interrupt_on_cancel=interrupt_on_timeout))
 
     def send(self, row: InputRow) -> QueueAddResult: return self._wait(self.session.send(row))
-    def send_prompt(self, content: Any, **options: Any) -> QueueAddResult: return self._wait(self.session.send_prompt(content, **options))
+    def send_prompt(self, content: PromptContent, **options: Any) -> QueueAddResult: return self._wait(self.session.send_prompt(content, **options))
     def send_shell(self, command: str, **options: Any) -> QueueAddResult: return self._wait(self.session.send_shell(command, **options))
     def send_note(self, to: str, content: str, **options: Any) -> QueueAddResult: return self._wait(self.session.send_note(to, content, **options))
-    def steer(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.steer(content, id=id, schema=schema))
-    def follow_up(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.follow_up(content, id=id, schema=schema))
+    def steer(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.steer(content, id=id, schema=schema))
+    def follow_up(self, content: PromptContent, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult: return self._wait(self.session.follow_up(content, id=id, schema=schema))
     def facts(self) -> SessionFactsResult: return self._wait(self.session.facts())
     def interrupt(self, **options: Any) -> TurnInterruptResult: return self._wait(self.session.interrupt(**options))
     def withdraw(self, id: str) -> QueueWithdrawResult: return self._wait(self.session.withdraw(id))
