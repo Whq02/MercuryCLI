@@ -174,6 +174,7 @@ setTimeout(() => process.exit(0), 200)
         assert.deepEqual(warnings, [])
       } finally { process.off('warning', onWarning) }
     } finally { await fixture.close() }
+  })
   await check('closing a session while a runner ask is in flight stays graceful under node: no error event, no write after stdin ended, exit 0', async () => {
     const built = spawnSync('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], { encoding: 'utf8', timeout: 120000 })
     assert.equal(built.status, 0, built.stdout + built.stderr)
