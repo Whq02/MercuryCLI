@@ -1,5 +1,7 @@
 # Saturn: session schedules
 
+<!-- answers: Saturn is Mercury's scheduler. Schedule a prompt to an existing session or start a new session on a clock from the `/saturn` board; inside a session the model schedules with `CronCreate` and the `/loop` skill. -->
+
 Saturn is Mercury's scheduler. A schedule is a **session fact**: it rides the
 durable session record, is fired by the background daemon, and every fire
 decision lands as a receipt row on the session it belongs to. There is no

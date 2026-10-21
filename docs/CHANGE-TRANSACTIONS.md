@@ -1,5 +1,7 @@
 # Change transactions
 
+<!-- answers: Read anchors (`fa:`, `ra:`), anchored Edit hunks, the atomic multi-file `ChangeSet` tool, change receipts and journaled recovery. -->
+
 One change vocabulary covers every mutation path in Mercury: a way for a
 later mutation to fail fast on stale assumptions, and an exactly-once
 record of what changed.

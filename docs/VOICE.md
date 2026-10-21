@@ -8,13 +8,14 @@ audio never leaves the machine.
 
 - `/voice on` prepares Whisper and turns dictation on. The first use downloads
   the default English speech model, `base.en-q5_1` (60 MB, MIT), into
-  `<config-home>/models/whisper`. The download verifies the byte count and SHA-256
-  digest before installing the file. Later uses reuse the verified model.
+  `<config-home>/models/whisper`. Mercury checks the file's byte count and
+  SHA-256 digest before installing it, and reuses the verified file on later
+  runs.
 - `/voice off` turns dictation off. The setting survives a restart; voice input
   is off by default.
-- While voice input is on, bare `/voice` starts a capture or stops the running
-  capture. `/voice capture` does the same. While off, bare `/voice` says that
-  voice input is off and names `/voice on`.
+- While voice input is on, bare `/voice` (or `/voice capture`) starts or stops
+  a take. While off, bare `/voice` reports that voice input is off and points to
+  `/voice on`.
 
 ## Dictate
 
@@ -36,9 +37,10 @@ on the CPU, or uses Metal on Apple silicon. The x86-64 driver requires AVX2, FMA
 and F16C. An unsupported CPU or a driver that cannot load is reported with its
 reason; voice does not switch to a remote service.
 
-A build without the driver refuses `/voice on`, naming the platform and the
-remedy recorded in its manifest. Source builds prepare it with
-`bun run scripts/vendor/build-whisper.ts` (Rust and cmake), then rebuild Mercury.
+If a build has no Whisper driver, `/voice on` refuses and prints the platform
+and the manifest remedy. In a source checkout, run
+`bun run scripts/vendor/build-whisper.ts` (requires Rust and cmake) and rebuild
+Mercury.
 A failed model download does not enable voice and removes the partial file; retry
 `/voice on` after resolving the reported error.
 
@@ -50,13 +52,13 @@ in `vendor/whisper-models.lock.json`.
 
 ## Microphone and privacy
 
-Capture uses Mercury's native voice driver when available, otherwise an
-installed `sox`, `arecord` (Linux), or `ffmpeg`. Without a capture backend, the
-receipt names the remedy for the installation. On macOS the terminal needs
+Capture uses Mercury's native voice driver when available, or an installed
+`sox`, `arecord` (Linux) or `ffmpeg`. If no capture backend is found, the error
+message shows how to install one. On macOS the terminal needs
 microphone permission in System Settings → Privacy & Security → Microphone.
 Windows controls it in Settings → Privacy & security → Microphone.
 
 Audio stays in memory during capture and decoding. Cancelling drops the take.
-`MERCURY_VOICE_DEBUG_WAV_DIR` explicitly saves debug copies; the health check
-names the directory when enabled. `/health` also reports the capture backend,
-Whisper driver, model, CPU floor, and microphone permission information.
+Set `MERCURY_VOICE_DEBUG_WAV_DIR` to save debug WAV files; `/health` lists that
+directory when set, along with the capture backend, Whisper driver, speech
+model, CPU floor and microphone permission status.

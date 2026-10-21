@@ -1,5 +1,7 @@
 # Terminal runtime
 
+<!-- answers: How the built product boots, where deployed copies live, `mercury update` and `/restart` onto a newly installed build, and how a broken boot recovers. -->
+
 How the built product boots, where deployed copies live, how updates land,
 and how a broken boot recovers.
 
