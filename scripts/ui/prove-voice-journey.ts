@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
@@ -8,12 +8,11 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
 import { NO_BACKEND_RECEIPT } from '../../src/services/voice/capture.ts'
-import { NO_TRANSCRIBER_DOORS } from '../../src/services/voice/transcribe.ts'
+import { localFixture } from '../voice/localFixture.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, 'vshot.py')
-const FIXTURE = join(ROOT, 'scripts', 'voice', 'voice-transcriber-fixture-server.ts')
 const TRANSCRIPT = 'the quick brown fox jumps over the lazy dog'
 
 let failures = 0
@@ -102,6 +101,19 @@ globalThis.fetch = (input, init) => {
 `,
 )
 
+function voiceWords(screen: string): string {
+  const words: string[] = []
+  let message = false
+  for (const row of screen.split('\n')) {
+    const left = row.indexOf('│'), right = row.lastIndexOf('│')
+    const text = left >= 0 && right > left ? row.slice(left + 1, right).trim() : ''
+    if (text.startsWith('❯ /voice')) message = true
+    else if (text === '') message = false
+    if (message) words.push(text)
+  }
+  return words.join(' ')
+}
+
 const DEAD = 'http://127.0.0.1:9'
 function childEnv(home: string, netlog: string, extra: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
@@ -142,7 +154,6 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     'MERCURY_VOICE_BOUND_MS',
     'MERCURY_WHISPER_PACK_DIR',
     'MERCURY_WHISPER_MODEL',
-    'MERCURY_VOICE_TRANSCRIBER',
     'MERCURY_OPENAI_API_BASE',
     'MERCURY_GEMINI_API_BASE',
     'MERCURY_CONCOURSE',
@@ -152,6 +163,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
   ]) {
     delete env[key]
   }
+  Object.assign(env, activeFixtureEnv)
   for (const [key, value] of Object.entries(extra)) {
     if (value === undefined) delete env[key]
     else env[key] = value
@@ -164,28 +176,14 @@ const netlines = (netlog: string): string[] =>
 const nonLoopback = (lines: string[]): string[] =>
   lines.filter(l => !(l.startsWith('tcp-local') || l.startsWith('tls-local') || l.includes('-local.') || l.startsWith('fetch-local')))
 const ledgerPosts = (ledger: string): string[] =>
-  existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.includes(' POST ')) : []
+  existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.startsWith('decode ')) : []
 
-interface Fixture {
-  child: ChildProcess
-  port: number
-  ledger: string
+async function startFixture(tag: string, delayMs: number) {
+  const fx = localFixture(join(scratch, tag + '-pack'), TRANSCRIPT, delayMs)
+  activeFixtureEnv = fx.env
+  return { child: { kill: (_signal: string) => false }, port: 9, ledger: fx.ledger }
 }
-async function startFixture(tag: string, delayMs: number): Promise<Fixture> {
-  const ledger = join(scratch, `${tag}-ledger.log`)
-  const child = spawn(process.execPath, ['run', FIXTURE, String(delayMs), ledger, TRANSCRIPT], { stdio: ['ignore', 'pipe', 'pipe'] })
-  const port = await new Promise<number>((resolvePort, reject) => {
-    const killer = setTimeout(() => reject(new Error('fixture never printed PORT')), 15_000)
-    child.stdout?.on('data', (chunk: Buffer) => {
-      const m = /PORT (\d+)/.exec(chunk.toString())
-      if (m) {
-        clearTimeout(killer)
-        resolvePort(Number(m[1]))
-      }
-    })
-  })
-  return { child, port, ledger }
-}
+let activeFixtureEnv = localFixture(join(scratch, 'default-pack'), TRANSCRIPT).env
 
 interface DriveResult {
   status: number | null
@@ -314,44 +312,37 @@ console.log('[A] /voice off (already off: the status) → /voice on → a hold �
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered every send (a real boot)', res.status === 0, stuckWords(res))
-  check('/voice off while off answers already off with the status: OFF, the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: OpenAI'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
+  check('/voice off while off answers already off with the status: OFF, the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: on-device'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
   check('/voice on says ON and teaches the hold', (res.marks.on ?? '').includes('voice input ON — hold space for 1 s to speak'), (res.marks.on ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   check(`the hold past the threshold: the footer paints ● ${RECORDING_LINE}`, (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), (res.marks.recording ?? '').split('\n').filter(l => l.includes('recording')).join(' · '))
   check('the release: the footer paints transcribing…', (res.marks.transcribing ?? '').includes('transcribing…'))
   check('the canned words land in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT))
   check('the cursor sat at the END: a typed character lands after the words', (res.marks['typed-after'] ?? '').includes('lazy dog z'))
-  check('the transcribing receipt names the family and the row', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes('transcribed by OpenAI (gpt-4o-transcribe)'))
+  check('the transcribing receipt names on-device decoding and the model', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes('transcribed on this machine (fixture.en)'))
   check('/voice off says OFF', (res.marks.off ?? '').includes('voice input OFF — space is a space'))
   const letter = res.marks.letter ?? ''
   check('with voice input off, space is a space in the composer (no capture starts)', !letter.includes('recording ·'), letter.split('\n').filter(l => l.includes('❯')).join(' · '))
   const served = ledgerPosts(fx.ledger)
-  check('the loopback transcriber served exactly ONE take (a multipart WAV, the first row)', served.length === 1 && served[0]!.includes('/audio/transcriptions') && served[0]!.includes('wav=yes') && served[0]!.includes('model=gpt-4o-transcribe'), served.join(' | '))
+  check('the on-device fixture decoded exactly one 16 kHz take, with zero fetches', served.length === 1 && served[0] === 'decode 32000' && !netlines(netlog).some(l => l.startsWith('fetch')), served.join(' | '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[B] a keyless, packless home — a hold answers the no-transcriber receipt before any take')
+console.log('[B] a packless build refuses setup before enabling or opening a take')
 {
-  const netlog = join(scratch, 'keyless-net.log')
-  const res = drive(
-    'keyless',
-    seededHome('home-b'),
-    netlog,
-    [
-      ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
-      { requireAwait: true, awaitText: 'nothing transcribes yet — on-device pack pin broken; or /logins', awaitStableTicks: 2, mark: 'receipt', data: '' },
-      { afterPrevTicks: 3, data: '' },
-    ],
-    120,
-    { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
-  )
+  const netlog = join(scratch, 'packless-net.log')
+  const res = drive('packless', seededHome('home-b'), netlog, [
+    ...OPENING,
+    { requireAwait: true, awaitText: '/voice on: MERCURY_WHISPER_PACK_DIR is unusable', awaitStableTicks: 2, mark: 'refused', data: '/voice' },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'voice input is off', awaitStableTicks: 2, mark: 'off', data: '' },
+  ], 120, { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK })
   check('the drive delivered', res.status === 0, stuckWords(res))
-  check('the receipt takes the hint row whole (the standing hints step aside): the on-device reason, then the doors in the neutral grammar (their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.startsWith('nothing transcribes yet — on-device pack pin broken; or /logins') && !l.includes('for shortcuts')) && NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini', (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
-  check('no take started (the footer never said recording)', !(res.marks.receipt ?? '').includes('recording ·'))
-  const stray = nonLoopback(netlines(netlog))
-  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+  check('setup names the unusable pack and no cloud door', (res.marks.refused ?? '').includes('/voice on: MERCURY_WHISPER_PACK_DIR is unusable') && !/API key|\/logins|openai|gemini/i.test(voiceWords(res.marks.refused ?? '')))
+  check('bare voice stays off and no take opened', (res.marks.off ?? '').includes('voice input is off') && !res.gridText.includes('recording ·'))
+  check('nothing left the child for voice', !netlines(netlog).some(l => l.startsWith('fetch')) && nonLoopback(netlines(netlog)).length === 0)
 }
+if (failures > 0) { console.log(`prove-voice-journey: RED (${failures}) — ${scratch}`); process.exit(1) }
 
 console.log('[C] no pack, no recorder — a hold answers the no-backend receipt')
 {
@@ -410,36 +401,6 @@ console.log('[D] a hold, then esc while it records — the take is cancelled and
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[E] a Gemini API key alone — the take rides generateContent with the WAV inline')
-{
-  const netlog = join(scratch, 'gemini-net.log')
-  const fx = await startFixture('gemini', 1500)
-  const res = drive(
-    'gemini',
-    seededHome('home-e'),
-    netlog,
-    [
-      { atTick: 70, awaitText: '2.5 Flash', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 140, data: '/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
-      { afterPrevTicks: 3, data: '\r' },
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
-      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
-      { afterPrevTicks: 3, data: '' },
-    ],
-    170,
-    { GOOGLE_API_KEY: 'fixture-gemini-key-000000', MERCURY_GEMINI_API_BASE: `http://127.0.0.1:${fx.port}/v1beta`, MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: undefined },
-  )
-  fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, stuckWords(res))
-  check('/voice on names Gemini as the transcriber (the one signed-in family)', (res.marks.on ?? '').includes('transcriber: Gemini'), (res.marks.on ?? '').split('\n').filter(l => l.includes('transcriber')).join(' · '))
-  check('the canned words land in the composer through Gemini', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by Gemini ('), (res.marks.landed ?? '').split('\n').filter(l => l.includes('transcribed') || l.includes('❯')).join(' · '))
-  const served = ledgerPosts(fx.ledger)
-  check('the loopback saw exactly ONE generateContent POST with the WAV inline and the verbatim instruction', served.length === 1 && served[0]!.includes(':generateContent') && served[0]!.includes('wav=yes') && served[0]!.includes('verbatim=yes'), served.join(' | '))
-  const stray = nonLoopback(netlines(netlog))
-  check('no voice wire left loopback (the take rode the loopback catalogue family only)', !stray.some(l => l.includes('/audio/') || l.includes(':generateContent')), stray.join(' · '))
-  if (stray.length > 0) console.log(`  · the telemetry-off rung let the boot attempt ${stray.length} non-loopback request(s), every one refused by the tripwire: ${stray.slice(0, 4).join(' · ')}`)
-}
-
 console.log('[F] /voice on twice · a single press types · a resize mid-hold · two takes, the second with words in the composer · a quit mid-capture')
 {
   const netlog = join(scratch, 'roads-net.log')
@@ -484,7 +445,7 @@ console.log('[F] /voice on twice · a single press types · a resize mid-hold ·
   const finalScreen = res.gridText.split('\n').slice(-40).join('\n')
   check('a quit mid-capture exits (the child ended) without a crash on screen', res.endReason === 'eof' && !/TypeError|ReferenceError|Unhandled|at .*\.mjs:\d+/.test(finalScreen), `ended: ${res.endReason}`)
   const served = ledgerPosts(fx.ledger)
-  check('the loopback served exactly TWO takes — the quit take was dropped, never sent', served.length === 2 && served.every(l => l.includes('wav=yes')), served.join(' | '))
+  check('the on-device fixture decoded two takes; the quit take was dropped, zero fetches', served.length === 2 && served.every(l => l === 'decode 32000') && !netlines(netlog).some(l => l.startsWith('fetch')), served.join(' | '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
@@ -510,7 +471,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s and the key still he
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, stuckWords(res))
   check('the take stopped by itself while the key was still held: the footer flipped from recording to transcribing', (res.marks.bound ?? '').includes('transcribing…') && !(res.marks.bound ?? '').includes('● recording'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('recording') || l.includes('transcribing')).join(' · '))
-  check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
+  check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed on this machine'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))
   const stray = nonLoopback(netlines(netlog))

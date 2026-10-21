@@ -2,42 +2,13 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  captureBoundMs,
-  microphonePermissionHint,
-  resolveCaptureBackend,
-  startCapture,
-  voiceDebugWavDir,
-  type CaptureBackendKind,
-  type CaptureBackendResolution,
-  type CaptureHandle,
-} from './capture.js'
+import { captureBoundMs, microphonePermissionHint, resolveCaptureBackend, startCapture, voiceDebugWavDir, type CaptureBackendKind, type CaptureBackendResolution, type CaptureHandle } from './capture.js'
 import type { CaptureStreamErrors } from './voicePack.js'
-import {
-  ON_DEVICE_NAME,
-  TRANSCRIBER_PIN_ENV,
-  choiceDebugName,
-  choiceDisplayName,
-  liveTranscriberReads,
-  localDecodesInFlight,
-  parseSavedTranscriber,
-  resolveTranscriber,
-  transcribeWav,
-  transcriberOptionNames,
-  transcriberOptions,
-  warmLocalTranscriber,
-  type TranscriberResolution,
-} from './transcribe.js'
+import { localDecodesInFlight, resolveTranscriber, transcribeWav, warmLocalTranscriber, type TranscriberResolution } from './transcribe.js'
 import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 
 type VoicePhase = 'idle' | 'recording' | 'transcribing'
-
-interface VoiceReceipt {
-  seq: number
-  text: string
-  tone: 'info' | 'error'
-}
-
+interface VoiceReceipt { seq: number; text: string; tone: 'info' | 'error' }
 interface VoiceSnapshot {
   enabled: boolean
   phase: VoicePhase
@@ -49,15 +20,13 @@ interface VoiceSnapshot {
 export const HOLD_TO_TALK_MS = 1_000
 export const HOLD_WORDS = `hold space for ${HOLD_TO_TALK_MS / 1000} s to speak, release it to stop, esc cancels`
 export const NO_REPEAT_WORDS = '/voice starts and stops a take without the key — the road for a terminal whose key repeat is off (a held key that never repeats cannot open a take)'
-
 export const RECORDING_FOOTER = 'recording · release space to stop · esc cancels'
 export const TRANSCRIBING_FOOTER = 'transcribing…'
-
 export const VOICE_OFF_RECEIPT = `voice input is off — /voice on turns it on; then ${HOLD_WORDS}`
 const ALREADY_RECORDING_RECEIPT = 'already recording — /voice again or esc ends the take'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
-export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /voice options <family> chooses a cloud transcriber'
+export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment'
 
 const listeners = new Set<() => void>()
 let snapshot: VoiceSnapshot = { enabled: false, phase: 'idle', startedAt: null, backend: null, receipt: null }
@@ -66,7 +35,6 @@ let active: CaptureHandle | null = null
 let lastStreamErrors: CaptureStreamErrors | null = null
 
 type StreamErrorNotice = { kind: 'fatal'; text: string } | { kind: 'transient'; debug: string } | null
-
 export function streamErrorNotice(errors: CaptureStreamErrors): StreamErrorNotice {
   if (errors.fatal !== null) return { kind: 'fatal', text: `the input stream failed during the take — ${errors.fatal}` }
   if (errors.transient > 0) {
@@ -89,20 +57,13 @@ function currentTakeStreamWords(): string | null {
 }
 
 export function voiceInputEnabled(): boolean {
-  try {
-    return getGlobalConfig().voiceInputEnabled === true
-  } catch {
-    return false
-  }
+  try { return getGlobalConfig().voiceInputEnabled === true } catch { return false }
 }
 
 function publish(patch: Partial<VoiceSnapshot>): void {
   snapshot = { ...snapshot, enabled: voiceInputEnabled(), ...patch }
   for (const listener of [...listeners]) {
-    try {
-      listener()
-    } catch {
-    }
+    try { listener() } catch {}
   }
 }
 
@@ -113,9 +74,7 @@ function receipt(text: string, tone: VoiceReceipt['tone']): void {
 
 export function subscribeVoice(listener: () => void): () => void {
   listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  return () => { listeners.delete(listener) }
 }
 
 export function voiceSnapshot(): VoiceSnapshot {
@@ -130,26 +89,7 @@ export function setVoiceInputEnabled(on: boolean): void {
   publish({})
 }
 
-function voiceTranscriberChoice(): string | null {
-  try {
-    const raw = getGlobalConfig().voiceTranscriber
-    return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : null
-  } catch {
-    return null
-  }
-}
-
-export function setVoiceTranscriberChoice(name: string | null): void {
-  saveGlobalConfig(config => {
-    const next: Record<string, unknown> = { ...config }
-    next.voiceTranscriber = name === null ? undefined : name
-    return next as typeof config
-  })
-  publish({})
-}
-
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
-
 export function boundLabel(ms: number): string {
   if (ms % 60_000 === 0) return `${ms / 60_000}-minute`
   return `${Math.round(ms / 100) / 10}-second`
@@ -161,7 +101,7 @@ function landTranscript(text: string): void {
   pendingInput.append(separator + text)
 }
 
-async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): Promise<void> {
+async function finishCapture(reason: 'key' | 'bound'): Promise<void> {
   const handle = active
   if (handle === null || handle.settled) return
   active = null
@@ -169,9 +109,7 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
   if (reason === 'bound') receipt(`capture stopped at the ${boundLabel(captureBoundMs())} bound — transcribing`, 'info')
   try {
     let result
-    try {
-      result = await handle.stop()
-    } catch (error) {
+    try { result = await handle.stop() } catch (error) {
       receipt(error instanceof Error ? error.message : String(error), 'error')
       return
     }
@@ -186,21 +124,16 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
       receipt(`only silence reached the microphone (${seconds(result.durationMs)}) — ${microphonePermissionHint()}`, 'error')
       return
     }
-    const transcriber = resolveTranscriber(env)
-    if (transcriber.state === 'none') {
-      receipt(transcriber.note, 'error')
-      return
-    }
+    const transcriber = resolveTranscriber()
+    if (transcriber.state === 'none') { receipt(transcriber.note, 'error'); return }
     try {
-      const transcript = await transcribeWav(result.wav, { choice: transcriber.choice, env })
-      const onDevice = transcriber.choice.kind === 'local'
-      const via = onDevice ? transcriber.choice.label : `${choiceDisplayName(transcriber.choice)} (${transcript.model})`
+      const transcript = await transcribeWav(result.wav, { choice: transcriber.choice })
       if (transcript.text === '') {
-        receipt(`${via} heard no words in this take (${seconds(result.durationMs)})`, 'info')
+        receipt(`${transcriber.choice.label} heard no words in this take (${seconds(result.durationMs)})`, 'info')
         return
       }
       landTranscript(transcript.text)
-      receipt(onDevice ? `transcribed on this machine (${transcript.model}) · ${seconds(result.durationMs)}` : `transcribed by ${via} · ${seconds(result.durationMs)}`, 'info')
+      receipt(`transcribed on this machine (${transcript.model}) · ${seconds(result.durationMs)}`, 'info')
     } catch (error) {
       receipt(`transcription failed — ${error instanceof Error ? error.message : String(error)}`, 'error')
     }
@@ -220,18 +153,15 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   return startVoiceCapture({ ...opts, road: 'command' })
 }
 
-export function stopVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {}): boolean {
+export function stopVoiceCapture(_opts: { env?: NodeJS.ProcessEnv } = {}): boolean {
   if (snapshot.phase !== 'recording' || active === null) return false
-  void finishCapture('key', opts.env ?? process.env)
+  void finishCapture('key')
   return true
 }
 
 export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: VoiceRoad } = {}): Promise<VoiceToggleOutcome> {
   const env = opts.env ?? process.env
-  const refuse = (text: string): VoiceToggleOutcome => {
-    receipt(text, 'error')
-    return { kind: 'refused', text }
-  }
+  const refuse = (text: string): VoiceToggleOutcome => { receipt(text, 'error'); return { kind: 'refused', text } }
   if (snapshot.phase === 'transcribing') {
     receipt(BUSY_RECEIPT, 'info')
     return { kind: 'busy', text: BUSY_RECEIPT }
@@ -243,32 +173,21 @@ export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: 
   if (!voiceInputEnabled()) return refuse(VOICE_OFF_RECEIPT)
   const backend = resolveCaptureBackend(env)
   if (backend.state === 'none') return refuse(backend.note)
-  const transcriber = resolveTranscriber(env)
+  const transcriber = resolveTranscriber()
   if (transcriber.state === 'none') return refuse(transcriber.note)
-  if (transcriber.choice.kind === 'local' && localDecodesInFlight() > 0) return refuse(ENGINE_BUSY_RECEIPT)
+  if (localDecodesInFlight() > 0) return refuse(ENGINE_BUSY_RECEIPT)
   let handle: CaptureHandle
   try {
-    handle = await startCapture({
-      env,
-      backend,
-      onAutoStop: () => {
-        void finishCapture('bound', env)
-      },
-    })
+    handle = await startCapture({ env, backend, onAutoStop: () => { void finishCapture('bound') } })
   } catch (error) {
     return refuse(error instanceof Error ? error.message : String(error))
   }
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
-  logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${choiceDebugName(transcriber.choice)} (${transcriber.choice.label})`)
-  if (transcriber.choice.kind === 'local') setImmediate(() => warmLocalTranscriber())
-  const saved = transcriber.saved
-  const words =
-    saved !== null && saved.state === 'unavailable'
-      ? `${choiceDisplayName(transcriber.choice)} transcribes — your saved ${saved.display} ${saved.short ?? 'cannot serve'}`
-      : `${transcriber.choice.label} transcribes`
+  logForDebugging(`voice: capture started on ${handle.backend}; transcriber on-device (${transcriber.choice.label})`)
+  setImmediate(() => warmLocalTranscriber())
   const stop = opts.road === 'command' ? '/voice again stops it, esc cancels' : 'release space to stop, esc cancels'
-  return { kind: 'started', text: `recording — ${stop} (${words})` }
+  return { kind: 'started', text: `recording — ${stop} (${transcriber.choice.label} transcribes)` }
 }
 
 export function cancelVoiceCapture(): boolean {
@@ -285,10 +204,7 @@ export function releaseVoiceCaptureOnExit(): boolean {
   const handle = active
   if (handle === null) return false
   active = null
-  try {
-    handle.cancel()
-  } catch {
-  }
+  try { handle.cancel() } catch {}
   publish({ phase: 'idle', startedAt: null, backend: null })
   return true
 }
@@ -302,46 +218,18 @@ function backendWords(backend: CaptureBackendResolution): string {
 }
 
 function transcriberWords(transcriber: TranscriberResolution): string {
-  if (transcriber.state === 'ok') {
-    if (transcriber.choice.kind === 'local') {
-      const local = transcriber.local
-      const engine = local.state === 'ok' ? local.pack.engine.split(' ')[0] : 'whisper.cpp'
-      const pack = local.state === 'ok' ? ` (pack ${local.pack.version} ${local.pack.platform}, ${local.pack.where})` : ''
-      return `on-device — ${engine} ${transcriber.choice.model}${pack}`
-    }
-    return `${choiceDisplayName(transcriber.choice)} — ${transcriber.choice.label}, the most recent transcribing sign-in`
-  }
-  return `none — ${transcriber.note}`
-}
-
-function onDeviceWords(transcriber: TranscriberResolution): string | null {
-  if (transcriber.state === 'ok' && transcriber.choice.kind === 'local') return null
+  if (transcriber.state === 'none') return `none — ${transcriber.note}`
   const local = transcriber.local
-  if (local.state === 'ok') {
-    const saved = transcriber.saved
-    if (saved !== null && saved.state === 'serving') return `on-device transcriber: usable (${local.model}), your saved choice is ${saved.display}`
-    return `on-device transcriber: usable (${local.model}), held back by ${TRANSCRIBER_PIN_ENV}`
-  }
-  return `on-device transcriber: ${local.note}`
-}
-
-function defaultWords(transcriber: TranscriberResolution): string {
-  const saved = transcriber.saved
-  const serving = transcriber.state === 'ok' ? choiceDisplayName(transcriber.choice) : 'nothing'
-  if (saved === null) return `default: the shipped one — ${ON_DEVICE_NAME} when the pack and a model are present, else the most recent signed-in family (/voice options chooses another)`
-  if (saved.state === 'serving') return `default: your saved choice — ${saved.display} (/voice options default restores the shipped default)`
-  if (saved.state === 'overridden') return `default: ${saved.note ?? `the pin overrides your saved choice (${saved.display})`}`
-  return `your saved choice (${saved.display}) cannot serve: ${saved.note ?? 'unusable'} — ${serving} serves (/voice options chooses another)`
+  return `on-device — ${local.pack.engine.split(' ')[0]} ${local.model} (pack ${local.pack.version} ${local.pack.platform}, ${local.pack.where})`
 }
 
 function downloadDoorWords(transcriber: TranscriberResolution): string | null {
   const local = transcriber.local
-  if (local.state === 'absent' && local.reason === 'model' && local.download !== undefined) return whisperDownloadDoor(local.download)
-  return null
+  return local.state === 'absent' && local.reason === 'model' && local.download !== undefined ? whisperDownloadDoor(local.download) : null
 }
 
 function onDeviceCostWords(transcriber: TranscriberResolution): string | null {
-  if (transcriber.state !== 'ok' || transcriber.choice.kind !== 'local' || transcriber.local.state !== 'ok') return null
+  if (transcriber.state !== 'ok') return null
   const local = transcriber.local
   const road = local.pack.gpu === 'metal' ? 'Metal on the GPU' : 'the CPU'
   return `on-device: ${local.pack.engine}, ${local.model} (${local.language === 'en' ? 'English' : 'multilingual'}), ${road}; ${onDeviceMemoryWords(local.model)}`
@@ -356,88 +244,47 @@ function onDeviceMemoryWords(model: string): string {
 
 export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): string {
   const on = voiceInputEnabled()
-  const transcriber = resolveTranscriber(env)
-  const onDevice = onDeviceWords(transcriber)
+  const transcriber = resolveTranscriber()
   const door = downloadDoorWords(transcriber)
   return [
     `voice input ${on ? `ON — ${HOLD_WORDS}` : 'OFF — /voice on turns it on'}`,
     ...(on ? [NO_REPEAT_WORDS] : []),
-    `transcriber: ${transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? transcriberWords(transcriber) : `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}`) : `none — ${transcriber.note}`}`,
-    defaultWords(transcriber),
-    ...(onDevice !== null ? [onDevice] : []),
+    `transcriber: ${transcriberWords(transcriber)}`,
     ...(door !== null ? [door] : []),
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
     ...(currentTakeStreamWords() !== null ? [currentTakeStreamWords() as string] : []),
   ].join('\n')
 }
 
-export function describeVoiceOptions(env: NodeJS.ProcessEnv = process.env): string {
-  const transcriber = resolveTranscriber(env)
-  const rows = transcriberOptions(liveTranscriberReads(env))
-  const saved = parseSavedTranscriber(voiceTranscriberChoice())
-  const savedName = saved.kind === 'unset' ? null : saved.kind === 'family' ? saved.family : saved.kind === 'unknown' ? saved.raw : ON_DEVICE_NAME
-  const servingName = transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? ON_DEVICE_NAME : transcriber.choice.family) : null
-  const lines = [`transcribers this install can use — /voice options <name> makes one your default; /voice options default restores the shipped default`]
-  for (const row of rows) {
-    const mark = row.name === servingName ? '●' : '○'
-    const tags = [
-      ...(row.name === servingName ? ['serves now'] : []),
-      ...(row.name === savedName ? ['your saved choice'] : savedName === null && row.name === ON_DEVICE_NAME ? ['the shipped default'] : []),
-    ]
-    lines.push(`${mark} ${row.name} — ${row.display === row.name ? '' : `${row.display}: `}${row.detail}${tags.length > 0 ? ` (${tags.join(', ')})` : ''}`)
-  }
-  if (savedName !== null && !rows.some(r => r.name === savedName)) lines.push(`○ ${savedName} — your saved choice, not a transcriber this install can use (${transcriberOptionNames().join(' · ')})`)
-  lines.push(defaultWords(transcriber))
-  if (transcriber.saved?.state === 'overridden' && transcriber.saved.note) lines.push(transcriber.saved.note)
-  return lines.join('\n')
-}
-
-interface VoiceReadiness {
-  ready: boolean
-  line: string
-  detail: string
-}
-
+interface VoiceReadiness { ready: boolean; line: string; detail: string }
 export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): VoiceReadiness {
   const backend = resolveCaptureBackend(env)
-  const transcriber = resolveTranscriber(env)
+  const transcriber = resolveTranscriber()
   const on = voiceInputEnabled()
-  const permission =
-    process.platform === 'darwin'
-      ? 'microphone permission: macOS asks for the terminal on the first capture — not knowable before it'
-      : 'microphone permission: the operating system decides at the first capture'
+  const permission = process.platform === 'darwin'
+    ? 'microphone permission: macOS asks for the terminal on the first capture — not knowable before it'
+    : 'microphone permission: the operating system decides at the first capture'
   const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /voice ${on ? 'on' : 'off'}`
-  const anthropicNamed = transcriber.skipped.some(s => s.startsWith('Anthropic'))
   const debugDir = voiceDebugWavDir()
-  const onDevice = transcriber.state === 'ok' && transcriber.choice.kind === 'local'
-  const onDeviceLine = onDeviceWords(transcriber)
   const cost = onDeviceCostWords(transcriber)
   const door = downloadDoorWords(transcriber)
   const disk = debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
   const local = transcriber.local
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
-    transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? `transcriber: on-device (${transcriber.choice.model})` : `transcriber: ${transcriber.choice.label}`) : `transcriber: ${transcriber.note}`,
+    `transcriber: ${transcriberWords(transcriber)}`,
     ...(local.state === 'ok' ? [`on-device CPU floor: ${local.pack.floor}`] : []),
-    defaultWords(transcriber),
     ...(cost !== null ? [cost] : []),
-    ...(transcriber.state === 'ok' && transcriber.unused.length > 0 ? [`cloud families signed in, not used: ${transcriber.unused.join('; ')}`] : []),
-    ...(onDeviceLine !== null ? [onDeviceLine] : []),
     ...(door !== null ? [door] : []),
-    ...(transcriber.skipped.length > 0 ? [`families passed over: ${transcriber.skipped.join('; ')}`] : []),
-    ...(anthropicNamed ? [] : ['Anthropic: no speech-to-text endpoint']),
     permission,
-    onDevice ? `audio never leaves the box: the take is transcribed on this machine; ${disk}` : `audio leaves the box only to the transcribing family, only after a take stops; ${disk}`,
+    `audio never leaves the box: the take is transcribed on this machine; ${disk}`,
   ].join('\n')
   return { ready: backend.state === 'ok' && transcriber.state === 'ok', line, detail }
 }
 
 export function resetVoiceForTest(): void {
   if (active !== null) {
-    try {
-      active.cancel()
-    } catch {
-    }
+    try { active.cancel() } catch {}
   }
   active = null
   receiptSeq = 0

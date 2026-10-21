@@ -165,7 +165,6 @@ jobs:
         if: runner.os == 'Windows'
         run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}
       - name: cmake for the on-device transcriber pack
-        continue-on-error: true
         shell: bash
         run: |
           cmake --version && exit 0
@@ -174,9 +173,29 @@ jobs:
             macOS) brew install cmake ;;
             Windows) choco install cmake --no-progress -y ;;
           esac
+      - name: LLVM toolchain for the on-device transcriber (Windows ARM64)
+        if: matrix.target == 'windows-arm64'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -property installationPath
+          if (!$vs) { throw 'Visual Studio is required for the ARM64 SDK and libraries' }
+          & "$vs\Common7\Tools\Launch-VsDevShell.ps1" -Arch arm64 -HostArch arm64 -SkipAutomaticLocation
+          $llvm = @('C:\Program Files\LLVM\bin', "$vs\VC\Tools\Llvm\ARM64\bin", "$vs\VC\Tools\Llvm\x64\bin") | Where-Object { Test-Path "$_\clang-cl.exe" } | Select-Object -First 1
+          if (!$llvm) { throw 'clang-cl is required to build whisper.cpp for Windows ARM64' }
+          $ninja = "$vs\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja"
+          $env:PATH = "$llvm;$ninja;$env:PATH"
+          clang-cl --version
+          if ($LASTEXITCODE -ne 0) { throw 'clang-cl did not start' }
+          ninja --version
+          if ($LASTEXITCODE -ne 0) { throw 'Ninja did not start' }
+          foreach ($name in @('PATH', 'INCLUDE', 'LIB', 'LIBPATH')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name))" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
       - name: Build the on-device transcriber pack
-        continue-on-error: true
-        run: bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}
+        run: |
+          bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}
+          bun run scripts/vendor/build-whisper.ts --check --target ${{ matrix.target }}
       - name: Build the desktop driver pack
         continue-on-error: true
         run: bun run scripts/vendor/build-desktop.ts --target ${{ matrix.target }}

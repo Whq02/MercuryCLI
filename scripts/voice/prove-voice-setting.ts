@@ -10,4 +10,7 @@ assert.ok(voice && ts.isTypeAliasDeclaration(voice) && ts.isTypeLiteralNode(voic
 const keys = voice.type.members.map(m => m.name?.getText(source))
 assert.ok(keys.includes('voiceInputEnabled'), 'the persisted on/off setting stays')
 assert.ok(!keys.includes('voice' + 'Transcriber'), 'the saved transcriber selection is not a known key')
+const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.ts')
+const authored = validateSettingsFileContent(JSON.stringify({ ['voice' + 'Transcriber']: 'on-device' }))
+assert.equal(authored.isValid, false, 'the retired selection is an ordinary unknown settings key')
 console.log('prove-voice-setting: green — on/off persists, no saved transcriber key')

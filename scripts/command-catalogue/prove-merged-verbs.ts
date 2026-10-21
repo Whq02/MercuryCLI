@@ -48,11 +48,17 @@ const { unknownCommandLine } = slash as unknown as { unknownCommandLine: (name: 
 check('a retired name answers as any unknown input', unknownCommandLine('halt', roster).startsWith('Unknown command: /halt'))
 check('…never naming a replacement', !unknownCommandLine('speak', roster).includes('voice'))
 
+process.env.MERCURY_WHISPER_PACK_DIR = process.env.MERCURY_CONFIG_DIR
 const voice = (await import('../../src/commands/voice/voice.js')) as { call: (arg: string) => Promise<{ type: string; value: string }> }
-const on = await voice.call('on')
-check('/voice on arms the input', on.value.startsWith('voice input ON'), on.value.slice(0, 60))
-const status = await voice.call('options')
-check('/voice options lists the transcribers (the /speak door)', status.value.length > 0)
+const hint = byName('voice')?.argumentHint
+check('voice vocabulary is on, off, capture', hint === '[on|off|capture]', String(hint))
+for (const verb of ['options', 'download', 'stop', 'nonsense']) {
+  const answer = await voice.call(verb)
+  check('unknown voice input is ordinary usage', answer.value.startsWith('/voice takes on, off or capture'), answer.value)
+}
+await voice.call('off')
+const bare = await voice.call('')
+check('bare voice while off names the on command', bare.value.startsWith('voice input is off') && bare.value.includes('/voice on'), bare.value)
 
 const jev = (await import('../../src/commands/jev/jev.js')) as { call: (arg: string) => Promise<{ type: string; value: string }> }
 const orOn = await jev.call('or on')
