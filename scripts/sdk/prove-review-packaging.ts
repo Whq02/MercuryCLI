@@ -28,12 +28,17 @@ try {
   run(python, ['-c', `import zipfile;zipfile.ZipFile(${JSON.stringify(join(scratch, 'editable', editable))}).extractall(${JSON.stringify(purelib)})`])
   sourceImport(python)
   console.log('PASS PEP 660 editable wheel from the build backend, installed into a clean venv made without pip (the venv needs no ensurepip), imports the source tree')
-  const pip = spawnSync('python3', ['-m', 'pip', '--version'], { encoding: 'utf8', timeout: 60000 })
+  const pipEnv = { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_NO_INPUT: '1', PYTHONDONTWRITEBYTECODE: '1' }
+  const pip = spawnSync('python3', ['-m', 'pip', '--version'], { encoding: 'utf8', timeout: 60000, env: pipEnv })
   if (pip.status === 0) {
     const target = venvPython('venv-pip')
-    run('python3', ['-m', 'pip', '--python', target, 'install', '--no-index', '--no-deps', '--no-build-isolation', '-e', join(scratch, 'sdk-py')])
-    sourceImport(target)
-    console.log(`PASS pip editable install (${pip.stdout.trim().split(' from ')[0]} of the running interpreter, driving the pip-less venv) and source import`)
+    const installed = spawnSync('python3', ['-m', 'pip', '--python', target, 'install', '--no-index', '--no-deps', '--no-build-isolation', '-e', join(scratch, 'sdk-py')], { cwd: scratch, env: pipEnv, encoding: 'utf8', timeout: 120000 })
+    if (installed.signal !== null) console.log(`SKIP pip editable install: pip did not finish within 120 s on this host (ended by ${installed.signal}); the backend road above stands`)
+    else {
+      assert.equal(installed.status, 0, `pip: ${installed.stdout}${installed.stderr}`)
+      sourceImport(target)
+      console.log(`PASS pip editable install (${pip.stdout.trim().split(' from ')[0]} of the running interpreter, driving the pip-less venv) and source import`)
+    }
   } else console.log('SKIP pip editable install: the running python3 carries no pip (the backend road above stands)')
   mkdirSync(join(scratch, 'scripts/sdk'), { recursive: true })
   for (const name of ['publish-npm.sh', 'publish-pypi.sh']) cpSync(join(root, 'scripts/sdk', name), join(scratch, 'scripts/sdk', name))

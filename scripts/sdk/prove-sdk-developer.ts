@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import * as sdk from '../../sdk/src/index.ts'
 import { executableOf } from '../../sdk/src/executable.ts'
 import * as testing from '../../sdk/src/testing.ts'
@@ -19,6 +19,12 @@ function example(schema: any): any {
   return schema.type === 'array' ? [] : schema.type === 'string' ? 'fixture' : schema.type === 'boolean' ? false : schema.type === 'null' ? null : Math.max(1, schema.minimum ?? 0)
 }
 const sessionRow = { ...example(sdk.ROW_SCHEMAS.session), session_id: 'fixture-session' }
+const WINDOWS_HOST = process.platform === 'win32'
+function runtimeStandIn(path: string): string {
+  if (WINDOWS_HOST) { try { linkSync(process.execPath, path) } catch { copyFileSync(process.execPath, path) } }
+  else { writeFileSync(path, '#!/bin/sh\nexec node "$@"\n'); chmodSync(path, 0o755) }
+  return path
+}
 const outcome = { ...example(sdk.ROW_SCHEMAS.outcome), status: 'completed', answer: 'ok' }
 const init = { result: { protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: 'fixture-session' } }
 async function check(name: string, run: () => Promise<void> | void) {
@@ -193,13 +199,13 @@ try {
     writeFileSync(join(versions, 'current.txt'), '1.0.0-beta.40\r\n')
     writeFileSync(join(version, 'mercury.mjs'), stub); writeFileSync(join(windows, 'entry.mjs'), stub)
     writeFileSync(join(version, 'mercury.cmd'), templates.cmdLauncher(templates.parseEnginesNode(engines)))
-    for (const runtime of [join(version, 'vendor', 'node', 'node.exe'), join(windows, 'nodejs', 'node.exe')]) { writeFileSync(runtime, '#!/bin/sh\nexec node "$@"\n'); chmodSync(runtime, 0o755) }
+    for (const runtime of [join(version, 'vendor', 'node', 'node.exe'), join(windows, 'nodejs', 'node.exe')]) runtimeStandIn(runtime)
     writeFileSync(join(bin, 'mercury.cmd'), layout.shimContent(true)); writeFileSync(join(bin, 'mercury'), layout.shimContent(false)); writeFileSync(join(bin, 'mercury.ps1'), layout.powershellEntryContent())
     assert(readFileSync(join(bin, 'mercury.cmd'), 'utf8').includes(layout.SHIM_MARKER_FAMILY) && !/%~dp0/.test(readFileSync(join(bin, 'mercury.cmd'), 'utf8')), 'the managed shim carries its marker and no npm pattern')
     const posix = join(scratch, 'posix'); const home = join(posix, 'home'); const stable = join(home, '.local', 'bin'); const active = join(home, '.mercury', 'versions', '1.0.0-beta.40')
     for (const dir of [stable, join(active, 'vendor', 'node', 'bin')]) mkdirSync(dir, { recursive: true })
     writeFileSync(join(home, '.mercury', 'versions', 'current.txt'), '1.0.0-beta.40\n'); writeFileSync(join(active, 'mercury.mjs'), stub)
-    writeFileSync(join(active, 'vendor', 'node', 'bin', 'node'), '#!/bin/sh\nexec node "$@"\n'); chmodSync(join(active, 'vendor', 'node', 'bin', 'node'), 0o755)
+    runtimeStandIn(join(active, 'vendor', 'node', 'bin', 'node'))
     writeFileSync(join(stable, 'mercury'), layout.shimContent(false)); chmodSync(join(stable, 'mercury'), 0o755)
     process.env.SDK_WINDOWS_FIXTURE = windows; process.env.SDK_POSIX_FIXTURE = posix
     const env = { USERPROFILE: profile, LOCALAPPDATA: localAppData, PATH: ['C:\\Windows\\system32', join(windows, 'nodejs'), bin].join(';'), PATHEXT: '.COM;.EXE;.BAT;.CMD' }
@@ -226,6 +232,7 @@ try {
     const named = executableOf(entry, { PATH: join(windows, 'nodejs'), PATHEXT: '.COM;.EXE' }, scratch, 'win32')
     assert.equal(named[1], entry); assert.match(named[0]!, /node(\.exe)?$/i, 'node from PATH on Windows is node.exe, compared without regard to case')
     assert.equal(named[0], join(windows, 'nodejs', 'node.exe'))
+    if (WINDOWS_HOST) { console.log('SKIP the POSIX layout live: this host is Windows (the Windows layout above ran live here)'); return }
     const { MERCURY_CONFIG_DIR: _config, MERCURY_HOME: _home, MERCURY_VERSIONS_DIR: _versions, ...inherited } = process.env
     const posixEnv = { ...inherited, HOME: home, PATH: `${stable}:${process.env.PATH}` }
     const expected = [join(active, 'vendor', 'node', 'bin', 'node'), join(active, 'mercury.mjs')]
@@ -239,10 +246,10 @@ try {
     const named = sdk.argvOf({ env: { ...process.env, MERCURY_BIN: entry } })
     assert.equal(named.args[0], entry, 'MERCURY_BIN may name the entry point itself'); assert.match(named.command, /node(\.exe)?$/i)
     assert.equal((await sdk.run({ env: { ...process.env, MERCURY_BIN: entry }, prompt: 'x' }).outcome).status, 'completed')
-    const runtime = join(scratch, 'vendor/node/bin/node'); mkdirSync(join(scratch, 'vendor/node/bin'), { recursive: true })
-    writeFileSync(runtime, '#!/bin/sh\nexec node "$@"\n'); chmodSync(runtime, 0o755)
+    const runtime = join(scratch, 'vendor', 'node', ...(WINDOWS_HOST ? ['node.exe'] : ['bin', 'node'])); mkdirSync(dirname(runtime), { recursive: true })
+    runtimeStandIn(runtime)
     assert.equal(sdk.argvOf({ mercury: entry }).command, runtime, 'the bundled runtime beside the entry point is preferred')
-    const pinned = join(scratch, 'pinned-node'); writeFileSync(pinned, '#!/bin/sh\nexec node "$@"\n'); chmodSync(pinned, 0o755)
+    const pinned = runtimeStandIn(join(scratch, WINDOWS_HOST ? 'pinned-node.exe' : 'pinned-node'))
     assert.equal(sdk.argvOf({ mercury: entry, env: { ...process.env, MERCURY_NODE: pinned } }).command, pinned, 'MERCURY_NODE names the runtime first, as the launchers read it')
     assert.equal((await sdk.run({ mercury: entry, prompt: 'x' }).outcome).status, 'completed')
     assert.throws(() => sdk.argvOf({ mercury: join(scratch, 'missing.mjs') }), /JavaScript entry point that does not exist/)

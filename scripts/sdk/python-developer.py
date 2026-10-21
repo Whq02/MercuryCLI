@@ -2,6 +2,7 @@ import asyncio
 import os
 from pathlib import Path
 import re
+import shutil
 import tempfile
 import sys
 import json
@@ -12,6 +13,19 @@ from mercury_cli_sdk import testing
 from mercury_cli_sdk.executable import executable_of
 
 failures = []
+WINDOWS_HOST = os.name == 'nt'
+
+
+def runtime_stand_in(path):
+    if WINDOWS_HOST:
+        node = shutil.which('node')
+        assert node, 'node on PATH stands in for a vendored runtime on a Windows host'
+        try: os.link(node, path)
+        except OSError: shutil.copyfile(node, path)
+    else:
+        path.write_text('#!/bin/sh\nexec node "$@"\n')
+        path.chmod(0o755)
+    return path
 
 
 def example(schema):
@@ -212,6 +226,9 @@ async def managed_install():
     entry = Path(windows, 'entry.mjs')
     named = executable_of(str(entry), {'PATH': str(Path(windows, 'nodejs')), 'PATHEXT': '.COM;.EXE'}, windows, 'win32')
     assert named[1] == str(entry) and re.search(r'node(\.exe)?$', named[0], re.IGNORECASE) and named[0] == str(Path(windows, 'nodejs', 'node.exe')), named
+    if WINDOWS_HOST:
+        print('SKIP Python the POSIX layout live: this host is Windows (the Windows layout above ran live here)', flush=True)
+        return
     home = Path(posix, 'home'); stable = home / '.local' / 'bin'; active = home / '.mercury' / 'versions' / '1.0.0-beta.40'
     posix_env = {**{key: value for key, value in os.environ.items() if key not in ('MERCURY_CONFIG_DIR', 'MERCURY_HOME', 'MERCURY_VERSIONS_DIR')}, 'HOME': str(home), 'PATH': f'{stable}:{os.environ.get("PATH", "")}'}
     expected = [str(active / 'vendor' / 'node' / 'bin' / 'node'), str(active / 'mercury.mjs')]
@@ -227,13 +244,12 @@ async def entry_point():
         entry = path / 'entry.mjs'
         entry.write_text('console.log(' + repr(json.dumps(session_row)) + '); console.log(' + repr(json.dumps(outcome)) + ')')
         named = sdk.argv_of(sdk.RunOptions(env={**os.environ, 'MERCURY_BIN': str(entry)}))
-        assert named[1] == str(entry) and named[0].endswith('node'), named
+        assert named[1] == str(entry) and re.search(r'node(\.exe)?$', named[0], re.IGNORECASE), named
         task = await sdk.run('x', env={**os.environ, 'MERCURY_BIN': str(entry)})
         assert (await task.outcome)['status'] == 'completed'
-        runtime = path / 'vendor/node/bin/node'
+        runtime = path / 'vendor' / 'node' / ('node.exe' if WINDOWS_HOST else 'bin/node')
         runtime.parent.mkdir(parents=True)
-        runtime.write_text('#!/bin/sh\nexec node "$@"\n')
-        runtime.chmod(0o755)
+        runtime_stand_in(runtime)
         assert sdk.argv_of(sdk.RunOptions(mercury=str(entry)))[0] == str(runtime)
         task = await sdk.run('x', mercury=str(entry))
         assert (await task.outcome)['status'] == 'completed'

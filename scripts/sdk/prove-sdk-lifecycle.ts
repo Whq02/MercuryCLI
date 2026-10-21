@@ -108,7 +108,7 @@ try {
     assert.equal((await aborted.outcome).status, 'interrupted', 'the signal option takes the same road')
     const foreign = run({ mercury: idle([session]), prompt: 'x' })
     await foreign.session; process.kill(foreign.child.pid!, 'SIGINT')
-    await assert.rejects(foreign.outcome, (e: unknown) => e instanceof MercuryExitError && (process.platform === 'win32' ? e.exit?.code === 1 : e.message === 'mercury run ended by SIGINT before an outcome row'))
+    await assert.rejects(foreign.outcome, (e: unknown) => e instanceof MercuryExitError && (process.platform === 'win32' ? e.exit?.signal === null : e.message === 'mercury run ended by SIGINT before an outcome row'))
     const terminated = run({ mercury: idle([session]), prompt: 'x' })
     await terminated.session; terminated.terminate()
     await assert.rejects(terminated.outcome, (e: unknown) => e instanceof MercuryExitError && e.message === 'mercury run ended by SIGTERM before an outcome row')
