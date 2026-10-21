@@ -1,10 +1,8 @@
 # Video generation
 
-## Added
-
 The `Video` tool lets your Mercury model send a prompt and optional reference files to MiniMax, then save the generated MP4 in your project. Video generation is billable and sends those inputs to the configured provider.
 
-### Set up
+## Set up
 
 1. Run `/logins minimax` and connect a standard MiniMax Open Platform API key with pay-as-you-go access. An M Plan subscription alone does not establish H3 video access.
 2. Add a named generator to `.mercury/settings.local.json` in your project, or to `settings.json` in your Mercury config home.
@@ -24,7 +22,7 @@ The `Video` tool lets your Mercury model send a prompt and optional reference fi
 
 `Video` appears in the tool roster when a provider is configured. With several named providers, the call must choose one using `provider`. With none, the withheld-tool row names `/logins minimax` and the `videoProvider` setting.
 
-### Ask for a video
+## Ask for a video
 
 > Generate a five-second, 16:9 video of a paper boat drifting across a quiet pond. Save it in renders/.
 
