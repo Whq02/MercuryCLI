@@ -56,7 +56,7 @@ async def main():
     tool = define_tool('echo', 'Echo', Echo, execute)
     assert tool.input_schema['required'] == ['text']
     assert tool.input_schema['properties']['text']['description'] == 'The text to echo'
-    agent = define_agent({'description': 'SDK reader', 'prompt': 'Use echo.'})
+    agent = define_agent({'description': 'SDK reader', 'prompt': 'Use echo.', 'tools': ['Read']})
     task = await run('Use echo', mercury=mercury, cwd=cwd, mode='default', ephemeral=True, tools=[tool], agent='sdk-reader', agent_defs={'sdk-reader': agent})
     assert (await task.outcome)['status'] == 'completed'
     assert any(r['type'] == 'tool_result' and 'Python inline result' in r['output'] for r in task.rows)

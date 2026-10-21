@@ -80,7 +80,7 @@ try {
   const inline = await context(() => [{ kind: 'tool_use', name: 'mcp__sdk-tools__echo', input: { text: 'inline result' } }, { kind: 'text', text: 'Inline finished.' }])
   const echo = defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (p: { text: string }, context) => { assert(context.signal instanceof AbortSignal); return p.text } })
   try {
-    const task = run({ mercury, cwd: inline.cwd, env: inline.env, prompt: 'Use echo', mode: 'default', ephemeral: true, tools: [echo], agent: 'sdk-reader', agentDefs: { 'sdk-reader': defineAgent({ description: 'SDK reader', prompt: 'Use the echo tool.' }) } })
+    const task = run({ mercury, cwd: inline.cwd, env: inline.env, prompt: 'Use echo', mode: 'default', ephemeral: true, tools: [echo], agent: 'sdk-reader', agentDefs: { 'sdk-reader': defineAgent({ description: 'SDK reader', prompt: 'Use the echo tool.', tools: ['Read'] }) } })
     assert.equal((await task.outcome).status, 'completed')
     assert(task.rows.some(r => r.type === 'tool_result' && r.output.includes('inline result')))
     assert((await task.session).agents.includes('sdk-reader'))

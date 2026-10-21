@@ -55,6 +55,7 @@ try {
   const tree = join(scratch, 'tree')
   mkdirSync(tree)
   cpSync(join(ROOT, 'src'), join(tree, 'src'), { recursive: true })
+  cpSync(join(ROOT, 'tsconfig.json'), join(tree, 'tsconfig.json'))
   symlinkSync(join(ROOT, 'node_modules'), join(tree, 'node_modules'))
   const vocabularyPath = join(tree, 'src', 'rows', 'vocabulary.ts')
   const vocabulary = readFileSync(vocabularyPath, 'utf8')
@@ -79,6 +80,21 @@ try {
   writeFileSync(vocabularyPath, vocabulary.replace("timestamp: z.string(),", "timestamp: z.string().regex(/^\\d/),"))
   const refused = generate(['--root', tree, '--out', keyword])
   check('a construct outside the interpreter\'s keyword set refuses to generate (a regex check on the envelope)', refused.status !== 0 && /keyword "pattern" is outside the set/.test(refused.out), refused.out.slice(0, 400))
+  section('D3 product reply declarations and wire codecs generate both SDKs')
+  writeFileSync(vocabularyPath, vocabulary)
+  const wirePath = join(tree, 'src/services/engine-connector/seatWire.ts')
+  writeFileSync(wirePath, readFileSync(wirePath, 'utf8').replace("filesChanged: 'files_changed'", "filesChanged: 'changed_files'"))
+  const factsPath = join(tree, 'src/services/engine-connector/types.ts')
+  writeFileSync(factsPath, readFileSync(factsPath, 'utf8').replace('totalCostUSD: number', 'totalCostUSD: string'))
+  const resultDir = join(scratch, 'result-shapes')
+  const resultRun = generate(['--root', tree, '--out', resultDir])
+  check('reply generation exits zero on the scratch declarations', resultRun.status === 0, resultRun.out.slice(0, 800))
+  if (resultRun.status === 0) {
+    const ts = readFileSync(join(resultDir, 'wire.ts'), 'utf8')
+    const py = readFileSync(join(resultDir, 'python/generated.py'), 'utf8')
+    check('TypeScript follows the product reply type and key codec', ts.includes('total_cost_usd: string') && ts.includes('changed_files: string[]') && !ts.includes('files_changed: string[]'))
+    check('Python follows the same product reply type and key codec', py.includes('"total_cost_usd": "str"') && py.includes('"changed_files": "list[str]"') && !py.includes('"files_changed": "list[str]"'))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

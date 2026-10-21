@@ -2,7 +2,8 @@ import asyncio
 import json
 from pathlib import Path
 import sys
-from mercury_cli_sdk import connect, prewarm
+import mercury_cli_sdk as sdk
+from mercury_cli_sdk import connect
 
 scenario, mercury, cwd = sys.argv[1], json.loads(sys.argv[2]), sys.argv[3]
 
@@ -33,7 +34,7 @@ async def main():
             restored = await session.rewind(id, 'both')
             assert restored['outcome'] == 'applied' and path.read_text() == 'original\n'
     else:
-        async with await prewarm(mercury=mercury, cwd=cwd) as session:
+        async with await sdk.prewarm(mercury=mercury, cwd=cwd) as session:
             assert session.initialized['session_id'] is None
             receipt = await session.claim(session_id='00000000-0000-4000-8000-000000000092')
             assert receipt['session_id'] == '00000000-0000-4000-8000-000000000092'

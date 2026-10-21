@@ -20,6 +20,7 @@ async function context(turns: (cwd: string) => ScriptedTurn[]) {
   return { cwd, env, close: async () => { await api.close(); rmSync(home, { recursive: true, force: true }) } }
 }
 for (const language of ['ts', 'py']) {
+  if (process.env.SDK_BUILDER_LANGUAGE && process.env.SDK_BUILDER_LANGUAGE !== language) continue
   for (const scenario of ['capabilities', 'checkpoints', 'warm']) {
     if (selected && selected !== scenario) continue
     const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'capabilities' ? [
