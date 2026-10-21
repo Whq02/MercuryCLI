@@ -9,8 +9,10 @@ rm -rf "$root/sdk/dist"
 node "$root/node_modules/typescript/bin/tsc" -p "$root/sdk/tsconfig.json"
 node --input-type=module - "$root/sdk/package.json" <<'JS'
 import fs from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import path from 'node:path'
+import { execFileSync, execSync } from 'node:child_process'
 const p = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+execSync(p.scripts.build.split(' && ')[1], { cwd: path.dirname(process.argv[2]), stdio: 'inherit' })
 if (p.name !== 'mercury-cli-sdk' || p.version !== '0.1.0' || p.private) throw new Error('unexpected package identity')
 const r = await fetch(`https://registry.npmjs.org/${p.name}`)
 if (r.status === 404) console.log(`${new Date().toISOString()} npm ${p.name}: free (HTTP 404)`)

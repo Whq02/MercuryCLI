@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -75,7 +75,14 @@ try {
   assert(pkg.exports['./testing'].types)
   symlinkSync(join(root, 'node_modules'), join(scratch, 'sdk/node_modules'), 'junction')
   command('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(scratch, 'sdk/tsconfig.json')], scratch)
+  execSync(pkg.scripts.build.split(' && ')[1], { cwd: join(scratch, 'sdk'), stdio: 'inherit' })
   rmSync(join(scratch, 'sdk/node_modules'))
+  const docLead = '/' + '** '
+  for (const [file, symbols] of [['index.d.ts', ['run', 'connect', 'prewarm', 'defineTool']], ['client.d.ts', ['run', 'MercuryRun', 'RunOptions']], ['runner.d.ts', ['connect', 'prewarm', 'MercurySession']]] as const) {
+    const dts = readFileSync(join(scratch, 'sdk/dist', file), 'utf8')
+    for (const sym of symbols) assert(dts.includes(docLead) && new RegExp(`\\/\\*\\* .+ \\*\\/\\nexport (?:\\{ (?:type )?${sym} \\}|(?:declare (?:function|class)|interface) ${sym}\\b)`).test(dts), `${file} missing JSDoc on ${sym}`)
+  }
+  for (const name of readdirSync(join(root, 'sdk/src')).filter(n => n.endsWith('.ts'))) assert(!readFileSync(join(root, 'sdk/src', name), 'utf8').includes(docLead), `sdk/src/${name} must carry no JSDoc comment bytes`)
   const loaded = command('node', ['--input-type=module', '-e', `import {run,connect,ROW_TYPES} from ${JSON.stringify(join(scratch, 'sdk/dist/index.js'))}; if(typeof run!=='function'||typeof connect!=='function'||!ROW_TYPES.length)process.exit(1)`], scratch)
   for (const name of readdirSync(join(scratch, 'sdk/src')).filter(n => n.endsWith('.ts'))) {
     assert(readdirSync(join(scratch, 'sdk/dist')).includes(name.replace('.ts', '.d.ts')))
