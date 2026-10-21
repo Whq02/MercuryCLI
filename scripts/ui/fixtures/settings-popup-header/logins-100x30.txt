@@ -8,8 +8,8 @@ NEXT                │ │ esc back · from the menu, esc closes /logins       
 FILES · orchard     │ │                                                                          │ │
   ↵ or click · brow…│ │ Use a Claude or OpenAI subscription, usage-based billing, or connect     │ │
                     │ │ OpenRouter, Google Gemini, Hugging Face, Kimi (Moonshot), GLM (Z.AI),    │ │
-VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, Together AI, Cohere, │ │
-  · spend —         │ │ Groq, Cerebras, Fireworks, Qwen or OpenCode Zen.                         │ │
+VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, Together AI,         │ │
+  · spend —         │ │ Cohere, Groq, Cerebras, Fireworks, Qwen or OpenCode Zen.                 │ │
   · ctx — · —       │ │                                                                          │ │
   · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
                     │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
@@ -17,9 +17,9 @@ VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, 
                     │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
-                    │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
+                    │ │   Kimi (Moonshot) — device-code sign-in or API key                     ↓ │ │
                     │ │                                                                          │ │
-                    │ │ esc or click outside closes                                              │ │
+                    │ │ ↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes    │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯

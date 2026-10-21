@@ -5,5 +5,5 @@
 │ Crewmates (1) ────────────────────────────────────────────────────────────────────────────────── │
 │ ▸ ● scout        fixture/crew       landed   14.3k context · 9.8k in · 2.5k out · 42k cached …   │
 │                                                                                                  │
-│ ↑↓ move · ↵ open · m main chat · r resume · c clear · p pause · esc close                        │
+│ ↑↓ move · pgup/pgdn page · ↵ open · m main chat · r resume · c clear · p pause · esc close       │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯

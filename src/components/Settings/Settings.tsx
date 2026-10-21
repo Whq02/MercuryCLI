@@ -111,7 +111,8 @@ export function Settings({
   const tight = fixed && geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS
   const compact = compactFrame.compact
   const folded = tight || compact
-  const hintText = hint ?? request.hint
+  const fullHint = hint ?? request.hint
+  const hintText = fullHint.length > inner + 1 && fullHint.endsWith(' or click outside closes') ? fullHint.slice(0, -' or click outside closes'.length) + ' closes' : fullHint
   const hintRows = tight ? 0 : Math.min(Math.max(1, geometry.rowBudget), wrapText(hintText, Math.max(1, inner + 1), 'wrap').split('\n').length)
   const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - (compact ? 0 : 1)))
   return (

@@ -19,7 +19,7 @@ VITALS              │ │ Subscription                                        
                     │ │                                                                          │ │
                     │ │ ↓ 21 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │
-                    │ │ ↑↓ scroll · esc or click outside closes                                  │ │
+                    │ │ ↑↓ scroll · pgup/pgdn page · esc or click outside closes                 │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯

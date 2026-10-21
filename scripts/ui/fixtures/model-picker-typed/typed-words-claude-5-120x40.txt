@@ -1,0 +1,40 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
+  no prompts sent yet   │                                                                                              │
+                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+NEXT                    │ │ Mercury · model · 12 of 22 match                                                         │ │
+  · /workflows — crewma…│ │ / claude 5                                                                               │ │
+  · /health — health ce…│ │                                                                                          │ │
+  · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 8 of 12                                                  │ │
+  · /mission — set a mi…│ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
+                        │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
+FILES · project         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
+  ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+                        │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+VITALS                  │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
+  · spend —             │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+  · ctx — · —           │ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+  · health — run /health│ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
+                        │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
+                        │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY) · 3 of 3                         │ │
+                        │ │   GLM-5.3             glm-5.3                   unavailable  1M ctx                      │ │
+                        │ │   GLM-5.3-Flash       glm-5.3-flash             unavailable  1M ctx                      │ │
+                        │ │   GLM-5.2             glm-5.2                   unavailable  1M ctx                      │ │
+                        │ │ ▾ MOONSHOT · no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KE… │ │
+                        │ │   Kimi K2.5           kimi-k2.5                 unavailable  200k ctx                    │ │
+                        │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
+                        │ │   ↓ 5 more                                                                               │ │
+                        │ │                                                                                          │ │
+                        │ │ context —  · tier API billing                                                            │ │
+                        │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
+                        │ │ 'claude 5' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row below │ │
+                        │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+                        │ │ pgup/pgdn page                                                                           │ │
+                        │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

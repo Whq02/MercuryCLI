@@ -138,7 +138,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     check(`${label}: the entire top border row is unchanged`, after[headerRow] === before[headerRow], after[headerRow] === before[headerRow] ? '' : JSON.stringify({ before: before[headerRow], after: after[headerRow] }))
     check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`)
     check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '))
-    check(`${label}: the footer stays visible`, after.some(line => line.includes('esc or click outside')))
+    check(`${label}: the footer stays visible`, after.some(line => line.includes('click outside closes') || line.includes('esc closes')))
     if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
     }

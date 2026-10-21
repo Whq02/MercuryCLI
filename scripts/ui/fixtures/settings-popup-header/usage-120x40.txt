@@ -29,7 +29,7 @@ VITALS                  │ │ none — /logins anthropic connects a subscripti
                         │ │                                                                                          │ │
                         │ │ ↓ 19 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · … │ │
                         │ │                                                                                          │ │
-                        │ │ ↑↓ scroll · esc or click outside closes                                                  │ │
+                        │ │ ↑↓ scroll · pgup/pgdn page · esc or click outside closes                                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

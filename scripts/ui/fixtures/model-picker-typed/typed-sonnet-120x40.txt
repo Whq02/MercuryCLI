@@ -15,9 +15,9 @@ VITALS                  │ │                                                 
   · spend —             │ │ context —  · tier API billing                                                            │ │
   · ctx — · —           │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
   · health — run /health│ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+                        │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
-                        │ transcript row 46 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 47 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 48 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │

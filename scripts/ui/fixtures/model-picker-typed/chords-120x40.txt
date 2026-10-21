@@ -22,14 +22,14 @@ VITALS                  │ │ ╭───────────────
                         │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
                         │ │   GPT — sign in                                                                          │ │
-                        │ │ ▾ OPENROUTER · connect OpenRouter to browse its models — /logins connects                │ │
-                        │ │   ↓ 58 more                                                                              │ │
+                        │ │   ↓ 59 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
                         │ │ 1M ctx · native to this model · not a toggle                                             │ │
                         │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · esc or click outside closes           │ │
+                        │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

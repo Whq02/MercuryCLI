@@ -26,10 +26,10 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Thinking                          n/a — Opus 5.5 keeps thinking on                     │ │
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
-                        │ │   Terminal progress bar             on                                                   │ │
+                        │ │   Terminal progress bar             on                                                 ↓ │ │
                         │ │ ↓ 55 more                                                                                │ │
                         │ │                                                                                          │ │
-                        │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
+                        │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes│ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

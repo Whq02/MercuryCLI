@@ -16,10 +16,10 @@ VITALS              │ │   Session concourse                 on              
                     │ │   Account identity                  shown                                │ │
                     │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
-                    │ │   DuckDuckGo page scraping          on                                   │ │
+                    │ │   DuckDuckGo page scraping          on                                 ↓ │ │
                     │ │ ↓ 65 more                                                                │ │
                     │ │                                                                          │ │
-                    │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
+                    │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
                     │                                                                              │
                     ╰──────────────────────────────────────────────────────────────────────────────╯

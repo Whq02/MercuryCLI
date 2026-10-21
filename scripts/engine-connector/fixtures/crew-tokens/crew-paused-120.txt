@@ -7,5 +7,5 @@
 │     paused — Your account has used its available credits. Please retry after the stated reset. · retries by itself   │
 │     at 08:02 (in 2m) · r retries now                                                                                 │
 │                                                                                                                      │
-│ ↑↓ move · ↵ open · m main chat · r resume · p pause · esc close                                                      │
+│ ↑↓ move · pgup/pgdn page · ↵ open · m main chat · r resume · p pause · esc close                                     │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

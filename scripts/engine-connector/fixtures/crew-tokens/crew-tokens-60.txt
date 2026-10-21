@@ -6,5 +6,6 @@
 │ Crewmates (1) ────────────────────────────────────────── │
 │ ▸ ● scout                fixture/crew       landed   14… │
 │                                                          │
-│ ↑↓ move · ↵ open · m main chat · r resume … · esc close  │
+│ ↑↓ move · pgup/pgdn page · ↵ open · m main chat · r      │
+│ resume · c clear · p pause · esc close                   │
 ╰──────────────────────────────────────────────────────────╯

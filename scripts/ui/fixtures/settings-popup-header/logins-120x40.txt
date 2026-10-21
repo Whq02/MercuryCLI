@@ -27,9 +27,9 @@ VITALS                  │ │                                                 
                         │ │   Nous Portal — account sign-in or API key (model gateway)                               │ │
                         │ │   MiniMax — API key or M Plan key (M3, M2.7)                                             │ │
                         │ │   Together AI — API key (the gateway's chat models)                                      │ │
-                        │ │   Cohere — API key (Command A+, North)                                                   │ │
+                        │ │   Cohere — API key (Command A+, North)                                                 ↓ │ │
                         │ │                                                                                          │ │
-                        │ │ esc or click outside closes                                                              │ │
+                        │ │ ↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes                    │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
