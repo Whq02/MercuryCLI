@@ -1,41 +1,23 @@
 # Mercury CLI SDK
 
-`mercury-cli-sdk` 0.1.0 is a zero-runtime-dependency TypeScript client for Mercury CLI. It drives an installed `mercury` process, not an embedded model runtime. Install Mercury separately and sign in through the CLI. The SDK uses that CLI's configuration and credentials; it does not bundle a CLI or sign you in.
-
-Requires Node.js 22 or later. The package is Apache-2.0; the CLI has its own licence. The SDK is versioned and released separately from the CLI.
+`mercury-cli-sdk` 0.1.0 is a zero-runtime-dependency TypeScript client for Mercury CLI, requiring Node.js 22 or later. Install Mercury separately and sign in through the CLI; the SDK uses its configuration and credentials. The package is Apache-2.0 and versioned separately from the CLI.
 
 ```sh
 npm install mercury-cli-sdk
 ```
 
-## Run a task
+## Quickstart
 
 ```ts
-import { run, MercuryRefusal } from 'mercury-cli-sdk'
+import { run } from 'mercury-cli-sdk'
 
-const task = run({
-  prompt: 'Explain the failing test without changing files',
-  mode: 'default',
-  partial: true,
-})
+const task = run({ prompt: 'Explain the README', partial: true })
 task.on('text_delta', row => process.stdout.write(row.text))
-try {
-  for await (const row of task) {
-    if (row.type === 'tool_call') console.log(row.tool)
-    if (row.type === 'unknown_row') console.log(row.original_type)
-  }
-  const outcome = await task.outcome
-  if (outcome.status !== 'completed') console.error(outcome.status, outcome.error?.message)
-  console.log(outcome.answer, outcome.usage, (await task.exit).code)
-} catch (error) {
-  if (error instanceof MercuryRefusal) console.error(error.message)
-  else throw error
-}
+const result = await task.outcome
+console.log(result.status, result.answer)
 ```
 
-`run()` returns `MercuryRun`, an async row iterator with typed `.on()` listeners. `.session`, `.outcome` and `.exit` are promises; `.rows` retains received rows. `interrupt()`, `terminate()` and `kill()` signal the child; `close()` (or `await using`) ends stdin and waits for the exit. An `AbortSignal` in the options interrupts a run. A turn that did not complete resolves an outcome with another status and an `error` (a CLI that is not signed in answers `failed` with `error.class === 'auth'`); a refused request throws `MercuryRefusal`. `text` rows carry whole blocks; with `partial: true` the `text_delta` rows stream them as they arrive.
-
-For streaming stdin, use `run({ input: 'rows' })`, then await `sendPrompt(content)`, `sendShell(command)` or `sendNote(agentId, content)`. `send(row)` accepts any generated `InputRow`. Call `closeInput()` when input is complete. The process stays open while stdin is open; `.outcome` resolves to its final outcome when it exits. Observe individual outcomes with `.on('outcome', ...)`.
+`run()` returns an async row iterator with typed listeners. Its `session`, `outcome` and `exit` are promises; `rows` retains received rows. Use one consumption style: listeners or `for await`. Whole blocks arrive as `text`; `partial: true` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. With inline tools, `ready` resolves once the server and child have started; inspect `child` and `args` after that promise.
 
 ## Host a session
 
@@ -43,76 +25,71 @@ For streaming stdin, use `run({ input: 'rows' })`, then await `sendPrompt(conten
 import { connect } from 'mercury-cli-sdk'
 
 const session = await connect({
-  onPermissionRequest: async (ask, { signal }) => {
-    if (signal.aborted) return { outcome: 'deny' }
-    console.log(ask.tool_name, ask.input)
-    return { outcome: 'deny', message: 'This host is read-only' }
-  },
+  onPermissionRequest: () => ({ outcome: 'deny', message: 'Read-only host' }),
 })
 try {
-  session.on('text', row => process.stdout.write(row.text))
-  const first = await session.prompt('Inspect the tests')
-  console.log(first.status)
-  const second = await session.prompt('Explain the result')
-  console.log(second.answer)
-  console.log(await session.facts())
-  await session.request('session/pause_gate', { paused: false })
-} finally {
-  await session.close()
-}
+  console.log((await session.prompt('Inspect the tests')).status)
+  console.log((await session.prompt('Explain the result')).answer)
+  console.log((await session.facts()).usage.total_cost_usd)
+} finally { await session.close() }
 ```
 
-`connect()` initializes JSON-RPC protocol 1. `MercurySession` exposes `prompt`, `sendPrompt`, `sendShell`, `sendNote`, `withdraw`, `interrupt`, `facts`, `setModel`, `setEffort`, `setMode`, `setKit`, `rewind`, `stopAgent`, `resumeAgent` and `claim`. Typed `request(method, params)` and `notify(method, params)` cover every declared host method, including MCP inspection, pause/quiesce/leave and schedule updates. `prompt` resolves with the outcome of the turn its words started, even when other input is queued; a second `prompt` while one is pending throws, so queue mid-turn words with `sendPrompt`. `prompt(content, { signal })` stops waiting when the signal aborts (the turn itself continues; `interrupt()` ends it), and `request(method, params, { signal, deadlineMs })` bounds one request.
+`prompt` awaits its own correlated turn. Only one prompt wait may be active; `steer(content)` queues priority `now` and `followUp(content)` queues `later`. `sendPrompt`, `sendShell` and `sendNote` expose ids and all priorities; `withdraw(id)` removes queued input. `prompt(content, { signal })` cancels the wait, not the turn; `interrupt()` ends the turn. Typed `request(method, params, { signal, deadlineMs })` and `notify` cover protocol 1, including pause, quiesce, leave, MCP and schedules. A null deadline disables its timer.
 
-`onPermissionRequest` and `onElicitation` answer asks. `handlers` covers all runner-to-host requests, including files, terminals and schedules; explicitly advertise the corresponding capabilities when supplying those handlers. No permission handler means deny; no elicitation handler means decline. The callback receives an abort signal when the runner cancels its ask. Input rewriting and rule grants use generated answer types. `claim` works only when the runner permits it; a normal standalone runner already has a session identity.
+`onPermissionRequest` and `onElicitation` receive `{ id, signal }`; absent handlers deny and decline respectively. `onReadTextFile` and `onWriteTextFile` route native file tools to host buffers and infer their capabilities. The equivalent `handlers` entries work too. Supplying all five `terminal/*` handlers infers terminal support; partial terminal sets do not. Explicit `capabilities` override inference.
 
-Both doors accept `mercury: ['ssh', 'host', 'mercury']` or another executable/argument array. `argvOf()` previews run arguments. `extraArgs` passes additional CLI flags without a shell. Close sessions in `finally`, or use `await using`. `close()` ends stdin and terminates an unresponsive child after five seconds, then kills it after ten seconds if it still has not exited. A host process that exits (`process.exit()` or an uncaught exception) sends SIGTERM to the children it still has; a host killed by a signal it does not handle cannot, so handle `SIGTERM` and call `close()` in long-running hosts.
+### Checkpoints, warm workers and control
+
+`connect` requests file checkpoint capture by default; `checkpointFiles: false` leaves ordinary headless capture off. `run` opts in with `checkpointFiles: true`. The CLI's file-checkpoint setting still applies: inspect `(await session.facts()).file_checkpoints`. After an accepted `prompt`, `lastPromptId` is its user-message id. Pass it to `rewind({ user_message_id, mode: 'both', dry_run: true })`, then omit `dry_run` to restore. Modes are `code`, `conversation` and `both`; the typed receipt reports changed files and removed conversation rows.
+
+`prewarm(options)` or `connect({ warm: true })` returns an unclaimed runner with `initialized.session_id === null`. Call `claim({ session_id, model?, effort?, mode?, resume? })` before prompting. Warm workers enable checkpoint capture and reject boot-time identity flags; ordinary, resumed and continued sessions already have an identity. `facts`, `rewind`, `stopAgent` and `resumeAgent` return generated result types. Model, effort, permission mode and kit changes use `setModel`, `setEffort`, `setMode` and `setKit`.
 
 ## Inline tools and agents
 
 ```ts
-import { defineAgent, defineTool, serveTools, run } from 'mercury-cli-sdk'
+import { defineTool, run } from 'mercury-cli-sdk'
 
-const tools = await serveTools([defineTool({
+const greeting = defineTool({
   name: 'greeting', description: 'Return a greeting',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  execute: () => 'Hello',
-})])
-try {
-  const agent = defineAgent({ description: 'Read-only reviewer', prompt: 'Review; do not edit.', tools: ['Read', 'mcp__sdk-tools__greeting'] })
-  const task = run({
-    prompt: 'Review the README', agent: 'reviewer', agentDefs: { reviewer: agent },
-    mcp: [tools.mcp], allowedTools: ['mcp__sdk-tools__greeting'],
-  })
-  const outcome = await task.outcome
-  console.log(outcome.status, outcome.answer ?? outcome.denials)
-} finally { await tools.close() }
+  inputSchema: { type: 'object', properties: {} },
+  execute: (_input, { signal }) => signal.aborted ? 'Cancelled' : 'Hello',
+})
+const result = await run({ prompt: 'Use greeting to say hello', tools: [greeting] }).outcome
+console.log(result.status, result.answer)
 ```
 
-Tools use authenticated loopback MCP HTTP through the existing `--mcp` option, not a private runner method. `serveTools(tools, name = 'sdk-tools')` provides `.config`, `.mcp` and `.close()`; each tool is named `mcp__<name>__<tool>` in the session. Keep the host event loop running while tools execute. Agent definitions become `--agent-defs` JSON; an agent's `tools` list is an allowlist, so name the inline tool there or omit `tools` to inherit everything. Normal Mercury tool permissions still apply: a headless run cannot ask, so grant the tool with `allowedTools` (or host a session and answer the ask), otherwise the call is denied and the outcome is `blocked` with the call in `denials`.
+Both doors own the authenticated loopback MCP server for `tools`, close it on exit or failed startup, and merge it with `mcp`. Tool names `mcp__sdk-tools__<name>` are added to `allowedTools` and existing inline custom-agent `tools` allowlists without mutating your options. `autoAllowTools: false` keeps serving but leaves permission grants to you; explicit denials still apply. An unanswered headless ask produces `blocked`. `defineAgent` validates definitions passed in `agentDefs`. `serveTools(tools, name)` remains available for manually owned servers. Tool callbacks receive `{ signal }` for cooperative cancellation; keep the event loop running.
+
+## Inputs, output schemas and launch options
+
+A prompt accepts text, readonly `InputBlock[]` or an `AsyncIterable<string | InputRow>`. Block and iterable prompts automatically use input rows and close stdin when complete. `textBlock(text)` builds text; `imageBlock(data, mediaType)` accepts base64 text, bytes (including Buffer), or `{ path }`. For manual streaming use `input: 'rows'`, `send(row)` and `closeInput()`. `outcome` is the final run outcome; listen to individual outcome rows for multi-turn input.
+
+`run<T>` and `session.prompt<T>` return `OutcomeRow<T>`. A boot-time `schema` accepts JSON Schema, JSON text, a schema file path or `structuredSchema(jsonSchema, decode)`, whose decoder infers T. Completed structured results are validated locally; failures throw `MercurySchemaError` with exact `issues` and the raw `outcome`. `prompt(..., { schema })` validates locally only; it does not change the runner's boot-time schema. A generic alone is a type assertion, not validation. The local reader checks types, scalar constants/enums, object fields, array items, numeric ranges and string lengths; use a decoder for additional constraints.
+
+`RunOptions` includes `replayTo`, `restoreFiles`, `worktree`, `reasoningMode`, `briefFile`, `briefAddFile` and `debug`. `argvOf` previews flags; `extraArgs` passes additional flags. Both doors accept an explicit executable or prefix array such as `mercury: ['ssh', 'host', 'mercury']`. Otherwise discovery uses `MERCURY_BIN`, then PATH, then `~/.mercury/bin/mercury` and `~/.local/bin/mercury`. Standard Node command shims are resolved to their JavaScript entry point without a shell; other command shims require an explicit executable array.
 
 ## Test without a model
 
-The `testing` subpath replays recorded rows and JSON-RPC messages on loopback. It returns an executable array usable in either client; no installed CLI or model credentials are involved.
-
 ```ts
 import { run } from 'mercury-cli-sdk'
-import { startFixtureServer } from 'mercury-cli-sdk/testing'
+import { startFixtureServer, fixtureSessionRow, fixtureOutcomeRow } from 'mercury-cli-sdk/testing'
 
-const fixture = await startFixtureServer({ rows: recordedRows })
+const fixture = await startFixtureServer({ rows: [fixtureSessionRow(), fixtureOutcomeRow({ answer: 'ok' })] })
 try {
   const result = await run({ mercury: fixture.mercury, prompt: 'test' }).outcome
-  console.log(result.answer)
+  if (result.answer !== 'ok') throw new Error('unexpected answer')
 } finally { await fixture.close() }
 ```
 
-Supply rows captured from `task.rows` as `recordedRows`. For runner tests, `methods` maps method names to ordered `{ result, before?, after? }` or `{ error }` replies. `before` and `after` hold complete RPC messages. `answers` maps a host-request id to messages emitted after its answer. `received` records consumer inputs; `inputCount` delays run-row replay until that many stdin rows arrive. Missing recorded methods answer method-not-found instead of calling a provider. Fixtures model only the recording, not the CLI's internal behaviour.
+`fixtureTurn(overrides, promptId)` builds a correlated turn/outcome pair. You can also replay `task.rows`. Fixtures validate rows and RPC replies before listening; `validate: false` is for deliberately malformed-wire tests. `methods` holds ordered `{ result, before?, after? }` or `{ error }` replies; before/after and `answers` contain RPC messages. `received` records inputs and `inputCount` delays replay. Missing methods return method-not-found. Fixtures use neither a CLI nor model credentials and do not simulate the CLI's internal behaviour.
 
-## Rows and errors
+## Rows, errors and cleanup
 
-The generator reads Mercury's schemas for both language packages. `parseRow`, `rowOf`, `inputRowOf` and `validate` expose the readers; `isMainThread(row)` tells the main conversation's rows from a subagent's. Known malformed rows fail validation; a changed session/outcome schema version is rejected. An unfamiliar type is delivered as `{ type: 'unknown_row', original_type, raw }` with its envelope fields copied beside it, without losing its payload. Extra fields on known rows are retained.
+`parseRow`, `rowOf`, `inputRowOf` and `validate` use generated schemas. `isMainThread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
-Five specific errors derive from `MercuryError`: `MercuryRefusal` (run outcome or RPC refusal), `MercuryUsageError` (the CLI refused the command line, exit 2), `MercuryExitError` (the process ended before an outcome row or before the session was closed), `MercurySpawnError` (cannot launch: no such executable or working directory) and `MercuryWireError` (invalid frame). `MercuryUsageError` and `MercuryExitError` carry `.door` (`'run'` or `'runner'`) and `.exit` (code, signal, stderr) and quote the CLI's own stderr line; RPC errors retain `.code` and `.data`; RPC refusals have a null `.outcome`. Read the outcome's status rather than treating an exit code alone as a completed turn.
+Non-completed turns resolve their outcome status (including failed authentication); refusals throw `MercuryRefusal`. Other specific `MercuryError` subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError` and `MercurySchemaError`. Exit/usage errors preserve the door and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+
+`signal` interrupts a run. `interrupt`, `terminate` and `kill` signal the child. Close handles in finally or with `await using`; `close` ends stdin, escalates after five seconds to termination, and after ten to killing. Normal host exit sends SIGTERM to live children; an unhandled killing signal cannot run cleanup, so long-running hosts should handle SIGTERM and close sessions.
 
 <!-- vocabulary:start -->
 | Row | Required fields |

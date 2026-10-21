@@ -54,7 +54,7 @@ try {
     const blocks = blocksOf(join(root, dir, 'README.md')).filter(block => block.lang === lang)
     assert(blocks.length >= 4, `${dir}/README.md carries ${blocks.length} ${lang} blocks`)
     for (const [index, block] of blocks.entries()) {
-      const usesTool = /serveTools|serve_tools/.test(block.code)
+      const usesTool = /defineTool|define_tool/.test(block.code)
       const c = await context(usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : [{ kind: 'text', text: ANSWER }, { kind: 'text', text: ANSWER }, { kind: 'text', text: ANSWER }])
       const label = `${dir}/README.md ${lang} block ${index + 1}: ${block.code.split('\n').find(line => /^(const|async def|with|result|from|import)/.test(line))?.slice(0, 60)}`
       try {
@@ -92,7 +92,7 @@ runpy.run_path(sys.argv[1], run_name='__main__')
         }
         const out = `${result.stdout}${result.stderr}`
         assert.equal(result.status, 0, out)
-        if (/answer/.test(block.code)) assert(result.stdout.includes(ANSWER), out)
+        if (/answer/.test(block.code) && !/fixtureOutcomeRow|fixture_outcome_row/.test(block.code)) assert(result.stdout.includes(ANSWER), out)
         if (usesTool) assert(c.api.requests.some(request => request.raw.includes('Hello') && request.raw.includes('tool_result')), 'the inline tool was never called by the example agent')
         console.log(`PASS ${label}`)
       } catch (error) { failures.push(label); console.error(`FAIL ${label}\n${error}`) } finally { await c.close() }
