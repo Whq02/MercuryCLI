@@ -6,6 +6,8 @@ import shutil
 import tempfile
 import sys
 import json
+import time
+from contextlib import contextmanager, suppress
 from urllib.request import Request, urlopen
 from typing import TypedDict, Annotated, NotRequired
 import mercury_cli_sdk as sdk
@@ -105,6 +107,249 @@ async def capabilities():
                 assert isinstance(session.last_prompt_id, str)
 
 
+@contextmanager
+def prompt_fixture(correlated=False, warm=False):
+    with tempfile.TemporaryDirectory(prefix='sdk-prompts-') as directory:
+        record = Path(directory, 'received.jsonl')
+        record.write_text('')
+        script = r'''
+const { createInterface } = require('node:readline')
+const { appendFileSync } = require('node:fs')
+const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
+let claimed = CLAIMED
+const cancelled = []
+createInterface({ input: process.stdin }).on('line', line => {
+  const message = JSON.parse(line)
+  appendFileSync(RECORD, line + '\n')
+  const { id, method, params } = message
+  const reply = result => emit({ jsonrpc: '2.0', id, result })
+  if (method === 'initialize') reply({ protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: claimed ? 'fixture-session' : null })
+  else if (method === 'session/claim') {
+    if (params.session_id === 'rejected') emit({ jsonrpc: '2.0', id, error: { code: -32602, message: 'claim rejected' } })
+    else { claimed = true; reply({ session_id: 'claimed-session' }) }
+  } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
+  else if (method === 'queue/add' && claimed) {
+    if (params.content === 'error') { emit({ jsonrpc: '2.0', id, error: { code: -32603, message: 'queue failed' } }); return }
+    reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
+    if (params.content === 'cancel') { cancelled.push(params.id); emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } }) }
+    if (params.content === 'resolve') {
+      for (const queued of cancelled.splice(0)) {
+        if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, turn_id: 'cancelled-turn', message_ids: [queued] } })
+        emit({ jsonrpc: '2.0', method: 'row', params: { ...OUTCOME, turn_id: 'cancelled-turn', answer: 'cancelled' } })
+      }
+      if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, message_ids: [params.id] } })
+      emit({ jsonrpc: '2.0', method: 'row', params: OUTCOME })
+    }
+  }
+})
+'''
+        script = script.replace('CLAIMED', json.dumps(not warm)).replace('CORRELATED', json.dumps(correlated)).replace('RECORD', json.dumps(str(record))).replace('TURN', json.dumps(testing.fixture_turn()[0])).replace('OUTCOME', json.dumps(testing.fixture_outcome_row(answer='resolved')))
+        yield ['node', '-e', script, '--'], lambda: [json.loads(line) for line in record.read_text().splitlines()]
+
+
+async def prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            assert isinstance(session.last_prompt_id, str), 'steer exposes its generated prompt id'
+            assert (await session.withdraw(session.last_prompt_id))['withdrawn']
+            assert not session._prompt_turns, 'withdraw removes the turn entry'
+            schema = {'type': 'object'}
+            await session.steer('now', id='steered', schema=schema)
+            assert session.last_prompt_id == 'steered'
+            await session.follow_up('later', id='followed', schema=schema)
+            assert session.last_prompt_id == 'followed'
+            await session.send_prompt('sent', id='sent')
+            assert session.last_prompt_id == 'sent'
+            await session.send({'type': 'prompt', 'content': 'direct', 'id': 'direct'})
+            assert session.last_prompt_id == 'direct'
+            assert not (await session.send_prompt('reject', id='rejected'))['accepted']
+            assert session.last_prompt_id == 'direct'
+            rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+            assert [(row['id'], row['priority'], row['schema']) for row in rows[1:3]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+            await session.send_prompt('kept', id='keep')
+            assert not (await session.withdraw('keep'))['withdrawn']
+            assert 'keep' in session._prompt_turns, 'an unsuccessful withdrawal preserves the entry'
+
+
+async def prompt_withdrawal(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            queued = next(row['params']['id'] for row in received() if row['method'] == 'queue/add')
+            assert (await session.withdraw(session.last_prompt_id or queued))['withdrawn']
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+            assert not session._prompt_turns, 'withdrawn prompts leave no turn entries'
+
+
+async def prompt_withdrawn_wait(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            task = asyncio.create_task(session.prompt('queued'))
+            try:
+                for _ in range(200):
+                    if session.last_prompt_id is not None: break
+                    await asyncio.sleep(0.005)
+                assert session.last_prompt_id is not None and (await session.withdraw(session.last_prompt_id))['withdrawn']
+                try: await asyncio.wait_for(task, 0.5)
+                except sdk.MercuryError as error: assert str(error) == 'prompt: withdrawn', str(error)
+                else: raise AssertionError('a withdrawn prompt resolved')
+                assert not session._prompt_turns, 'the withdrawn wait leaves no turn entry'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'the session takes the next prompt'
+            finally:
+                task.cancel()
+                with suppress(asyncio.CancelledError, sdk.MercuryError): await task
+
+
+async def prompt_error_reply(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            for send in (lambda: session.send_prompt('error'), lambda: session.steer('error'), lambda: session.follow_up('error'), lambda: session.send({'type': 'prompt', 'content': 'error'})):
+                try: await send()
+                except sdk.MercuryError as error: assert error.code == -32603 and str(error) == 'queue failed', repr(error)
+                else: raise AssertionError('input the runner answered with an error was accepted')
+            assert not session._prompt_turns, 'input the runner answered with an error leaves no turn entry'
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'input the runner refused cannot hold the next outcome'
+
+
+async def prompt_schema_refused_locally():
+    with prompt_fixture() as (mercury, received), tempfile.TemporaryDirectory(prefix='sdk-schema-missing-') as directory:
+        async with await sdk.connect(mercury=mercury) as session:
+            for schema, words in (('{not json', 'invalid schema JSON'), (str(Path(directory, 'no-such-schema.json')), 'could not read schema file: ')):
+                try: await session.prompt('resolve', schema=schema)
+                except sdk.MercuryError as error: assert str(error).startswith(words), str(error)
+                else: raise AssertionError('a refused schema was sent')
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'a refused schema leaves no prompt pending'
+            assert len([row for row in received() if row['method'] == 'queue/add']) == 1, 'a refused schema never reaches the wire'
+
+
+def mid_turn_fixture(mode):
+    turn_row = testing.fixture_turn()[0]
+    text_row = {**example(sdk.ROW_SCHEMAS['text']), 'session_id': 'fixture-session', 'turn': 1, 'message_id': 'm2', 'block': 0, 'text': 'Folded answer.'}
+    facts = example(sdk.METHODS['session/facts']['result'])
+    script = r'''
+const { createInterface } = require('node:readline')
+const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
+const row = params => emit({ jsonrpc: '2.0', method: 'row', params })
+const ids = []
+createInterface({ input: process.stdin }).on('line', line => {
+  const { id, method, params } = JSON.parse(line)
+  const reply = result => emit({ jsonrpc: '2.0', id, result })
+  if (method === 'initialize') reply(INIT)
+  else if (method === 'session/facts') reply({ ...FACTS, queue: MODE === 'queued-late' ? [{ uuid: ids[1], value: 'second', mode: 'prompt' }] : [] })
+  else if (method === 'queue/add') {
+    ids.push(params.id); reply({ accepted: true })
+    if (ids.length === 1) row({ ...TURN, turn: 1, turn_id: 'turn-1', message_ids: [params.id] })
+    if (ids.length !== 2) return
+    const second = () => { row({ ...TURN, seq: 5, turn: 2, turn_id: 'turn-2', message_ids: [params.id] }); row({ ...OUTCOME, seq: 6, turn: 2, turn_id: 'turn-2', answer: 'second' }) }
+    if (MODE === 'folded') { row({ ...TEXT, in_reply_to: [{ id: params.id, at: '2000-01-01T00:00:01.000Z' }] }); row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'Folded answer.' }) }
+    else if (MODE === 'queued') { row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'first' }); second() }
+    else if (MODE === 'queued-late') { row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'first' }); setTimeout(second, 300) }
+    else row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', status: 'interrupted' })
+  }
+})
+'''
+    for name, value in (('INIT', init['result']), ('FACTS', facts), ('TURN', turn_row), ('TEXT', text_row), ('OUTCOME', outcome), ('MODE', mode)): script = script.replace(name, json.dumps(value))
+    return ['node', '-e', script, '--']
+
+
+async def mid_turn_prompt():
+    words = 'prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again'
+    for mode in ('folded', 'queued', 'queued-late', 'swallowed'):
+        async with await sdk.connect(mercury=mid_turn_fixture(mode)) as session:
+            try: await session.prompt('slow', timeout=0.05)
+            except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.05 seconds', str(error)
+            else: raise AssertionError('the slow prompt resolved')
+            started = time.monotonic()
+            if mode == 'swallowed':
+                try: await session.prompt('second', timeout=15)
+                except sdk.MercuryError as error: assert type(error) is sdk.MercuryError and str(error) == words, repr(error)
+                else: raise AssertionError('a prompt the runner neither queued nor ran resolved')
+                elapsed = time.monotonic() - started
+                assert 4.5 <= elapsed < 9, f'the swallowed prompt was rejected after {elapsed:.2f} s, not within the grace'
+            else:
+                row = await session.prompt('second', timeout=15)
+                elapsed = time.monotonic() - started
+                assert row.get('answer') == ('Folded answer.' if mode == 'folded' else 'second') and row.get('turn') == (1 if mode == 'folded' else 2), (mode, row)
+                assert elapsed < 2, f'{mode} settled after {elapsed:.2f} s'
+            assert len((await session.facts())['queue']) == (1 if mode == 'queued-late' else 0)
+
+
+async def prompt_cancellation(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            queued = asyncio.Event()
+            session.on('notification', lambda message: queued.set() if message['method'] == 'fixture/queued' else None)
+            task = asyncio.create_task(session.prompt('cancel'))
+            try:
+                await asyncio.wait_for(queued.wait(), 1)
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+                assert task.cancelled(), 'the prompt wait was cancelled'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', "the cancelled turn's outcome is not the next prompt's answer"
+                assert not session._prompt_turns, "the cancelled turn's own outcome retires its entry"
+                assert not any(row['method'] == 'turn/interrupt' for row in received()), 'cancellation still cancels only the wait'
+            finally:
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+
+
+async def sync_prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury) as session:
+                session.steer('x')
+                assert isinstance(session.last_prompt_id, str)
+                assert session.withdraw(session.last_prompt_id)['withdrawn']
+                assert not session.session._prompt_turns
+                schema = {'type': 'object'}
+                session.steer('now', id='steered', schema=schema)
+                assert session.last_prompt_id == 'steered'
+                session.follow_up('later', id='followed', schema=schema)
+                assert session.last_prompt_id == 'followed'
+                rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+                assert [(row['id'], row['priority'], row['schema']) for row in rows[1:]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+        await asyncio.to_thread(consume)
+
+
+async def warm_identity():
+    message = 'session is unclaimed; call claim() before prompting'
+    for warm in (False, True):
+        with prompt_fixture(True, True) as (mercury, received):
+            async with await (sdk.connect(mercury=mercury, warm=True) if warm else sdk.prewarm(mercury=mercury)) as session:
+                assert session.initialized['session_id'] is None
+                for send in (lambda: session.prompt('unclaimed'), lambda: session.send_prompt('unclaimed'), lambda: session.steer('unclaimed'), lambda: session.follow_up('unclaimed'), lambda: session.send({'type': 'prompt', 'content': 'unclaimed'})):
+                    start = time.perf_counter()
+                    try: await send()
+                    except sdk.MercuryError as error: assert str(error) == message, str(error)
+                    else: raise AssertionError('unclaimed prompt was accepted')
+                    elapsed = time.perf_counter() - start
+                    assert elapsed < 0.05, f'an unclaimed prompt took {elapsed * 1000} ms'
+                    print(f'PASS Python warm prompt refused locally in {elapsed * 1000:.2f} ms', flush=True)
+                assert not any(row['method'] == 'queue/add' for row in received())
+                assert session.last_prompt_id is None and session.session_id is None and not session._prompt_turns
+                try: await session.claim(session_id='rejected')
+                except sdk.MercuryError as error: assert str(error) == 'claim rejected'
+                else: raise AssertionError('a rejected claim resolved')
+                assert session.session_id is None
+                receipt = await session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+    with prompt_fixture(True, True) as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury, warm=True) as session:
+                assert session.session_id is None and session.initialized['session_id'] is None
+                start = time.perf_counter()
+                try: session.prompt('unclaimed')
+                except sdk.MercuryError as error: assert str(error) == message, str(error)
+                else: raise AssertionError('unclaimed sync prompt was accepted')
+                assert time.perf_counter() - start < 0.05
+                receipt = session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert session.prompt('resolve')['answer'] == 'resolved'
+        await asyncio.to_thread(consume)
+
+
 async def structured():
     schema = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}
     with tempfile.TemporaryDirectory(prefix='sdk-schema-') as directory:
@@ -127,7 +372,8 @@ async def structured():
     async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': replies}}) as fixture:
         async with await sdk.connect(mercury=fixture.mercury, schema={'type': 'object'}) as session:
             assert fixture.received[0]['params']['schema'] == {'type': 'object'}
-            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=fixture.mercury, schema={'type': 'object'}), 'runner')
+            argv = sdk.argv_of(sdk.RunOptions(mercury=fixture.mercury, schema={'type': 'object'}), 'runner')
+            assert json.loads(argv[argv.index('--schema') + 1]) == {'type': 'object'}, 'the runner door also carries --schema, the road every Mercury version honours'
             try: await session.prompt('test', schema=schema)
             except sdk.MercurySchemaError as error: assert error.outcome is not None
             else: raise AssertionError('invalid prompt output resolved')
@@ -137,6 +383,74 @@ async def structured():
                 assert error.code == -32602 and error.outcome is None and [issue.path for issue in error.issues] == ['schema'] and str(error) == error.issues[0].message and 'not a JSON schema' in str(error), error
             else: raise AssertionError('a refused schema resolved')
             assert (await session.prompt('again', schema=schema))['structured'] == {'count': 4}
+
+
+async def version_floors():
+    assert sdk.FEATURE_FLOORS == {'per_turn_schema': '1.0.0-beta.41', 'file_checkpoints': '1.0.0-beta.41'}
+    assert [sdk.compare_versions(a, b) for a, b in [('1.0.0-beta.40', '1.0.0-beta.41'), ('1.0.0-beta.9', '1.0.0-beta.41'), ('1.0.0-beta.41', '1.0.0'), ('1.0.0-beta.41', '1.0.0-beta.41'), ('1.0.1', '1.0.0-beta.41'), ('1.0.0-rc.1', '1.0.0-beta.41')]] == [-1, -1, -1, 0, 1, 1]
+    assert sdk.compare_versions('fixture', '1.0.0-beta.41') is None
+    schema = {'type': 'object', 'properties': {'count': {'type': 'integer'}}}
+    words = 'per-turn schema needs Mercury 1.0.0-beta.41 or newer; this runner is 1.0.0-beta.40 — run `mercury update`'
+    def answered(version, **extra): return {'result': {**init['result'], 'runner': {'version': version, 'pid': 1}, **extra}}
+    accepted = {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': {**outcome, 'structured': {'count': 1}}}]}
+    async with await testing.start_fixture_server({'methods': {'initialize': [answered('1.0.0-beta.40')], 'queue/add': [accepted]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury) as old:
+            assert old.runner_version == '1.0.0-beta.40'
+            assert old.supports == {'per_turn_schema': False, 'file_checkpoints': False}
+            assert old.file_checkpoints is None, 'a runner that answers no file_checkpoints reads None, with supports file_checkpoints False beside it'
+            for send in (lambda: old.prompt('x', schema=schema), lambda: old.steer('x', schema=schema), lambda: old.follow_up('x', schema=schema), lambda: old.send_prompt('x', schema=schema), lambda: old.send({'type': 'prompt', 'content': 'x', 'schema': schema})):
+                try: await send()
+                except sdk.MercuryError as error: assert type(error) is sdk.MercuryError and str(error) == words and error.code is None, repr(error)
+                else: raise AssertionError('a per-turn schema was sent to a runner below the floor')
+            assert not any(m.get('method') == 'queue/add' for m in fixture.received), 'a refused per-turn schema never reaches the wire'
+            assert (await old.prompt('plain'))['status'] == 'completed', 'the session still prompts without a per-turn schema'
+    for label, reply in (('at the floor', answered('1.0.0-beta.41')), ('below the floor but answering the .41 wire', answered('1.0.0-beta.40', file_checkpoints={'capture': True, 'source': 'initialize'})), ('a release above the floor', answered('1.0.0'))):
+        async with await testing.start_fixture_server({'methods': {'initialize': [reply], 'queue/add': [accepted]}}) as fixture:
+            async with await sdk.connect(mercury=fixture.mercury) as session:
+                assert session.supports == {'per_turn_schema': True, 'file_checkpoints': True}, label
+                assert (await session.prompt('x', schema=schema))['structured'] == {'count': 1}, label
+                assert next(m for m in fixture.received if m.get('method') == 'queue/add')['params']['schema'] == schema, label
+    with prompt_fixture() as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury) as session:
+                assert session.runner_version == 'fixture' and session.supports == {'per_turn_schema': True, 'file_checkpoints': True}
+        await asyncio.to_thread(consume)
+
+
+async def malformed_schema_refused_locally():
+    malformed = {'type': 'banana', 'properties': 7}
+    words = 'not a JSON schema — schema.type must be object, array, string, number, integer, boolean, null or an array of them (found "banana")'
+    def refused(error):
+        assert type(error) is sdk.MercurySchemaError and str(error) == words and error.outcome is None and error.code is None and error.issues == [sdk.Issue('schema', words)], repr(error)
+    assert sdk.schema_problem(malformed) == words
+    assert sdk.schema_problem({'type': 'object', 'properties': 7}) == 'not a JSON schema — schema.properties must be an object of schemas (found number)'
+    assert sdk.schema_problem({'type': 'object', 'properties': {'a': {'type': 'integer', 'minimum': 'x'}}}) == 'not a JSON schema — schema.properties.a.minimum must be a number (found string)'
+    assert sdk.schema_problem({'type': ['string', 'null'], 'enum': ['a', None], 'properties': {'b': {'items': {'type': 'number'}}}, 'additionalProperties': False}) is None
+    assert sdk.validate({'type': 'banana'}, {}) == [sdk.Issue('', "expected ['banana']")], 'an unknown type keyword is a mismatch, never a KeyError'
+    accepted = {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': outcome}]}
+    async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': [accepted]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury) as session:
+            for send in (lambda: session.prompt('x', schema=malformed), lambda: session.prompt('x', schema=json.dumps(malformed)), lambda: session.prompt('x', schema=sdk.structured_schema(malformed, lambda value: value)), lambda: session.steer('x', schema=malformed), lambda: session.follow_up('x', schema=malformed), lambda: session.send_prompt('x', schema=malformed), lambda: session.send({'type': 'prompt', 'content': 'x', 'schema': malformed})):
+                try: await send()
+                except sdk.MercuryError as error: refused(error)
+                else: raise AssertionError('a schema that is not a JSON Schema was sent')
+            assert not any(m.get('method') == 'queue/add' for m in fixture.received), 'a schema the package refuses never reaches the wire'
+            assert (await session.prompt('plain'))['status'] == 'completed', 'the refusal leaves the session free'
+        try: await sdk.connect(mercury=fixture.mercury, schema=malformed)
+        except sdk.MercuryError as error: refused(error)
+        else: raise AssertionError('connect accepted a schema that is not a JSON Schema')
+        assert len([m for m in fixture.received if m.get('method') == 'initialize']) == 1, 'connect refuses the schema before starting a runner'
+    try: await sdk.run('x', mercury='mercury-sdk-no-such-binary-proof', schema=malformed)
+    except sdk.MercuryError as error: refused(error)
+    else: raise AssertionError('run accepted a schema that is not a JSON Schema')
+    try: sdk.argv_of(sdk.RunOptions(mercury='fixture', schema=malformed))
+    except sdk.MercuryError as error: refused(error)
+    else: raise AssertionError('argv_of accepted a schema that is not a JSON Schema')
+    def consume():
+        try: sdk.run_sync('x', mercury='mercury-sdk-no-such-binary-proof', schema=malformed)
+        except sdk.MercuryError as error: refused(error)
+        else: raise AssertionError('run_sync accepted a schema that is not a JSON Schema')
+    await asyncio.to_thread(consume)
 
 
 async def rich():
@@ -233,7 +547,7 @@ async def managed_install():
     pointer.write_bytes(b'..\\outside\r\n')
     refused(env, str(pointer))
     pointer.write_bytes(b'1.0.0-beta.40\r\n')
-    task = await sdk.run('x', mercury=executable_of(None, env, windows, 'win32'))
+    task = await sdk.run('x', mercury=executable_of(None, env, windows, 'win32'), cwd=windows)
     assert (await task.outcome)['status'] == 'completed'
     entry = Path(windows, 'entry.mjs')
     named = executable_of(str(entry), {'PATH': str(Path(windows, 'nodejs')), 'PATHEXT': '.COM;.EXE'}, windows, 'win32')
@@ -246,7 +560,7 @@ async def managed_install():
     expected = [str(active / 'vendor' / 'node' / 'bin' / 'node'), str(active / 'mercury.mjs')]
     assert sdk.argv_of(sdk.RunOptions(env=posix_env))[:2] == expected, sdk.argv_of(sdk.RunOptions(env=posix_env))
     assert executable_of(None, {**posix_env, 'MERCURY_BIN': str(stable / 'mercury')}, windows) == expected, 'the POSIX managed shim resolves the way it resolves itself'
-    task = await sdk.run('x', env=posix_env)
+    task = await sdk.run('x', env=posix_env, cwd=str(home))
     assert (await task.outcome)['status'] == 'completed'
 
 
@@ -296,10 +610,117 @@ async def sync():
         await asyncio.to_thread(consume)
 
 
+async def discovery_deeper():
+    from mercury_cli_sdk.client import warm_options
+    import mercury_cli_sdk.executable as executable
+    stub = 'console.log(' + repr(json.dumps(session_row)) + '); console.log(' + repr(json.dumps(outcome)) + ')'
+    with tempfile.TemporaryDirectory(prefix='sdk-deeper-') as directory:
+        deeper = Path(directory).resolve()
+        hermetic = {'HOME': str(deeper), 'PATH': ''}
+        npm = deeper / 'npm'; npm.mkdir()
+        (npm / 'entry.cjs').write_text(stub); (npm / 'mercury.cmd').write_text('@echo off\n"node" "%~dp0\\entry.cjs" %*\n'); runtime_stand_in(npm / 'node.exe')
+        spread = {'UserProfile': str(deeper), 'Path': ';'.join(['C:\\Windows\\system32', str(npm)]), 'Pathext': '.COM;.EXE;.BAT;.CMD'}
+        via_shim = [str(npm / 'node.exe'), str(npm / 'entry.cjs')]
+        assert executable_of(None, spread, str(deeper), 'win32') == via_shim, executable_of(None, spread, str(deeper), 'win32')
+        warmed = warm_options(sdk.RunOptions(env=spread)).env
+        assert warmed is not None and executable_of(None, warmed, str(deeper), 'win32') == via_shim, 'warm_options spreads the env and keeps it findable'
+        assert executable_of(None, {**spread, 'Mercury_Bin': str(npm / 'mercury.cmd')}, str(deeper), 'win32') == via_shim, 'MERCURY_BIN is read the same way'
+        assert executable_of(None, {**spread, 'PATH': ''}, str(deeper), 'win32') == ['mercury'], 'an exact-case key wins over its other spelling'
+        entry = deeper / 'entry.mjs'; entry.write_text(stub)
+        def named(call):
+            try: call()
+            except sdk.MercuryError as error: assert 'MERCURY_NODE names no executable file: /no/such/node' in str(error), str(error)
+            else: raise AssertionError('a missing MERCURY_NODE was accepted')
+        named(lambda: executable_of(str(entry), {**hermetic, 'MERCURY_NODE': '/no/such/node'}))
+        named(lambda: executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}, str(deeper), 'win32'))
+        assert executable_of(str(entry), {**hermetic, 'mercury_node': '/no/such/node'}, str(deeper), 'linux') == ['node', str(entry)], 'on POSIX the keys stay case-sensitive (pinned, so a Windows host proves the POSIX rule too)'
+        named(lambda: sdk.argv_of(sdk.RunOptions(mercury=str(entry), env={**hermetic, 'MERCURY_NODE': '/no/such/node'})))
+        assert executable_of(str(entry), {**hermetic, 'MERCURY_NODE': ''}) == ['node', str(entry)], 'an empty MERCURY_NODE is unset'
+        if WINDOWS_HOST:
+            print('SKIP Python the Homebrew keg and the relative executable live: this host is Windows (sh wrappers and symlinks)', flush=True)
+            return
+        node = shutil.which('node'); assert node, 'node on PATH'
+        keg = deeper / 'brew' / 'Cellar' / 'mercury' / '1.0.0-beta.40'; libexec = keg / 'libexec'; brew_bin = deeper / 'brew' / 'bin'
+        for folder in (libexec / 'vendor' / 'node' / 'bin', keg / 'bin', brew_bin): folder.mkdir(parents=True)
+        (libexec / 'mercury.mjs').write_text(stub)
+        (libexec / 'mercury').write_text(f'#!/bin/sh\nexec "{node}" "$(dirname "$0")/mercury.mjs" "$@"\n'); (libexec / 'mercury').chmod(0o755)
+        (keg / 'bin' / 'mercury').write_text(f'#!/bin/bash\nexec "{libexec / "mercury"}" "$@"\n'); (keg / 'bin' / 'mercury').chmod(0o755)
+        os.symlink(os.path.join('..', 'Cellar', 'mercury', '1.0.0-beta.40', 'bin', 'mercury'), brew_bin / 'mercury')
+        prefixed = {'HOME': str(deeper), 'PATH': '/usr/bin:/bin', 'HOMEBREW_PREFIX': str(deeper / 'brew')}
+        assert executable_of(None, {**prefixed, 'PATH': ''}) == ['mercury'], 'an empty PATH is a hermetic caller: the Homebrew rung is not tried'
+        assert executable_of(None, prefixed) == [str(brew_bin / 'mercury')], 'a keg without its vendored runtime runs through its wrapper'
+        (libexec / 'vendor' / 'node' / 'bin' / 'node').write_text(f'#!/bin/sh\nexec "{node}" "$@"\n'); (libexec / 'vendor' / 'node' / 'bin' / 'node').chmod(0o755)
+        bundle = [str(libexec / 'vendor' / 'node' / 'bin' / 'node'), str(libexec / 'mercury.mjs')]
+        assert list(getattr(executable, 'HOMEBREW_COMMANDS', [])) == ['/opt/homebrew/bin/mercury', '/usr/local/bin/mercury', '/home/linuxbrew/.linuxbrew/bin/mercury'], 'the fixed Homebrew and Linuxbrew commands'
+        assert executable_of(None, prefixed) == bundle, executable_of(None, prefixed)
+        assert executable_of(None, {**hermetic, 'PATH': str(brew_bin)}) == bundle, 'the wrapper found on PATH resolves the same way'
+        assert executable_of(str(brew_bin / 'mercury'), hermetic) == bundle, 'and the wrapper named outright'
+        assert executable_of(None, {**hermetic, 'MERCURY_BIN': str(brew_bin / 'mercury')}) == bundle, 'and MERCURY_BIN naming it'
+        named(lambda: executable_of(None, {**prefixed, 'MERCURY_NODE': '/no/such/node'}))
+        inherited = {key: value for key, value in os.environ.items() if key not in ('MERCURY_CONFIG_DIR', 'MERCURY_HOME', 'MERCURY_VERSIONS_DIR', 'MERCURY_BIN')}
+        stripped = await sdk.run('x', env={**inherited, **prefixed})
+        assert (await stripped.outcome)['status'] == 'completed'
+        home_bin = deeper / '.mercury' / 'bin'; home_bin.mkdir(parents=True); (home_bin / 'mercury').write_text('#!/bin/sh\nexit 0\n'); (home_bin / 'mercury').chmod(0o755)
+        assert executable_of(None, prefixed)[0] == str(home_bin / 'mercury'), 'the home rungs still come before Homebrew'
+        sub = deeper / 'sub'; sub.mkdir()
+        (sub / 'my-mercury').write_text(f'#!/bin/sh\nexec "{node}" "{entry}" "$@"\n'); (sub / 'my-mercury').chmod(0o755)
+        assert Path.cwd() != sub
+        assert executable_of('./my-mercury', hermetic, str(sub)) == [str(sub / 'my-mercury')], executable_of('./my-mercury', hermetic, str(sub))
+        assert executable_of('./my-mercury', hermetic, str(sub), 'win32') == [str(sub / 'my-mercury')], 'on every platform'
+        assert executable_of('my-mercury', hermetic, str(sub)) == ['my-mercury'], 'a bare name is left to the PATH search of the spawn'
+        relative = await sdk.run('x', mercury='./my-mercury', cwd=str(sub), env={**inherited, **hermetic})
+        assert (await relative.outcome)['status'] == 'completed'
+
+
+async def directories():
+    with tempfile.TemporaryDirectory(prefix='sdk-dirs-') as directory:
+        dirs = Path(directory).resolve(); pathdir = dirs / 'pathdir'; home = dirs / 'home'; stable = home / '.local' / 'bin'
+        for folder in (pathdir / 'mercury', pathdir / 'mercury.cmd', pathdir / 'node', stable): folder.mkdir(parents=True)
+        (stable / 'mercury').write_text('#!/bin/sh\nexit 0\n'); (stable / 'mercury').chmod(0o755)
+        found = executable_of(None, {'HOME': str(home), 'PATH': str(pathdir)}, str(dirs), 'linux')
+        assert found == [str(stable / 'mercury')], f'a directory named mercury on PATH is not the executable, the stable command is; got {found}'
+        windows = executable_of(None, {'USERPROFILE': str(home), 'LOCALAPPDATA': str(dirs / 'nowhere'), 'PATH': str(pathdir), 'PATHEXT': '.COM;.EXE;.BAT;.CMD'}, str(dirs), 'win32')
+        assert windows == ['mercury'], f'nor is a directory named mercury.cmd on Path; got {windows}'
+        entry = dirs / 'entry.mjs'; entry.write_text('')
+        try: executable_of(str(entry), {'HOME': str(home), 'PATH': '', 'MERCURY_NODE': str(pathdir)})
+        except sdk.MercuryError as error: assert f'MERCURY_NODE names no executable file: {pathdir}' in str(error), str(error)
+        else: raise AssertionError('MERCURY_NODE naming a directory was accepted')
+        assert executable_of(str(entry), {'HOME': str(home), 'PATH': str(pathdir)}, str(dirs), 'linux') == ['node', str(entry)], 'a directory named node on PATH is not the runtime: the bare name is left to the spawn'
+
+
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('row 9 a directory is never an executable: a directory named mercury on a PATH entry is walked past to the next rung on every platform, a directory named node is not the runtime, and MERCURY_NODE naming a directory is refused by name', directories), ('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('a prompt sent while a turn is running settles: folded, queued, or rejected with the words within the grace', mid_turn_prompt), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 12 a schema that is not a JSON Schema is refused by the package before anything is sent', malformed_schema_refused_locally), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
+    await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 
 
 asyncio.run(main())
+
+
+async def item9_property_names_and_interrupt_fold():
+    from mercury_cli_sdk.client import interrupted_outcome
+    issues = sdk.validate({'type': 'object', 'propertyNames': {'enum': ['a', 'b']}}, {'a': 1, 'c': 2})
+    assert [i.path for i in issues] == ['c'], issues
+    issues2 = sdk.validate({'type': 'object', 'propertyNames': {'minLength': 2}}, {'ok': 1, 'x': 2})
+    assert [i.path for i in issues2] == ['x'], issues2
+    turn, _ = testing.fixture_turn({'session_id': 's', 'turn': 1, 'turn_id': 't1'})
+    step1 = {'type': 'step', 'seq': 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm1', 'model': 'm', 'usage': {'input_tokens': 10, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 5, 'reasoning_output_tokens': 12}}
+    step2 = {'type': 'step', 'seq': 3, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 's', 'message_id': 'm2', 'model': 'm', 'usage': {'input_tokens': 20, 'cached_input_tokens': 0, 'cache_write_input_tokens': 0, 'output_tokens': 8, 'reasoning_output_tokens': 18}}
+    folded = interrupted_outcome([testing.fixture_session_row(session_id='s'), {**turn, 'seq': 1}, step1, step2], 0.0, 1.0)
+    assert folded['usage'].get('reasoning_output_tokens') == 30, folded['usage']
+    assert folded['models']['m'].get('reasoning_output_tokens') == 30, folded['models']
+    asks = [
+        {'jsonrpc': '2.0', 'id': 70, 'method': 'not/a_method', 'params': {}},
+        {'jsonrpc': '2.0', 'id': 71, 'method': 'fs/read_text_file', 'params': {'path': '/x'}},
+        {'jsonrpc': '2.0', 'id': 72, 'method': 'permission/request', 'params': {'kind': 'tool', 'tool_use_id': 'u', 'tool_name': 'Read', 'input': {}}},
+    ]
+    async with await testing.start_fixture_server({'validate': False, 'methods': {'initialize': [init], 'session/facts': [{'result': {}, 'before': asks}]}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury, on_permission_request=lambda ask, ctx: {'outcome': 'wrong'}) as session:
+            await session.facts()
+        assert next(m for m in fixture.received if m.get('id') == 70)['error']['message'] == 'unknown host method not/a_method'
+        assert next(m for m in fixture.received if m.get('id') == 71)['error']['message'] == 'no handler for fs/read_text_file'
+        assert next(m for m in fixture.received if m.get('id') == 72)['error']['message'].startswith('invalid host answer: ')
+
+
+asyncio.run(check('item 9 propertyNames validation and reasoning_output_tokens fold', item9_property_names_and_interrupt_fold))
 if failures: raise SystemExit(1)

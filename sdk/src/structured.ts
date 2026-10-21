@@ -9,7 +9,31 @@ export class StructuredSchema<T> {
 }
 export function structuredSchema<T>(jsonSchema: JsonSchema, decode: (value: unknown) => T): StructuredSchema<T> { return new StructuredSchema(jsonSchema, decode) }
 export type OutputSchema<T = unknown> = string | JsonSchema | StructuredSchema<T>
+const SCHEMA_TYPES = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']
+const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
+const kindOf = (value: unknown): string => (value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value)
+export function schemaProblem(schema: unknown, at = 'schema'): string | undefined {
+  if (!isObject(schema)) return `not a JSON schema — ${at} must be an object (found ${kindOf(schema)})`
+  const types = schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]
+  for (const type of types) if (typeof type !== 'string' || !SCHEMA_TYPES.includes(type)) return `not a JSON schema — ${at}.type must be ${SCHEMA_TYPES.join(', ')} or an array of them (found ${JSON.stringify(type)})`
+  for (const key of ['enum', 'required', 'oneOf', 'anyOf']) if (schema[key] !== undefined && !Array.isArray(schema[key])) return `not a JSON schema — ${at}.${key} must be an array (found ${kindOf(schema[key])})`
+  for (const key of ['minLength', 'maxLength', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']) if (schema[key] !== undefined && typeof schema[key] !== 'number') return `not a JSON schema — ${at}.${key} must be a number (found ${kindOf(schema[key])})`
+  for (const [index, name] of ((schema.required as unknown[] | undefined) ?? []).entries()) if (typeof name !== 'string') return `not a JSON schema — ${at}.required[${index}] must be a string (found ${kindOf(name)})`
+  if (schema.properties !== undefined && !isObject(schema.properties)) return `not a JSON schema — ${at}.properties must be an object of schemas (found ${kindOf(schema.properties)})`
+  if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean' && !isObject(schema.additionalProperties)) return `not a JSON schema — ${at}.additionalProperties must be a boolean or a schema (found ${kindOf(schema.additionalProperties)})`
+  for (const [key, inner] of Object.entries((schema.properties as Record<string, unknown> | undefined) ?? {})) { const problem = schemaProblem(inner, `${at}.properties.${key}`); if (problem) return problem }
+  for (const key of ['items', 'propertyNames']) if (schema[key] !== undefined) { const problem = schemaProblem(schema[key], `${at}.${key}`); if (problem) return problem }
+  if (isObject(schema.additionalProperties)) { const problem = schemaProblem(schema.additionalProperties, `${at}.additionalProperties`); if (problem) return problem }
+  for (const key of ['oneOf', 'anyOf']) for (const [index, option] of ((schema[key] as unknown[] | undefined) ?? []).entries()) { const problem = schemaProblem(option, `${at}.${key}[${index}]`); if (problem) return problem }
+  return undefined
+}
 export function schemaObject<T>(schema: OutputSchema<T>, cwd?: string): JsonSchema {
+  const spec = schemaSource(schema, cwd)
+  const problem = schemaProblem(spec)
+  if (problem !== undefined) throw new MercurySchemaError([{ path: 'schema', message: problem }], null, problem)
+  return spec
+}
+function schemaSource<T>(schema: OutputSchema<T>, cwd?: string): JsonSchema {
   if (schema instanceof StructuredSchema) return schema.jsonSchema
   if (typeof schema !== 'string') return schema
   if (schema.trim().startsWith('{')) {

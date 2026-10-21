@@ -1,10 +1,10 @@
 /// <reference types="node" preserve="true" />
 /// <reference lib="esnext.disposable" preserve="true" />
-import { readLines } from './framing.js'
+import { readLines, readText } from './framing.js'
 import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
-import { endChild, missingCwd, track } from './lifecycle.js'
+import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -48,6 +48,7 @@ export interface RunOptions<T = unknown> {
   briefAdd?: string
   schema?: OutputSchema<T>
   maxTurns?: number
+  maxRows?: number
   budgetUsd?: number
   partial?: boolean
   config?: string | Record<string, unknown>
@@ -66,6 +67,7 @@ export interface RunOptions<T = unknown> {
   logFile?: string
   extraArgs?: readonly string[]
   signal?: AbortSignal
+  onStderr?: (chunk: string) => void
 }
 
 export type RunArgv = { command: string; args: string[] }
@@ -110,7 +112,7 @@ export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): Run
     else if (typeof setting === 'string') args.push(name, setting)
   }
   value('--brief-add', options.briefAdd)
-  value('--schema', options.schema === undefined || door === 'runner' ? undefined : JSON.stringify(schemaObject(options.schema, options.cwd)))
+  value('--schema', options.schema === undefined ? undefined : JSON.stringify(schemaObject(options.schema, options.cwd)))
   value('--max-turns', options.maxTurns === undefined ? undefined : String(options.maxTurns))
   value('--budget', options.budgetUsd === undefined ? undefined : String(options.budgetUsd))
   flag('--partial', options.partial)
@@ -150,6 +152,10 @@ export function interruptedOutcome(rows: readonly StreamRow[], startedAt: number
   for (const step of steps) {
     const model = models[step.model] ?? (models[step.model] = { ...zero(), web_searches: 0 })
     for (const key of USAGE_KEYS) { usage[key] += step.usage[key]; model[key] += step.usage[key] }
+    if (step.usage.reasoning_output_tokens !== undefined) {
+      usage.reasoning_output_tokens = (usage.reasoning_output_tokens ?? 0) + step.usage.reasoning_output_tokens
+      model.reasoning_output_tokens = (model.reasoning_output_tokens ?? 0) + step.usage.reasoning_output_tokens
+    }
   }
   const last = rows.at(-1)
   return { type: 'outcome', seq: (last?.seq ?? 0) + 1, timestamp: new Date(now).toISOString(), session_id: last?.session_id ?? '', turn: turn?.turn ?? Math.max(1, opened.length), schema: 1, turn_id: turn?.turn_id ?? '', status: 'interrupted', error: { message: 'Interrupted', class: 'interrupt' }, steps: steps.length, wall_ms: Math.max(0, now - (turn === undefined ? startedAt : Date.parse(turn.timestamp))), usage, models, denials: [] }
@@ -240,10 +246,11 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       windowsHide: true,
     })
     track(this.child)
-    this.child.stderr!.setEncoding('utf8')
     readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
-    this.child.stderr!.on('data', (chunk: string) => {
+    readText(this.child.stderr!, chunk => {
       this.#stderr += chunk
+      this.#emit('stderr', chunk)
+      options.onStderr?.(chunk)
     })
     this.child.stdin!.on('error', () => undefined)
     this.child.on('error', (error: unknown) => {
@@ -255,6 +262,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     if (options.input !== 'rows') this.child.stdin!.end()
     if (options.prompt !== undefined && typeof options.prompt !== 'string') void this.#feed(options.prompt)
     if (options.signal !== undefined) {
+      unlimitedSignal(options.signal)
       if (options.signal.aborted) this.#abortRequested = true
       else {
         const abort = () => { if (this.#sessionRow) this.interrupt(); else this.#abortRequested = true }
@@ -286,6 +294,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
 
   on<T extends StreamRow['type']>(type: T, listener: RowListener<T>): this
   on(type: 'row', listener: (row: StreamRow) => void): this
+  on(type: 'stderr', listener: (chunk: string) => void): this
   on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'end', listener: (exit: RunExit) => void): this
   on(type: string, listener: (payload: never) => void): this {
@@ -335,7 +344,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     return this.child.kill('SIGKILL')
   }
 
-  async close(): Promise<void> { await this.ready.catch(() => undefined); if (this.child) await endChild(this.child, this.exit); else await this.exit }
+  close(): Promise<void> { return this.ready.catch(() => undefined).then(() => this.child ? endChild(this.child, this.exit) : this.exit.then(() => undefined)) }
+  clearRows(): void { this.rows.length = 0; this.#queue.length = 0 }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 
   get error(): MercuryError | null {
@@ -388,6 +398,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
 
   #deliver(row: StreamRow): void {
     this.rows.push(row)
+    capRows(this.rows, this.options.maxRows)
     if (row.type === 'session' && this.#sessionRow === null) {
       this.#sessionRow = row
       this.#resolveSession(row)
@@ -398,7 +409,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     this.#emit(row.type, row)
     const waiter = this.#waiters.shift()
     if (waiter !== undefined) waiter.resolve({ value: row, done: false })
-    else this.#queue.push(row)
+    else { this.#queue.push(row); capRows(this.#queue, this.options.maxRows) }
   }
 
   async #settle(code: number | null, signal: NodeJS.Signals | null): Promise<void> {

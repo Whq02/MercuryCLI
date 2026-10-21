@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BUN, PYTHON } from './runtime.ts'
 import { run } from '../../sdk/src/index.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -36,7 +37,9 @@ const consumer = realpathSync(mkdtempSync(join(tmpdir(), 'sdk-readme-types-')))
   const built = await execute('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], root, process.env)
   assert.equal(built.status, 0, built.stdout + built.stderr)
   mkdirSync(join(consumer, 'node_modules'))
-  cpSync(join(root, 'sdk'), join(consumer, 'node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !p.includes('/node_modules/') && !p.includes('/src/') })
+  const below = (from: string) => (p: string) => !p.slice(from.length).split(/[\\/]/).some(segment => segment === 'node_modules' || segment === 'src')
+  assert(below('/home/dev/src/mercury/sdk')('/home/dev/src/mercury/sdk/dist/index.js') && !below('/home/dev/src/mercury/sdk')('/home/dev/src/mercury/sdk/src/index.ts') && !below('C:\\src\\tree\\sdk')('C:\\src\\tree\\sdk\\node_modules\\x') && below('C:\\src\\tree\\sdk')('C:\\src\\tree\\sdk\\package.json'), 'the consumer copy filter excludes src and node_modules by segment below the package root, on either separator, wherever the repository lives')
+  cpSync(join(root, 'sdk'), join(consumer, 'node_modules/mercury-cli-sdk'), { recursive: true, filter: below(join(root, 'sdk')) })
   symlinkSync(join(root, 'node_modules/@types'), join(consumer, 'node_modules/@types'), 'junction')
   symlinkSync(join(root, 'node_modules/undici-types'), join(consumer, 'node_modules/undici-types'), 'junction')
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ type: 'module' }))
@@ -74,7 +77,7 @@ export const connect = (options: Record<string, unknown> = {}) => realConnect({ 
           code = code.replace(/'mercury-cli-sdk\/testing'/g, JSON.stringify(join(root, 'sdk/src/testing.ts'))).replace(/'mercury-cli-sdk'/g, "'./shim.ts'")
           if (/recordedRows/.test(code)) code = `const recordedRows = ${JSON.stringify(recordedRows)}\n${code}`
           writeFileSync(join(c.home, 'example.ts'), code)
-          result = await execute('bun', [join(c.home, 'example.ts')], c.cwd, { ...process.env, ...c.env })
+          result = await execute(BUN, [join(c.home, 'example.ts')], c.cwd, { ...process.env, ...c.env })
         } else {
           if (/async def review\(\)/.test(code)) code += '\nasyncio.run(review())\n'
           if (/async def test\(recorded_rows\)/.test(code)) code += `\nimport json\nasyncio.run(test(json.loads(${JSON.stringify(JSON.stringify(recordedRows))})))\n`
@@ -88,7 +91,7 @@ for name in ('run', 'connect', 'run_sync', 'connect_sync'):
     setattr(mercury_cli_sdk, name, functools.wraps(original)(lambda *args, _original=original, **kwargs: _original(*args, **{**defaults, **kwargs})))
 runpy.run_path(sys.argv[1], run_name='__main__')
 `)
-          result = await execute('python3', [join(c.home, 'wrapper.py'), join(c.home, 'example.py')], c.cwd, { ...process.env, ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') })
+          result = await execute(PYTHON, [join(c.home, 'wrapper.py'), join(c.home, 'example.py')], c.cwd, { ...process.env, ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') })
         }
         const out = `${result.stdout}${result.stderr}`
         assert.equal(result.status, 0, out)

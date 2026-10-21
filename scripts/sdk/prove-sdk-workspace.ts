@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 const { connect, structuredSchema, MercurySchemaError } = sdk
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -26,16 +27,21 @@ const offeredTools = (api: { requests: { raw: string; body: unknown }[] }, said:
 }
 for (const language of ['ts', 'py']) {
   if (process.env.SDK_BUILDER_LANGUAGE && process.env.SDK_BUILDER_LANGUAGE !== language) continue
-  for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster', 'schema']) {
+  for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster', 'schema', 'midturn']) {
     if (selected && selected !== scenario) continue
     const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'roster' ? [
       { kind: 'text', text: 'Default roster seen.', whenBody: 'roster of a default session' },
       { kind: 'text', text: 'Opted-out roster seen.', whenBody: 'roster of a session without checkpoints' },
+    ] : scenario === 'midturn' ? [
+      { kind: 'tool_use', name: 'Sleep', input: { seconds: 2 }, whenBody: 'the folded first prompt' }, { kind: 'text', text: 'Folded reply.', whenBody: 'the folded second prompt' },
+      { kind: 'paced', deltas: ['one ', 'two ', 'three.'], gapMs: 700, whenBody: 'the queued first prompt' }, { kind: 'text', text: 'Queued reply.', whenBody: 'the queued second prompt' },
+      { kind: 'tool_use', name: 'Sleep', input: { seconds: 2 }, whenBody: 'the swallowed first prompt' }, { kind: 'paced', deltas: ['held back'], gapMs: 100, startDelayMs: 30000, whenBody: 'the swallowed second prompt' },
     ] : scenario === 'schema' ? [
       { kind: 'tool_use', name: 'StructuredOutput', input: { count: 3 }, whenBody: 'the count turn' }, { kind: 'text', text: 'Three.', whenBody: 'the count turn' },
       { kind: 'tool_use', name: 'StructuredOutput', input: { name: 'pelican' }, whenBody: 'the name turn' }, { kind: 'text', text: 'Pelican.', whenBody: 'the name turn' },
       { kind: 'text', text: 'Plain.', whenBody: 'the plain turn' },
       { kind: 'tool_use', name: 'StructuredOutput', input: { count: 9 }, whenBody: 'the boot schema turn' }, { kind: 'text', text: 'Nine.', whenBody: 'the boot schema turn' },
+      { kind: 'tool_use', name: 'StructuredOutput', input: { count: 4 }, whenBody: 'the run door turn' }, { kind: 'text', text: 'Four.', whenBody: 'the run door turn' },
     ] : scenario === 'capabilities' ? [
       { kind: 'tool_use', name: 'Read', input: { file_path: join(cwd, 'virtual.txt') } },
       { kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'virtual.txt'), content: 'virtual changed' } },
@@ -48,7 +54,7 @@ for (const language of ['ts', 'py']) {
     writeFileSync(join(c.cwd, 'saved.txt'), 'original\n')
     try {
       if (language === 'py') {
-        const child = spawn('python3', [join(root, 'scripts/sdk/python-workspace.py'), scenario, JSON.stringify(mercury), c.cwd], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+        const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-workspace.py'), scenario, JSON.stringify(mercury), c.cwd], { env: { ...c.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
         assert.equal(await new Promise(r => child.once('close', r)), 0)
       } else if (scenario === 'capabilities') {
         let value = 'virtual original'; let reads = 0; let writes = 0
@@ -76,19 +82,49 @@ for (const language of ['ts', 'py']) {
         const count = { type: 'object', properties: { count: { type: 'integer' } }, required: ['count'] } as const
         const name = { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } as const
         const malformed = { type: 'nonsense-type', properties: 5 } as unknown as sdk.JsonSchema
+        const cliRefused = { type: 'object', pattern: 5 } as unknown as sdk.JsonSchema
+        const locally = (e: unknown) => e instanceof MercurySchemaError && e.code === undefined && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema — schema\.type/.test(e.message) && e.message === e.issues[0].message
         const session = await connect({ mercury, cwd: c.cwd, env: c.env })
         try {
           assert.deepEqual((await session.prompt('the count turn', { schema: count })).structured, { count: 3 })
           assert.deepEqual((await session.prompt('the name turn', { schema: structuredSchema(name, value => ({ who: (value as { name: string }).name.toUpperCase() })) })).structured, { who: 'PELICAN' })
           const plain = await session.prompt('the plain turn'); assert.equal(plain.status, 'completed'); assert(!('structured' in plain), 'a turn without a schema carries no structured output')
-          await assert.rejects(session.prompt('the refused turn', { schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema/.test(e.issues[0].message) && e.message === e.issues[0].message)
+          const before = c.api.requests.length
+          await assert.rejects(session.prompt('the refused turn', { schema: malformed }), locally)
+          await assert.rejects(session.prompt('the refused turn', { schema: cliRefused }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues[0]?.path === 'schema' && /not a JSON schema/.test(e.issues[0].message) && e.message === e.issues[0].message)
+          assert.equal(c.api.requests.length, before, 'neither refused schema cost a model turn')
           assert.equal(typeof session.lastPromptId, 'string')
           const shapes = c.api.requests.map(r => JSON.stringify(((r.body as { tools?: { name: string; input_schema?: unknown }[] }).tools ?? []).find(t => t.name === 'StructuredOutput')?.input_schema ?? null))
           assert(shapes.includes(JSON.stringify(count)) && shapes.includes(JSON.stringify(name)) && shapes.includes('null'), `each turn's schema reaches the model as that turn's StructuredOutput tool, and the plain turn has none: ${shapes.join(' | ')}`)
         } finally { await session.close() }
         const boot = await connect({ mercury, cwd: c.cwd, env: c.env, schema: structuredSchema(count, value => (value as { count: number }).count * 2) })
-        try { assert(!boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize, not argv'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
-        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
+        try { assert(boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
+        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), locally)
+        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: cliRefused }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
+        const door = sdk.run({ mercury, cwd: c.cwd, env: c.env, ephemeral: true, prompt: 'the run door turn', schema: structuredSchema(count, value => (value as { count: number }).count * 10) })
+        assert(door.args.includes('--schema'), 'the run door carries --schema')
+        assert.equal((await door.outcome).structured, 40, 'the run door settles structured on the built dist and the descriptor decodes it')
+        assert.throws(() => sdk.run({ mercury, cwd: c.cwd, env: c.env, prompt: 'the run door turn', schema: malformed }), locally)
+      } else if (scenario === 'midturn') {
+        for (const shape of ['folded', 'queued', 'swallowed'] as const) {
+          const session = await connect({ mercury, cwd: c.cwd, env: c.env, onPermissionRequest: () => ({ outcome: 'allow' }), allowedTools: ['Sleep'] })
+          try {
+            await assert.rejects(session.prompt(`the ${shape} first prompt`, { timeoutMs: 500 }), /prompt: no answer within 500 ms/)
+            const started = performance.now()
+            const second = session.prompt(`the ${shape} second prompt`, { timeoutMs: 25000 })
+            if (shape === 'swallowed') {
+              setTimeout(() => void session.interrupt().catch(() => undefined), 3500)
+              await assert.rejects(second, (e: unknown) => e instanceof sdk.MercuryError && /^prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn/.test(e.message))
+              assert(performance.now() - started < 12000, 'the swallowed prompt is rejected within the grace after the interrupted outcome')
+            } else {
+              const row = await second
+              assert.equal(row.status, 'completed', shape)
+              assert.equal(row.answer, shape === 'folded' ? 'Folded reply.' : 'Queued reply.', `${shape}: the prompt resolves with the turn that answered it`)
+              assert.equal(row.turn, shape === 'folded' ? 1 : 2, shape)
+              if (shape === 'folded') assert(session.rows.some(r => r.type === 'text' && r.in_reply_to?.some(mark => mark.id === session.lastPromptId)), 'the fold is marked in_reply_to the second prompt')
+            }
+          } finally { await session.close() }
+        }
       } else {
         const session = await sdk.prewarm({ mercury, cwd: c.cwd, env: c.env })
         try { assert.equal(session.initialized.session_id, null); assert.equal((await session.claim({ session_id: '00000000-0000-4000-8000-000000000091' })).session_id, '00000000-0000-4000-8000-000000000091') }

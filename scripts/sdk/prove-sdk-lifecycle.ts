@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { PYTHON } from './runtime.ts'
 import * as sdk from '../../sdk/src/index.ts'
 import { connect, run, MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError } from '../../sdk/src/index.ts'
 import { fixtureSessionRow, fixtureTurn, startFixtureServer } from '../../sdk/src/testing.ts'
@@ -53,14 +54,22 @@ try {
       assert.equal(fixture.received.length, 2)
     } finally { await fixture.close() }
   })
-  await check('prompt() takes an AbortSignal: a timed-out wait releases the session for the next prompt', async () => {
-    const session = await connect({ mercury: fake(`const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}));if(m.method==='queue/add')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{accepted:true}}))})`) })
+  await check('prompt() takes an AbortSignal, timeoutMs and interruptOnAbort: a timed-out wait releases the session and optionally sends turn/interrupt', async () => {
+    const fixture = await startFixtureServer({ methods: { initialize: [{ result: init }], 'queue/add': [{ result: { accepted: true } }, { result: { accepted: true } }, { result: { accepted: true } }, { result: { accepted: true } }], 'turn/interrupt': [{ result: { interrupted: true } }, { result: { interrupted: true } }] } })
     try {
-      await assert.rejects(session.prompt('never answered', { signal: AbortSignal.timeout(50) }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-      await assert.rejects(session.prompt('pre-aborted', { signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-      const second = session.prompt('next', { signal: AbortSignal.timeout(50) })
-      await assert.rejects(second, (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-    } finally { await session.close() }
+      const session = await connect({ mercury: fixture.mercury })
+      try {
+        await assert.rejects(session.prompt('never answered', { signal: AbortSignal.timeout(50) }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
+        await assert.rejects(session.prompt('pre-aborted', { signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        await assert.rejects(session.prompt('timed out', { timeoutMs: 50 }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
+        await assert.rejects(session.prompt('abort with interrupt', { signal: AbortSignal.timeout(50), interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        await assert.rejects(session.prompt('timeout with interrupt', { timeoutMs: 50, interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        for (let i = 0; i < 20 && fixture.received.filter(m => m.method === 'turn/interrupt').length < 2; i++) await sleep(10)
+        assert.equal(fixture.received.filter(m => m.method === 'turn/interrupt').length, 2)
+      } finally { await session.close() }
+    } finally { await fixture.close() }
   })
   await check('connect() takes an AbortSignal: a runner that never answers initialize is cancelled and ended, and an abort after connecting closes the session', async () => {
     const silent = fake('process.stdin.resume()')
@@ -131,6 +140,113 @@ setTimeout(() => process.exit(0), 200)
     for (let i = 0; i < 40 && pids.some(alive); i++) await sleep(50)
     assert.deepEqual(pids.filter(alive), [], 'children outlived the host')
   })
+  await check('maxRows caps retained rows while preserving the session row, clearRows() empties buffers, and a shared AbortSignal emits no MaxListenersExceededWarning', async () => {
+    const sRow = fixtureSessionRow({ seq: 1 })
+    const deltas = Array.from({ length: 18 }, (_, i) => ({ type: 'text_delta' as const, seq: i + 2, timestamp: '2000-01-01T00:00:00.000Z', session_id: sRow.session_id, message_id: 'm1', block: 0, text: `d${i}` }))
+    const [, outRow] = fixtureTurn({ seq: 20 })
+    const rows = [sRow, ...deltas, outRow]
+    const fixture = await startFixtureServer({ rows, methods: { initialize: Array.from({ length: 16 }, () => ({ result: init })), 'queue/add': [{ result: { accepted: true }, after: rows.map(params => ({ jsonrpc: '2.0', method: 'row', params })) }] } })
+    try {
+      const task = run({ mercury: fixture.mercury, prompt: 'x', maxRows: 5 })
+      await task.outcome
+      assert.equal(task.rows.length, 5)
+      assert.equal(task.rows[0]?.type, 'session')
+      assert.deepEqual(task.rows.map(r => r.seq), [1, 17, 18, 19, 20])
+      task.clearRows()
+      assert.equal(task.rows.length, 0)
+      const session = await connect({ mercury: fixture.mercury, maxRows: 5 })
+      try {
+        await session.prompt('x')
+        assert.equal(session.rows.length, 5)
+        assert.equal(session.rows[0]?.type, 'session')
+        assert.deepEqual(session.rows.map(r => r.seq), [1, 17, 18, 19, 20])
+        session.clearRows()
+        assert.equal(session.rows.length, 0)
+      } finally { await session.close() }
+      const warnings: string[] = []
+      const onWarning = (w: Error) => { if (w.name === 'MaxListenersExceededWarning') warnings.push(w.message) }
+      process.on('warning', onWarning)
+      const shared = new AbortController()
+      try {
+        const fleet = await Promise.all(Array.from({ length: 15 }, () => connect({ mercury: fixture.mercury, signal: shared.signal })))
+        shared.abort()
+        await Promise.all(fleet.map(s => s.exit))
+        assert.deepEqual(warnings, [])
+      } finally { process.off('warning', onWarning) }
+    } finally { await fixture.close() }
+  })
+  await check('closing a session while a runner ask is in flight stays graceful under node: no error event, no write after stdin ended, exit 0', async () => {
+    const built = spawnSync('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(root, 'sdk/tsconfig.json')], { encoding: 'utf8', timeout: 120000 })
+    assert.equal(built.status, 0, built.stdout + built.stderr)
+    const host = join(scratch, 'close-mid-ask.mjs')
+    writeFileSync(host, `import { connect } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/index.js')).href)}
+import { startFixtureServer } from ${JSON.stringify(pathToFileURL(join(root, 'sdk/dist/testing.js')).href)}
+const ask = { jsonrpc: '2.0', id: 1000, method: 'permission/request', params: { kind: 'tool', tool_use_id: 'u1', tool_name: 'Read', input: {} } }
+const fixture = await startFixtureServer({ methods: { initialize: [{ result: ${JSON.stringify(init)}, after: [ask] }] } })
+let rejections = 0
+process.on('unhandledRejection', () => { rejections++ })
+let open
+const gate = new Promise(resolve => { open = resolve })
+let asked = 0
+const session = await connect({ mercury: fixture.mercury, onPermissionRequest: async () => { asked++; await gate; return { outcome: 'deny' } } })
+while (asked === 0) await new Promise(resolve => setTimeout(resolve, 5))
+const errors = []
+session.on('error', error => errors.push(error.message))
+const closing = session.close()
+open()
+await closing
+const exit = await session.exit
+await new Promise(resolve => setTimeout(resolve, 50))
+await fixture.close()
+console.log(JSON.stringify({ errors, exit, rejections }))
+`)
+    const result = spawnSync('node', [host], { encoding: 'utf8', timeout: 20000 })
+    assert.equal(result.status, 0, result.stderr)
+    const report = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    assert.deepEqual(report.errors, [], `the graceful close raised an error event: ${JSON.stringify(report)}`)
+    assert.equal(report.exit.code, 0, `the close escalated to a signal: ${JSON.stringify(report.exit)}`)
+    assert.equal(report.rejections, 0, 'an unhandled rejection escaped the close')
+    assert.doesNotMatch(result.stderr, /write after end|ERR_STREAM_WRITE_AFTER_END/, result.stderr)
+  })
+  await check('stderr is live on both doors: onStderr and the stderr event see a line while the child still runs, and stderr at exit is the whole text', async () => {
+    const rows = [fixtureSessionRow(), ...fixtureTurn()]
+    const noisy = fake(`process.stderr.write('booting\\n');${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};setTimeout(()=>{process.stderr.write('tail\\n');process.exit(0)},300)`)
+    const seen: string[] = []; const events: string[] = []
+    const task = run({ mercury: noisy, prompt: 'x', onStderr: chunk => seen.push(chunk) })
+    task.on('stderr', chunk => events.push(chunk))
+    await task.session
+    for (let i = 0; i < 100 && !events.join('').includes('booting'); i++) await sleep(10)
+    assert(events.join('').includes('booting'), `no stderr event fired while the child ran: ${JSON.stringify({ stderr: task.stderr, seen, events })}`)
+    assert(seen.join('').includes('booting') && task.stderr.includes('booting'), `onStderr and stderr while the child ran: ${JSON.stringify({ stderr: task.stderr, seen })}`)
+    assert(task.child.exitCode === null && task.child.signalCode === null, 'the child had already exited when its stderr line was first observed')
+    const exit = await task.exit
+    assert.equal(exit.stderr, 'booting\ntail\n'); assert.equal(task.stderr, exit.stderr); assert.equal(seen.join(''), exit.stderr); assert.equal(events.join(''), exit.stderr)
+    const sessionSeen: string[] = []; const sessionEvents: string[] = []
+    const session = await connect({ mercury: fake(`process.stderr.write('runner up\\n');setInterval(()=>process.stderr.write('tick\\n'),20);const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}))});rl.on('close',()=>process.exit(0))`), onStderr: chunk => sessionSeen.push(chunk) })
+    try {
+      session.on('stderr', chunk => sessionEvents.push(chunk))
+      for (let i = 0; i < 100 && !sessionEvents.join('').includes('tick'); i++) await sleep(10)
+      assert(session.child.exitCode === null && session.child.signalCode === null, 'the runner is still running')
+      assert(sessionSeen.join('').startsWith('runner up\n') && session.stderr.startsWith('runner up\n') && sessionEvents.join('').includes('tick'), `runner stderr while running: ${JSON.stringify({ stderr: session.stderr, sessionSeen, sessionEvents })}`)
+    } finally { await session.close() }
+    const ended = await session.exit
+    assert.equal(ended.stderr, session.stderr); assert.equal(sessionSeen.join(''), session.stderr)
+  })
+  await check('stderr text is read with CRLF normalised to LF on both doors, a pair split across two writes included, so exit.stderr, the handle and the chunks agree', async () => {
+    const rows = [fixtureSessionRow(), ...fixtureTurn()]
+    const expected = 'boot\nsplit\nlone\rtail\n'
+    const crlf = fake(`process.stderr.write('boot\\r\\nsplit\\r');${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};setTimeout(()=>{process.stderr.write('\\nlone\\rtail\\r\\n');process.exit(0)},200)`)
+    const seen: string[] = []; const events: string[] = []
+    const task = run({ mercury: crlf, prompt: 'x', onStderr: chunk => seen.push(chunk) })
+    task.on('stderr', chunk => events.push(chunk))
+    const exit = await task.exit
+    assert.equal(exit.stderr, expected); assert.equal(task.stderr, expected); assert.equal(seen.join(''), expected); assert.equal(events.join(''), expected)
+    const sessionSeen: string[] = []
+    const session = await connect({ mercury: fake(`process.stderr.write('runner\\r\\nup\\r');setTimeout(()=>process.stderr.write('\\nnow\\r\\n'),100);const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}))});rl.on('close',()=>process.exit(0))`), onStderr: chunk => sessionSeen.push(chunk) })
+    try { for (let i = 0; i < 100 && !session.stderr.includes('now'); i++) await sleep(10) } finally { await session.close() }
+    const ended = await session.exit
+    assert.equal(ended.stderr, 'runner\nup\nnow\n'); assert.equal(session.stderr, ended.stderr); assert.equal(sessionSeen.join(''), ended.stderr)
+  })
   await check('the package version is the manifest version', async () => {
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
     assert.equal(sdk.VERSION, pkg.version)
@@ -138,10 +254,10 @@ setTimeout(() => process.exit(0), 200)
     assert(pyproject.includes(`version = "${sdk.VERSION}"`))
     assert((await Bun.file(join(root, 'sdk-py/src/mercury_cli_sdk/version.py')).text()).includes(`'${sdk.VERSION}'`))
   })
-  const python = spawnSync('python3', [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
+  const python = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
   console.log(python.stdout.trim()); if (python.status !== 0) { failures.push('Python lifecycle'); console.error(python.stderr) }
   await check('a Python consumer exits 0 with no fatal error: the fixture bridge with stdin still open, an unclosed sync session, an unclosed tool server', async () => {
-    const consumer = spawnSync('python3', [resolve(import.meta.dir, 'python-clean-exit.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
+    const consumer = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-clean-exit.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
     assert.equal(consumer.signal, null, `the consumer died by ${consumer.signal}: ${consumer.stderr}`)
     assert(!/Fatal Python error/.test(consumer.stderr), `a Python process wrote a fatal error:\n${consumer.stderr}`)
     assert.equal(consumer.status, 0, consumer.stdout + consumer.stderr)

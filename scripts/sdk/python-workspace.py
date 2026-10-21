@@ -1,4 +1,5 @@
 import asyncio
+import time
 import json
 from pathlib import Path
 import sys
@@ -43,22 +44,57 @@ async def main():
         count = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}
         name = {'type': 'object', 'properties': {'name': {'type': 'string'}}, 'required': ['name']}
         malformed = {'type': 'nonsense-type', 'properties': 5}
+        cli_refused = {'type': 'object', 'pattern': 5}
+        def locally(error): assert error.code is None and error.outcome is None and error.issues[0].path == 'schema' and str(error).startswith('not a JSON schema — schema.type') and str(error) == error.issues[0].message, error
         async with await connect(mercury=mercury, cwd=cwd) as session:
             assert (await session.prompt('the count turn', schema=count)).get('structured') == {'count': 3}
             assert (await session.prompt('the name turn', schema=structured_schema(name, lambda value: value['name'].upper())))['structured'] == 'PELICAN'
             plain = await session.prompt('the plain turn')
             assert plain['status'] == 'completed' and 'structured' not in plain
             try: await session.prompt('the refused turn', schema=malformed)
+            except MercurySchemaError as error: locally(error)
+            else: raise AssertionError('a malformed per-turn schema was accepted')
+            try: await session.prompt('the refused turn', schema=cli_refused)
             except MercurySchemaError as error:
                 assert error.code == -32602 and error.outcome is None and error.issues[0].path == 'schema' and 'not a JSON schema' in error.issues[0].message and str(error) == error.issues[0].message, error
-            else: raise AssertionError('a malformed per-turn schema was accepted')
+            else: raise AssertionError('a schema the CLI refuses was accepted')
             assert isinstance(session.last_prompt_id, str)
         async with await connect(mercury=mercury, cwd=cwd, schema=structured_schema(count, lambda value: value['count'] * 2)) as boot:
-            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner')
+            assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'
             assert (await boot.prompt('the boot schema turn'))['structured'] == 18
         try: await connect(mercury=mercury, cwd=cwd, schema=malformed)
-        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        except MercurySchemaError as error: locally(error)
         else: raise AssertionError('a malformed boot schema was accepted')
+        try: await connect(mercury=mercury, cwd=cwd, schema=cli_refused)
+        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        else: raise AssertionError('a boot schema the CLI refuses was accepted')
+        door = await sdk.run('the run door turn', mercury=mercury, cwd=cwd, ephemeral=True, schema=structured_schema(count, lambda value: value['count'] * 10))
+        assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count)), 'the run door carries --schema'
+        assert (await door.outcome)['structured'] == 40, 'the run door settles structured on the built dist and the descriptor decodes it'
+        try: await sdk.run('the run door turn', mercury=mercury, cwd=cwd, schema=malformed)
+        except MercurySchemaError as error: locally(error)
+        else: raise AssertionError('a malformed run schema was accepted')
+    elif scenario == 'midturn':
+        for shape in ('folded', 'queued', 'swallowed'):
+            async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Sleep']) as session:
+                try: await session.prompt(f'the {shape} first prompt', timeout=0.5)
+                except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.5 seconds', str(error)
+                else: raise AssertionError('the first prompt resolved')
+                started = time.monotonic()
+                if shape == 'swallowed':
+                    async def interrupt_later():
+                        await asyncio.sleep(3.5)
+                        await session.interrupt()
+                    later = asyncio.create_task(interrupt_later())
+                    try: await session.prompt(f'the {shape} second prompt', timeout=25)
+                    except sdk.MercuryError as error: assert str(error).startswith('prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn'), str(error)
+                    else: raise AssertionError('a prompt the runner neither queued nor ran resolved')
+                    finally: later.cancel()
+                    assert time.monotonic() - started < 12, 'the swallowed prompt is rejected within the grace after the interrupted outcome'
+                else:
+                    row = await session.prompt(f'the {shape} second prompt', timeout=25)
+                    assert row['status'] == 'completed' and row.get('answer') == ('Folded reply.' if shape == 'folded' else 'Queued reply.') and row.get('turn') == (1 if shape == 'folded' else 2), (shape, row)
+                    if shape == 'folded': assert any(row['type'] == 'text' and any(mark['id'] == session.last_prompt_id for mark in row.get('in_reply_to', [])) for row in session.rows), 'the fold is marked in_reply_to the second prompt'
     else:
         async with await sdk.prewarm(mercury=mercury, cwd=cwd) as session:
             assert session.initialized['session_id'] is None

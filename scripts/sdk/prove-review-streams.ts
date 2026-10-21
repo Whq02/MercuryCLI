@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import { connect, run, rowOf, inputRowOf, isMainThread, MercuryError, MercuryWireError } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 
@@ -35,5 +36,5 @@ for (const [status, code] of [['completed', 0], ['failed', 1], ['refused', 1], [
 }
 console.log('PASS review streams: envelope, empty input, byte limit, LF framing, writes, cleanup, stable errors, fixtures and null-id RPC errors')
 const root = resolve(import.meta.dir, '../..')
-const py = spawnSync('python3', [resolve(import.meta.dir, 'python-streams.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 30000 })
+const py = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-streams.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 30000 })
 console.log(py.stdout); assert.equal(py.status, 0, py.stderr)

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BUN, PYTHON } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'sdk-package-review-')))
@@ -13,26 +14,28 @@ function run(command: string, args: string[], env = process.env, cwd = scratch) 
 }
 try {
   const before = readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8')
-  run('bun', [join(root, 'scripts/sdk/generate.ts'), '--out', join(scratch, 'generated')])
+  run(BUN, [join(root, 'scripts/sdk/generate.ts'), '--out', join(scratch, 'generated')])
   assert.equal(readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8'), before)
   assert(readFileSync(join(scratch, 'generated/wire.ts'), 'utf8').includes('WIRE_GENERATED_FROM'))
   assert(readFileSync(join(scratch, 'generated/python/generated.py'), 'utf8').includes('GENERATED_BY ='))
-  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: p => !/(\/dist|\/node_modules|\/__pycache__)(\/|$)/.test(p) })
+  const excluded = (p: string) => /[\\/](dist|node_modules|__pycache__)([\\/]|$)/.test(p)
+  assert(excluded('C:\\scratch\\sdk\\dist\\index.js') && excluded('C:\\scratch\\sdk\\dist') && excluded('/scratch/sdk/node_modules/x') && excluded('/scratch/sdk-py/src/__pycache__') && !excluded('/scratch/sdk/distant/x') && !excluded('C:\\scratch\\sdk\\src\\index.ts'), 'the copy filter excludes dist, node_modules and __pycache__ on both path separators')
+  for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: p => !excluded(p) })
   const pkg = JSON.parse(readFileSync(join(scratch, 'sdk/package.json'), 'utf8'))
   assert.equal(pkg.homepage, 'https://mercury-cli.ai'); assert.equal(pkg.repository.directory, 'sdk')
-  const venvPython = (name: string) => { run('python3', ['-m', 'venv', '--without-pip', join(scratch, name)]); return join(scratch, name, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python') }
+  const venvPython = (name: string) => { run(PYTHON, ['-m', 'venv', '--without-pip', join(scratch, name)]); return join(scratch, name, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python') }
   const sourceImport = (python: string) => run(python, ['-c', `import mercury_cli_sdk as s;from pathlib import Path;assert Path(s.__file__).resolve()==Path(${JSON.stringify(join(scratch, 'sdk-py/src/mercury_cli_sdk/__init__.py'))}),s.__file__`])
   const python = venvPython('venv')
   const purelib = run(python, ['-c', 'import sysconfig;print(sysconfig.get_paths()["purelib"])']).trim()
-  const editable = run('python3', ['-I', '-S', '-c', `import sys;sys.path.insert(0,${JSON.stringify(join(scratch, 'sdk-py'))});import build_backend;print(build_backend.build_editable(${JSON.stringify(join(scratch, 'editable'))}))`]).trim()
+  const editable = run(PYTHON, ['-I', '-S', '-c', `import sys;sys.path.insert(0,${JSON.stringify(join(scratch, 'sdk-py'))});import build_backend;print(build_backend.build_editable(${JSON.stringify(join(scratch, 'editable'))}))`]).trim()
   run(python, ['-c', `import zipfile;zipfile.ZipFile(${JSON.stringify(join(scratch, 'editable', editable))}).extractall(${JSON.stringify(purelib)})`])
   sourceImport(python)
   console.log('PASS PEP 660 editable wheel from the build backend, installed into a clean venv made without pip (the venv needs no ensurepip), imports the source tree')
   const pipEnv = { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_NO_INPUT: '1', PYTHONDONTWRITEBYTECODE: '1' }
-  const pip = spawnSync('python3', ['-m', 'pip', '--version'], { encoding: 'utf8', timeout: 60000, env: pipEnv })
+  const pip = spawnSync(PYTHON, ['-m', 'pip', '--version'], { encoding: 'utf8', timeout: 60000, env: pipEnv })
   if (pip.status === 0) {
     const target = venvPython('venv-pip')
-    const installed = spawnSync('python3', ['-m', 'pip', '--python', target, 'install', '--no-index', '--no-deps', '--no-build-isolation', '-e', join(scratch, 'sdk-py')], { cwd: scratch, env: pipEnv, encoding: 'utf8', timeout: 120000 })
+    const installed = spawnSync(PYTHON, ['-m', 'pip', '--python', target, 'install', '--no-index', '--no-deps', '--no-build-isolation', '-e', join(scratch, 'sdk-py')], { cwd: scratch, env: pipEnv, encoding: 'utf8', timeout: 120000 })
     if (installed.signal !== null) console.log(`SKIP pip editable install: pip did not finish within 120 s on this host (ended by ${installed.signal}); the backend road above stands`)
     else {
       assert.equal(installed.status, 0, `pip: ${installed.stdout}${installed.stderr}`)

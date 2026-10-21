@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import atexit
+import codecs
 from datetime import datetime, timezone
 import json
 import os
@@ -14,7 +15,7 @@ from .framing import read_lines
 from .executable import executable_of
 from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
-from .parse import Issue, StreamRow, parse_row, input_row_of
+from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, parse_row, input_row_of
 
 Listener = Callable[[Any], object]
 
@@ -56,6 +57,7 @@ class RunOptions:
     brief_add: str | None = None
     schema: str | dict[str, Any] | StructuredSchema[Any] | None = None
     max_turns: int | None = None
+    max_rows: int | None = None
     max_time: str | None = None
     budget_usd: float | None = None
     partial: bool = False
@@ -74,6 +76,7 @@ class RunOptions:
     provider_preview: list[str] = field(default_factory=list)
     log_file: str | None = None
     extra_args: list[str] = field(default_factory=list)
+    on_stderr: Callable[[str], object] | None = None
 
 
 class ConnectKwargs(TypedDict, total=False):
@@ -107,6 +110,7 @@ class ConnectKwargs(TypedDict, total=False):
     brief: str | None
     brief_add: str | None
     max_turns: int | None
+    max_rows: int | None
     max_time: str | None
     budget_usd: float | None
     partial: bool
@@ -125,6 +129,7 @@ class ConnectKwargs(TypedDict, total=False):
     provider_preview: list[str]
     log_file: str | None
     extra_args: list[str]
+    on_stderr: Callable[[str], object] | None
 
 
 class RunKwargs(ConnectKwargs, total=False):
@@ -151,7 +156,6 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
         if getattr(options, name): args += ['--' + name.replace('_', '-'), *getattr(options, name)]
     for name in ['schema', 'config', 'agent_defs']:
         value = getattr(options, name)
-        if name == 'schema' and door == 'runner': continue
         if name == 'schema' and value is not None: value = schema_object(value, options.cwd)
         if value is not None: args += ['--' + name.replace('_', '-'), value if isinstance(value, str) else json.dumps(value)]
     if options.config_layers is not None: args += ['--config-layers', ','.join(options.config_layers)]
@@ -167,10 +171,19 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
 
 _live: dict[int, asyncio.subprocess.Process] = {}
 _sent: dict[int, str] = {}
+_owner_pid = os.getpid()
 WINDOWS = os.name == 'nt'
 
 
+def _reset_after_fork() -> None:
+    global _owner_pid
+    _owner_pid = os.getpid()
+    _live.clear()
+    _sent.clear()
+
+
 def _end_live_children() -> None:
+    if os.getpid() != _owner_pid: return
     for pid, child in list(_live.items()):
         if child.returncode is None:
             try: os.kill(pid, signal.SIGTERM)
@@ -178,6 +191,7 @@ def _end_live_children() -> None:
 
 
 atexit.register(_end_live_children)
+if hasattr(os, 'register_at_fork'): os.register_at_fork(after_in_child=_reset_after_fork)
 
 
 def track(child: asyncio.subprocess.Process) -> None:
@@ -204,7 +218,10 @@ def send_signal(child: asyncio.subprocess.Process, name: Literal['SIGINT', 'SIGT
 def exit_of(child: asyncio.subprocess.Process, code: int, stderr: str) -> RunExit:
     """The exit receipt: the signal that ended the child, or its code; on Windows a child the package ended reports the signal it sent."""
     sent = _sent.pop(child.pid, None) if child.pid is not None else None
-    if code < 0 and not WINDOWS: return RunExit(None, signal.Signals(-code).name, stderr)
+    if code < 0 and not WINDOWS:
+        try: name = signal.Signals(-code).name
+        except ValueError: name = f'SIG{-code}'
+        return RunExit(None, name, stderr)
     if WINDOWS and sent is not None and code == 1: return RunExit(None, sent, stderr)
     return RunExit(code, None, stderr)
 
@@ -225,6 +242,10 @@ def interrupted_outcome(rows: list[StreamRow], started_at: float, now: float | N
         for key in _USAGE_KEYS:
             usage[key] += int(step['usage'][key])
             model[key] += int(step['usage'][key])
+        if 'reasoning_output_tokens' in step['usage']:
+            reasoning = int(step['usage']['reasoning_output_tokens'])
+            usage['reasoning_output_tokens'] = usage.get('reasoning_output_tokens', 0) + reasoning
+            model['reasoning_output_tokens'] = model.get('reasoning_output_tokens', 0) + reasoning
     last = rows[-1] if rows else None
     started = datetime.fromisoformat(str(turn['timestamp']).replace('Z', '+00:00')).timestamp() if turn else started_at
     row = {'type': 'outcome', 'seq': int(last.get('seq', 0) if last else 0) + 1, 'timestamp': datetime.fromtimestamp(at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'), 'session_id': str(last.get('session_id', '')) if last else '', 'turn': int(turn.get('turn', max(1, len(opened)))) if turn else max(1, len(opened)), 'schema': 1, 'turn_id': str(turn['turn_id']) if turn else '', 'status': 'interrupted', 'error': {'message': 'Interrupted', 'class': 'interrupt'}, 'steps': len(steps), 'wall_ms': max(0, int((at - started) * 1000)), 'usage': usage, 'models': models, 'denials': []}
@@ -248,6 +269,23 @@ async def spawn(args: list[str], options: RunOptions) -> asyncio.subprocess.Proc
         raise MercurySpawnError(args[0], error) from error
     track(child)
     return child
+
+
+async def read_stderr(handle: Any) -> None:
+    """Append the child's standard error to ``handle.stderr`` as it arrives, emitting each decoded chunk as ``'stderr'`` and to ``on_stderr``."""
+    decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
+    pending = ''
+    def deliver(text: str, final: bool = False) -> None:
+        nonlocal pending
+        joined = pending + text
+        pending = '' if final or not joined.endswith('\r') else '\r'
+        delivered = joined[:len(joined) - len(pending)].replace('\r\n', '\n')
+        if not delivered: return
+        handle.stderr += delivered
+        handle._emit('stderr', delivered)
+        if handle.options.on_stderr is not None: handle.options.on_stderr(delivered)
+    while chunk := await handle._stderr.read(65536): deliver(decoder.decode(chunk))
+    deliver(decoder.decode(b'', final=True), True)
 
 
 class MercuryRun:
@@ -297,7 +335,7 @@ class MercuryRun:
         except asyncio.CancelledError: pass
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self._stderr.read())
+        stderr = asyncio.create_task(read_stderr(self))
         last: OutcomeRow | None = None
         try:
             async for line in read_lines(self._stdout):
@@ -308,11 +346,13 @@ class MercuryRun:
                 row = read.row
                 assert row is not None
                 self.rows.append(row)
+                cap_rows(self.rows, self.options.max_rows)
                 if row['type'] == 'session' and not self.session.done():
                     self.session.set_result(row)
                     if self._interrupt_requested: self.interrupt()
                 if row['type'] == 'outcome': last = row
                 self._queue.put_nowait(row)
+                cap_queue(self._queue, self.options.max_rows)
                 self._emit('row', row)
                 self._emit(row['type'], row)
         except Exception as error:
@@ -322,7 +362,7 @@ class MercuryRun:
         code = await self.child.wait()
         untrack(self.child)
         if self._tools: await self._tools.close()
-        self.stderr = (await stderr).decode('utf-8', errors='replace')
+        await stderr
         exit = exit_of(self.child, code, self.stderr)
         if self.error is None and last is None and self._interrupt_sent and (exit.signal == 'SIGINT' or exit.code == 130):
             last = interrupted_outcome(self.rows, self._started_at)
@@ -391,6 +431,10 @@ class MercuryRun:
     def close_input(self) -> None:
         """End stdin; the run finishes its queued work and exits."""
         self._stdin.close()
+
+    def clear_rows(self) -> None:
+        self.rows.clear()
+        clear_queue(self._queue)
 
     def interrupt(self) -> None:
         """End the running turn with SIGINT; before the session row arrives the signal waits for it, so the turn ends as ``interrupted`` rather than killing a booting CLI."""

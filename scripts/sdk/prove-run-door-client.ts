@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
@@ -142,7 +143,7 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
       check(`${type} row round-trips through parseRow`, line.ok && JSON.stringify(line.row) === JSON.stringify(stamped))
     }
   }
-  const py = spawnSync('python3', ['-c', 'import json,sys; from mercury_cli_sdk import parse_row; rows=json.load(sys.stdin); assert all(parse_row(json.dumps(r)).ok and parse_row(json.dumps(r)).row==r for r in rows); print(len(rows))'], { input: JSON.stringify(pythonRows), encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(ROOT, 'sdk-py/src') } })
+  const py = spawnSync(PYTHON, ['-c', 'import json,sys; from mercury_cli_sdk import parse_row; rows=json.load(sys.stdin); assert all(parse_row(json.dumps(r)).ok and parse_row(json.dumps(r)).row==r for r in rows); print(len(rows))'], { input: JSON.stringify(pythonRows), encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(ROOT, 'sdk-py/src') } })
   check('every product-projected row round-trips in Python too', py.status === 0, py.stderr)
   const closeStored = sdk.rowOf(stamper.stamp(projected.close![0] as never))
   const closeNone = sdk.rowOf(stamper.stamp(projected.close![2] as never))

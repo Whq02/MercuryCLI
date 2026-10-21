@@ -103,6 +103,41 @@ async def main():
         print('PASS Python helper unknown tool, null arguments and DELETE origin checks')
     assert define_agent({'description': 'reader', 'prompt': 'read only'})['prompt'] == 'read only'
     assert isinstance(input_row_of({'type': 'shell', 'command': 'echo'}), RowRead)
+    conv_names = ('mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background')
+    conv_methods = {'initialize': methods['initialize'] * 2, **{name: [{'result': sample(METHODS[name]['result'])}, {'result': sample(METHODS[name]['result'])}] for name in conv_names}}
+    async with await start_fixture_server({'methods': conv_methods}) as server:
+        async with await connect(mercury=server.mercury) as session:
+            assert await session.mcp_tools('srv') == conv_methods['mcp/tools'][0]['result']
+            assert await session.mcp_action('srv', 'reconnect') == conv_methods['mcp/action'][0]['result']
+            assert await session.pause_gate(True) == conv_methods['session/pause_gate'][0]['result']
+            assert await session.quiesce('prepare', 'tok') == conv_methods['session/quiesce'][0]['result']
+            assert await session.leave() == conv_methods['session/leave'][0]['result']
+            assert await session.set_spawn_switch('subagents', True) == conv_methods['session/set_spawn_switch'][0]['result']
+            assert await session.background_shell() == conv_methods['shell/background'][0]['result']
+            await session.notify_credentials_changed()
+        def sync_conv():
+            with connect_sync(mercury=server.mercury) as session:
+                assert session.mcp_tools('srv') == conv_methods['mcp/tools'][1]['result']
+                assert session.mcp_action('srv', 'reconnect') == conv_methods['mcp/action'][1]['result']
+                assert session.pause_gate(True) == conv_methods['session/pause_gate'][1]['result']
+                assert session.quiesce('prepare', 'tok') == conv_methods['session/quiesce'][1]['result']
+                assert session.leave() == conv_methods['session/leave'][1]['result']
+                assert session.set_spawn_switch('subagents', True) == conv_methods['session/set_spawn_switch'][1]['result']
+                assert session.background_shell() == conv_methods['shell/background'][1]['result']
+                session.notify_credentials_changed()
+        await asyncio.to_thread(sync_conv)
+        assert sum(1 for r in server.received if r.get('method') == 'credentials/changed') == 2
+    assert allow_permission(input={'a': 1}) == {'outcome': 'allow', 'input': {'a': 1}}
+    assert deny_permission('no', stop=True) == {'outcome': 'deny', 'message': 'no', 'stop': True}
+    assert is_retryable_outcome({**fixture['outcome'], 'status': 'failed', 'error': {'message': '429', 'class': 'rate_limit'}})
+    assert not is_retryable_outcome({**fixture['outcome'], 'status': 'failed', 'error': {'message': '401', 'class': 'auth'}})
+    assert assert_completed(fixture['outcome'])['status'] == 'completed'
+    try: assert_completed({**fixture['outcome'], 'status': 'failed', 'error': {'message': 'boom', 'class': 'internal'}})
+    except MercuryError: pass
+    else: raise AssertionError('assert_completed accepted failed outcome')
+    try: assert_completed({**fixture['outcome'], 'status': 'refused', 'error': {'message': 'nope', 'class': 'option'}})
+    except MercuryRefusal: pass
+    else: raise AssertionError('assert_completed accepted refused outcome')
     print('PASS Python surface and sync wrappers')
 
 asyncio.run(main())

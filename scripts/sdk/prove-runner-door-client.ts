@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import { connect, run, defineAgent, defineTool, serveTools, MercuryRefusal } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -97,7 +98,7 @@ try {
     assert.equal((await early.outcome).status, 'interrupted', 'interrupt() before the session row waits for it like signal does')
     console.log('PASS real run interrupt() before boot ends the first turn as interrupted')
     const script = `import asyncio,json,sys\nfrom mercury_cli_sdk import run\nasync def main():\n event=asyncio.Event();event.set()\n task=await run('cancel',mercury=json.loads(sys.argv[1]),cwd=sys.argv[2],cancel=event,ephemeral=True)\n assert (await task.outcome)['status']=='interrupted'\n print('PASS Python real run pre-set cancellation event',flush=True)\n early=await run('cancel',mercury=json.loads(sys.argv[1]),cwd=sys.argv[2],ephemeral=True)\n early.interrupt()\n assert (await early.outcome)['status']=='interrupted'\n print('PASS Python real run interrupt() before boot ends the first turn as interrupted',flush=True)\nasyncio.run(main())`
-    const child = spawn('python3', ['-c', script, JSON.stringify(mercury), cancelled.cwd], { env: { ...cancelled.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+    const child = spawn(PYTHON, ['-c', script, JSON.stringify(mercury), cancelled.cwd], { env: { ...cancelled.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
     assert.equal(await new Promise(r => child.once('close', r)), 0)
   } finally { await cancelled.close() }
 
@@ -111,7 +112,7 @@ try {
     { kind: 'text', text: 'Saved Python identity.' },
   ])
   try {
-    const child = spawn('python3', [join(root, 'scripts/sdk/python-live.py'), JSON.stringify(mercury), py.cwd], { env: { ...py.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
+    const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-live.py'), JSON.stringify(mercury), py.cwd], { env: { ...py.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
     assert.equal(await new Promise(r => child.once('close', r)), 0)
   } finally { await py.close() }
 } finally { clearTimeout(guard) }

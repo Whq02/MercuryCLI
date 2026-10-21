@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto'
 import type { EffortLevel, PermissionMode } from './door.js'
 import type { InputBlock, JsonSchema } from './rows.js'
 import type { RunOptions } from './client.js'
+import type { ResultOf } from './wire.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
 
@@ -84,4 +85,13 @@ export function withTools<T extends RunOptions>(options: T, server: ToolServer):
 export function textBlock(text: string): Extract<InputBlock, { type: 'text' }> { return { type: 'text', text } }
 export function imageBlock(data: Uint8Array | { path: string } | string, mediaType: string): Extract<InputBlock, { type: 'image' }> {
   return { type: 'image', media_type: mediaType, data: typeof data === 'string' ? data : Buffer.from('path' in data ? readFileSync(data.path) : data).toString('base64') }
+}
+export type AllowPermissionResult = Extract<ResultOf<'permission/request'>, { outcome: 'allow' }>
+export type DenyPermissionResult = Extract<ResultOf<'permission/request'>, { outcome: 'deny' }>
+export function allowPermission(options: Omit<AllowPermissionResult, 'outcome'> = {}): AllowPermissionResult {
+  return { outcome: 'allow', ...options }
+}
+export function denyPermission(message?: string | Omit<DenyPermissionResult, 'outcome'>, options: Omit<DenyPermissionResult, 'outcome' | 'message'> = {}): DenyPermissionResult {
+  if (typeof message === 'object' && message !== null) return { outcome: 'deny', ...message }
+  return { outcome: 'deny', ...(message === undefined ? {} : { message }), ...options }
 }

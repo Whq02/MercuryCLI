@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { PYTHON } from './runtime.ts'
 import { connect, MercuryError, METHODS } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 
@@ -55,6 +56,6 @@ await check('B6 void handlers and invalid permission answer', async () => {
   } finally { await fixture.close() }
 })
 const root = resolve(import.meta.dir, '../..')
-const python = spawnSync('python3', [resolve(import.meta.dir, 'python-blockers.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 30000 })
+const python = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-blockers.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 30000 })
 console.log(python.stdout); if (python.status !== 0) { failures.push('Python blockers'); console.error(python.stderr) }
 assert.deepEqual(failures, [])
