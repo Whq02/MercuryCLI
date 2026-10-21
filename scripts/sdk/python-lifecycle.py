@@ -62,6 +62,32 @@ async def boot_timeout():
     try: await asyncio.wait_for(connect(mercury=silent), 0.1)
     except asyncio.TimeoutError: pass
     else: raise AssertionError('a cancelled connect returned')
+    from mercury_cli_sdk import connect_sync, run_sync
+    from mercury_cli_sdk.testing import start_fixture_server
+    methods = {'initialize': [{'result': init}, {'result': init}], 'queue/add': [{'result': {'accepted': True}} for _ in range(6)], 'turn/interrupt': [{'result': {'interrupted': True}} for _ in range(3)]}
+    async with await start_fixture_server({'methods': methods}) as fixture:
+        async with await connect(mercury=fixture.mercury) as session:
+            await expect(session.prompt('timed', timeout=0.05), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            assert not any(m.get('method') == 'turn/interrupt' for m in fixture.received)
+            pre = asyncio.Event(); pre.set()
+            await expect(session.prompt('pre', cancel=pre), MercuryError, lambda e: str(e) == 'prompt: cancelled')
+            ev = asyncio.Event()
+            asyncio.get_running_loop().call_later(0.05, ev.set)
+            await expect(session.prompt('cancel-int', cancel=ev, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: cancelled')
+            await expect(session.prompt('timeout-int', timeout=0.05, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 2
+        def sync_check():
+            with connect_sync(mercury=fixture.mercury) as sync_session:
+                try: sync_session.prompt('sync-timeout', timeout=0.05, interrupt_on_timeout=True)
+                except MercuryError as e: assert str(e) == 'prompt: no answer within 0.05 seconds'
+                else: raise AssertionError('sync prompt timeout resolved')
+        await asyncio.to_thread(sync_check)
+        assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 3
+    session_row = fixture_session_row(session_id='sync-int')
+    idle_session = child('import signal,sys,time\nsignal.signal(signal.SIGINT, signal.SIG_DFL)\nprint(' + json.dumps(json.dumps(session_row)) + ', flush=True)\nwhile True: time.sleep(1)')
+    res = await asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.1, interrupt_on_timeout=True))
+    assert res.outcome['status'] == 'interrupted'
+    await expect(asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.05)), MercuryError, lambda e: str(e) == 'run: no outcome within 0.05 seconds')
 
 async def escalation():
     stubborn = child("import signal,sys,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('{bad', flush=True)\nwhile True: time.sleep(1)")

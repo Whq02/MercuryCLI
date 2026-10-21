@@ -268,30 +268,47 @@ class MercurySession(TypedRequests):
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
     @overload
-    async def prompt(self, content: Any, *, schema: StructuredSchema[T]) -> TypedOutcome[T]: ...
+    async def prompt(self, content: Any, *, schema: StructuredSchema[T], timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> TypedOutcome[T]: ...
     @overload
-    async def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None) -> OutcomeRow: ...
-    async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None) -> OutcomeRow:
+    async def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow: ...
+    async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, cancel: asyncio.Event | None = None, interrupt_on_cancel: bool = False) -> OutcomeRow:
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
+        if cancel is not None and cancel.is_set(): raise MercuryError('prompt: cancelled')
         self._prompting = True
         id = str(uuid.uuid4())
+        accepted = False
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
             if matches and 'parent_call_id' not in row and not future.done(): future.set_result(row)
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
+        async def watch_cancel() -> None:
+            assert cancel is not None
+            await cancel.wait()
+            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
+            fail(MercuryError('prompt: cancelled'))
+        cancel_task = asyncio.create_task(watch_cancel()) if cancel is not None else None
         self._prompt_error = fail
         self.on('outcome', done)
         turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
-            row = await future
+            accepted = True
+            try:
+                row = await (future if timeout is None else asyncio.wait_for(future, timeout))
+            except asyncio.TimeoutError as error:
+                raise MercuryError(f'prompt: no answer within {timeout} seconds') from error
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
+        except BaseException:
+            if accepted and interrupt_on_cancel and not self._closed:
+                with suppress(Exception): await asyncio.shield(self.interrupt())
+            raise
         finally:
+            if cancel_task is not None: cancel_task.cancel()
             if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)

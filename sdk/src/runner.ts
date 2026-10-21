@@ -28,7 +28,7 @@ export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'i
   onWriteTextFile?: HostHandlers['fs/write_text_file']
 }
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
-export type PromptOptions<T = unknown> = { signal?: AbortSignal; schema?: OutputSchema<T> }
+export type PromptOptions<T = unknown> = { signal?: AbortSignal; timeoutMs?: number | null; interruptOnAbort?: boolean; schema?: OutputSchema<T> }
 type Pending = { method: HostRequestName; resolve: (value: unknown) => void; reject: (error: Error) => void; cleanup: () => void }
 
 export class MercurySession implements AsyncIterable<StreamRow> {
@@ -276,25 +276,35 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
     const id = randomUUID()
+    let accepted = false
+    let aborted = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     let done!: (row: OutcomeRow) => void
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
     result.catch(() => undefined)
-    const abort = () => {
+    const cancel = (message: string) => {
+      aborted = true
       if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
-      fail(new MercuryError('prompt: cancelled', null))
+      if (options.interruptOnAbort && accepted && !this.#closed) void this.interrupt().catch(() => undefined)
+      fail(new MercuryError(message, null))
     }
+    const abort = () => cancel('prompt: cancelled')
     options.signal?.addEventListener('abort', abort, { once: true })
+    if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
     this.#promptReject = fail
     this.on('outcome', done)
     const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
+      accepted = true
+      if (aborted && options.interruptOnAbort && !this.#closed) void this.interrupt().catch(() => undefined)
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally {
+      clearTimeout(timer)
       if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
       options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
     }

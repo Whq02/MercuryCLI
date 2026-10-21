@@ -54,14 +54,22 @@ try {
       assert.equal(fixture.received.length, 2)
     } finally { await fixture.close() }
   })
-  await check('prompt() takes an AbortSignal: a timed-out wait releases the session for the next prompt', async () => {
-    const session = await connect({ mercury: fake(`const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}));if(m.method==='queue/add')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{accepted:true}}))})`) })
+  await check('prompt() takes an AbortSignal, timeoutMs and interruptOnAbort: a timed-out wait releases the session and optionally sends turn/interrupt', async () => {
+    const fixture = await startFixtureServer({ methods: { initialize: [{ result: init }], 'queue/add': [{ result: { accepted: true } }, { result: { accepted: true } }, { result: { accepted: true } }, { result: { accepted: true } }], 'turn/interrupt': [{ result: { interrupted: true } }, { result: { interrupted: true } }] } })
     try {
-      await assert.rejects(session.prompt('never answered', { signal: AbortSignal.timeout(50) }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-      await assert.rejects(session.prompt('pre-aborted', { signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-      const second = session.prompt('next', { signal: AbortSignal.timeout(50) })
-      await assert.rejects(second, (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-    } finally { await session.close() }
+      const session = await connect({ mercury: fixture.mercury })
+      try {
+        await assert.rejects(session.prompt('never answered', { signal: AbortSignal.timeout(50) }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
+        await assert.rejects(session.prompt('pre-aborted', { signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        await assert.rejects(session.prompt('timed out', { timeoutMs: 50 }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
+        await assert.rejects(session.prompt('abort with interrupt', { signal: AbortSignal.timeout(50), interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
+        await assert.rejects(session.prompt('timeout with interrupt', { timeoutMs: 50, interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        for (let i = 0; i < 20 && fixture.received.filter(m => m.method === 'turn/interrupt').length < 2; i++) await sleep(10)
+        assert.equal(fixture.received.filter(m => m.method === 'turn/interrupt').length, 2)
+      } finally { await session.close() }
+    } finally { await fixture.close() }
   })
   await check('connect() takes an AbortSignal: a runner that never answers initialize is cancelled and ended, and an abort after connecting closes the session', async () => {
     const silent = fake('process.stdin.resume()')

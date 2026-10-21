@@ -10,7 +10,7 @@ from .generated import InitializeParamsHost
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
 from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .parse import StreamRow
-from .errors import RunExit
+from .errors import MercuryError, RunExit
 from .structured import StructuredSchema
 
 T = TypeVar('T')
@@ -24,11 +24,22 @@ class RunResult:
     exit: RunExit
 
 
-def run_sync(prompt: str | None = None, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> RunResult:
+def run_sync(prompt: str | None = None, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> RunResult:
     """Collect one run, using a worker when the caller has an active event loop."""
     async def collect() -> RunResult:
         async with await run(prompt, schema=schema, options=options, **kwargs) as handle:
-            outcome = await handle.outcome
+            if timeout is None:
+                outcome = await handle.outcome
+            else:
+                try:
+                    outcome = await asyncio.wait_for(asyncio.shield(handle.outcome), timeout)
+                except asyncio.TimeoutError as error:
+                    if interrupt_on_timeout:
+                        handle.interrupt()
+                        outcome = await handle.outcome
+                    else:
+                        handle.terminate()
+                        raise MercuryError(f'run: no outcome within {timeout} seconds') from error
             return RunResult(outcome, handle.rows, await handle.exit)
     try: asyncio.get_running_loop()
     except RuntimeError: return asyncio.run(collect())
@@ -78,11 +89,11 @@ class SyncSession(TypedSyncRequests):
         return self.session.exit.result() if self.session.exit.done() else self._wait(wait())
 
     @overload
-    def prompt(self, content: Any, *, schema: StructuredSchema[T]) -> TypedOutcome[T]: ...
+    def prompt(self, content: Any, *, schema: StructuredSchema[T], timeout: float | None = None, interrupt_on_timeout: bool = False) -> TypedOutcome[T]: ...
     @overload
-    def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None) -> OutcomeRow: ...
-    def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None) -> OutcomeRow:
-        return self._wait(self.session.prompt(content, schema=schema))
+    def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow: ...
+    def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, timeout: float | None = None, interrupt_on_timeout: bool = False) -> OutcomeRow:
+        return self._wait(self.session.prompt(content, schema=schema, timeout=timeout, interrupt_on_cancel=interrupt_on_timeout))
 
     def send(self, row: InputRow) -> QueueAddResult: return self._wait(self.session.send(row))
     def send_prompt(self, content: Any, **options: Any) -> QueueAddResult: return self._wait(self.session.send_prompt(content, **options))
