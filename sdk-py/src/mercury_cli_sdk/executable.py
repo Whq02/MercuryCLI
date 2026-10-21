@@ -83,7 +83,7 @@ def executable_of(executable: str | list[str] | None, env: dict[str, str] | None
         if bundle: return [*bundle, *args]
         stable = Path(variable('LOCALAPPDATA') or home / 'AppData' / 'Local') / 'Mercury' / 'bin' / 'mercury.cmd' if win else home / '.local' / 'bin' / 'mercury'
         prefix = variable('HOMEBREW_PREFIX')
-        brew = [] if win else [*([Path(prefix, 'bin', 'mercury')] if prefix else []), *(Path(path) for path in HOMEBREW_COMMANDS)]
+        brew = [] if win or not variable('PATH') else [*([Path(prefix, 'bin', 'mercury')] if prefix else []), *(Path(path) for path in HOMEBREW_COMMANDS)]
         found = on_path(command) or next((candidate for candidate in (stable, home / '.mercury' / 'bin' / 'mercury', *brew) if runnable(candidate)), None)
         return [*file(str(found)), *args] if found else [command, *args]
     named = str(on_path(command) or command) if is_shim(command) and '/' not in command and '\\' not in command else command

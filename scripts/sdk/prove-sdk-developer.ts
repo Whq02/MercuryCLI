@@ -294,13 +294,14 @@ try {
     writeFileSync(join(libexec, 'mercury'), `#!/bin/sh\nexec ${JSON.stringify(node)} "$(dirname "$0")/mercury.mjs" "$@"\n`); chmodSync(join(libexec, 'mercury'), 0o755)
     writeFileSync(join(keg, 'bin', 'mercury'), `#!/bin/bash\nexec ${JSON.stringify(join(libexec, 'mercury'))} "$@"\n`); chmodSync(join(keg, 'bin', 'mercury'), 0o755)
     symlinkSync(join('..', 'Cellar', 'mercury', '1.0.0-beta.40', 'bin', 'mercury'), join(brewBin, 'mercury'))
-    const prefixed = { ...hermetic, HOMEBREW_PREFIX: join(deeper, 'brew') }
+    const prefixed = { HOME: deeper, PATH: '/usr/bin:/bin', HOMEBREW_PREFIX: join(deeper, 'brew') }
+    assert.deepEqual(executableOf(undefined, { ...prefixed, PATH: '' }), ['mercury'], 'an empty PATH is a hermetic caller: the Homebrew rung is not tried')
     assert.deepEqual(executableOf(undefined, prefixed), [join(brewBin, 'mercury')], 'a keg without its vendored runtime runs through its wrapper')
     writeFileSync(join(libexec, 'vendor', 'node', 'bin', 'node'), `#!/bin/sh\nexec ${JSON.stringify(node)} "$@"\n`); chmodSync(join(libexec, 'vendor', 'node', 'bin', 'node'), 0o755)
     const bundle = [join(libexec, 'vendor', 'node', 'bin', 'node'), join(libexec, 'mercury.mjs')]
     const { HOMEBREW_COMMANDS } = await import('../../sdk/src/executable.ts') as { HOMEBREW_COMMANDS?: readonly string[] }
     assert.deepEqual(HOMEBREW_COMMANDS && [...HOMEBREW_COMMANDS], ['/opt/homebrew/bin/mercury', '/usr/local/bin/mercury', '/home/linuxbrew/.linuxbrew/bin/mercury'], 'the fixed Homebrew and Linuxbrew commands')
-    assert.deepEqual(executableOf(undefined, prefixed), bundle, `with PATH empty the Homebrew wrapper is found and resolved to the keg bundle on its vendored node; got ${JSON.stringify(executableOf(undefined, prefixed))}`)
+    assert.deepEqual(executableOf(undefined, prefixed), bundle, `on a GUI host's stripped PATH the Homebrew wrapper is found and resolved to the keg bundle on its vendored node; got ${JSON.stringify(executableOf(undefined, prefixed))}`)
     assert.deepEqual(executableOf(undefined, { ...hermetic, PATH: brewBin }), bundle, 'the wrapper found on PATH resolves the same way')
     assert.deepEqual(executableOf(join(brewBin, 'mercury'), hermetic), bundle, 'and the wrapper named outright')
     assert.deepEqual(executableOf(undefined, { ...hermetic, MERCURY_BIN: join(brewBin, 'mercury') }), bundle, 'and MERCURY_BIN naming it')

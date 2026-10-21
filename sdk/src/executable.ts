@@ -76,7 +76,7 @@ export function executableOf(executable: string | readonly string[] | undefined,
     if (bundle) return [...bundle, ...parts]
     const stable = win ? join(variable('LOCALAPPDATA') || join(home, 'AppData', 'Local'), 'Mercury', 'bin', 'mercury.cmd') : join(home, '.local', 'bin', 'mercury')
     const prefix = variable('HOMEBREW_PREFIX')
-    const brew = win ? [] : [...(prefix ? [join(prefix, 'bin', 'mercury')] : []), ...HOMEBREW_COMMANDS]
+    const brew = win || !variable('PATH') ? [] : [...(prefix ? [join(prefix, 'bin', 'mercury')] : []), ...HOMEBREW_COMMANDS]
     const found = onPath(command) ?? [stable, join(home, '.mercury', 'bin', 'mercury'), ...brew].find(runnable)
     return found ? [...file(found), ...parts] : [command, ...parts]
   }

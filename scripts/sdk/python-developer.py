@@ -332,7 +332,8 @@ async def discovery_deeper():
         (libexec / 'mercury').write_text(f'#!/bin/sh\nexec "{node}" "$(dirname "$0")/mercury.mjs" "$@"\n'); (libexec / 'mercury').chmod(0o755)
         (keg / 'bin' / 'mercury').write_text(f'#!/bin/bash\nexec "{libexec / "mercury"}" "$@"\n'); (keg / 'bin' / 'mercury').chmod(0o755)
         os.symlink(os.path.join('..', 'Cellar', 'mercury', '1.0.0-beta.40', 'bin', 'mercury'), brew_bin / 'mercury')
-        prefixed = {**hermetic, 'HOMEBREW_PREFIX': str(deeper / 'brew')}
+        prefixed = {'HOME': str(deeper), 'PATH': '/usr/bin:/bin', 'HOMEBREW_PREFIX': str(deeper / 'brew')}
+        assert executable_of(None, {**prefixed, 'PATH': ''}) == ['mercury'], 'an empty PATH is a hermetic caller: the Homebrew rung is not tried'
         assert executable_of(None, prefixed) == [str(brew_bin / 'mercury')], 'a keg without its vendored runtime runs through its wrapper'
         (libexec / 'vendor' / 'node' / 'bin' / 'node').write_text(f'#!/bin/sh\nexec "{node}" "$@"\n'); (libexec / 'vendor' / 'node' / 'bin' / 'node').chmod(0o755)
         bundle = [str(libexec / 'vendor' / 'node' / 'bin' / 'node'), str(libexec / 'mercury.mjs')]
