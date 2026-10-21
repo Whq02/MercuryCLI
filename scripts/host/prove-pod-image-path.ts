@@ -16,7 +16,8 @@ try {
   const bin = join(home, 'image-bin')
   mkdirSync(bin)
   const calls = join(home, 'calls')
-  for (const name of ['hf', 'sglang']) writeFileSync(join(bin, name), '#!/bin/sh\nprintf "%s\\n" "' + name + ' $*" >> "' + calls + '"\n', { mode: 0o700 })
+  const seenEnvironment = join(home, 'calls.env')
+  for (const name of ['hf', 'sglang']) writeFileSync(join(bin, name), '#!/bin/sh\nprintf "%s\\n" "' + name + ' $*" >> "' + calls + '"\nenv >> "' + seenEnvironment + '"\n', { mode: 0o700 })
   const environ = join(home, 'pid1-environ')
   writeFileSync(environ, 'PATH=' + bin + ':/usr/bin:/bin\0NOT_FOR_SSH=do-not-copy\0')
   let script = ''
@@ -45,5 +46,10 @@ try {
   assert.match(invoked, /sglang serve --model-path/)
   for (const flag of recipe.flags) assert.ok(invoked.includes(flag), 'recipe flag retained: ' + flag)
   assert.ok(!script.includes('eval ') && !script.includes('source /proc/1/environ'), 'only the image PATH is imported, never executable environment text')
-  console.log('POD IMAGE PATH GREEN · generated launch finds downloader and engine with the SSH PATH stripped; every serving flag retained')
+  const seen = readFileSync(seenEnvironment, 'utf8')
+  const pathLines = seen.split('\n').filter(line => line.startsWith('PATH='))
+  assert.equal(pathLines.length, 2, 'the downloader and the engine each recorded the environment they were launched with')
+  assert.ok(!seen.includes('NOT_FOR_SSH='), 'the image environment reaches the engine as PATH alone: the decoy variable beside PATH stays behind')
+  assert.ok(pathLines.every(line => line.split('=')[1]!.split(':').includes(bin)), 'the image PATH is part of the PATH the downloader and the engine run with')
+  console.log('POD IMAGE PATH GREEN · generated launch finds downloader and engine with the SSH PATH stripped; PATH alone crosses, the decoy variable stays behind; every serving flag retained')
 } finally { rmSync(home, { recursive: true, force: true }) }
