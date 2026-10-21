@@ -218,7 +218,10 @@ def send_signal(child: asyncio.subprocess.Process, name: Literal['SIGINT', 'SIGT
 def exit_of(child: asyncio.subprocess.Process, code: int, stderr: str) -> RunExit:
     """The exit receipt: the signal that ended the child, or its code; on Windows a child the package ended reports the signal it sent."""
     sent = _sent.pop(child.pid, None) if child.pid is not None else None
-    if code < 0 and not WINDOWS: return RunExit(None, signal.Signals(-code).name, stderr)
+    if code < 0 and not WINDOWS:
+        try: name = signal.Signals(-code).name
+        except ValueError: name = f'SIG{-code}'
+        return RunExit(None, name, stderr)
     if WINDOWS and sent is not None and code == 1: return RunExit(None, sent, stderr)
     return RunExit(code, None, stderr)
 

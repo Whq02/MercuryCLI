@@ -403,7 +403,35 @@ async def crlf_stderr():
     assert exit.stderr == 'runner\nup\nnow\n' == session.stderr == ''.join(seen), (exit.stderr, session.stderr, seen)
 
 
+async def unnamed_signal():
+    def named(number):
+        try: signal.Signals(number)
+        except ValueError: return False
+        return True
+    numbers = [] if WINDOWS else [number for number in range(1, getattr(signal, 'NSIG', 65)) if not named(number)]
+    if not numbers:
+        print('SKIP a signal number this Python cannot name: every number of this platform is named (Linux has the real-time numbers)')
+        return
+    number = numbers[0]
+    sleeper = child('import time\nwhile True: time.sleep(1)')
+    task = await run('x', mercury=sleeper)
+    await asyncio.sleep(0.2)
+    os.kill(task.child.pid, number)
+    exit = await asyncio.wait_for(task.exit, 5)
+    assert exit.code is None and exit.signal == f'SIG{number}', exit
+    await expect(task.outcome, MercuryExitError, lambda e: str(e) == f'mercury run ended by SIG{number} before an outcome row')
+    runner = child("import json,sys,time\nfor line in sys.stdin:\n    m = json.loads(line)\n    if m.get('method') == 'initialize': print(json.dumps({'jsonrpc': '2.0', 'id': m['id'], 'result': " + repr(init) + "}), flush=True)\n")
+    session = await connect(mercury=runner)
+    waiting = asyncio.ensure_future(session.prompt('x'))
+    await asyncio.sleep(0.2)
+    os.kill(session.child.pid, number)
+    exit = await asyncio.wait_for(session.exit, 5)
+    assert exit.code is None and exit.signal == f'SIG{number}', exit
+    await expect(waiting, MercuryExitError, lambda e: str(e) == f'mercury runner ended by SIG{number} before the session was closed')
+
+
 async def main():
+    await check('Python a child ended by a signal number this Python cannot name still settles exit and outcome, with the number in the receipt', unnamed_signal)
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python FixtureServer.close() returns at once with a peer still on the socket: hello sent and nothing more, and a reader that stopped taking the replay', fixture_close)
     await check('Python closing a session while a runner ask is in flight: no error event, no unretrieved task exception, exit 0', close_mid_ask)
