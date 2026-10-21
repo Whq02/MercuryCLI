@@ -642,7 +642,11 @@ fi
 # POSIX launcher. No second version selection anywhere.
 if [ -f "$root/$ver/mercury.cmd" ] && [ -f "$root/$ver/mercury.mjs" ]; then
   road=cmd
-  case "\${1:-}" in run|-*) road=node ;; esac
+  case "\${1:-}" in
+    -*) road=node ;;
+    ''|*[!A-Za-z0-9_-]*) ;;
+    [A-Za-z]*) road=node ;;
+  esac
   [ -t 0 ] || road=node
   nl='
 '
