@@ -15,6 +15,10 @@ import { serveTools, withTools, type ToolServer } from './helpers.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
 export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, context: RequestContext) => ResultOf<M> | (keyof ResultOf<M> extends never ? void : never) | Promise<ResultOf<M> | (keyof ResultOf<M> extends never ? void : never)> }
+export type PermissionHandler = NonNullable<HostHandlers['permission/request']>
+export type ElicitationHandler = NonNullable<HostHandlers['elicitation/request']>
+export type ReadTextFileHandler = NonNullable<HostHandlers['fs/read_text_file']>
+export type WriteTextFileHandler = NonNullable<HostHandlers['fs/write_text_file']>
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
   signal?: AbortSignal
   warm?: boolean
@@ -265,6 +269,14 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   rewind(options: ParamsOf<'session/rewind'>) { return this.request('session/rewind', options) }
   stopAgent(agent_id: string, note?: string) { return this.request('agent/stop', { agent_id, note }) }
   resumeAgent(agent_id: string, note?: string) { return this.request('agent/resume', { agent_id, note }) }
+  mcpTools(name: string) { return this.request('mcp/tools', { name }) }
+  mcpAction(name: string, action: ParamsOf<'mcp/action'>['action']) { return this.request('mcp/action', { name, action }) }
+  pauseGate(paused: boolean) { return this.request('session/pause_gate', { paused }) }
+  quiesce(action: ParamsOf<'session/quiesce'>['action'], token: string) { return this.request('session/quiesce', { action, token }) }
+  leave() { return this.request('session/leave', {}) }
+  setSpawnSwitch(kind: ParamsOf<'session/set_spawn_switch'>['switch'], on: boolean) { return this.request('session/set_spawn_switch', { switch: kind, on }) }
+  backgroundShell() { return this.request('shell/background', {}) }
+  notifyCredentialsChanged(params: ParamsOf<'credentials/changed'> = {}) { this.notify('credentials/changed', params) }
   async claim(params: ParamsOf<'session/claim'>) {
     const receipt = await this.request('session/claim', params)
     this.initialized.session_id = receipt.session_id

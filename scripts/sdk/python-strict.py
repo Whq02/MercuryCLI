@@ -73,8 +73,10 @@ asyncio.run(main())
 from typing import Any, NotRequired, assert_type
 from mercury_cli_sdk import (
     InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, TypedRunResult,
+    McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult,
     PromptContent, PromptInput, StepRow, TurnRow, RowType, PartialRowType, InputRowType,
     is_outcome, is_session_row, turn_opened, turn_waiting, main_thread_step, is_main_thread, outcome_failed, outcome_error_text, is_row_type, is_input_row_type,
+    is_retryable_outcome, assert_completed, allow_permission, deny_permission,
     text_block, image_block, structured_schema, prewarm,
 )
 
@@ -117,13 +119,26 @@ def typed_predicates(row: StreamRow | None, kind: str, typed_result: TypedRunRes
 
 
 def typed_sync() -> None:
+    from typing import Literal
     with connect_sync() as session:
         assert_type(session.prompt('test'), OutcomeRow)
+        assert_type(assert_completed(session.prompt('test')), OutcomeRow)
+        assert_type(is_retryable_outcome(session.prompt('test')), bool)
+        assert_type(allow_permission()['outcome'], Literal['allow'])
+        assert_type(deny_permission('no')['outcome'], Literal['deny'])
         assert_type(session.facts(), SessionFactsResult)
         assert_type(session.request('session/facts'), SessionFactsResult)
         assert_type(session.rewind('id', 'code'), SessionRewindResult)
         assert_type(session.stop_agent('a'), AgentStopResult)
         assert_type(session.resume_agent('a'), AgentResumeResult)
+        assert_type(session.mcp_tools('s'), McpToolsResult)
+        assert_type(session.mcp_action('s', 'reconnect'), McpActionResult)
+        assert_type(session.pause_gate(False), SessionPauseGateResult)
+        assert_type(session.quiesce('prepare', 't'), SessionQuiesceResult)
+        assert_type(session.leave(), SessionLeaveResult)
+        assert_type(session.set_spawn_switch('subagents', True), SessionSetSpawnSwitchResult)
+        assert_type(session.background_shell(), ShellBackgroundResult)
+        session.notify_credentials_changed()
         assert_type(session.send_prompt('test'), QueueAddResult)
         assert_type(session.last_prompt_id, str | None)
         assert_type(session.file_checkpoints, InitializeResultFile_checkpoints | None)

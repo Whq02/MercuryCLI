@@ -3,7 +3,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterable, Generic, Literal, Mapping, NotRequired, Sequence, TypeAlias, TypedDict, TypeGuard, TypeVar, cast
-from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, ROW_TYPES, PARTIAL_ROW_TYPES, INPUT_ROW_TYPES, Row, InputRow, InputBlock, RowType, PartialRowType, InputRowType, OutcomeRow, SessionRow, TurnRow, StepRow
+from .generated import ROWS_SCHEMA, ROW_SCHEMAS, INPUT_ROW_SCHEMAS, ROW_TYPES, PARTIAL_ROW_TYPES, INPUT_ROW_TYPES, Row, InputRow, InputBlock, RowType, PartialRowType, InputRowType, OutcomeRow, SessionRow, TurnRow, StepRow, TypedOutcome
 
 PromptContent: TypeAlias = str | Sequence[InputBlock]
 PromptInput: TypeAlias = str | Sequence[InputBlock] | AsyncIterable[str | InputRow]
@@ -165,6 +165,22 @@ def outcome_failed(row: OutcomeRow) -> bool:
 def outcome_error_text(row: OutcomeRow) -> str | None:
     error = row.get('error')
     return error.get('message') if isinstance(error, Mapping) else None
+
+
+_RETRYABLE_ERROR_CLASSES: frozenset[str] = frozenset({'rate_limit', 'server', 'idle_timeout', 'cut', 'model'})
+
+
+def is_retryable_outcome(row: OutcomeRow) -> bool:
+    error = row.get('error')
+    return row['status'] == 'failed' and isinstance(error, Mapping) and error.get('class') in _RETRYABLE_ERROR_CLASSES
+
+
+def assert_completed(row: TypedOutcome[T]) -> TypedOutcome[T]:
+    from .errors import MercuryError, MercuryRefusal
+    if row['status'] == 'refused': raise MercuryRefusal(row)
+    if row['status'] != 'completed':
+        raise MercuryError(outcome_error_text(row) or f"turn ended with status {row['status']}")
+    return row
 
 
 def parse_row(line: str) -> RowRead[StreamRow]:

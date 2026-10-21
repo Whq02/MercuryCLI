@@ -76,6 +76,32 @@ try {
   for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') assert(rpc.received.some(r => r.method === name), name)
 } finally { await rpc.close() }
 
+const convenienceMethods = Object.fromEntries(['mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background'].map(name => [name, [{ result: example(sdk.METHODS[name as sdk.MethodName].result) }]]))
+const convenienceRpc = await startFixtureServer({ methods: { initialize: methods.initialize, ...convenienceMethods } })
+try {
+  const s = await sdk.connect({ mercury: convenienceRpc.mercury })
+  try {
+    assert.deepEqual(await s.mcpTools('srv'), convenienceMethods['mcp/tools']![0]!.result)
+    assert.deepEqual(await s.mcpAction('srv', 'reconnect'), convenienceMethods['mcp/action']![0]!.result)
+    assert.deepEqual(await s.pauseGate(true), convenienceMethods['session/pause_gate']![0]!.result)
+    assert.deepEqual(await s.quiesce('prepare', 'tok'), convenienceMethods['session/quiesce']![0]!.result)
+    assert.deepEqual(await s.leave(), convenienceMethods['session/leave']![0]!.result)
+    assert.deepEqual(await s.setSpawnSwitch('subagents', true), convenienceMethods['session/set_spawn_switch']![0]!.result)
+    assert.deepEqual(await s.backgroundShell(), convenienceMethods['shell/background']![0]!.result)
+    s.notifyCredentialsChanged()
+  } finally { await s.close() }
+  assert(convenienceRpc.received.some(r => r.method === 'credentials/changed'))
+} finally { await convenienceRpc.close() }
+
+assert.deepEqual(sdk.allowPermission({ input: { a: 1 } }), { outcome: 'allow', input: { a: 1 } })
+assert.deepEqual(sdk.denyPermission('no', { stop: true }), { outcome: 'deny', message: 'no', stop: true })
+assert.deepEqual(sdk.denyPermission({ message: 'no', stop: true }), { outcome: 'deny', message: 'no', stop: true })
+assert.equal(sdk.isRetryableOutcome({ ...outcome, status: 'failed', error: { message: '429', class: 'rate_limit' } }), true)
+assert.equal(sdk.isRetryableOutcome({ ...outcome, status: 'failed', error: { message: '401', class: 'auth' } }), false)
+assert.equal(sdk.assertCompleted(outcome).status, 'completed')
+assert.throws(() => sdk.assertCompleted({ ...outcome, status: 'failed', error: { message: 'boom', class: 'internal' } }), sdk.MercuryError)
+assert.throws(() => sdk.assertCompleted({ ...outcome, status: 'refused', error: { message: 'nope', class: 'option' } }), sdk.MercuryRefusal)
+
 const tools = await sdk.serveTools([sdk.defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (input: { text: string }) => input.text })])
 try {
   const response = await fetch(tools.config.url, { method: 'POST', headers: { ...tools.config.headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'echo', arguments: { text: 'from inline tool' } } }) })

@@ -5,10 +5,10 @@ import json
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
+from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
 
@@ -338,6 +338,14 @@ class MercurySession(TypedRequests):
     async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
     async def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
     async def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
+    async def mcp_tools(self, name: str) -> McpToolsResult: return await self.request('mcp/tools', {'name': name})
+    async def mcp_action(self, name: str, action: Literal['authenticate', 'reconnect', 'cancel-auth']) -> McpActionResult: return await self.request('mcp/action', {'name': name, 'action': action})
+    async def pause_gate(self, paused: bool) -> SessionPauseGateResult: return await self.request('session/pause_gate', {'paused': paused})
+    async def quiesce(self, action: Literal['prepare', 'commit', 'cancel'], token: str) -> SessionQuiesceResult: return await self.request('session/quiesce', {'action': action, 'token': token})
+    async def leave(self) -> SessionLeaveResult: return await self.request('session/leave')
+    async def set_spawn_switch(self, switch: Literal['subagents', 'workflows'], on: bool) -> SessionSetSpawnSwitchResult: return await self.request('session/set_spawn_switch', {'switch': switch, 'on': on})
+    async def background_shell(self) -> ShellBackgroundResult: return await self.request('shell/background')
+    async def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: await self.notify('credentials/changed', params)
     async def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
         params: SessionClaimParams = {'session_id': session_id}
         if model is not None: params['model'] = model

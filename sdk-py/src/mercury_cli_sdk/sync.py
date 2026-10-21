@@ -4,11 +4,11 @@ import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Coroutine, Iterator, Mapping, TypeVar, Unpack, overload
+from typing import Any, Coroutine, Iterator, Literal, Mapping, TypeVar, Unpack, overload
 from .client import ConnectKwargs, Listener, RunKwargs, RunOptions, run
 from .generated import InitializeParamsHost
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
-from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .parse import StreamRow
 from .errors import MercuryError, RunExit
 from .structured import StructuredSchema
@@ -111,6 +111,14 @@ class SyncSession(TypedSyncRequests):
     def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return self._wait(self.session.rewind(user_message_id, mode, dry_run))
     def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return self._wait(self.session.stop_agent(agent_id, note))
     def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return self._wait(self.session.resume_agent(agent_id, note))
+    def mcp_tools(self, name: str) -> McpToolsResult: return self._wait(self.session.mcp_tools(name))
+    def mcp_action(self, name: str, action: Literal['authenticate', 'reconnect', 'cancel-auth']) -> McpActionResult: return self._wait(self.session.mcp_action(name, action))
+    def pause_gate(self, paused: bool) -> SessionPauseGateResult: return self._wait(self.session.pause_gate(paused))
+    def quiesce(self, action: Literal['prepare', 'commit', 'cancel'], token: str) -> SessionQuiesceResult: return self._wait(self.session.quiesce(action, token))
+    def leave(self) -> SessionLeaveResult: return self._wait(self.session.leave())
+    def set_spawn_switch(self, switch: Literal['subagents', 'workflows'], on: bool) -> SessionSetSpawnSwitchResult: return self._wait(self.session.set_spawn_switch(switch, on))
+    def background_shell(self) -> ShellBackgroundResult: return self._wait(self.session.background_shell())
+    def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: self._wait(self.session.notify_credentials_changed(params))
     def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
         return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, openai_catalogue=openai_catalogue))
     def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any: return self._wait(self.session.request(method, params, timeout=timeout))

@@ -7,7 +7,7 @@ import { BUN, PYTHON, resolvePython } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-build-'))
-const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, isOutcome, isSessionRow, turnOpened, turnWaiting, mainThreadStep, isMainThread, outcomeFailed, outcomeErrorText, isRowType, isInputRowType, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
+const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, allowPermission, denyPermission, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, isOutcome, isSessionRow, turnOpened, turnWaiting, mainThreadStep, isMainThread, outcomeFailed, outcomeErrorText, isRetryableOutcome, assertCompleted, isRowType, isInputRowType, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type PermissionHandler, type ElicitationHandler, type ReadTextFileHandler, type WriteTextFileHandler, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
 import { startFixtureServer } from 'mercury-cli-sdk/testing'
 
 const descriptor = structuredSchema({ type: 'object' }, value => ({ count: (value as { count: number }).count }))
@@ -44,6 +44,13 @@ try {
   console.log('queued' in resumed ? resumed.queued : resumed.output_file)
   const receipt = await session.sendPrompt('more', { id: 'abc', priority: 'next' })
   console.log(receipt.accepted)
+  await session.mcpTools('s'); await session.mcpAction('s', 'reconnect'); await session.pauseGate(false); await session.quiesce('prepare', 't'); await session.leave(); await session.setSpawnSwitch('subagents', true); await session.backgroundShell(); session.notifyCredentialsChanged()
+  console.log(allowPermission(), denyPermission('no'), isRetryableOutcome(first), assertCompleted(first).status)
+  const permHandler: PermissionHandler = () => allowPermission()
+  const elicitHandler: ElicitationHandler = () => ({ action: 'decline' })
+  const readHandler: ReadTextFileHandler = () => ({ content: '' })
+  const writeHandler: WriteTextFileHandler = () => {}
+  console.log(typeof permHandler, typeof elicitHandler, typeof readHandler, typeof writeHandler)
   await session.request('session/pause_gate', { paused: false })
   session.on('notification', n => console.log(n.method, n.params))
 } catch (error) {

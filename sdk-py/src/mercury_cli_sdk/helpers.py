@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Annotated, Any, Awaitable, Callable, Literal, Mapping, NotRequired, Required, TypedDict, Union, get_args, get_origin, get_type_hints, is_typeddict, cast
 from types import UnionType
 from .parse import validate
-from .generated import InputBlock, PermissionMode, EffortLevel
+from .generated import InputBlock, PermissionMode, EffortLevel, PermissionRequestResultChoice0, PermissionRequestResultChoice1
 from .version import __version__
 
 
@@ -218,3 +218,17 @@ def text_block(text: str) -> InputBlock:
 
 def image_block(data: bytes | Path | str, media_type: str) -> InputBlock:
     return {'type': 'image', 'media_type': media_type, 'data': data if isinstance(data, str) else base64.b64encode(data.read_bytes() if isinstance(data, Path) else data).decode('ascii')}
+
+
+def allow_permission(*, input: dict[str, Any] | None = None, rules: list[Any] | None = None) -> PermissionRequestResultChoice0:
+    result: PermissionRequestResultChoice0 = {'outcome': 'allow'}
+    if input is not None: result['input'] = input
+    if rules is not None: result['rules'] = rules
+    return result
+
+
+def deny_permission(message: str | None = None, *, stop: bool | None = None) -> PermissionRequestResultChoice1:
+    result: PermissionRequestResultChoice1 = {'outcome': 'deny'}
+    if message is not None: result['message'] = message
+    if stop is not None: result['stop'] = stop
+    return result
