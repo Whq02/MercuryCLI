@@ -1,5 +1,7 @@
 import * as React from 'react'
-import { Box, Text } from '../../ink.js'
+import { Box, Text, wrapText } from '../../ink.js'
+import { useModalOrTerminalSize } from '../../context/modalContext.js'
+import { PopupForm } from '../../components/PopupForm.js'
 import { Select } from '../../components/CustomSelect/index.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
@@ -119,6 +121,8 @@ function currentLine(decision: ComputedDefault): string {
 
 function DefaultProviderPicker({ onDone }: { onDone: LocalJSXCommandOnDone }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { rows, columns } = useModalOrTerminalSize()
+  const width = Math.max(1, columns - 1)
   const decision = computedDefault()
   const current = decision.provider ?? undefined
   const presences = providerFamilyPresences()
@@ -133,16 +137,18 @@ function DefaultProviderPicker({ onDone }: { onDone: LocalJSXCommandOnDone }): R
     )
     return { label: `${providerDisplayName(id)} — ${marks.join(' · ')}`, value: id }
   })
+  const explanation = `${currentLine(decision)} The default is the provider of the most recent sign-in; a switch here is your word that a provider is the most recent, and the next sign-in moves it again. Explicit /model picks always win.`
+  const hint = '↑↓ move · pgup/pgdn page · ↵ sets · esc closes'
+  const lineCount = (text: string, span = width) => wrapText(text, Math.max(1, span), 'wrap').split('\n').length
+  const listRows = Math.max(1, rows - 4 - lineCount(explanation) - lineCount(hint))
+  const rowHeight = Math.max(1, ...options.map(option => lineCount(option.label, width - 8)))
   return (
-    <Box flexDirection="column" gap={1} paddingLeft={1}>
+    <Box flexDirection="column" gap={1} paddingLeft={1} flexShrink={0}>
       <Text bold>Default provider</Text>
-      <Text dimColor>
-        {currentLine(decision)} The default is the provider of the most recent sign-in; a switch here is
-        your word that a provider is the most recent, and the next sign-in moves it again. Explicit
-        /model picks always win.
-      </Text>
+      <Text dimColor>{explanation}</Text>
+      <PopupForm width={width} rows={listRows}>
       <Select
-        visibleOptionCount={options.length}
+        visibleOptionCount={Math.max(1, Math.floor(listRows / rowHeight))}
         options={options}
         {...(current !== undefined ? { defaultFocusValue: current } : {})}
         onChange={value => {
@@ -150,7 +156,8 @@ function DefaultProviderPicker({ onDone }: { onDone: LocalJSXCommandOnDone }): R
         }}
         onCancel={() => onDone(undefined, { display: 'skip' })}
       />
-      <Text color={tokens.textSecondary}>↵ sets · esc closes</Text>
+      </PopupForm>
+      <Text color={tokens.textSecondary}>{hint}</Text>
     </Box>
   )
 }
