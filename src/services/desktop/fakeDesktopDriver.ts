@@ -474,6 +474,9 @@ export class FakeDesktopDriver implements DesktopDriver {
     return { kind: 'fake', version: FAKE_DRIVER_VERSION, platform: `${process.platform}-${process.arch}`, source: 'fake' }
   }
 
+  async keyboardIdleMs(): Promise<number | null> {
+    return null
+  }
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
     return answer({ ...this.scene.permissions })
   }

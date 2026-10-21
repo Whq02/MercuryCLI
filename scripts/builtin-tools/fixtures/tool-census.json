@@ -422,7 +422,9 @@
         "cursor",
         "displays",
         "frontmost",
-        "tree"
+        "tree",
+        "find",
+        "sequence"
       ],
       "units": [
         "desktop-drive"
@@ -454,7 +456,9 @@
           "cursor",
           "displays",
           "frontmost",
-          "tree"
+          "tree",
+          "find",
+          "sequence"
         ],
         "execution": {
           "kind": "desktop-session",

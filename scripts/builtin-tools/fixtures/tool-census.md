@@ -30,7 +30,7 @@ Census version 1 — 69 built-in production tools · 181 operations · 69 with a
 | Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
-| Computer | execution | desktop-drive | 15 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
+| Computer | execution | desktop-drive | 17 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | Crewmate | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |

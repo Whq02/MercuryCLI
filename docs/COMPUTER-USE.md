@@ -8,6 +8,82 @@ access setting before acting. When approval is needed, it asks by the
 application's name. It is on by default when the desktop driver is available;
 the rest of Mercury does not depend on it.
 
+## Targeting controls and taking fewer screenshots
+
+Read `tree` when a control's name answers the question; use a screenshot when
+pixels matter. Mouse actions accept `target: { role, name, text }` instead of
+`x` and `y`: role and name match exactly, ignoring case and repeated whitespace;
+text matches a substring of the title or value. Supply only the fields needed
+to identify one element. A missing, ambiguous or truncated match, or an element
+without bounds, refuses with a remedy. Targets are resolved afresh before the
+act. `find` accepts the same target and returns matching bounds without an image.
+
+For example, `click` with `target: { role: "AXButton", name: "Save" }` clicks
+that control's centre. `move` hovers over a target; `scroll` scrolls at it;
+`drag` accepts a start target and a `toTarget` destination. Pixel coordinates
+remain available. `click` also accepts `count: 3` for a triple-click.
+
+`settleMs` is the maximum settling time, not a fixed pause: consecutive matching
+frames end it early. Its default is 300 ms and its cap is 5000 ms. The result
+says whether the screen became stable or reached the cap. Intermediate frames
+are not saved or sent to the model. `capture: false` skips both capture and
+settling when the next step does not need pixels.
+
+`wait` accepts `until: { role, name, text }` to poll the application's tree
+until a matching element appears, bounded by `durationMs` (default 1000 ms,
+cap 10000 ms). A timeout or a changed front window is reported, not treated as
+success. `capture: false` makes this an image-free check.
+
+A screenshot, or the screenshot after an act, can take
+`region: { x, y, width, height }` in pixels of the last screenshot. The saved
+and transmitted image contains only that rectangle; its top-left becomes
+`(0, 0)` for subsequent pixel actions. The full display is captured locally
+before cropping. Cropping reduces image size, not display acquisition time.
+
+`sequence` takes `steps`, an ordered array of ordinary act inputs. For example:
+
+```json
+{
+  "action": "sequence",
+  "steps": [
+    { "action": "click", "target": { "role": "AXTextField", "name": "Search" } },
+    { "action": "type", "text": "release notes" },
+    { "action": "key", "key": "Enter" }
+  ]
+}
+```
+
+Each step goes through the same permission and safety checks as an individual
+call. A refusal or interruption stops the sequence and reports how many acts
+completed; completed acts are not undone. One screenshot follows the final act.
+Set `capture`, `region` and `settleMs` on the sequence, not its steps. Reads and
+nested sequences do not belong in `steps`.
+
+`find` and `wait` with `until` read the tree and therefore ask like `tree`.
+A timed wait without `until` remains a never-ask read. Targeted mouse actions
+keep their existing act permission class. The access types and sovereign mode
+work identically for individual acts and sequences.
+
+## Operator typing and human verification
+
+Before acting, Mercury waits for 1400 ms without recent keyboard activity,
+for at most 3000 ms. Continued typing refuses the act with
+“the operator is typing — nothing done; try again in a moment”. A final check
+also refuses if typing resumes while the target is being checked. This is a
+safety check in every access type, including sovereign mode, not an approval
+question. It checks composer activity in the current process and, on macOS,
+HID keyboard activity reported by the desktop driver. Other platforms and
+older packs without the optional idle read use the local composer signal;
+they do not claim to detect typing in another process or application.
+
+Mercury never solves a captcha. Named reCAPTCHA, hCaptcha, Turnstile and human
+verification challenges in the accessibility tree stop input and hand the step
+to you. When a challenge is visible only in screenshot pixels, the model is
+instructed to report `captcha: true`; the tool refuses that input too. This is
+not OCR: a visual challenge that the model does not recognize is not claimed
+to be detected by the code. Complete the challenge yourself, then let Mercury
+read the screen again.
+
 ## Turning it off
 
 Turn the Boot Menu's `Computer use` row off (it is on by default, and the

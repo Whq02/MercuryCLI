@@ -9,9 +9,9 @@ import type { Message } from '../../src/types/message.ts'
 setIsInteractive(true)
 
 const PROOF_MODEL = 'claude-opus-5'
-export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree'] as const
+export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'sequence'] as const
 export const COMPUTER_READS = ['screenshot', 'wait', 'cursor', 'displays', 'frontmost'] as const
-export const COMPUTER_READ_ONLY = [...COMPUTER_READS, 'tree'] as const
+export const COMPUTER_READ_ONLY = [...COMPUTER_READS, 'tree', 'find'] as const
 export const COMPUTER_ACTS = ['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold'] as const
 
 interface ContextOptions {

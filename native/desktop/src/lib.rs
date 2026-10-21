@@ -248,6 +248,13 @@ fn display_at(x: f64, y: f64) -> Option<u32> {
 }
 
 #[napi]
+pub fn keyboard_idle_ms() -> Option<f64> {
+    #[cfg(target_os = "macos")]
+    { imp::keyboard_idle_ms() }
+    #[cfg(not(target_os = "macos"))]
+    { None }
+}
+#[napi]
 pub fn pack_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
