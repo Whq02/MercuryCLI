@@ -147,7 +147,9 @@ section('B. refusals: outside the image, inverted, malformed, or on a text file'
   const text = join(fixtures, 'notes.txt')
   writeFileSync(text, 'plain\n')
   const onText = await read({ file_path: text, crop: [0, 0, 1, 1] })
-  check('B8 a crop on a text file is refused as image-only', !onText.ok && onText.message.includes('The crop parameter applies to image files only'), messageOf(onText))
+  check('B8 a crop on a text file is never refused: the file is read and one note says crop was ignored', onText.ok && (onText.data as unknown as { type: string }).type === 'text' && onText.notes.some(note => note.includes('crop ignored — .txt is not an image') && note.includes('Send crop only for an image file')), messageOf(onText))
+  const onTextPages = await read({ file_path: text, pages: '1-2' })
+  check('B8b pages on a text file is never refused: the file is read and one note says pages was ignored', onTextPages.ok && onTextPages.notes.some(note => note.includes('pages ignored — .txt is not a PDF')), messageOf(onTextPages))
   check('B9 the refusals wrote nothing and the image is intact', readFileSync(small).length > 0 && imageDimensionsFromHeader(readFileSync(small))?.width === 8)
 }
 

@@ -1694,16 +1694,7 @@ export const FileReadTool = buildTool({
 
     if (readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
-      if (target.kind === 'resource' || target.kind === 'url') {
-        if (pages !== undefined) {
-          return {
-            result: false as const,
-            message: 'The pages parameter applies to PDF files only.',
-            errorCode: 7,
-          }
-        }
-        return { result: true as const }
-      }
+      if (target.kind === 'resource' || target.kind === 'url') return { result: true as const }
     }
 
     const rawExpanded = expandPath(input.file_path)
@@ -1725,13 +1716,6 @@ export const FileReadTool = buildTool({
     if (windowsPathNeedsPermission(targetRawPath)) return { result: true as const }
 
     const ext = extensionOf(targetRawPath)
-    if (input.crop !== undefined && !IMAGE_EXTENSIONS.has(ext)) {
-      return {
-        result: false as const,
-        message: `The crop parameter applies to image files only; .${ext || '(no extension)'} is read as text.`,
-        errorCode: 7,
-      }
-    }
     if (
       ext !== '' &&
       (hasBinaryExtension(input.file_path) || hasBinaryExtension(targetRawPath)) &&
@@ -1778,11 +1762,19 @@ export const FileReadTool = buildTool({
         ? { ...input, file_path: effectiveRawPath, ranges: splitTarget.ranges }
         : input
     const ext = extensionOf(effectiveRawPath)
+    const ignoredParameterNotes = (): Message[] => {
+      const kind = ext === '' ? 'a file with no extension' : `.${ext}`
+      const notes: string[] = []
+      if (effectiveInput.crop !== undefined && !IMAGE_EXTENSIONS.has(ext)) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
+      if (selectedPages(effectiveInput.pages) !== undefined && !isPDFExtension(ext)) notes.push(`pages ignored — ${kind} is not a PDF; the file was read as usual. Send pages only for a PDF.`)
+      return notes.map(content => createUserMessage({ content, isMeta: true }))
+    }
     const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {
       if (ownRead && lane.data.type === 'text' && lane.data.file.content !== '' && !takeReminder(parentMessage, context.messages)) {
         resultsWithoutReminder.add(lane.data)
       }
-      return { data: lane.data, ...(lane.newMessages ? { newMessages: lane.newMessages } : {}) }
+      const newMessages = [...(lane.newMessages ?? []), ...ignoredParameterNotes()]
+      return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
     }
 
     if (readTargetsEnabled()) {
