@@ -59,7 +59,11 @@ for line in sys.stdin:
             else: raise AssertionError('deadline ignored')
         finally: METHODS['session/facts']['deadlineMs'] = default
     methods = {'initialize': [{'result': init}], 'session/facts': [{'result': {}, 'before': [{'jsonrpc':'2.0', 'method':'$/cancel_request','params':None}, {'jsonrpc':'2.0','method':'custom','params':{'x':1}}]}], 'agent/stop': [{'result':{}}, {'result':{}}], 'queue/add':[{'result':{'accepted':True}}, {'result':{'accepted':True}}]}
-    async with await start_fixture_server({'methods':methods}) as fixture:
+    assert validate(METHODS['$/cancel_request']['params'], None)
+    try:
+        async with await start_fixture_server({'methods':methods}): raise AssertionError('invalid cancellation fixture accepted')
+    except ValueError as error: assert 'invalid fixture params' in str(error)
+    async with await start_fixture_server({'methods':methods, 'validate':False}) as fixture:
         shared = RunOptions(mercury=fixture.mercury)
         async with await connect(options=shared) as session:
             notices=[];session.on('notification',notices.append)
