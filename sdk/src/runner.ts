@@ -69,7 +69,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     const cwdProblem = missingCwd(options.cwd)
     this.child = spawn(argv.command, argv.args, { cwd: options.cwd, env: options.env ?? process.env, stdio: 'pipe', windowsHide: true })
     track(this.child)
-    this.child.stderr!.setEncoding('utf8').on('data', (s: string) => { this.stderr += s })
+    this.child.stderr!.setEncoding('utf8').on('data', (s: string) => { this.stderr += s; this.#emit('stderr', s); options.onStderr?.(s) })
     this.child.stdin!.on('error', e => this.#fail(new MercuryError(e.message, null, { cause: e })))
     this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, cwdProblem ?? e)))
     readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
@@ -84,6 +84,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   on<T extends StreamRow['type']>(type: T, listener: (row: Extract<StreamRow, { type: T }>) => void): this
   on(type: 'row', listener: (row: StreamRow) => void): this
+  on(type: 'stderr', listener: (chunk: string) => void): this
   on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'notification', listener: (message: { method: string; params: unknown }) => void): this
   on(type: string, listener: (value: any) => void): this {

@@ -8,7 +8,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, row_of, run, __version__
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, row_of, run, __version__
 from mercury_cli_sdk.testing import fixture_outcome_row, fixture_session_row, fixture_turn, start_fixture_server
 
 WINDOWS = os.name == 'nt'
@@ -228,10 +228,54 @@ async def close_mid_ask():
     finally: loop.set_exception_handler(None)
 
 
+async def live_stderr():
+    rows = [fixture_session_row(), *fixture_turn()]
+    noisy = child("import sys,time\nsys.stderr.write('booting\\n'); sys.stderr.flush()\n" + ''.join(f'print({json.dumps(json.dumps(row))}, flush=True)\n' for row in rows) + "time.sleep(0.3)\nsys.stderr.write('tail\\n'); sys.stderr.flush()\n")
+    quiet = await run('x', mercury=noisy)
+    await quiet.session
+    while quiet.child.returncode is None and 'booting' not in quiet.stderr: await asyncio.sleep(0.01)
+    assert 'booting' in quiet.stderr and quiet.child.returncode is None, f'the child exited (returncode {quiet.child.returncode}) before its stderr line was observable; stderr now reads {quiet.stderr!r}'
+    await quiet.exit
+    seen, events = [], []
+    task = await run('x', mercury=noisy, on_stderr=seen.append)
+    task.on('stderr', events.append)
+    await task.session
+    for _ in range(100):
+        if 'booting' in ''.join(events): break
+        await asyncio.sleep(0.01)
+    assert 'booting' in ''.join(events) and 'booting' in ''.join(seen) and 'booting' in task.stderr, (task.stderr, seen, events)
+    assert task.child.returncode is None, 'the child had already exited when its stderr line was first observed'
+    exit = await task.exit
+    assert exit.stderr == 'booting\ntail\n' == task.stderr == ''.join(seen) == ''.join(events), (exit.stderr, task.stderr, seen, events)
+    runner = child("import json,sys,threading,time\nsys.stderr.write('runner up\\n'); sys.stderr.flush()\ndef tick():\n    while True:\n        time.sleep(0.02); sys.stderr.write('tick\\n'); sys.stderr.flush()\nthreading.Thread(target=tick, daemon=True).start()\nfor line in sys.stdin:\n    m = json.loads(line)\n    if m.get('method') == 'initialize': print(json.dumps({'jsonrpc': '2.0', 'id': m['id'], 'result': " + repr(init) + "}), flush=True)\n")
+    seen, events = [], []
+    session = await connect(mercury=runner, on_stderr=seen.append)
+    try:
+        session.on('stderr', events.append)
+        for _ in range(100):
+            if 'tick' in ''.join(events): break
+            await asyncio.sleep(0.01)
+        assert session.child.returncode is None, 'the runner is still running'
+        assert ''.join(seen).startswith('runner up\n') and session.stderr.startswith('runner up\n') and 'tick' in ''.join(events), (session.stderr, seen, events)
+    finally: await session.close()
+    exit = await session.exit
+    assert exit.stderr == session.stderr == ''.join(seen), (exit.stderr, seen)
+    def synchronous():
+        seen, events = [], []
+        with connect_sync(mercury=runner, on_stderr=seen.append) as session:
+            session.on('stderr', events.append)
+            for _ in range(100):
+                if 'tick' in ''.join(events): break
+                time.sleep(0.01)
+            assert session.stderr.startswith('runner up\n') and ''.join(seen).startswith('runner up\n') and 'tick' in ''.join(events), (session.stderr, seen, events)
+    await asyncio.to_thread(synchronous)
+
+
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python FixtureServer.close() returns at once with a peer still on the socket: hello sent and nothing more, and a reader that stopped taking the replay', fixture_close)
     await check('Python closing a session while a runner ask is in flight: no error event, no unretrieved task exception, exit 0', close_mid_ask)
+    await check('Python stderr is live on both doors and the sync session: on_stderr and the stderr event see a line while the child still runs, and stderr at exit is the whole text', live_stderr)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
     await check('Python termination after a fatal wire failure: the child is gone within the bound and the receipt names ' + ('SIGTERM (Windows: the first step ends it)' if WINDOWS else 'the SIGKILL escalation'), escalation)
     await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)

@@ -6,7 +6,7 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
-from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, send_signal, spawn, untrack, warm_options
+from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
@@ -153,7 +153,7 @@ class MercurySession(TypedRequests):
             self._asks.pop(id, None)
 
     async def _read(self) -> None:
-        stderr = asyncio.create_task(self._stderr.read())
+        stderr = asyncio.create_task(read_stderr(self))
         try:
             async for line in read_lines(self._stdout):
                 if not line.strip(): continue
@@ -221,7 +221,7 @@ class MercurySession(TypedRequests):
         code = await self.child.wait()
         untrack(self.child)
         if self._tools: await self._tools.close()
-        self.stderr = (await stderr).decode('utf-8', errors='replace')
+        await stderr
         exit = exit_of(self.child, code, self.stderr)
         self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
         self.exit.set_result(exit)
