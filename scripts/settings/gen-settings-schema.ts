@@ -9,7 +9,7 @@ const ROW = {
   assets: 'scripts/settings/settings-schema.json',
   generator: 'bun scripts/settings/gen-settings-schema.ts',
   check: 'bun scripts/settings/prove-settings-schema.ts',
-  sources: 'src/utils/settings/**',
+  sources: 'src/utils/settings/** src/services/video/types.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
