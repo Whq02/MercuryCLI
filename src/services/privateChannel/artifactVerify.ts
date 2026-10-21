@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { payloadDigestOf } from './installLayout.js'
+import { payloadDigestOf } from './payloadDigest.js'
 import {
   describeSignatureVerdict,
   verifySignatureBlock,

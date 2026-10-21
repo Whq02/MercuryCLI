@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { verifyPayloadDir } from './artifactVerify.js'
 import { describeSignatureVerdict } from './artifactSigning.js'
-import { provenanceNoticeIsOnce, provenanceNoticeMarkerPath, provenanceNoticeSaid, recordProvenanceNotice } from './installProvenance.js'
+import { provenanceNoticeIsOnce, provenanceNoticeMarkerPath, provenanceNoticeSaid, recordProvenanceNotice } from './provenanceNotice.js'
 
 export {
   canonicalStatementBytes,
@@ -28,6 +28,25 @@ const EXIT_BY_STATE: Record<string, number> = {
   malformed: 6,
 }
 
+const EXIT_FLUSH_FALLBACK_MS = 2_000
+
+function sayAndLeave(stream: NodeJS.WriteStream, text: string, code: number): void {
+  process.exitCode = code
+  let left = false
+  const leave = (): void => {
+    if (left) return
+    left = true
+    process.exit(code)
+  }
+  const fallback = setTimeout(leave, EXIT_FLUSH_FALLBACK_MS)
+  fallback.unref()
+  if (text === '' || stream.destroyed) {
+    leave()
+    return
+  }
+  stream.write(text, leave)
+}
+
 function cliMain(): void {
   const args = process.argv.slice(2)
   const dirFlag = args.indexOf('--dir')
@@ -42,20 +61,19 @@ function cliMain(): void {
   if (launcherMode) {
     const state = result.verdict.state
     const once = provenanceNoticeIsOnce(state)
+    let notice = ''
     if (state !== 'signed' && (!once || !provenanceNoticeSaid(dir, state))) {
       const onceWords = once && provenanceNoticeMarkerPath(dir) !== null ? 'said once for this install; ' : ''
-      process.stderr.write(`mercury: provenance — ${line} (${onceWords}\`mercury health\` shows the full record)\n`)
+      notice = `mercury: provenance — ${line} (${onceWords}\`mercury health\` shows the full record)\n`
       if (once) recordProvenanceNotice(dir, state)
     }
-    process.exit(0)
+    sayAndLeave(process.stderr, notice, 0)
+    return
   }
-  if (args.includes('--json')) {
-    process.stdout.write(JSON.stringify({ dir, ...result }, null, 2) + '\n')
-  } else {
-    process.stdout.write(`artifact provenance (${result.depth}) at ${dir}\n  ${line}\n`)
-    for (const u of result.unevaluated) process.stdout.write(`  unevaluated: ${u}\n`)
-  }
-  process.exit(EXIT_BY_STATE[result.verdict.state] ?? 6)
+  const text = args.includes('--json')
+    ? JSON.stringify({ dir, ...result }, null, 2) + '\n'
+    : `artifact provenance (${result.depth}) at ${dir}\n  ${line}\n${result.unevaluated.map(u => `  unevaluated: ${u}\n`).join('')}`
+  sayAndLeave(process.stdout, text, EXIT_BY_STATE[result.verdict.state] ?? 6)
 }
 
 try {
