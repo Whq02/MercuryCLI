@@ -1,5 +1,7 @@
 # The Blender bridge
 
+<!-- answers: Drive a running Blender over a token-authed loopback connection served by a Python add-on Mercury installs on ask; armed with `MERCURY_BLENDER=1`. -->
+
 Mercury's `Blender` tool drives a running Blender the way the `Unity` tool
 drives a running Unity editor: over a token-authed, loopback-only NDJSON/TCP
 connection served by a Python add-on Mercury ships as source and installs

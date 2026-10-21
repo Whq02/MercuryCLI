@@ -1,5 +1,7 @@
 # The Unity editor bridge
 
+<!-- answers: Drive a running Unity editor over a token-authed loopback connection served by an editor-side package Mercury installs on ask; armed with `MERCURY_UNITY=1`. -->
+
 Mercury's `Unity` tool drives a running Unity editor the way the `Godot`
 tool drives a running Godot editor: over a token-authed, loopback-only
 NDJSON/TCP connection served by an editor-side package Mercury ships as
