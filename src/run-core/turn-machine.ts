@@ -177,7 +177,7 @@ import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/t
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
-import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
+import { emptyReplyKindOf, emptyReplyNoteOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
 import type { Terminal, Continue } from '../query/transitions.js'
@@ -1723,6 +1723,11 @@ async function* runEventMachine(
             'warning',
           ),
         })
+      }
+
+      if (lastMessage && emptyReplyKindOf(lastMessage) === 'silence') {
+        const silence = emptyReplyNoteOf(lastMessage) ?? 'the provider finished this response with nothing said; the turn ends here, not cut.'
+        yield emit({ kind: 'notice', message: createSystemMessage(silence, 'info') })
       }
 
       if (lastMessage && emptyReplyKindOf(lastMessage) === 'empty') {

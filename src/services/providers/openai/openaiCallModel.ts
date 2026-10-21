@@ -54,7 +54,7 @@ import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
-import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
+import { emptyReplyChatText, emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   renderOpenaiInstructions,
   resolveBehaviourContract,
@@ -1388,10 +1388,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
         : finish?.reason === 'completed' && finish.orderedItems.length > 0
           ? 'silence'
           : 'empty'
-    yield* emitNoteBlock(
-      emptyReplyNote('openai', emptyKind, usageSeen?.reasoningOutputTokens),
-      message => markEmptyReply(message, emptyKind),
-    )
+    const emptyNote = emptyReplyNote('openai', emptyKind, usageSeen?.reasoningOutputTokens)
+    if (emptyKind === 'silence') logForDebugging(emptyNote)
+    yield* emitNoteBlock(emptyReplyChatText(emptyKind, emptyNote), message => markEmptyReply(message, emptyKind, emptyNote))
   }
 
   const mappedFinish = refusalStreamed || finish?.refusalText ? 'refusal' : FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
-import { CAP_WORDS, EMPTY_WORDS, OLD_RESEND_WORDS, RETRY_WORDS, SILENCE_WORDS, jsonNeedle, lastRowIsUserCarrying, persistedNotices } from './prove-empty-reply-cases.ts'
+import { CAP_WORDS, EMPTY_WORDS, OLD_RESEND_WORDS, RETRY_WORDS, SILENCE_WORDS, debugLogLines, jsonNeedle, lastRowIsUserCarrying, persistedNotices } from './prove-empty-reply-cases.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -103,6 +103,7 @@ export async function startZaiCasesFixture(kind: ZaiEmptyReplyCase): Promise<Zai
 
 export function zaiCasesEnv(base: string, home: string, config: string): NodeJS.ProcessEnv {
   return {
+    DEBUG: '1',
     PATH: process.env.PATH,
     HOME: home,
     TMPDIR: tmpdir(),
@@ -204,11 +205,12 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
   const unchanged = run.requests.length === 2 && JSON.stringify(messagesOf(run.requests[1]!)) === JSON.stringify(messagesOf(run.requests[0]!))
   check(`${kind}: the turn settled with a result`, run.exit === 0 && result !== undefined, `exit ${String(run.exit)} ${tail}`)
   if (kind === 'silence') {
-    check(`${kind}: the note names silence`, notes.some(t => t.includes(SILENCE_WORDS)), JSON.stringify(notes).slice(0, 300))
-    check(`${kind}: the note does not call the reply cut`, !texts.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
+    check(`${kind}: no chat line — the silence paints no words`, !texts.some(t => t.trim() !== ''), JSON.stringify(texts).slice(0, 300))
+    check(`${kind}: the debug log carries the silence sentence`, debugLogLines(join(run.home, 'config')).some(line => line.includes(SILENCE_WORDS)), debugLogLines(join(run.home, 'config')).filter(l => l.includes('[zai]')).slice(0, 3).join(' | '))
+    check(`${kind}: nothing calls the reply cut`, !texts.some(t => t.includes(EMPTY_WORDS)) && !systems.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
     check(`${kind}: one request, no round trip for the same words`, run.requests.length === 1, `${run.requests.length} request(s)`)
     check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
-    check(`${kind}: the note stands as the turn's result`, resultText.includes(SILENCE_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${kind}: the turn simply ends — its result carries no notice`, !resultText.includes(SILENCE_WORDS) && !resultText.includes(EMPTY_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else if (kind === 'cap') {
     check(`${kind}: the note names the provider's output cap`, notes.some(t => t.includes(CAP_WORDS)), JSON.stringify(notes).slice(0, 300))
     check(`${kind}: the note says the provider stated no reasoning count`, notes.some(t => t.includes(NO_COUNT_WORDS)), JSON.stringify(notes).slice(0, 300))

@@ -4,7 +4,7 @@ type EmptyReplyRoute = 'openai' | 'zai'
 
 export type EmptyReplyKind = 'silence' | 'cap' | 'empty'
 
-type MarkedAssistantMessage = AssistantMessage & { providerEmptyReply?: true; providerEmptyReplyKind?: EmptyReplyKind }
+type MarkedAssistantMessage = AssistantMessage & { providerEmptyReply?: true; providerEmptyReplyKind?: EmptyReplyKind; providerEmptyReplyNote?: string }
 
 export function emptyReplyNote(route: EmptyReplyRoute, kind: EmptyReplyKind = 'empty', reasoningTokens?: number): string {
   if (kind === 'silence') {
@@ -24,18 +24,28 @@ export function emptyReplyNote(route: EmptyReplyRoute, kind: EmptyReplyKind = 'e
   return `[${route}] the provider returned an empty reply — the turn was cut, not finished.`
 }
 
+export function emptyReplyChatText(kind: EmptyReplyKind, note: string): string {
+  return kind === 'silence' ? '' : note
+}
+
 export function emptyReplyNoticeLine(action: string): string {
   return `The provider returned an empty reply — ${action}`
 }
 
-export function markEmptyReply(message: AssistantMessage, kind: EmptyReplyKind = 'empty'): void {
+export function markEmptyReply(message: AssistantMessage, kind: EmptyReplyKind = 'empty', note?: string): void {
   const marked = message as MarkedAssistantMessage
   marked.providerEmptyReply = true
   marked.providerEmptyReplyKind = kind
+  if (note !== undefined) marked.providerEmptyReplyNote = note
 }
 
 export function emptyReplyKindOf(message: AssistantMessage): EmptyReplyKind | undefined {
   const marked = message as MarkedAssistantMessage
   if (marked.providerEmptyReply !== true) return undefined
   return marked.providerEmptyReplyKind ?? 'empty'
+}
+
+export function emptyReplyNoteOf(message: AssistantMessage): string | undefined {
+  const marked = message as MarkedAssistantMessage
+  return marked.providerEmptyReply === true ? marked.providerEmptyReplyNote : undefined
 }
