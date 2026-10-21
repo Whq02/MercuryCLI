@@ -1,7 +1,7 @@
 
 import { execFile, spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { existsSync, fstatSync } from 'node:fs'
+import { existsSync, fstatSync, readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
 
@@ -47,6 +47,45 @@ function win32StartTokenVerdict(probe: {
   return (probe.stderr ?? '').trim().length > 0 ? null : ''
 }
 
+const LINUX_CLOCK_TICKS_PER_SECOND = 100
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+let linuxBootSeconds: number | null = null
+
+function linuxBootTime(): number | null {
+  if (linuxBootSeconds !== null) return linuxBootSeconds
+  try {
+    const line = readFileSync('/proc/stat', 'utf8').split('\n').find(row => row.startsWith('btime '))
+    const seconds = line === undefined ? Number.NaN : Number(line.slice(6).trim())
+    if (!Number.isFinite(seconds)) return null
+    linuxBootSeconds = seconds
+    return seconds
+  } catch {
+    return null
+  }
+}
+
+export function lstartWords(at: Date): string {
+  const two = (n: number): string => String(n).padStart(2, '0')
+  return `${WEEKDAYS[at.getDay()]} ${MONTH_NAMES[at.getMonth()]} ${String(at.getDate()).padStart(2, ' ')} ${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())} ${at.getFullYear()}`
+}
+
+export function linuxProcessStartToken(pid: number, read: (path: string) => string = path => readFileSync(path, 'utf8'), bootSeconds: number | null = linuxBootTime()): string | null {
+  let stat: string
+  try {
+    stat = read(`/proc/${pid}/stat`)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    return code === 'ENOENT' || code === 'ESRCH' ? '' : null
+  }
+  const closing = stat.lastIndexOf(')')
+  if (closing < 0 || bootSeconds === null) return null
+  const fields = stat.slice(closing + 1).trim().split(/\s+/)
+  const startTicks = Number(fields[19])
+  if (!Number.isFinite(startTicks)) return null
+  return lstartWords(new Date((bootSeconds + Math.floor(startTicks / LINUX_CLOCK_TICKS_PER_SECOND)) * 1000))
+}
+
 export function getProcessStartToken(pid: number): string | null {
   try {
     if (process.platform === 'win32') {
@@ -58,6 +97,7 @@ export function getProcessStartToken(pid: number): string | null {
       })
       return win32StartTokenVerdict({ ran: !r.error, exitCode: r.status, stdout: r.stdout, stderr: r.stderr })
     }
+    if (process.platform === 'linux') return linuxProcessStartToken(pid)
     const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
       windowsHide: true,
       encoding: 'utf-8',
@@ -94,6 +134,10 @@ export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
             resolve(win32StartTokenVerdict({ ran: true, exitCode, stdout, stderr }))
           },
         )
+        return
+      }
+      if (process.platform === 'linux') {
+        resolve(linuxProcessStartToken(pid))
         return
       }
       execFile(
