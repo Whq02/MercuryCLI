@@ -1474,10 +1474,18 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
   for (let start = 0; start < plan.length; start += perRow) bands.push(plan.slice(start, start + perRow))
   const contentRef = useRef<DOMElement>(null)
   const [heights, setHeights] = useState<number[]>([])
+  const [cardHeights, setCardHeights] = useState<number[][]>([])
   const [position, setPosition] = useState(0)
   const measure = useCallback(() => {
-    const next = contentRef.current?.childNodes.map(node => node.nodeName === '#text' ? 0 : Math.ceil(measureElement(node).height)) ?? []
+    const rows = contentRef.current?.childNodes ?? []
+    const next = rows.map(node => node.nodeName === '#text' ? 0 : Math.ceil(measureElement(node).height))
+    const cards = rows.map(node => node.nodeName === '#text' ? [] : node.childNodes.map(column => {
+      if (column.nodeName === '#text') return 0
+      const card = column.childNodes[0]
+      return Math.ceil(measureElement(card !== undefined && card.nodeName !== '#text' ? card : column).height)
+    }))
     setHeights(previous => previous.length === next.length && previous.every((height, index) => height === next[index]) ? previous : next)
+    setCardHeights(previous => previous.length === cards.length && previous.every((band, index) => band.length === cards[index]!.length && band.every((height, card) => height === cards[index]![card])) ? previous : cards)
   }, [])
   useLayoutEffect(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
@@ -1494,8 +1502,16 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
     event.stopImmediatePropagation()
     setPosition(key.upArrow ? view.previous : view.next)
   })
+  let bandTop = 0
+  const above: UsageSection[] = []
+  bands.forEach((band, bandIndex) => {
+    band.forEach((section, index) => {
+      if (bandTop + Math.max(1, cardHeights[bandIndex]?.[index] ?? heights[bandIndex] ?? 1) <= view.offset) above.push(section)
+    })
+    bandTop += Math.max(1, heights[bandIndex] ?? 1) + 1
+  })
   const below = bands.slice(view.endBand).flat()
-  const more = [view.offset > 0 ? `↑ ${view.offset} more` : '', below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''].filter(Boolean).join(' · ')
+  const more = [above.length ? `↑ ${above.length} more` : '', below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''].filter(Boolean).join(' · ')
   return (
     <UsageLayoutContext.Provider value={measure}>
       <Box flexDirection="column" width={Math.max(1, Math.floor(width))} height={budget} flexShrink={0} overflow="hidden">
