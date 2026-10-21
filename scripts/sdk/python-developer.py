@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import sys
 import json
+import time
 from contextlib import contextmanager, suppress
 from urllib.request import Request, urlopen
 from typing import TypedDict, Annotated, NotRequired
@@ -212,6 +213,44 @@ async def sync_prompt_ids():
         await asyncio.to_thread(consume)
 
 
+async def warm_identity():
+    message = 'session is unclaimed; call claim() before prompting'
+    for warm in (False, True):
+        with prompt_fixture(True, True) as (mercury, received):
+            async with await (sdk.connect(mercury=mercury, warm=True) if warm else sdk.prewarm(mercury=mercury)) as session:
+                assert session.initialized['session_id'] is None
+                for send in (lambda: session.prompt('unclaimed'), lambda: session.send_prompt('unclaimed'), lambda: session.steer('unclaimed'), lambda: session.follow_up('unclaimed'), lambda: session.send({'type': 'prompt', 'content': 'unclaimed'})):
+                    start = time.perf_counter()
+                    try: await send()
+                    except sdk.MercuryError as error: assert str(error) == message, str(error)
+                    else: raise AssertionError('unclaimed prompt was accepted')
+                    elapsed = time.perf_counter() - start
+                    assert elapsed < 0.05, f'an unclaimed prompt took {elapsed * 1000} ms'
+                    print(f'PASS Python warm prompt refused locally in {elapsed * 1000:.2f} ms', flush=True)
+                assert not any(row['method'] == 'queue/add' for row in received())
+                assert session.last_prompt_id is None and session.session_id is None and not session._prompt_turns
+                try: await session.claim(session_id='rejected')
+                except sdk.MercuryError as error: assert str(error) == 'claim rejected'
+                else: raise AssertionError('a rejected claim resolved')
+                assert session.session_id is None
+                receipt = await session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+    with prompt_fixture(True, True) as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury, warm=True) as session:
+                assert session.session_id is None and session.initialized['session_id'] is None
+                start = time.perf_counter()
+                try: session.prompt('unclaimed')
+                except sdk.MercuryError as error: assert str(error) == message, str(error)
+                else: raise AssertionError('unclaimed sync prompt was accepted')
+                assert time.perf_counter() - start < 0.05
+                receipt = session.claim(session_id='requested-session', model='fixture', mode='default', effort='high', resume=False)
+                assert session.session_id == receipt['session_id'] == session.initialized['session_id'] == 'claimed-session'
+                assert session.prompt('resolve')['answer'] == 'resolved'
+        await asyncio.to_thread(consume)
+
+
 async def structured():
     schema = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}
     with tempfile.TemporaryDirectory(prefix='sdk-schema-') as directory:
@@ -404,7 +443,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

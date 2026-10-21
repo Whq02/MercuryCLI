@@ -8,7 +8,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
 
@@ -241,6 +241,7 @@ class MercurySession(TypedRequests):
     async def send(self, row: InputRow) -> QueueAddResult:
         """Queue one input row (``queue/add``); a prompt row is given an id so its outcome can be matched."""
         if row['type'] != 'prompt': return await self.request('queue/add', row)
+        if self.session_id is None: raise MercuryError('session is unclaimed; call claim() before prompting')
         id = row.get('id') or str(uuid.uuid4())
         self._prompt_turns[id] = None
         try:
@@ -298,6 +299,9 @@ class MercurySession(TypedRequests):
             self._prompting = False
 
     @property
+    def session_id(self) -> str | None: return self.initialized['session_id'] if hasattr(self, 'initialized') else None
+
+    @property
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None:
         """What the CLI answered on ``initialize``: whether file checkpoints are captured and why (``source``)."""
         return getattr(self, 'initialized', {}).get('file_checkpoints')
@@ -317,7 +321,17 @@ class MercurySession(TypedRequests):
     async def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return await self.request('session/rewind', {'user_message_id': user_message_id, 'mode': mode, 'dry_run': dry_run})
     async def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return await self.request('agent/stop', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
     async def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return await self.request('agent/resume', {'agent_id': agent_id, **({'note': note} if note is not None else {})})
-    async def claim(self, **params: Any) -> SessionClaimResult: return await self.request('session/claim', params)
+    async def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+        params: SessionClaimParams = {'session_id': session_id}
+        if model is not None: params['model'] = model
+        if mode is not None: params['mode'] = mode
+        if effort is not None: params['effort'] = effort
+        if resume is not None: params['resume'] = resume
+        if restart_reason is not None: params['restart_reason'] = restart_reason
+        if openai_catalogue is not None: params['openai_catalogue'] = openai_catalogue
+        receipt = await self.request('session/claim', params)
+        self.initialized['session_id'] = receipt['session_id']
+        return receipt
 
     async def close(self) -> None:
         """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""

@@ -61,6 +61,8 @@ class SyncSession(TypedSyncRequests):
             raise
 
     @property
+    def session_id(self) -> str | None: return self.session.session_id
+    @property
     def initialized(self) -> InitializeResult: return self.session.initialized
     @property
     def file_checkpoints(self) -> InitializeResultFile_checkpoints | None: return self.session.file_checkpoints
@@ -98,7 +100,8 @@ class SyncSession(TypedSyncRequests):
     def rewind(self, user_message_id: str, mode: str, dry_run: bool = False) -> SessionRewindResult: return self._wait(self.session.rewind(user_message_id, mode, dry_run))
     def stop_agent(self, agent_id: str, note: str | None = None) -> AgentStopResult: return self._wait(self.session.stop_agent(agent_id, note))
     def resume_agent(self, agent_id: str, note: str | None = None) -> AgentResumeResult: return self._wait(self.session.resume_agent(agent_id, note))
-    def claim(self, **params: Any) -> SessionClaimResult: return self._wait(self.session.claim(**params))
+    def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
+        return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, openai_catalogue=openai_catalogue))
     def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any: return self._wait(self.session.request(method, params, timeout=timeout))
     def _notify(self, method: str, params: Any = None) -> None: self._wait(self.session.notify(method, params))
 

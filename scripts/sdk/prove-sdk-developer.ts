@@ -235,6 +235,32 @@ try {
       } finally { await session.close() }
     })
   }
+  await check('unclaimed warm prompts fail locally within 50 ms and claim updates both identities', async () => {
+    const message = 'session is unclaimed; call claim() before prompting'
+    for (const open of [sdk.prewarm, (options: sdk.ConnectOptions) => sdk.connect({ ...options, warm: true })]) {
+      const fixture = promptFixture(true, true)
+      const session = await open({ mercury: fixture.mercury })
+      try {
+        assert.equal(session.initialized.session_id, null)
+        for (const send of [() => session.prompt('unclaimed'), () => session.sendPrompt('unclaimed'), () => session.steer('unclaimed'), () => session.followUp('unclaimed'), () => session.send({ type: 'prompt', content: 'unclaimed' })]) {
+          const start = performance.now()
+          await assert.rejects(send(), error => error instanceof sdk.MercuryError && error.message === message)
+          const elapsed = performance.now() - start
+          assert(elapsed < 50, `an unclaimed prompt took ${elapsed} ms`)
+          console.log(`PASS warm prompt refused locally in ${elapsed.toFixed(2)} ms`)
+        }
+        assert.equal(fixture.received().some(row => row.method === 'queue/add'), false, 'unclaimed prompts never enter the wire queue')
+        assert.equal(session.lastPromptId, undefined)
+        assert.equal(session.sessionId, null)
+        await assert.rejects(session.claim({ session_id: 'rejected' }), /claim rejected/)
+        assert.equal(session.sessionId, null)
+        const receipt = await session.claim({ session_id: 'requested-session', model: 'fixture', mode: 'default', effort: 'high', resume: false })
+        assert.equal(session.sessionId, receipt.session_id)
+        assert.equal(session.initialized.session_id, 'claimed-session', 'identity comes from the successful claim reply')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved')
+      } finally { await session.close() }
+    }
+  })
   await check('row 8 fixture builders return valid rows', async () => {
     const rows = [testing.fixtureSessionRow(), ...testing.fixtureTurn({ answer: 'fixture works' })]
     const fixture = await testing.startFixtureServer({ rows })

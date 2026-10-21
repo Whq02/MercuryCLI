@@ -36,6 +36,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   readonly exit: Promise<RunExit>
   readonly rows: StreamRow[] = []
   initialized!: ResultOf<'initialize'>
+  get sessionId(): string | null { return this.initialized?.session_id ?? null }
   get fileCheckpoints(): ResultOf<'initialize'>['file_checkpoints'] { return (this.initialized as ResultOf<'initialize'> | undefined)?.file_checkpoints }
   stderr = ''
   lastPromptId: string | undefined
@@ -232,6 +233,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   }
   async send(row: InputRow) {
     if (row.type !== 'prompt') return this.request('queue/add', row)
+    if (this.sessionId === null) throw new MercuryError('session is unclaimed; call claim() before prompting', null)
     const id = row.id ?? randomUUID()
     this.#promptTurns.set(id, undefined)
     try {
@@ -263,7 +265,11 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   rewind(options: ParamsOf<'session/rewind'>) { return this.request('session/rewind', options) }
   stopAgent(agent_id: string, note?: string) { return this.request('agent/stop', { agent_id, note }) }
   resumeAgent(agent_id: string, note?: string) { return this.request('agent/resume', { agent_id, note }) }
-  claim(params: ParamsOf<'session/claim'>) { return this.request('session/claim', params) }
+  async claim(params: ParamsOf<'session/claim'>) {
+    const receipt = await this.request('session/claim', params)
+    this.initialized.session_id = receipt.session_id
+    return receipt
+  }
 
   async prompt<T = unknown>(content: PromptRow['content'], options: PromptOptions<T> = {}): Promise<OutcomeRow<T>> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
