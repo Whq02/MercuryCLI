@@ -26,7 +26,7 @@ class RunOptions:
     brief_file: str | None = None
     brief_add_file: str | None = None
     debug: bool | str = False
-    checkpoint_files: bool | None = None
+    checkpoint_files: bool = False
     replay_to: str | None = None
     restore_files: str | None = None
     tools: list[ToolDefinition] = field(default_factory=list)

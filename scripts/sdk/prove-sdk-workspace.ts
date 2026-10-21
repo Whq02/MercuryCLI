@@ -17,13 +17,21 @@ async function context(turns: (cwd: string) => ScriptedTurn[]) {
   const cwd = join(home, 'project'); mkdirSync(cwd); seedFirstRun(home, [cwd])
   const api = await startFixtureApi(turns(cwd))
   const env = { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url }
-  return { cwd, env, close: async () => { await api.close(); rmSync(home, { recursive: true, force: true }) } }
+  return { cwd, env, api, close: async () => { await api.close(); rmSync(home, { recursive: true, force: true }) } }
+}
+const offeredTools = (api: { requests: { raw: string; body: unknown }[] }, said: string): string[] => {
+  const request = api.requests.find(r => r.raw.includes(said))
+  assert(request, `no model request carried ${JSON.stringify(said)}`)
+  return ((request.body as { tools?: { name: string }[] }).tools ?? []).map(tool => tool.name)
 }
 for (const language of ['ts', 'py']) {
   if (process.env.SDK_BUILDER_LANGUAGE && process.env.SDK_BUILDER_LANGUAGE !== language) continue
-  for (const scenario of ['capabilities', 'checkpoints', 'warm']) {
+  for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster']) {
     if (selected && selected !== scenario) continue
-    const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'capabilities' ? [
+    const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'roster' ? [
+      { kind: 'text', text: 'Headless roster seen.', whenBody: 'roster of a headless session' },
+      { kind: 'text', text: 'Worker roster seen.', whenBody: 'roster of a session-runner' },
+    ] : scenario === 'capabilities' ? [
       { kind: 'tool_use', name: 'Read', input: { file_path: join(cwd, 'virtual.txt') } },
       { kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'virtual.txt'), content: 'virtual changed' } },
       { kind: 'text', text: 'Virtual workspace finished.' },
@@ -53,10 +61,22 @@ for (const language of ['ts', 'py']) {
           const dry = await session.rewind({ ...args, dry_run: true }); assert(dry.code?.files_changed.length); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
           const restored = await session.rewind(args); assert.equal(restored.outcome, 'applied'); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'original\n')
         } finally { await session.close() }
+      } else if (scenario === 'roster') {
+        for (const [said, options] of [['roster of a headless session', {}], ['roster of a session-runner', { checkpointFiles: true }]] as const) {
+          const session = await connect({ mercury, cwd: c.cwd, env: c.env, ...options })
+          try { assert.equal((await session.prompt(`Describe the ${said}`)).status, 'completed') } finally { await session.close() }
+        }
       } else {
         const session = await sdk.prewarm({ mercury, cwd: c.cwd, env: c.env })
         try { assert.equal(session.initialized.session_id, null); assert.equal((await session.claim({ session_id: '00000000-0000-4000-8000-000000000091' })).session_id, '00000000-0000-4000-8000-000000000091') }
         finally { await session.close() }
+      }
+      if (scenario === 'roster') {
+        const headless = offeredTools(c.api, 'roster of a headless session')
+        for (const tool of ['Crewmate', 'Workflow']) assert(headless.includes(tool), `a default connect session must offer ${tool}; offered: ${headless.join(',')}`)
+        assert(!headless.includes('Contract'), 'a default connect session must not carry the session-runner Contract tool')
+        const worker = offeredTools(c.api, 'roster of a session-runner')
+        assert(!worker.includes('Crewmate') && worker.includes('Contract'), `checkpointFiles: true is the session-runner role; offered: ${worker.join(',')}`)
       }
       console.log(`PASS ${language} real runner ${scenario}`)
     } finally { await c.close() }

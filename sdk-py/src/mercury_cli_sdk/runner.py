@@ -339,7 +339,7 @@ async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler 
     """Start ``mercury runner`` and complete ``initialize``; the keyword arguments are ``RunOptions`` fields."""
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
     if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
-    opts = checkpoint_options(replace(opts, checkpoint_files=True if opts.checkpoint_files is None else opts.checkpoint_files), warm)
+    opts = checkpoint_options(opts, warm)
     if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
     opts, tools = await prepare_tools(opts)
     args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None), 'runner')

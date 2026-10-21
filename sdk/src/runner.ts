@@ -54,7 +54,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
-    options = checkpointOptions({ ...options, checkpointFiles: options.checkpointFiles ?? true }, options.warm)
+    options = checkpointOptions(options, options.warm)
     if (options.schema !== undefined && !(options.schema instanceof StructuredSchema)) options = { ...options, schema: schemaObject(options.schema, options.cwd) }
     this.options = options
     const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined }, 'runner')

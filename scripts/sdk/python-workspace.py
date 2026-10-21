@@ -33,6 +33,10 @@ async def main():
             assert dry['code']['files_changed'] and path.read_text() == 'changed\n'
             restored = await session.rewind(id, 'both')
             assert restored['outcome'] == 'applied' and path.read_text() == 'original\n'
+    elif scenario == 'roster':
+        for said, options in [('roster of a headless session', {}), ('roster of a session-runner', {'checkpoint_files': True})]:
+            async with await connect(mercury=mercury, cwd=cwd, **options) as session:
+                assert (await session.prompt(f'Describe the {said}'))['status'] == 'completed'
     else:
         async with await sdk.prewarm(mercury=mercury, cwd=cwd) as session:
             assert session.initialized['session_id'] is None
