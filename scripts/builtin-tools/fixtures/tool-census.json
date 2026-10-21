@@ -2270,6 +2270,39 @@
       }
     },
     {
+      "name": "Video",
+      "category": "other",
+      "risk": "high",
+      "cancellation": "cancel",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "video-generation"
+      ],
+      "proof": "scripts/tools/prove-video-tool.ts",
+      "declared": {
+        "intents": [
+          "generate a video from a prompt",
+          "animate an image with a video generator",
+          "create a video using image video or audio references"
+        ],
+        "units": [
+          "video-generation"
+        ],
+        "class": "mutation",
+        "evidence": [
+          "artifact",
+          "change"
+        ],
+        "conditions": [
+          "a configured videoProvider and its MiniMax sign-in"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "proof": "scripts/tools/prove-video-tool.ts"
+      }
+    },
+    {
       "name": "WebFetch",
       "category": "net",
       "risk": "low",

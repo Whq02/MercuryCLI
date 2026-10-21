@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/Tool* src/bootstrap/state* src/services/mcp/registry/serverRegistry* src/types/ids.ts src/mneme/mnemeFrontPage.ts
 # gate-watch: src/services/run/effectObserver* src/services/tools/toolExecution*
-# gate-watch: src/services/structure/tsFacility.ts
+# gate-watch: src/services/structure/tsFacility.ts src/services/video/**
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask* src/tools/AgentTool/AgentTool*
 # gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool*
 # gate-watch: src/tools/DebugTool/DebugTool* src/tools/MonitorTool/**

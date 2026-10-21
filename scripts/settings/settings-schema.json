@@ -270,6 +270,35 @@
         }
       ]
     },
+    "videoProvider": {
+      "description": "Named video generators: kind (minimax), optional baseUrl and model; billable calls use the existing /logins minimax key, never a key in settings",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "minimax"
+          },
+          "baseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    },
     "credentials": {
       "type": "object",
       "properties": {

@@ -6,14 +6,14 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 69 built-in production tools · 181 operations · 69 with a declared capability contract.
+Census version 1 — 70 built-in production tools · 182 operations · 70 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 17 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 27 mutation · 10 execution · 10 coordination · 0 unclassified
-- integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 47 name a focused proof
-- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
+- support (at generation time): 41 available · 17 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 28 mutation · 10 execution · 10 coordination · 0 unclassified
+- integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 48 name a focused proof
+- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · video-generation · web-access
 - every tool is unit-classified
 
 ## Per-tool census
@@ -85,6 +85,7 @@ Census version 1 — 69 built-in production tools · 181 operations · 69 with a
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
 | ToolSearch | observation | capability-discovery | — | block | no | — | — | — | scripts/builtin-tools/prove-toolsearch-capability.ts |
 | Transaction | coordination | application-verification | 2 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
+| Video | mutation | video-generation | — | cancel | yes | — | — | — | scripts/tools/prove-video-tool.ts |
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
