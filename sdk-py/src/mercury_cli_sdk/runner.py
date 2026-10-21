@@ -65,6 +65,7 @@ class MercurySession(TypedRequests):
         self._closing = False
         self._normal_end = False
         self._prompt_error: Callable[[Exception], None] | None = None
+        self._prompt_id: str | None = None
         self._reader = asyncio.create_task(self._read())
 
     def on(self, type: str, listener: Listener) -> MercurySession:
@@ -252,8 +253,8 @@ class MercurySession(TypedRequests):
             if receipt['accepted']: self.last_prompt_id = id
             else: self._prompt_turns.pop(id, None)
             return receipt
-        except (MercuryRefusal, MercuryWireError, MercurySchemaError):
-            self._prompt_turns.pop(id, None)
+        except MercuryError as error:
+            if isinstance(error, (MercuryRefusal, MercuryWireError, MercurySchemaError)) or error.code is not None: self._prompt_turns.pop(id, None)
             raise
 
     async def send_prompt(self, content: PromptContent, **options: Any) -> QueueAddResult:
@@ -278,6 +279,7 @@ class MercurySession(TypedRequests):
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         if cancel is not None and cancel.is_set(): raise MercuryError('prompt: cancelled')
+        turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         self._prompting = True
         id = str(uuid.uuid4())
         accepted = False
@@ -290,12 +292,11 @@ class MercurySession(TypedRequests):
         async def watch_cancel() -> None:
             assert cancel is not None
             await cancel.wait()
-            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
             fail(MercuryError('prompt: cancelled'))
         cancel_task = asyncio.create_task(watch_cancel()) if cancel is not None else None
         self._prompt_error = fail
+        self._prompt_id = id
         self.on('outcome', done)
-        turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
@@ -312,10 +313,11 @@ class MercurySession(TypedRequests):
             raise
         finally:
             if cancel_task is not None: cancel_task.cancel()
-            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
+            if self._prompt_turns.get(id) is None and (not accepted or self._correlated_turns): self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
             self._prompt_error = None
+            self._prompt_id = None
             self._prompting = False
 
     @property
@@ -332,7 +334,9 @@ class MercurySession(TypedRequests):
         return await self.request('turn/interrupt', options)
     async def withdraw(self, id: str) -> QueueWithdrawResult:
         receipt = await self.request('queue/withdraw', {'id': id})
-        if receipt['withdrawn']: self._prompt_turns.pop(id, None)
+        if receipt['withdrawn']:
+            self._prompt_turns.pop(id, None)
+            if id == self._prompt_id and self._prompt_error: self._prompt_error(MercuryError('prompt: withdrawn'))
         return receipt
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})

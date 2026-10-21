@@ -42,6 +42,7 @@ function promptFixture(correlated = false, warm = false) {
     const { appendFileSync } = require('node:fs')
     const emit = message => process.stdout.write(JSON.stringify(message) + '\\n')
     let claimed = ${!warm}
+    const cancelled = []
     createInterface({ input: process.stdin }).on('line', line => {
       const message = JSON.parse(line)
       appendFileSync(${JSON.stringify(record)}, line + '\\n')
@@ -53,9 +54,14 @@ function promptFixture(correlated = false, warm = false) {
         else { claimed = true; reply({ session_id: 'claimed-session' }) }
       } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
       else if (method === 'queue/add' && claimed) {
+        if (params.content === 'error') { emit({ jsonrpc: '2.0', id, error: { code: -32603, message: 'queue failed' } }); return }
         reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
-        if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+        if (params.content === 'cancel') { cancelled.push(params.id); emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } }) }
         if (params.content === 'resolve') {
+          for (const queued of cancelled.splice(0)) {
+            if (${correlated}) emit({ jsonrpc: '2.0', method: 'row', params: { ...${JSON.stringify(testing.fixtureTurn()[0])}, turn_id: 'cancelled-turn', message_ids: [queued] } })
+            emit({ jsonrpc: '2.0', method: 'row', params: { ...${JSON.stringify(testing.fixtureOutcomeRow({ answer: 'cancelled' }))}, turn_id: 'cancelled-turn' } })
+          }
           if (${correlated}) emit({ jsonrpc: '2.0', method: 'row', params: { ...${JSON.stringify(testing.fixtureTurn()[0])}, message_ids: [params.id] } })
           emit({ jsonrpc: '2.0', method: 'row', params: ${JSON.stringify(testing.fixtureOutcomeRow({ answer: 'resolved' }))} })
         }
@@ -225,18 +231,48 @@ try {
         assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a withdrawn prompt cannot block the next outcome')
       } finally { await session.close() }
     })
-    await check(`prompt cancellation: the next ${correlated ? 'correlated' : 'uncorrelated'} turn resolves`, async () => {
+    await check(`prompt withdrawal: a prompt() waiting on its own withdrawn ${correlated ? 'correlated' : 'uncorrelated'} input rejects and frees the session`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        const waiting = session.prompt('queued')
+        waiting.catch(() => undefined)
+        for (let tries = 0; tries < 200 && session.lastPromptId === undefined; tries++) await new Promise(resolve => setTimeout(resolve, 5))
+        assert.equal((await session.withdraw(session.lastPromptId!)).withdrawn, true)
+        await assert.rejects(Promise.race([waiting, new Promise((_, reject) => setTimeout(() => reject(new Error('the withdrawn wait never settled')), 500))]), (error: unknown) => error instanceof sdk.MercuryError && error.message === 'prompt: withdrawn')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'the session takes the next prompt')
+      } finally { await session.close() }
+    })
+    await check(`prompt ids: input the runner answers with an error leaves no ${correlated ? 'correlated' : 'uncorrelated'} turn entry behind`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        for (const send of [() => session.sendPrompt('error'), () => session.steer('error'), () => session.followUp('error'), () => session.send({ type: 'prompt', content: 'error' })]) await assert.rejects(send(), (error: unknown) => error instanceof sdk.MercuryError && error.code === -32603 && error.message === 'queue failed')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'input the runner refused cannot hold the next outcome')
+      } finally { await session.close() }
+    })
+    await check(`prompt cancellation: the cancelled turn still ends first and the next ${correlated ? 'correlated' : 'uncorrelated'} prompt resolves with its own turn`, async () => {
       const fixture = promptFixture(correlated)
       const session = await sdk.connect({ mercury: fixture.mercury })
       const controller = new AbortController()
       session.on('notification', message => { if (message.method === 'fixture/queued') controller.abort() })
       try {
         await assert.rejects(session.prompt('cancel', { signal: controller.signal }), /prompt: cancelled/)
-        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'an uncorrelated cancelled wait cannot block the next outcome')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'the cancelled turn\'s outcome is not the next prompt\'s answer')
         assert.equal(fixture.received().some(row => row.method === 'turn/interrupt'), false, 'cancellation still cancels only the wait')
       } finally { await session.close() }
     })
   }
+  await check('prompt ids: a schema the package refuses before sending leaves the session free for the next prompt', async () => {
+    const fixture = promptFixture()
+    const session = await sdk.connect({ mercury: fixture.mercury })
+    try {
+      await assert.rejects(session.prompt('resolve', { schema: '{not json' }), (error: unknown) => error instanceof sdk.MercuryError && error.message === 'invalid schema JSON')
+      await assert.rejects(session.prompt('resolve', { schema: join(scratch, 'no-such-schema.json') }), (error: unknown) => error instanceof sdk.MercuryError && error.message.startsWith('could not read schema file: '))
+      assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a refused schema leaves no prompt pending')
+      assert.equal(fixture.received().filter(row => row.method === 'queue/add').length, 1, 'a refused schema never reaches the wire')
+    } finally { await session.close() }
+  })
   await check('unclaimed warm prompts fail locally within 50 ms and claim updates both identities', async () => {
     const message = 'session is unclaimed; call claim() before prompting'
     for (const open of [sdk.prewarm, (options: sdk.ConnectOptions) => sdk.connect({ ...options, warm: true })]) {

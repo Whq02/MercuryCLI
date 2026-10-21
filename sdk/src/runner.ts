@@ -59,6 +59,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #closing = false
   #normalEnd = false
   #promptReject: ((error: Error) => void) | undefined
+  #promptId: string | undefined
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
@@ -250,7 +251,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       else this.#promptTurns.delete(id)
       return receipt
     } catch (error) {
-      if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError) this.#promptTurns.delete(id)
+      if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError || (error instanceof MercuryError && error.code !== undefined)) this.#promptTurns.delete(id)
       throw error
     }
   }
@@ -261,7 +262,10 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
   async withdraw(id: string) {
     const receipt = await this.request('queue/withdraw', { id })
-    if (receipt.withdrawn) this.#promptTurns.delete(id)
+    if (receipt.withdrawn) {
+      this.#promptTurns.delete(id)
+      if (id === this.#promptId) this.#promptReject?.(new MercuryError('prompt: withdrawn', null))
+    }
     return receipt
   }
   interrupt(options: ParamsOf<'turn/interrupt'> = {}) { this.toolServer?.cancel(); return this.request('turn/interrupt', options) }
@@ -290,6 +294,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   async prompt<T = unknown>(content: PromptRow['content'], options: PromptOptions<T> = {}): Promise<OutcomeRow<T>> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
+    const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     this.#prompting = true
     const id = randomUUID()
     let accepted = false
@@ -301,7 +306,6 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     result.catch(() => undefined)
     const cancel = (message: string) => {
       aborted = true
-      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
       if (options.interruptOnAbort && accepted && !this.#closed) void this.interrupt().catch(() => undefined)
       fail(new MercuryError(message, null))
     }
@@ -310,8 +314,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     options.signal?.addEventListener('abort', abort, { once: true })
     if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
     this.#promptReject = fail
+    this.#promptId = id
     this.on('outcome', done)
-    const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
@@ -322,8 +326,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally {
       clearTimeout(timer)
-      if (this.#promptTurns.get(id) === undefined) this.#promptTurns.delete(id)
-      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
+      if (this.#promptTurns.get(id) === undefined && (!accepted || this.#correlatedTurns)) this.#promptTurns.delete(id)
+      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#promptId = undefined; this.#prompting = false
     }
   }
 
