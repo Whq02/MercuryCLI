@@ -23,7 +23,7 @@ map and `/keybindings` opens your keybindings file.
 - [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): AstSearch and AstEdit patterns across the packaged language grammars.
 - [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): compiler-backed navigation, diagnostics and previewed refactors through LSP.
 - [EVAL.md](EVAL.md): the `Eval` tool runs one Python (`python3`) or JavaScript (Node ES module) code cell per call in a retained runtime per agent and working directory.
-- [SAMPLES.md](SAMPLES.md): a sample is a versioned HTML page the model draws in an Eval cell when you ask to see a design, report or comparison, served locally to your browser for pinned comments.
+- [SAMPLES.md](SAMPLES.md): a sample is a versioned page the model keeps from an Eval cell (`sample({ name, title?, doc, ask? })`) when you ask to see a design, report or comparison, rendered by Mercury and served locally to your browser for pinned comments.
 - [DEBUGGER.md](DEBUGGER.md): launch, attach, breakpoints and test debugging through Debug Adapter Protocol adapters.
 - [APOLLO-MODE.md](APOLLO-MODE.md): the specification interview and review that lead into a prototype build.
 - [MNEME.md](MNEME.md): Mneme is Mercury's project memory, on by default, storing facts in plain markdown topic pages under the config home, managed through four tools and the `/memory` centre.

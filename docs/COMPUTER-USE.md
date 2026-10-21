@@ -15,9 +15,10 @@ pixels matter. Mouse actions accept `target: { role, name, text }` instead of
 `x` and `y`: role and name match exactly, ignoring case and repeated whitespace;
 text matches a substring of the title or value. Supply only the fields needed
 to identify one element. A missing, ambiguous or truncated match, or an element
-without bounds, refuses with a remedy. Targets are resolved afresh before the
-act, at depth 32 and 2000 elements unless you choose smaller `depth`/`limit`
-values. `find` accepts the same target and returns matching bounds without an image.
+without bounds, refuses with a remedy. Targets, `find` and `wait` with `until`
+are resolved afresh before the act at depth 32 and 2000 elements unless you
+pass smaller `depth` or `limit` values. `find` accepts the same target and
+returns matching bounds without an image.
 
 For example, `click` with `target: { role: "AXButton", name: "Save" }` clicks
 that control's centre. `move` hovers over a target; `scroll` scrolls at it;
@@ -32,21 +33,23 @@ a browser may take about two seconds to expose its page after the first read.
 A result says when page content is still starting or unavailable. Use a longer
 `wait` with `until` while it starts; use a screenshot when no page tree is exposed.
 An incomplete tree never establishes that a target is unique or absent.
-`find` and `wait` with `until` default to the full depth/count caps; explicit
-`depth` and `limit` still take precedence.
 
-`settleMs` caps the settling time; consecutive matching frames end it early. Its default is 300 ms and its cap is 5000 ms. A mouse act
-checks its target region, so animation elsewhere need not delay it; the final
-screenshot still shows the requested display or capture region. The result names
-what was checked and whether it stayed stable or kept changing at the cap.
-Local stability is not page readiness: use `wait` with `until` for the expected
-control. Intermediate frames are not saved or sent. `capture: false` skips
-capture and settling. Every act accepts `label`.
+`settleMs` caps post-action settling time (default 300 ms, cap 5000 ms) and
+finishes early as soon as two consecutive captures match. A mouse act checks
+only the region around its target so unrelated animation elsewhere does not
+delay it, while the final screenshot still covers the requested display or
+capture region. The result reports which region was checked and whether it
+stabilized or kept changing until the cap. Target stability does not mean a
+page has finished loading; use `wait` with `until` to wait for a specific
+control. Intermediate frames are neither saved nor sent to the model,
+`capture: false` skips capture and settling, and any act accepts an optional
+`label`.
 
-An act with `verify: true` compares the before/after tree and front window,
-reporting a change, no observed change, or an unknown result. It names the focused
-control when known and suggests the next read. This does not prove that a save,
-submission or other task succeeded, and never retries the act automatically.
+Passing `verify: true` on an act compares the tree and front window before and
+after the action, reports whether a change was observed (or if the result is
+unknown), names the focused control when available, and suggests the next read.
+Verification does not prove that a save or form submission succeeded and never
+retries an act automatically.
 
 `wait` accepts `until: { role, name, text }` to poll the application's tree
 until a matching element appears, bounded by `durationMs` (default 1000 ms,
@@ -257,10 +260,11 @@ ends where the last hand left it.
 
 Every screenshot is written to `<config home>/desktop-shots/`, the newest
 200 kept, and sent to the model at the image budget of its route (a large
-or high-density screen is downscaled only as its route requires; the file on disk
-keeps its full size). The result names the pixel-to-point scale and warns when the
-frame changes: previous coordinates then do not apply. A region capture explicitly
-makes its origin the new `(0, 0)`; take a full screenshot to return. The conversation
+or high-density screen is downscaled only when its route requires it; the file
+on disk keeps its full size). The result reports the pixel-to-point scale and
+warns if the coordinate frame changed, in which case earlier pixel coordinates
+no longer apply. A `region` capture sets `(0, 0)` to that region's top-left
+corner; take a full screenshot to restore full-display coordinates. The conversation
 file never carries the image: it keeps a
 line naming the file, so a saved conversation stays small and a resumed
 one takes a new screenshot before acting. In the request the model sees the
@@ -328,8 +332,8 @@ exits.
 ## Scope
 
 Crewmates and clients of the MCP serve surface never carry the
-Computer tool. A bare `mercury run` receives a policy denial: open an interactive
-session to use Computer; that scripted run cannot take the desktop. A hosted
+Computer tool. A bare `mercury run` cannot drive the desktop and receives a
+policy denial directing you to open an interactive session. A hosted
 session runs in a `mercury runner` child whose host answers permission asks; the interactive
 terminal UI presents those asks as consent cards. A non-interactive caller needs
 a host that can answer them, and keystrokes still refuse when the terminal
