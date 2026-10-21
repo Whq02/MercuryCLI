@@ -26,7 +26,7 @@ _EXEC_COUNT = [0]
 _BRIDGE_SEQ = [0]
 _BRIDGE_WAITS = {}
 _QUEUE = queue.Queue()
-_REAL_STDIN = sys.stdin.buffer
+_STDIN_FD = os.dup(sys.stdin.fileno())
 
 
 def _check_floor_path(raw_path, writing=False):
@@ -99,17 +99,38 @@ def _emit(frame):
 
 
 def _leave(code):
-    _PROTO_LOCK.acquire(timeout=0.5)
-    for stream in (_PROTO, sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
-        try:
-            stream.flush()
-        except Exception:
-            pass
-    os._exit(code)
+    try:
+        _PROTO_LOCK.acquire(timeout=0.5)
+        for stream in (_PROTO, sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
+            try:
+                stream.flush()
+            except BaseException:
+                pass
+    except BaseException:
+        pass
+    finally:
+        os._exit(code)
 
 
 def _term_handler(signum, frame):
     _leave(0)
+
+
+def _safe_str(obj):
+    try:
+        return str(obj)
+    except BaseException:
+        try:
+            return object.__repr__(obj)
+        except BaseException:
+            return "<unprintable>"
+
+
+def _safe_format_exc():
+    try:
+        return traceback.format_exc()
+    except BaseException:
+        return ""
 
 
 class _RejectingStdin(io.TextIOBase):
@@ -127,28 +148,52 @@ class _RejectingStdin(io.TextIOBase):
     readlines = _refuse
 
 
+def _take_line(raw):
+    try:
+        msg = json.loads(raw.decode("utf-8"))
+    except Exception:
+        return
+    t = msg.get("t")
+    if t == "hello":
+        _TOKEN[0] = msg.get("token")
+        _CWD[0] = msg.get("cwd")
+        _QUEUE.put(msg)
+    elif t == "exec":
+        _QUEUE.put(msg)
+    elif t == "bridge_result":
+        w = _BRIDGE_WAITS.get(msg.get("bridgeId"))
+        if w is not None:
+            w["ok"] = bool(msg.get("ok"))
+            w["value"] = msg.get("value")
+            w["error"] = msg.get("error")
+            w["event"].set()
+    elif t == "bye":
+        _QUEUE.put(msg)
+
+
 def _reader():
-    for raw in iter(_REAL_STDIN.readline, b""):
+    # Raw reads on a duplicate of fd 0: the thread blocks in the kernel's
+    # read(2) and holds no io buffer lock, so nothing the main thread closes
+    # or finalizes can wait on it. EOF and a dead descriptor both say bye.
+    pending = b""
+    while True:
         try:
-            msg = json.loads(raw.decode("utf-8"))
-        except Exception:
-            continue
-        t = msg.get("t")
-        if t == "hello":
-            _TOKEN[0] = msg.get("token")
-            _CWD[0] = msg.get("cwd")
-            _QUEUE.put(msg)
-        elif t == "exec":
-            _QUEUE.put(msg)
-        elif t == "bridge_result":
-            w = _BRIDGE_WAITS.get(msg.get("bridgeId"))
-            if w is not None:
-                w["ok"] = bool(msg.get("ok"))
-                w["value"] = msg.get("value")
-                w["error"] = msg.get("error")
-                w["event"].set()
-        elif t == "bye":
-            _QUEUE.put(msg)
+            chunk = os.read(_STDIN_FD, 65536)
+        except BaseException:
+            chunk = b""
+        if not chunk:
+            break
+        pending += chunk
+        while True:
+            at = pending.find(b"\\n")
+            if at < 0:
+                break
+            line = pending[:at + 1]
+            pending = pending[at + 1:]
+            try:
+                _take_line(line)
+            except BaseException:
+                pass
     _QUEUE.put({"t": "bye"})
 
 
@@ -348,9 +393,9 @@ def _run_cell(cell_id, code):
     status = "ok"
     cancelled = False
     names_before = set(_NS.keys())
-    if hasattr(signal, "SIGINT"):
-        signal.signal(signal.SIGINT, _interrupt_handler)
     try:
+        if hasattr(signal, "SIGINT"):
+            signal.signal(signal.SIGINT, _interrupt_handler)
         tree = ast.parse(code, mode="exec")
         last_expr = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):
@@ -364,6 +409,7 @@ def _run_cell(cell_id, code):
                 _NS["_"] = value
                 _emit({"t": "result", "id": cell_id, "repr": repr(value)[:10000]})
     except KeyboardInterrupt:
+        _ignore_sigint()
         status = "cancelled"
         cancelled = True
         _emit({
@@ -371,34 +417,43 @@ def _run_cell(cell_id, code):
             "value": "cell interrupted", "traceback": "",
         })
     except SystemExit as e:
+        _ignore_sigint()
         status = "error"
         _emit({
             "t": "error", "id": cell_id, "name": "SystemExit",
-            "value": "exit(%s) — the kernel survives; use reset to recreate it" % (e.code,),
+            "value": "exit(%s) — the kernel survives; use reset to recreate it" % (_safe_str(e.code),),
             "traceback": "",
         })
     except BaseException as e:
+        _ignore_sigint()
         status = "error"
         # The names this cell bound before the error: the namespace keeps
         # them, and the next cell can rely on exactly these.
         survived = sorted(k for k in _NS.keys() if k not in names_before and not k.startswith("_"))
         _emit({
             "t": "error", "id": cell_id, "name": type(e).__name__,
-            "value": str(e)[:2000], "traceback": traceback.format_exc()[:8000],
+            "value": _safe_str(e)[:2000], "traceback": _safe_format_exc()[:8000],
             "survived": survived,
         })
     finally:
-        if hasattr(signal, "SIGINT"):
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
+        _ignore_sigint()
         try:
             sys.stdout.flush()
             sys.stderr.flush()
-        except Exception:
+        except BaseException:
             pass
         _end_marks(cell_id)
         _matplotlib_flush(cell_id)
         _CURRENT_CELL[0] = None
     _emit({"t": "done", "id": cell_id, "status": status, "cancelled": cancelled})
+
+
+def _ignore_sigint():
+    if hasattr(signal, "SIGINT"):
+        try:
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+        except BaseException:
+            pass
 
 
 def _end_marks(cell_id):
@@ -442,10 +497,15 @@ def main():
 
 
 if __name__ == "__main__":
+    code = 0
     try:
         main()
     except BaseException:
-        traceback.print_exc()
-        _leave(1)
-    _leave(0)
+        code = 1
+        try:
+            traceback.print_exc()
+        except BaseException:
+            pass
+    finally:
+        _leave(code)
 `

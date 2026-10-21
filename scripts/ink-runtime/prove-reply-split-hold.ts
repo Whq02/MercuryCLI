@@ -72,10 +72,14 @@ const heldState = (() => {
   const [, afterHead] = parseMultipleKeypresses(INITIAL_STATE, '\x1b[?64;1;2;')
   const [, afterFlush] = parseMultipleKeypresses(afterHead, null)
   const [, afterSecond] = parseMultipleKeypresses(afterFlush, null)
-  return { held: afterFlush.incomplete, released: afterSecond.incomplete }
+  const [letGo, afterThird] = parseMultipleKeypresses(afterSecond, null)
+  const [rejoined] = parseMultipleKeypresses(afterThird, '22c')
+  return { held: afterFlush.incomplete, stillHeld: afterSecond.incomplete, released: afterThird.incomplete, letGo, rejoined }
 })()
-check('the held head stays in the carry across the first flush (the loop re-arms its timer on it)', heldState.held === '\x1b[?64;1;2;', JSON.stringify(heldState))
-check('the second flush drops the carry while retaining only the tail debt', heldState.released === '', JSON.stringify(heldState))
+check('the held head stays in the carry across the first flush (the loop re-arms its timer on it)', heldState.held === '\x1b[?64;1;2;', JSON.stringify(heldState.held))
+check('the second flush keeps the hold (a starved box may still owe the tail)', heldState.stillHeld === '\x1b[?64;1;2;', JSON.stringify(heldState.stillHeld))
+check('the third flush lets the head go as a nameless atom that types nothing', heldState.released === '' && typedText(heldState.letGo).length === 0, JSON.stringify({ carry: heldState.released, typed: typedText(heldState.letGo) }))
+check('a tail arriving after the hold window still rejoins the head into the reply', heldState.rejoined.filter(a => a.kind === 'response').length === 1 && typedText(heldState.rejoined).length === 0, JSON.stringify(typedText(heldState.rejoined)))
 const lateTail = feedAll(['\x1b[?64;1;2;', null, '6;9;15;', '22c'])
 check('a tail spread over two later reads still completes the reply', lateTail.responses === 1 && typedText(lateTail.atoms).length === 0, JSON.stringify(typedText(lateTail.atoms)))
 
@@ -92,9 +96,9 @@ check('Enter inside a held reply body is heard and the keyboard is live again', 
 
 console.log('\n keys split at the flush keep their shape')
 const splitKey = feedAll(['\x1b[1;', null, '5C', null])
-check('a split ctrl+right drops both the partial head and its owed tail', splitKey.atoms.length === 0 && typedText(splitKey.atoms).length === 0, JSON.stringify(typedText(splitKey.atoms)))
+check('a split ctrl+right is held across the flush and arrives as the one key, nothing typed', splitKey.atoms.length === 1 && splitKey.atoms[0]!.kind === 'key' && splitKey.atoms[0]!.name === 'right' && splitKey.atoms[0]!.ctrl && typedText(splitKey.atoms).length === 0, JSON.stringify(splitKey.atoms))
 const mouseHead = feedAll(['\x1b[<64;1', null, '0;5M', null])
-check('a split SGR mouse head is still dropped and its tail swallowed', typedText(mouseHead.atoms).length === 0 && mouseHead.responses === 0, JSON.stringify(typedText(mouseHead.atoms)))
+check('a split SGR mouse head is held across the flush and its tail completes the one wheel key, nothing typed', typedText(mouseHead.atoms).length === 0 && mouseHead.atoms.length === 1 && mouseHead.atoms[0]!.kind === 'key' && mouseHead.atoms[0]!.name === 'wheelup', JSON.stringify(mouseHead.atoms))
 const loneEsc = feedAll(['\x1b', null])
 check('a lone ESC still flushes as one Escape keypress', loneEsc.atoms.length === 1 && loneEsc.atoms[0]!.kind === 'key' && loneEsc.atoms[0]!.name === 'escape')
 

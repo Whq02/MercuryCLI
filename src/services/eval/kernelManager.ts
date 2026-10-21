@@ -217,7 +217,7 @@ export class EvalKernelManager {
     if (this.exitHookInstalled) return
     this.exitHookInstalled = true
     process.on('exit', () => {
-      for (const entry of this.kernels.values()) entry.kernel.kill()
+      for (const entry of this.kernels.values()) entry.kernel.killNow()
     })
   }
 

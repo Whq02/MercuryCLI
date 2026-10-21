@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { isHandoffRequest } from '../lib/fixtureApi.ts'
@@ -139,6 +139,7 @@ export async function startEmptyReplyFixture(readmePath: string): Promise<EmptyR
 
 export function routeEnv(base: string, home: string, config: string): NodeJS.ProcessEnv {
   return {
+    DEBUG: '1',
     PATH: process.env.PATH,
     HOME: home,
     TMPDIR: tmpdir(),
@@ -180,6 +181,12 @@ function inputOf(c: Captured): unknown[] {
   return []
 }
 
+function debugLogLines(config: string): string[] {
+  const dir = join(config, 'debug')
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).filter(name => name.endsWith('.txt')).flatMap(name => readFileSync(join(dir, name), 'utf8').split('\n'))
+}
+
 async function runRoute(route: { route: string; model: string; dialect: Dialect }): Promise<void> {
   section(`the ${route.route} route: a zero-content reply after a tool result`)
   const home = join(tmpdir(), `mercury-empty-reply-${route.route}-${process.pid}`)
@@ -216,10 +223,11 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail}`)
   if (route.route === 'zai') {
     check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length === 2 && requests[1] !== undefined, `${requests.length} request(s)`)
-    check(`${route.route}: a visible note says the provider finished this response with nothing said`, texts.some(t => t.includes(ZAI_SILENCE_WORDS)), JSON.stringify(texts).slice(0, 300))
-    check(`${route.route}: the note is not the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
+    check(`${route.route}: no chat line — a clean silence paints no words`, !texts.some(t => t.trim() !== '' && t !== EMPTY_REPLY_END), JSON.stringify(texts).slice(0, 300))
+    check(`${route.route}: the debug log carries the silence sentence`, debugLogLines(config).some(line => line.includes(ZAI_SILENCE_WORDS)), debugLogLines(config).filter(l => l.includes('[zai]')).slice(0, 3).join(' | '))
+    check(`${route.route}: nothing carries the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
     check(`${route.route}: silence is not re-issued`, requests.length === 2, `${requests.length} request(s)`)
-    check(`${route.route}: the outcome's answer is the silence note, the turn's end`, answer.includes(ZAI_SILENCE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))}`)
+    check(`${route.route}: the turn simply ends — its answer carries no notice`, !answer.includes(ZAI_SILENCE_WORDS) && !answer.includes(EMPTY_REPLY_NOTE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))}`)
   } else {
     const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
     const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)

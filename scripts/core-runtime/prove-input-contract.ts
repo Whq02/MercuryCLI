@@ -54,15 +54,16 @@ console.log('native-core T4 — input interpretation contract')
 
 {
   const events = drive(['\x1b[<64;1', null, '0;5M', null])
-  check('mid-flush: nothing emitted for the dropped head', keys(events).length === 0,
+  check('mid-flush: the held head and its tail make exactly one wheel key',
+    keys(events).length === 1 && keys(events)[0]!.name === 'wheelup' && events.length === 1,
     JSON.stringify(events))
-  check('mid-flush: tail swallowed (no leaked text)',
-    events.every(e => !(e.kind === 'key' && !e.fn && /[0-9;M]/.test(e.sequence))),
+  check('mid-flush: no fragment of the report is a text key',
+    events.every(e => !(e.kind === 'key' && e.name !== 'wheelup' && /[0-9;M]/.test(e.sequence))),
     JSON.stringify(events))
 
   const events2 = drive(['\x1b[<64;1', null, 'q', null])
   const k2 = keys(events2)
-  check('mid-flush: keystroke after dropped head survives',
+  check('mid-flush: keystroke after a tail-less head survives',
     k2.length === 1 && k2[0]!.name === 'q', JSON.stringify(events2))
 
   const events3 = drive(['\x1b', null])
@@ -71,8 +72,9 @@ console.log('native-core T4 — input interpretation contract')
     k3.length === 1 && k3[0]!.name === 'escape', JSON.stringify(events3))
 
   const events4 = drive(['\x1b[1;', null, '5C', null])
-  check('mid-flush: a dropped CSI key head owns its tail through the final',
-    events4.length === 0, JSON.stringify(events4))
+  check('mid-flush: a held CSI key head completes into its one key',
+    events4.length === 1 && events4[0]!.kind === 'key' && events4[0]!.name === 'right' && events4[0]!.ctrl,
+    JSON.stringify(events4))
 
   for (const head of ['\x1b[1;', '\x1b[114;1:', '\x1b[114;1:3']) {
     const ev = drive([head, null]).filter(e => e.kind === 'key') as ParsedKey[]

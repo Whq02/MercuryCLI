@@ -348,6 +348,7 @@ export function reconcileWatchesOnResume(
       value: monitorNoticeBlock(receipt.taskId, receipt.description, deadWatchLine(receipt, reason)),
       mode: 'task-notification',
       priority: 'next',
+      ridesNextWords: true,
     })
   }
   return orphans

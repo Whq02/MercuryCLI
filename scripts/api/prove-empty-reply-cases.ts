@@ -183,7 +183,14 @@ export function casesEnv(base: string, home: string, config: string): NodeJS.Pro
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/chatgpt`,
     MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth`,
     OPENAI_API_KEY: 'fixture-openai-key',
+    DEBUG: '1',
   }
+}
+
+export function debugLogLines(config: string): string[] {
+  const dir = join(config, 'debug')
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).filter(name => name.endsWith('.txt')).flatMap(name => readFileSync(join(dir, name), 'utf8').split('\n'))
 }
 
 let failures = 0
@@ -281,11 +288,12 @@ async function proveCase(kind: EmptyReplyCase): Promise<void> {
   const resent = systems.some(t => t.includes(RETRY_WORDS) || t.includes(OLD_RESEND_WORDS))
   check(`${kind}: the turn settled with a result`, run.exit === 0 && result !== undefined, `exit ${String(run.exit)} ${tail}`)
   if (kind === 'silence-reasoning' || kind === 'silence-empty-message') {
-    check(`${kind}: the note names silence`, notes.some(t => t.includes(SILENCE_WORDS)), JSON.stringify(notes).slice(0, 300))
-    check(`${kind}: the note does not call the reply cut`, !texts.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
+    check(`${kind}: no chat line — the silence paints no words`, !texts.some(t => t.trim() !== ''), JSON.stringify(texts).slice(0, 300))
+    check(`${kind}: the debug log carries the silence sentence`, debugLogLines(join(run.home, 'config')).some(line => line.includes(SILENCE_WORDS)), debugLogLines(join(run.home, 'config')).filter(l => l.includes('[openai]')).slice(0, 3).join(' | '))
+    check(`${kind}: nothing calls the reply cut`, !systems.some(t => t.includes(EMPTY_WORDS)) && !texts.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(systems).slice(0, 300))
     check(`${kind}: one request, no round trip for the same words`, run.requests.length === 1, `${run.requests.length} request(s)`)
     check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
-    check(`${kind}: the note stands as the turn's result`, resultText.includes(SILENCE_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${kind}: the turn simply ends — its result carries no notice`, !resultText.includes(SILENCE_WORDS) && !resultText.includes(EMPTY_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else if (kind === 'cap') {
     check(`${kind}: the note names the provider's output cap`, notes.some(t => t.includes(CAP_WORDS)), JSON.stringify(notes).slice(0, 300))
     check(`${kind}: the note carries the reasoning token count from usage`, notes.some(t => t.includes(`${CAP_REASONING_TOKENS} reasoning tokens`)), JSON.stringify(notes).slice(0, 300))
@@ -308,8 +316,30 @@ async function proveCase(kind: EmptyReplyCase): Promise<void> {
   else console.log(`  [forensics] the world stays at ${run.home}\n${run.stderr.split('\n').slice(-8).join('\n')}`)
 }
 
+async function proveChatSurface(): Promise<void> {
+  section('the chat and the transcript view: an info-level notice paints only under ctrl+o')
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const React = (await import('react')).default
+  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.js')
+  const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.js')
+  const { emptyReplyNote, emptyReplyChatText } = await import('../../src/services/providers/emptyReply.ts')
+  const silence = emptyReplyNote('openai', 'silence', 21)
+  const cap = emptyReplyNote('openai', 'cap', 127_900)
+  check('the silence paints no words in the chat', emptyReplyChatText('silence', silence) === '', JSON.stringify(emptyReplyChatText('silence', silence)))
+  check('the output-cap note keeps its words in the chat', emptyReplyChatText('cap', cap) === cap && cap.includes(CAP_WORDS))
+  check('the cap note is a plain fact, not an error word', !/\berror\b|\bfailed\b|\bbroken\b/i.test(cap), cap)
+  const row = createSystemMessage(silence, 'info')
+  const inChat = await renderToString(React.createElement(SystemTextMessage, { message: row, verbose: false }), 100)
+  const inTranscript = await renderToString(React.createElement(SystemTextMessage, { message: row, verbose: true }), 100)
+  check('the chat paints nothing for the info-level silence row', inChat.trim() === '', JSON.stringify(inChat.slice(0, 120)))
+  check('the transcript view (ctrl+o renders with verbose) paints the sentence once', inTranscript.split(SILENCE_WORDS).length === 2, JSON.stringify(inTranscript.slice(0, 200)))
+}
+
 if (import.meta.main) {
   const only = arg('--case') as EmptyReplyCase | undefined
+  await proveChatSurface()
   for (const kind of EMPTY_REPLY_CASES) {
     if (only !== undefined && kind !== only) continue
     await proveCase(kind)

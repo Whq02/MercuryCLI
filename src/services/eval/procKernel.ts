@@ -17,6 +17,7 @@ export type KernelTransport = 'fd' | 'loopback'
 
 const PROTOCOL_PORT_FLAG = '--protocol-port'
 const UNPROVEN_SOCKET_CAP = 64 * 1024
+const KILL_GRACE_MS = 500
 
 interface KernelSpawnSpec {
   command: string
@@ -376,6 +377,15 @@ export class ProcKernel {
   }
 
   kill(): void {
+    if (!this.alive || !this.child.pid) return
+    strikeProcessGroupNow(this.child, 'SIGTERM')
+    const strike = setTimeout(() => {
+      if (this.alive) strikeProcessGroupNow(this.child, 'SIGKILL')
+    }, KILL_GRACE_MS)
+    strike.unref?.()
+  }
+
+  killNow(): void {
     if (this.alive && this.child.pid) strikeProcessGroupNow(this.child, 'SIGKILL')
   }
 

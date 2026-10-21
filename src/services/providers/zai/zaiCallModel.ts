@@ -57,7 +57,7 @@ import { resolveZaiDispatch } from './zaiAccounts.js'
 import { learnZaiKeyPlan } from './zaiCatalogue.js'
 import { otherZaiKeyPlan, rememberZaiKeyPlan, zaiKeyPlanUnknownWord, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
+import { emptyReplyChatText, emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   renderGenericInstructions,
   resolveBehaviourContract,
@@ -767,11 +767,13 @@ async function* streamOneZaiAttempt(ctx: {
           ? 'silence'
           : 'empty'
     const note = emptyReplyNote('zai', emptyKind)
+    if (emptyKind === 'silence') logForDebugging(note)
+    const words = emptyReplyChatText(emptyKind, note)
     yield* emitSettledBlock(
-      { type: 'text', text: note, citations: null },
-      [{ type: 'text_delta', text: note }],
+      { type: 'text', text: words, citations: null },
+      [{ type: 'text_delta', text: words }],
       { type: 'text', text: '', citations: null },
-      message => markEmptyReply(message, emptyKind),
+      message => markEmptyReply(message, emptyKind, note),
     )
   }
 

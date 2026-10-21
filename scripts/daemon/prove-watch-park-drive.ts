@@ -3,10 +3,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, inMainFile, isSession, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-watch-park-drive')
-section("a persistent watch through the session's park: the watch ends with the runner, and the first turn after the resume is told so once, with the way to arm it again")
+section("a persistent watch through the session's park: the watch ends with the runner, and the first request after the resume is told so once, riding the operator's words, with the way to arm it again")
 
 const HOME = join(SCRATCH_ROOT, `mercury-watch-park-${process.pid}`)
 const CWD = join(HOME, 'fixture-repo')
@@ -23,7 +23,7 @@ const REARM_WORDS = 'Start it again by calling Monitor with the same command'
 
 type Block = { type?: string; text?: string; content?: unknown }
 type Item = { role?: string; content?: unknown }
-type Wire = { n: number; at: number; ask: string; step: number; results: string[] }
+type Wire = { n: number; at: number; ask: string; step: number; results: string[]; lastUser: string }
 const wire: Wire[] = []
 let calls = 0
 
@@ -36,6 +36,11 @@ const askOf = (content: unknown): string => {
     if (part.type === 'text' && typeof part.text === 'string' && !part.text.trimStart().startsWith('<system-reminder>')) return part.text
   }
   return ''
+}
+const wholeUser = (content: unknown): string => {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return (content as Block[]).map(part => (part.type === 'text' && typeof part.text === 'string' ? part.text : '')).join('\n')
 }
 const resultTexts = (content: unknown): string[] => {
   if (!Array.isArray(content)) return []
@@ -96,7 +101,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const ask = askIndex === -1 ? '' : askOf(items[askIndex]!.content)
     const step = askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const results = items.filter(isToolResultItem).flatMap(it => resultTexts(it.content))
-    wire.push({ n, at: Date.now(), ask: ask.slice(0, 800), step, results })
+    const lastUser = [...items].reverse().find(item => item.role === 'user' && !isToolResultItem(item))
+    wire.push({ n, at: Date.now(), ask: ask.slice(0, 800), step, results, lastUser: lastUser === undefined ? '' : wholeUser(lastUser.content) })
     if (ask.trim() === ARM_ASK) {
       if (step === 0) return answerTool(res, n, model, `toolu_park_c${n}`, 'Monitor', { description: WATCH_NAME, command: `tail -n0 -F ${WATCHED}`, persistent: true })
       return answerText(res, n, model, ARMED)
@@ -161,7 +167,7 @@ const park = async (runner: Runner): Promise<{ code: number | null; late: boolea
   }
   return { code, late: false }
 }
-const deadTurns = (): Wire[] => wire.filter(w => w.ask.includes(DEAD_WORDS))
+const deadTurns = (): Wire[] => wire.filter(w => w.lastUser.includes(DEAD_WORDS))
 
 if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
@@ -200,11 +206,11 @@ if (!existsSync(DIST)) {
   void resumed.prompt(HELLO_ASK, 'u-hello')
   const hello = await waitWire('the resumed turn', w => w.ask.trim() === HELLO_ASK, bound(60_000))
   check('the resumed session answers', hello !== null, resumed.stderr().slice(-400))
-  const told = await waitWire('the turn that names the dead watch', w => w.ask.includes(DEAD_WORDS) && w.at > parkedAt, bound(30_000))
+  const told = await waitWire('the request that names the dead watch', w => w.lastUser.includes(DEAD_WORDS) && w.at > parkedAt, bound(30_000))
   await sleep(3_000)
-  check('exactly one turn after the resume names the watch that did not survive the pause', told !== null && deadTurns().length === 1, j(wire.map(w => [w.n, w.ask.slice(0, 60)])))
-  const ask = told?.ask ?? ''
-  check('that turn is the monitor block of that watch, naming its task and how to arm it again, and nothing else', ask.startsWith(`<monitor task=${JSON.stringify(taskId)} name=${JSON.stringify(WATCH_NAME)}>`) && ask.includes(`(task ${taskId})`) && ask.includes(REARM_WORDS) && !ask.includes(HELLO_ASK), ask.slice(0, 300))
+  check('exactly one request after the resume names the watch that did not survive the pause', told !== null && deadTurns().length === 1, j(wire.map(w => [w.n, w.ask.slice(0, 60)])))
+  const carried = told?.lastUser ?? ''
+  check("that request is the resumed turn's own: the operator's words with the monitor block of that watch riding them, naming its task and how to arm it again", told !== null && told.n === hello?.n && told.ask.trim() === HELLO_ASK && carried.includes(`<monitor task=${JSON.stringify(taskId)} name=${JSON.stringify(WATCH_NAME)}>`) && carried.includes(`(task ${taskId})`) && carried.includes(REARM_WORDS), carried.slice(0, 300))
   check('the lines appended while parked are not delivered as if the watch had lived', wire.every(w => PARKED_LINES.every(line => !w.ask.includes(line))))
   check('no watch process outlives the park into the resumed session', tailAlive() === '', tailAlive())
 
@@ -221,8 +227,8 @@ if (!existsSync(DIST)) {
   reapTail()
 
   const projects = join(HOME, 'projects')
-  const records = carriersOf(projects, DEAD_WORDS).filter(c => c.kind === 'input')
-  check('the transcript holds the dead-watch notice as ONE input record', records.length === 1, j(records.map(r => [r.file, r.recordId])))
+  const records = carriersOf(projects, DEAD_WORDS).filter(inMainFile)
+  check("the transcript holds the dead-watch notice as ONE record, the one riding the resumed turn's words", records.length === 1 && records[0]!.kind.startsWith('attachment'), j(records.map(r => [r.file, r.kind, r.recordId])))
 
   exportWorld('watch-park', HOME, { 'wire.json': JSON.stringify(wire, null, 2), 'frames.json': JSON.stringify([...runner.frames, ...resumed.frames, ...again.frames], null, 2) })
   await removeWorld(HOME)
