@@ -66,7 +66,7 @@ const EXIT_TABLE: Record<string, Exit> = {
     action: 'confirm:no',
     hints: [
       { file: 'src/components/Settings/Config.tsx', needles: ["esc or click outside closes'"] },
-      { file: 'src/components/Settings/Settings.tsx', needles: ['cutToWidth(hint ?? request.hint, inner + 1)'] },
+      { file: 'src/components/Settings/Settings.tsx', needles: ['settingsPopupHintText(hint ?? request.hint, inner)', 'wrap="wrap">{hintText}</Text>'] },
     ],
   },
   Confirmation: {
@@ -277,7 +277,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   }
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
-    'src/components/HelpV2/Commands.tsx': { reason: 'the commands tab’s PageUp/PageDown handler — the help shell owns esc and prints the way out', witness: 'src/components/HelpV2/HelpV2.tsx' },
     'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
     'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
@@ -285,6 +284,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
     'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
+    'src/components/CustomSelect/popup-list.tsx': { reason: 'the popup list engine (page keys and the viewport markers); the hosting popup prints its footer', witness: 'src/components/mercury-ui/components.tsx' },
     'src/components/PopupForm.tsx': { reason: 'the settings shell prints the request\'s hint; its words come from the popup owner', witness: 'src/utils/cockpit/settingsPopup.ts' },
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
