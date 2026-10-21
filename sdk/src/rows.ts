@@ -28,6 +28,10 @@ export type JsonSchema = {
   anyOf?: readonly JsonSchema[]
   minimum?: number
   maximum?: number
+  exclusiveMinimum?: number
+  exclusiveMaximum?: number
+  minLength?: number
+  maxLength?: number
 }
 export type HookEnding = {
   status: 'ok'
@@ -193,7 +197,7 @@ export interface Denial {
   call_id: string
   input: Record<string, unknown>
 }
-export interface OutcomeRow {
+export interface OutcomeRow<T = unknown> {
   type: 'outcome'
   seq: number
   timestamp: string
@@ -205,7 +209,7 @@ export interface OutcomeRow {
   status: 'completed' | 'blocked' | 'refused' | 'interrupted' | 'turn_limit' | 'budget_limit' | 'time_limit' | 'schema_unmet' | 'loop_stopped' | 'failed'
   stop?: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' | 'refusal' | 'pause' | 'hook'
   answer?: string
-  structured?: unknown
+  structured?: T
   error?: OutcomeError
   steps: number
   wall_ms: number

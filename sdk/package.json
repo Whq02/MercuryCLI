@@ -1,17 +1,22 @@
 {
-  "name": "mercury-sdk-draft",
-  "version": "0.0.0-draft",
-  "private": true,
-  "description": "A draft TypeScript client for the Mercury run door: the row vocabulary generated from the tree, a typed row stream and the door's refusals as typed errors. Parked in the repository; not published.",
-  "license": "UNLICENSED",
+  "name": "mercury-cli-sdk",
+  "version": "0.1.0",
+  "description": "Mercury CLI clients for TypeScript: typed run streams, hosted sessions and zero-cost fixtures.",
+  "license": "Apache-2.0",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"
@@ -22,5 +27,23 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^6.0.3"
+  },
+  "keywords": [
+    "mercury-cli",
+    "mercury"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://mercury-cli.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Whq02/MercuryCLI.git",
+    "directory": "sdk"
   }
 }

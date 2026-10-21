@@ -1,13 +1,34 @@
+/// <reference types="node" preserve="true" />
+/// <reference lib="esnext.disposable" preserve="true" />
+import { readLines } from './framing.js'
+import { executableOf } from './executable.js'
+import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
+import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
+import { endChild, missingCwd, track } from './lifecycle.js'
+import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
-import { parseRow } from './parse.js'
-import type { OutcomeRow, Row, SessionRow } from './rows.js'
+import { inputRowOf, parseRow, type StreamRow } from './parse.js'
+import type { InputBlock, InputRow, PromptRow, ShellRow, NoteRow, OutcomeRow, SessionRow } from './rows.js'
 
 export type ConfigLayer = 'user' | 'project' | 'local'
 
-export interface RunOptions {
-  prompt: string
+export interface RunOptions<T = unknown> {
+  worktree?: boolean | string
+  reasoningMode?: 'enabled' | 'adaptive' | 'disabled'
+  briefFile?: string
+  briefAddFile?: string
+  debug?: boolean | string
+  checkpointFiles?: boolean
+  replayTo?: string
+  restoreFiles?: string
+  tools?: readonly ToolDefinition[]
+  autoAllowTools?: boolean
+  prompt?: string | readonly InputBlock[] | AsyncIterable<string | InputRow>
+  input?: 'rows'
+  agentDefs?: Record<string, unknown>
+  maxTime?: string
   stdin?: string
   mercury?: string | readonly string[]
   cwd?: string
@@ -27,7 +48,7 @@ export interface RunOptions {
   onlyMcp?: boolean
   brief?: string
   briefAdd?: string
-  schema?: string | Record<string, unknown>
+  schema?: OutputSchema<T>
   maxTurns?: number
   budgetUsd?: number
   partial?: boolean
@@ -51,15 +72,12 @@ export interface RunOptions {
 
 export type RunArgv = { command: string; args: string[] }
 
-const DEFAULT_COMMAND = 'mercury'
-
-export function argvOf(options: RunOptions): RunArgv {
-  const executable = options.mercury ?? DEFAULT_COMMAND
-  const [command, ...lead] = typeof executable === 'string' ? [executable] : [...executable]
+export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): RunArgv {
+  const [command, ...lead] = executableOf(options.mercury, options.env, options.cwd)
   if (command === undefined || command === '') throw new MercuryError('the mercury executable is empty', null)
   const args: string[] = [...lead]
   if (options.project !== undefined) args.push('--project', options.project)
-  args.push('run', '--format', 'rows')
+  args.push(...(door === 'run' ? ['run', '--format', 'rows'] : ['runner']))
   const value = (flag: string, given: string | undefined): void => {
     if (given !== undefined) args.push(flag, given)
   }
@@ -74,6 +92,9 @@ export function argvOf(options: RunOptions): RunArgv {
   value('--effort', options.effort)
   value('--backup-model', options.backupModel)
   value('--agent', options.agent)
+  value('--agent-defs', json(options.agentDefs))
+  value('--max-time', options.maxTime)
+  value('--input', options.prompt !== undefined && typeof options.prompt !== 'string' ? 'rows' : options.input)
   value('--mode', options.mode)
   flag('--sovereign', options.sovereign)
   flag('--allow-sovereign', options.allowSovereign)
@@ -83,8 +104,15 @@ export function argvOf(options: RunOptions): RunArgv {
   list('--mcp', options.mcp)
   flag('--only-mcp', options.onlyMcp)
   value('--brief', options.brief)
+  value('--brief-file', options.briefFile)
+  value('--brief-add-file', options.briefAddFile)
+  value('--reasoning-mode', options.reasoningMode)
+  for (const [name, setting] of [['--worktree', options.worktree], ['--debug', options.debug]] as const) {
+    if (setting === true) args.push(name)
+    else if (typeof setting === 'string') args.push(name, setting)
+  }
   value('--brief-add', options.briefAdd)
-  value('--schema', json(options.schema))
+  value('--schema', options.schema === undefined ? undefined : JSON.stringify(schemaObject(options.schema, options.cwd)))
   value('--max-turns', options.maxTurns === undefined ? undefined : String(options.maxTurns))
   value('--budget', options.budgetUsd === undefined ? undefined : String(options.budgetUsd))
   flag('--partial', options.partial)
@@ -94,6 +122,8 @@ export function argvOf(options: RunOptions): RunArgv {
   value('--session-id', options.sessionId)
   value('--title', options.title)
   value('--resume', options.resume)
+  value('--replay-to', options.replayTo)
+  value('--restore-files', options.restoreFiles)
   flag('--continue', options.continue)
   flag('--fork', options.fork)
   flag('--ephemeral', options.ephemeral)
@@ -103,44 +133,55 @@ export function argvOf(options: RunOptions): RunArgv {
   list('--provider-preview', options.providerPreview)
   value('--log-file', options.logFile)
   args.push(...(options.extraArgs ?? []))
-  args.push('--', options.prompt)
+  if (typeof options.prompt === 'string') args.push('--', options.prompt)
   return { command, args }
 }
 
-type RowListener<T extends Row['type']> = (row: Extract<Row, { type: T }>) => void
+type RowListener<T extends StreamRow['type']> = (row: Extract<StreamRow, { type: T }>) => void
 type Listener = (payload: never) => void
 
-export class MercuryRun implements AsyncIterable<Row> {
-  readonly command: string
-  readonly args: readonly string[]
-  readonly rows: Row[] = []
-  readonly outcome: Promise<OutcomeRow>
+export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
+  command: string
+  args: readonly string[]
+  readonly rows: StreamRow[] = []
+  readonly outcome: Promise<OutcomeRow<T>>
   readonly session: Promise<SessionRow>
   readonly exit: Promise<RunExit>
-  readonly child: ChildProcess
+  readonly ready: Promise<void>
+  child!: ChildProcess
+  #tools: ToolServer | undefined
 
+  #abortCleanup: (() => void) | undefined
+  #streaming: boolean
   #listeners = new Map<string, Set<Listener>>()
-  #buffer = ''
+  #stopTimer: ReturnType<typeof setTimeout> | undefined
+  #abortRequested = false
   #stderr = ''
   #settled = false
   #error: MercuryError | null = null
   #outcomeRow: OutcomeRow | null = null
   #sessionRow: SessionRow | null = null
   #spawnFailure: unknown = undefined
-  #resolveOutcome!: (row: OutcomeRow) => void
+  #resolveOutcome!: (row: OutcomeRow<T>) => void
   #rejectOutcome!: (error: MercuryError) => void
   #resolveSession!: (row: SessionRow) => void
   #rejectSession!: (error: MercuryError) => void
   #resolveExit!: (exit: RunExit) => void
-  #waiters: Array<{ resolve: (next: IteratorResult<Row>) => void; reject: (error: MercuryError) => void }> = []
-  #queue: Row[] = []
+  #waiters: Array<{ resolve: (next: IteratorResult<StreamRow>) => void; reject: (error: MercuryError) => void }> = []
+  #queue: StreamRow[] = []
   #done = false
 
-  constructor(options: RunOptions) {
+  constructor(private options: RunOptions<T>) {
+    options = checkpointOptions(options)
+    if (options.schema !== undefined && !(options.schema instanceof StructuredSchema)) options = { ...options, schema: schemaObject(options.schema, options.cwd) }
+    this.options = options
+    if (options.prompt !== undefined && typeof options.prompt !== 'string') options = { ...options, input: 'rows' }
+    if (options.input === 'rows' && options.stdin !== undefined) throw new MercuryError('stdin text cannot be combined with input rows', null)
+    this.#streaming = options.input === 'rows'
     const { command, args } = argvOf(options)
     this.command = command
     this.args = args
-    this.outcome = new Promise<OutcomeRow>((resolve, reject) => {
+    this.outcome = new Promise<OutcomeRow<T>>((resolve, reject) => {
       this.#resolveOutcome = resolve
       this.#rejectOutcome = reject
     })
@@ -153,34 +194,80 @@ export class MercuryRun implements AsyncIterable<Row> {
     })
     this.outcome.catch(() => undefined)
     this.session.catch(() => undefined)
+    if (options.tools?.length) {
+      this.ready = serveTools(options.tools).then(server => {
+        this.#tools = server
+        this.#start(withTools(options, server))
+      }).catch(async error => {
+        this.#error = error instanceof MercuryError ? error : new MercuryError(String(error), null)
+        await this.#settle(null, null)
+        throw this.#error
+      })
+    } else {
+      this.#start(options)
+      this.ready = Promise.resolve()
+    }
+    this.ready.catch(() => undefined)
+  }
+
+  #start(options: RunOptions): void {
+    const { command, args } = argvOf(options)
+    this.command = command
+    this.args = args
+    const cwdProblem = missingCwd(options.cwd)
     this.child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env ?? process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     })
-    this.child.stdout!.setEncoding('utf8')
+    track(this.child)
     this.child.stderr!.setEncoding('utf8')
-    this.child.stdout!.on('data', (chunk: string) => this.#feed(chunk))
+    readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
     this.child.stderr!.on('data', (chunk: string) => {
       this.#stderr += chunk
     })
     this.child.stdin!.on('error', () => undefined)
     this.child.on('error', (error: unknown) => {
-      this.#spawnFailure = error
+      this.#spawnFailure = cwdProblem ?? error
       if (this.child.pid === undefined) this.#settle(null, null)
     })
     this.child.on('close', (code, signal) => this.#settle(code, signal))
     if (options.stdin !== undefined) this.child.stdin!.write(options.stdin)
-    this.child.stdin!.end()
+    if (options.input !== 'rows') this.child.stdin!.end()
+    if (options.prompt !== undefined && typeof options.prompt !== 'string') void this.#feed(options.prompt)
     if (options.signal !== undefined) {
-      if (options.signal.aborted) this.interrupt()
-      else options.signal.addEventListener('abort', () => this.interrupt(), { once: true })
+      if (options.signal.aborted) this.#abortRequested = true
+      else {
+        const abort = () => { if (this.#sessionRow) this.interrupt(); else this.#abortRequested = true }
+        options.signal.addEventListener('abort', abort, { once: true })
+        this.#abortCleanup = () => options.signal!.removeEventListener('abort', abort)
+      }
     }
   }
 
-  on<T extends Row['type']>(type: T, listener: RowListener<T>): this
-  on(type: 'row', listener: (row: Row) => void): this
+  async #feed(prompt: readonly InputBlock[] | AsyncIterable<string | InputRow>): Promise<void> {
+    try {
+      if (Symbol.asyncIterator in prompt) {
+        const iterator = prompt[Symbol.asyncIterator]()
+        const ended = this.exit.then(() => ({ done: true as const, value: undefined }))
+        let finished = false
+        try {
+          while (!this.#settled) {
+            const next = await Promise.race([iterator.next(), ended])
+            if (next.done) { finished = !this.#settled; break }
+            await this.send(typeof next.value === 'string' ? { type: 'prompt', content: next.value } : next.value)
+          }
+        } finally {
+          if (!finished && iterator.return) void Promise.resolve(iterator.return()).catch(() => undefined)
+        }
+      } else await this.sendPrompt([...prompt])
+      this.closeInput()
+    } catch (error) { if (!this.#settled) this.#fatal(error instanceof MercuryError ? error : new MercuryError(String(error), null)) }
+  }
+
+  on<T extends StreamRow['type']>(type: T, listener: RowListener<T>): this
+  on(type: 'row', listener: (row: StreamRow) => void): this
   on(type: 'error', listener: (error: MercuryError) => void): this
   on(type: 'end', listener: (exit: RunExit) => void): this
   on(type: string, listener: (payload: never) => void): this {
@@ -198,17 +285,37 @@ export class MercuryRun implements AsyncIterable<Row> {
     return this
   }
 
+  async send(row: InputRow): Promise<void> {
+    await this.ready
+    if (this.#settled || this.child.exitCode !== null || this.child.signalCode !== null || !this.#streaming || this.child.stdin!.writableEnded || this.child.stdin!.destroyed) return Promise.reject(new MercuryError('input rows is not open', null))
+    const read = inputRowOf(row)
+    if (!read.ok) return Promise.reject(new MercuryWireError(JSON.stringify(row), read.reason, read.type, read.issues, null))
+    return new Promise((resolve, reject) => this.child.stdin!.write(JSON.stringify(row) + '\n', error => error ? reject(new MercuryError(error.message, null, { cause: error })) : resolve()))
+  }
+
+  sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}): Promise<void> { return this.send({ ...options, type: 'prompt', content }) }
+  sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}): Promise<void> { return this.send({ ...options, type: 'shell', command }) }
+  sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}): Promise<void> { return this.send({ ...options, type: 'note', to, content }) }
+  closeInput(): void { if (this.child) this.child.stdin!.end(); else void this.ready.then(() => this.child?.stdin?.end(), () => undefined) }
+
   interrupt(): boolean {
+    this.#tools?.cancel()
+    if (!this.child) { this.#abortRequested = true; return true }
     return this.child.kill('SIGINT')
   }
 
   terminate(): boolean {
+    if (!this.child) { void this.ready.then(() => this.child?.kill('SIGTERM'), () => undefined); return true }
     return this.child.kill('SIGTERM')
   }
 
   kill(): boolean {
+    if (!this.child) { void this.ready.then(() => this.child?.kill('SIGKILL'), () => undefined); return true }
     return this.child.kill('SIGKILL')
   }
+
+  async close(): Promise<void> { await this.ready.catch(() => undefined); if (this.child) await endChild(this.child, this.exit); else await this.exit }
+  async [Symbol.asyncDispose](): Promise<void> { await this.close() }
 
   get error(): MercuryError | null {
     return this.#error
@@ -218,19 +325,19 @@ export class MercuryRun implements AsyncIterable<Row> {
     return this.#stderr
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<Row> {
+  [Symbol.asyncIterator](): AsyncIterator<StreamRow> {
     return {
-      next: (): Promise<IteratorResult<Row>> => {
+      next: (): Promise<IteratorResult<StreamRow>> => {
         const queued = this.#queue.shift()
         if (queued !== undefined) return Promise.resolve({ value: queued, done: false })
         if (this.#done) return this.#endOfRows()
         return new Promise((resolve, reject) => this.#waiters.push({ resolve, reject }))
       },
-      return: (): Promise<IteratorResult<Row>> => Promise.resolve({ value: undefined, done: true }),
+      return: (): Promise<IteratorResult<StreamRow>> => Promise.resolve({ value: undefined, done: true }),
     }
   }
 
-  #endOfRows(): Promise<IteratorResult<Row>> {
+  #endOfRows(): Promise<IteratorResult<StreamRow>> {
     if (this.#error !== null) return Promise.reject(this.#error)
     return Promise.resolve({ value: undefined, done: true })
   }
@@ -239,24 +346,20 @@ export class MercuryRun implements AsyncIterable<Row> {
     for (const listener of this.#listeners.get(type) ?? []) (listener as (payload: unknown) => void)(payload)
   }
 
-  #feed(chunk: string): void {
-    this.#buffer += chunk
-    let newline: number
-    while ((newline = this.#buffer.indexOf('\n')) >= 0) {
-      const line = this.#buffer.slice(0, newline)
-      this.#buffer = this.#buffer.slice(newline + 1)
-      this.#line(line)
-    }
+  #fatal(error: MercuryError): void {
+    if (this.#error) return
+    this.#error = error
+    this.child.stdin!.end()
+    this.terminate()
+    this.#stopTimer = setTimeout(() => this.kill(), 1000)
+    this.#stopTimer.unref()
   }
 
   #line(line: string): void {
-    if (line.trim() === '') return
+    if (this.#error || line.trim() === '') return
     const read = parseRow(line)
     if (!read.ok) {
-      if (this.#error === null) {
-        this.#error = new MercuryWireError(line, read.reason, read.type, read.issues, null)
-        this.#emit('error', this.#error)
-      }
+      this.#fatal(new MercuryWireError(line, read.reason, read.type, read.issues, null))
       return
     }
     const row = read.row
@@ -264,6 +367,7 @@ export class MercuryRun implements AsyncIterable<Row> {
     if (row.type === 'session' && this.#sessionRow === null) {
       this.#sessionRow = row
       this.#resolveSession(row)
+      if (this.#abortRequested) this.interrupt()
     }
     if (row.type === 'outcome') this.#outcomeRow = row
     this.#emit('row', row)
@@ -273,26 +377,30 @@ export class MercuryRun implements AsyncIterable<Row> {
     else this.#queue.push(row)
   }
 
-  #settle(code: number | null, signal: NodeJS.Signals | null): void {
+  async #settle(code: number | null, signal: NodeJS.Signals | null): Promise<void> {
     if (this.#settled) return
     this.#settled = true
-    if (this.#buffer.trim() !== '') this.#line(this.#buffer)
-    this.#buffer = ''
+    await this.#tools?.close()
+    this.#abortCleanup?.()
+    clearTimeout(this.#stopTimer)
     const exit: RunExit = { code, signal, stderr: this.#stderr }
     if (this.#error === null) {
       if (this.#spawnFailure !== undefined && this.#outcomeRow === null) this.#error = new MercurySpawnError(this.command, this.#spawnFailure)
       else if (this.#outcomeRow !== null && this.#outcomeRow.status === 'refused') this.#error = new MercuryRefusal(this.#outcomeRow, exit)
       else if (this.#outcomeRow === null && code === 2) this.#error = new MercuryUsageError(exit)
       else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit)
-      if (this.#error !== null) this.#emit('error', this.#error)
-    } else if (this.#error instanceof MercuryWireError) {
-      this.#error = new MercuryWireError(this.#error.line, this.#error.reason, this.#error.rowType, this.#error.issues, exit)
     }
+    let outcome: OutcomeRow<T> | undefined
+    if (this.#error === null && this.#outcomeRow) {
+      try { outcome = validateOutcome(this.#outcomeRow, this.options.schema, this.options.cwd) }
+      catch (error) { this.#error = error instanceof MercuryError ? error : new MercuryError(String(error), exit) }
+    }
+    if (this.#error !== null) { this.#error.exit = exit; this.#emit('error', this.#error) }
     if (this.#error !== null) {
       this.#rejectOutcome(this.#error)
       if (this.#sessionRow === null) this.#rejectSession(this.#error)
     } else {
-      this.#resolveOutcome(this.#outcomeRow!)
+      this.#resolveOutcome(outcome!)
       if (this.#sessionRow === null) this.#rejectSession(new MercuryExitError(exit))
     }
     this.#done = true
@@ -305,6 +413,12 @@ export class MercuryRun implements AsyncIterable<Row> {
   }
 }
 
-export function run(options: RunOptions): MercuryRun {
-  return new MercuryRun(options)
+export function run<T = unknown>(options: RunOptions<T>): MercuryRun<T> {
+  return new MercuryRun<T>(options)
+}
+
+export function checkpointOptions<T extends RunOptions>(options: T, warm = false): T {
+  if (!options.checkpointFiles && !warm) return options
+  const identity = !warm && !options.sessionId && !options.resume && !options.continue ? { sessionId: randomUUID() } : {}
+  return { ...options, ...identity, env: { ...(options.env ?? process.env), MERCURY_CONCOURSE_WORKER: '1' } }
 }
