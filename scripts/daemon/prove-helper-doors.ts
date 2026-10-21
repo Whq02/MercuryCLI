@@ -48,6 +48,7 @@ const rpc = (request: object, timeoutMs = 10_000) => daemonControlRpc(request as
 const at = async (pid: number, request: object) => forwardFrame(predecessorSockPath(pid), JSON.stringify({ ...request, proto: MERCURY_DAEMON_PROTO, auth: await readControlKey() }), 3000)
 const hello = async (pid?: number) => (pid === undefined ? rpc(helloRequest) : at(pid, helloRequest))
 const children: ChildProcess[] = []
+const helperExits = new Set<number>()
 const logs = new Map<number, string>()
 const planeDir = join(home, 'daemon')
 const planeLink = join(planeDir, 'control.sock')
@@ -67,6 +68,7 @@ const spawnHelper = (dir: string, extraEnv: Record<string, string | undefined> =
   const child = spawn('node', [join(dir, 'mercury.mjs'), 'daemon', 'run', work], { cwd: work, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
   children.push(child)
   const pid = child.pid!
+  child.once('exit', () => helperExits.add(pid))
   logs.set(pid, '')
   for (const stream of [child.stdout, child.stderr]) stream?.on('data', data => logs.set(pid, logs.get(pid)! + data))
   return pid
@@ -118,7 +120,7 @@ const cli = async (args: string[], dir: string, extraEnv: Record<string, string 
   const child = spawn('node', [join(dir, 'mercury.mjs'), 'daemon', ...args], { cwd: work, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
   let text = ''
   for (const stream of [child.stdout, child.stderr]) stream?.on('data', data => (text += data))
-  return new Promise(resolve => child.once('exit', code => resolve({ code, text })))
+  return new Promise(resolve => child.once('close', code => resolve({ code, text })))
 }
 const helpersLine = (text: string): string => text.split('\n').filter(l => /^\s+helpers:|^\s+pid \d+:/.test(l)).join(' | ')
 const OLD_SHA = '5acf54bac'
@@ -287,8 +289,8 @@ try {
     note(`a plain stop said (rc ${plain.code}): ${plain.text.trim()}`)
     const expected = hosted.length + 1
     check(`a plain stop is acknowledged and counts every helper's chats — reaped ${expected} worker(s)`, plain.code === 0 && plain.text.includes(`reaped ${expected} worker(s)`), plain.text.trim())
-    check('every helper left through that one stop', await until(() => [plane, ...hosted.map(h => h.helper)].every(pid => !isProcessAlive(pid)), 30_000), [plane, ...hosted.map(h => h.helper)].filter(isProcessAlive))
     check('every chat left with its helper', await until(() => [planeChat, ...hosted.map(h => h.chat)].every(chat => !isProcessAlive(chat.pid)), 30_000))
+    check('every helper left through that one stop', await until(() => [plane, ...hosted.map(h => h.helper)].every(pid => helperExits.has(pid)), 30_000), [plane, ...hosted.map(h => h.helper)].filter(pid => !helperExits.has(pid)))
     const after = await cli(['status'], join(home, 'runtime/current'))
     check('the final status says zero helpers and zero live workers', after.text.includes('0 running / 0 live workers'), helpersLine(after.text))
     check('no socket or link is left behind', !readdirSync(planeDir).some(entry => entry.startsWith('control.sock')), readdirSync(planeDir))
@@ -334,7 +336,7 @@ try {
   for (const child of children) {
     if (child.pid && isProcessAlive(child.pid)) await at(child.pid, { op: 'shutdown', reapWorkers: true }).catch(() => undefined)
   }
-  check('every helper this drive started has left through Mercury', await until(() => children.every(child => !child.pid || !isProcessAlive(child.pid))), children.filter(child => child.pid && isProcessAlive(child.pid)).map(child => child.pid))
+  check('every helper this drive started has left through Mercury', await until(() => children.every(child => child.pid === undefined || helperExits.has(child.pid))), children.filter(child => child.pid !== undefined && !helperExits.has(child.pid)).map(child => child.pid))
   for (const [pid, log] of logs) writeFileSync(join(world, `${pid}.log`), log)
   console.log(`world: ${world}`)
   if (failures === 0) rmSync(world, { recursive: true, force: true })
