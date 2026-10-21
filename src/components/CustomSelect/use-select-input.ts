@@ -5,6 +5,7 @@ import {
   isTopOverlayNow,
   useRegisterOverlay,
 } from '../../context/overlayContext.js'
+import { useModalScrollRef } from '../../context/modalContext.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { enterHeldByQueuedWords, reportConsentDeclineRow, trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import {
@@ -66,6 +67,16 @@ export function useSelectInput<T>({
   const isOnLastOption = state.focusedIndex === optionCount && optionCount > 0
   const isOnFirstOption = state.focusedIndex === 1
   const isWindowAtTop = state.visibleFromIndex === 0
+  const hostScroll = useModalScrollRef()
+  const enabledIndexes = state.options.flatMap((option, index) => (option.disabled ? [] : [index + 1]))
+  const pagesHostBody = (down: boolean): boolean => {
+    const host = hostScroll?.current
+    if (!host || state.focusedIndex !== (down ? enabledIndexes.at(-1) : enabledIndexes[0])) return false
+    const viewport = host.getViewportHeight()
+    if (host.getFreshScrollHeight() <= viewport) return false
+    host.scrollBy((down ? 1 : -1) * Math.max(1, viewport - 1))
+    return true
+  }
 
   const declineRow = 1 + state.options.findIndex(option => ['no', 'reject'].includes(String(optionValueOf(option))))
   const reporter = useRef({})
@@ -124,8 +135,10 @@ export function useSelectInput<T>({
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
       if (key.pageDown || key.pageUp) {
-        if (key.pageDown) state.focusNextPage()
-        else state.focusPreviousPage()
+        if (!pagesHostBody(key.pageDown)) {
+          if (key.pageDown) state.focusNextPage()
+          else state.focusPreviousPage()
+        }
         event.stopImmediatePropagation()
         return
       }

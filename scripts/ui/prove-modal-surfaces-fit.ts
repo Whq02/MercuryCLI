@@ -83,7 +83,7 @@ section('mechanism pins')
   const slot = read('src/components/SettingsPopupSlot.tsx')
   check('the slot measures the compact body against a three-row chrome (border and the folded title row)', slot.includes('export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3') && slot.includes('const compact = rows !== null && settingsPopupCompact(fullBudget)'))
   const settings = read('src/components/Settings/Settings.tsx')
-  check('the compact frame folds the close hint into the title row, hides the line and hint rows and carries the body marker', settings.includes('SETTINGS_POPUP_COMPACT_HINT') && settings.includes('compact && marker !== null') && settings.includes('height={compact ? 0 : 1} flexShrink={0} width={inner + 1}') && settings.includes('geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS'))
+  check('the compact frame folds the close hint into the title row, hides the line and hint rows and carries the body marker', settings.includes('SETTINGS_POPUP_COMPACT_HINT') && settings.includes('compact && marker !== null') && settings.includes("const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), wrapText(hintText, Math.max(1, inner + 1), 'wrap').split('\\n').length)") && settings.includes('height={hintRows} flexShrink={0} width={inner + 1}') && settings.includes('geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS'))
   check('/config, /usage and /logins read the one compact flag', read('src/commands/config/config.tsx').includes('compact={geometry.compact}') && read('src/commands/usage/usage.tsx').includes('compact={geometry.compact}') && read('src/components/ConsoleOAuthFlow.tsx').includes('usePopupCompact().compact'))
 }
 
