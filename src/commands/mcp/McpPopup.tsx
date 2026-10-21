@@ -11,7 +11,8 @@ import { MCP_TOOLS_ANSWER_BYTES, MCP_TOOL_DESCRIPTION_CHARS } from '../../servic
 import { mcpRosterRowsFailedFirst } from './route.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { ProductLockup } from '../../components/mercury-ui/components.js'
-import { paneWindow, panelWidth, scrolledWindow } from '../../components/mercury-ui/geometry.js'
+import { panelWidth, scrolledWindow } from '../../components/mercury-ui/geometry.js'
+import { PopupListViewport, popupListWindow as paneWindow, usePopupListPaging } from '../../components/CustomSelect/popup-list.js'
 import { MenuFilterLine, cutToWidth } from '../../components/mercury-ui/menuFold.js'
 import { decodeNavKey } from '../../components/mercury-ui/navSemantics.js'
 import { useElevatedSurface } from '../../components/mercury-ui/useElevatedSurface.js'
@@ -140,7 +141,7 @@ export function mcpServerState(server: McpRosterEntryV1): string {
   if (server.type === 'pending') return 'connecting…'
   return server.type
 }
-const MCP_POPUP_CHROME_ROWS = 8
+const MCP_POPUP_CHROME_ROWS = 9
 const MCP_POPUP_UNFOLD_ROWS = 3
 const MCP_DETAIL_CHROME_ROWS = 6
 export function mcpPopupShapeFor(serverCount: number): CommandPopupShape {
@@ -222,6 +223,9 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const detailSpan = detailLines.length > bodyRows ? Math.max(1, bodyRows - 1) : bodyRows
   const detailWin = scrolledWindow(detailLines.length, detailScroll, detailSpan)
   const scrollDetail = (to: number): void => setDetailScroll(Math.max(0, Math.min(Math.max(0, detailLines.length - detailSpan), to)))
+  usePopupListPaging(at, rows.length, height - MCP_POPUP_CHROME_ROWS, setCursor, toolView === null)
+  usePopupListPaging(toolAt, filteredTools.length, height - MCP_POPUP_CHROME_ROWS, setToolCursor, toolView !== null && toolView.tool === null && toolView.reason === null)
+  usePopupListPaging(reasonWin.start, Math.max(0, reasonLines.length - reasonSpan) + 1, reasonSpan, setDetailScroll, toolView !== null && toolView.tool === null && toolView.reason !== null)
   const openTool = (view: ToolViewState, tool: McpToolEntryV1): void => {
     setDetailScroll(0)
     setToolView({ ...view, tool })
@@ -373,16 +377,19 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
         <Box height={1} />
         {toolView.reason !== null ? reasonLines.slice(reasonWin.start, reasonWin.end).map((line, index) => <Text key={reasonWin.start + index} color={tokens.warning} wrap="truncate-end">{line === '' ? ' ' : line}</Text>) : null}
         {toolView.reason !== null && reasonLines.length > reasonSpan ? <Text color={tokens.textMuted} wrap="truncate-end">{[reasonWin.above > 0 ? `↑ ${reasonWin.above} more` : '', reasonWin.below > 0 ? `↓ ${reasonWin.below} more` : ''].filter(Boolean).join(' · ')}</Text> : null}
+        <PopupListViewport above={toolWin.above} below={toolWin.below} rows={toolWin.end - toolWin.start}>
         {toolView.reason !== null ? null : filteredTools.length === 0 ? <Text color={tokens.textMuted}>{toolFilter ? 'No matching tools' : 'This server exposes no tools.'}</Text> : filteredTools.slice(toolWin.start, toolWin.end).map((tool, index) => {
           const selected = toolWin.start + index === toolAt
           const oneLine = inertLine(tool.description)
           const label = oneLine ? `${inertLine(tool.name)} · ${oneLine}` : inertLine(tool.name)
           return <InteractiveRow key={tool.name} id={`mcp:tool:${toolView.server}:${tool.name}`} selected={selected} onSelect={() => setToolCursor(toolWin.start + index)} onActivate={() => openTool(toolView, tool)} width={inner} height={1}><Text color={selected ? accent : tokens.textPrimary} wrap="truncate-end">{selected ? '› ' : '  '}{cutToWidth(label, Math.max(1, inner - 2))}</Text></InteractiveRow>
         })}
+        </PopupListViewport>
         <Box flexGrow={1} />
         <Box minHeight={1} width={inner}><Text color={tokens.textMuted}>{selectedTool ? MCP_TOOL_LOADING_WORDS[selectedTool.loading] : ''}</Text></Box>
         <MenuFilterLine focused={toolFilterFocus} text={toolFilter} placeholder="filter tools" accent={accent} muted={tokens.textMuted} primary={tokens.textPrimary} />
         <Text color={tokens.textMuted}>{cutToWidth(MCP_TOOLS_HINT, inner)}</Text>
+        <Text color={tokens.textMuted}>pgup/pgdn page</Text>
       </Box>
     )
   }
@@ -391,6 +398,7 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
       <ProductLockup view="mcp" separator=" · " />
       <Text color={tokens.textMuted}>{servers.length} servers · this session</Text>
       <Box height={1} />
+      <PopupListViewport above={win.above} below={win.below} rows={win.end - win.start}>
       {rows.length === 0 ? <Text color={tokens.textMuted}>{filter ? 'No matching servers' : 'No MCP servers · mercury mcp add to add one'}</Text> : rows.slice(win.start, win.end).map((row, index) => {
         const selected = win.start + index === at
         const label = row.action
@@ -398,10 +406,12 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
           : `${row.server.name} · ${stateOf(row.server)}${row.server.addedAt && Date.now() - row.server.addedAt < 60_000 ? ' · added just now' : ''}${expanded === row.server.name && row.server.type === 'connected' ? ` · ${row.server.toolCount ?? 0} tools` : ''}`
         return <InteractiveRow key={row.key} id={`mcp:${row.key}`} selected={selected} onSelect={() => setCursor(win.start + index)} onActivate={() => { void run(row) }} width={inner} height={1}><Text color={selected ? accent : tokens.textPrimary} wrap="truncate-end">{selected ? '› ' : '  '}{cutToWidth(label, Math.max(1, inner - 2))}</Text></InteractiveRow>
       })}
+      </PopupListViewport>
       <Box flexGrow={1} />
       <Box minHeight={1} width={inner}><Text color={tokens.warning}>{detail}</Text></Box>
       <MenuFilterLine focused={filterFocus} text={filter} placeholder="filter by name" accent={accent} muted={tokens.textMuted} primary={tokens.textPrimary} />
       <Text color={tokens.textMuted}>{cutToWidth(MCP_POPUP_HINT, inner)}</Text>
+      <Text color={tokens.textMuted}>pgup/pgdn page</Text>
     </Box>
   )
 }

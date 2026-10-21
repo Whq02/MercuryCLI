@@ -3,6 +3,7 @@ import * as React from 'react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput, wrapText } from '../ink.js'
+import { usePopupListPaging } from './CustomSelect/popup-list.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { fitMeasuredWindow, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
@@ -530,7 +531,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         ? reasonLines
         : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? wrapPlain(notice, inner) : [])]
   const chromePaint =
-    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
+    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 3 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
     noticeLines.length + (localOffer ? 1 : 0)
   const effortPaint = hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
@@ -552,6 +553,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     return sum
   }
   const win = fitMeasuredWindow(totalLines, paintBudget, span => paneWindow(totalLines, i, span), windowPaint)
+  usePopupListPaging(i, totalLines, win.end - win.start, target => selectRow(isCursorStop(lines[target]) ? target : nextStop(lines, target, target > i ? 1 : -1)), windowTyping === null)
   const pinnedHeading = headingAbove(win)
   const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
   const totalModels = filtering ? pickerReachTotal(groups, fullRowsOf) : 0
@@ -692,6 +694,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         )
       })}
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
+      <Text color={FAINT} wrap="truncate-end">pgup/pgdn page</Text>
     </Box>
     </Box>
   )

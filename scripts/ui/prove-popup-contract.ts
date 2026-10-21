@@ -112,5 +112,66 @@ for (const cols of [80, 120]) {
     check(`${cols} interactive lists: guide names paging`, interactive.screen().includes('pgup/pgdn'))
   } finally { interactive.unmount() }
 }
+
+const { EffortPopup, EffortApplyContext } = await import('../../src/commands/effort/EffortPopup.tsx')
+const { McpPopup } = await import('../../src/commands/mcp/McpPopup.tsx')
+const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
+const { PopupFrameContext } = await import('../../src/components/PopupGutter.tsx')
+const { ModalContext } = await import('../../src/context/modalContext.tsx')
+const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const originalConnector = getFocusedSessionConnector()
+const clients = Array.from({ length: 25 }, (_, index) => ({ name: 'server-' + String(index).padStart(2, '0'), type: 'connected', toolCount: 25 }))
+setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
+  if (property === 'mcpRoster') return () => ({ clients })
+  if (property === 'mcpTools') return async () => ({ state: 'connected', tools: Array.from({ length: 25 }, (_, index) => ({ name: 'tool-' + String(index).padStart(2, '0'), description: 'Tool description '.repeat(50), registeredAs: 'fixture-tool', loading: 'listed', inputSchema: { type: 'object', properties: {} } })), omitted: 0 })
+  const value = Reflect.get(target, property)
+  return typeof value === 'function' ? value.bind(target) : value
+} }))
+const models = Array.from({ length: 25 }, (_, index) => ({ id: 'fixture-model-' + String(index).padStart(2, '0'), name: 'fixture-model-' + String(index).padStart(2, '0'), tag: '', ctx: '64k', group: 'fixture' }))
+for (const cols of [80, 120]) {
+  for (const name of ['effort', 'mcp', 'model', 'color']) {
+    let done = false
+    let picked = ''
+    const body = name === 'effort' ? h(EffortApplyContext.Provider, { value: value => { picked = String(value); return 'Applied' } }, h(EffortPopup, { onDone: () => { done = true } }))
+      : name === 'mcp' ? h(McpPopup, { onDone: () => { done = true } })
+      : name === 'model' ? h(MercuryModelPicker, { models, current: models[0]!.id, initialFilter: 'fixture', onSelect: value => { picked = value }, onClose: () => { done = true } })
+      : h(Dialog, { title: 'Color', onCancel: () => { done = true } }, h(ColorPicker, { agentName: 'fixture', onConfirm: value => { picked = value ?? 'automatic' } }))
+    const fixtureRows = name === 'effort' ? 8 : name === 'color' ? 9 : 15
+    const scene = await mount(h(ModalContext.Provider, { value: { rows: fixtureRows, columns: cols, scrollRef: null } }, h(PopupFrameContext.Provider, { value: { width: Math.min(cols - 2, name === 'effort' ? 100 : 78), rows: fixtureRows } }, body)), cols)
+    const focus = () => scene.lines().find(line => /[❯›] /.test(line) && !line.includes('↑↓'))?.trim() ?? ''
+    try {
+      await settledFrame(scene, frame => frame.includes(name === 'mcp' ? 'server-00' : name === 'model' ? 'fixture-model-00' : name === 'color' ? 'automatic' : 'Mercury · effort'))
+      scene.push('\x1b[H')
+      await settledFrame(scene)
+      const first = focus()
+      scene.push(keys.down)
+      await settledFrame(scene)
+      check(cols + ' ' + name + ': Down moves the highlight', focus() !== first && focus() !== '', focus())
+      scene.push(keys.up)
+      await settledFrame(scene)
+      check(cols + ' ' + name + ': Up restores the highlight', focus() === first, focus())
+      scene.push(keys.pgdn)
+      await settledFrame(scene)
+      const page = focus()
+      check(cols + ' ' + name + ': PageDown moves the highlighted row', page !== first && page !== '', page)
+      check(cols + ' ' + name + ': page keys and close are visible', scene.screen().includes('pgup/pgdn') && scene.screen().includes('esc'), scene.screen())
+      check(cols + ' ' + name + ': scrolling has an edge marker', scene.lines().some(line => /[↑↓]/.test(line) && !/↑↓|pgup/.test(line)), scene.screen())
+      await save(scene, name + '-paged', cols)
+      scene.push(keys.pgup)
+      await settledFrame(scene)
+      check(cols + ' ' + name + ': PageUp moves toward the first page', focus() !== page, focus())
+      scene.push(keys.enter)
+      await settledFrame(scene)
+      check(cols + ' ' + name + ': Enter acts on that surface', name === 'mcp' ? scene.screen().includes('tools') : picked !== '', picked || scene.screen())
+      if (name !== 'effort') {
+        scene.push(keys.esc)
+        check(cols + ' ' + name + ': Escape closes or clears one filter level', await waitFor(() => done || (name === 'model' && !scene.screen().includes('/ fixture')), 1600))
+      }
+    } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }
+    finally { scene.unmount() }
+  }
+}
+setFocusedSessionConnector(originalConnector)
+
 console.log(`popup-contract: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)
