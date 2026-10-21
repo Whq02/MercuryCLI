@@ -162,6 +162,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #outcomeRow: OutcomeRow | null = null
   #sessionRow: SessionRow | null = null
   #spawnFailure: unknown = undefined
+  #sent = 0
   #resolveOutcome!: (row: OutcomeRow<T>) => void
   #rejectOutcome!: (error: MercuryError) => void
   #resolveSession!: (row: SessionRow) => void
@@ -290,7 +291,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     if (this.#settled || this.child.exitCode !== null || this.child.signalCode !== null || !this.#streaming || this.child.stdin!.writableEnded || this.child.stdin!.destroyed) return Promise.reject(new MercuryError('input rows is not open', null))
     const read = inputRowOf(row)
     if (!read.ok) return Promise.reject(new MercuryWireError(JSON.stringify(row), read.reason, read.type, read.issues, null))
-    return new Promise((resolve, reject) => this.child.stdin!.write(JSON.stringify(row) + '\n', error => error ? reject(new MercuryError(error.message, null, { cause: error })) : resolve()))
+    return new Promise((resolve, reject) => this.child.stdin!.write(JSON.stringify(row) + '\n', error => { if (error) reject(new MercuryError(error.message, null, { cause: error })); else { this.#sent++; resolve() } }))
   }
 
   sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}): Promise<void> { return this.send({ ...options, type: 'prompt', content }) }
@@ -389,7 +390,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       if (this.#spawnFailure !== undefined && this.#outcomeRow === null) this.#error = new MercurySpawnError(this.command, this.#spawnFailure)
       else if (this.#outcomeRow !== null && this.#outcomeRow.status === 'refused') this.#error = new MercuryRefusal(this.#outcomeRow, exit)
       else if (this.#outcomeRow === null && code === 2) this.#error = new MercuryUsageError(exit)
-      else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit)
+      else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit, 'run', this.#streaming && this.#sent === 0 && this.rows.length === 0 ? 'no input row was sent before stdin was closed' : undefined)
     }
     let outcome: OutcomeRow<T> | undefined
     if (this.#error === null && this.#outcomeRow) {

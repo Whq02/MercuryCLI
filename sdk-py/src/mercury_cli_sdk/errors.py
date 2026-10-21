@@ -48,10 +48,11 @@ class MercuryUsageError(MercuryError):
 
 class MercuryExitError(MercuryError):
     """The process ended before a run produced its outcome row or before a session was closed; the last stderr line is quoted."""
-    def __init__(self, exit: RunExit, door: Door = 'run'):
+    def __init__(self, exit: RunExit, door: Door = 'run', fallback: str | None = None):
         why = f'ended by {exit.signal}' if exit.signal is not None else f'exited {exit.code if exit.code is not None else "without a code"}'
         lines = _stderr_lines(exit)
-        tail = f': {lines[-1]}' if lines else ''
+        reason = lines[-1] if lines else fallback
+        tail = f': {reason}' if reason else ''
         super().__init__(f'mercury {door} {why} before {"an outcome row" if door == "run" else "the session was closed"}{tail}', exit)
         self.door = door
 

@@ -34,6 +34,9 @@ try {
     const task = run({ mercury: fake('process.exit(3)'), prompt: 'x' })
     await assert.rejects(task.outcome, (e: unknown) => e instanceof MercuryExitError && e.door === 'run' && e.message === 'mercury run exited 3 before an outcome row')
     await task.exit
+    const unfed = run({ mercury: fake("process.stdin.resume();process.stdin.on('end',()=>process.exit(1))"), input: 'rows' })
+    unfed.closeInput()
+    await assert.rejects(unfed.outcome, (e: unknown) => e instanceof MercuryExitError && e.message === 'mercury run exited 1 before an outcome row: no input row was sent before stdin was closed')
   })
   await check('MercuryRun.close() and await using end a streaming run', async () => {
     const fixture = await startFixtureServer({ rows: [], inputCount: 1 })

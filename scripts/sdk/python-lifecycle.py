@@ -38,6 +38,9 @@ async def words():
     await expect(connect(mercury=child("import sys;sys.stderr.write('boot failure: cannot open the store\\n');sys.exit(1)")), MercuryExitError, lambda e: e.door == 'runner' and str(e) == 'mercury runner exited 1 before the session was closed: boot failure: cannot open the store')
     task = await run('x', mercury=child('raise SystemExit(3)'))
     await expect(task.outcome, MercuryExitError, lambda e: e.door == 'run' and str(e) == 'mercury run exited 3 before an outcome row')
+    unfed = await run(input='rows', mercury=child('import sys\nsys.stdin.read()\nraise SystemExit(1)'))
+    unfed.close_input()
+    await expect(unfed.outcome, MercuryExitError, lambda e: str(e) == 'mercury run exited 1 before an outcome row: no input row was sent before stdin was closed')
 
 async def boot_timeout():
     silent = child('import sys\nsys.stdin.read()')

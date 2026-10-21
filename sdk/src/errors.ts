@@ -45,9 +45,9 @@ export class MercuryUsageError extends MercuryError {
 export class MercuryExitError extends MercuryError {
   override readonly name = 'MercuryExitError'
   readonly door: Door
-  constructor(exit: RunExit, door: Door = 'run') {
+  constructor(exit: RunExit, door: Door = 'run', fallback?: string) {
     const why = exit.signal !== null ? `ended by ${exit.signal}` : `exited ${exit.code ?? 'without a code'}`
-    const reason = stderrLines(exit).at(-1)
+    const reason = stderrLines(exit).at(-1) ?? fallback
     super(`mercury ${door} ${why} before ${door === 'run' ? 'an outcome row' : 'the session was closed'}${reason !== undefined ? `: ${reason}` : ''}`, exit)
     this.door = door
   }

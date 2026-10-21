@@ -227,6 +227,7 @@ class MercuryRun:
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._input_task: asyncio.Task[None] | None = None
         self._interrupt_requested = False
+        self._sent = 0
         self._reader = asyncio.create_task(self._read())
         self._cancel_task = asyncio.create_task(self._watch_cancel(options.cancel)) if options.cancel is not None else None
 
@@ -278,7 +279,7 @@ class MercuryRun:
         exit = RunExit(code if code >= 0 else None, signal.Signals(-code).name if code < 0 else None, self.stderr)
         if self.error is None:
             if last and last['status'] == 'refused': self.error = MercuryRefusal(last, exit)
-            elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit)
+            elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit, 'run', 'no input row was sent before stdin was closed' if self.options.input == 'rows' and self._sent == 0 and not self.rows else None)
         if self.error is None and last is not None:
             try: last = validate_outcome(last, self.options.schema, self.options.cwd)
             except Exception as error: self.error = error if isinstance(error, MercuryError) else MercuryError(str(error), exit)
@@ -322,6 +323,7 @@ class MercuryRun:
         try:
             self._stdin.write((json.dumps(row) + '\n').encode())
             await self._stdin.drain()
+            self._sent += 1
         except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
 
     async def send_prompt(self, content: str | list[InputBlock], **options: Any) -> None:
