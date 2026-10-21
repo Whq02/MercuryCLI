@@ -533,8 +533,8 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   }
   const shownRow = wallRow('absent')
   const hiddenRow = wallRow('hidden')
-  check('shown: the sign-in wall row names the account', shownRow.includes(`account ${RECORD}`), shownRow.slice(0, 240))
-  check('hidden: the sign-in wall row carries no address, the rest of its words kept', !hiddenRow.includes('@') && hiddenRow === shownRow.replace(` · account ${RECORD}`, ''), hiddenRow.slice(0, 240))
+  check('shown: the sign-in wall row names the family and the door and never the address (an error line reaches stderr and logs — the round-14 Windows row F39W-14B-03)', shownRow.includes('Anthropic sign-in expired') && shownRow.includes('/logins anthropic') && !shownRow.includes('@') && !shownRow.includes(RECORD), shownRow.slice(0, 240))
+  check('hidden: the same words, no address', !hiddenRow.includes('@') && hiddenRow === shownRow, hiddenRow.slice(0, 240))
   config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: undefined }))
   setIdentity('absent')
 }

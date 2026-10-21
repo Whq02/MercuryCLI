@@ -158,6 +158,7 @@ try {
   const denial = verdictOf('rm -rf "C:/Users/Public/m36-decoy2"')
   const words = denial.allow ? '' : buildWardDenial(denial, 'Bash')
   check('the refusal names the rule, quotes the match, says whose files these are and closes with the no-rephrase line', words.startsWith(`Ward '${RULE}' blocked this Bash call — matched "rm -rf "C:/Users/Public/m36-decoy2"`) && words.includes("A delete inside another user's home") && words.includes('whatever the permission mode') && words.endsWith(CLOSING), words)
+  check("the refusal says the ask never arose because the ward refused first — the round-14 Windows rows F39W-14B-05/-13 read the missing ask as a fault", words.includes('A ward refuses before any permission ask, so no ask arose — not in this mode, not in any.') && words.indexOf('no ask arose') < words.indexOf("A delete inside another user's home"), words)
 } finally {
   restorePlatform()
   if (savedHome === undefined) delete process.env.HOME

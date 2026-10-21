@@ -4,7 +4,7 @@ import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, FailoverCause, Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
+import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -13,7 +13,6 @@ import { jsonStringify } from '../../utils/slowOperations.js'
 import { anthropicCarryWords, anthropicRefusalFactsOf, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText, type WireCredentialKind } from '../providers/credentialWall.js'
-import { accountIdentityShown } from '../wallet/identityWords.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../anthropicLimits.js'
 import { getRateLimitErrorMessage } from '../anthropicLimits.js'
@@ -407,15 +406,6 @@ function homeFailoverCauseOf(error: unknown, row: AssistantMessage): FailoverCau
   return undefined
 }
 
-function signInWallAccount(model: string): string | undefined {
-  if (!['anthropic', 'gateway'].includes(routeOfModel(model)) || !isClaudeAISubscriber() || !accountIdentityShown()) return undefined
-  try {
-    return getOauthAccountInfo()?.emailAddress
-  } catch {
-    return undefined
-  }
-}
-
 function anthropicWireCredential(model: string, status: number | undefined): WireCredentialKind | undefined {
   if ((status !== 401 && status !== 403) || !['anthropic', 'gateway'].includes(routeOfModel(model))) return undefined
   if (isClaudeAISubscriber()) return 'sign-in'
@@ -665,18 +655,16 @@ function composeAssistantMessageFromError(
   const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))
   if (wall !== undefined) {
     logForDebugging(`[api] credential wall (${wall}) on ${model} — the wire said: ${message}`)
-    const account = wall === 'sign-in' ? signInWallAccount(model) : undefined
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wall, { nonInteractive })}${account ? ` · account ${account}` : ''}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wall, { nonInteractive })}`,
       error: 'authentication_failed',
     })
   }
 
   if (classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
     logForDebugging(`[api] credential wall (sign-in) on ${model} — the wire said: ${message}`)
-    const account = signInWallAccount(model)
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}${account ? ` · account ${account}` : ''}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}`,
       error: 'authentication_failed',
     })
   }

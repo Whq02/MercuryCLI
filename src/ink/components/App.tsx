@@ -208,6 +208,18 @@ export default class App extends PureComponent<Props, State> {
     }
   }
 
+  override componentDidUpdate(prevProps: Props): void {
+    if (prevProps.stdin === this.props.stdin || this.rawModeEnabledCount === 0) return
+    prevProps.stdin.removeListener('readable', this.handleReadable)
+    const { stdin } = this.props
+    if (!stdin.isTTY) return
+    stdin.setEncoding('utf8')
+    stdin.ref()
+    stdin.setRawMode(true)
+    stdin.addListener('readable', this.handleReadable)
+    logForDebugging(`stdin reader moved to a fresh terminal stream (raw=${stdin.isRaw === true})`, { level: 'warn' })
+  }
+
   override componentWillUnmount(): void {
     if (this.props.stdout.isTTY) {
       termWrite(this.props.stdout, SHOW_CURSOR, 'mode')

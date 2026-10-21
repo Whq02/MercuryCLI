@@ -106,6 +106,9 @@ import {
 } from '../services/api/errors.js'
 import {
   collectRefusedToolCalls,
+  memoryWriteLostNotice,
+  memoryWriteRefusals,
+  settleMemoryWriteRefusals,
   toolCallRefusalCorrection,
 } from '../services/providers/toolCallGate.js'
 import {
@@ -975,6 +978,18 @@ async function* runEventMachine(
 
   let checkpointSettleWarned = false
   const awaitingReply: ReplyMark[] = []
+  const pendingMemoryWrites: RefusedToolCall[] = []
+  const holdMemoryWriteRefusals = (refusals: readonly RefusedToolCall[]): void => {
+    for (const refusal of memoryWriteRefusals(refusals)) {
+      if (!pendingMemoryWrites.some(held => held.id === refusal.id && held.argumentsRaw === refusal.argumentsRaw)) pendingMemoryWrites.push(refusal)
+    }
+  }
+  const memoryWriteLostEvent = (): RunEvent | null => {
+    if (pendingMemoryWrites.length === 0) return null
+    const line = memoryWriteLostNotice(pendingMemoryWrites)
+    pendingMemoryWrites.length = 0
+    return emit({ kind: 'notice', message: createSystemMessage(line, 'error') })
+  }
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -1789,6 +1804,7 @@ async function* runEventMachine(
               'warning',
             ),
           })
+          holdMemoryWriteRefusals(refusedToolCalls)
           const correction = createUserMessage({
             content: toolCallRefusalCorrection(refusedToolCalls),
             isMeta: true,
@@ -1821,6 +1837,9 @@ async function* runEventMachine(
             'error',
           ),
         })
+        holdMemoryWriteRefusals(refusedToolCalls)
+        const lost = memoryWriteLostEvent()
+        if (lost !== null) yield lost
         const terminal: Terminal = { reason: 'tool_calls_refused', tools, corrections: toolCallRefusalRecoveryCount }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
@@ -1899,6 +1918,8 @@ async function* runEventMachine(
         if (sizeWarning !== null) {
           yield emit({ kind: 'notice', message: createSystemMessage(sizeWarning, 'warning') })
         }
+        const lostOnError = memoryWriteLostEvent()
+        if (lostOnError !== null) yield lostOnError
         const terminal: Terminal = { reason: 'completed' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
@@ -2014,6 +2035,8 @@ async function* runEventMachine(
         }
       }
 
+      const lostAtEnd = memoryWriteLostEvent()
+      if (lostAtEnd !== null) yield lostAtEnd
       const terminal: Terminal = { reason: 'completed' }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
@@ -2080,6 +2103,7 @@ async function* runEventMachine(
       }
     }
 
+    settleMemoryWriteRefusals(pendingMemoryWrites, toolUseBlocks)
     if (refusedToolCalls.length > 0) {
       const correction = createUserMessage({
         content: toolCallRefusalCorrection(refusedToolCalls),
@@ -2087,6 +2111,7 @@ async function* runEventMachine(
       })
       yield emit({ kind: 'hook_message', message: correction })
       toolResults.push(correction)
+      holdMemoryWriteRefusals(refusedToolCalls)
     }
 
     let nextPendingToolUseSummary:
@@ -2272,6 +2297,8 @@ async function* runEventMachine(
           turnCount: nextTurnCount,
         }),
       })
+      const lostAtCap = memoryWriteLostEvent()
+      if (lostAtCap !== null) yield lostAtCap
       const terminal: Terminal = { reason: 'max_turns', turnCount: nextTurnCount }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal

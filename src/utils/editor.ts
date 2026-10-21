@@ -9,7 +9,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
-import { whichSync } from './which.js'
+import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
 
 
 const EDITOR_CANDIDATES = ['code', 'nano', 'vi']
@@ -86,6 +86,60 @@ export const getExternalEditor = memoize((): string | undefined => {
   return undefined
 })
 
+export type EditorVariable = 'VISUAL' | 'EDITOR' | 'default'
+
+export function editorVariable(): EditorVariable {
+  if (process.env.VISUAL?.trim()) return 'VISUAL'
+  if (process.env.EDITOR?.trim()) return 'EDITOR'
+  return 'default'
+}
+
+const NON_EDITOR_NAMES = new Set(['true', 'false', ':', 'cat', 'echo', 'printf', 'rem', 'exit'])
+
+export type EditorRefusal = {
+  ok: false
+  reason: 'no-op' | 'missing'
+  variable: EditorVariable
+  value: string
+  executable: string
+}
+
+export type EditorResolution =
+  | { ok: true; editor: string; variable: EditorVariable; executable: string; args: string[] }
+  | { ok: false; reason: 'none' }
+  | EditorRefusal
+
+const SHOWN_VALUE_MAX = 13
+
+export function shownEditorValue(value: string, max: number = SHOWN_VALUE_MAX): string {
+  const trimmed = value.trim()
+  return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed
+}
+
+export function resolveExternalEditor(
+  editor: string | undefined = getExternalEditor(),
+  variable: EditorVariable = editorVariable(),
+  world: LookupWorld = hostLookupWorld(),
+): EditorResolution {
+  const value = editor?.trim() ?? ''
+  if (value === '') return { ok: false, reason: 'none' }
+  const { executable, args } = parseEditorCommand(value)
+  if (NON_EDITOR_NAMES.has(editorBaseName(executable))) {
+    return { ok: false, reason: 'no-op', variable, value, executable }
+  }
+  if (resolveExecutable(executable, world) === null) {
+    return { ok: false, reason: 'missing', variable, value, executable }
+  }
+  return { ok: true, editor: value, variable, executable, args }
+}
+
+export function editorRefusalLine(refusal: EditorRefusal): string {
+  const named = refusal.variable === 'default' ? 'the default editor' : `${refusal.variable}=${shownEditorValue(refusal.value)}`
+  const remedy = refusal.variable === 'default' ? 'set EDITOR to an editor' : `set ${refusal.variable} to an editor`
+  if (refusal.reason === 'no-op') return `${named} is not an editor — ${remedy}`
+  return `${named} is not on PATH — ${remedy}`
+}
+
 export function classifyGuiEditor(editor: string): string | undefined {
   for (const token of editor.split(' ')) {
     const tokenBase = basename(token)
@@ -120,9 +174,12 @@ function quoteForWindowsShell(value: string): string {
 }
 
 export function openFileInExternalEditor(filePath: string, line?: number): boolean {
-  const editor = getExternalEditor()
-  if (!editor) return false
-  const { executable, args } = parseEditorCommand(editor)
+  const resolved = resolveExternalEditor()
+  if (!resolved.ok) {
+    if (resolved.reason !== 'none') logForDebugging(`editor refused before any spawn: ${editorRefusalLine(resolved)}`, { level: 'warn' })
+    return false
+  }
+  const { editor, executable, args } = resolved
   const guiFamily = classifyGuiEditor(editor)
 
   if (guiFamily !== undefined) {

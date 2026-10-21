@@ -1,6 +1,7 @@
 
 import { appendFileSync } from 'node:fs'
 import { closeSync, openSync, readSync, constants as fsConstants } from 'node:fs'
+import { ReadStream as TtyReadStream } from 'node:tty'
 import { format as formatArgs } from 'node:util'
 import autoBind from 'auto-bind'
 import type { ReactNode } from 'react'
@@ -12,6 +13,7 @@ import { fluxFrame, fluxMark } from '../utils/flux/fluxProbe.js'
 import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { logError } from '../utils/log.js'
+import { markConsoleLent, markConsoleReturned, setStdinRecovery } from '../utils/process.js'
 import { applyPointerShape, resetPointerShape } from '../utils/cockpit/pointerShape.js'
 import { burnFrameCostPad, noteFrameCost, noteFrameWire } from '../utils/cockpit/motionGovernor.js'
 import {
@@ -126,6 +128,12 @@ export function renderFaultRecoveryPlan(streak: number, budget: number = RENDER_
 }
 const POOL_RESET_INTERVAL_MS = 5 * 60_000
 const WATCHDOG_COMMIT_BUDGET = 12
+const STDIN_REARM_DELAY_MS = 50
+const STDIN_REARM_ATTEMPTS = 8
+
+function rawModeOn(stdin: NodeJS.ReadStream): boolean {
+  return (stdin as { isRaw?: boolean }).isRaw === true
+}
 const DEFAULT_COLUMNS = 80
 const DEFAULT_ROWS = 24
 const ALT_SCREEN_SESSION_OWNER = 'alt-screen-session'
@@ -282,6 +290,7 @@ export default class Ink {
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
+  private stdinRecoveryArmed = false
   private rawModeOffForStop = false
   private stopListenersAttached = false
 
@@ -340,11 +349,13 @@ export default class Ink {
           ? setInterval(() => this.reconcileSize(), 5_000)
           : null
       win32SizeTimer?.unref?.();
+      if (options.stdin.isTTY) setStdinRecovery(this.recoverStdin)
       this.removeTtySubscriptions = () => {
         options.stdout.off('resize', this.handleResize)
         process.off('SIGCONT', this.resumeAfterContinue)
         this.detachStopListeners()
         if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
+        setStdinRecovery(null)
       }
     }
 
@@ -1662,6 +1673,7 @@ export default class Ink {
   suspendStdin(): void {
     const { stdin } = this.options
     if (!stdin.isTTY) return
+    markConsoleLent()
     const listeners = stdin.listeners('readable') as Array<(...args: unknown[]) => void>
     for (const listener of listeners) stdin.removeListener('readable', listener)
     this.storedReadableListeners = listeners
@@ -1691,12 +1703,69 @@ export default class Ink {
       stdin.addListener('readable', listener)
     }
     this.storedReadableListeners = null
+    markConsoleReturned()
     if (this.wasRawMode) {
       stdin.setRawMode(true)
       this.wasRawMode = false;
     }
     this.reconcileSize();
     this.armScreenWatchdog();
+  }
+
+  recoverStdin = (code: string, syscall: string): void => {
+    if (this.isUnmounted || !this.isTTY || this.stdinRecoveryArmed) return
+    this.stdinRecoveryArmed = true
+    setTimeout(() => this.rearmStdinAfterFault(code, syscall, 1), STDIN_REARM_DELAY_MS)
+  }
+
+  private rearmStdinAfterFault(code: string, syscall: string, attempt: number): void {
+    if (this.isUnmounted) {
+      this.stdinRecoveryArmed = false
+      return
+    }
+    const stdin = this.options.stdin
+    const label = `stdin recovery after ${syscall} ${code}`
+    if (stdin.destroyed) {
+      let fresh: NodeJS.ReadStream
+      try {
+        fresh = new TtyReadStream(0) as unknown as NodeJS.ReadStream
+      } catch (error) {
+        logForDebugging(`${label}: the reader was destroyed and a fresh one could not open the terminal — ${String(error)}`, { level: 'warn' })
+        this.stdinRecoveryArmed = false
+        return
+      }
+      ;(this.options as { stdin: NodeJS.ReadStream }).stdin = fresh
+      this.storedReadableListeners = null
+      this.wasRawMode = false
+      markConsoleLent()
+      try {
+        if (this.currentTree !== null) this.render(this.currentTree)
+      } finally {
+        markConsoleReturned()
+      }
+      logForDebugging(`${label}: the reader was destroyed by the hand-off — a fresh reader on the same terminal takes over (raw=${fresh.isRaw === true})`, { level: 'warn' })
+      this.stdinRecoveryArmed = false
+      return
+    }
+    if (!rawModeOn(stdin)) {
+      markConsoleLent()
+      try {
+        stdin.setRawMode(true)
+      } finally {
+        markConsoleReturned()
+      }
+      if (!rawModeOn(stdin)) {
+        if (attempt < STDIN_REARM_ATTEMPTS) {
+          setTimeout(() => this.rearmStdinAfterFault(code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
+          return
+        }
+        logForDebugging(`${label}: raw mode could not be re-armed in ${attempt} tries — keys may not arrive until the terminal is re-opened`, { level: 'warn' })
+        this.stdinRecoveryArmed = false
+        return
+      }
+    }
+    logForDebugging(`${label}: input re-armed on try ${attempt} (raw mode on, the session stays)`, { level: 'warn' })
+    this.stdinRecoveryArmed = false
   }
 
 

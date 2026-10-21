@@ -5,6 +5,7 @@ import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTyping.js'
+import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../tools/MemoryTools/prompt.js'
 
 interface IncomingToolCall {
   id: string
@@ -244,10 +245,77 @@ export function toolCallRefusalCorrection(refusals: readonly RefusedToolCall[]):
           : `malformed arguments for ${name}: ${refusal.reason}`
     return `- call ${refusal.id || '(no id)'} — ${headline}\n  Arguments received: ${previewRaw(refusal.argumentsRaw)}`
   })
+  const memoryWrites = [...new Set(memoryWriteRefusals(refusals).map(refusal => refusal.name))]
+  const memoryLine = memoryWrites.length === 0 ? '' : ` ${memoryWrites.map(name => `The user asked for the ${name} call's facts to be kept and nothing was stored: re-issue that ${name} call now, with the same facts and arguments that match its schema, before anything else — the user will not type them again.`).join(' ')}`
   return (
     `${TOOL_CALL_REFUSAL_CORRECTION_HEAD}\n${items.join('\n')}\n` +
-    `None of these calls ran, so nothing happened. Re-issue each one with a tool name from your tool list, a call id of its own, and arguments that match that tool's input schema exactly (required parameters present, correct types, no extra fields on strict tools).`
+    `None of these calls ran, so nothing happened. Re-issue each one with a tool name from your tool list, a call id of its own, and arguments that match that tool's input schema exactly (required parameters present, correct types, no extra fields on strict tools).${memoryLine}`
   )
+}
+
+const MEMORY_WRITE_LOST_LINES: Record<string, string> = {
+  [RETAIN_TOOL_NAME]: 'the remember did not happen — say it again',
+  [CORRECT_TOOL_NAME]: 'the correction did not happen — say it again',
+}
+
+export function isMemoryWriteTool(name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(MEMORY_WRITE_LOST_LINES, name)
+}
+
+export function memoryWriteRefusals(refusals: readonly RefusedToolCall[]): RefusedToolCall[] {
+  return refusals.filter(refusal => isMemoryWriteTool(refusal.name))
+}
+
+export function memoryWriteLostLine(name: string): string {
+  return MEMORY_WRITE_LOST_LINES[name] ?? `the ${name} call did not happen — say it again`
+}
+
+export function memoryWriteLostNotice(pending: readonly RefusedToolCall[]): string {
+  const names = [...new Set(pending.map(refusal => refusal.name))]
+  return names.map(memoryWriteLostLine).join(' · ')
+}
+
+function normalizedFactText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+export function refusedFactTexts(refusal: RefusedToolCall): string[] {
+  const out: string[] = []
+  try {
+    const parsed = JSON.parse(refusal.argumentsRaw) as { items?: unknown }
+    if (Array.isArray(parsed.items)) {
+      for (const item of parsed.items) {
+        const content = (item as { content?: unknown } | null)?.content
+        if (typeof content === 'string' && content.trim() !== '') out.push(normalizedFactText(content))
+      }
+    }
+  } catch {
+    for (const match of refusal.argumentsRaw.matchAll(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) {
+      const content = match[1] ?? ''
+      if (content.trim() !== '') out.push(normalizedFactText(content.replace(/\\(.)/g, '$1')))
+    }
+  }
+  return out
+}
+
+export function executedCallAnswersRefusal(refusal: RefusedToolCall, call: { name: string; input: unknown }): boolean {
+  if (call.name !== refusal.name) return false
+  const wanted = refusedFactTexts(refusal)
+  if (wanted.length === 0) return true
+  const items = (call.input as { items?: unknown } | null)?.items
+  if (!Array.isArray(items)) return true
+  const stored = items
+    .map(item => (item as { content?: unknown } | null)?.content)
+    .filter((content): content is string => typeof content === 'string')
+    .map(normalizedFactText)
+  return wanted.some(fact => stored.some(text => text === fact || text.includes(fact) || fact.includes(text)))
+}
+
+export function settleMemoryWriteRefusals(pending: RefusedToolCall[], executed: readonly { name: string; input: unknown }[]): void {
+  for (let i = pending.length - 1; i >= 0; i--) {
+    const refusal = pending[i]!
+    if (executed.some(call => executedCallAnswersRefusal(refusal, call))) pending.splice(i, 1)
+  }
 }
 
 export function isToolCallRefusalCorrectionText(text: string): boolean {

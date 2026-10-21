@@ -29,6 +29,7 @@ import { cerebrasCallModel } from './cerebras/cerebrasCallModel.js'
 import { fireworksCallModel } from './fireworks/fireworksCallModel.js'
 import { qwenCallModel } from './qwen/qwenCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
+import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
 
@@ -76,7 +77,8 @@ export async function routedCallModelSettled(params: CallModelParams): Promise<A
 }
 
 async function* homeLaneCall(params: CallModelParams): CallModelStream {
-  const refusal = homeLaneAdmissionRefusal(params.options.model)
+  const refusal = homeLaneAdmissionRefusal(params.options.model) ?? (await anthropicCatalogueRefusal(params.options.model, { signal: params.signal }))
+  if (params.signal.aborted) return
   if (refusal !== null) {
     yield createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`,

@@ -6,7 +6,9 @@ import { basename } from 'node:path'
 import instances from '../ink/instances.js'
 import { expandPastedTextRefs, formatPastedTextRef, getPastedTextRefNumLines } from '../history.js'
 import type { PastedContent } from './config/schema.js'
-import { classifyGuiEditor, editorDisplayName, getExternalEditor } from './editor.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
+import { logForDebugging } from './debug.js'
+import { classifyGuiEditor, editorDisplayName, editorRefusalLine, resolveExternalEditor, shownEditorValue, type EditorVariable } from './editor.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
@@ -45,10 +47,12 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     throw new Error('Cannot pause rendering: no renderer instance is attached to stdout')
   }
 
-  const editor = getExternalEditor()
-  if (editor === undefined || editor.trim() === '') {
-    return { content: null }
+  const resolved = resolveExternalEditor()
+  if (!resolved.ok) {
+    if (resolved.reason === 'none') return { content: null }
+    return { content: null, error: editorRefusalLine(resolved) }
   }
+  const editor = resolved.editor
 
   try {
     statSync(filePath)
@@ -84,7 +88,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       if (exitCode !== null && exitCode !== 0) {
         return {
           content: null,
-          error: `${editorDisplayName(basename(editorExe))} exited with code ${exitCode}`,
+          error: `${editorNamed(resolved.variable, resolved.editor, editorExe)} exited with code ${exitCode}`,
         }
       }
       return { content: readFileSync(filePath, 'utf8') }
@@ -96,10 +100,27 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
         instance.resumeStdin()
         instance.resume()
       }
+      simulateConsoleFaultAfterHandback()
     }
   } catch {
     return { content: null }
   }
+}
+
+function editorNamed(variable: EditorVariable, value: string, executable: string): string {
+  return variable === 'default' ? editorDisplayName(basename(executable)) : `${variable}=${shownEditorValue(value)}`
+}
+
+export const EDITOR_HANDOVER_FAULT_FLAG = 'MERCURY_EDITOR_HANDOVER_FAULT'
+
+function simulateConsoleFaultAfterHandback(): void {
+  const shape = flagEnv(EDITOR_HANDOVER_FAULT_FLAG)?.trim()
+  if (shape !== 'read' && shape !== 'mode') return
+  const syscall = shape === 'read' ? 'read' : 'setRawMode'
+  const fault = Object.assign(new Error(`${syscall} EIO: simulated console fault after the editor hand-back`), { code: 'EIO', syscall })
+  logForDebugging(`${EDITOR_HANDOVER_FAULT_FLAG}=${shape}: raising a simulated stdin ${syscall} fault after the editor hand-back`, { level: 'warn' })
+  if (shape === 'read') process.stdin.destroy(fault)
+  else process.stdin.emit('error', fault)
 }
 
 function collapseUnmodifiedPastes(

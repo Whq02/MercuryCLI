@@ -1420,6 +1420,8 @@ export function buildWardDenial(
         : ` The commit gate refuses the drift; its check: ${verdict.check}.`)
   return (
     `Ward '${verdict.rule.name}' blocked this ${toolName} call — matched ` +
-    `"${verdict.excerpt}" (${where}). ${verdict.rule.teach}${road} ${closing}`
+    `"${verdict.excerpt}" (${where}). ${WARD_BEFORE_ASK_SENTENCE} ${verdict.rule.teach}${road} ${closing}`
   )
 }
+
+export const WARD_BEFORE_ASK_SENTENCE = 'A ward refuses before any permission ask, so no ask arose — not in this mode, not in any.'
