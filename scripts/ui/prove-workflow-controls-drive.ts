@@ -332,6 +332,11 @@ async function viewLeg(cols: number, rows: number, port: number): Promise<void> 
   check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const boardActive = marks['board-active'] ?? ''
   check(`${tag}: the board lists the run under Active with x stop and p pause in its footer`, /Active/.test(boardActive) && boardActive.includes(WF_NAME) && /x stop/.test(flat(boardActive)) && /p pause/.test(flat(boardActive)), flat(boardActive).slice(-300))
+  const boardLines = boardActive.split('\n')
+  const guideAt = boardLines.findIndex(line => line.includes('↑↓ select · pgup/pgdn page'))
+  const bottomAt = boardLines.findIndex((line, index) => index > guideAt && /^╰─+╯$/.test(line))
+  const guide = boardLines.slice(guideAt, bottomAt).map(line => line.slice(1, -1).trim()).join(' ')
+  check(`${tag}: the complete key guide fits above the board's bottom edge`, guideAt >= 0 && bottomAt === rows - 1 && guide === '↑↓ select · pgup/pgdn page · ↵/→ view · D dispatch · x stop · p pause · S save · tab/1-9 section · esc close', `rows ${guideAt}..${bottomAt}; ${guide}`)
   const running = marks['run-running'] ?? ''
   check(`${tag}: the run view lists both lanes running and names every key it honours`, rowOf(running, 'alpha') !== undefined && rowOf(running, 'beta') !== undefined && /x kill · p pause · s skip · r retry · X stop · P pause run · S save · esc/.test(flat(running)), flat(running).slice(-400))
   const paused = marks['run-alpha-paused'] ?? ''
