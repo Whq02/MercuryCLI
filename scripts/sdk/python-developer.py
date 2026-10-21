@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import sys
 import json
+from contextlib import contextmanager, suppress
 from urllib.request import Request, urlopen
 from typing import TypedDict, Annotated, NotRequired
 import mercury_cli_sdk as sdk
@@ -103,6 +104,112 @@ async def capabilities():
                 assert session.last_prompt_id is None
                 assert (await session.prompt('accepted'))['status'] == 'completed'
                 assert isinstance(session.last_prompt_id, str)
+
+
+@contextmanager
+def prompt_fixture(correlated=False, warm=False):
+    with tempfile.TemporaryDirectory(prefix='sdk-prompts-') as directory:
+        record = Path(directory, 'received.jsonl')
+        record.write_text('')
+        script = r'''
+const { createInterface } = require('node:readline')
+const { appendFileSync } = require('node:fs')
+const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
+let claimed = CLAIMED
+createInterface({ input: process.stdin }).on('line', line => {
+  const message = JSON.parse(line)
+  appendFileSync(RECORD, line + '\n')
+  const { id, method, params } = message
+  const reply = result => emit({ jsonrpc: '2.0', id, result })
+  if (method === 'initialize') reply({ protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: claimed ? 'fixture-session' : null })
+  else if (method === 'session/claim') {
+    if (params.session_id === 'rejected') emit({ jsonrpc: '2.0', id, error: { code: -32602, message: 'claim rejected' } })
+    else { claimed = true; reply({ session_id: 'claimed-session' }) }
+  } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
+  else if (method === 'queue/add' && claimed) {
+    reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
+    if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+    if (params.content === 'resolve') {
+      if (CORRELATED) emit({ jsonrpc: '2.0', method: 'row', params: { ...TURN, message_ids: [params.id] } })
+      emit({ jsonrpc: '2.0', method: 'row', params: OUTCOME })
+    }
+  }
+})
+'''
+        script = script.replace('CLAIMED', json.dumps(not warm)).replace('CORRELATED', json.dumps(correlated)).replace('RECORD', json.dumps(str(record))).replace('TURN', json.dumps(testing.fixture_turn()[0])).replace('OUTCOME', json.dumps(testing.fixture_outcome_row(answer='resolved')))
+        yield ['node', '-e', script, '--'], lambda: [json.loads(line) for line in record.read_text().splitlines()]
+
+
+async def prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            assert isinstance(session.last_prompt_id, str), 'steer exposes its generated prompt id'
+            assert (await session.withdraw(session.last_prompt_id))['withdrawn']
+            assert not session._prompt_turns, 'withdraw removes the turn entry'
+            schema = {'type': 'object'}
+            await session.steer('now', id='steered', schema=schema)
+            assert session.last_prompt_id == 'steered'
+            await session.follow_up('later', id='followed', schema=schema)
+            assert session.last_prompt_id == 'followed'
+            await session.send_prompt('sent', id='sent')
+            assert session.last_prompt_id == 'sent'
+            await session.send({'type': 'prompt', 'content': 'direct', 'id': 'direct'})
+            assert session.last_prompt_id == 'direct'
+            assert not (await session.send_prompt('reject', id='rejected'))['accepted']
+            assert session.last_prompt_id == 'direct'
+            rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+            assert [(row['id'], row['priority'], row['schema']) for row in rows[1:3]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+            await session.send_prompt('kept', id='keep')
+            assert not (await session.withdraw('keep'))['withdrawn']
+            assert 'keep' in session._prompt_turns, 'an unsuccessful withdrawal preserves the entry'
+
+
+async def prompt_withdrawal(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            await session.steer('x')
+            queued = next(row['params']['id'] for row in received() if row['method'] == 'queue/add')
+            assert (await session.withdraw(session.last_prompt_id or queued))['withdrawn']
+            assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+            assert not session._prompt_turns, 'withdrawn prompts leave no turn entries'
+
+
+async def prompt_cancellation(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            queued = asyncio.Event()
+            session.on('notification', lambda message: queued.set() if message['method'] == 'fixture/queued' else None)
+            task = asyncio.create_task(session.prompt('cancel'))
+            try:
+                await asyncio.wait_for(queued.wait(), 1)
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+                assert task.cancelled(), 'the prompt wait was cancelled'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved'
+                assert not session._prompt_turns, 'an uncorrelated cancelled wait leaves no turn entry'
+                assert not any(row['method'] == 'turn/interrupt' for row in received()), 'cancellation still cancels only the wait'
+            finally:
+                task.cancel()
+                with suppress(asyncio.CancelledError): await task
+
+
+async def sync_prompt_ids():
+    with prompt_fixture() as (mercury, received):
+        def consume():
+            with sdk.connect_sync(mercury=mercury) as session:
+                session.steer('x')
+                assert isinstance(session.last_prompt_id, str)
+                assert session.withdraw(session.last_prompt_id)['withdrawn']
+                assert not session.session._prompt_turns
+                schema = {'type': 'object'}
+                session.steer('now', id='steered', schema=schema)
+                assert session.last_prompt_id == 'steered'
+                session.follow_up('later', id='followed', schema=schema)
+                assert session.last_prompt_id == 'followed'
+                rows = [row['params'] for row in received() if row['method'] == 'queue/add']
+                assert [(row['id'], row['priority'], row['schema']) for row in rows[1:]] == [('steered', 'now', schema), ('followed', 'later', schema)]
+        await asyncio.to_thread(consume)
 
 
 async def structured():
@@ -297,7 +404,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

@@ -31,6 +31,37 @@ async function check(name: string, run: () => Promise<void> | void) {
   try { await run(); console.log('PASS ' + name) }
   catch (error) { failures++; console.error('FAIL ' + name + ': ' + String(error)) }
 }
+let promptFixtures = 0
+function promptFixture(correlated = false, warm = false) {
+  const record = join(scratch, `prompt-${++promptFixtures}.jsonl`)
+  writeFileSync(record, '')
+  const script = `
+    const { createInterface } = require('node:readline')
+    const { appendFileSync } = require('node:fs')
+    const emit = message => process.stdout.write(JSON.stringify(message) + '\\n')
+    let claimed = ${!warm}
+    createInterface({ input: process.stdin }).on('line', line => {
+      const message = JSON.parse(line)
+      appendFileSync(${JSON.stringify(record)}, line + '\\n')
+      const { id, method, params } = message
+      const reply = result => emit({ jsonrpc: '2.0', id, result })
+      if (method === 'initialize') reply({ ...${JSON.stringify(init.result)}, session_id: claimed ? 'fixture-session' : null })
+      else if (method === 'session/claim') {
+        if (params.session_id === 'rejected') emit({ jsonrpc: '2.0', id, error: { code: -32602, message: 'claim rejected' } })
+        else { claimed = true; reply({ session_id: 'claimed-session' }) }
+      } else if (method === 'queue/withdraw') reply(params.id === 'keep' ? { withdrawn: false, reason: 'taken' } : { withdrawn: true, text: 'queued' })
+      else if (method === 'queue/add' && claimed) {
+        reply(params.content === 'reject' ? { accepted: false, reason: 'duplicate' } : { accepted: true })
+        if (params.content === 'cancel') emit({ jsonrpc: '2.0', method: 'fixture/queued', params: { id: params.id } })
+        if (params.content === 'resolve') {
+          if (${correlated}) emit({ jsonrpc: '2.0', method: 'row', params: { ...${JSON.stringify(testing.fixtureTurn()[0])}, message_ids: [params.id] } })
+          emit({ jsonrpc: '2.0', method: 'row', params: ${JSON.stringify(testing.fixtureOutcomeRow({ answer: 'resolved' }))} })
+        }
+      }
+    })
+  `
+  return { mercury: ['node', '-e', script, '--'], received: () => readFileSync(record, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) }
+}
 try {
   await check('row 1 automatic grants preserve options and servers close on exit', async () => {
     const echo = sdk.defineTool({ name: 'echo', description: 'Echo', inputSchema: {}, execute: () => 'ok' })
@@ -159,6 +190,51 @@ try {
     try { await session.steer('now'); await session.followUp('later'); assert.deepEqual(fixture.received.filter(r => r.method === 'queue/add').map(r => (r.params as any).priority), ['now', 'later']) }
     finally { await session.close(); await fixture.close() }
   })
+  await check('prompt ids: every accepted send and convenience call is available for withdrawal', async () => {
+    const fixture = promptFixture()
+    const session = await sdk.connect({ mercury: fixture.mercury })
+    try {
+      await session.steer('x')
+      assert.equal(typeof session.lastPromptId, 'string', 'steer exposes its generated prompt id')
+      assert.equal((await session.withdraw(session.lastPromptId!)).withdrawn, true)
+      const schema = { type: 'object' }
+      await session.steer('now', { id: 'steered', schema })
+      assert.equal(session.lastPromptId, 'steered')
+      await session.followUp('later', { id: 'followed', schema })
+      assert.equal(session.lastPromptId, 'followed')
+      await session.sendPrompt('sent', { id: 'sent' })
+      assert.equal(session.lastPromptId, 'sent')
+      await session.send({ type: 'prompt', content: 'direct', id: 'direct' })
+      assert.equal(session.lastPromptId, 'direct')
+      assert.equal((await session.sendPrompt('reject', { id: 'rejected' })).accepted, false)
+      assert.equal(session.lastPromptId, 'direct', 'a rejected prompt does not replace the accepted id')
+      const rows = fixture.received().filter(row => row.method === 'queue/add').map(row => row.params)
+      assert.deepEqual(rows.slice(1, 3).map(row => [row.id, row.priority, row.schema]), [['steered', 'now', schema], ['followed', 'later', schema]])
+    } finally { await session.close() }
+  })
+  for (const correlated of [false, true]) {
+    await check(`prompt withdrawal: the next ${correlated ? 'correlated' : 'uncorrelated'} turn resolves`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        await session.steer('x')
+        const queued = fixture.received().find(row => row.method === 'queue/add')!.params.id
+        assert.equal((await session.withdraw(session.lastPromptId ?? queued)).withdrawn, true)
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a withdrawn prompt cannot block the next outcome')
+      } finally { await session.close() }
+    })
+    await check(`prompt cancellation: the next ${correlated ? 'correlated' : 'uncorrelated'} turn resolves`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      const controller = new AbortController()
+      session.on('notification', message => { if (message.method === 'fixture/queued') controller.abort() })
+      try {
+        await assert.rejects(session.prompt('cancel', { signal: controller.signal }), /prompt: cancelled/)
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'an uncorrelated cancelled wait cannot block the next outcome')
+        assert.equal(fixture.received().some(row => row.method === 'turn/interrupt'), false, 'cancellation still cancels only the wait')
+      } finally { await session.close() }
+    })
+  }
   await check('row 8 fixture builders return valid rows', async () => {
     const rows = [testing.fixtureSessionRow(), ...testing.fixtureTurn({ answer: 'fixture works' })]
     const fixture = await testing.startFixtureServer({ rows })

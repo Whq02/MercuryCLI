@@ -245,7 +245,8 @@ class MercurySession(TypedRequests):
         self._prompt_turns[id] = None
         try:
             receipt = await self.request('queue/add', {**row, 'id': id})
-            if not receipt['accepted']: self._prompt_turns.pop(id, None)
+            if receipt['accepted']: self.last_prompt_id = id
+            else: self._prompt_turns.pop(id, None)
             return receipt
         except (MercuryRefusal, MercuryWireError, MercurySchemaError):
             self._prompt_turns.pop(id, None)
@@ -254,8 +255,10 @@ class MercurySession(TypedRequests):
     async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
-    async def steer(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='now')
-    async def follow_up(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='later')
+    async def steer(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+        return await self.send_prompt(content, priority='now', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
+    async def follow_up(self, content: Any, *, id: str | None = None, schema: dict[str, Any] | None = None) -> QueueAddResult:
+        return await self.send_prompt(content, priority='later', **({} if id is None else {'id': id}), **({} if schema is None else {'schema': schema}))
 
     async def send_shell(self, command: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
@@ -284,11 +287,11 @@ class MercurySession(TypedRequests):
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
-            self.last_prompt_id = id
             row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
         finally:
+            if self._prompt_turns.get(id) is None: self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
             self._prompt_error = None
@@ -303,7 +306,10 @@ class MercurySession(TypedRequests):
     async def interrupt(self, **options: Any) -> TurnInterruptResult:
         if self._tools: self._tools.cancel()
         return await self.request('turn/interrupt', options)
-    async def withdraw(self, id: str) -> QueueWithdrawResult: return await self.request('queue/withdraw', {'id': id})
+    async def withdraw(self, id: str) -> QueueWithdrawResult:
+        receipt = await self.request('queue/withdraw', {'id': id})
+        if receipt['withdrawn']: self._prompt_turns.pop(id, None)
+        return receipt
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})
     async def set_mode(self, mode: str) -> SessionSetModeResult: return await self.request('session/set_mode', {'mode': mode})
