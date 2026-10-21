@@ -158,7 +158,7 @@ export function useMultiSelectState<T>({
   const isOnFirstOption = navigation.focusedIndex === 1
 
   const submit = (): void => {
-    onSubmit?.(selectedValues)
+    onSubmit?.(selectedValuesRef.current)
   }
 
   const { focusValue: focusByValue } = navigation
@@ -183,6 +183,8 @@ export function useMultiSelectState<T>({
         const allowed =
           key.upArrow ||
           key.downArrow ||
+          key.pageUp ||
+          key.pageDown ||
           key.escape ||
           key.tab ||
           key.return ||

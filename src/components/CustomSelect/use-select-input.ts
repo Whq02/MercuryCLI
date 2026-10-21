@@ -121,6 +121,12 @@ export function useSelectInput<T>({
       const focusedOption =
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
+      if (key.pageDown || key.pageUp) {
+        if (key.pageDown) state.focusNextPage()
+        else state.focusPreviousPage()
+        event.stopImmediatePropagation()
+        return
+      }
       if (key.tab && onInputModeToggle && state.focusedValue !== undefined) {
         onInputModeToggle(state.focusedValue)
         event.stopImmediatePropagation()
@@ -151,8 +157,6 @@ export function useSelectInput<T>({
         return
       }
 
-      if (key.pageDown) state.focusNextPage()
-      if (key.pageUp) state.focusPreviousPage()
 
       if (disableSelection !== true) {
         if (normalizeFullWidthSpace(input) === ' ') {

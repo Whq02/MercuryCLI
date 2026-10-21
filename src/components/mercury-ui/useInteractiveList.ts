@@ -40,6 +40,7 @@ export function useInteractiveList<Row>({
   reasonUnavailable,
   idNamespace = 'list',
   orientation = 'vertical',
+  pageSize = 5,
 }: {
   rows: readonly Row[]
   rowId: (row: Row) => string
@@ -51,6 +52,7 @@ export function useInteractiveList<Row>({
   reasonUnavailable?: (row: Row) => string
   idNamespace?: string
   orientation?: NavOrientation
+  pageSize?: number
 }): {
   selectedIndex: number
   selectedRow: Row | null
@@ -103,7 +105,7 @@ export function useInteractiveList<Row>({
 
   const pastBuffer = useOpenEventGate()
   const ready = pastBuffer()
-  const overlayToken = useRegisterOverlay('list', active)
+  const overlayToken = useRegisterOverlay('list', active, { ownsPageKeys: true })
 
   const isUnavailable = (row: Row): boolean => unavailable?.(row) ?? false
 
@@ -138,7 +140,7 @@ export function useInteractiveList<Row>({
   useInput(
     (input, key, event) => {
       if (!active) return
-      const action = decodeNavKey(input, key, { orientation })
+      const action = decodeNavKey(input, key, { orientation, pageKeys: true })
       if (action === 'cancel') {
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
         event.stopImmediatePropagation()
@@ -146,7 +148,7 @@ export function useInteractiveList<Row>({
         return
       }
       if (action !== null && action !== 'activate') {
-        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation })
+        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation, pageSize })
         if (target !== null) {
           event.stopImmediatePropagation()
           select(
@@ -185,6 +187,7 @@ export function useInteractiveList<Row>({
       ? actions
           .filter(a => selectedRow == null || (a.when?.(selectedRow) ?? true))
           .map(a => `${a.key === 'return' ? '↵' : a.key === 'backspace' ? '⌫' : a.key} ${a.hint}`)
+          .concat(rows.length > pageSize ? ['pgup/pgdn page'] : [])
           .join(' · ') || undefined
       : undefined
 
