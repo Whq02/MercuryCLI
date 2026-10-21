@@ -66,7 +66,7 @@ export function ListItem({
           isFocused && !disabled ? tokens.selectionBand : undefined
         }
       >
-        {indicator}
+        <Box width={1} flexShrink={0}>{indicator}</Box>
         {styled ? (
           <Text color={stateColor} dimColor={disabled}>
             {children}
