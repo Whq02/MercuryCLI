@@ -382,11 +382,33 @@ async def live_stderr():
     await asyncio.to_thread(synchronous)
 
 
+async def crlf_stderr():
+    rows = [fixture_session_row(), *fixture_turn()]
+    expected = 'boot\nsplit\nlone\rtail\n'
+    crlf = child("import sys,time\nsys.stderr.buffer.write(b'boot\\r\\nsplit\\r'); sys.stderr.buffer.flush()\n" + ''.join(f'print({json.dumps(json.dumps(row))}, flush=True)\n' for row in rows) + "time.sleep(0.2)\nsys.stderr.buffer.write(b'\\nlone\\rtail\\r\\n'); sys.stderr.buffer.flush()\n")
+    seen, events = [], []
+    task = await run('x', mercury=crlf, on_stderr=seen.append)
+    task.on('stderr', events.append)
+    exit = await task.exit
+    assert exit.stderr == expected == task.stderr == ''.join(seen) == ''.join(events), (exit.stderr, task.stderr, seen, events)
+    runner = child("import json,sys,threading,time\nsys.stderr.buffer.write(b'runner\\r\\nup\\r'); sys.stderr.buffer.flush()\ndef later():\n    time.sleep(0.1); sys.stderr.buffer.write(b'\\nnow\\r\\n'); sys.stderr.buffer.flush()\nthreading.Thread(target=later, daemon=True).start()\nfor line in sys.stdin:\n    m = json.loads(line)\n    if m.get('method') == 'initialize': print(json.dumps({'jsonrpc': '2.0', 'id': m['id'], 'result': " + repr(init) + "}), flush=True)\n")
+    seen = []
+    session = await connect(mercury=runner, on_stderr=seen.append)
+    try:
+        for _ in range(100):
+            if 'now' in session.stderr: break
+            await asyncio.sleep(0.01)
+    finally: await session.close()
+    exit = await session.exit
+    assert exit.stderr == 'runner\nup\nnow\n' == session.stderr == ''.join(seen), (exit.stderr, session.stderr, seen)
+
+
 async def main():
     await check('Python cwd and executable words, door-aware exits', words)
     await check('Python FixtureServer.close() returns at once with a peer still on the socket: hello sent and nothing more, and a reader that stopped taking the replay', fixture_close)
     await check('Python closing a session while a runner ask is in flight: no error event, no unretrieved task exception, exit 0', close_mid_ask)
     await check('Python stderr is live on both doors and the sync session: on_stderr and the stderr event see a line while the child still runs, and stderr at exit is the whole text', live_stderr)
+    await check('Python stderr text is read with CRLF normalised to LF on both doors, a pair split across two writes included, so exit.stderr, the handle and the chunks agree', crlf_stderr)
     await check('Python connect timeout and cancellation end a silent boot', boot_timeout)
     await check('Python termination after a fatal wire failure: the child is gone within the bound and the receipt names ' + ('SIGTERM (Windows: the first step ends it)' if WINDOWS else 'the SIGKILL escalation'), escalation)
     await check('Python interrupt the package sent settles as an interrupted outcome when the child ends by the signal; a foreign signal and terminate() stay errors', interrupted)

@@ -271,13 +271,18 @@ async def spawn(args: list[str], options: RunOptions) -> asyncio.subprocess.Proc
 async def read_stderr(handle: Any) -> None:
     """Append the child's standard error to ``handle.stderr`` as it arrives, emitting each decoded chunk as ``'stderr'`` and to ``on_stderr``."""
     decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
-    def deliver(text: str) -> None:
-        if not text: return
-        handle.stderr += text
-        handle._emit('stderr', text)
-        if handle.options.on_stderr is not None: handle.options.on_stderr(text)
+    pending = ''
+    def deliver(text: str, final: bool = False) -> None:
+        nonlocal pending
+        joined = pending + text
+        pending = '' if final or not joined.endswith('\r') else '\r'
+        delivered = joined[:len(joined) - len(pending)].replace('\r\n', '\n')
+        if not delivered: return
+        handle.stderr += delivered
+        handle._emit('stderr', delivered)
+        if handle.options.on_stderr is not None: handle.options.on_stderr(delivered)
     while chunk := await handle._stderr.read(65536): deliver(decoder.decode(chunk))
-    deliver(decoder.decode(b'', final=True))
+    deliver(decoder.decode(b'', final=True), True)
 
 
 class MercuryRun:

@@ -34,3 +34,15 @@ export function readLines(stream: Readable, line: (value: string) => void, fail:
   })
   stream.on('end', () => { if (!failed && size) flush() })
 }
+
+export function readText(stream: Readable, text: (chunk: string) => void): void {
+  let pending = ''
+  stream.setEncoding('utf8')
+  stream.on('data', (chunk: string) => {
+    const joined = pending + chunk
+    pending = joined.endsWith('\r') ? '\r' : ''
+    const delivered = joined.slice(0, joined.length - pending.length).replaceAll('\r\n', '\n')
+    if (delivered) text(delivered)
+  })
+  stream.on('end', () => { if (pending) { const rest = pending; pending = ''; text(rest) } })
+}

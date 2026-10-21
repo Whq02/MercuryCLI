@@ -1,6 +1,6 @@
 /// <reference types="node" preserve="true" />
 /// <reference lib="esnext.disposable" preserve="true" />
-import { readLines } from './framing.js'
+import { readLines, readText } from './framing.js'
 import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
@@ -246,9 +246,8 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       windowsHide: true,
     })
     track(this.child)
-    this.child.stderr!.setEncoding('utf8')
     readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
-    this.child.stderr!.on('data', (chunk: string) => {
+    readText(this.child.stderr!, chunk => {
       this.#stderr += chunk
       this.#emit('stderr', chunk)
       options.onStderr?.(chunk)

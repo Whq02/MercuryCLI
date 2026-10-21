@@ -232,6 +232,21 @@ console.log(JSON.stringify({ errors, exit, rejections }))
     const ended = await session.exit
     assert.equal(ended.stderr, session.stderr); assert.equal(sessionSeen.join(''), session.stderr)
   })
+  await check('stderr text is read with CRLF normalised to LF on both doors, a pair split across two writes included, so exit.stderr, the handle and the chunks agree', async () => {
+    const rows = [fixtureSessionRow(), ...fixtureTurn()]
+    const expected = 'boot\nsplit\nlone\rtail\n'
+    const crlf = fake(`process.stderr.write('boot\\r\\nsplit\\r');${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};setTimeout(()=>{process.stderr.write('\\nlone\\rtail\\r\\n');process.exit(0)},200)`)
+    const seen: string[] = []; const events: string[] = []
+    const task = run({ mercury: crlf, prompt: 'x', onStderr: chunk => seen.push(chunk) })
+    task.on('stderr', chunk => events.push(chunk))
+    const exit = await task.exit
+    assert.equal(exit.stderr, expected); assert.equal(task.stderr, expected); assert.equal(seen.join(''), expected); assert.equal(events.join(''), expected)
+    const sessionSeen: string[] = []
+    const session = await connect({ mercury: fake(`process.stderr.write('runner\\r\\nup\\r');setTimeout(()=>process.stderr.write('\\nnow\\r\\n'),100);const rl=require('node:readline').createInterface({input:process.stdin});rl.on('line',l=>{const m=JSON.parse(l);if(m.method==='initialize')console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:${JSON.stringify(init)}}))});rl.on('close',()=>process.exit(0))`), onStderr: chunk => sessionSeen.push(chunk) })
+    try { for (let i = 0; i < 100 && !session.stderr.includes('now'); i++) await sleep(10) } finally { await session.close() }
+    const ended = await session.exit
+    assert.equal(ended.stderr, 'runner\nup\nnow\n'); assert.equal(session.stderr, ended.stderr); assert.equal(sessionSeen.join(''), ended.stderr)
+  })
   await check('the package version is the manifest version', async () => {
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
     assert.equal(sdk.VERSION, pkg.version)
