@@ -186,6 +186,7 @@ function validateStrictSubset(root: unknown): string[] {
     }
     const types = typeof node.type === 'string' ? [node.type] : Array.isArray(node.type) ? node.type : []
     for (const ty of types) if (typeof ty !== 'string' || !PUBLISHED_TYPES.has(ty)) out.push(`G1 type ${JSON.stringify(ty)} at ${at}`)
+    if (types.length === 0 && !Array.isArray(node.anyOf) && !Array.isArray(node.enum) && !('const' in node) && !isNode(node.properties)) out.push(`G1 no type (the vendor refuses a schema without a type key) at ${at}`)
     if (typeof node.format === 'string' && !PUBLISHED_FORMATS.has(node.format)) out.push(`G9 format ${node.format} at ${at}`)
     if (node.default === null) out.push(`S5 a null default at ${at}`)
     if (Array.isArray(node.enum)) {
@@ -393,7 +394,7 @@ function hasNullAt(value: unknown, path: string[]): boolean {
 const EXPECTED_NON_STRICT: Record<string, RegExp> = {
   Crewmate: /propertyNames/, AskUserQuestion: /propertyNames/, Service: /propertyNames/, Git: /propertyNames/, Journey: /propertyNames/,
   Godot: /propertyNames/, Unity: /propertyNames/, Blender: /propertyNames/, Aseprite: /propertyNames/, JevEval: /additionalProperties/,
-  StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/, Computer: /propertyNames.*steps\.items/,
+  StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/, Computer: /propertyNames.*steps\.items/, Workflow: /admits any value.* at args/,
 }
 const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep']
 
