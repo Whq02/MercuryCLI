@@ -94,6 +94,15 @@ try {
     for (const sym of symbols) assert(dts.includes(docLead) && new RegExp(`\\/\\*\\* .+ \\*\\/\\nexport (?:\\{ (?:type )?${sym} \\}|(?:declare (?:function|class)|interface) ${sym}\\b)`).test(dts), `${file} missing JSDoc on ${sym}`)
   }
   for (const name of readdirSync(join(root, 'sdk/src')).filter(n => n.endsWith('.ts'))) assert(!readFileSync(join(root, 'sdk/src', name), 'utf8').includes(docLead), `sdk/src/${name} must carry no JSDoc comment bytes`)
+  const retryableDoc = /\/\*\* ([^\n]*)\*\/\nexport declare const isRetryableOutcome\b/.exec(readFileSync(join(scratch, 'sdk/dist/parse.d.ts'), 'utf8'))
+  assert(retryableDoc, 'parse.d.ts carries JSDoc on isRetryableOutcome')
+  const documentedClasses = /\(([^)]*)\)/.exec(retryableDoc[1]!)?.[1]?.split(/,\s*|\s+or\s+/).map(word => word.trim()).filter(Boolean).sort() ?? []
+  const retryableClasses = command('node', ['--input-type=module', '-e', `import {isRetryableOutcome,ERROR_CLASSES} from ${JSON.stringify(join(scratch, 'sdk/dist/index.js'))}; console.log(JSON.stringify(ERROR_CLASSES.filter(c => isRetryableOutcome({ type: 'outcome', status: 'failed', error: { message: 'x', class: c } })).sort()))`], scratch).trim()
+  assert.deepEqual(documentedClasses, JSON.parse(retryableClasses), `the JSDoc on isRetryableOutcome names the classes the built function treats as retryable: ${retryableDoc[1]}`)
+  const pythonRetryable = command(PYTHON, ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(join(scratch, 'sdk-py/src'))}); import json, mercury_cli_sdk as s; from mercury_cli_sdk.parse import is_retryable_outcome; print(json.dumps(sorted(c for c in s.ERROR_CLASSES if is_retryable_outcome({'type': 'outcome', 'status': 'failed', 'error': {'message': 'x', 'class': c}})), separators=(',', ':')), (is_retryable_outcome.__doc__ or '').replace(chr(10), ' '))`], scratch, { ...process.env, PYTHONDONTWRITEBYTECODE: '1' }).trim()
+  assert.equal(pythonRetryable.split(' ', 1)[0], retryableClasses, 'the Python package treats the same classes as retryable')
+  const pythonDocClasses = /\(([^)]*)\)/.exec(pythonRetryable.slice(retryableClasses.length))?.[1]?.split(/,\s*|\s+or\s+/).map(word => word.trim()).filter(Boolean).sort() ?? []
+  assert.deepEqual(pythonDocClasses, JSON.parse(retryableClasses), `the is_retryable_outcome docstring names the same classes: ${pythonRetryable}`)
   const loaded = command('node', ['--input-type=module', '-e', `import {run,connect,ROW_TYPES} from ${JSON.stringify(join(scratch, 'sdk/dist/index.js'))}; if(typeof run!=='function'||typeof connect!=='function'||!ROW_TYPES.length)process.exit(1)`], scratch)
   for (const name of readdirSync(join(scratch, 'sdk/src')).filter(n => n.endsWith('.ts'))) {
     assert(readdirSync(join(scratch, 'sdk/dist')).includes(name.replace('.ts', '.d.ts')))

@@ -171,6 +171,7 @@ _RETRYABLE_ERROR_CLASSES: frozenset[str] = frozenset({'rate_limit', 'server', 'i
 
 
 def is_retryable_outcome(row: OutcomeRow) -> bool:
+    """True when a failed outcome has a transient error class (rate_limit, server, idle_timeout, cut or model)."""
     error = row.get('error')
     return row['status'] == 'failed' and isinstance(error, Mapping) and error.get('class') in _RETRYABLE_ERROR_CLASSES
 
