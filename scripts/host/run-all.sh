@@ -20,6 +20,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 bun "$ROOT/scripts/host/prove-host-cleanup.ts"
 bun "$ROOT/scripts/host/prove-pod-image-path.ts"
+bun "$ROOT/scripts/host/prove-host-notice-before-turn.ts" --bundle "$ROOT/dist/mercury.mjs"
+bun "$ROOT/scripts/host/prove-host-completion.ts"
 bun "$ROOT/scripts/host/prove-vendors.ts"
 bun "$ROOT/scripts/host/prove-vendor-road-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
 bun "$ROOT/scripts/host/prove-door-drive.ts"
