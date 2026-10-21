@@ -1706,7 +1706,7 @@ export function Config({
   }
 
   const visible = filtered.slice(win.off, win.off + windowFor(win.sel))
-  const band = width + 2
+  const band = width + 2 - (win.off > 0 || win.hiddenBelow > 0 ? 1 : 0)
 
   return (
     <Box flexDirection="column" width={width} flexShrink={0}>
