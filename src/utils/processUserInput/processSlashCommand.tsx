@@ -72,9 +72,15 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
   return findCommand(commands, name) === undefined ? name : undefined
 }
 
+export const UNKNOWN_COMMAND_POINTERS: Readonly<Record<string, string>> = {
+  resume: 'the session picker is /sessions; a specific session resumes with `mercury --resume <id>`',
+}
+
 export function unknownCommandLine(name: string, commands: Command[]): string {
   const registered = findCommand([...builtinCommands()], name)
   if (registered !== undefined) return unavailableCommandLine(registered)
+  const pointer = UNKNOWN_COMMAND_POINTERS[name.toLowerCase()]
+  if (pointer !== undefined) return `Unknown command: /${name} — ${pointer} · /help lists commands`
   let near: string | undefined
   try {
     const byNameAlone = commands

@@ -32,7 +32,7 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'resume', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork', 'init', 'router']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork', 'init', 'router']
 const NEVER_HAD = 'frobnicate'
 const NOT_A_COMMAND: Record<string, string> = {
   'src/constants/changelog.ts': 'the release history: each release names what it shipped',
@@ -82,6 +82,16 @@ check('the roster module imports no such command', !readFileSync(join(REPO, 'src
 check('the query sources name no such caller', !readFileSync(join(REPO, 'src/constants/querySource.ts'), 'utf8').includes(RETIRED))
 
 check('/audit is the security prompt', commands.findCommand('audit', roster)?.type === 'prompt' && commands.findCommand('audit', roster)?.description === 'Analyze the changes on this branch for security risks')
+
+console.log('\n/resume — a road that lives elsewhere gets its named pointer, not a new command (the round-14 Windows row F39W-14A-04)')
+const RESUME_POINTER = 'the session picker is /sessions; a specific session resumes with `mercury --resume <id>`'
+const resumeLine = slash.unknownCommandLine('resume', roster)
+check('/resume is not a registered command, by name or alias', commands.findCommand('resume', roster) === undefined && roster.every(command => !(command.aliases ?? []).includes('resume')))
+check('typed, /resume answers the unknown-command sentence with the pointer to /sessions and `mercury --resume <id>`', resumeLine === `Unknown command: /resume — ${RESUME_POINTER} · /help lists commands`, resumeLine)
+check('the pointer names a command that exists (/sessions)', commands.findCommand('sessions', roster) !== undefined)
+check('the pointer table carries exactly that spelling', (slash as { UNKNOWN_COMMAND_POINTERS?: Readonly<Record<string, string>> }).UNKNOWN_COMMAND_POINTERS?.resume === RESUME_POINTER)
+check('the pointer leads only to roads that exist — a registered command and the CLI flag — never to the unknown name itself', /\/sessions/.test(RESUME_POINTER) && /mercury --resume <id>/.test(RESUME_POINTER) && !/\/resume\b(?! <id>)/.test(RESUME_POINTER.replace('--resume', '')))
+check('/resume still has no row anywhere: the roster, the aliases, the effective catalogue, the help domains', commands.findCommand('resume', roster) === undefined && surfaces.every(surface => surface.name !== 'resume' && !surface.aliases.includes('resume')) && domains.COMMAND_DOMAINS.every(domain => !domain.names.includes('resume')))
 check('/keysetup is the terminal-key action', commands.findCommand('keysetup', roster)?.type === 'local-jsx')
 
 const dist = join(REPO, 'dist/mercury.mjs')
@@ -111,6 +121,8 @@ if (existsSync(dist)) {
   }
   try {
     const never = door(NEVER_HAD)
+    const resumed = door('resume')
+    check('typed at the headless door, /resume gets the pointer on stderr and exit 1 (nothing on stdout)', resumed.code === 1 && resumed.out === '' && resumed.err.trim() === `Unknown command: /resume — ${RESUME_POINTER} · /help lists commands`, JSON.stringify(resumed))
     for (const name of NAMES) {
       if (existsSync(`/${name}`)) continue
       const typed = door(name)
