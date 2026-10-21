@@ -37,4 +37,4 @@
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  no schedules on 2 live sessions                                                             │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-               ↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back
+      ↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

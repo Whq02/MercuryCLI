@@ -9,7 +9,8 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { focusedEffortLabelOf } from '../../components/mercury-ui/EffortChip.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { ProductLockup } from '../../components/mercury-ui/components.js'
-import { paneWindow, panelWidth } from '../../components/mercury-ui/geometry.js'
+import { panelWidth } from '../../components/mercury-ui/geometry.js'
+import { PopupListViewport, popupListWindow, popupListMotion } from '../../components/CustomSelect/popup-list.js'
 import { displayWidth, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { cutToWidth } from '../../components/mercury-ui/menuFold.js'
 import { decodeNavKey } from '../../components/mercury-ui/navSemantics.js'
@@ -144,7 +145,8 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const cursorIndex = Math.min(cursor, Math.max(0, rows.length - 1))
   const envLine = effortPopupEnvLine()
   const layout = effortPopupLayout(frameRows, rows.length, envLine !== null)
-  const win = paneWindow(rows.length, cursorIndex, layout.listRows)
+  const win = popupListWindow(rows.length, cursorIndex, layout.listRows)
+  const listWidth = inner - (win.above > 0 || win.below > 0 ? 1 : 0)
   const ground = estateGroundBg(tok)
 
   const pastOpenEvent = useOpenEventGate()
@@ -177,20 +179,10 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
       finish(`Effort unchanged (${standingLabel})`)
       return
     }
-    if (action === 'movePrevious' || action === 'moveNext') {
+    const target = popupListMotion(input, key, cursorIndex, rows.length, layout.listRows)
+    if (target !== null) {
       consume()
-      const step = action === 'moveNext' ? 1 : -1
-      setCursor(Math.max(0, Math.min(rows.length - 1, cursorIndex + step)))
-      return
-    }
-    if (action === 'first') {
-      consume()
-      setCursor(0)
-      return
-    }
-    if (action === 'last') {
-      consume()
-      setCursor(Math.max(0, rows.length - 1))
+      setCursor(target)
       return
     }
     if (action === 'activate') {
@@ -203,14 +195,14 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
   const supported = modelSupportsEffort(model) && rows.length > 1
   const ladder = supported ? `effort ${rows[1]!.word}…${rows[rows.length - 1]!.word}` : model.startsWith('compat/') ? 'this server has no effort dial' : 'takes no effort setting'
   const modelLine = supported ? `${renderModelName(model)} · ${ladder} · running ${standingLabel}` : model.startsWith('compat/') ? `${ladder} · ${renderModelName(model)}` : `${renderModelName(model)} · ${ladder}`
-  const descriptionWidth = Math.max(1, inner - LEAD_COLUMN - WORD_COLUMN - STATE_COLUMN)
+  const descriptionWidth = Math.max(1, listWidth - LEAD_COLUMN - WORD_COLUMN - STATE_COLUMN)
   const renderRow = (row: EffortPopupRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex
     const current = row.value === currentLevel
     const description = truncateToWidth(row.description, descriptionWidth)
     const pad = ' '.repeat(Math.max(0, descriptionWidth - displayWidth(description)))
     return (
-      <InteractiveRow key={row.word} id={`effort:row:${row.word}`} selected={selected} onSelect={() => setCursor(index)} onActivate={() => activate(index)} width={inner} height={1}>
+      <InteractiveRow key={row.word} id={`effort:row:${row.word}`} selected={selected} onSelect={() => setCursor(index)} onActivate={() => activate(index)} width={listWidth} height={1}>
         <Text wrap="truncate-end">
           <Text color={selected ? accent : tok.textMuted}>{selected ? '❯ ' : '  '}</Text>
           <Text bold color={selected || current ? tok.textPrimary : tok.textSecondary}>{padTo(row.word, WORD_COLUMN)}</Text>
@@ -236,10 +228,12 @@ export function EffortPopup({ onDone }: { onDone: (message: string) => void }): 
         </Box>
       ) : null}
       {layout.blanks ? <Box height={1} /> : null}
-      {rows.slice(win.start, win.end).map((row, i) => renderRow(row, win.start + i))}
+      <PopupListViewport above={win.above} below={win.below} rows={win.end - win.start}>
+        {rows.slice(win.start, win.end).map((row, i) => renderRow(row, win.start + i))}
+      </PopupListViewport>
       {layout.blanks ? <Box height={1} /> : null}
       <Box height={1} width={inner + 1} marginRight={-1}>
-        <Text color={tok.textMuted}>{cutToWidth(EFFORT_POPUP_HINT, inner + 1)}</Text>
+        <Text color={tok.textMuted}>{cutToWidth(win.above > 0 || win.below > 0 ? EFFORT_POPUP_HINT.replace(' · esc', ' · pgup/pgdn page · esc') : EFFORT_POPUP_HINT, inner + 1)}</Text>
       </Box>
     </Box>
   )

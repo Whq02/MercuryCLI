@@ -362,7 +362,7 @@ export function loginsFlowReady(_value: LoginFamilyRow['value']): boolean {
 }
 
 export function loginsLegendOf(switchable = false): string {
-  return switchable ? '↑↓ move · ↵ sign in · s switch slot · esc back' : '↑↓ move · ↵ sign in · esc back';
+  return switchable ? '↑↓ move · pgup/pgdn page · ↵ sign in · s switch slot · esc back' : '↑↓ move · pgup/pgdn page · ↵ sign in · esc back';
 }
 
 

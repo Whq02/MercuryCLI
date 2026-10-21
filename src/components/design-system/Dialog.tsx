@@ -58,6 +58,7 @@ export function Dialog({
             inputGuide(exitState)
           ) : (
             <Byline>
+              <Text italic dimColor>↑↓ move · pgup/pgdn page</Text>
               <Text italic dimColor>
                 <KeyboardShortcutHint shortcut="Enter" action="confirm" />
               </Text>

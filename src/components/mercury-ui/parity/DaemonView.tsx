@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../../ink.js'
+import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { formatFreshness } from '../../../utils/cockpit/freshness.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -116,25 +117,12 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   )
   const visible = v.workers.slice(winStart, winStart + MAX_ROWS)
   const hiddenBelow = v.workers.length - winStart - visible.length
+  usePopupListNavigation(clampedSel, v.workers.length, MAX_ROWS, next => { setSel(next); setSelKey(v.workers[next]?.short ?? null); setNote(null) })
 
   useInput(
     (input, key) => {
       if (key.escape || key.leftArrow) {
         onClose()
-        return
-      }
-      if (key.upArrow) {
-        const next = Math.max(0, clampedSel - 1)
-        setSel(next)
-        setSelKey(v.workers[next]?.short ?? null)
-        setNote(null)
-        return
-      }
-      if (key.downArrow) {
-        const next = Math.min(Math.max(0, v.workers.length - 1), clampedSel + 1)
-        setSel(next)
-        setSelKey(v.workers[next]?.short ?? null)
-        setNote(null)
         return
       }
       if (!pastOpenEvent()) return
@@ -155,18 +143,14 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   const stamp = formatFreshness(now, probedAt)
   const footer =
     v.workers.length > 0
-      ? `↑↓ move · ↵ detail · ${refresh} · ${stamp}`
+      ? `↑↓ move · pgup/pgdn page · ↵ detail · ${refresh} · ${stamp}`
       : `${refresh} · ${stamp}`
 
   return (
-    <CommandCenter
-      view="daemon"
+    <CommandCenter view="daemon"
       subtitle="daemon + workers"
       onClose={onClose}
-      captureInput={false}
-      footer={footer}
-    >
-      {probing ? (
+      captureInput={false} footer={footer} bodyOwnsPageKeys >{probing ? (
         <Box marginTop={1}>
           <Text color={FAINT}>{GLYPH.drifting} probing control socket … </Text>
           <Text color={sync.state === 'live' ? TEAL : FAINT}>{sync.reason || sync.state}</Text>
@@ -296,7 +280,6 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
 
       <Box marginTop={1}>
         <Text color={FAINT}>read-only · this view never starts, stops, or mutates the daemon</Text>
-      </Box>
-    </CommandCenter>
+      </Box></CommandCenter>
   )
 }

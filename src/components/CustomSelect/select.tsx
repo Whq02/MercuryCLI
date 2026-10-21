@@ -18,6 +18,7 @@ import { SelectInputOption } from './select-input-option.js'
 import { SelectOption } from './select-option.js'
 import { useSelectInput } from './use-select-input.js'
 import { useSelectState } from './use-select-state.js'
+import { PopupListViewport } from './popup-list.js'
 
 export type { OptionWithDescription } from './option-map.js'
 
@@ -259,8 +260,6 @@ export function Select<T = string>({
   const inputRowReserved = hideIndexes ? 0 : digitCount
 
   const visible = state.visibleOptions
-  const hasAbove = state.visibleFromIndex > 0
-  const hasBelow = state.visibleToIndex < optionCount
   const { visibleFromIndex, visibleToIndex } = state
   useEffect(() => {
     onVisibleWindowChange?.(visibleFromIndex, visibleToIndex)
@@ -272,9 +271,7 @@ export function Select<T = string>({
   ) => {
     const isFocused = !isDisabled && state.focusedValue === option.value
     const isSelected = state.value === option.value
-    const showUp = position === 0 && hasAbove && !isFocused
-    const showDown = position === visible.length - 1 && hasBelow && !isFocused
-    return { isFocused, isSelected, showUp, showDown }
+    return { isFocused, isSelected, showUp: false, showDown: false }
   }
 
   const inputRow = (
@@ -367,7 +364,7 @@ export function Select<T = string>({
       return Math.max(max, 2 + indexWidth + labelWidth + checkmarkWidth)
     }, 0)
     return (
-      <Box flexDirection="column">
+      <PopupListViewport above={state.visibleFromIndex} below={optionCount - state.visibleToIndex} rows={visible.length}>
         {visible.map((option, position) => {
           const { isFocused, isSelected, showUp, showDown } = rowFlags(
             option,
@@ -403,12 +400,12 @@ export function Select<T = string>({
             />
           )
         })}
-      </Box>
+      </PopupListViewport>
     )
   }
 
   return (
-    <Box flexDirection="column">
+    <PopupListViewport above={state.visibleFromIndex} below={optionCount - state.visibleToIndex} rows={visible.length}>
       {visible.map((option, position) => {
         if (isInputOption(option)) {
           return inputRow(option as InputOption<T> & { index: number }, position)
@@ -520,7 +517,7 @@ export function Select<T = string>({
           </SelectOption>
         )
       })}
-    </Box>
+    </PopupListViewport>
   )
 }
 

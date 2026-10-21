@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve } from 'path'
 import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
+import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { setClipboard } from '../../ink/termio/osc.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -465,6 +466,7 @@ export function DiffDialog({
   const wideSummary = columns >= SUMMARY_SIDE_BY_SIDE_MIN_COLS
   const bodyBudget = Math.max(4, (termRows || 24) - 12 - (wideSummary ? 0 : 7))
   const listRows = Math.max(4, Math.min(files.length, bodyBudget))
+  usePopupListPaging(selectedIndex, files.length, listRows, next => { setSelectedPath(files[next]?.path ?? null); setHunkIndex(0); setNote(null) }, viewMode === 'list' && !composer.open)
   const summaryWidth = Math.min(44, Math.max(32, Math.floor(columns * 0.32)))
   const listWidth = wideSummary ? columns - summaryWidth - 6 : columns - 4
 
@@ -515,7 +517,7 @@ export function DiffDialog({
     const parts: string[] = []
     if (viewMode === 'list') {
       if (sources.length > 1) parts.push('←→ source')
-      if (files.length > 1) parts.push('↑↓ file')
+      if (files.length > 1) parts.push('↑↓ file', 'pgup/pgdn page')
       if (files.length > 0) parts.push('↵ view', 'c copy path')
       if (files.length > 0 && editorConfigured) parts.push('o open')
     } else {
@@ -622,6 +624,7 @@ export function DiffDialog({
       captureInput={false}
       closeKeys="esc"
       footer={footer}
+      bodyOwnsPageKeys={viewMode === 'list'}
       elevated
     >
       <Box flexDirection="column">

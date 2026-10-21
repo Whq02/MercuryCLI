@@ -125,6 +125,7 @@ export type Mounted = {
   push: (data: string) => void
   lines: () => string[]
   screen: () => string
+  cursor: () => { x: number; y: number; visible: boolean }
   styleAt: (x: number, y: number) => { bg: string; fg: string; bold: boolean; inverse: boolean } | null
   resize: (element: unknown, columns: number, rows: number) => void
   unmount: () => void
@@ -158,6 +159,10 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
     push: data => stdin.push(data),
     lines: () => replay().lines().map(line => line.replace(/\s+$/, '')),
     screen: () => replay().lines().join('\n'),
+    cursor: () => {
+      const frame = replay()
+      return { x: frame.cursorX, y: frame.cursorY, visible: frame.cursorVisible }
+    },
     styleAt: (x, y) => {
       const style = replay().styleAt(x, y)
       return style === null ? null : { bg: style.bg, fg: style.fg, bold: style.bold, inverse: style.inverse }

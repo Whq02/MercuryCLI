@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { Box, Text, useInput } from '../../ink.js'
+import { Box, Text, useInput, type DOMElement } from '../../ink.js'
+import { popupPageRows, usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
 import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
 import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
@@ -106,11 +107,13 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
   const t = useMercuryTokens()
   const rows = React.useMemo(familyRows, [])
   const choices: MenuChoice[] = React.useMemo(() => menuRowChoices(TTL_ROW), [])
+  const rowNodes = React.useRef(new Map<number, DOMElement>())
   const [cursor, setCursor] = React.useState(0)
   const [dial, setDial] = React.useState(readDialState)
   const [receipt, setReceipt] = React.useState<string | null>(null)
   const [note, setNote] = React.useState<string | null>(null)
 
+  usePopupListNavigation(cursor, rows.length, () => popupPageRows(rowNodes.current.values()), setCursor)
   const close = (): void => onDone(undefined, { display: 'skip' })
 
   const cycle = (direction: 1 | -1): void => {
@@ -137,8 +140,6 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
 
   useInput((input, key) => {
     if (key.escape) return close()
-    if (key.upArrow) return setCursor(c => (c - 1 + rows.length) % rows.length)
-    if (key.downArrow) return setCursor(c => (c + 1) % rows.length)
     if (key.return || input === ' ' || key.rightArrow) return cycle(1)
     if (key.leftArrow) return cycle(-1)
   })
@@ -149,8 +150,9 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
   return (
     <CommandCenter
       view="caching"
+      bodyOwnsPageKeys
       subtitle="every family's prompt-caching truth"
-      footer="↑↓ family · ↵/space/←→ turn the dial where a row has one · esc close"
+      footer="↑↓ family · pgup/pgdn page · ↵/space/←→ turn the dial where a row has one · esc close"
       onClose={close}
       captureInput={false}
       closeKeys="esc"
@@ -160,7 +162,8 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
           const focused = i === cursor
           const marker = focused ? '▸' : ' '
           return (
-            <CursorRow key={row.route} selected={focused} flexDirection="column">
+            <Box key={row.route} ref={node => { if (node) rowNodes.current.set(i, node); else rowNodes.current.delete(i) }} flexDirection="column">
+            <CursorRow selected={focused} flexDirection="column">
               <Box>
                 <Text color={focused ? t.accent : t.textPrimary} bold={focused}>
                   {marker} {providerDisplayName(row.route)}
@@ -208,6 +211,7 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
                 </Box>
               ) : null}
             </CursorRow>
+            </Box>
           )
         })}
         {currentValue === '1h' ? (

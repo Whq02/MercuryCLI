@@ -37,4 +37,4 @@
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  5 schedules · 2 held · read-only until a verb                                               │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-               ↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back
+      ↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

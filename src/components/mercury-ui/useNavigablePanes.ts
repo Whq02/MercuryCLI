@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import type { DOMElement } from '../../ink.js'
 import { useInput } from '../../ink.js'
+import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { decodeNavKey } from './navSemantics.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
@@ -13,6 +14,7 @@ type UseNavigablePanesArgs = {
   sectionIds?: string[]
   sectionCount: number
   rowCount: number
+  pageSize?: number | (() => number)
   onClose: () => void
   active?: boolean
   expandable?: boolean
@@ -57,6 +59,7 @@ export function crossSectionAtEdge(
 export function useNavigablePanes({
   sectionCount,
   rowCount,
+  pageSize = 5,
   onClose,
   active = true,
   escOverride,
@@ -182,6 +185,7 @@ export function useNavigablePanes({
   )
 
   const navActive = active && (rowCount > 0 || sectionCount > 1)
+  usePopupListPaging(clampedSel, maxSel + 1, pageSize, setSel, navActive)
   useInput(
     (input, key, event) => {
       const action = decodeNavKey(input, key, {

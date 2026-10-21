@@ -17,6 +17,7 @@ import {
   type SelectNavigation,
 } from './use-select-navigation.js'
 import { letterOrdinalOf } from './use-select-input.js'
+import { usePopupPageOwner } from './popup-list.js'
 
 type UseMultiSelectStateProps<T> = {
   visibleOptionCount?: number
@@ -67,7 +68,8 @@ export function useMultiSelectState<T>({
   onTabOut,
   onSubmitFocusChange,
 }: UseMultiSelectStateProps<T>): MultiSelectState<T> {
-  useRegisterOverlay('multi-select')
+  usePopupPageOwner(!isDisabled)
+  useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled })
 
   const lastOption = options[options.length - 1]
   const navigation = useSelectNavigation({
@@ -158,7 +160,7 @@ export function useMultiSelectState<T>({
   const isOnFirstOption = navigation.focusedIndex === 1
 
   const submit = (): void => {
-    onSubmit?.(selectedValues)
+    onSubmit?.(selectedValuesRef.current)
   }
 
   const { focusValue: focusByValue } = navigation
@@ -183,6 +185,8 @@ export function useMultiSelectState<T>({
         const allowed =
           key.upArrow ||
           key.downArrow ||
+          key.pageUp ||
+          key.pageDown ||
           key.escape ||
           key.tab ||
           key.return ||

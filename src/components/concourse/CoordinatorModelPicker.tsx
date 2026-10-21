@@ -412,6 +412,7 @@ export function CoordinatorModelPicker({
           {shedToFit(
             [
               { text: `${list.motionHint} browse`, priority: 3 },
+              { text: 'pgup/pgdn page', priority: 3 },
               { text: '↵ select', priority: 2 },
               ...(list.selectedRow?.kind === 'model' && query.length === 0
                 ? [{ text: 'e effort', priority: 2 }]

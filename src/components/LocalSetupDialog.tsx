@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LOCAL_SETUP_CHOOSE_LINE, LOCAL_SETUP_CHOOSE_TITLE, LOCAL_SETUP_CURSOR, LOCAL_SETUP_PULL_TITLE } from '../commands/localsetup/words.js'
 import { Box, Text, useInput } from '../ink.js'
+import { usePopupListNavigation } from './CustomSelect/popup-list.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { truncateStartToWidth, truncateToWidth } from '../utils/truncate.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -9,7 +10,7 @@ import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 export const LOCAL_SETUP_POPUP_WIDTH = 120
 export const LOCAL_SETUP_POPUP_ROWS = 33
-export const LOCAL_SETUP_POPUP_HINT = '↵ run · s skip · esc stop · ←→ line tail · ↑↓ scroll · click outside closes'
+export const LOCAL_SETUP_POPUP_HINT = '↵ run · s skip · esc stop · ←→ line tail · ↑↓ scroll · pgup/pgdn page · click outside closes'
 export const LOCAL_SETUP_OPENING_LINE = 'local model set-up · six steps · each says what it will run and waits for ↵'
 export const LOCAL_SETUP_KEYS = '↵ run · s skip · esc stop'
 export const LOCAL_SETUP_WILL_RUN = 'will run'
@@ -79,7 +80,8 @@ export type LocalSetupEvent =
 export type LocalSetupAction =
   | LocalSetupEvent
   | { kind: 'consent'; answer: LocalSetupConsent }
-  | { kind: 'cursor'; delta: 1 | -1 }
+  | { kind: 'cursor'; delta: number }
+  | { kind: 'focus'; cursor: number }
   | { kind: 'ended' }
   | { kind: 'error'; words: string }
 
@@ -193,7 +195,7 @@ export function localSetupIsChoice(step: LocalSetupStepState | undefined): step 
   return step !== undefined && step.rows !== undefined && step.rows.length > 0
 }
 
-export function localSetupMoveCursor(rows: readonly LocalSetupChoiceRow[], cursor: number | undefined, delta: 1 | -1): number | undefined {
+export function localSetupMoveCursor(rows: readonly LocalSetupChoiceRow[], cursor: number | undefined, delta: number): number | undefined {
   if (rows.length === 0) return undefined
   if (cursor === undefined) return delta > 0 ? 0 : rows.length - 1
   return Math.max(0, Math.min(rows.length - 1, cursor + delta))
@@ -216,11 +218,12 @@ export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupActio
       }
       return { ...state, steps: [...state.steps, next] }
     }
-    case 'cursor': {
+    case 'cursor':
+    case 'focus': {
       const index = state.steps.findIndex(step => step.phase === 'asking')
       const current = index < 0 ? undefined : state.steps[index]
       if (!localSetupIsChoice(current)) return state
-      const cursor = localSetupMoveCursor(current.rows, current.cursor, action.delta)
+      const cursor = action.kind === 'focus' ? Math.max(0, Math.min(current.rows.length - 1, action.cursor)) : localSetupMoveCursor(current.rows, current.cursor, action.delta)
       const steps = state.steps.slice()
       steps[index] = { ...current, ...(cursor !== undefined ? { cursor } : {}) }
       return { ...state, steps }
@@ -413,6 +416,8 @@ export function LocalSetupDialog({
   const choice = localSetupIsChoice(asking) ? asking : undefined
   const cursorRow = choice !== undefined && choice.cursor !== undefined ? rows.findIndex(row => row.choice === choice.cursor) : -1
   const window = localSetupWindow(rows.length, budget, cursorRow >= 0 ? localSetupScrollFor(rows.length, budget, cursorRow) : scroll)
+  usePopupListNavigation(choice?.cursor ?? -1, choice?.rows.length ?? 0, Math.max(1, budget - 2), cursor => dispatch({ kind: 'focus', cursor }), choice !== undefined)
+  usePopupListNavigation(window.start, Math.max(1, rows.length - budget + 2), Math.max(1, budget - 1), setScroll, choice === undefined)
   useInput((input, key, event) => {
     if (key.escape) {
       event.stopImmediatePropagation()
@@ -426,16 +431,6 @@ export function LocalSetupDialog({
         stopRef.current = true
         dispatch({ kind: 'consent', answer: 'stop' })
       }
-      return
-    }
-    if (key.upArrow || key.downArrow) {
-      event.stopImmediatePropagation()
-      if (localSetupIsChoice(localSetupAsking(stateRef.current))) {
-        dispatch({ kind: 'cursor', delta: key.upArrow ? -1 : 1 })
-        return
-      }
-      const start = window.start + (key.upArrow ? -1 : 1)
-      setScroll(start >= rows.length - (budget - 1) ? null : Math.max(0, start))
       return
     }
     if (key.leftArrow || key.rightArrow) {

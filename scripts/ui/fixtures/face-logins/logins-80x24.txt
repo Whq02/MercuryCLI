@@ -20,4 +20,4 @@
  ↓ 7 more
 
  OpenAI · ChatGPT Plus
- ↑↓ move · ↵ sign in · esc back
+ ↑↓ move · pgup/pgdn page · ↵ sign in · esc back

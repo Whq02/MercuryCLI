@@ -37,4 +37,4 @@
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  preset 'writing' armed — the next session wears it, then the menu's default resumes         │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                  ↑↓ move · ↵ wear next session · ⌫ delete · esc back
+                          ↑↓ move · pgup/pgdn page · ↵ wear next session · ⌫ delete · esc back

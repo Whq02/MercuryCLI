@@ -109,7 +109,7 @@ export function FilePermissionDialog<T extends ToolInput>({
       </PermissionDialog>
       <Box marginTop={1}>
         <Text color="subtle">
-          {'esc cancel'}
+          {'↑↓ move · pgup/pgdn page · ↵ confirm · esc cancel'}
           {showAmendHint ? ' · tab amend' : ''}
         </Text>
       </Box>

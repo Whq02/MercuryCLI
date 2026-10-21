@@ -48,10 +48,10 @@ interface KitMenuScreenProps {
   workspaceDir?: string;
 }
 
-export const KIT_LEGEND_SAVED = '↑↓ move · ↵ change (saved) · ⌫ default · esc back';
-export const KIT_LEGEND_PRESET = '↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back';
+export const KIT_LEGEND_SAVED = '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · esc back';
+export const KIT_LEGEND_PRESET = '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back';
 export const KIT_LEGEND_PROMPT = 'type a name · ↵ save · esc cancel';
-export const KIT_LEGEND_PRESETS = '↑↓ move · ↵ wear next session · ⌫ delete · esc back';
+export const KIT_LEGEND_PRESETS = '↑↓ move · pgup/pgdn page · ↵ wear next session · ⌫ delete · esc back';
 export const PRESET_LAYER_EMPTY = "no presets saved — 'p' on the menu saves the current record under a name";
 
 export function presetPromptLines(name: string, note: string | null): string[] {
@@ -131,7 +131,7 @@ type KitEntry = {
 
 const DEFAULT_VIEW: KitRowView = { own: 'on', effective: 'on', masterOff: false };
 
-export const KIT_LEGEND = '↑↓ move · ↵ change · ⌫ default · esc back';
+export const KIT_LEGEND = '↑↓ move · pgup/pgdn page · ↵ change · ⌫ default · esc back';
 
 export function kitValueLabel(row: KitRow, view: KitRowView = DEFAULT_VIEW): string {
   if (row.kind === 'note') return '';

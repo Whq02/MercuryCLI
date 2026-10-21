@@ -126,6 +126,7 @@ export function ExportDialog({
           <Text dimColor>enter to save · esc back</Text>
         </Box>
       )}
+      {screen === 'method' ? <Text dimColor>↑↓ move · ↵ select · esc cancel</Text> : null}
     </Box>
   )
 }

@@ -14,6 +14,7 @@ import { ModalContext } from '../../context/modalContext.js'
 import { usePopupMarker } from '../../context/popupFormContext.js'
 import { settingsPopupMarker } from '../../utils/cockpit/settingsPopup.js'
 import { Box, Text, useInput } from '../../ink.js'
+import { usePopupListPaging, PopupListViewport } from '../CustomSelect/popup-list.js'
 import { escapeFromOutsidePress } from '../../ink/recessLayer.js'
 import wrapText from '../../ink/wrap-text.js'
 import { getFocusedWorkspaceCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
@@ -118,7 +119,7 @@ const LABEL_CELLS = 36
 
 export const CONFIG_POPUP_WIDTH = 110
 export const CONFIG_POPUP_ROWS = 44
-export const CONFIG_POPUP_HINT = '↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes'
+export const CONFIG_POPUP_HINT = '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes'
 export const CONFIG_SEARCH_PLACEHOLDER = 'Search settings…'
 export const CONFIG_LIST_CHROME_ROWS = 3
 export const CONFIG_ROW_MARK = GLYPH.chevronRight
@@ -1447,6 +1448,7 @@ export function Config({
     setOffset(fixed.off)
     setThinkingWarning(false)
   }
+  usePopupListPaging(win.sel, filtered.length, windowFor(win.sel), moveTo, subMenu === null)
 
   const composeSummary = (): string | undefined => {
     const lines: string[] = [...changesRef.current.values()]
@@ -1719,6 +1721,7 @@ export function Config({
         />
       </Box>
       <Box height={compact ? 0 : 1} />
+      <PopupListViewport above={win.off} below={win.hiddenBelow} rows={visible.length}>
       {visible.map((item, index) => {
         const at = win.off + index
         const isSelected = !searchMode && at === win.sel
@@ -1760,6 +1763,7 @@ export function Config({
           </Box>
         )
       })}
+      </PopupListViewport>
       {filtered.length === 0 ? (
         <Box height={1}>
           <Text color={tokens.textMuted}>no settings match “{query}”</Text>

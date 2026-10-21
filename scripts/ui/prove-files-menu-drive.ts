@@ -20,7 +20,7 @@ const SHIFT_LEFT = '\x1b[1;2D'
 const CTRL_G = '\x07'
 const DOWN = '\x1b[B'
 const TITLE = 'Mercury · files'
-const HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
+const HINT = '↑↓ move · ↵ open · → ← unfold · / filter'
 const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ FILES · fixture-cwd      │', '│   ↵ or click · browse      │', '╰────────────────────────────╯']
 
 if (!existsSync(DIST)) {
@@ -29,7 +29,8 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const worldRoot = existsSync('/private/tmp') ? '/private/tmp/mw' : join(realpathSync(tmpdir()), 'mw')
+if (!process.env.MERCURY_CONFIG_DIR) throw new Error('Use a scratch MERCURY_CONFIG_DIR')
+const worldRoot = process.env.MERCURY_CONFIG_DIR
 mkdirSync(worldRoot, { recursive: true })
 const scratch = realpathSync(mkdtempSync(join(worldRoot, 'file-tree-')))
 
@@ -137,7 +138,6 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
-    MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -172,7 +172,7 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
     BROWSER: '/usr/bin/true',
     SHELL: existsSync('/bin/bash') ? '/bin/bash' : (process.env.SHELL ?? '/bin/sh'),
   }
-  for (const key of ['NODE_ENV', 'MERCURY_DEMO', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'VSCODE_GIT_ASKPASS_MAIN', '__CFBundleIdentifier', 'TERMINAL_EMULATOR']) {
+  for (const key of ['MERCURY_HOME', 'NODE_ENV', 'MERCURY_DEMO', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'VSCODE_GIT_ASKPASS_MAIN', '__CFBundleIdentifier', 'TERMINAL_EMULATOR']) {
     delete env[key]
   }
   return env
@@ -298,7 +298,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P2 the FILES box paints its four rows exactly, under the NEXT box', boxAt > 1 && [land[boxAt - 1], land[boxAt], land[boxAt + 1], land[boxAt + 2]].join('\n') === FILES_BOX.join('\n') && (land[boxAt - 2] ?? '').startsWith('╰') && (land[boxAt - 3] ?? '').includes('/mission'), land.slice(Math.max(0, boxAt - 3), boxAt + 3).join(' | '))
   tally.check('P3 the rail row under the cursor reads the caret on the FILES row', railRows(m['files-row']).includes('│ ❯ ↵ or click · browse      │'), railRows(m['files-row']).filter(r => r.includes('browse')).join(' | '))
   const menu = menuRegion(m.menu)
-  tally.check('P4 the menu opens over the chat at rows 5..19, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 15, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)
+  tally.check('P4 the menu opens over the chat at rows 5..20, columns 54..123, seventy wide', menu !== null && menu.top === 5 && menu.left === 54 && menu.right === 123 && menu.rows.length === 16, menu === null ? 'no menu' : `top ${menu.top} left ${menu.left} right ${menu.right} rows ${menu.rows.length}`)
   const expectedMenu = [
     '╭────────────────────────────────────────────────────────────────────╮',
     '│ ▖▟▆▙▗ Mercury · files                                              │',
@@ -313,7 +313,8 @@ if (worlds.has('plain') || worlds.has('off')) {
     '│   package.json                                                     │',
     '│                                                                    │',
     '│ / filter by name                                                   │',
-    '│ ↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside clo│',
+    '│ ↑↓ move · ↵ open · → ← unfold · / filter                           │',
+    '│ pgup/pgdn page · esc or click outside closes                       │',
     '╰────────────────────────────────────────────────────────────────────╯',
   ]
   tally.check('P5 the menu rows read as the frame: the title, the folder line, the tree, the filter line, the hint row', menu !== null && menu.rows.join('\n') === expectedMenu.join('\n'), menu === null ? 'no menu' : menu.rows.join('\n'))

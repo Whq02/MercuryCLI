@@ -40,6 +40,7 @@ import {
 import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
+import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
@@ -376,6 +377,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
   )
 
   const [trashSel, setTrashSel] = React.useState(0)
+  usePopupListNavigation(trashSel, mode.kind === 'trash' ? listAgentTrash().length : 0, 10, setTrashSel, mode.kind === 'trash')
   useInput(
     (input, key) => {
       if (mode.kind !== 'trash') return
@@ -384,9 +386,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         setMode({ kind: 'library' })
         return
       }
-      if (key.upArrow) setTrashSel(s => Math.max(0, s - 1))
-      else if (key.downArrow) setTrashSel(s => Math.min(Math.max(0, entries.length - 1), s + 1))
-      else if (key.return || input === 'u') {
+      if (key.return || input === 'u') {
         const entry = entries[Math.min(trashSel, entries.length - 1)]
         if (!entry) return
         void restoreAgentFromTrash(entry.id)
@@ -481,7 +481,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
           ? inspectFooter(inspected.agent)
           : 'esc back'
       : mode.kind === 'trash'
-        ? '↑↓ move · ↵/u restore · esc back'
+        ? '↑↓ move · pgup/pgdn page · ↵/u restore · esc back'
         : mode.kind === 'delete-confirm'
           ? 'y / ↵ delete (recoverable) · n / esc cancel'
           : mode.kind === 'clone'
@@ -489,8 +489,8 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
             : mode.kind === 'testdrive'
               ? '↵ stage in composer · esc cancel'
               : query
-                ? '↑↓ move · ↵ inspect · esc clear search'
-                : `type to search · ↑↓ · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
+                ? '↑↓ move · pgup/pgdn page · ↵ inspect · esc clear search'
+                : `type to search · ↑↓ · pgup/pgdn page · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
 
   return (
     <CommandCenter
@@ -504,6 +504,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
       }}
       captureInput={false}
       footer={footer}
+      bodyOwnsPageKeys={mode.kind === 'library' || mode.kind === 'trash'}
     >
       <Box flexDirection="column">
         {mode.kind === 'delete-confirm' ? (
@@ -813,6 +814,7 @@ function TestDrivePane({
 
 function TrashView({ sel }: { sel: number }): React.ReactNode {
   const entries = listAgentTrash()
+  const win = popupListWindow(entries.length, sel, 10)
   if (entries.length === 0) {
     return (
       <Box marginTop={1}>
@@ -823,7 +825,10 @@ function TrashView({ sel }: { sel: number }): React.ReactNode {
   return (
     <Box flexDirection="column" marginTop={1}>
       <SectionHeader count={entries.length}>Deleted agents (restorable)</SectionHeader>
-      {entries.slice(0, 10).map((e, i) => (
+      <PopupListViewport above={win.above} below={win.below} rows={win.end - win.start}>
+      {entries.slice(win.start, win.end).map((e, index) => {
+        const i = win.start + index
+        return (
         <Text key={e.id}>
           <Text color={i === Math.min(sel, entries.length - 1) ? TEAL : FAINT}>
             {i === Math.min(sel, entries.length - 1) ? '▸ ' : '  '}
@@ -831,7 +836,8 @@ function TrashView({ sel }: { sel: number }): React.ReactNode {
           <Text color={IVORY}>{e.agentType.padEnd(24)}</Text>
           <Text color={FAINT}>{truncateToWidth(`${e.deletedAt.slice(0, 16)} · was ${e.originalPath}`, 48)}</Text>
         </Text>
-      ))}
+      )})}
+      </PopupListViewport>
     </Box>
   )
 }

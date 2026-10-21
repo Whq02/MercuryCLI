@@ -484,18 +484,18 @@ export type MemoryFooterState =
 export function memoryFooter(state: MemoryFooterState): string {
   switch (state.kind) {
     case 'overview':
-      return `↑↓ move${state.action ? ` · ↵ ${state.action}` : ''} · ${MEMORY_CLOSE_HINT}`
+      return `↑↓ move · pgup/pgdn page${state.action ? ` · ↵ ${state.action}` : ''} · ${MEMORY_CLOSE_HINT}`
     case 'search':
-      return state.empty ? 'esc clears the search' : '↑↓ move · ↵ open · esc clears the search'
+      return state.empty ? 'esc clears the search' : '↑↓ move · pgup/pgdn page · ↵ open · esc clears the search'
     case 'list':
-      return state.empty ? 'esc back' : `↑↓ move${state.open ? ` · ↵ ${state.open}` : ''} · esc back`
+      return state.empty ? 'esc back' : `↑↓ move · pgup/pgdn page${state.open ? ` · ↵ ${state.open}` : ''} · esc back`
     case 'page':
-      return `${state.editable ? 'e open in editor · ' : ''}${state.scrolls ? '↑↓ scroll · ' : ''}esc back`
+      return `${state.editable ? 'e open in editor · ' : ''}${state.scrolls ? '↑↓ scroll · pgup/pgdn page · ' : ''}esc back`
     case 'fact':
-      return `${state.verbs ? `${state.verbs} · ` : ''}esc back`
+      return `↑↓ scroll · pgup/pgdn page · ${state.verbs ? `${state.verbs} · ` : ''}esc back`
     case 'correcting':
       return '↵ save correction · esc cancel'
     case 'files':
-      return state.direct ? `↑↓ move · ↵ open in editor · ${MEMORY_CLOSE_HINT}` : '↑↓ move · ↵ open in editor · esc back'
+      return state.direct ? `↑↓ move · pgup/pgdn page · ↵ open in editor · ${MEMORY_CLOSE_HINT}` : '↑↓ move · pgup/pgdn page · ↵ open in editor · esc back'
   }
 }

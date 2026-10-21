@@ -17,6 +17,7 @@ import {
   type OptionWithDescription,
 } from './option-map.js'
 import type { SelectState } from './use-select-state.js'
+import { usePopupPageOwner } from './popup-list.js'
 
 export function letterOrdinalOf(option: {
   indexLabel?: string
@@ -56,7 +57,8 @@ export function useSelectInput<T>({
   tryEnterImageSelectionMode,
   isImageSelectionModeActive = false,
 }: UseSelectProps<T>): void {
-  const overlayToken = useRegisterOverlay('select', Boolean(onCancel))
+  usePopupPageOwner(!isDisabled)
+  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })
   const tokenRef = useRef(overlayToken)
   tokenRef.current = overlayToken
 
@@ -121,6 +123,12 @@ export function useSelectInput<T>({
       const focusedOption =
         state.focusedIndex > 0 ? state.options[state.focusedIndex - 1] : undefined
 
+      if (key.pageDown || key.pageUp) {
+        if (key.pageDown) state.focusNextPage()
+        else state.focusPreviousPage()
+        event.stopImmediatePropagation()
+        return
+      }
       if (key.tab && onInputModeToggle && state.focusedValue !== undefined) {
         onInputModeToggle(state.focusedValue)
         event.stopImmediatePropagation()
@@ -151,8 +159,6 @@ export function useSelectInput<T>({
         return
       }
 
-      if (key.pageDown) state.focusNextPage()
-      if (key.pageUp) state.focusPreviousPage()
 
       if (disableSelection !== true) {
         if (normalizeFullWidthSpace(input) === ' ') {

@@ -2,7 +2,8 @@ import * as React from 'react'
 import { exitChordNoticeText } from '../../PromptInput/ExitChordNotice.js'
 import { useCallback, useMemo, useState } from 'react'
 import chalk from 'chalk'
-import { Box, Text } from '../../../ink.js'
+import { Box, Text, useInput } from '../../../ink.js'
+import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { Pane } from '../../design-system/Pane.js'
 import { SearchBox } from '../../SearchBox.js'
 import { Select } from '../../CustomSelect/select.js'
@@ -95,6 +96,7 @@ function RulesTabContent({
   onSelectRule,
   onAddRule,
   onCancel,
+  onHeaderFocusChange,
 }: {
   behavior: PermissionBehavior
   context: ToolPermissionContext
@@ -103,8 +105,11 @@ function RulesTabContent({
   onSelectRule: (rule: PermissionRule, nextFocus: string | null) => void
   onAddRule: () => void
   onCancel: () => void
+  onHeaderFocusChange: (focused: boolean, focus: () => void) => void
 }): React.ReactNode {
-  const { headerFocused, focusHeader } = useTabHeaderFocus()
+  const { headerFocused, focusHeader, blurHeader } = useTabHeaderFocus()
+  const [entryFocus, setEntryFocus] = useState<string | undefined>()
+  React.useEffect(() => onHeaderFocusChange(headerFocused, focusHeader), [headerFocused, focusHeader, onHeaderFocusChange])
   const sorted = sortedRulesFor(context, behavior)
   const filtered =
     query === ''
@@ -122,6 +127,12 @@ function RulesTabContent({
       value: ruleKey(rule),
     })),
   ]
+
+  const visibleCount = Math.min(10, Math.max(1, options.length))
+  usePopupListNavigation(-1, options.length, visibleCount, target => {
+    setEntryFocus(options[target]?.value)
+    blurHeader()
+  }, headerFocused)
 
   function handleChange(value: string): void {
     if (value === ADD_VALUE) {
@@ -145,7 +156,8 @@ function RulesTabContent({
       <Text dimColor>{TAB_SUBTITLE[behavior as 'allow' | 'ask' | 'deny']}</Text>
       <Select
         options={options}
-        visibleOptionCount={Math.min(10, Math.max(1, options.length))}
+        visibleOptionCount={visibleCount}
+        defaultFocusValue={entryFocus}
         isDisabled={searchMode || headerFocused}
         onChange={handleChange}
         onCancel={onCancel}
@@ -222,6 +234,11 @@ export function PermissionRuleList({
   const [subDialog, setSubDialog] = useState<SubDialog | null>(null)
   const [changeLog, setChangeLog] = useState<string[]>([])
   const [headerFocused, setHeaderFocused] = useState(false)
+  const focusHeaderRef = React.useRef<(() => void) | null>(null)
+  const observeHeaderFocus = useCallback((focused: boolean, focus: () => void) => {
+    setHeaderFocused(focused)
+    focusHeaderRef.current = focus
+  }, [])
   const [listFocusValue, setListFocusValue] = useState<string | undefined>(undefined)
   void listFocusValue
 
@@ -234,13 +251,23 @@ export function PermissionRuleList({
 
   const isRulesTab = selectedTab === 'allow' || selectedTab === 'ask' || selectedTab === 'deny'
 
+  const [searchFocused, setSearchFocused] = useState(false)
+  const searchFocusRef = React.useRef(false)
+  const focusSearch = useCallback((focused: boolean) => {
+    searchFocusRef.current = focused
+    setSearchFocused(focused)
+  }, [])
+  useInput((input, key) => {
+    if (input !== '' && input >= ' ' && !key.ctrl && !key.meta && !key.escape && !key.tab) focusSearch(true)
+  }, { isActive: subDialog === null && isRulesTab })
   const search = useSearchInput({
     isActive: subDialog === null && isRulesTab,
-    onExit: () => {},
-    onCancel: () => search.setQuery(''),
-    onExitUp: () => setHeaderFocused(true),
+    passthroughKeys: query => !searchFocusRef.current ? ['up', 'down', 'return', 'left', 'right', 'home', 'end', 'pageup', 'pagedown', ...(query === '' ? ['escape'] : [])] : [],
+    onExit: () => focusSearch(false),
+    onCancel: () => { search.setQuery(''); focusSearch(false) },
+    onExitUp: () => { focusSearch(false); focusHeaderRef.current?.() },
   })
-  const searchMode = search.query !== ''
+  const searchMode = searchFocused
 
   const appendLog = useCallback((line: string) => {
     setChangeLog(current => [...current, line])
@@ -359,6 +386,7 @@ export function PermissionRuleList({
         context={toolPermissionContext}
         query={search.query}
         searchMode={searchMode}
+        onHeaderFocusChange={observeHeaderFocus}
         onSelectRule={(rule, nextFocus) => setSubDialog({ kind: 'detail', rule, nextFocus })}
         onAddRule={() => setSubDialog({ kind: 'add-input', behavior })}
         onCancel={() => exitManager('default')}
@@ -374,7 +402,7 @@ export function PermissionRuleList({
   } else if (searchMode) {
     footer = 'type to filter · ↵/↓ select · ↑ tabs · esc clear'
   } else {
-    footer = '↑↓ navigate · ↵ select · type to search · ←→ switch · esc cancel'
+    footer = '↑↓ navigate · pgup/pgdn page · ↵ select · type to search · ←→ switch · esc cancel'
   }
 
   return (

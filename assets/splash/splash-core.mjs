@@ -786,6 +786,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   const RIGHT_W = 46
   const LEFT_W = Math.min(66, cols - RIGHT_W - 4)
   const row = m.entries[m.selIdx]
+  const legendLines = vis(m.legend) <= cols ? [m.legend] : wrapWords(m.legend, Math.max(1, cols))
 
   const cRows = []
   const cRowEntry = []
@@ -815,7 +816,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
   })
   const wordH = rasterHard(WORD).lines.length
   const headH = withHead ? 1 + rasterHard(HEADSTD).lines.length : 0
-  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 10 - 3)
+  const leftInteriorBudget = Math.max(9, rowsAvail - headH - wordH - 10 - 3 - Math.max(0, legendLines.length - 1))
   let cShown = cRows
   let cShownEntry = cRowEntry
   let windowLead = 0
@@ -948,7 +949,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
     ),
     boxBot(totalW - 2, bc),
   )
-  lines.push(faint + m.legend + R)
+  lines.push(...legendLines.map(line => faint + line + R))
   const blockW = Math.max(...lines.map(vis))
   const left = Math.max(0, Math.floor((cols - blockW) / 2))
   const centered = lines.map(l => {
@@ -968,6 +969,8 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
   const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
   const LW = Math.max(...m.entries.map(r => r.label.length))
+  const legend = m.legendClassic ?? m.legend
+  const legendLines = vis(legend) <= cols ? [legend] : wrapWords(legend, Math.max(1, cols))
   const listLines = []
   const listEntry = []
   let selPos = 0
@@ -1010,7 +1013,7 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
     noticeLines.length > 0
       ? 4 + noticeBudget + (noticeBlank ? 1 : 0) + 2
       : 7
-  const listBudget = Math.max(5, rowsAvail - chrome)
+  const listBudget = Math.max(5, rowsAvail - chrome - Math.max(0, legendLines.length - 1))
   let shownList = listLines
   let shownEntry = listEntry
   if (listLines.length > listBudget) {
@@ -1046,13 +1049,13 @@ function composeBootMenuClassic(cols, rowsAvail, m) {
       ) +
       R,
   )
-  lines.push(faint + (m.legendClassic ?? m.legend) + R)
+  lines.push(...legendLines.map(line => faint + line + R))
   const blockW = Math.max(...lines.map(vis))
   const left = Math.max(0, Math.floor((cols - blockW) / 2))
-  const legendAt = lines.length - 1
+  const legendAt = lines.length - legendLines.length
   const centered = lines.map((l, i) => {
     const padded = ' '.repeat(left) + l
-    if (i === legendAt) return padded
+    if (i >= legendAt) return padded
     return vis(padded) <= cols ? padded : clipVis(padded, cols)
   })
   const entryLines = []

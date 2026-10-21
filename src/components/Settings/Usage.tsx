@@ -4,6 +4,7 @@ import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anth
 import { useSettingsPopupFrameIfAny } from './Settings.js'
 import { usagePopupLine } from './usageLine.js'
 import { Box, Text, measureElement, useInput, wrapText, type DOMElement } from '../../ink.js'
+import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
   type RateLimit,
@@ -1429,6 +1430,7 @@ function UsageCompact({ openToken, width, rowBudget }: { openToken?: number; wid
     if (view.offset !== offset) setOffset(view.offset)
   }, [view.cursor, view.offset, cursor, offset])
   usePopupMarker(rows > 0 ? settingsPopupMarker(view.cursor + 1, lines.length) : null)
+  usePopupListPaging(view.cursor, lines.length, rows, setCursor)
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return
     event.stopImmediatePropagation()
@@ -1460,6 +1462,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22, compact = false 
   const usageVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   useEffect(() => {
     frame?.setLine(usagePopupLine())
+    frame?.setHint('↑↓ scroll · pgup/pgdn page · esc or click outside closes')
   }, [frame, usageVersion])
   return compact ? <UsageCompact {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} /> : <UsageFull {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} />
 }
@@ -1484,13 +1487,15 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
   const requestedJevRows = jevLine === undefined ? 0 : routerRoad ? wrapText(jevLine, Math.max(1, Math.floor(width)), 'wrap').split('\n').length : 1
   const { footerRows, jevRows, capacity } = usageBodyRows(budget, requestedJevRows)
   const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
+  const totalRows = bands.reduce((sum, _, index) => sum + (heights[index] ?? 1) + 1, 0) - 1
+  usePopupListPaging(view.offset, Math.max(1, totalRows - capacity + 1), capacity, setPosition)
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return
     event.stopImmediatePropagation()
     setPosition(key.upArrow ? view.previous : view.next)
   })
   const below = bands.slice(view.endBand).flat()
-  const more = below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''
+  const more = [view.offset > 0 ? `↑ ${view.offset} more` : '', below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''].filter(Boolean).join(' · ')
   return (
     <UsageLayoutContext.Provider value={measure}>
       <Box flexDirection="column" width={Math.max(1, Math.floor(width))} height={budget} flexShrink={0} overflow="hidden">

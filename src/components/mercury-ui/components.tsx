@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useElevatedSurface } from './useElevatedSurface.js'
-import { Box, MotionParkContext, Text, useInput, useTheme } from '../../ink.js'
+import { Box, MotionParkContext, Text, useInput, useTheme, wrapText } from '../../ink.js'
 import { useCwdState } from '../../hooks/useCwdState.js'
 import { formatFreshness, freshnessTone } from '../../utils/cockpit/freshness.js'
 import { quantizedNow, subscribeUiClock } from '../../utils/cockpit/uiClock.js'
@@ -22,6 +22,8 @@ import { PopupFrameContext } from '../PopupGutter.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import CursorDeclarationContext from '../../ink/components/CursorDeclarationContext.js'
 import { useCursorFollow } from './useCursorFollow.js'
+import { PopupScrollViewport, usePopupScrollWindow, usePopupListNavigation } from '../CustomSelect/popup-list.js'
+import { topOverlayOwnsPageKeys } from '../../context/overlayStack.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
@@ -82,6 +84,7 @@ export function CommandCenter({
   footer,
   onClose,
   captureInput = true,
+  bodyOwnsPageKeys = false,
   closeKeys = 'esc-arrow',
   embedded: embeddedProp = false,
   specimen = false,
@@ -93,6 +96,7 @@ export function CommandCenter({
   footer?: string
   onClose: () => void
   captureInput?: boolean
+  bodyOwnsPageKeys?: boolean
   closeKeys?: FooterCloseKeys
   embedded?: boolean
   specimen?: boolean
@@ -120,10 +124,10 @@ export function CommandCenter({
   const groundCwd = useCwdState()
   const dir = groundCwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || groundCwd
   const cols = useTerminalSize().columns
-  const footerText = packFooter(
-    composeFooterHint(footer ?? dir, { closeKeys, captureInput }),
-    Math.max(0, cols - 4),
-  )
+  const footerWords = composeFooterHint(footer ?? dir, { closeKeys, captureInput })
+  const fullKeyGuide = footerWords.includes('pgup/pgdn')
+  const guideRows = fullKeyGuide ? wrapText(footerWords, Math.max(1, cols - 4), 'wrap').split('\n').length : 1
+  const footerText = fullKeyGuide ? footerWords : packFooter(footerWords, Math.max(0, cols - 4))
   const insideModal = useIsInsideModal()
   const chrome = useLayoutChrome()
   const popup = React.useContext(PopupFrameContext)
@@ -131,11 +135,22 @@ export function CommandCenter({
   const termRows = useTerminalSize().rows
   const slotRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
   const compactHeaderRows = slotRows > 1 ? 1 : 0
-  const compactFooterRows = slotRows > 2 ? 1 : 0
-  const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)))
+  const compactFooterRows = slotRows > 2 ? Math.min(guideRows, slotRows - 2) : 0
+  const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)) - (guideRows - 1))
   const bodyRef = React.useRef<ScrollBoxHandle | null>(null)
   const modalScrollRef = useModalScrollRef()
-  const followCursor = useCursorFollow(bodyRef, { rows: bodyCap, width: cols })
+  const declaredRow = React.useRef<unknown>(null)
+  const cursorFollow = useCursorFollow(bodyRef, { rows: bodyCap, width: cols })
+  const followCursor: typeof cursorFollow = React.useCallback((next, clearIfNode) => {
+    if (next !== null) declaredRow.current = next.node
+    else if (declaredRow.current === clearIfNode) declaredRow.current = null
+    cursorFollow(next, clearIfNode)
+  }, [cursorFollow])
+  const bodyWindow = usePopupScrollWindow(bodyRef)
+  usePopupListNavigation(bodyWindow.top, Math.max(1, bodyWindow.total - bodyWindow.rows + 1), Math.max(1, bodyWindow.rows - 1), next => bodyRef.current?.scrollTo(next), insideModal && !embedded && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys() && declaredRow.current === null)
+  const bodyFooterText = bodyWindow.total > bodyWindow.rows && declaredRow.current === null && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys()
+    ? packFooter(`↑↓ scroll · pgup/pgdn page · ${footerText}`, Math.max(0, cols - 4))
+    : footerText
   React.useLayoutEffect(() => {
     if (!insideModal || embedded || !modalScrollRef) return
     modalScrollRef.current = bodyRef.current
@@ -144,11 +159,13 @@ export function CommandCenter({
     }
   }, [insideModal, embedded, modalScrollRef])
   useInput(
-    (_i, key) => {
+    (_i, key, event) => {
       const body = bodyRef.current
+      if ((key.pageUp || key.pageDown) && (bodyOwnsPageKeys || topOverlayOwnsPageKeys())) return
       if (!body || !(key.pageUp || key.pageDown)) return
       const viewport = body.getViewportHeight()
       if (body.getFreshScrollHeight() <= viewport) return
+      event.stopImmediatePropagation()
       body.scrollBy((key.pageUp ? -1 : 1) * Math.max(1, viewport - 1))
     },
     { isActive: insideModal && !embedded },
@@ -172,9 +189,9 @@ export function CommandCenter({
     <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" maxHeight={slotRows} overflow="hidden">
       {compactHeaderRows > 0 ? <ProductLockup view={view} subtitle={subtitle} /> : null}
       <CursorDeclarationContext.Provider value={followCursor}>
-        <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox>
+        <PopupScrollViewport scrollRef={bodyRef}><ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox></PopupScrollViewport>
       </CursorDeclarationContext.Provider>
-      {compactFooterRows > 0 ? <Box height={1} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap="truncate-end">{footerText}</Text></Box> : null}
+      {compactFooterRows > 0 ? <Box height={compactFooterRows} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap={fullKeyGuide ? 'wrap' : 'truncate-end'}>{bodyFooterText}</Text></Box> : null}
     </Box>
   )
   return (
@@ -190,9 +207,9 @@ export function CommandCenter({
       ) : null}
       {insideModal ? (
         <CursorDeclarationContext.Provider value={followCursor}>
-          <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>
-            {children}
-          </ScrollBox>
+          <PopupScrollViewport scrollRef={bodyRef}>
+            <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>{children}</ScrollBox>
+          </PopupScrollViewport>
         </CursorDeclarationContext.Provider>
       ) : (
         children
@@ -204,7 +221,7 @@ export function CommandCenter({
 }
         {hover => (
           <Box marginTop={1}>
-            <Text color={hover ? t.info : t.textMuted}>{footerText}</Text>
+            <Text color={hover ? t.info : t.textMuted}>{bodyFooterText}</Text>
           </Box>
         )}
       </InteractiveRow>

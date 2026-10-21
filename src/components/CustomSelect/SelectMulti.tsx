@@ -13,6 +13,7 @@ import {
 import { SelectInputOption } from './select-input-option.js'
 import { SelectOption } from './select-option.js'
 import { useMultiSelectState } from './use-multi-select-state.js'
+import { PopupListViewport } from './popup-list.js'
 
 type SelectMultiProps<T = string> = {
   isDisabled?: boolean
@@ -90,8 +91,6 @@ export function SelectMulti<T = string>({
   const optionCount = options.length
   const digitCount = String(optionCount).length
   const visible = state.visibleOptions
-  const hasAbove = state.visibleFromIndex > 0
-  const hasBelow = state.visibleToIndex < optionCount
 
   const checkbox = (checked: boolean): React.ReactNode =>
     checked ? (
@@ -102,15 +101,15 @@ export function SelectMulti<T = string>({
 
   return (
     <Box flexDirection="column">
+      <PopupListViewport above={state.visibleFromIndex} below={optionCount - state.visibleToIndex} rows={visible.length}>
       {visible.map((option, position) => {
         const isFocused =
           !isDisabled &&
           !state.isSubmitFocused &&
           state.focusedValue === option.value
         const isChecked = state.selectedValues.includes(optionValueOf(option))
-        const showUp = position === 0 && hasAbove && !isFocused
-        const showDown =
-          position === visible.length - 1 && hasBelow && !isFocused
+        const showUp = false
+        const showDown = false
         const prefix = hideIndexes
           ? undefined
           : option.indexLabel !== undefined
@@ -184,6 +183,7 @@ export function SelectMulti<T = string>({
           </Box>
         )
       })}
+      </PopupListViewport>
       {hasSubmitButton ? (
         <Box paddingLeft={2}>
           <Text

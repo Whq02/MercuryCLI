@@ -220,7 +220,7 @@ export function ThemePicker({
         ) : (
           <Text dimColor>
             <Byline>
-              <Text dimColor>enter to select</Text>
+              <Text dimColor>↑↓ move · ↵ select</Text>
               {!hideEscToCancel ? <Text dimColor>esc to cancel</Text> : null}
             </Byline>
           </Text>

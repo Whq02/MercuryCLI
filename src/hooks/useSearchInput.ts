@@ -12,6 +12,7 @@ type UseSearchInputOptions = {
   onExitUp?: () => void
   columns?: number
   passthroughCtrlKeys?: string[]
+  passthroughKeys?: readonly string[] | ((query: string) => readonly string[])
   initialQuery?: string
   backspaceExitsOnEmpty?: boolean
 }
@@ -43,6 +44,7 @@ export function useSearchInput({
   onExitUp,
   columns,
   passthroughCtrlKeys,
+  passthroughKeys,
   initialQuery,
   backspaceExitsOnEmpty = true,
 }: UseSearchInputOptions): UseSearchInputReturn {
@@ -92,6 +94,8 @@ export function useSearchInput({
       const at = cursorRef.current
       const key = e.key
       const lower = key.toLowerCase()
+      const passed = typeof passthroughKeys === 'function' ? passthroughKeys(text) : passthroughKeys
+      if (!e.ctrl && !e.meta && passed?.includes(lower)) return
 
       if (
         e.ctrl &&
@@ -246,7 +250,7 @@ export function useSearchInput({
         commit(text.slice(0, at) + key + text.slice(at), at + key.length)
       }
     },
-    [isActive, onExit, onCancel, onExitUp, passthroughCtrlKeys, backspaceExitsOnEmpty, commit, pushKill],
+    [isActive, onExit, onCancel, onExitUp, passthroughCtrlKeys, passthroughKeys, backspaceExitsOnEmpty, commit, pushKill],
   )
 
   useInput(

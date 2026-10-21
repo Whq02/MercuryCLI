@@ -560,7 +560,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
       }
     }
   }
-  t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
+  t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
   t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 20', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — account sign-in or API ke…', 'MiniMax — API key or M Plan key (M3, M2…', 'Together AI — API key (the gateway\'s ch…', 'Cohere — API key (Command A+, North)', 'Groq — API key (text models)', 'Cerebras — API key (text models)', 'Fireworks — API key (text models)', 'Qwen — QwenCloud or Model Studio API ke…', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
@@ -589,7 +589,7 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
     120,
   )
   t.check('the mounted layer presents the classes and the truthful chips', frame.includes('signed in') && frame.includes('op@example.com') && frame.includes('not signed in'))
-  t.check('the mounted layer presents the LOGINS panel and the legend', frame.includes('LOGINS') && frame.includes('↑↓ move · ↵ sign in · esc back'))
+  t.check('the mounted layer presents the LOGINS panel and the legend', frame.includes('LOGINS') && frame.includes('↑↓ move · pgup/pgdn page · ↵ sign in · esc back'))
 
   const screenSrc = read('src/components/BootLoginsScreen.tsx')
   const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage', 'enterConcourse']

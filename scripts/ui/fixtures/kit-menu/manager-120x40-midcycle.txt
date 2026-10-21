@@ -37,4 +37,4 @@
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  4 choices saved — applies to the next session  ·  2 established sessions unchanged          │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                   ↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back
+          ↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back

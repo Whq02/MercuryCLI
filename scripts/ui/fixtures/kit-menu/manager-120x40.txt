@@ -37,4 +37,4 @@
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  everything on; changes apply to new sessions only  ·  2 established sessions unchanged      │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                   ↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back
+          ↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back

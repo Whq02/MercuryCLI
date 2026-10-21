@@ -8,4 +8,4 @@
    ↓ 19 more
 
    logins wants at least 64×13 · this window is 64×12
-   ↑↓ move · ↵ sign in · esc back
+   ↑↓ move · pgup/pgdn page · ↵ sign in · esc back

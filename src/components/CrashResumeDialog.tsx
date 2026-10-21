@@ -37,7 +37,7 @@ export function CrashResumeDialog({
   return (
     <CommandCenter
       view="previous session crashed"
-      footer="enter to choose · esc dismisses"
+      footer="↑↓ move · ↵ choose · esc dismisses"
       onClose={() => onDone('dismiss')}
     >
       <Box flexDirection="column" marginTop={1}>
