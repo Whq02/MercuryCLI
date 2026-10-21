@@ -302,6 +302,8 @@ async def fixture_close():
         except asyncio.TimeoutError: raise AssertionError(f'close() did not return within a second on {shape}')
         finally:
             bridge.kill()
+            assert bridge.stdout is not None
+            await bridge.stdout.read()
             await bridge.wait()
         assert time.monotonic() - started < 0.05, f'close() took {time.monotonic() - started:.3f} s on {shape}'
 
