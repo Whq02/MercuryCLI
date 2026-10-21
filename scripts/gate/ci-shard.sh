@@ -227,8 +227,16 @@ box_line() {
   printf '  box before %s: load %s · %s · %s bun/node processes\n' "$1" "$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || sysctl -n vm.loadavg 2>/dev/null)" "${mem:-mem ?}" "$procs"
 }
 box_top() {
+  local pid wchan state
   printf '      │ processes by memory after %s:\n' "$1"
   ps -eo pid,ppid,rss,etime,stat,args 2>/dev/null | grep -E 'bun|node|mercury' | grep -v 'grep -E' | sort -k3 -rn | head -12 | cut -c1-220 | sed 's/^/      │   /'
+  for pid in $(ps -eo pid,args 2>/dev/null | grep -E 'bun|node' | grep -vE 'grep -E|dead-letter' | awk '{print $1}' | head -6); do
+    [ -r "/proc/$pid/wchan" ] || continue
+    wchan=$(cat "/proc/$pid/wchan" 2>/dev/null); state=$(awk '/^State:/ {print $2, $3}' "/proc/$pid/status" 2>/dev/null)
+    printf '      │   pid %s waits in %s (%s) · open sockets: %s\n' "$pid" "${wchan:-?}" "${state:-?}" "$(ss -tanp 2>/dev/null | grep -c "pid=$pid,")"
+    ss -tanp 2>/dev/null | grep "pid=$pid," | awk '{print $1, $4, $5}' | head -4 | sed 's/^/      │     /'
+    [ -r "/proc/$pid/stack" ] && head -6 "/proc/$pid/stack" 2>/dev/null | sed 's/^/      │     stack /'
+  done
 }
 for dom in ${MINE[@]+"${MINE[@]}"}; do
   cls=$(suite_class "$dom")
