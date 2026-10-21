@@ -10,6 +10,21 @@ export { EVAL_TOOL_NAME }
 export const EVAL_DESCRIPTION =
   'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.'
 
+export const SAMPLE_PROMPT_LINES: readonly string[] = [
+  '- `sample({name, title?, doc, ask?})` — keep a page as a sample: a versioned page the operator opens in the browser and marks up; returns `{id, title, version, url}` and the result lists it. ONLY when the operator asked to see something (a page, a design, a mockup, a report to look at, "show me") — never unasked, never to decorate an answer; pass the operator\'s words as `ask`. The same name publishes the next version.',
+  '  `doc` is `{ subtitle?, meta?: string[], verdict?: string, parts: [...] }`: Mercury draws the page, you supply the parts. Raw `html` is refused. Each part is one of:',
+  '  1. `{ kind: "verdict", status?: "approved"|"changes-needed"|"warning"|"info"|"halted", summary, detail? }` — the bottom line, once, first.',
+  '  2. `{ kind: "section", heading?, prose?: string|string[], items?: string[], note? }` — paragraphs; `code` in backticks.',
+  '  3. `{ kind: "cards", heading?, columns?: 2|3|4, items: [{ label?, value?, title?, body?, tone?: "ok"|"warn"|"danger"|"accent" }] }`',
+  '  4. `{ kind: "table", heading?, columns?: string[], rows: (string|{text, tone?})[][] | object[], caption? }` — object rows name their own columns.',
+  '  5. `{ kind: "diff", heading?, before: string|{label?, meta?, code}, after: string|{label?, meta?, code}, caption? }`',
+  '  6. `{ kind: "terminal", heading?, title?, command?, lines: string|(string|{text, tone?})[], caption? }`',
+  '  7. `{ kind: "figure", heading?, steps?: (string|{label, detail?})[], svg?, src?: "data:image/…", alt?, caption? }` — never a remote URL.',
+  '  8. `{ kind: "checklist", heading?, items: (string|{text, state?: "done"|"pending"|"failed"|"skipped", detail?})[] }` — "[x] …", "[ ] …", "[!] …", "[-] …" work.',
+  '  9. `{ kind: "question", heading, prompt?, options: (string|{label, description?, recommended?})[] }` — the operator\'s click comes back as `Decision (<heading>): <option>`.',
+  '  Headed parts are numbered I, II, III … in order. Write the parts, not the page: no HTML, no styles. Keep the data in the cell and call again to publish the next version.',
+]
+
 export async function buildEvalPrompt(tools: Tools = []): Promise<string> {
   const availability = await primeEvalAvailability(getCwd())
   const available = availability.filter(a => a.available)
@@ -19,9 +34,7 @@ export async function buildEvalPrompt(tools: Tools = []): Promise<string> {
       : `- \`${a.language}\` — unavailable: ${a.whyNot ?? 'unknown'}`)
     .join('\n')
   const inspect = tools.some(tool => tool.name === 'Inspect') ? ' `tool.Inspect({ref})` reads a mercury:// ref.' : ''
-  const sample = samplesEnabled()
-    ? '\n- `sample({name, title?, html, ask?})` — keep a page as a sample: a versioned page the operator opens in the browser and marks up; returns `{id, title, version, url}` and the result lists it. ONLY when the operator asked to see something (a page, a design, a mockup, a report to look at, "show me") — never unasked, never to decorate an answer; pass the operator\'s words as `ask`. The same name publishes the next version.'
-    : ''
+  const sample = samplesEnabled() ? '\n' + SAMPLE_PROMPT_LINES.join('\n') : ''
 
   return `Run one code cell in a retained runtime, for work that is computation: parsing and transforming data, numbers, plots, a workflow of several tool calls whose results code must combine. Shell commands, git, builds, tests, file reads and edits go through Bash, Read, Edit and the other tools directly, never through a cell — a cell that only wraps a shell command is the wrong tool. Variables, imports, functions and classes survive to your next cell in the same language. One call is one cell: for several steps, make several Eval calls — calls in one message run in order, each with its own result.
 

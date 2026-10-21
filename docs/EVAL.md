@@ -90,8 +90,11 @@ tool call.
 
 `tool.Inspect({ref})` in JavaScript or `tool.Inspect(ref=ref)` in Python
 reads a `mercury://` reference through the normal tool permission path.
-With samples enabled, `sample({name, title?, html, ask?})` keeps a versioned
-page you asked to see. JavaScript awaits it; Python also accepts keyword
+With samples enabled, `sample({name, title?, doc, ask?})` keeps a versioned
+page you asked to see: `doc` is `{ subtitle?, meta?, verdict?, parts: [...] }`,
+a list of typed blocks (verdict, section, cards, table, diff, terminal,
+figure, checklist, question) that Mercury renders into the page; raw `html`
+from a cell is refused. JavaScript awaits it; Python also accepts keyword
 arguments. The result lists the title, version and address, with your
 request when supplied as `ask`. Use it only when you asked to see something;
 see [Samples](SAMPLES.md).

@@ -8,6 +8,7 @@ const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 const { closeSampleListener } = await import('../../src/services/samples/listener.js')
 const { handleSampleCall } = await import('../../src/services/samples/bridge.js')
 const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/services/samples/contracts.js')
+const { SAMPLE_DOC_REFUSAL } = await import('../../src/services/samples/bridge.js')
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.js')
 const owner = makeOwnerKey({ workspace: work, sessionId: 'eval-sample-proof', lane: 'main' })
 const context = await makeContext()
@@ -17,27 +18,33 @@ const run = (language: 'py' | 'js', code: string) => within('sample cell', 60_00
 const text = (out: Awaited<ReturnType<typeof run>>, language: 'py' | 'js') => String(EvalTool.mapToolResultToToolResultBlockParam({ ...out, language }, 'sample-proof').content)
 
 try {
-  const py = await run('py', 'r1 = sample({"name": "p", "html": "<p>1</p>"}); r2 = sample(name="p", html="<p>2</p>", ask="show me the table"); (r1["version"], r2["version"])')
+  const py = await run('py', 'r1 = sample({"name": "p", "doc": {"parts": [{"kind": "section", "prose": "one"}]}}); r2 = sample(name="p", doc={"parts": [{"kind": "section", "prose": "two"}]}, ask="show me the table"); (r1["version"], r2["version"])')
   check('Python positional and keyword sample calls keep versions', py.status === 'ok' && py.resultRepr === '(1, 2)', text(py, 'py'))
   check('result lists both samples and the request', py.samples?.length === 2 && text(py, 'py').includes('[sample] p v2 → ') && text(py, 'py').includes(' · asked: show me the table'))
   if (py.samples?.[0]) {
     const page = new URL(py.samples[0].url)
     page.pathname += '/v/2.html'
     const response = await fetch(page)
-    check('sample listener serves the published page', response.ok && await response.text() === '<p>2</p>')
+    const served = await response.text()
+    check('sample listener serves the page Mercury rendered from the doc', response.ok && served.startsWith('<!doctype html>') && served.includes('<p class="prose-p" id="part-1-p-1">two</p>') && served.includes('<main class="tabula" id="tabula-root">'))
   }
-  const js = await run('js', "(await sample({name: 'q', html: '<p>x</p>'})).version")
+  const js = await run('js', "(await sample({name: 'q', doc: {parts: [{kind: 'section', prose: 'x'}]}})).version")
   check('JavaScript sample returns the same contract', js.status === 'ok' && js.resultRepr === '1' && js.samples?.[0]?.title === 'q', text(js, 'js'))
   const invalid = await run('py', 'sample({"name": "p"})')
-  check('sample errors raise into Python', invalid.status === 'error' && text(invalid, 'py').includes('RuntimeError: sample() needs the page as html'), text(invalid, 'py'))
-  check('nested ledger names a failed sample', invalid.annotations.some(note => note.includes('1 sample failed (sample() needs the page as html)')))
+  check('sample errors raise into Python', invalid.status === 'error' && text(invalid, 'py').includes('RuntimeError: sample() needs doc: { parts: [...] } — the blocks Mercury draws'), text(invalid, 'py'))
+  check('nested ledger names a failed sample', invalid.annotations.some(note => note.includes('1 sample failed (sample() needs doc: { parts: [...] } — the blocks Mercury draws)')))
+  const raw = await run('py', 'sample({"name": "p", "html": "<p>raw</p>"})')
+  check('raw html from a cell is refused with the teaching line', raw.status === 'error' && text(raw, 'py').includes(`RuntimeError: ${SAMPLE_DOC_REFUSAL}`), text(raw, 'py'))
+  const doc = { parts: [{ kind: 'section', prose: 'x' }] }
   const errors: Array<[unknown, string]> = [
-    [null, 'sample() takes one object: { name, title?, html, ask? }'],
-    [{ html: '<p>x</p>' }, 'sample() needs a name (the same name publishes the next version)'],
-    [{ name: 'x' }, 'sample() needs the page as html'],
-    [{ name: 'x', html: 'x'.repeat(SAMPLE_HTML_CAP_BYTES + 1) }, 'sample() keeps at most 8 MB of html per version'],
-    [{ name: 'x', html: 'x', title: 1 }, 'sample(): title must be a string'],
-    [{ name: 'x', html: 'x', ask: 1 }, 'sample(): ask must be a string'],
+    [null, 'sample() takes one object: { name, title?, doc, ask? }'],
+    [{ doc }, 'sample() needs a name (the same name publishes the next version)'],
+    [{ name: 'x' }, 'sample() needs doc: { parts: [...] } — the blocks Mercury draws'],
+    [{ name: 'x', html: '<p>x</p>' }, SAMPLE_DOC_REFUSAL],
+    [{ name: 'x', doc: { parts: [{ kind: 'section', prose: 'x'.repeat(SAMPLE_HTML_CAP_BYTES + 1) }] } }, 'sample() keeps at most 8 MB per version'],
+    [{ name: 'x', doc, title: 1 }, 'sample(): title must be a string'],
+    [{ name: 'x', doc, ask: 1 }, 'sample(): ask must be a string'],
+    [{ name: 'x', doc: { parts: [{ kind: 'banner' }] } }, 'sample(): parts[0].kind "banner" is not one of verdict, section, cards, table, diff, terminal, figure, checklist, question'],
   ]
   for (const [payload, expected] of errors) {
     let actual = ''
@@ -48,7 +55,7 @@ try {
   check('samples belong only to their cell', noSamples.samples === undefined)
   process.env.MERCURY_SAMPLES = '0'
   for (const language of ['py', 'js'] as const) {
-    const off = await run(language, language === 'py' ? 'sample(name="off", html="x")' : 'await sample({name: "off", html: "x"})')
+    const off = await run(language, language === 'py' ? 'sample(name="off", doc={"parts": [{"kind": "section", "prose": "x"}]})' : 'await sample({name: "off", doc: {parts: [{kind: "section", prose: "x"}]}})')
     check(`${language} sample honors the gate`, off.status === 'error' && text(off, language).includes('samples are off in this session (MERCURY_SAMPLES=0)'), text(off, language))
   }
 } finally {

@@ -26,7 +26,7 @@ export async function openMemoryPage(
   if (Buffer.byteLength(html, 'utf8') > SAMPLE_HTML_CAP_BYTES) {
     return { line: `the memory page would be larger than the ${SAMPLE_HTML_CAP_BYTES / (1024 * 1024)} MB a sample keeps — ${meshSummary(mesh)}; nothing was kept.` }
   }
-  const kept = await keepSample(opts.sessionId ?? String(getSessionId()), { name: MESH_PAGE_NAME, title: MESH_PAGE_TITLE, html })
+  const kept = await keepSample(opts.sessionId ?? String(getSessionId()), { name: MESH_PAGE_NAME, title: MESH_PAGE_TITLE, html, source: 'product' })
   const opened = await (opts.open ?? openSampleUrl)(kept.url)
   const where = kept.url.startsWith('file:') ? ` (${kept.url})` : ''
   return {
