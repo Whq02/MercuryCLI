@@ -9,4 +9,4 @@ export { connect, prewarm, MercurySession, type ConnectOptions, type HostHandler
 export { textBlock, imageBlock, defineAgent, defineTool, serveTools, type AgentDefinition, type ToolDefinition, type ToolResult, type ToolContext, type ToolServer } from './helpers.js'
 export type { StreamRow, UnknownRow } from './parse.js'
 export { VERSION } from './version.js'
-export { StructuredSchema, structuredSchema, MercurySchemaError, validateOutcome, type OutputSchema } from './structured.js'
+export { StructuredSchema, structuredSchema, MercurySchemaError, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'

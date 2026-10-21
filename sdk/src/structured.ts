@@ -20,9 +20,21 @@ export function schemaObject<T>(schema: OutputSchema<T>, cwd?: string): JsonSche
 }
 export class MercurySchemaError extends MercuryError {
   override readonly name = 'MercurySchemaError'
-  constructor(readonly issues: readonly Issue[], readonly outcome: OutcomeRow) {
-    super(`structured output does not match schema: ${issues.map(issue => issue.path || 'structured').join(', ')}`, null)
+  constructor(readonly issues: readonly Issue[], readonly outcome: OutcomeRow | null, message = `structured output does not match schema: ${issues.map(issue => issue.path || 'structured').join(', ')}`) {
+    super(message, null)
   }
+}
+export const RPC_INVALID_PARAMS = -32602
+export function schemaRefusal(error: { code: number; message: string; data?: unknown }): MercurySchemaError | undefined {
+  if (error.code !== RPC_INVALID_PARAMS) return undefined
+  const issues = (error.data as { issues?: unknown } | undefined)?.issues
+  if (!Array.isArray(issues)) return undefined
+  const schema = issues.filter((issue): issue is { path: string[]; message: string } => Array.isArray(issue?.path) && issue.path[0] === 'schema' && typeof issue.message === 'string').map(issue => ({ path: issue.path.join('.'), message: issue.message }))
+  if (schema.length === 0) return undefined
+  const refusal = new MercurySchemaError(schema, null, schema[0]!.message)
+  refusal.code = error.code
+  refusal.data = error.data
+  return refusal
 }
 export function validateOutcome<T = unknown>(outcome: OutcomeRow, schema?: OutputSchema<T>, cwd?: string): OutcomeRow<T> {
   if (schema === undefined || outcome.status !== 'completed') return outcome as OutcomeRow<T>

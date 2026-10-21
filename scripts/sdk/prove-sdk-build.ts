@@ -12,7 +12,7 @@ import { startFixtureServer } from 'mercury-cli-sdk/testing'
 const descriptor = structuredSchema({ type: 'object' }, value => ({ count: (value as { count: number }).count }))
 const typedRun = run({ prompt: [textBlock('hello'), imageBlock(new Uint8Array([1]), 'image/png')], schema: descriptor })
 console.log((await typedRun.outcome).structured?.count satisfies number | undefined)
-const options: RunOptions = { tools: [defineTool({ name: 'echo', description: 'Echo', inputSchema: {}, execute: (_input, { signal }) => String(signal.aborted) })], checkpointFiles: true, debug: true, worktree: 'branch', reasoningMode: 'enabled', briefFile: 'brief.txt', briefAddFile: 'extra.txt', replayTo: 'm1', restoreFiles: 'm2', prompt: 'Explain', mode: 'default', partial: true, mercury: ['ssh', 'host', 'mercury'], schema: { type: 'object' } }
+const options: RunOptions = { tools: [defineTool({ name: 'echo', description: 'Echo', inputSchema: {}, execute: (_input, { signal }) => String(signal.aborted) })], debug: true, worktree: 'branch', checkpointFiles: true, reasoningMode: 'enabled', briefFile: 'brief.txt', briefAddFile: 'extra.txt', replayTo: 'm1', restoreFiles: 'm2', prompt: 'Explain', mode: 'default', partial: true, mercury: ['ssh', 'host', 'mercury'], schema: { type: 'object' } }
 const task: MercuryRun = run(options)
 task.on('text', row => process.stdout.write(row.text))
 task.on('row', (row: StreamRow) => { if (row.type === 'unknown_row') console.log(row.original_type, row.seq) })
@@ -25,7 +25,7 @@ console.log(outcome.status, outcome.answer ?? outcome.error?.message)
 const sessionRow: SessionRow = await task.session
 console.log(sessionRow.model, (await task.exit).code, argvOf(options).args)
 const handlers: HostHandlers = { 'fs/write_text_file': async () => {}, 'permission/request': () => ({ outcome: 'deny', message: 'no' }) }
-const connectOptions: ConnectOptions = { handlers, partial: true, onElicitation: () => ({ action: 'decline' }) }
+const connectOptions: ConnectOptions = { handlers, partial: true, schema: { type: 'object' }, onElicitation: () => ({ action: 'decline' }) }
 const session: MercurySession = await connect(connectOptions)
 try {
   console.log((await session.prompt('typed', { schema: descriptor })).structured?.count satisfies number | undefined)

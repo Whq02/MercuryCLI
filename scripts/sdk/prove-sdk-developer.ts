@@ -109,11 +109,18 @@ try {
       assert.equal((await sdk.run({ mercury: good.mercury, schema: typed }).outcome).structured?.count, 7)
     } finally { await good.close() }
   })
-  await check('row 6 prompt validation is local and sends no schema field', async () => {
-    const fixture = await testing.startFixtureServer({ methods: { initialize: [init], 'queue/add': [{ result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: { ...outcome, structured: { count: 'bad' } } }] }] } })
-    const session = await sdk.connect({ mercury: fixture.mercury })
-    try { await assert.rejects(session.prompt('test', { schema: { type: 'object', properties: { count: { type: 'integer' } } } }), e => e instanceof Error && e.name === 'MercurySchemaError'); assert(!('schema' in (fixture.received.find(r => r.method === 'queue/add')!.params as object))) }
-    finally { await session.close(); await fixture.close() }
+  await check('row 6 a per-turn schema travels on the prompt row, the boot schema on initialize, and a refused schema is MercurySchemaError with its path', async () => {
+    const schema = { type: 'object', properties: { count: { type: 'integer' } } }
+    const fixture = await testing.startFixtureServer({ methods: { initialize: [init], 'queue/add': [{ result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: { ...outcome, structured: { count: 'bad' } } }] }, { error: { code: -32602, message: 'invalid params for queue/add', data: { method: 'queue/add', issues: [{ path: ['schema'], message: 'the prompt row carries a schema that is not a JSON schema — data/type must be equal to one of the allowed values' }] } } }, { result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: { ...outcome, structured: { count: 4 } } }] }] } })
+    const session = await sdk.connect({ mercury: fixture.mercury, schema: { type: 'object' } })
+    try {
+      assert.deepEqual((fixture.received[0]!.params as { schema?: unknown }).schema, { type: 'object' }, 'connect sends its schema on initialize')
+      assert(!session.child.spawnargs.includes('--schema'), 'the runner door carries no --schema argument')
+      await assert.rejects(session.prompt('test', { schema }), e => e instanceof Error && e.name === 'MercurySchemaError' && (e as sdk.MercurySchemaError).outcome !== null)
+      assert.deepEqual((fixture.received.find(r => r.method === 'queue/add')!.params as { schema?: unknown }).schema, schema, 'prompt sends the turn schema on its row')
+      await assert.rejects(session.prompt('refused', { schema }), e => e instanceof sdk.MercurySchemaError && e.code === -32602 && e.outcome === null && e.issues.length === 1 && e.issues[0]!.path === 'schema' && e.message === e.issues[0]!.message && /not a JSON schema/.test(e.message))
+      assert.deepEqual((await session.prompt('again', { schema })).structured, { count: 4 }, 'the session prompts again after a refused schema')
+    } finally { await session.close(); await fixture.close() }
   })
   await check('row 7 blocks and image bytes feed input rows', async () => {
     const fixture = await testing.startFixtureServer({ rows: [sessionRow, outcome], inputCount: 1 })

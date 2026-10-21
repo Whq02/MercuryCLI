@@ -112,7 +112,7 @@ export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): Run
     else if (typeof setting === 'string') args.push(name, setting)
   }
   value('--brief-add', options.briefAdd)
-  value('--schema', options.schema === undefined ? undefined : JSON.stringify(schemaObject(options.schema, options.cwd)))
+  value('--schema', options.schema === undefined || door === 'runner' ? undefined : JSON.stringify(schemaObject(options.schema, options.cwd)))
   value('--max-turns', options.maxTurns === undefined ? undefined : String(options.maxTurns))
   value('--budget', options.budgetUsd === undefined ? undefined : String(options.budgetUsd))
   flag('--partial', options.partial)

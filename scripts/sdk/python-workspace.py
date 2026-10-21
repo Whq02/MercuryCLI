@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import sys
 import mercury_cli_sdk as sdk
-from mercury_cli_sdk import connect
+from mercury_cli_sdk import MercurySchemaError, connect, structured_schema
 
 scenario, mercury, cwd = sys.argv[1], json.loads(sys.argv[2]), sys.argv[3]
 
@@ -37,6 +37,26 @@ async def main():
         for said, options in [('roster of a headless session', {}), ('roster of a session-runner', {'checkpoint_files': True})]:
             async with await connect(mercury=mercury, cwd=cwd, **options) as session:
                 assert (await session.prompt(f'Describe the {said}'))['status'] == 'completed'
+    elif scenario == 'schema':
+        count = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}
+        name = {'type': 'object', 'properties': {'name': {'type': 'string'}}, 'required': ['name']}
+        malformed = {'type': 'nonsense-type', 'properties': 5}
+        async with await connect(mercury=mercury, cwd=cwd) as session:
+            assert (await session.prompt('the count turn', schema=count)).get('structured') == {'count': 3}
+            assert (await session.prompt('the name turn', schema=structured_schema(name, lambda value: value['name'].upper())))['structured'] == 'PELICAN'
+            plain = await session.prompt('the plain turn')
+            assert plain['status'] == 'completed' and 'structured' not in plain
+            try: await session.prompt('the refused turn', schema=malformed)
+            except MercurySchemaError as error:
+                assert error.code == -32602 and error.outcome is None and error.issues[0].path == 'schema' and 'not a JSON schema' in error.issues[0].message and str(error) == error.issues[0].message, error
+            else: raise AssertionError('a malformed per-turn schema was accepted')
+            assert isinstance(session.last_prompt_id, str)
+        async with await connect(mercury=mercury, cwd=cwd, schema=structured_schema(count, lambda value: value['count'] * 2)) as boot:
+            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count), 'runner')
+            assert (await boot.prompt('the boot schema turn'))['structured'] == 18
+        try: await connect(mercury=mercury, cwd=cwd, schema=malformed)
+        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        else: raise AssertionError('a malformed boot schema was accepted')
     else:
         async with await sdk.prewarm(mercury=mercury, cwd=cwd) as session:
             assert session.initialized['session_id'] is None

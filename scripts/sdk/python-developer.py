@@ -119,12 +119,21 @@ async def structured():
     async with await testing.start_fixture_server({'rows': [session_row, {**outcome, 'structured': {'count': 7}}]}) as fixture:
         task = await sdk.run(mercury=fixture.mercury, schema=sdk.structured_schema(schema, lambda value: value['count']))
         assert (await task.outcome)['structured'] == 7
-    async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': [{'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': {**outcome, 'structured': {'count': 'bad'}}}]}]}}) as fixture:
-        async with await sdk.connect(mercury=fixture.mercury) as session:
+    refusal = {'error': {'code': -32602, 'message': 'invalid params for queue/add', 'data': {'method': 'queue/add', 'issues': [{'path': ['schema'], 'message': 'the prompt row carries a schema that is not a JSON schema — data/type must be equal to one of the allowed values'}]}}}
+    replies = [{'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': {**outcome, 'structured': {'count': 'bad'}}}]}, refusal, {'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': {**outcome, 'structured': {'count': 4}}}]}]
+    async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': replies}}) as fixture:
+        async with await sdk.connect(mercury=fixture.mercury, schema={'type': 'object'}) as session:
+            assert fixture.received[0]['params']['schema'] == {'type': 'object'}
+            assert '--schema' not in sdk.argv_of(sdk.RunOptions(mercury=fixture.mercury, schema={'type': 'object'}), 'runner')
             try: await session.prompt('test', schema=schema)
-            except sdk.MercurySchemaError: pass
+            except sdk.MercurySchemaError as error: assert error.outcome is not None
             else: raise AssertionError('invalid prompt output resolved')
-            assert 'schema' not in fixture.received[-1]['params']
+            assert next(m for m in fixture.received if m.get('method') == 'queue/add')['params']['schema'] == schema
+            try: await session.prompt('refused', schema=schema)
+            except sdk.MercurySchemaError as error:
+                assert error.code == -32602 and error.outcome is None and [issue.path for issue in error.issues] == ['schema'] and str(error) == error.issues[0].message and 'not a JSON schema' in str(error), error
+            else: raise AssertionError('a refused schema resolved')
+            assert (await session.prompt('again', schema=schema))['structured'] == {'count': 4}
 
 
 async def rich():

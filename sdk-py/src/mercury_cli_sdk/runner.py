@@ -10,7 +10,7 @@ from .client import ConnectKwargs, Listener, RunOptions, argv_of, checkpoint_opt
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
-from .structured import StructuredSchema, schema_object, validate_outcome
+from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
 
 T = TypeVar('T')
 from .helpers import ToolServer
@@ -178,7 +178,7 @@ class MercurySession(TypedRequests):
                     if future.done(): continue
                     if 'error' in message:
                         e = message['error']
-                        future.set_exception(MercuryRefusal(None, rpc=e) if e['code'] == RPC_REFUSED else MercuryError(e['message'], code=e['code'], data=e.get('data')))
+                        future.set_exception(MercuryRefusal(None, rpc=e) if e['code'] == RPC_REFUSED else schema_refusal(e) or MercuryError(e['message'], code=e['code'], data=e.get('data')))
                     else:
                         result = message.get('result')
                         issues = validate(METHODS[sent]['result'], result)
@@ -247,7 +247,7 @@ class MercurySession(TypedRequests):
             receipt = await self.request('queue/add', {**row, 'id': id})
             if not receipt['accepted']: self._prompt_turns.pop(id, None)
             return receipt
-        except (MercuryRefusal, MercuryWireError):
+        except (MercuryRefusal, MercuryWireError, MercurySchemaError):
             self._prompt_turns.pop(id, None)
             raise
 
@@ -280,8 +280,9 @@ class MercurySession(TypedRequests):
             if not future.done(): future.set_exception(error)
         self._prompt_error = fail
         self.on('outcome', done)
+        turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         try:
-            receipt = await self.send_prompt(content, id=id)
+            receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
             self.last_prompt_id = id
             row = await future
@@ -356,7 +357,9 @@ async def connect(*, warm: bool = False, timeout: float | None = None, on_read_t
     session = MercurySession(child, callbacks, tools, opts)
     try:
         declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, 'fs_read_text_file': 'fs/read_text_file' in callbacks, 'fs_write_text_file': 'fs/write_text_file' in callbacks, 'terminal': all(name in callbacks for name in ('terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'))}
-        session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}}, timeout=timeout)
+        boot: dict[str, Any] = {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}}
+        if opts.schema is not None: boot['schema'] = schema_object(opts.schema, opts.cwd)
+        session.initialized = await session.request('initialize', boot, timeout=timeout)
         return session
     except BaseException:
         await session.close()

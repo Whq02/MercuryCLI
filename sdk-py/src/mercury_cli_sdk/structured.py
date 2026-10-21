@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Generic, TypeVar, cast, overload
+from typing import Any, Callable, Generic, Mapping, TypeVar, cast, overload
 from .errors import MercuryError
 from .generated import OutcomeRow, TypedOutcome
 from .parse import Issue, validate
@@ -31,10 +31,25 @@ def schema_object(schema: StructuredSchema[Any] | str | dict[str, Any], cwd: str
 
 
 class MercurySchemaError(MercuryError):
-    def __init__(self, issues: list[Issue], outcome: OutcomeRow):
+    """Structured output did not match its schema (``outcome`` is the raw row), or the CLI refused a schema that is not a JSON Schema (``outcome`` is None; ``issues`` carry the CLI's words at path ``schema``)."""
+    def __init__(self, issues: list[Issue], outcome: OutcomeRow | None, message: str | None = None, *, code: int | None = None, data: Any = None):
         self.issues = issues
         self.outcome = outcome
-        super().__init__('structured output does not match schema: ' + ', '.join(issue.path or 'structured' for issue in issues))
+        super().__init__(message if message is not None else 'structured output does not match schema: ' + ', '.join(issue.path or 'structured' for issue in issues), code=code, data=data)
+
+
+RPC_INVALID_PARAMS = -32602
+
+
+def schema_refusal(error: Mapping[str, Any]) -> MercurySchemaError | None:
+    """The CLI's -32602 answer to a schema that is not a JSON Schema, as a ``MercurySchemaError``; None for any other error."""
+    if error.get('code') != RPC_INVALID_PARAMS: return None
+    data = error.get('data')
+    issues = data.get('issues') if isinstance(data, Mapping) else None
+    if not isinstance(issues, list): return None
+    found = [Issue('.'.join(str(part) for part in issue['path']), str(issue['message'])) for issue in issues if isinstance(issue, Mapping) and isinstance(issue.get('path'), list) and issue['path'][:1] == ['schema'] and isinstance(issue.get('message'), str)]
+    if not found: return None
+    return MercurySchemaError(found, None, found[0].message, code=error.get('code'), data=data)
 
 
 @overload

@@ -10,7 +10,7 @@ import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
-import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
+import { MercurySchemaError, StructuredSchema, schemaObject, schemaRefusal, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolServer } from './helpers.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
@@ -150,7 +150,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       if (!pending) return
       this.#pending.delete(msg.id); pending.cleanup()
       if (msg.error) {
-        const e = msg.error.code === RPC_REFUSED ? new MercuryRefusal(null, null, msg.error) : new MercuryError(msg.error.message, null)
+        const e = msg.error.code === RPC_REFUSED ? new MercuryRefusal(null, null, msg.error) : schemaRefusal(msg.error) ?? new MercuryError(msg.error.message, null)
         e.code = msg.error.code; e.data = msg.error.data
         pending.reject(e)
       } else {
@@ -237,7 +237,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       if (!receipt.accepted) this.#promptTurns.delete(id)
       return receipt
     } catch (error) {
-      if (error instanceof MercuryRefusal || error instanceof MercuryWireError) this.#promptTurns.delete(id)
+      if (error instanceof MercuryRefusal || error instanceof MercuryWireError || error instanceof MercurySchemaError) this.#promptTurns.delete(id)
       throw error
     }
   }
@@ -271,8 +271,9 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     options.signal?.addEventListener('abort', abort, { once: true })
     this.#promptReject = fail
     this.on('outcome', done)
+    const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     try {
-      const receipt = await this.sendPrompt(content, { id })
+      const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
       this.lastPromptId = id
       const row = await result
@@ -298,6 +299,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
     session.initialized = await session.request('initialize', {
       protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },
       capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, fs_read_text_file: Boolean(options.onReadTextFile || options.handlers?.['fs/read_text_file']), fs_write_text_file: Boolean(options.onWriteTextFile || options.handlers?.['fs/write_text_file']), terminal: ['terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'].every(method => Boolean(options.handlers?.[method as RunnerRequestName])), ...options.capabilities },
+      ...(options.schema === undefined ? {} : { schema: schemaObject(options.schema, options.cwd) }),
     }, { signal: options.signal })
     if (options.signal) {
       const signal = options.signal
