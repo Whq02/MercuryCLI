@@ -5,6 +5,7 @@ import { basename, join } from 'node:path'
 import { DIST, NODE, REPO, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, textScript } from '../lib/scratchSeat.ts'
+import { processGone } from '../lib/seatForensics.ts'
 
 const tally = makeTally('prove-seat-launcher')
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'seat-launcher-')))
@@ -102,9 +103,12 @@ tally.section('§4 a deliberately silent seat: the launcher prints the forensics
   tally.check('…its threads, children and sockets', block.includes('threads:') && block.includes('children:') && block.includes('sockets:'))
   tally.check("…and the tail of the seat's own log, last line last", /the seat's own log \(last lines\):\n(.*\n)*.*the last line before the silence\s*$/.test(block), block.split("the seat's own log")[1]?.slice(0, 200) ?? '(no log section)')
   tally.check('the silent read itself is bounded (under 15 s on this box)', elapsed < 15_000, `${elapsed} ms`)
+  const alivePid = host.child.pid ?? 0
+  tally.check('processGone reads the live seat as present', alivePid !== 0 && !processGone(alivePid))
   await host.stop(1_000)
   const second = host.silent('after the seat ended')
   tally.check('once the seat has exited, silent() prints nothing and returns null', second === null && blocks.length === 1)
+  tally.check('processGone reads the stopped seat as gone (dead or a zombie the runtime never reaped)', processGone(alivePid))
 }
 
 rmSync(root, { recursive: true, force: true })

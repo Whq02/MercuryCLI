@@ -52,6 +52,22 @@ export function seatForensics(pid: number): string {
   return `threads of ${pid}:\n    ${threads.join('\n    ')}\n  native stacks of ${pid}:\n    ${nativeStacks(pid).split('\n').join('\n    ')}`
 }
 
+export function processGone(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return true
+  }
+  if (process.platform === 'linux') {
+    const stat = readProc(`/proc/${pid}/stat`)
+    if (stat === '') return true
+    const state = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] ?? ''
+    return state === 'Z' || state === 'X'
+  }
+  const stat = ran('ps', ['-o', 'stat=', '-p', String(pid)]).trim()
+  return stat === '' || stat.startsWith('Z')
+}
+
 export function seatState(pid: number): string {
   if (process.platform === 'linux' && existsSync(`/proc/${pid}/status`)) {
     const status = readProc(`/proc/${pid}/status`).split('\n').filter(l => /^(State|VmRSS|Threads):/.test(l)).map(l => l.replace(/\s+/g, ' ')).join(' · ')

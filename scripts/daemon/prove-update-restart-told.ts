@@ -20,6 +20,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { processGone, silentSeatReport } from '../lib/seatForensics.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(REPO, 'dist', 'mercury.mjs')
@@ -155,6 +156,8 @@ const { deployedRuntime, decideHandover, forwardFrame, predecessorSockPath } = a
 const { decidePlaneBoot } = await import('../../src/daemon/planeBoot.ts')
 const { resetOwnedDaemonBreakerForTesting } = await import('../../src/daemon/ownedDaemon.ts')
 const freshProcess = (): void => resetOwnedDaemonBreakerForTesting()
+const DRAIN_WAIT_CEILING_MS = 180_000
+const SUPERSEDED_EXIT_WAIT_MS = 60_000
 
 const SECRET = 'probe-secret-0123456789'
 const WATCH_NAME = 'stock watch'
@@ -386,6 +389,7 @@ const daemonPids = (): number[] => pidsInWorld(l => l.includes(' daemon run '))
 const watchPids = (marker: string): number[] => pidsInWorld(l => l.includes('tail -n0 -F') && l.includes(marker))
 
 const exitedDaemons = new Set<number>()
+const daemonGone = (pid: number): boolean => exitedDaemons.has(pid) || processGone(pid)
 const spawnDaemon = (log: string): ChildProcess => {
   const child = spawn(NODE, [join(runtime, 'current', 'mercury.mjs'), 'daemon', 'run', work], {
     cwd: work,
@@ -697,7 +701,7 @@ try {
   const siblingTurn = await dispatch('urt-sibling-2', SIBLING_PROMPT + ' again', { targetSessionId: sid2 })
   check('the second chat still answers on the old daemon after the move', siblingTurn.ok === true && (await turnSettled(sid2, 'again', 45_000)) && recOf(sid2)?.pid === sid2PidBefore, JSON.stringify({ siblingTurn, pid: recOf(sid2)?.pid }))
   await stopSession(sid2)
-  check('the old daemon left once its last session left — it never hosted a runner of another build', await untilAsync(() => !isProcessAlive(Apid), 30_000), read(logA).slice(-400))
+  check('the old daemon left once its last session left — it never hosted a runner of another build', await untilAsync(() => daemonGone(Apid), 30_000), read(logA).slice(-400))
   check('exactly one daemon remains, the one on the installed build', daemonPids().length === 1 && daemonPids()[0] === Bpid, JSON.stringify(daemonPids()))
   const gotUpdateReceipt = await untilAsync(() => readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith(`Mercury updated to ${SHORT_Y}`)), 20_000)
   const updateSummary = readSessionReceipts(projectDir, sid).find(r => r.kind === 'runner-restart')?.summary ?? ''
@@ -823,7 +827,7 @@ try {
   const movedOnto = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: facts(sid)?.work ?? [], tell: () => {}, resume: resumeAsTheScreenDoes })
   check('/restart after the update moves the session onto the daemon the update started', movedOnto.ok && movedOnto.line.includes(`Restarted on the installed build (${SHORT_Z})`), JSON.stringify(movedOnto))
   const pidOnC = recOf(sid)?.pid ?? 0
-  check('the session now runs build Z under daemon C and the old daemon B leaves once it is empty', pidOnC !== 0 && ps(pidOnC).ppid === Cpid && bundleOf(ps(pidOnC).command) === join(Z, 'mercury.mjs') && (await untilAsync(() => !isProcessAlive(Bpid), 30_000)) && daemonPids().length === 1, JSON.stringify({ pidOnC, ps: ps(pidOnC), daemons: daemonPids() }))
+  check('the session now runs build Z under daemon C and the old daemon B leaves once it is empty', pidOnC !== 0 && ps(pidOnC).ppid === Cpid && bundleOf(ps(pidOnC).command) === join(Z, 'mercury.mjs') && (await untilAsync(() => daemonGone(Bpid), 30_000)) && daemonPids().length === 1, JSON.stringify({ pidOnC, ps: ps(pidOnC), daemons: daemonPids() }))
 
   section('§4 crash stays crash; a daemon that dies mid-hand-over leaves an honest refusal and a resumable session; a Monitor that outlived its runner is ended when the session resumes')
   check(
@@ -858,7 +862,7 @@ try {
     },
     resume: resumeAsTheScreenDoes,
   })
-  check('the daemon of Z and its runner are gone', await untilAsync(() => !isProcessAlive(CpidNow) && !isProcessAlive(runnerZ), 15_000))
+  check('the daemon of Z and its runner are gone', await untilAsync(() => processGone(CpidNow) && processGone(runnerZ), 15_000))
   check(
     'a /restart whose daemon dies mid-hand-over refuses in words that say the session was not stopped and stays as it is — nothing invents a success',
     !midHandover.ok && midHandover.reason.includes('the session was not stopped, so it stays as it is'),
@@ -966,20 +970,35 @@ try {
   const reqsBeforeOlder = recordedReqs.length
   const toldOlder: string[] = []
   freshProcess()
+  const restartAskedAt = Date.now()
   const ontoOlder = await restartSessionOnInstalledBuild({ sessionId: sid, turnActive: facts(sid)?.busy === true, work: facts(sid)?.work ?? [], tell: line => toldOlder.push(line), resume: resumeAsTheScreenDoes })
-  check('/restart moves the session onto the older installed build and names the watch armed before the compaction as ending', ontoOlder.ok && ontoOlder.line.includes(`Restarted on the installed build (${SHORT_X})`) && toldOlder.some(line => line.includes(`Monitor «${WATCH4_NAME}»`)), JSON.stringify({ ontoOlder, toldOlder }))
+  check('/restart moves the session onto the older installed build and names the watch armed before the compaction as ending', ontoOlder.ok && ontoOlder.line.includes(`Restarted on the installed build (${SHORT_X})`) && toldOlder.some(line => line.includes(`Monitor «${WATCH4_NAME}»`)), JSON.stringify({ ontoOlder, toldOlder, ms: Date.now() - restartAskedAt }))
+  if (!ontoOlder.ok) {
+    console.log(`  [forensics] the restart did not move the session (${Date.now() - restartAskedAt} ms after it was asked) — the daemon of W, pid ${Dpid}, read now:\n    ${silentSeatReport(Dpid, { logFile: logD, logLines: 40 }).split('\n').join('\n    ')}`)
+    const runnerOnW = recOf(sid)?.pid ?? 0
+    if (runnerOnW !== 0) console.log(`  [forensics] the session's runner, pid ${runnerOnW}:\n    ${silentSeatReport(runnerOnW).split('\n').join('\n    ')}`)
+  }
   const pidOnX = recOf(sid)?.pid ?? 0
   const Epid = (await hello())?.pid ?? 0
   let remainingOnW: number | null = null
-  const drainedW = await untilAsync(async () => {
-    if (exitedDaemons.has(Dpid)) return true
+  const drainWaitMs = Math.min(sessionParkDrainMs(), DRAIN_WAIT_CEILING_MS)
+  const rosterOfW = async (): Promise<string> => {
+    if (daemonGone(Dpid)) return 'the daemon of W has exited'
+    const reply = (await forwardFrame(predecessorSockPath(Dpid), JSON.stringify({ op: 'list', auth: await readControlKey() }), 3000)) as { ok?: boolean; jobs?: Array<Record<string, unknown>> }
+    if (reply.ok !== true || !Array.isArray(reply.jobs)) return `the daemon of W did not list its roster: ${JSON.stringify(reply).slice(0, 200)}`
+    const rows = reply.jobs.map(row => JSON.stringify({ short: row.short, state: row.state, pid: row.pid, warm: row.warm, outcome: row.outcome, source: row.source, sessionId: row.sessionId, prompt: typeof row.prompt === 'string' ? row.prompt.slice(0, 40) : undefined }))
+    return rows.length === 0 ? 'the roster of W is empty' : `the roster of W (${rows.length}):\n    ${rows.join('\n    ')}`
+  }
+  const drainedW = ontoOlder.ok && (await untilAsync(async () => {
+    if (daemonGone(Dpid)) return true
     const reply = await forwardFrame(predecessorSockPath(Dpid), JSON.stringify({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null, auth: await readControlKey() }), 3000)
     if (reply?.ok !== true || reply.op !== 'hello' || reply.pid !== Dpid) return false
     remainingOnW = reply.live
     return remainingOnW === 0
-  }, sessionParkDrainMs())
-  check('the daemon of W drains its remaining workers before its exit is expected', drainedW, JSON.stringify({ Dpid, remainingOnW }))
-  check('the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty', pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && (await untilAsync(() => exitedDaemons.has(Dpid), 60_000)), JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) }))
+  }, drainWaitMs))
+  check(`the daemon of W drains its remaining workers (within ${drainWaitMs / 1000} s) before its exit is expected`, drainedW, drainedW ? '' : ontoOlder.ok ? `${JSON.stringify({ Dpid, remainingOnW })}\n    ${await rosterOfW()}\n    ${silentSeatReport(Dpid, { logFile: logD, logLines: 40 }).split('\n').join('\n    ')}` : 'the restart did not move the session, so no drain can come (its reading is above)')
+  const leftW = drainedW && (await untilAsync(() => daemonGone(Dpid), SUPERSEDED_EXIT_WAIT_MS))
+  check(`the session runs the older build (the X2 bundle, tree X) under the daemon that took the plane, and the daemon of W leaves once empty (within ${SUPERSEDED_EXIT_WAIT_MS / 1000} s of its sessionless beat)`, pidOnX !== 0 && Epid !== 0 && Epid !== Dpid && ps(pidOnX).ppid === Epid && bundleOf(ps(pidOnX).command) === join(builds, 'X2', 'mercury.mjs') && leftW, `${JSON.stringify({ pidOnX, Epid, Dpid, ps: ps(pidOnX) })}${drainedW && !leftW ? `\n    ${silentSeatReport(Dpid, { logFile: logD, logLines: 40 }).split('\n').join('\n    ')}` : ''}`)
   const updateToX = await untilAsync(() => readSessionReceipts(projectDir, sid).some(r => r.kind === 'runner-restart' && r.summary.startsWith(`Mercury updated to ${SHORT_X}`) && r.summary.includes(`Monitor «${WATCH4_NAME}»`)), 20_000)
   check('the update receipt names the watch that was armed before the compaction (the transcript no longer carries its launch)', updateToX, JSON.stringify(readSessionReceipts(projectDir, sid).filter(r => r.kind === 'runner-restart').map(r => r.summary)))
   const afterOlder = await dispatch('urt-after-older', 'report after the move onto the older build', { targetSessionId: sid })
