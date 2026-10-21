@@ -476,31 +476,40 @@ function enumOf<T extends string>(v: unknown, path: string, allowed: readonly T[
   throw new Error(`sample(): ${path} "${String(v)}" is not one of ${allowed.join(', ')}`)
 }
 
-const DROP_ELEMENTS = /<\s*(script|style|foreignobject|iframe|object|embed|link|meta|base|audio|video)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>|<\s*(script|style|foreignobject|iframe|object|embed|link|meta|base|audio|video)\b[^>]*\/?>/gi
-const TAG = /<([a-zA-Z][\w:.-]*)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*(\/?)>/g
-const ATTR = /([^\s=>/]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g
+const SVG_ELEMENTS = new Set('svg a animate animateMotion animateTransform circle clipPath defs desc discard ellipse feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting feDisplacementMap feDistantLight feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur feImage feMerge feMergeNode feMorphology feOffset fePointLight feSpecularLighting feSpotLight feTile feTurbulence filter font font-face font-face-format font-face-name font-face-src font-face-uri g glyph glyphRef hatch hatchpath hkern image line linearGradient marker mask mesh meshgradient meshpatch meshrow metadata missing-glyph mpath path pattern polygon polyline radialGradient rect set solidcolor stop switch symbol text textPath title tref tspan use view vkern'.toLowerCase().split(' '))
+const SVG_TOKEN = /<!--[\s\S]*?(?:-->|$)|<!\[CDATA\[[\s\S]*?(?:\]\]>|$)|<(?:[^<>"']|"[^"]*"|'[^']*')*(?:>|$)|</g
+const TAG = /^<(\/?)([a-zA-Z][\w.-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"<]*"|'[^'<]*'|[^\s"'`=<>/]+))*)\s*(\/?)>$/
+const ATTR = /([\w:.-]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'`=<>/]+)/g
 
 export function sanitizeSvg(svg: string): string {
-  const stripped = svg.replace(DROP_ELEMENTS, '')
-  return stripped.replace(TAG, (_m, name: string, attrs: string, close: string) => {
-    const kept: string[] = []
+  return svg.replace(SVG_TOKEN, token => {
+    if (token.startsWith('<![CDATA[')) return escapeHtml(token.slice(9).replace(/\]\]>$/, ''))
+    const tag = TAG.exec(token)
+    if (!tag) return ''
+    const end = tag[1]!, name = tag[2]!, attrs = tag[3]!, close = tag[4]!
+    if (!SVG_ELEMENTS.has(name.toLowerCase())) return ''
+    if (end) return attrs === '' && !close ? `</${name}>` : ''
+    const fields = new Map<string, { name: string; value: string }>()
     for (const match of attrs.matchAll(ATTR)) {
-      const attr = match[1] as string
-      const rawValue = match[2]
+      const attr = match[1]!
+      const raw = match[2]!
+      const value = decodeEntities(raw.startsWith('"') || raw.startsWith("'") ? raw.slice(1, -1) : raw)
       const lower = attr.toLowerCase()
-      if (lower.startsWith('on')) continue
-      if (rawValue === undefined) {
-        kept.push(attr)
-        continue
-      }
-      const value = rawValue.startsWith('"') || rawValue.startsWith("'") ? rawValue.slice(1, -1) : rawValue
-      const quoted = `${attr}="${value.replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`
+      if (!fields.has(lower)) fields.set(lower, { name: attr, value })
+    }
+    const animated = fields.get('attributename')?.value.toLowerCase()
+    if (animated && (animated.startsWith('on') || animated === 'xml:base' || animated.startsWith('xmlns'))) return ''
+    const kept: string[] = []
+    for (const [lower, { name: attr, value }] of fields) {
+      if (lower.startsWith('on') || lower === 'xml:base') continue
       if (lower === 'xmlns' || lower.startsWith('xmlns:')) {
-        kept.push(quoted)
-        continue
+        if (!['http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'].includes(value)) continue
+      } else {
+        const values = lower === 'values' ? value.split(';') : [value]
+        const reference = /^(?:xlink:)?href$/.test(lower) || (/^(?:from|to|by|values)$/.test(lower) && /^(?:xlink:)?href$/.test(animated ?? ''))
+        if (values.some(v => unsafeValue(v) || (reference && !safeSvgReference(v, /^(image|feimage)$/i.test(name))))) continue
       }
-      if (unsafeValue(value)) continue
-      kept.push(quoted)
+      kept.push(`${attr}="${escapeHtml(value)}"`)
     }
     return `<${name}${kept.length > 0 ? ' ' + kept.join(' ') : ''}${close ? ' /' : ''}>`
   })
@@ -515,14 +524,23 @@ function decodeEntities(value: string): string {
     .replace(/&([a-z]+);?/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m)
 }
 
+function safeSvgReference(value: string, image = true): boolean {
+  const v = value.trim()
+  return v.startsWith('#') || (image && DATA_IMAGE.test(v))
+}
+
 function unsafeValue(value: string): boolean {
-  const v = decodeEntities(value).replace(/[\s\u0000-\u001f]+/g, '').toLowerCase()
+  const v = decodeEntities(value)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\\([0-9a-f]{1,6})\s?|\\([^\r\n])/gi, (_m, hex: string | undefined, char: string | undefined) => hex ? String.fromCodePoint(Math.min(parseInt(hex, 16), 0x10ffff)) : char ?? '')
+    .replace(/[\s\u0000-\u001f]+/g, '').toLowerCase()
   if (/^(javascript|vbscript|livescript):/.test(v)) return true
-  if (/^data:text\/html/.test(v)) return true
+  if (/^data:(?!image\/)/.test(v)) return true
   if (/^(https?:)?\/\//.test(v)) return true
-  if (/url\(['"]?(https?:)?\/\//.test(v)) return true
-  if (/url\(['"]?(javascript|vbscript):/.test(v)) return true
-  if (/@import/.test(v)) return true
+  for (const match of v.matchAll(/url\(([^)]*)\)/g)) {
+    if (!safeSvgReference(match[1]!.replace(/^['"]|['"]$/g, ''))) return true
+  }
+  if (/@import|expression\(/.test(v)) return true
   return false
 }
 

@@ -352,7 +352,7 @@ export class EvalKernelManager {
   }
 
   killAllForShutdown(): void {
-    for (const entry of this.kernels.values()) entry.kernel.kill()
+    for (const entry of this.kernels.values()) entry.kernel.killNow()
     this.kernels.clear()
     this.reapedIdle.clear()
     this.syncSweepTimer()
