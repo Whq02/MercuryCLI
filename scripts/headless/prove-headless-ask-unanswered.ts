@@ -74,10 +74,11 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   const run: SeatRun = { frames: [], askAt: 0, goneAt: 0, resultAt: 0, resultText: '', cancelSeen: false, requests: 0, exitCode: null, stderrTail: '' }
   let askUseId = ''
   let askId = 0
+  const seatLog = join(runHome, `seat-${road}-debug.txt`)
   const host = hostRunner({
     node: BUN,
     dist: launcher,
-    argv: ['--model', 'claude-opus-4-8'],
+    argv: ['--model', 'claude-opus-4-8', '--log-file', seatLog],
     cwd,
     env: env as Record<string, string | undefined>,
     home: runHome,
@@ -114,6 +115,8 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   } catch (error) {
     console.log(`  [door] ${error instanceof Error ? error.message : String(error)}`)
     if (proc.pid !== undefined) console.log(`  [door] ${seatState(proc.pid)}`)
+    const tail = existsSync(seatLog) ? readFileSync(seatLog, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-25).join('\n    ') : '(no seat log)'
+    console.log(`  [door] the seat's own log (last lines):\n    ${tail}`)
   }
   const until = Date.now() + bound(60_000)
   while (Date.now() < until) {
