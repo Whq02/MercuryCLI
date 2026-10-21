@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { createHash } from 'node:crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   isTransientWin32FsCode,
@@ -32,6 +31,7 @@ import {
   type PayloadDescriptor,
 } from './channelCore.js'
 import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
+import { payloadDigestOf } from './payloadDigest.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -399,27 +399,7 @@ export function validatePayloadDir(dir: string): PayloadCheck {
   return { state: 'ok', version: descriptor.version, launcher, bundle: descriptor.primary, descriptor }
 }
 
-const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
-
-function walkPayloadFiles(dir: string, base = ''): string[] {
-  const out: string[] = []
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name)
-    const rel = base ? `${base}/${name}` : name
-    if (statSync(full).isDirectory()) out.push(...walkPayloadFiles(full, rel))
-    else out.push(rel)
-  }
-  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-}
-
-export function payloadDigestOf(dir: string): string {
-  const h = createHash('sha256')
-  for (const rel of walkPayloadFiles(dir)) {
-    if (rel === 'manifest.json') continue
-    h.update(`${rel}\n${sha256File(join(dir, rel))}\n`)
-  }
-  return h.digest('hex')
-}
+export { payloadDigestOf }
 
 export type InstallOutcome =
   | { state: 'installed'; versionDir: string; changed: true }
@@ -662,7 +642,11 @@ fi
 # POSIX launcher. No second version selection anywhere.
 if [ -f "$root/$ver/mercury.cmd" ] && [ -f "$root/$ver/mercury.mjs" ]; then
   road=cmd
-  case "\${1:-}" in run|-*) road=node ;; esac
+  case "\${1:-}" in
+    -*) road=node ;;
+    ''|*[!A-Za-z0-9_-]*) ;;
+    [A-Za-z]*) road=node ;;
+  esac
   [ -t 0 ] || road=node
   nl='
 '

@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { BUN, REPO, SCRATCH_ROOT, bound, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
+import { SCRATCH_ROOT, bound, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
-import { seatForensics } from '../lib/seatForensics.ts'
+import { seatState } from '../lib/seatForensics.ts'
+import { describeSeat, seatRuntime } from '../lib/seatLauncher.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ask-unanswered-'))
@@ -31,14 +31,6 @@ const typedLead = (toolName: string): RegExp => new RegExp(`^Permission to use $
 const isTypedDenial = (text: string, toolName: string): boolean => isDenialResultText(text) && typedLead(toolName).test(unwrapToolUseError(text))
 const causeOf = (text: string, toolName: string): string => typedLead(toolName).exec(unwrapToolUseError(text))?.[1] ?? ''
 
-const seatState = (pid: number): string => {
-  if (!existsSync(`/proc/${pid}/status`)) return `the seat ${pid}: no /proc view on this platform`
-  const status = readFileSync(`/proc/${pid}/status`, 'utf8').split('\n').filter(l => /^(State|VmRSS|Threads):/.test(l)).map(l => l.replace(/\s+/g, ' ')).join(' · ')
-  const wchan = existsSync(`/proc/${pid}/wchan`) ? readFileSync(`/proc/${pid}/wchan`, 'utf8').trim() : '?'
-  const sockets = spawnSync('ss', ['-tanp'], { encoding: 'utf8' }).stdout?.split('\n').filter(l => l.includes(`pid=${pid},`)).map(l => l.split(/\s+/).slice(0, 5).join(' ')).slice(0, 4).join(' | ') ?? ''
-  const children = spawnSync('ps', ['-eo', 'pid,ppid,stat,args'], { encoding: 'utf8' }).stdout?.split('\n').filter(l => l.split(/\s+/).filter(Boolean)[1] === String(pid)).map(l => l.trim().slice(0, 120)).slice(0, 4).join(' | ') ?? ''
-  return `the seat ${pid} waits in ${wchan} · ${status}${sockets ? ` · sockets: ${sockets}` : ''}${children ? ` · children: ${children}` : ''}`
-}
 const liveSeats = new Set<number>()
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT: the unanswered-ask laws exceeded 180s')
@@ -65,8 +57,8 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   const runHome = join(root, `home-${road}`)
   const cwd = join(runHome, 'work')
   seedScratchHome(runHome, cwd)
-  const launcher = join(root, `launcher-${road}.ts`)
-  writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${j(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
+  const seat = seatRuntime(root, { name: `launcher-${road}.ts` })
+  console.log(`  the ${road} seat boots ${describeSeat(seat)}`)
   const fixture = await startScriptedFixture(req => {
     if (req.step === 0) return [{ type: 'tool_use', name: 'AskUserQuestion', input: { questions: [{ question: 'Which one?', header: 'Pick', options: [{ label: 'a', description: 'first' }, { label: 'b', description: 'second' }], multiSelect: false }] } }]
     return [{ type: 'text', text: 'carried on without the answer' }]
@@ -77,8 +69,8 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   let askId = 0
   const seatLog = join(runHome, `seat-${road}-debug.txt`)
   const host = hostRunner({
-    node: BUN,
-    dist: launcher,
+    node: seat.exe,
+    dist: seat.script,
     argv: ['--model', 'claude-opus-4-8', '--log-file', seatLog],
     cwd,
     env: env as Record<string, string | undefined>,
@@ -115,10 +107,6 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
     await host.prompt('probe: ask the operator a question', { id: randomUUID() })
   } catch (error) {
     console.log(`  [door] ${error instanceof Error ? error.message : String(error)}`)
-    if (proc.pid !== undefined) console.log(`  [door] ${seatState(proc.pid)}`)
-    if (proc.pid !== undefined && proc.exitCode === null) console.log(`  [door] ${seatForensics(proc.pid)}`)
-    const tail = existsSync(seatLog) ? readFileSync(seatLog, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-25).join('\n    ') : '(no seat log)'
-    console.log(`  [door] the seat's own log (last lines):\n    ${tail}`)
   }
   const until = Date.now() + bound(60_000)
   while (Date.now() < until) {
@@ -141,7 +129,7 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   return run
 }
 
-tally.section('S1 the seat on the source, the field road: nobody answers, the unattended-turn watchdog (squeezed to 3s) is the only clock')
+tally.section('S1 the seat, the field road: nobody answers, the unattended-turn watchdog (squeezed to 3s) is the only clock')
 {
   const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'ask-unanswered-seat-')))
   try {
@@ -157,7 +145,7 @@ tally.section('S1 the seat on the source, the field road: nobody answers, the un
   }
 }
 
-tally.section('S2 the seat on the source, the disconnect road: the client closes stdin while the ask pends')
+tally.section('S2 the seat, the disconnect road: the client closes stdin while the ask pends')
 {
   const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'ask-unanswered-seat-')))
   try {

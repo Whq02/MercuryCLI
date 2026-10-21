@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { getCwd } from '../cwd.js'
+import { findGitRoot } from '../git.js'
 import { projectConfigDirs } from '../projectConfig.js'
 
 import * as chokidar from 'chokidar'
@@ -46,7 +47,19 @@ let dropInDir: string | null = null
 let watchedRoots = new Set<string>()
 let awaitedParents = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
+const PROJECT_SOURCES: ReadonlySet<SettingSource> = new Set<SettingSource>(['projectSettings', 'localSettings'])
 
+function projectWatchRoots(cwd: string): string[] {
+  const roots = [resolve(cwd)]
+  let top: string | null = null
+  try {
+    top = findGitRoot(cwd)
+  } catch {
+    top = null
+  }
+  if (top !== null && resolve(top) !== roots[0]) roots.push(resolve(top))
+  return roots
+}
 
 function normalizeEventPath(eventPath: string): string {
   return resolve(sep === '\\' ? eventPath.replace(/\//g, '\\') : eventPath)
@@ -130,7 +143,7 @@ async function initialize(): Promise<void> {
   const directories = new Set<string>()
   const awaited = new Set<string>()
   const targets: Array<[string, SettingSource]> = []
-  for (let dir = getCwd(); dirname(dir) !== dir; dir = dirname(dir)) {
+  for (const dir of projectWatchRoots(getCwd())) {
     for (const root of projectConfigDirs(dir)) targets.push([join(root, 'mcp.json'), 'projectSettings'])
   }
   for (const source of SETTING_SOURCES) {
@@ -145,12 +158,11 @@ async function initialize(): Promise<void> {
     const parent = dirname(normalized)
     try {
       if (existsSync(parent)) directories.add(parent)
-      else {
-        let ancestor = dirname(parent)
-        while (ancestor !== dirname(ancestor) && !existsSync(ancestor)) ancestor = dirname(ancestor)
-        if (existsSync(ancestor)) {
+      else if (PROJECT_SOURCES.has(source)) {
+        const projectRoot = dirname(parent)
+        if (existsSync(projectRoot)) {
           awaited.add(normalizeEventPath(parent))
-          directories.add(ancestor)
+          directories.add(projectRoot)
         }
       }
     } catch {
@@ -277,6 +289,10 @@ async function reground(): Promise<void> {
 
 export function _watchTargetsForTesting(): string[] {
   return [...knownSettingsFiles.keys()]
+}
+
+export function _watchRootsForTesting(): { roots: string[]; awaited: string[] } {
+  return { roots: [...watchedRoots].sort(), awaited: [...awaitedParents].sort() }
 }
 
 export { initialize, dispose, subscribe, notifyChange, reground, resetForTesting }
