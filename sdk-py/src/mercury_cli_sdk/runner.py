@@ -6,9 +6,9 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
-from .client import ConnectKwargs, Listener, RunOptions, argv_of, checkpoint_options, end_child, exit_of, prepare_tools, send_signal, spawn, untrack
+from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_refusal, validate_outcome
 
@@ -294,6 +294,11 @@ class MercurySession(TypedRequests):
             self._prompt_error = None
             self._prompting = False
 
+    @property
+    def file_checkpoints(self) -> InitializeResultFile_checkpoints | None:
+        """What the CLI answered on ``initialize``: whether file checkpoints are captured and why (``source``)."""
+        return getattr(self, 'initialized', {}).get('file_checkpoints')
+
     async def facts(self) -> SessionFactsResult: return await self.request('session/facts')
     async def interrupt(self, **options: Any) -> TurnInterruptResult:
         if self._tools: self._tools.cancel()
@@ -335,13 +340,13 @@ class MercurySession(TypedRequests):
         return row
 
 
-async def connect(*, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
-    """Start ``mercury runner`` and complete ``initialize`` (within ``timeout`` seconds when given); the keyword arguments are ``RunOptions`` fields."""
+async def connect(*, warm: bool = False, checkpoints: bool = True, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
+    """Start ``mercury runner`` and complete ``initialize`` (within ``timeout`` seconds when given), asking for file checkpoints unless ``checkpoints=False``; the keyword arguments are ``RunOptions`` fields."""
     overrides: dict[str, Any] = dict(kwargs)
     if schema is not None: overrides['schema'] = schema
     opts = replace(options, **overrides) if options is not None else RunOptions(**overrides)
     if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
-    opts = checkpoint_options(opts, warm)
+    if warm: opts = warm_options(opts)
     if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
     opts, tools = await prepare_tools(opts)
     args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None), 'runner')
@@ -357,7 +362,7 @@ async def connect(*, warm: bool = False, timeout: float | None = None, on_read_t
     session = MercurySession(child, callbacks, tools, opts)
     try:
         declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, 'fs_read_text_file': 'fs/read_text_file' in callbacks, 'fs_write_text_file': 'fs/write_text_file' in callbacks, 'terminal': all(name in callbacks for name in ('terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'))}
-        boot: dict[str, Any] = {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}}
+        boot: dict[str, Any] = {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}, 'file_checkpoints': checkpoints}
         if opts.schema is not None: boot['schema'] = schema_object(opts.schema, opts.cwd)
         session.initialized = await session.request('initialize', boot, timeout=timeout)
         return session
@@ -366,6 +371,6 @@ async def connect(*, warm: bool = False, timeout: float | None = None, on_read_t
         raise
 
 
-async def prewarm(*, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
+async def prewarm(*, checkpoints: bool = True, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
     """``connect(warm=True)``: an unclaimed runner to ``claim`` before prompting."""
-    return await connect(warm=True, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs)
+    return await connect(warm=True, checkpoints=checkpoints, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs)

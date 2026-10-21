@@ -47,9 +47,11 @@ async def main() -> None:
     with connect_sync(on_permission_request=lambda ask, context: {'outcome': 'deny', 'message': ask['tool_name'] + str(context.id)}, mode='default', partial=True, timeout=30) as sync_session:
         print(sync_session.prompt('x')['status'])
         print(sync_session.facts())
-    typed_task = await run('Explain', model='m', effort='high', mode='dontAsk', allowed_tools=['Read'], max_turns=3, budget_usd=1.5, worktree=True, debug='rpc', checkpoint_files=True, cancel=asyncio.Event())
+    typed_task = await run('Explain', model='m', effort='high', mode='dontAsk', allowed_tools=['Read'], max_turns=3, budget_usd=1.5, worktree=True, debug='rpc', cancel=asyncio.Event())
     print(run_sync('hello', mode='default', partial=True).outcome['status'], typed_task.child.pid)
-    typed_session = await connect(on_elicitation=lambda ask, context: {'action': 'decline'}, mode='default', timeout=5, schema={'type': 'object'})
+    typed_session = await connect(on_elicitation=lambda ask, context: {'action': 'decline'}, mode='default', timeout=5, schema={'type': 'object'}, checkpoints=False)
+    checkpoints = typed_session.file_checkpoints
+    if checkpoints is not None: print(checkpoints['capture'], checkpoints['source'])
     await typed_session.close()
     tool = define_tool('greeting', 'Return a greeting', {'type': 'object', 'properties': {}}, lambda _: 'Hello')
     async with await serve_tools([tool]) as tools:
@@ -69,7 +71,7 @@ asyncio.run(main())
 
 
 from typing import Any, assert_type
-from mercury_cli_sdk import SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, structured_schema, prewarm
+from mercury_cli_sdk import InitializeResultFile_checkpoints, SessionFactsResult, SessionRewindResult, AgentStopResult, AgentResumeResult, QueueAddResult, TypedOutcome, structured_schema, prewarm
 
 
 async def typed_output_and_warm() -> None:
@@ -94,4 +96,5 @@ def typed_sync() -> None:
         assert_type(session.resume_agent('a'), AgentResumeResult)
         assert_type(session.send_prompt('test'), QueueAddResult)
         assert_type(session.last_prompt_id, str | None)
+        assert_type(session.file_checkpoints, InitializeResultFile_checkpoints | None)
         assert_type(next(iter(session)), StreamRow)

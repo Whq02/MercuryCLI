@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { readLines } from './framing.js'
 import { endChild, missingCwd, track } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
-import { argvOf, checkpointOptions, type RunOptions } from './client.js'
+import { argvOf, warmOptions, type RunOptions } from './client.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
 import { inputRowOf, rowOf, type StreamRow } from './parse.js'
 import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.js'
@@ -18,6 +18,7 @@ export type HostHandlers = { [M in RunnerRequestName]?: (params: ParamsOf<M>, co
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
   signal?: AbortSignal
   warm?: boolean
+  checkpoints?: boolean
   host?: { name: string; version: string }
   capabilities?: Partial<ParamsOf<'initialize'>['capabilities']>
   handlers?: HostHandlers
@@ -35,6 +36,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   readonly exit: Promise<RunExit>
   readonly rows: StreamRow[] = []
   initialized!: ResultOf<'initialize'>
+  get fileCheckpoints(): ResultOf<'initialize'>['file_checkpoints'] { return (this.initialized as ResultOf<'initialize'> | undefined)?.file_checkpoints }
   stderr = ''
   lastPromptId: string | undefined
   #pending = new Map<number, Pending>()
@@ -55,7 +57,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
-    options = checkpointOptions(options, options.warm)
+    if (options.warm) options = warmOptions(options)
     if (options.schema !== undefined && !(options.schema instanceof StructuredSchema)) options = { ...options, schema: schemaObject(options.schema, options.cwd) }
     this.options = options
     const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined }, 'runner')
@@ -299,6 +301,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
     session.initialized = await session.request('initialize', {
       protocol: RUNNER_PROTOCOL, host: options.host ?? { name: 'mercury-cli-sdk', version: VERSION },
       capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, fs_read_text_file: Boolean(options.onReadTextFile || options.handlers?.['fs/read_text_file']), fs_write_text_file: Boolean(options.onWriteTextFile || options.handlers?.['fs/write_text_file']), terminal: ['terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'].every(method => Boolean(options.handlers?.[method as RunnerRequestName])), ...options.capabilities },
+      file_checkpoints: options.checkpoints ?? true,
       ...(options.schema === undefined ? {} : { schema: schemaObject(options.schema, options.cwd) }),
     }, { signal: options.signal })
     if (options.signal) {

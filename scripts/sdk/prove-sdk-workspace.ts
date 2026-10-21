@@ -29,8 +29,8 @@ for (const language of ['ts', 'py']) {
   for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster', 'schema']) {
     if (selected && selected !== scenario) continue
     const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'roster' ? [
-      { kind: 'text', text: 'Headless roster seen.', whenBody: 'roster of a headless session' },
-      { kind: 'text', text: 'Worker roster seen.', whenBody: 'roster of a session-runner' },
+      { kind: 'text', text: 'Default roster seen.', whenBody: 'roster of a default session' },
+      { kind: 'text', text: 'Opted-out roster seen.', whenBody: 'roster of a session without checkpoints' },
     ] : scenario === 'schema' ? [
       { kind: 'tool_use', name: 'StructuredOutput', input: { count: 3 }, whenBody: 'the count turn' }, { kind: 'text', text: 'Three.', whenBody: 'the count turn' },
       { kind: 'tool_use', name: 'StructuredOutput', input: { name: 'pelican' }, whenBody: 'the name turn' }, { kind: 'text', text: 'Pelican.', whenBody: 'the name turn' },
@@ -56,20 +56,21 @@ for (const language of ['ts', 'py']) {
         try { assert.equal((await session.prompt('Read then write virtual.txt')).status, 'completed'); assert(reads > 0); assert.equal(writes, 1, JSON.stringify(session.rows.filter(row => row.type === 'tool_result'))); assert.equal(value, 'virtual changed') }
         finally { await session.close() }
       } else if (scenario === 'checkpoints') {
-        const session = await connect({ mercury, cwd: c.cwd, env: c.env, onPermissionRequest: () => ({ outcome: 'allow' }), allowedTools: ['Read', 'Write'], checkpointFiles: true })
+        const session = await connect({ mercury, cwd: c.cwd, env: c.env, onPermissionRequest: () => ({ outcome: 'allow' }), allowedTools: ['Read', 'Write'] })
         try {
+          assert.deepEqual(session.fileCheckpoints, { capture: true, source: 'initialize' }, 'a default connect asks for file checkpoints on initialize and the CLI says it captures them')
           const outcome = await session.prompt('Change saved.txt')
           assert.equal(outcome.status, 'completed'); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
           assert.equal(typeof session.lastPromptId, 'string')
-          const facts = await session.facts(); assert.equal(facts.file_checkpoints?.capture, true); assert(facts.file_checkpoints?.restorable.includes(session.lastPromptId!))
+          const facts = await session.facts(); assert.equal(facts.file_checkpoints?.capture, true); assert.equal(facts.file_checkpoints?.source, 'initialize'); assert(facts.file_checkpoints?.restorable.includes(session.lastPromptId!))
           const args = { user_message_id: session.lastPromptId!, mode: 'both' as const }
           const dry = await session.rewind({ ...args, dry_run: true }); assert(dry.code?.files_changed.length); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
           const restored = await session.rewind(args); assert.equal(restored.outcome, 'applied'); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'original\n')
         } finally { await session.close() }
       } else if (scenario === 'roster') {
-        for (const [said, options] of [['roster of a headless session', {}], ['roster of a session-runner', { checkpointFiles: true }]] as const) {
+        for (const [said, options, expected] of [['roster of a default session', {}, { capture: true, source: 'initialize' }], ['roster of a session without checkpoints', { checkpoints: false }, { capture: false, source: 'headless' }]] as const) {
           const session = await connect({ mercury, cwd: c.cwd, env: c.env, ...options })
-          try { assert.equal((await session.prompt(`Describe the ${said}`)).status, 'completed') } finally { await session.close() }
+          try { assert.deepEqual(session.fileCheckpoints, expected, said); assert.equal((await session.prompt(`Describe the ${said}`)).status, 'completed') } finally { await session.close() }
         }
       } else if (scenario === 'schema') {
         const count = { type: 'object', properties: { count: { type: 'integer' } }, required: ['count'] } as const
@@ -94,11 +95,11 @@ for (const language of ['ts', 'py']) {
         finally { await session.close() }
       }
       if (scenario === 'roster') {
-        const headless = offeredTools(c.api, 'roster of a headless session')
-        for (const tool of ['Crewmate', 'Workflow']) assert(headless.includes(tool), `a default connect session must offer ${tool}; offered: ${headless.join(',')}`)
-        assert(!headless.includes('Contract'), 'a default connect session must not carry the session-runner Contract tool')
-        const worker = offeredTools(c.api, 'roster of a session-runner')
-        assert(!worker.includes('Crewmate') && worker.includes('Contract'), `checkpointFiles: true is the session-runner role; offered: ${worker.join(',')}`)
+        for (const said of ['roster of a default session', 'roster of a session without checkpoints']) {
+          const offered = offeredTools(c.api, said)
+          for (const tool of ['Crewmate', 'Workflow']) assert(offered.includes(tool), `a connect session must offer ${tool} (${said}); offered: ${offered.join(',')}`)
+          assert(!offered.includes('Contract'), `a connect session must not carry the session-runner Contract tool (${said})`)
+        }
       }
       console.log(`PASS ${language} real runner ${scenario}`)
     } finally { await c.close() }

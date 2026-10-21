@@ -76,12 +76,15 @@ try {
       finally { await session.close(); await fixture.close() }
     }
   })
-  await check('rows 3 and 5 checkpoint opt in, identity validation and an accepted prompt id', async () => {
-    for (const [options, stamped] of [[{}, false], [{ checkpointFiles: false }, false], [{ checkpointFiles: true }, true]] as const) {
-      const fixture = await testing.startFixtureServer({ methods: { initialize: [init], 'queue/add': [{ result: { accepted: false, reason: 'duplicate' } }, { result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: outcome }] }] } })
+  await check('rows 3 and 5 checkpoints asked on initialize, identity validation and an accepted prompt id', async () => {
+    for (const [options, asked] of [[{}, true], [{ checkpoints: false }, false], [{ checkpoints: true }, true]] as const) {
+      const answered = { ...init, result: { ...init.result, file_checkpoints: { capture: asked, source: asked ? 'initialize' : 'headless' } } }
+      const fixture = await testing.startFixtureServer({ methods: { initialize: [answered], 'queue/add': [{ result: { accepted: false, reason: 'duplicate' } }, { result: { accepted: true }, after: [{ jsonrpc: '2.0', method: 'row', params: outcome }] }] } })
       const session = await sdk.connect({ mercury: fixture.mercury, ...options })
       try {
-        assert.equal(session.child.spawnargs.includes('--session-id'), stamped, `checkpointFiles ${JSON.stringify(options)} must ${stamped ? '' : 'not '}pin a boot identity`)
+        assert.equal((fixture.received[0]!.params as { file_checkpoints?: boolean }).file_checkpoints, asked, `connect ${JSON.stringify(options)} asks initialize for file_checkpoints: ${asked}`)
+        assert(!session.child.spawnargs.includes('--session-id'), 'no boot identity is pinned for checkpoints')
+        assert.deepEqual(session.fileCheckpoints, answered.result.file_checkpoints, 'fileCheckpoints reads the initialize answer')
         await assert.rejects(session.prompt('refused by the queue'), /prompt was not accepted/)
         assert.equal(session.lastPromptId, undefined, 'a prompt the queue refused is not the last accepted prompt')
         assert.equal((await session.prompt('accepted')).status, 'completed')

@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 import json
 import os
 import signal
-import uuid
 import time
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
@@ -28,7 +27,6 @@ class RunOptions:
     brief_file: str | None = None
     brief_add_file: str | None = None
     debug: bool | str = False
-    checkpoint_files: bool = False
     replay_to: str | None = None
     restore_files: str | None = None
     tools: list[ToolDefinition] = field(default_factory=list)
@@ -85,7 +83,6 @@ class ConnectKwargs(TypedDict, total=False):
     brief_file: str | None
     brief_add_file: str | None
     debug: bool | str
-    checkpoint_files: bool
     replay_to: str | None
     restore_files: str | None
     tools: list[ToolDefinition]
@@ -467,7 +464,6 @@ async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | N
     if opts.prompt is not None and not isinstance(opts.prompt, str): opts = replace(opts, input='rows')
     if opts.input not in (None, 'rows'): raise MercuryError('input must be rows')
     if opts.input == 'rows' and opts.stdin is not None: raise MercuryError('stdin text cannot be combined with input rows')
-    opts = checkpoint_options(opts)
     if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
     opts, tools = await prepare_tools(opts)
     try: child = await spawn(argv_of(opts), opts)
@@ -494,8 +490,5 @@ async def prepare_tools(options: RunOptions) -> tuple[RunOptions, ToolServer | N
     return replace(options, mcp=[*options.mcp, server.mcp], allowed_tools=list(dict.fromkeys([*options.allowed_tools, *names])) if options.auto_allow_tools else list(options.allowed_tools), agent_defs=agents), server
 
 
-def checkpoint_options(options: RunOptions, warm: bool = False) -> RunOptions:
-    if not options.checkpoint_files and not warm: return options
-    id = options.session_id
-    if not warm and not id and not options.resume and not options.continue_: id = str(uuid.uuid4())
-    return replace(options, session_id=id, env={**(options.env if options.env is not None else os.environ), 'MERCURY_CONCOURSE_WORKER': '1'})
+def warm_options(options: RunOptions) -> RunOptions:
+    return replace(options, env={**(options.env if options.env is not None else os.environ), 'MERCURY_CONCOURSE_WORKER': '1'})

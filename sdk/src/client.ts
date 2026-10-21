@@ -5,7 +5,6 @@ import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
 import { endChild, missingCwd, track } from './lifecycle.js'
-import { randomUUID } from 'node:crypto'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { EffortLevel, PermissionMode } from './door.js'
 import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
@@ -20,7 +19,6 @@ export interface RunOptions<T = unknown> {
   briefFile?: string
   briefAddFile?: string
   debug?: boolean | string
-  checkpointFiles?: boolean
   replayTo?: string
   restoreFiles?: string
   tools?: readonly ToolDefinition[]
@@ -192,7 +190,6 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #done = false
 
   constructor(private options: RunOptions<T>) {
-    options = checkpointOptions(options)
     if (options.schema !== undefined && !(options.schema instanceof StructuredSchema)) options = { ...options, schema: schemaObject(options.schema, options.cwd) }
     this.options = options
     if (options.prompt !== undefined && typeof options.prompt !== 'string') options = { ...options, input: 'rows' }
@@ -445,8 +442,6 @@ export function run<T = unknown>(options: RunOptions<T>): MercuryRun<T> {
   return new MercuryRun<T>(options)
 }
 
-export function checkpointOptions<T extends RunOptions>(options: T, warm = false): T {
-  if (!options.checkpointFiles && !warm) return options
-  const identity = !warm && !options.sessionId && !options.resume && !options.continue ? { sessionId: randomUUID() } : {}
-  return { ...options, ...identity, env: { ...(options.env ?? process.env), MERCURY_CONCOURSE_WORKER: '1' } }
+export function warmOptions<T extends RunOptions>(options: T): T {
+  return { ...options, env: { ...(options.env ?? process.env), MERCURY_CONCOURSE_WORKER: '1' } }
 }

@@ -22,20 +22,22 @@ async def main():
             assert state['reads'] > 0 and state['writes'] == 1 and state['value'] == 'virtual changed'
     elif scenario == 'checkpoints':
         path = Path(cwd, 'saved.txt')
-        async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Read', 'Write'], checkpoint_files=True) as session:
+        async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Read', 'Write']) as session:
+            assert session.file_checkpoints == {'capture': True, 'source': 'initialize'}, session.file_checkpoints
             assert (await session.prompt('Change saved.txt'))['status'] == 'completed'
             assert path.read_text() == 'changed\n'
             id = session.last_prompt_id
             assert isinstance(id, str)
             facts = await session.facts()
-            assert facts['file_checkpoints']['capture'] and id in facts['file_checkpoints']['restorable']
+            assert facts['file_checkpoints']['capture'] and facts['file_checkpoints'].get('source') == 'initialize' and id in facts['file_checkpoints']['restorable']
             dry = await session.rewind(id, 'both', dry_run=True)
             assert dry['code']['files_changed'] and path.read_text() == 'changed\n'
             restored = await session.rewind(id, 'both')
             assert restored['outcome'] == 'applied' and path.read_text() == 'original\n'
     elif scenario == 'roster':
-        for said, options in [('roster of a headless session', {}), ('roster of a session-runner', {'checkpoint_files': True})]:
+        for said, options, expected in [('roster of a default session', {}, {'capture': True, 'source': 'initialize'}), ('roster of a session without checkpoints', {'checkpoints': False}, {'capture': False, 'source': 'headless'})]:
             async with await connect(mercury=mercury, cwd=cwd, **options) as session:
+                assert session.file_checkpoints == expected, (said, session.file_checkpoints)
                 assert (await session.prompt(f'Describe the {said}'))['status'] == 'completed'
     elif scenario == 'schema':
         count = {'type': 'object', 'properties': {'count': {'type': 'integer'}}, 'required': ['count']}

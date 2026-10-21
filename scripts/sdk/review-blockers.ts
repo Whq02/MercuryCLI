@@ -12,7 +12,7 @@ const init = { protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: 
 await check('B1/B2 runner argv and partial negotiation', async () => {
   const fixture = await startFixtureServer({ methods: { initialize: [{ result: init }] } })
   try {
-    const session = await connect({ mercury: fixture.mercury, partial: true, checkpointFiles: false })
+    const session = await connect({ mercury: fixture.mercury, partial: true })
     try {
       assert(!session.child.spawnargs.includes('--partial'))
       assert(!session.child.spawnargs.includes('--session-id'))

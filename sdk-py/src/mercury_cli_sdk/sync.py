@@ -8,7 +8,7 @@ from typing import Any, Coroutine, Iterator, Mapping, TypeVar, Unpack, overload
 from .client import ConnectKwargs, Listener, RunKwargs, RunOptions, run
 from .generated import InitializeParamsHost
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
-from .generated import TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .parse import StreamRow
 from .errors import RunExit
 from .structured import StructuredSchema
@@ -38,14 +38,14 @@ def run_sync(prompt: str | None = None, *, schema: StructuredSchema[Any] | str |
 
 class SyncSession(TypedSyncRequests):
     """A typed synchronous session, including blocking row iteration, driven by a background loop."""
-    def __init__(self, *, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]):
+    def __init__(self, *, warm: bool = False, checkpoints: bool = True, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]):
         super().__init__(self._request, self._notify)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
         self._thread.start()
         self._closed = False
         atexit.register(self.close)
-        try: self.session: MercurySession = self._wait(connect(warm=warm, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs))
+        try: self.session: MercurySession = self._wait(connect(warm=warm, checkpoints=checkpoints, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs))
         except BaseException:
             self._stop()
             raise
@@ -62,6 +62,8 @@ class SyncSession(TypedSyncRequests):
 
     @property
     def initialized(self) -> InitializeResult: return self.session.initialized
+    @property
+    def file_checkpoints(self) -> InitializeResultFile_checkpoints | None: return self.session.file_checkpoints
     @property
     def rows(self) -> list[StreamRow]: return self.session.rows
     @property
@@ -131,6 +133,6 @@ class SyncSession(TypedSyncRequests):
     def __exit__(self, *exc: Any) -> None: self.close()
 
 
-def connect_sync(*, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> SyncSession:
+def connect_sync(*, warm: bool = False, checkpoints: bool = True, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> SyncSession:
     """Connect from synchronous code; use a context manager to close the session."""
-    return SyncSession(warm=warm, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs)
+    return SyncSession(warm=warm, checkpoints=checkpoints, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs)
