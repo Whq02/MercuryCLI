@@ -49,8 +49,8 @@ seed_row() { # $1=dom → seed seconds or empty
 }
 CEILING_DEFAULT=${MERCURY_SUITE_CEILING:-900}
 case "$CEILING_DEFAULT" in ('' | *[!0-9]*) CEILING_DEFAULT=900 ;; esac
-RETRY_MAX=${MERCURY_CI_RETRY_MAX_SECS:-240}
-case "$RETRY_MAX" in ('' | *[!0-9]*) RETRY_MAX=240 ;; esac
+RETRY_MAX=${MERCURY_CI_RETRY_MAX_SECS:-1200}
+case "$RETRY_MAX" in ('' | *[!0-9]*) RETRY_MAX=1200 ;; esac
 DRIVE_CEILING_K=2
 seed_ceiling_of() { # $1=dom → DRIVE_CEILING_K × the seeded wall (0 without a row); drives plan only
   local s

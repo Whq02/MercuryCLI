@@ -125,7 +125,7 @@ jobs:
       - name: Install deps
         run: |
           ~/.bun/bin/bun install --frozen-lockfile
-          sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+          sudo apt-get update -q && sudo apt-get install -y -q ripgrep gdb
           /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow
           /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest  # the .py companion lane, PINNED to the calibration formatter (format output is version-shaped); pytest arms the test-transaction leg
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

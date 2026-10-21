@@ -8,6 +8,7 @@ import { z } from 'zod/v4'
 import { BUN, REPO, SCRATCH_ROOT, bound, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
+import { seatForensics } from '../lib/seatForensics.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ask-unanswered-'))
@@ -115,6 +116,7 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   } catch (error) {
     console.log(`  [door] ${error instanceof Error ? error.message : String(error)}`)
     if (proc.pid !== undefined) console.log(`  [door] ${seatState(proc.pid)}`)
+    if (proc.pid !== undefined && proc.exitCode === null) console.log(`  [door] ${seatForensics(proc.pid)}`)
     const tail = existsSync(seatLog) ? readFileSync(seatLog, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-25).join('\n    ') : '(no seat log)'
     console.log(`  [door] the seat's own log (last lines):\n    ${tail}`)
   }

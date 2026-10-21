@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
+import { seatForensics } from '../lib/seatForensics.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'unattended-ask-')))
@@ -56,6 +57,10 @@ const guard = setTimeout(() => {
   const ps = spawnSync('ps', ['-eo', 'pid,ppid,etime,stat,args'], { encoding: 'utf8' })
   const ours = (ps.stdout ?? '').split('\n').filter(l => /launcher\.ts|mercury|bun/.test(l) && !/ps -eo/.test(l)).map(l => l.slice(0, 200))
   console.log(`  processes:\n    ${ours.join('\n    ') || '(none)'}`)
+  for (const line of ours.filter(l => /launcher\.ts/.test(l))) {
+    const pid = Number(line.trim().split(/\s+/)[0])
+    if (Number.isFinite(pid) && pid !== process.pid) console.log(`  ${seatForensics(pid)}`)
+  }
   process.exit(1)
 }, WALL_S * 1000)
 guard.unref?.()
