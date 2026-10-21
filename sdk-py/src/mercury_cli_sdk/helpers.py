@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import base64
+from pathlib import Path
 import inspect
 import json
 import secrets
@@ -9,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Annotated, Any, Awaitable, Callable, Literal, Mapping, NotRequired, Required, TypedDict, Union, get_args, get_origin, get_type_hints, is_typeddict, cast
 from types import UnionType
 from .parse import validate
-from .generated import PermissionMode, EffortLevel
+from .generated import InputBlock, PermissionMode, EffortLevel
 from .version import __version__
 
 
@@ -193,3 +195,11 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
     thread.start()
     config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}
     return ToolServer(config, json.dumps({'mcpServers': {name: config}}), server, thread, pending)
+
+
+def text_block(text: str) -> InputBlock:
+    return {'type': 'text', 'text': text}
+
+
+def image_block(data: bytes | Path | str, media_type: str) -> InputBlock:
+    return {'type': 'image', 'media_type': media_type, 'data': data if isinstance(data, str) else base64.b64encode(data.read_bytes() if isinstance(data, Path) else data).decode('ascii')}

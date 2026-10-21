@@ -6,10 +6,12 @@ import os
 import signal
 import uuid
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable, AsyncIterator, Literal, cast
+from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypeVar, cast, overload
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
-from .generated import InputRow, OutcomeRow, SessionRow, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
+from .generated import InputRow, OutcomeRow, SessionRow, TypedOutcome, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
 from .framing import read_lines
+from .executable import executable_of
+from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
 from .parse import Issue, StreamRow, parse_row, input_row_of
 
@@ -19,14 +21,19 @@ Listener = Callable[[Any], object]
 @dataclass
 class RunOptions:
     """Everything ``run()`` and ``connect()`` accept; each field is one ``mercury run`` option (``continue_`` is ``--continue``)."""
+    worktree: bool | str = False
+    reasoning_mode: Literal['enabled', 'adaptive', 'disabled'] | None = None
+    brief_file: str | None = None
+    brief_add_file: str | None = None
+    debug: bool | str = False
     checkpoint_files: bool | None = None
     replay_to: str | None = None
     restore_files: str | None = None
     tools: list[ToolDefinition] = field(default_factory=list)
     auto_allow_tools: bool = True
-    prompt: str | None = None
+    prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None
     cancel: asyncio.Event | None = None
-    mercury: str | list[str] = 'mercury'
+    mercury: str | list[str] | None = None
     cwd: str | None = None
     env: dict[str, str] | None = None
     input: Literal['rows'] | None = None
@@ -47,7 +54,7 @@ class RunOptions:
     only_mcp: bool = False
     brief: str | None = None
     brief_add: str | None = None
-    schema: str | dict[str, Any] | None = None
+    schema: str | dict[str, Any] | StructuredSchema[Any] | None = None
     max_turns: int | None = None
     max_time: str | None = None
     budget_usd: float | None = None
@@ -69,13 +76,13 @@ class RunOptions:
     extra_args: list[str] = field(default_factory=list)
 
 
-def argv_of(options: RunOptions) -> list[str]:
+def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list[str]:
     """The exact command line ``run()`` would start for these options."""
-    args = [options.mercury] if isinstance(options.mercury, str) else list(options.mercury)
-    if not args or not args[0]: raise MercuryError('the mercury executable is empty')
+    if options.prompt is not None and not isinstance(options.prompt, str): options = replace(options, input='rows')
+    args = executable_of(options.mercury, options.env, options.cwd)
     if options.project is not None: args += ['--project', options.project]
-    args += ['run', '--format', 'rows']
-    values = ['model', 'effort', 'mode', 'agent', 'backup_model', 'brief', 'brief_add', 'max_turns', 'max_time', 'session_id', 'title', 'resume', 'log_file', 'input', 'replay_to', 'restore_files']
+    args += ['run', '--format', 'rows'] if door == 'run' else ['runner']
+    values = ['model', 'effort', 'mode', 'agent', 'backup_model', 'brief', 'brief_add', 'max_turns', 'max_time', 'session_id', 'title', 'resume', 'log_file', 'input', 'replay_to', 'restore_files', 'reasoning_mode', 'brief_file', 'brief_add_file']
     for name in values:
         value = getattr(options, name)
         if value is not None: args += ['--' + name.replace('_', '-'), str(value)]
@@ -86,11 +93,16 @@ def argv_of(options: RunOptions) -> list[str]:
         if getattr(options, name): args += ['--' + name.replace('_', '-'), *getattr(options, name)]
     for name in ['schema', 'config', 'agent_defs']:
         value = getattr(options, name)
+        if name == 'schema' and value is not None: value = schema_object(value, options.cwd)
         if value is not None: args += ['--' + name.replace('_', '-'), value if isinstance(value, str) else json.dumps(value)]
     if options.config_layers is not None: args += ['--config-layers', ','.join(options.config_layers)]
     for extension in options.extensions: args += ['--extension', extension]
+    for name in ['worktree', 'debug']:
+        value = getattr(options, name)
+        if value is True: args.append('--' + name)
+        elif isinstance(value, str): args += ['--' + name, value]
     args += options.extra_args
-    if options.prompt is not None: args += ['--', options.prompt]
+    if isinstance(options.prompt, str): args += ['--', options.prompt]
     return args
 
 
@@ -154,6 +166,7 @@ class MercuryRun:
         for future in (self.outcome, self.session): future.add_done_callback(lambda f: None if f.cancelled() else f.exception())
         self._listeners: dict[str, list[Listener]] = {}
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
+        self._input_task: asyncio.Task[None] | None = None
         self._reader = asyncio.create_task(self._read())
         self._cancel_task = asyncio.create_task(self._watch_cancel(options.cancel)) if options.cancel is not None else None
 
@@ -205,6 +218,9 @@ class MercuryRun:
         if self.error is None:
             if last and last['status'] == 'refused': self.error = MercuryRefusal(last, exit)
             elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit)
+        if self.error is None and last is not None:
+            try: last = validate_outcome(last, self.options.schema, self.options.cwd)
+            except Exception as error: self.error = error if isinstance(error, MercuryError) else MercuryError(str(error), exit)
         if self.error:
             self.error.exit = exit
             self.outcome.set_exception(self.error)
@@ -216,8 +232,26 @@ class MercuryRun:
             if not self.session.done(): self.session.set_exception(MercuryExitError(exit))
         self.exit.set_result(exit)
         if self._cancel_task: self._cancel_task.cancel()
+        if self._input_task: self._input_task.cancel()
         self._queue.put_nowait(None)
         self._emit('end', exit)
+
+    async def _feed(self, prompt: list[InputBlock] | AsyncIterable[str | InputRow]) -> None:
+        try:
+            if isinstance(prompt, list): await self.send_prompt(prompt)
+            else:
+                async for row in prompt:
+                    if self.exit.done(): break
+                    await self.send({'type': 'prompt', 'content': row} if isinstance(row, str) else row)
+            self.close_input()
+        except asyncio.CancelledError: raise
+        except Exception as error:
+            if not self.exit.done():
+                self.error = error if isinstance(error, MercuryError) else MercuryError(str(error))
+                await end_child(self.child)
+        finally:
+            close = getattr(prompt, 'aclose', None)
+            if close is not None: await close()
 
     async def send(self, row: InputRow) -> None:
         """Write one input row to a run started with ``input='rows'``."""
@@ -283,25 +317,41 @@ class MercuryRun:
         return row
 
 
-async def run(prompt: str | None = None, *, options: RunOptions | None = None, **kwargs: Any) -> MercuryRun:
+T = TypeVar('T')
+
+
+class TypedRun(MercuryRun, Generic[T]):
+    outcome: asyncio.Future[TypedOutcome[T]]
+
+    async def __aenter__(self) -> TypedRun[T]: return self
+
+
+@overload
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[T], options: RunOptions | None = None, **kwargs: Any) -> TypedRun[T]: ...
+@overload
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, options: RunOptions | None = None, **kwargs: Any) -> MercuryRun: ...
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, options: RunOptions | None = None, **kwargs: Any) -> MercuryRun:
     """Start ``mercury run`` for a prompt (or ``input='rows'`` for streamed input) and return its handle once the process has started."""
     overrides = dict(kwargs)
     if prompt is not None: overrides['prompt'] = prompt
     opts = replace(options, **overrides) if options is not None else RunOptions(**overrides)
+    if opts.prompt is not None and not isinstance(opts.prompt, str): opts = replace(opts, input='rows')
     if opts.input not in (None, 'rows'): raise MercuryError('input must be rows')
     if opts.input == 'rows' and opts.stdin is not None: raise MercuryError('stdin text cannot be combined with input rows')
     opts = checkpoint_options(opts)
+    if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
     opts, tools = await prepare_tools(opts)
     try: child = await spawn(argv_of(opts), opts)
     except BaseException:
         if tools: await tools.close()
         raise
     assert child.stdin is not None
-    handle = MercuryRun(child, opts, tools)
+    handle = TypedRun[Any](child, opts, tools)
     if opts.stdin is not None:
         child.stdin.write(opts.stdin.encode())
         await child.stdin.drain()
     if opts.input != 'rows': child.stdin.close()
+    if opts.prompt is not None and not isinstance(opts.prompt, str): handle._input_task = asyncio.create_task(handle._feed(opts.prompt))
     return handle
 
 
@@ -311,7 +361,7 @@ async def prepare_tools(options: RunOptions) -> tuple[RunOptions, ToolServer | N
     names = [f'mcp__sdk-tools__{tool.name}' for tool in options.tools]
     agents = options.agent_defs
     if options.auto_allow_tools and agents is not None:
-        agents = {name: {**agent, 'tools': list(dict.fromkeys([*agent.get('tools', []), *names]))} if isinstance(agent, dict) else agent for name, agent in agents.items()}
+        agents = {name: {**agent, 'tools': list(dict.fromkeys([*agent.get('tools', []), *names]))} if isinstance(agent, dict) and isinstance(agent.get('tools'), list) else agent for name, agent in agents.items()}
     return replace(options, mcp=[*options.mcp, server.mcp], allowed_tools=list(dict.fromkeys([*options.allowed_tools, *names])) if options.auto_allow_tools else list(options.allowed_tools), agent_defs=agents), server
 
 

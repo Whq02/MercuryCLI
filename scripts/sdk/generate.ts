@@ -28,7 +28,7 @@ const ROW = {
   assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts`,
+  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }
@@ -320,8 +320,8 @@ rows.push('  maximum?: number')
 for (const key of ['exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength']) rows.push(`  ${key}?: number`)
 rows.push('}')
 for (const [, entry] of named) {
-  const body = typeOf(entry.schema, '', true)
-  if (entry.schema.type === 'object' && entry.schema.properties !== undefined) rows.push(`export interface ${entry.typeName} ${body}`)
+  const body = typeOf(entry.schema, '', true).replace(entry.typeName === 'OutcomeRow' ? 'structured?: unknown' : '\0', 'structured?: T')
+  if (entry.schema.type === 'object' && entry.schema.properties !== undefined) rows.push(`export interface ${entry.typeName}${entry.typeName === 'OutcomeRow' ? '<T = unknown>' : ''} ${body}`)
   else rows.push(`export type ${entry.typeName} = ${body}`)
 }
 rows.push(`export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>> = {`)
@@ -365,12 +365,12 @@ const methodSchemas = Object.fromEntries(Object.entries(wireSource.METHODS).map(
   params: jsonSchemaOf(spec.params, `${name}.params`), result: jsonSchemaOf(spec.result, `${name}.result`),
 }]))
 const resultShapes = await resultSchemas(ROOT)
-for (const [method, schema] of Object.entries(resultShapes)) { audit(schema, method); methodSchemas[method]!.result = schema }
+for (const [method, schema] of Object.entries(resultShapes)) audit(schema, method)
 const wire = [`export const WIRE_GENERATED = '${MARK}'`, `export const WIRE_GENERATED_FROM = [${[WIRE, ERRORS, VOCABULARY, ...RESULT_SOURCES].map(literal).join(', ')}] as const`, "import type * as Rows from './rows.js'", "import type { JsonSchema } from './rows.js'", `export const RUNNER_PROTOCOL = ${wireSource.RUNNER_PROTOCOL} as const`]
 for (const [name, value] of Object.entries(wireErrors)) if (/^(RPC_\w+|BAD_LINE_LIMIT|MAX_LINE_BYTES|REFUSAL_KINDS)$/.test(name) && typeof value !== 'function') wire.push(`export const ${name} = ${JSON.stringify(value)} as const`)
 const rowRefs = new Set([...named.values()].map(e => e.typeName))
 const wireType = (schema: Schema): string => typeOf(schema, '', true).replace(/\b[A-Za-z]\w*\b/g, word => rowRefs.has(word) ? `Rows.${word}` : word)
-for (const method of Object.keys(resultShapes)) wire.push(`export type ${method.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('')}Result = ${wireType(methodSchemas[method]!.result)}`)
+for (const method of Object.keys(resultShapes)) wire.push(`export type ${method.split('/').map(s => s[0]!.toUpperCase() + s.slice(1)).join('')}Result = ${wireType(resultShapes[method]!)}`)
 wire.push('export interface MethodParams {')
 for (const [name, spec] of Object.entries(methodSchemas)) wire.push(`  ${JSON.stringify(name)}: ${wireType(spec.params)}`)
 wire.push('}', 'export interface MethodResults {')
@@ -379,7 +379,7 @@ wire.push('}', 'export type MethodName = keyof MethodParams', 'export type Param
 for (const [alias, side, kind] of [['HostRequestName', 'host', 'request'], ['HostNotificationName', 'host', 'notification'], ['RunnerRequestName', 'runner', 'request'], ['RunnerNotificationName', 'runner', 'notification']]) wire.push(`export type ${alias} = ${Object.entries(methodSchemas).filter(([, s]) => (s.from === side || s.from === 'both') && s.kind === kind).map(([n]) => JSON.stringify(n)).join(' | ')}`)
 wire.push('export type MethodSchema = { from: string; kind: string; scope: string; deadlineMs: number | null; capability?: string; params: JsonSchema; result: JsonSchema }')
 wire.push(`export const METHODS: Record<MethodName, MethodSchema> = ${JSON.stringify(methodSchemas, null, 2)}`, '')
-const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Literal, NotRequired, TypeAlias, TypedDict, overload', '']
+const py = ['from __future__ import annotations', 'import json', 'from typing import Any, Callable, Generic, Literal, NotRequired, TypeAlias, TypeVar, TypedDict, overload', '']
 py.push(`GENERATED = ${JSON.stringify(MARK)}`, `GENERATED_BY = ${JSON.stringify(GENERATOR)}`, `GENERATED_FROM = ${JSON.stringify([VOCABULARY, WIRE, ERRORS, PERMISSIONS, EFFORT, MAIN, ...RESULT_SOURCES])}`, '')
 const pyNames: string[] = ['GENERATED', 'GENERATED_BY', 'GENERATED_FROM']
 const pyLit = (value: unknown): string => value === null ? 'None' : value === true ? 'True' : value === false ? 'False' : JSON.stringify(value)
@@ -410,12 +410,22 @@ function pyType(schema: Schema, name: string, top = false): string {
   return name
 }
 for (const [, entry] of named) {
+  if (entry.typeName === 'OutcomeRow') {
+    const required = new Set(entry.schema.required as string[])
+    const fields = Object.entries(entry.schema.properties as Record<string, Schema>).map(([key, value]) => {
+      const t = key === 'structured' ? '_Structured' : pyType(value, 'OutcomeRow' + key.replace(/[^a-z0-9]/gi, '_').replace(/^./, c => c.toUpperCase()))
+      return '    ' + key + ': ' + (required.has(key) ? t : 'NotRequired[' + t + ']')
+    })
+    py.push("_Structured = TypeVar('_Structured')", 'class TypedOutcome(TypedDict, Generic[_Structured]):', ...fields, '', 'OutcomeRow: TypeAlias = TypedOutcome[Any]', '')
+    pyNames.push('TypedOutcome', 'OutcomeRow')
+    continue
+  }
   const t = pyType(entry.schema, entry.typeName, true)
   if (t !== entry.typeName) { py.push(`${entry.typeName}: TypeAlias = ${t}`, ''); pyNames.push(entry.typeName) }
 }
 for (const [method, spec] of Object.entries(methodSchemas)) {
   const prefix = method.replace(/[^a-z0-9]+/gi, '_').split('_').filter(Boolean).map(s => s[0]!.toUpperCase() + s.slice(1)).join('')
-  for (const [suffix, schema] of [['Params', spec.params], ['Result', spec.result]] as const) {
+  for (const [suffix, schema] of [['Params', spec.params], ['Result', resultShapes[method] ?? spec.result]] as const) {
     const name = prefix + suffix
     const t = pyType(schema, name, true)
     if (t !== name) { py.push(`${name}: TypeAlias = ${t}`, ''); pyNames.push(name) }
@@ -453,7 +463,12 @@ py.push('    @overload', '    async def notify(self, method: str, params: Any = 
 py.push('    async def notify(self, method: str, params: Any = None) -> None:', '        await self._notify(method, params)', '')
 py.push('    async def _request(self, method: str, params: Any, *, timeout: float | None | DefaultTimeout) -> Any:', '        raise NotImplementedError', '')
 py.push('    async def _notify(self, method: str, params: Any) -> None:', '        raise NotImplementedError', '')
-pyNames.push('DefaultTimeout', 'DEFAULT_TIMEOUT', 'TypedRequests')
+py.push('', 'class TypedSyncRequests:', '    def __init__(self, request: Callable[..., Any], notify: Callable[..., None]):', '        self._sync_request = request', '        self._sync_notify = notify', '')
+for (const method of methodsOf('host', 'request')) py.push('    @overload', '    def request(self, method: Literal[' + pyLit(method) + '], params: ' + pyPrefix(method) + 'Params' + (optionalParams(method) ? ' | None = None' : '') + ', *, timeout: float | None | DefaultTimeout = ...) -> ' + pyPrefix(method) + 'Result: ...')
+py.push('    @overload', '    def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = ...) -> Any: ...', '    def request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:', '        return self._sync_request(method, params, timeout=timeout)', '')
+for (const method of methodsOf('host', 'notification')) py.push('    @overload', '    def notify(self, method: Literal[' + pyLit(method) + '], params: ' + pyPrefix(method) + 'Params' + (optionalParams(method) ? ' | None = None' : '') + ') -> None: ...')
+py.push('    @overload', '    def notify(self, method: str, params: Any = None) -> None: ...', '    def notify(self, method: str, params: Any = None) -> None:', '        self._sync_notify(method, params)', '')
+pyNames.push('DefaultTimeout', 'DEFAULT_TIMEOUT', 'TypedRequests', 'TypedSyncRequests')
 py.push(`__all__ = ${JSON.stringify([...pyNames, ...Object.keys(pyData)])}`, '')
 
 const outputs: Array<[string, string]> = [

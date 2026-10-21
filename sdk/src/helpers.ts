@@ -1,8 +1,9 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import type { EffortLevel, PermissionMode } from './door.js'
-import type { JsonSchema } from './rows.js'
+import type { InputBlock, JsonSchema } from './rows.js'
 import type { RunOptions } from './client.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
@@ -75,7 +76,12 @@ export function withTools<T extends RunOptions>(options: T, server: ToolServer):
   const agentDefs = options.agentDefs === undefined ? undefined : Object.fromEntries(Object.entries(options.agentDefs).map(([name, definition]) => {
     if (options.autoAllowTools === false || typeof definition !== 'object' || definition === null) return [name, definition]
     const agent = definition as Record<string, unknown>
-    return [name, { ...agent, tools: [...new Set([...(Array.isArray(agent.tools) ? agent.tools : []), ...names])] }]
+    return [name, Array.isArray(agent.tools) ? { ...agent, tools: [...new Set([...agent.tools, ...names])] } : { ...agent }]
   }))
   return { ...options, mcp: [...(options.mcp ?? []), server.mcp], allowedTools, agentDefs }
+}
+
+export function textBlock(text: string): Extract<InputBlock, { type: 'text' }> { return { type: 'text', text } }
+export function imageBlock(data: Uint8Array | { path: string } | string, mediaType: string): Extract<InputBlock, { type: 'image' }> {
+  return { type: 'image', media_type: mediaType, data: typeof data === 'string' ? data : Buffer.from('path' in data ? readFileSync(data.path) : data).toString('base64') }
 }

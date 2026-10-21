@@ -6,11 +6,14 @@ import signal
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, cast
+from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, cast, overload
 from .client import Listener, RunOptions, argv_of, checkpoint_options, end_child, prepare_tools, spawn, untrack
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
-from .generated import FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
+from .generated import TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
+from .structured import StructuredSchema, schema_object, validate_outcome
+
+T = TypeVar('T')
 from .helpers import ToolServer
 from .parse import Issue, StreamRow, row_of, input_row_of, validate
 from .version import __version__
@@ -37,7 +40,8 @@ class MercurySession(TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
     ``request(method, params, timeout=...)`` and ``notify(method, params)`` are typed per method by the generated overloads."""
-    def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler], tools: ToolServer | None = None):
+    def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler], tools: ToolServer | None = None, options: RunOptions | None = None):
+        self.options = options or RunOptions()
         self._tools = tools
         self.child = child
         assert child.stdin is not None and child.stdout is not None and child.stderr is not None
@@ -251,13 +255,20 @@ class MercurySession(TypedRequests):
     async def send_prompt(self, content: Any, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
 
+    async def steer(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='now')
+    async def follow_up(self, content: Any) -> QueueAddResult: return await self.send_prompt(content, priority='later')
+
     async def send_shell(self, command: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'shell', 'command': command}))
 
     async def send_note(self, to: str, content: str, **options: Any) -> QueueAddResult:
         return await self.send(cast(InputRow, {**options, 'type': 'note', 'to': to, 'content': content}))
 
-    async def prompt(self, content: Any) -> OutcomeRow:
+    @overload
+    async def prompt(self, content: Any, *, schema: StructuredSchema[T]) -> TypedOutcome[T]: ...
+    @overload
+    async def prompt(self, content: Any, *, schema: str | dict[str, Any] | None = None) -> OutcomeRow: ...
+    async def prompt(self, content: Any, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None) -> OutcomeRow:
         """Queue a prompt and await the outcome of the turn it starts; cancelling the await stops waiting, not the turn."""
         if self._prompting: raise MercuryError('prompt already pending; use send_prompt for mid-turn input')
         self._prompting = True
@@ -276,7 +287,7 @@ class MercurySession(TypedRequests):
             if not receipt['accepted']: raise MercuryError('prompt was not accepted')
             row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
-            return row
+            return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
         finally:
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
@@ -284,7 +295,9 @@ class MercurySession(TypedRequests):
             self._prompting = False
 
     async def facts(self) -> SessionFactsResult: return await self.request('session/facts')
-    async def interrupt(self, **options: Any) -> TurnInterruptResult: return await self.request('turn/interrupt', options)
+    async def interrupt(self, **options: Any) -> TurnInterruptResult:
+        if self._tools: self._tools.cancel()
+        return await self.request('turn/interrupt', options)
     async def withdraw(self, id: str) -> QueueWithdrawResult: return await self.request('queue/withdraw', {'id': id})
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})
@@ -298,6 +311,7 @@ class MercurySession(TypedRequests):
     async def close(self) -> None:
         """End stdin and wait for the runner to exit; SIGTERM after five seconds, SIGKILL after ten."""
         self._closing = True
+        if self._tools: self._tools.cancel()
         self._stdin.close()
         try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
         except asyncio.TimeoutError:
@@ -326,10 +340,9 @@ async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler 
     opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
     if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
     opts = checkpoint_options(replace(opts, checkpoint_files=True if opts.checkpoint_files is None else opts.checkpoint_files), warm)
+    if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
     opts, tools = await prepare_tools(opts)
-    args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None))
-    i = (1 if isinstance(opts.mercury, str) else len(opts.mercury)) + (2 if opts.project is not None else 0)
-    args[i:i + 3] = ['runner']
+    args = argv_of(replace(opts, partial=False, prompt=None, input=None, stdin=None), 'runner')
     callbacks: dict[str, HostHandler] = dict(handlers or {})
     if on_permission_request: callbacks['permission/request'] = on_permission_request
     if on_elicitation: callbacks['elicitation/request'] = on_elicitation
@@ -339,7 +352,7 @@ async def connect(*, warm: bool = False, on_read_text_file: ReadTextFileHandler 
     except BaseException:
         if tools: await tools.close()
         raise
-    session = MercurySession(child, callbacks, tools)
+    session = MercurySession(child, callbacks, tools, opts)
     try:
         declared: InitializeParamsCapabilities = {'holds_asks': 'permission/request' in callbacks, 'elicitation': 'elicitation/request' in callbacks, 'partial_rows': opts.partial, 'fs_read_text_file': 'fs/read_text_file' in callbacks, 'fs_write_text_file': 'fs/write_text_file' in callbacks, 'terminal': all(name in callbacks for name in ('terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'))}
         session.initialized = await session.request('initialize', {'protocol': RUNNER_PROTOCOL, 'host': host or {'name': 'mercury-cli-sdk', 'version': __version__}, 'capabilities': {**declared, **(capabilities or {})}})

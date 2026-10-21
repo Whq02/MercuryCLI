@@ -10,6 +10,7 @@ import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
 import { validate } from './validate.js'
 import { VERSION } from './version.js'
+import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolServer } from './helpers.js'
 
 export type RequestContext = { signal: AbortSignal; id: number }
@@ -25,7 +26,7 @@ export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'i
   onWriteTextFile?: HostHandlers['fs/write_text_file']
 }
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
-export type PromptOptions = { signal?: AbortSignal }
+export type PromptOptions<T = unknown> = { signal?: AbortSignal; schema?: OutputSchema<T> }
 type Pending = { method: HostRequestName; resolve: (value: unknown) => void; reject: (error: Error) => void; cleanup: () => void }
 
 export class MercurySession implements AsyncIterable<StreamRow> {
@@ -51,13 +52,12 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #normalEnd = false
   #promptReject: ((error: Error) => void) | undefined
 
-  constructor(options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
+  constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
     options = checkpointOptions({ ...options, checkpointFiles: options.checkpointFiles ?? true }, options.warm)
-    const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined })
-    const lead = Array.isArray(options.mercury) ? options.mercury.length - 1 : 0
-    const door = lead + (options.project !== undefined ? 2 : 0)
-    argv.args.splice(door, 3, 'runner')
+    if (options.schema !== undefined && !(options.schema instanceof StructuredSchema)) options = { ...options, schema: schemaObject(options.schema, options.cwd) }
+    this.options = options
+    const argv = argvOf({ ...options, partial: false, prompt: undefined, input: undefined, stdin: undefined }, 'runner')
     this.#handlers = { ...options.handlers }
     if (options.onPermissionRequest) this.#handlers['permission/request'] = options.onPermissionRequest
     if (options.onElicitation) this.#handlers['elicitation/request'] = options.onElicitation
@@ -241,6 +241,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     }
   }
   sendPrompt(content: PromptRow['content'], options: Omit<PromptRow, 'type' | 'content'> = {}) { return this.send({ ...options, type: 'prompt', content }) }
+  steer(content: PromptRow['content']) { return this.sendPrompt(content, { priority: 'now' }) }
+  followUp(content: PromptRow['content']) { return this.sendPrompt(content, { priority: 'later' }) }
   sendShell(command: string, options: Omit<ShellRow, 'type' | 'command'> = {}) { return this.send({ ...options, type: 'shell', command }) }
   sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
   withdraw(id: string) { return this.request('queue/withdraw', { id }) }
@@ -255,7 +257,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   resumeAgent(agent_id: string, note?: string) { return this.request('agent/resume', { agent_id, note }) }
   claim(params: ParamsOf<'session/claim'>) { return this.request('session/claim', params) }
 
-  async prompt(content: PromptRow['content'], options: PromptOptions = {}): Promise<OutcomeRow> {
+  async prompt<T = unknown>(content: PromptRow['content'], options: PromptOptions<T> = {}): Promise<OutcomeRow<T>> {
     if (this.#prompting) throw new MercuryError('prompt already pending; use sendPrompt for mid-turn input', null)
     if (options.signal?.aborted) throw new MercuryError('prompt: cancelled', null)
     this.#prompting = true
@@ -274,12 +276,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
       const row = await result
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
-      return row
+      return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally { options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false }
   }
 
   close(): Promise<void> {
     this.#closing = true
+    this.toolServer?.cancel()
     return endChild(this.child, this.exit)
   }
   async [Symbol.asyncDispose](): Promise<void> { await this.close() }
