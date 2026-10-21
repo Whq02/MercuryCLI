@@ -9,6 +9,12 @@ export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8
 
 export const SETTINGS_POPUP_COMPACT_HINT = 'esc closes'
 
+const SETTINGS_POPUP_MOUSE_CLAUSE = ' or click outside closes'
+
+export function settingsPopupHintText(hint: string, inner: number): string {
+  return hint.length > inner + 1 && hint.endsWith(SETTINGS_POPUP_MOUSE_CLAUSE) ? hint.slice(0, -SETTINGS_POPUP_MOUSE_CLAUSE.length) + ' closes' : hint
+}
+
 export function settingsPopupCompact(fullBodyRows: number): boolean {
   return fullBodyRows < SETTINGS_POPUP_COMPACT_BELOW_ROWS
 }

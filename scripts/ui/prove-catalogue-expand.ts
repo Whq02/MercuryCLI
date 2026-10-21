@@ -54,6 +54,7 @@ if (process.argv[2] === '--compose') {
   const orSnapshot = await or.refreshOpenrouterCatalogue('env', { force: true })
   const hfSnapshot = await hf.refreshHuggingfaceCatalogue({ force: true })
   const { getModelOptions, ANTHROPIC_MODEL_GROUP, applyModelAllowlist, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+  const { hostRunModelRows } = await import('../../src/services/host/door.ts')
   const picker = await import('../../src/utils/model/modelPickerGroups.ts')
   const options = getModelOptions()
   const orDoor = options.findIndex(o => o.value === or.OPENROUTER_EXPAND_OPTION_VALUE)
@@ -78,7 +79,7 @@ if (process.argv[2] === '--compose') {
   const served = getEngineModel()
   const seatFamily = providerFamilyOfSetting(served)
   const seatGroup = rows.find(row => row.id === served)?.group ?? (seatFamily === 'openrouter' ? or.OPENROUTER_MODEL_GROUP : seatFamily === 'huggingface' ? hf.HUGGINGFACE_MODEL_GROUP : ANTHROPIC_MODEL_GROUP)
-  const groups = picker.orderPickerGroups(picker.groupPickerRows(rows), { top: seatGroup })
+  const groups = [...picker.orderPickerGroups(picker.groupPickerRows(rows), { top: seatGroup }), ...picker.groupPickerRows(hostRunModelRows())]
   const folds = picker.initialPickerFolds(groups, seatGroup, served)
   const stops = picker.composePickerLines(groups, folds, '', () => undefined).filter(line => picker.isCursorStop(line))
   const stopOf = (group: string | undefined): number => stops.findIndex(line => line.kind === 'heading' && line.group === group)

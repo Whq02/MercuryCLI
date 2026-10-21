@@ -104,8 +104,8 @@ console.log('§6 PD-9 — inline model picker: keys advertised')
 {
   const picker = read('src/components/ModelPicker.tsx')
   check('POISON: the bare inline return (no guide) is gone', !/if \(!isStandaloneCommand\) return body/.test(picker))
-  check("the inline guide prints 'enter confirm · esc close' under the press-again gate", picker.includes("'enter confirm · esc close'") && /if \(!isStandaloneCommand\) \{[^]{0,600}exitState\.pending/.test(picker))
-  check('the standalone keeps its own line', picker.includes("'enter confirm · esc exit'"))
+  check("the inline guide prints '↑↓ move · pgup/pgdn page · ↵ confirm · esc close' under the press-again gate", picker.includes("'↑↓ move · pgup/pgdn page · ↵ confirm · esc close'") && /if \(!isStandaloneCommand\) \{[^]{0,600}exitState\.pending/.test(picker))
+  check('the standalone keeps its own line (esc exit)', picker.includes("'↑↓ move · pgup/pgdn page · ↵ confirm · esc exit'"))
 }
 
 console.log('§7 PD-5 — the more-below count rides the painted window')

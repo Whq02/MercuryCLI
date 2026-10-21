@@ -133,7 +133,12 @@ function hasBinding(text: string, token: string, file: string): boolean {
   const decodedNames = [...text.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*decodeNavKey\(/g)].map(match => match[1]!)
   const acts = (name: string): boolean =>
     decodedNames.some(variable => new RegExp(`\\b${variable.replaceAll('$', '\\$')}\\s*===\\s*['\"]${name}['\"]`).test(text))
-  const isFrameworkSelf = /(components|NavigablePanes|useFlatList)\.tsx?$/.test(file)
+  const isFrameworkSelf = /(components|NavigablePanes|useFlatList|popup-list)\.tsx?$/.test(file)
+  const usesPopupListNavigation = /usePopupListNavigation\(/.test(text) || /popupListMotion\(/.test(text)
+  const usesPopupListPaging = usesPopupListNavigation || /usePopupListPaging\(/.test(text)
+  const rendersSelect = /<Select(Multi)?[\s\n]/.test(text)
+  const hintsThroughSettingsShell = /[Ff]rame\??\.setHint\(/.test(text)
+  const underTabHeader = /useTabHeaderFocus\(/.test(text)
   switch (token) {
     case 'esc':
       return (
@@ -145,6 +150,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
         rendersNavPanes ||
         usesFlatList ||
         usesSpecimenNav ||
+        hintsThroughSettingsShell ||
         isFrameworkSelf
       )
     case 'enter':
@@ -154,6 +160,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
         text.includes("key: 'return'") ||
         /onSubmit=\{/.test(text) ||
         rendersNavPanes ||
+        rendersSelect ||
         usesFlatList ||
         isFrameworkSelf
       )
@@ -166,6 +173,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
         rendersCommandCenter ||
         rendersNavPanes ||
         usesFlatList ||
+        underTabHeader ||
         isFrameworkSelf
       )
     case 'arrows-ud':
@@ -173,12 +181,22 @@ function hasBinding(text: string, token: string, file: string): boolean {
         acts('movePrevious') || acts('moveNext') ||
         /key\.(upArrow|downArrow)/.test(text) ||
         rendersNavPanes ||
+        rendersSelect ||
         usesFlatList ||
         usesSpecimenNav ||
+        usesPopupListNavigation ||
         isFrameworkSelf
       )
     case 'paging':
-      return acts('pagePrevious') || acts('pageNext') || /key\.(pageUp|pageDown)/.test(text) || isFrameworkSelf
+      return (
+        acts('pagePrevious') || acts('pageNext') ||
+        /key\.(pageUp|pageDown)/.test(text) ||
+        rendersCommandCenter ||
+        rendersSelect ||
+        usesSpecimenNav ||
+        usesPopupListPaging ||
+        isFrameworkSelf
+      )
     case 'plusminus':
       return /['"][+\-]['"]/.test(text) || rendersNavPanes || isFrameworkSelf
     default: {

@@ -424,8 +424,9 @@ export function Select<T = string>({
             : undefined
         const dimDescription = option.dimDescription !== false
 
+        const yields = fit || layout !== 'compact' || description === undefined
         const labelNode = (
-          <Box flexShrink={fit ? 1 : 0} minWidth={fit ? 0 : undefined} {...(singleLine ? { height: 1, overflow: 'hidden' as const } : {})}>
+          <Box flexShrink={yields ? 1 : 0} minWidth={yields ? 0 : undefined} {...(singleLine ? { height: 1, overflow: 'hidden' as const } : {})}>
             <Text color={stateColor} dimColor={option.disabled} {...(singleLine ? { wrap: 'truncate-end' as const } : {})}>
               {prefix}
               {renderLabel(option.label, highlightText)}

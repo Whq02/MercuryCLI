@@ -183,6 +183,7 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
   }
   let allBounds = true
   let allCounts = true
+  let countDetail = ''
   let allSteps = true
   let consumed = true
   let reached = false
@@ -192,11 +193,15 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
     const sections = board.sizes()
     const viewport = board.viewport()
     const visible = sections.filter(section => section.y < viewport.clip && section.y + section.height > 0)
+    const above = sections.filter(section => section.y + section.height <= 0)
     const below = sections.filter(section => section.y >= viewport.clip)
-    const more = below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''
+    const more = [above.length ? `↑ ${above.length} more` : '', below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''].filter(Boolean).join(' · ')
     const lines = frame.split('\n')
     allBounds &&= lines.length <= budget && viewport.height <= budget && lines.every(line => stringWidth(line) <= width) && visible.length <= 6
-    allCounts &&= (lines[budget - 1] ?? '').trimEnd() === wrapText(more, width, 'truncate-end')
+    if ((lines[budget - 1] ?? '').trimEnd() !== wrapText(more, width, 'truncate-end')) {
+      allCounts = false
+      if (countDetail === '') countDetail = `step ${step}: painted "${(lines[budget - 1] ?? '').trimEnd()}" expected "${wrapText(more, width, 'truncate-end')}" (sections ${JSON.stringify(sections.map(section => [section.y, section.height]))}, clip ${viewport.clip})`
+    }
     allSteps &&= sections[0]?.y === -expectedStops[step]
     sections.forEach((section, index) => {
       for (let row = 0; row < section.height; row++) if (section.y + row >= 0 && section.y + row < viewport.clip) covered[index]!.add(row)
@@ -209,7 +214,7 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
     consumed &&= await board.key('down')
   }
   check(`${label}: every down-step stays inside both budgets with at most six providers`, allBounds)
-  check(`${label}: the more count and names are exact at every down-step`, allCounts)
+  check(`${label}: the more row counts the providers above and below (never rows), with the names below, exactly at every down-step`, allCounts, countDetail)
   check(`${label}: arrows move by whole bands that fit, otherwise by content rows`, allSteps)
   check(`${label}: the tenth provider is fully on screen`, reached)
   check(`${label}: every content row of every provider was on screen`, covered.every((rows, index) => rows.size === sizes[index]!.height))

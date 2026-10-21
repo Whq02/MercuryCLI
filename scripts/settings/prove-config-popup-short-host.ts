@@ -40,7 +40,7 @@ const SCENES: Scene[] = [
 ]
 const ROW = 'Crewmate default model'
 const TITLE = 'Mercury · config'
-const HINT_TAIL = CONFIG_POPUP_HINT.slice(-26)
+const hintFor = (inner: number): string => store.settingsPopupHintText(CONFIG_POPUP_HINT, inner)
 
 function scaffold(scene: Scene, centreRef: React.RefObject<DOMElement | null>): React.ReactNode {
   const body = scene.rows - scene.bottom
@@ -97,6 +97,7 @@ for (const scene of SCENES) {
   const measured = slot.settingsPopupGeometry(configPopupRequest(context), scene.columns, scene.rows, 0, { top: 0, rows: scene.rows - scene.bottom })
   const compact = (measured.rows ?? 0) - 7 < 8
   const geometry = { ...measured, compact, rowBudget: compact ? Math.max(0, (measured.rows ?? 0) - 3) : measured.rowBudget }
+  const hintText = hintFor(measured.inner)
   console.log(`\n§ ${label(scene)}: /config filtered to one row with a three-line description keeps its title and its ${geometry.compact ? 'folded header' : 'hint row'}`)
   check(`${label(scene)}: the host folds below eight full-layout body rows and hands the body ${geometry.rowBudget} rows`, measured.compact === compact && measured.rowBudget === geometry.rowBudget, JSON.stringify(measured))
   const centreRef = React.createRef<DOMElement>()
@@ -105,14 +106,14 @@ for (const scene of SCENES) {
   check(`${label(scene)}: the scaffold painted and held still`, up)
   const request = configPopupRequest(context)
   store.openSettingsPopup(request)
-  const opened = (await waitFor(() => m.screen().includes(TITLE) && (geometry.compact ? m.screen().includes(COMPACT_HEADER) : m.screen().includes(HINT_TAIL)), 4000)) && (await holdsStill(m, 2, 2000))
+  const opened = (await waitFor(() => m.screen().includes(TITLE) && (geometry.compact ? m.screen().includes(COMPACT_HEADER) : m.screen().includes(hintText)), 4000)) && (await holdsStill(m, 2, 2000))
   check(`${label(scene)}: the popup opened whole at rest, its title and its ${geometry.compact ? 'folded close hint' : 'hint row'} on screen`, opened, m.lines().filter(line => line.trim() !== '').slice(0, 4).join(' | '))
   if (geometry.compact) {
     const opening = m.lines()
     const openFrame = frameOf(opening)
     const bodyRows = openFrame === null ? [] : openFrame.rows.slice(2, -1).map(row => row.slice(1, -1).trim())
     const total = markerOf(opening)?.split(' of ')[1]
-    check(`${label(scene)} compact: the body is setting rows alone, one per line, filling the ${geometry.rowBudget}-row body, with the marker at 1 of the whole list`, bodyRows.length === geometry.rowBudget && bodyRows.every(row => row !== '') && !opening.some(line => line.includes(CONFIG_SEARCH_PLACEHOLDER) || line.includes('↓ ') || line.includes('set by you')) && /^1 of \d\d$/.test(markerOf(opening) ?? ''), `${markerOf(opening)} · ${bodyRows.join(' | ')}`)
+    check(`${label(scene)} compact: the body is setting rows alone, one per line, filling the ${geometry.rowBudget}-row body, with the marker at 1 of the whole list`, bodyRows.length === geometry.rowBudget && bodyRows.every(row => row !== '') && !opening.some(line => line.includes(CONFIG_SEARCH_PLACEHOLDER) || /↓ \d+ more/.test(line) || line.includes('set by you')) && /^1 of \d\d$/.test(markerOf(opening) ?? ''), `${markerOf(opening)} · ${bodyRows.join(' | ')}`)
     for (let step = 0; step < geometry.rowBudget; step++) m.push(KEY.down)
     await settle(200)
     check(`${label(scene)} compact: arrows scroll the rows and the marker follows`, markerOf(m.lines()) === `${geometry.rowBudget + 1} of ${total}` && m.lines().some(line => line.includes(`${CONFIG_ROW_MARK} `)), markerOf(m.lines()))
@@ -130,8 +131,8 @@ for (const scene of SCENES) {
   else check(`${label(scene)}: the filtered row is selected${geometry.rowBudget >= 4 ? ' and its description shows' : ' (a body of ' + geometry.rowBudget + ' rows has no room for its description)'}`, rowUp && (geometry.rowBudget < 4 || lines.some(line => line.includes('the model a spawned crewmate runs on'))), lines.filter(line => line.includes(ROW)).join(' | '))
   check(`${label(scene)}: the frame stands whole, ${geometry.rows} rows tall as the host allows, both border cells on every row`, frame !== null && geometry.rows !== null && frame.bottom - frame.top + 1 === geometry.rows && frame.rows.slice(1, -1).every(row => row.startsWith('│') && row.endsWith('│')), frame === null ? 'no frame' : `${frame.bottom - frame.top + 1} rows at ${frame.top}..${frame.bottom}`)
   check(`${label(scene)}: the title row is the first row inside the frame`, frame !== null && (frame.rows[1] ?? '').includes(TITLE), frame === null ? 'no frame' : JSON.stringify(frame.rows[1]))
-  if (geometry.compact) check(`${label(scene)} compact: the first row carries the close hint and no hint row follows the body`, frame !== null && (frame.rows[1] ?? '').includes(COMPACT_HEADER) && !lines.some(line => line.includes(HINT_TAIL)), frame === null ? 'no frame' : JSON.stringify(frame.rows[1]))
-  else check(`${label(scene)}: the hint row is the last row inside the frame, whole to its esc words`, frame !== null && (frame.rows.at(-2) ?? '').includes(HINT_TAIL), frame === null ? 'no frame' : JSON.stringify(frame.rows.at(-2)))
+  if (geometry.compact) check(`${label(scene)} compact: the first row carries the close hint and no hint row follows the body`, frame !== null && (frame.rows[1] ?? '').includes(COMPACT_HEADER) && !lines.some(line => line.includes(hintText)), frame === null ? 'no frame' : JSON.stringify(frame.rows[1]))
+  else check(`${label(scene)}: the hint row is the last row inside the frame, whole to its esc words`, frame !== null && (frame.rows.at(-2) ?? '').includes(hintText), frame === null ? 'no frame' : JSON.stringify(frame.rows.at(-2)))
   check(`${label(scene)}: the body is cut inside the frame, never squeezing the chrome (the selected row stays, the description may lose its tail)`, frame !== null && frame.rows.some(row => row.includes(`› ${ROW}`)) && !lines.some((line, y) => frame !== null && (y < frame.top || y > frame.bottom) && line.includes('Inherit follows')), frame === null ? 'no frame' : frame.rows.join('\n'))
   check(`${label(scene)}: the bottom rows under the view are untouched`, lines.slice(scene.rows - scene.bottom).every(line => line === 'B'.repeat(scene.columns)), lines.slice(scene.rows - scene.bottom).join(' | '))
   store.closeSettingsPopup()
