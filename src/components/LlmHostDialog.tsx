@@ -96,7 +96,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const choiceHint = question?.rows ? rows.some(row => row.value === question.initial) ? words.suggested : words.choose : words.input
   const hours = host ? Math.max(0, now - Date.parse(host.startedAt)) / 3600_000 : 0
   const meter = !host ? '' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Number.isFinite(hours) ? hours.toFixed(2) + 'h = $' + (host.price * hours).toFixed(2) + ' so far (estimate; storage extra)' : 'elapsed time unknown')
-  const hostLines = compact ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
+  const hostLines = compact || result && host?.status === 'TERMINATED' ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
   const rowDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
   const rowLabels = rows.map((row, index) => rowDividers[index] ? row.label.slice(rowDividers[index]!.length + 1) : row.label)
   const rowLines = rowLabels.map((label, index) => [...(rowDividers[index] ? [rowDividers[index]!] : []), ...(compact ? [truncateToWidth(label, Math.max(1, width - 2))] : wrapRow(label, Math.max(1, width - 2)))])
@@ -112,7 +112,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const detailLines = scrollDetails ? allDetails.slice(detailOffset, detailOffset + detailPage) : allDetails
   const fixed = titleLines.length + detailLines.length + hostLines.length + (question && !compact ? 1 : 0) + (detailMarker ? 1 : 0)
   const detailsFit = !question?.fullDetails || !compact && budget >= fixed + rowsHeight
-  const allHistory = compact || scrollDetails || question?.step === 'rent-confirm' || question?.step.startsWith('tune-') ? [] : history.flatMap(row => wrapPlain(row.words, width))
+  const allHistory = compact || scrollDetails || question?.step === 'rent-confirm' || question?.step.startsWith('tune-') ? [] : history.filter(row => row.words !== result?.words).flatMap(row => wrapPlain(row.words, width))
   const historyBudget = Math.max(0, budget - fixed - minimumChoices - 2)
   const maxLogOffset = Math.max(0, allHistory.length - historyBudget)
   const logEnd = Math.max(historyBudget, allHistory.length - Math.min(logOffset, maxLogOffset))
@@ -156,7 +156,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
       </> : <TextInput key={question.step} value={value} onChange={setValue} cursorOffset={offset} onChangeCursorOffset={setOffset} columns={Math.max(1, width - 2)} maxVisibleLines={1} mask={question.secret ? '*' : undefined} multiline={false} onSubmit={text => { if (pastOpenEvent()) answer(text) }} onEscape={stop} disableEscapeDoublePress />}
     </> : result ? <>
       {wrapPlain(result.words, width).slice(0, Math.max(1, budget - shownHistory.length - hostLines.length - 1)).map((text, index) => <Text key={index} bold color={result.ok ? tokens.success : tokens.warning}>{text}</Text>)}
-      <Text color={tokens.textMuted}>{words.finished}</Text>
+      {!onHint ? <Text color={tokens.textMuted}>{words.finished}</Text> : null}
     </> : <Text color={tokens.textMuted}>{words.running}</Text>}
     {hostLines.map((text, index) => <Text key={'host-' + index} color={tokens.warning}>{text}</Text>)}
   </Box>

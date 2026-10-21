@@ -93,6 +93,7 @@ try {
   assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')), 'hidden confirmation details cannot start a service')
   capture('07a-narrow-confirmation', 64, 12)
   m.resize(element(140, 44), 140, 44); await until('no weights download')
+  assert.ok(await waitFor(() => !flat().includes('Enlarge the terminal') && flat().includes('Confirm installation and start'), 20000), 'restored confirmation choices are actionable after resize\n' + m.screen())
   assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')), 'no service before explicit confirmation')
   await choose('Confirm installation and start'); await heading('Computer · this-computer'); await until('slots busy'); capture('08-running')
   assert.ok(namedCompatModelOptions().some(row => row.value.includes('compat/box-this-computer/unsloth/Qwen3.8-27B-GGUF')))
