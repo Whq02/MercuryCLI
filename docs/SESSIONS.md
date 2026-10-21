@@ -546,6 +546,16 @@ name, `Enter` on a file inserts `@` and its path at the composer's cursor and cl
 the menu, and `Esc` or clicking outside the menu closes it. Inside
 a git repository the menu's second line names the branch and the count of
 changed files, and a changed file carries its mark at the row's right edge.
+
+With a `.md` file selected, `r` opens a reader in the same menu. Markdown
+wraps to the popup width; `↑`/`↓` scroll a row and `PageUp`/`PageDown` scroll a
+page, with the visible row range in the footer. `←` or one `Esc` returns to
+the same file, and `Enter` attaches it just as it does from the list. Image
+references show their alt text and path. Large files show their first 256 KiB
+with a notice; git-ignored files can be read too. Looking does not send the
+file to the model or add it to the conversation. Folders and other file
+types keep the list open when you press `r`.
+
 When you open an external editor, suspend Mercury with `Ctrl+Z`, or exit,
 Mercury waits up to 250 ms (`MERCURY_TERMINAL_QUERY_SETTLE_MS`) for pending
 terminal capability replies to finish so escape codes never leak into your

@@ -1,13 +1,18 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { marked } from 'marked'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { ProductLockup } from './mercury-ui/components.js'
 import { branchChip, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
-import { paneWindow } from './mercury-ui/geometry.js'
+import { POPUP_PAGE_HINT, PopupListViewport, popupListMotion, popupListWindow } from './CustomSelect/popup-list.js'
+import ScrollBox, { type ScrollBoxHandle } from '../ink/components/ScrollBox.js'
+import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
+import { Markdown } from './Markdown.js'
+import { readFilesMenuMarkdown, FILE_READER_CHUNK_BYTES, type FileReaderDocument } from '../utils/cockpit/filesMenu.js'
 import { MenuFilterLine, cutToWidth, foldLead } from './mercury-ui/menuFold.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
@@ -18,7 +23,7 @@ import { childPath, filterRows, flattenTree, parentPath, sortEntries, type GitMa
 import { readFileTreeGit, type FileTreeGit } from '../utils/files/fileTreeGit.js'
 
 export const FILES_MENU_WIDTH = 70
-export const FILES_MENU_CHROME_ROWS = 8
+export const FILES_MENU_CHROME_ROWS = 9
 const FILES_MENU_TITLE_VIEW = 'files'
 export const FILES_MENU_FILTER_PLACEHOLDER = 'filter by name'
 export const FILES_MENU_HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
@@ -64,6 +69,8 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   const [filter, setFilter] = useState('')
   const [filterFocus, setFilterFocus] = useState(false)
   const [git, setGit] = useState<FileTreeGit | null>(null)
+  const [reader, setReader] = useState<FileReaderDocument | null>(null)
+  const [readHint, setReadHint] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -77,7 +84,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
 
   const rows = useMemo(() => filterRows(flattenTree(children, open), filter), [children, open, filter])
   const cursorIndex = Math.min(cursor, Math.max(0, rows.length - 1))
-  const win = paneWindow(rows.length, cursorIndex, Math.max(1, rowBudget))
+  const win = popupListWindow(rows.length, cursorIndex, Math.max(1, rowBudget))
   const inner = Math.max(8, width - 4)
   const ground = estateGroundBg(tok)
 
@@ -110,6 +117,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   }
 
   useInput((input, key, event) => {
+    if (reader !== null) return
     const consume = (): void => event.stopImmediatePropagation()
     if (key.escape) {
       if (token !== null && !isTopOverlayNow(token)) return
@@ -123,23 +131,24 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
       return
     }
     const action = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true })
-    if (action === 'movePrevious' || action === 'moveNext') {
+    const target = popupListMotion(input, key, cursorIndex, rows.length, Math.max(1, rowBudget))
+    if (target !== null) {
       consume()
-      const step = action === 'moveNext' ? 1 : -1
-      setCursor(Math.max(0, Math.min(rows.length - 1, cursorIndex + step)))
-      return
-    }
-    if (action === 'first') {
-      consume()
-      setCursor(0)
-      return
-    }
-    if (action === 'last') {
-      consume()
-      setCursor(Math.max(0, rows.length - 1))
+      setCursor(target)
+      setFilterFocus(false)
+      setReadHint(false)
       return
     }
     const row = rows[cursorIndex]
+    if (input === 'r' && !key.ctrl && !key.meta && !filterFocus) {
+      consume()
+      if (!pastOpenEvent()) return
+      if (row && !row.dir && /\.md$/i.test(row.path)) {
+        setReader(readFilesMenuMarkdown(root, row.path))
+        setReadHint(false)
+      } else setReadHint(true)
+      return
+    }
     if (action === 'enterChild') {
       consume()
       if (!row || !row.dir) return
@@ -192,7 +201,8 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   })
 
   const markWidth = 2
-  const nameWidth = inner - markWidth
+  const listWidth = inner - (win.above > 0 || win.below > 0 ? 1 : 0)
+  const nameWidth = listWidth - markWidth
   const renderRow = (row: TreeRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex
     const indent = '  '.repeat(row.depth)
@@ -208,7 +218,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
         selected={selected}
         onSelect={() => setCursor(index)}
         onActivate={() => activate(index)}
-        width={inner}
+        width={listWidth}
         height={1}
       >
         <Text wrap="truncate-end">
@@ -223,6 +233,10 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
     )
   }
 
+  if (reader !== null) return <FilesReader document={reader} width={width} rowBudget={rowBudget} onBack={() => setReader(null)} onPick={() => onPick(reader.path)} />
+
+  const readable = !filterFocus && rows[cursorIndex]?.dir === false && /\.md$/i.test(rows[cursorIndex]?.path ?? '')
+  const readWords = readable ? 'r read · ' : readHint ? '.md files only · ' : ''
   return (
     <Box
       flexDirection="column"
@@ -239,12 +253,100 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
         <Text color={tok.textMuted} wrap="truncate-end">{folderLineFor(root, git)}</Text>
       </Box>
       <Box height={1} />
-      {rows.slice(win.start, win.end).map((row, i) => renderRow(row, win.start + i))}
+      <PopupListViewport above={win.above} below={win.below} rows={Math.max(1, win.end - win.start)}>
+        {rows.slice(win.start, win.end).map((row, i) => renderRow(row, win.start + i))}
+      </PopupListViewport>
       <Box height={1} />
       <MenuFilterLine focused={filterFocus} text={filter} placeholder={FILES_MENU_FILTER_PLACEHOLDER} accent={accent} muted={tok.textMuted} primary={tok.textPrimary} />
       <Box height={1} width={inner + 1} marginRight={-1}>
-        <Text color={tok.textMuted}>{cutToWidth(FILES_MENU_HINT, inner + 1)}</Text>
+        <Text color={tok.textMuted}>{cutToWidth('↑↓ move · ↵ open · → ← unfold · / filter', inner + 1)}</Text>
       </Box>
+      <Text color={tok.textMuted} wrap="truncate-end">{readWords}{POPUP_PAGE_HINT} · esc or click outside closes</Text>
+    </Box>
+  )
+}
+
+function FilesReader({ document, width, rowBudget, onBack, onPick }: {
+  document: FileReaderDocument
+  width: number
+  rowBudget: number
+  onBack: () => void
+  onPick: () => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const ground = estateGroundBg(tokens)
+  const scroll = useRef<ScrollBoxHandle | null>(null)
+  const ink = useContext(InkInstanceContext)
+  const height = Math.max(1, rowBudget)
+  const [view, setView] = useState({ top: 0, total: 0 })
+  const sync = useCallback(() => {
+    const body = scroll.current
+    if (!body) return
+    const total = Math.max(0, Math.ceil(body.getFreshScrollHeight()))
+    const top = Math.max(0, Math.min(body.getScrollTop(), total - height))
+    setView(previous => previous.top === top && previous.total === total ? previous : { top, total })
+  }, [height])
+  useLayoutEffect(sync)
+  useEffect(() => ink?.subscribeFrame(sync), [ink, sync])
+  const below = Math.max(0, view.total - view.top - height)
+  const contentWidth = Math.max(1, width - 4 - (view.top > 0 || below > 0 ? 1 : 0))
+  const content = useMemo(() => {
+    const blocks: React.ReactNode[] = []
+    let pending = ''
+    const flush = () => {
+      if (pending.trim()) blocks.push(<Markdown key={blocks.length}>{pending}</Markdown>)
+      pending = ''
+    }
+    for (const token of marked.lexer(document.text)) {
+      if (token.type !== 'paragraph' || !token.tokens?.some(part => part.type === 'image')) {
+        pending += token.raw
+        continue
+      }
+      for (const part of token.tokens) {
+        if (part.type !== 'image') pending += part.raw
+        else {
+          flush()
+          blocks.push(<Text key={blocks.length} wrap="truncate-end">{[part.text, part.href].filter(Boolean).join(' / ').replace(/\s+/g, ' ')}</Text>)
+        }
+      }
+      pending += '\n\n'
+    }
+    flush()
+    return blocks
+  }, [document.text])
+  useInput((input, key, event) => {
+    if (key.escape || key.leftArrow) {
+      event.stopImmediatePropagation()
+      onBack()
+      return
+    }
+    if (key.return) {
+      event.stopImmediatePropagation()
+      onPick()
+      return
+    }
+    const maximum = Math.max(0, view.total - height)
+    const next = popupListMotion(input, key, view.top, maximum + 1, height)
+    if (next !== null) {
+      event.stopImmediatePropagation()
+      scroll.current?.scrollTo(next)
+    }
+  })
+  const chunk = document.truncated ? ' · first ' + FILE_READER_CHUNK_BYTES / 1024 + ' KiB' : ''
+  const position = view.total === 0 ? '0 of 0' : (view.top + 1) + '–' + Math.min(view.total, view.top + height) + ' of ' + view.total
+  return (
+    <Box flexDirection="column" width={width} flexShrink={0} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} opaque {...(ground !== undefined ? { backgroundColor: ground } : {})}>
+      <ProductLockup view={FILES_MENU_TITLE_VIEW} separator=" · " />
+      <Text color={tokens.textMuted} wrap="truncate-end">{truncateToWidth(document.path, Math.max(1, width - 4 - displayWidth(chunk)))}{chunk}</Text>
+      <Box height={1} />
+      <PopupListViewport above={view.top} below={below} rows={height}>
+        <ScrollBox ref={scroll} width={contentWidth} height={height} flexDirection="column">
+          {document.error ? <Text color={tokens.warning}>{document.error}</Text> : content.length ? content : <Text dimColor>Empty file</Text>}
+        </ScrollBox>
+      </PopupListViewport>
+      <Box height={1} />
+      <Text color={tokens.textMuted} wrap="truncate-end">↑↓ scroll · {POPUP_PAGE_HINT} · {position}</Text>
+      <Text color={tokens.textMuted} wrap="truncate-end">r read · ↵ attach · ← back</Text>
     </Box>
   )
 }
