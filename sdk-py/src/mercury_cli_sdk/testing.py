@@ -5,7 +5,9 @@ import secrets
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Mapping, NotRequired, Sequence, TypedDict
-from .generated import OUTCOME_EXIT_CODES
+from .generated import METHODS, ROW_SCHEMAS, OUTCOME_EXIT_CODES, OutcomeRow, SessionRow, TurnRow
+from .parse import row_of, validate
+from typing import cast
 
 
 class FixtureReply(TypedDict):
@@ -18,6 +20,7 @@ class FixtureReply(TypedDict):
 
 class Fixture(TypedDict):
     """A recording to replay: run-door ``rows`` (after ``inputCount`` stdin rows), and runner-door ``methods`` and ``answers``."""
+    validate: NotRequired[bool]
     rows: NotRequired[Sequence[Mapping[str, Any]]]
     inputCount: NotRequired[int]
     methods: NotRequired[Mapping[str, Sequence[FixtureReply]]]
@@ -44,6 +47,7 @@ class FixtureServer:
 
 async def start_fixture_server(fixture: Fixture) -> FixtureServer:
     """Replay recorded rows and RPC responses on loopback, without a model or CLI."""
+    if fixture.get('validate', True): _validate_fixture(fixture)
     received: list[dict[str, Any]] = []
     writers: set[asyncio.StreamWriter] = set()
     token = secrets.token_hex(32)
@@ -116,3 +120,62 @@ finally: s.close()
 sys.exit(code)
 '''
     return FixtureServer([sys.executable, '-u', '-c', bridge], received, server, writers)
+
+
+def _defaults(schema: dict[str, Any]) -> Any:
+    if 'const' in schema: return schema['const']
+    if 'enum' in schema: return schema['enum'][0]
+    if 'anyOf' in schema or 'oneOf' in schema: return _defaults((schema.get('anyOf') or schema['oneOf'])[0])
+    type = schema.get('type')
+    if type == 'object': return {key: _defaults(schema['properties'][key]) for key in schema.get('required', [])}
+    if type == 'array': return []
+    if type == 'string': return 'fixture'
+    if type == 'boolean': return False
+    if type in ('number', 'integer'): return max(0, schema.get('minimum', 0), schema.get('exclusiveMinimum', -1) + 1)
+    return None
+
+
+_ENVELOPE = {'seq': 1, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 'fixture-session'}
+
+
+def fixture_session_row(overrides: Mapping[str, Any] | None = None, **fields: Any) -> SessionRow:
+    return cast(SessionRow, {**_defaults(ROW_SCHEMAS['session']), **_ENVELOPE, **(overrides or {}), **fields})
+
+
+def fixture_outcome_row(overrides: Mapping[str, Any] | None = None, **fields: Any) -> OutcomeRow:
+    return cast(OutcomeRow, {**_defaults(ROW_SCHEMAS['outcome']), **_ENVELOPE, 'seq': 3, 'turn_id': 'fixture-turn', 'status': 'completed', **(overrides or {}), **fields})
+
+
+def fixture_turn(overrides: Mapping[str, Any] | None = None, prompt_id: str = 'fixture-prompt') -> tuple[TurnRow, OutcomeRow]:
+    outcome = fixture_outcome_row(overrides)
+    turn = cast(TurnRow, {**_defaults(ROW_SCHEMAS['turn']), **_ENVELOPE, 'seq': outcome['seq'] - 1, 'turn_id': outcome['turn_id'], 'message_ids': [prompt_id]})
+    return turn, outcome
+
+
+def _validate_fixture(fixture: Fixture) -> None:
+    def message(value: Mapping[str, Any]) -> None:
+        if not isinstance(value, Mapping): raise ValueError('invalid fixture message')
+        if 'type' in value:
+            read = row_of(dict(value))
+            if not read.ok: raise ValueError(f'invalid fixture row: {read.issues}')
+            return
+        method = value.get('method')
+        spec = METHODS.get(method) if isinstance(method, str) else None
+        if value.get('jsonrpc') != '2.0' or not spec: raise ValueError('invalid fixture message')
+        if method == 'row': message(value['params']); return
+        issues = validate(spec['params'], value.get('params'))
+        if issues: raise ValueError(f'invalid fixture params: {issues}')
+    for row in fixture.get('rows', []): message(row)
+    for name, replies in fixture.get('methods', {}).items():
+        spec = METHODS.get(name)
+        if not spec or spec['kind'] != 'request': raise ValueError('invalid fixture method: ' + name)
+        for reply in replies:
+            if 'error' in reply:
+                error = reply['error']
+                if type(error.get('code')) is not int or not isinstance(error.get('message'), str): raise ValueError('invalid fixture error')
+            else:
+                issues = validate(spec['result'], reply.get('result', {}))
+                if issues: raise ValueError(f'invalid fixture result: {issues}')
+            for row in [*reply.get('before', []), *reply.get('after', [])]: message(row)
+    for messages in fixture.get('answers', {}).values():
+        for row in messages: message(row)
