@@ -220,13 +220,6 @@ export function CrewView({
   }
 
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
-  const bodyRows = Math.max(1, (termRows || 24) - 5)
-  const headerRows = (presence === 'blank' || presence === 'dormant' ? 1 : 0) + (pauseChip !== null ? 1 : 0) + 1 + (doorNote !== null ? 1 : 0)
-  const rowRoom = bodyRows - 1 - headerRows
-  const visible = Math.max(4, (termRows || 24) - 9)
-  const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
-    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), 0),
-  )
   const selectedRow = rows[sel]
   const footer = (armedTarget !== null
     ? [crewStopHint(armedTarget.name), 'esc close']
@@ -240,6 +233,15 @@ export function CrewView({
       ])
     .filter(Boolean)
     .join(' · ')
+  const footerRows = wrapText(footer, Math.max(1, (columns || 80) - 4), 'wrap').split('\n').length
+  const bodyRows = Math.max(1, (termRows || 24) - 5 - (footerRows - 1))
+  const noticeRows = (presence === 'blank' || presence === 'dormant' ? 1 : 0) + (pauseChip !== null ? 1 : 0) + (doorNote !== null ? 1 : 0)
+  const sectionRows = rows.length === 0 || bodyRows - 2 - noticeRows >= 0 ? 1 : 0
+  const rowRoom = bodyRows - 1 - noticeRows - sectionRows
+  const visible = Math.max(4, (termRows || 24) - 9 - (footerRows - 1))
+  const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
+    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), 0),
+  )
 
   return (
     <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} bodyOwnsPageKeys captureInput={false}><Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
@@ -254,9 +256,11 @@ export function CrewView({
             <Chip tone="warn">{pauseChip}</Chip>
           </Text>
         ) : null}
-        <SectionHeader marginTop={0} count={rows.length}>
-          Crewmates
-        </SectionHeader>
+        {sectionRows > 0 ? (
+          <SectionHeader marginTop={0} count={rows.length}>
+            Crewmates
+          </SectionHeader>
+        ) : null}
         {rows.length === 0 ? (
           <Text color={tokens.textMuted}>
             {workUnreported(roster) ? `· ${WORK_UNREPORTED_LINE}` : `· ${CREW_EMPTY_LINE} — ${CREW_EMPTY_DOOR}`}
