@@ -1,10 +1,11 @@
-(>_) MERCURY · agents
-
+ (>_) MERCURY · agents
  
-Shared project settings
-❯ fixture-scout  opus
-User settings
-↓ 3 more
-
-agents wants at least 64×13 · this window is 64×12
-↑↓ move · ↵ edit · n new · x on/off · ⌫ delete · u trash · esc back
+  
+ Shared project settings
+ ❯ fixture-scout  opus
+ User settings
+ ↓ 3 more
+ 
+ agents wants at least 64×13 · this window is 64×12
+ ↑↓ move · ↵ edit · n new · x on/off · ⌫ delete · u trash · esc
+ back
