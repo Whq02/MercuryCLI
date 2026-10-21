@@ -96,7 +96,7 @@ async def start_fixture_server(fixture: Fixture) -> FixtureServer:
 
     server = await asyncio.start_server(serve, '127.0.0.1', 0, limit=32 * 1024 * 1024)
     port = server.sockets[0].getsockname()[1]
-    bridge = f'''import socket,sys,threading,json
+    bridge = f'''import os,socket,sys,threading,json
 s=socket.create_connection(('127.0.0.1',{port}))
 args=sys.argv[1:]
 head=args[:next((i for i,a in enumerate(args) if a in ('--','--format')),len(args))]
@@ -104,20 +104,25 @@ door='runner' if any(a=='runner' and (i==0 or head[i-1]!='--project') for i,a in
 s.sendall((json.dumps({{'token':{token!r},'door':door}})+'\\n').encode())
 def feed():
     try:
-        for line in sys.stdin.buffer: s.sendall(line)
+        while True:
+            data=os.read(0,65536)
+            if not data: break
+            s.sendall(data)
         s.shutdown(socket.SHUT_WR)
     except OSError: pass
 threading.Thread(target=feed,daemon=True).start()
 code=0
+out=sys.stdout.buffer
 try:
     for data in s.makefile('rb'):
-        sys.stdout.buffer.write(data)
-        sys.stdout.buffer.flush()
+        out.write(data)
+        out.flush()
         if door=='run':
             row=json.loads(data)
             if row.get('type')=='outcome': code={OUTCOME_EXIT_CODES!r}.get(row.get('status'),1)
 finally: s.close()
-sys.exit(code)
+out.flush()
+os._exit(code)
 '''
     return FixtureServer([sys.executable, '-u', '-c', bridge], received, server, writers)
 

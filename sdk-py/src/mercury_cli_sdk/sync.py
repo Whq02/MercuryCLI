@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -42,6 +43,7 @@ class SyncSession(TypedSyncRequests):
         self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
         self._thread.start()
         self._closed = False
+        atexit.register(self.close)
         try: self.session: MercurySession = self._wait(connect(**options))
         except BaseException:
             self._stop()
@@ -111,12 +113,15 @@ class SyncSession(TypedSyncRequests):
         return self
 
     def _stop(self) -> None:
+        if self._closed: return
+        self._closed = True
+        atexit.unregister(self.close)
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join()
         self._loop.close()
-        self._closed = True
 
     def close(self) -> None:
+        """Close the session and stop its loop thread; registered with atexit so a forgotten close still ends cleanly."""
         if self._closed: return
         try: self._wait(self.session.close())
         finally: self._stop()

@@ -190,8 +190,11 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
             self.end_headers()
             self.wfile.write(data)
 
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    server.daemon_threads = True
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+        def handle_error(self, request: Any, client_address: Any) -> None: pass
+
+    server = Server(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config: dict[str, Any] = {'type': 'http', 'url': f'http://127.0.0.1:{server.server_port}', 'headers': {'Authorization': f'Bearer {token}'}}

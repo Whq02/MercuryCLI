@@ -83,6 +83,13 @@ setTimeout(() => process.exit(0), 200)
   })
   const python = spawnSync('python3', [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
   console.log(python.stdout.trim()); if (python.status !== 0) { failures.push('Python lifecycle'); console.error(python.stderr) }
+  await check('a Python consumer exits 0 with no fatal error: the fixture bridge with stdin still open, an unclosed sync session, an unclosed tool server', async () => {
+    const consumer = spawnSync('python3', [resolve(import.meta.dir, 'python-clean-exit.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
+    assert.equal(consumer.signal, null, `the consumer died by ${consumer.signal}: ${consumer.stderr}`)
+    assert(!/Fatal Python error/.test(consumer.stderr), `a Python process wrote a fatal error:\n${consumer.stderr}`)
+    assert.equal(consumer.status, 0, consumer.stdout + consumer.stderr)
+    assert(consumer.stdout.includes('consumer finished'), consumer.stdout)
+  })
 } finally { rmSync(scratch, { recursive: true, force: true }) }
 assert.deepEqual(failures, [])
-console.log('PASS SDK lifecycle: cwd and executable words, door-aware exits, run close and dispose, prompt signals, host-exit cleanup, one version')
+console.log('PASS SDK lifecycle: cwd and executable words, door-aware exits, run close and dispose, prompt signals, host-exit cleanup, clean Python exit, one version')
