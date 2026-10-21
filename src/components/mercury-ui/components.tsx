@@ -22,7 +22,7 @@ import { PopupFrameContext } from '../PopupGutter.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import CursorDeclarationContext from '../../ink/components/CursorDeclarationContext.js'
 import { useCursorFollow } from './useCursorFollow.js'
-import { PopupScrollViewport, usePopupScrollWindow, usePopupListNavigation } from '../CustomSelect/popup-list.js'
+import { PopupScrollViewport, popupListMotion, usePopupScrollWindow } from '../CustomSelect/popup-list.js'
 import { topOverlayOwnsPageKeys } from '../../context/overlayStack.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
@@ -147,7 +147,6 @@ export function CommandCenter({
     cursorFollow(next, clearIfNode)
   }, [cursorFollow])
   const bodyWindow = usePopupScrollWindow(bodyRef)
-  usePopupListNavigation(bodyWindow.top, Math.max(1, bodyWindow.total - bodyWindow.rows + 1), Math.max(1, bodyWindow.rows - 1), next => bodyRef.current?.scrollTo(next), insideModal && !embedded && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys() && declaredRow.current === null)
   const bodyFooterText = bodyWindow.total > bodyWindow.rows && declaredRow.current === null && !bodyOwnsPageKeys && !topOverlayOwnsPageKeys()
     ? packFooter(`↑↓ scroll · pgup/pgdn page · ${footerText}`, Math.max(0, cols - 4))
     : footerText
@@ -159,14 +158,22 @@ export function CommandCenter({
     }
   }, [insideModal, embedded, modalScrollRef])
   useInput(
-    (_i, key, event) => {
+    (input, key, event) => {
       const body = bodyRef.current
-      if ((key.pageUp || key.pageDown) && (bodyOwnsPageKeys || topOverlayOwnsPageKeys())) return
-      if (!body || !(key.pageUp || key.pageDown)) return
+      if (!body || bodyOwnsPageKeys || topOverlayOwnsPageKeys()) return
       const viewport = body.getViewportHeight()
-      if (body.getFreshScrollHeight() <= viewport) return
+      const total = body.getFreshScrollHeight()
+      if (total <= viewport) return
+      if (declaredRow.current !== null) {
+        if (!(key.pageUp || key.pageDown)) return
+        event.stopImmediatePropagation()
+        body.scrollBy((key.pageUp ? -1 : 1) * Math.max(1, viewport - 1))
+        return
+      }
+      const target = popupListMotion(input, key, body.getScrollTop(), Math.max(1, total - viewport + 1), Math.max(1, viewport - 1))
+      if (target === null) return
       event.stopImmediatePropagation()
-      body.scrollBy((key.pageUp ? -1 : 1) * Math.max(1, viewport - 1))
+      body.scrollTo(target)
     },
     { isActive: insideModal && !embedded },
   )
