@@ -68,6 +68,12 @@ async def main():
         try: await connect(mercury=mercury, cwd=cwd, schema=cli_refused)
         except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
         else: raise AssertionError('a boot schema the CLI refuses was accepted')
+        door = await sdk.run('the run door turn', mercury=mercury, cwd=cwd, ephemeral=True, schema=structured_schema(count, lambda value: value['count'] * 10))
+        assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count)), 'the run door carries --schema'
+        assert (await door.outcome)['structured'] == 40, 'the run door settles structured on the built dist and the descriptor decodes it'
+        try: await sdk.run('the run door turn', mercury=mercury, cwd=cwd, schema=malformed)
+        except MercurySchemaError as error: locally(error)
+        else: raise AssertionError('a malformed run schema was accepted')
     elif scenario == 'midturn':
         for shape in ('folded', 'queued', 'swallowed'):
             async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Sleep']) as session:
