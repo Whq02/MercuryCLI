@@ -150,7 +150,8 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   if (call.malformed && (call.id.trim() === '' || PLACEHOLDER_ID.test(call.id))) {
     return refused(call, 'missing-id', 'the provider delivered the call without a call id, so its result could not be paired')
   }
-  const stripped = stripNullArgs(parsed)
+  const declared = declaredInputSchema(tool)
+  const stripped = stripNullArgs(parsed, declared)
   if (typeof stripped !== 'object' || stripped === null || Array.isArray(stripped)) {
     return refused(
       call,
@@ -160,7 +161,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   }
   const dropped = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
   const straightened = hints?.straightenQuotes === true ? straightenQuoteArgs(dropped, tool) : dropped
-  const input = repairArgumentsBySchema(straightened, declaredInputSchema(tool))
+  const input = repairArgumentsBySchema(straightened, declared)
   try {
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {
