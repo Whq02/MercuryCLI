@@ -10,6 +10,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -448,6 +449,22 @@ const cleanup = async (): Promise<void> => {
     } catch {}
   }
   await new Promise<void>(resolve => fixture.close(() => resolve()))
+  if (failures > 0) {
+    const logs: string[] = []
+    const walk = (dir: string, depth: number): void => {
+      if (depth > 4 || logs.length >= 24) return
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) walk(path, depth + 1)
+        else if (/\.(log|txt)$/.test(entry.name) && !entry.name.startsWith('stock')) logs.push(path)
+      }
+    }
+    try { walk(SCRATCH, 0) } catch {}
+    for (const path of logs) {
+      const tail = readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '').slice(-14).join('\n    ')
+      console.log(`[forensics] ${path.slice(SCRATCH.length + 1)}:\n    ${tail || '(empty)'}`)
+    }
+  }
   if (!KEEP) rmSync(SCRATCH, { recursive: true, force: true })
   else console.log(`[forensics] world kept: ${SCRATCH}`)
 }

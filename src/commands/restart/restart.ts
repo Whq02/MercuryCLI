@@ -6,6 +6,22 @@ type RestartOutcome = { ok: true; line: string } | { ok: false; reason: string }
 
 const STOP_SETTLE_MS = 20_000
 
+const INSTALLED_DAEMON_WAIT_ROUNDS = 40
+
+export async function startInstalledDaemon(installed: import('../../daemon/handover.js').DeployedRuntimeV1): Promise<import('../../daemon/handshake.js').DaemonHandshakeVerdict> {
+  const { handshakeDaemon } = await import('../../daemon/handshake.js')
+  const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
+  const { getCwd } = await import('../../utils/cwd.js')
+  const { sameBuildTree } = await import('../../daemon/planeBoot.js')
+  spawnOwnedDaemon(getCwd(), { label: 'switchboard', script: installed.script, ...(installed.node !== null ? { node: installed.node } : {}) })
+  let verdict = await handshakeDaemon({ timeoutMs: 500 })
+  for (let round = 0; round < INSTALLED_DAEMON_WAIT_ROUNDS && (verdict.daemon === null || verdict.state === 'starting' || !sameBuildTree(verdict.daemon.buildTree, installed.buildTree)); round++) {
+    await new Promise(resolve => setTimeout(resolve, 250))
+    verdict = await handshakeDaemon({ timeoutMs: 500 })
+  }
+  return verdict
+}
+
 export async function restartSessionOnInstalledBuild(args: {
   sessionId: string
   turnActive: boolean
@@ -50,7 +66,7 @@ export async function restartSessionOnInstalledBuild(args: {
   if (!existsSync(workers.concourseTranscriptPath(rec))) {
     if (args.clear === undefined) return { ok: false, reason: `this chat has not started yet, so there is nothing to move — a new chat starts on the installed build (${tree}) once the daemon has moved` }
     const movedBlank = await moveDaemonToDeployedBuild({ by: 'operator:/restart', runtime: installed, hosted: false }).catch(error => ({ state: 'unknown' as const, line: String(error) }))
-    const servingBlank = await handshakeDaemon({ timeoutMs: 1000 })
+    const servingBlank = movedBlank.state === 'absent' ? await startInstalledDaemon(installed) : await handshakeDaemon({ timeoutMs: 1000 })
     if (servingBlank.daemon === null || !sameBuildTree(servingBlank.daemon.buildTree, tree)) {
       return { ok: false, reason: `this chat has not started yet and stays as it is — no daemon of the installed build (${tree}) was serving within the handover wait: ${movedBlank.line}` }
     }
@@ -84,12 +100,8 @@ export async function restartSessionOnInstalledBuild(args: {
     }
   }
   const moved = await moveDaemonToDeployedBuild({ by: 'operator:/restart', runtime: installed, hosted: false }).catch(error => ({ state: 'unknown' as const, line: String(error) }))
-  let serving = await handshakeDaemon({ timeoutMs: 1000 })
-  if (serving.state === 'absent') {
-    const { ensureOwnedDaemon } = await import('../../services/switchboard/ensureDaemon.js')
-    await ensureOwnedDaemon()
-    serving = await handshakeDaemon({ timeoutMs: 1000 })
-  }
+  let serving = moved.state === 'absent' ? await startInstalledDaemon(installed) : await handshakeDaemon({ timeoutMs: 1000 })
+  if (serving.state === 'absent') serving = await startInstalledDaemon(installed)
   if (serving.daemon === null || !sameBuildTree(serving.daemon.buildTree, tree)) {
     const restored = await args.resume(args.sessionId)
     return { ok: false, reason: restored === null
