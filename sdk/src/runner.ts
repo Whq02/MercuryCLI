@@ -55,6 +55,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #closing = false
   #normalEnd = false
   #promptReject: ((error: Error) => void) | undefined
+  #promptId: string | undefined
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
@@ -253,7 +254,10 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   sendNote(to: string, content: string, options: Omit<NoteRow, 'type' | 'to' | 'content'> = {}) { return this.send({ ...options, type: 'note', to, content }) }
   async withdraw(id: string) {
     const receipt = await this.request('queue/withdraw', { id })
-    if (receipt.withdrawn) this.#promptTurns.delete(id)
+    if (receipt.withdrawn) {
+      this.#promptTurns.delete(id)
+      if (id === this.#promptId) this.#promptReject?.(new MercuryError('prompt: withdrawn', null))
+    }
     return receipt
   }
   interrupt(options: ParamsOf<'turn/interrupt'> = {}) { this.toolServer?.cancel(); return this.request('turn/interrupt', options) }
@@ -283,6 +287,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     const abort = () => fail(new MercuryError('prompt: cancelled', null))
     options.signal?.addEventListener('abort', abort, { once: true })
     this.#promptReject = fail
+    this.#promptId = id
     this.on('outcome', done)
     const turnSchema = options.schema === undefined ? undefined : schemaObject(options.schema, this.options.cwd)
     let accepted = false
@@ -295,7 +300,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally {
       if (this.#promptTurns.get(id) === undefined && (!accepted || this.#correlatedTurns)) this.#promptTurns.delete(id)
-      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#prompting = false
+      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#promptId = undefined; this.#prompting = false
     }
   }
 

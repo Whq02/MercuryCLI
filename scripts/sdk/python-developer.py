@@ -181,6 +181,25 @@ async def prompt_withdrawal(correlated):
             assert not session._prompt_turns, 'withdrawn prompts leave no turn entries'
 
 
+async def prompt_withdrawn_wait(correlated):
+    with prompt_fixture(correlated) as (mercury, received):
+        async with await sdk.connect(mercury=mercury) as session:
+            task = asyncio.create_task(session.prompt('queued'))
+            try:
+                for _ in range(200):
+                    if session.last_prompt_id is not None: break
+                    await asyncio.sleep(0.005)
+                assert session.last_prompt_id is not None and (await session.withdraw(session.last_prompt_id))['withdrawn']
+                try: await asyncio.wait_for(task, 0.5)
+                except sdk.MercuryError as error: assert str(error) == 'prompt: withdrawn', str(error)
+                else: raise AssertionError('a withdrawn prompt resolved')
+                assert not session._prompt_turns, 'the withdrawn wait leaves no turn entry'
+                assert (await asyncio.wait_for(session.prompt('resolve'), 0.5))['answer'] == 'resolved', 'the session takes the next prompt'
+            finally:
+                task.cancel()
+                with suppress(asyncio.CancelledError, sdk.MercuryError): await task
+
+
 async def prompt_cancellation(correlated):
     with prompt_fixture(correlated) as (mercury, received):
         async with await sdk.connect(mercury=mercury) as session:
@@ -448,7 +467,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

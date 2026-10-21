@@ -228,6 +228,18 @@ try {
         assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'a withdrawn prompt cannot block the next outcome')
       } finally { await session.close() }
     })
+    await check(`prompt withdrawal: a prompt() waiting on its own withdrawn ${correlated ? 'correlated' : 'uncorrelated'} input rejects and frees the session`, async () => {
+      const fixture = promptFixture(correlated)
+      const session = await sdk.connect({ mercury: fixture.mercury })
+      try {
+        const waiting = session.prompt('queued')
+        waiting.catch(() => undefined)
+        for (let tries = 0; tries < 200 && session.lastPromptId === undefined; tries++) await new Promise(resolve => setTimeout(resolve, 5))
+        assert.equal((await session.withdraw(session.lastPromptId!)).withdrawn, true)
+        await assert.rejects(Promise.race([waiting, new Promise((_, reject) => setTimeout(() => reject(new Error('the withdrawn wait never settled')), 500))]), (error: unknown) => error instanceof sdk.MercuryError && error.message === 'prompt: withdrawn')
+        assert.equal((await session.prompt('resolve', { signal: AbortSignal.timeout(500) })).answer, 'resolved', 'the session takes the next prompt')
+      } finally { await session.close() }
+    })
     await check(`prompt cancellation: the cancelled turn still ends first and the next ${correlated ? 'correlated' : 'uncorrelated'} prompt resolves with its own turn`, async () => {
       const fixture = promptFixture(correlated)
       const session = await sdk.connect({ mercury: fixture.mercury })

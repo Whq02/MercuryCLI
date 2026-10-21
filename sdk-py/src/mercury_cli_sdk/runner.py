@@ -65,6 +65,7 @@ class MercurySession(TypedRequests):
         self._closing = False
         self._normal_end = False
         self._prompt_error: Callable[[Exception], None] | None = None
+        self._prompt_id: str | None = None
         self._reader = asyncio.create_task(self._read())
 
     def on(self, type: str, listener: Listener) -> MercurySession:
@@ -283,6 +284,7 @@ class MercurySession(TypedRequests):
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
         self._prompt_error = fail
+        self._prompt_id = id
         self.on('outcome', done)
         turn_schema = None if schema is None else schema_object(schema, self.options.cwd)
         accepted = False
@@ -298,6 +300,7 @@ class MercurySession(TypedRequests):
             if future.done() and not future.cancelled(): future.exception()
             self.off('outcome', done)
             self._prompt_error = None
+            self._prompt_id = None
             self._prompting = False
 
     @property
@@ -314,7 +317,9 @@ class MercurySession(TypedRequests):
         return await self.request('turn/interrupt', options)
     async def withdraw(self, id: str) -> QueueWithdrawResult:
         receipt = await self.request('queue/withdraw', {'id': id})
-        if receipt['withdrawn']: self._prompt_turns.pop(id, None)
+        if receipt['withdrawn']:
+            self._prompt_turns.pop(id, None)
+            if id == self._prompt_id and self._prompt_error: self._prompt_error(MercuryError('prompt: withdrawn'))
         return receipt
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})
