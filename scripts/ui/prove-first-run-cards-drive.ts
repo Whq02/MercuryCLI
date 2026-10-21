@@ -27,6 +27,7 @@ const SIZES = sizesOf('--sizes', '178x51,120x40')
 const CLIPPED_SIZES = sizesOf('--clipped-sizes', '80x21,80x14,82x17')
 const BAND_SIZES = sizesOf('--band-sizes', '120x30')
 const LOGINS = (arg('--logins') ?? 'on') !== 'off'
+const LOGINS_HINT = '↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes'
 const STATES = (arg('--states') ?? 'centred,top-left').split(',')
 if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first, or name a bundle with --dist`)
@@ -441,7 +442,7 @@ try {
     ]
     let shot: Shot | null = null
     try {
-      shot = await capture('logins-178x51', home, 178, 51, sends, ['esc or click outside closes'], 320, { ANTHROPIC_API_KEY: FIXTURE_API_KEY })
+      shot = await capture('logins-178x51', home, 178, 51, sends, [LOGINS_HINT], 320, { ANTHROPIC_API_KEY: FIXTURE_API_KEY })
     } catch (err) {
       check('logins-178x51: the capture ran', false, err instanceof Error ? err.message.slice(0, 400) : String(err))
     }
@@ -458,7 +459,7 @@ try {
           writeFileSync(join(FRAMES, 'logins-178x51.json'), JSON.stringify({ cols: 178, rows: 51, grid: shot.grid }))
         }
         const introRow = text.split('\n').find(row => row.includes('subscription')) ?? 'no intro row'
-        check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (the readiness block sits below the popup\'s fold, reachable by ↓)', text.includes('Sign in') && text.includes('OpenCode Zen') && text.includes('esc or click outside closes'))
+        check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (the readiness block sits below the popup\'s fold, reachable by ↓)', text.includes('Sign in') && text.includes('OpenCode Zen') && text.includes(LOGINS_HINT))
         check(`logins-178x51: the /logins intro is the walk's own sentence`, text.includes('Use a Claude or OpenAI subscription'), introRow)
         check('logins-178x51: the shipped default sentence is gone from /logins', !text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
         check(`logins-178x51: the chat's card and the walk read one exported source`, readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8').includes('startingMessage={SIGN_IN_WORDS.intro}') && readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes('export const SIGN_IN_WORDS = {'))
