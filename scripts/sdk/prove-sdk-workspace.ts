@@ -27,11 +27,15 @@ const offeredTools = (api: { requests: { raw: string; body: unknown }[] }, said:
 }
 for (const language of ['ts', 'py']) {
   if (process.env.SDK_BUILDER_LANGUAGE && process.env.SDK_BUILDER_LANGUAGE !== language) continue
-  for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster', 'schema']) {
+  for (const scenario of ['capabilities', 'checkpoints', 'warm', 'roster', 'schema', 'midturn']) {
     if (selected && selected !== scenario) continue
     const c = await context(cwd => scenario === 'warm' ? [] : scenario === 'roster' ? [
       { kind: 'text', text: 'Default roster seen.', whenBody: 'roster of a default session' },
       { kind: 'text', text: 'Opted-out roster seen.', whenBody: 'roster of a session without checkpoints' },
+    ] : scenario === 'midturn' ? [
+      { kind: 'tool_use', name: 'Sleep', input: { seconds: 2 }, whenBody: 'the folded first prompt' }, { kind: 'text', text: 'Folded reply.', whenBody: 'the folded second prompt' },
+      { kind: 'paced', deltas: ['one ', 'two ', 'three.'], gapMs: 700, whenBody: 'the queued first prompt' }, { kind: 'text', text: 'Queued reply.', whenBody: 'the queued second prompt' },
+      { kind: 'tool_use', name: 'Sleep', input: { seconds: 2 }, whenBody: 'the swallowed first prompt' }, { kind: 'paced', deltas: ['held back'], gapMs: 100, startDelayMs: 30000, whenBody: 'the swallowed second prompt' },
     ] : scenario === 'schema' ? [
       { kind: 'tool_use', name: 'StructuredOutput', input: { count: 3 }, whenBody: 'the count turn' }, { kind: 'text', text: 'Three.', whenBody: 'the count turn' },
       { kind: 'tool_use', name: 'StructuredOutput', input: { name: 'pelican' }, whenBody: 'the name turn' }, { kind: 'text', text: 'Pelican.', whenBody: 'the name turn' },
@@ -90,6 +94,26 @@ for (const language of ['ts', 'py']) {
         const boot = await connect({ mercury, cwd: c.cwd, env: c.env, schema: structuredSchema(count, value => (value as { count: number }).count * 2) })
         try { assert(boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
         await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
+      } else if (scenario === 'midturn') {
+        for (const shape of ['folded', 'queued', 'swallowed'] as const) {
+          const session = await connect({ mercury, cwd: c.cwd, env: c.env, onPermissionRequest: () => ({ outcome: 'allow' }), allowedTools: ['Sleep'] })
+          try {
+            await assert.rejects(session.prompt(`the ${shape} first prompt`, { timeoutMs: 500 }), /prompt: no answer within 500 ms/)
+            const started = performance.now()
+            const second = session.prompt(`the ${shape} second prompt`, { timeoutMs: 25000 })
+            if (shape === 'swallowed') {
+              setTimeout(() => void session.interrupt().catch(() => undefined), 3500)
+              await assert.rejects(second, (e: unknown) => e instanceof sdk.MercuryError && /^prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn/.test(e.message))
+              assert(performance.now() - started < 12000, 'the swallowed prompt is rejected within the grace after the interrupted outcome')
+            } else {
+              const row = await second
+              assert.equal(row.status, 'completed', shape)
+              assert.equal(row.answer, shape === 'folded' ? 'Folded reply.' : 'Queued reply.', `${shape}: the prompt resolves with the turn that answered it`)
+              assert.equal(row.turn, shape === 'folded' ? 1 : 2, shape)
+              if (shape === 'folded') assert(session.rows.some(r => r.type === 'text' && r.in_reply_to?.some(mark => mark.id === session.lastPromptId)), 'the fold is marked in_reply_to the second prompt')
+            }
+          } finally { await session.close() }
+        }
       } else {
         const session = await sdk.prewarm({ mercury, cwd: c.cwd, env: c.env })
         try { assert.equal(session.initialized.session_id, null); assert.equal((await session.claim({ session_id: '00000000-0000-4000-8000-000000000091' })).session_id, '00000000-0000-4000-8000-000000000091') }

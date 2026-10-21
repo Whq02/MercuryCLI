@@ -1,4 +1,5 @@
 import asyncio
+import time
 import json
 from pathlib import Path
 import sys
@@ -59,6 +60,27 @@ async def main():
         try: await connect(mercury=mercury, cwd=cwd, schema=malformed)
         except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
         else: raise AssertionError('a malformed boot schema was accepted')
+    elif scenario == 'midturn':
+        for shape in ('folded', 'queued', 'swallowed'):
+            async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Sleep']) as session:
+                try: await session.prompt(f'the {shape} first prompt', timeout=0.5)
+                except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.5 seconds', str(error)
+                else: raise AssertionError('the first prompt resolved')
+                started = time.monotonic()
+                if shape == 'swallowed':
+                    async def interrupt_later():
+                        await asyncio.sleep(3.5)
+                        await session.interrupt()
+                    later = asyncio.create_task(interrupt_later())
+                    try: await session.prompt(f'the {shape} second prompt', timeout=25)
+                    except sdk.MercuryError as error: assert str(error).startswith('prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn'), str(error)
+                    else: raise AssertionError('a prompt the runner neither queued nor ran resolved')
+                    finally: later.cancel()
+                    assert time.monotonic() - started < 12, 'the swallowed prompt is rejected within the grace after the interrupted outcome'
+                else:
+                    row = await session.prompt(f'the {shape} second prompt', timeout=25)
+                    assert row['status'] == 'completed' and row.get('answer') == ('Folded reply.' if shape == 'folded' else 'Queued reply.') and row.get('turn') == (1 if shape == 'folded' else 2), (shape, row)
+                    if shape == 'folded': assert any(row['type'] == 'text' and any(mark['id'] == session.last_prompt_id for mark in row.get('in_reply_to', [])) for row in session.rows), 'the fold is marked in_reply_to the second prompt'
     else:
         async with await sdk.prewarm(mercury=mercury, cwd=cwd) as session:
             assert session.initialized['session_id'] is None

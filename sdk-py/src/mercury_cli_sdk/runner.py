@@ -4,7 +4,7 @@ import inspect
 import json
 import uuid
 from contextlib import suppress
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
@@ -36,6 +36,21 @@ ReadTextFileHandler = Callable[[FsReadTextFileParams, RequestContext], FsReadTex
 WriteTextFileHandler = Callable[[FsWriteTextFileParams, RequestContext], FsWriteTextFileResult | None | Awaitable[FsWriteTextFileResult | None]]
 
 
+@dataclass
+class _PromptWait:
+    id: str
+    fail: Callable[[Exception], None]
+    handles: list[asyncio.TimerHandle] = field(default_factory=list)
+    tasks: list[asyncio.Task[None]] = field(default_factory=list)
+
+
+FOLD_GRACE_SECONDS = 5.0
+
+
+def folded_prompt_words(turn: int | None, status: str) -> str:
+    return f'prompt: turn {"?" if turn is None else turn} ended {status} and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again'
+
+
 class MercurySession(TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
@@ -65,8 +80,8 @@ class MercurySession(TypedRequests):
         self._correlated_turns = False
         self._closing = False
         self._normal_end = False
-        self._prompt_error: Callable[[Exception], None] | None = None
-        self._prompt_id: str | None = None
+        self._prompt_wait: _PromptWait | None = None
+        self._active_turn: str | None = None
         self._reader = asyncio.create_task(self._read())
 
     def on(self, type: str, listener: Listener) -> MercurySession:
@@ -208,15 +223,22 @@ class MercurySession(TypedRequests):
                     cap_rows(self.rows, self.options.max_rows)
                     self._queue.put_nowait(row)
                     cap_queue(self._queue, self.options.max_rows)
+                    if row['type'] == 'turn' and 'parent_call_id' not in row and row.get('state') == 'started': self._active_turn = row['turn_id']
                     if row['type'] == 'turn' and 'parent_call_id' not in row and 'message_ids' in row:
                         self._correlated_turns = True
                         for id in row['message_ids']:
                             if id in self._prompt_turns: self._prompt_turns[id] = row['turn_id']
+                    if row['type'] == 'text' and 'parent_call_id' not in row and row.get('in_reply_to') and self._correlated_turns and self._active_turn is not None:
+                        for mark in row['in_reply_to']:
+                            if self._uncorrelated(mark['id']): self._prompt_turns[mark['id']] = self._active_turn
                     self._emit('row', row)
                     self._emit(row['type'], row)
                     if row['type'] == 'outcome' and 'parent_call_id' not in row:
                         ids = [id for id, turn in self._prompt_turns.items() if turn == row['turn_id']] if self._correlated_turns else list(self._prompt_turns)[:1]
                         for id in ids: self._prompt_turns.pop(id, None)
+                        if self._active_turn == row['turn_id']: self._active_turn = None
+                        wait = self._prompt_wait
+                        if self._correlated_turns and wait is not None and self._uncorrelated(wait.id): self._reconcile(wait, row)
                 else: self._emit('notification', {'method': method, 'params': message.get('params')})
         except Exception as error:
             self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[Issue('', str(error))]))
@@ -230,11 +252,26 @@ class MercurySession(TypedRequests):
         self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
         self.exit.set_result(exit)
 
+    def _uncorrelated(self, id: str) -> bool: return id in self._prompt_turns and self._prompt_turns[id] is None
+
+    def _reconcile(self, wait: _PromptWait, outcome: OutcomeRow) -> None:
+        loop = asyncio.get_running_loop()
+        def unsettled() -> bool: return self._prompt_wait is wait and self._uncorrelated(wait.id) and not self._closed
+        def give_up() -> None:
+            if unsettled(): wait.fail(MercuryError(folded_prompt_words(outcome.get('turn'), outcome['status'])))
+        async def probe() -> None:
+            if not unsettled(): return
+            try: facts = await self.request('session/facts')
+            except Exception: return
+            if not unsettled() or any(item.get('uuid') == wait.id for item in facts['queue']): return
+            wait.handles.append(loop.call_later(FOLD_GRACE_SECONDS, give_up))
+        wait.handles.append(loop.call_later(0, lambda: wait.tasks.append(asyncio.create_task(probe()))))
+
     def _fail(self, error: Exception, graceful: bool = False) -> None:
         if self._closed: return
         self._closed = error
         self._normal_end = graceful
-        if self._prompt_error: self._prompt_error(error)
+        if self._prompt_wait is not None: self._prompt_wait.fail(error)
         for _, future in self._pending.values():
             if not future.done(): future.set_exception(error)
         for context, task in tuple(self._asks.values()):
@@ -297,8 +334,8 @@ class MercurySession(TypedRequests):
             await cancel.wait()
             fail(MercuryError('prompt: cancelled'))
         cancel_task = asyncio.create_task(watch_cancel()) if cancel is not None else None
-        self._prompt_error = fail
-        self._prompt_id = id
+        wait = _PromptWait(id, fail)
+        self._prompt_wait = wait
         self.on('outcome', done)
         try:
             receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
@@ -318,9 +355,10 @@ class MercurySession(TypedRequests):
             if cancel_task is not None: cancel_task.cancel()
             if self._prompt_turns.get(id) is None and (not accepted or self._correlated_turns): self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
+            for handle in wait.handles: handle.cancel()
+            for task in wait.tasks: task.cancel()
             self.off('outcome', done)
-            self._prompt_error = None
-            self._prompt_id = None
+            self._prompt_wait = None
             self._prompting = False
 
     @property
@@ -349,7 +387,7 @@ class MercurySession(TypedRequests):
         receipt = await self.request('queue/withdraw', {'id': id})
         if receipt['withdrawn']:
             self._prompt_turns.pop(id, None)
-            if id == self._prompt_id and self._prompt_error: self._prompt_error(MercuryError('prompt: withdrawn'))
+            if self._prompt_wait is not None and id == self._prompt_wait.id: self._prompt_wait.fail(MercuryError('prompt: withdrawn'))
         return receipt
     async def set_model(self, model: str) -> SessionSetModelResult: return await self.request('session/set_model', {'model': model})
     async def set_effort(self, effort: str) -> SessionSetEffortResult: return await self.request('session/set_effort', {'effort': effort})

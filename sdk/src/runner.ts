@@ -35,6 +35,9 @@ export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'i
 export type RequestOptions = { signal?: AbortSignal; deadlineMs?: number | null }
 export type PromptOptions<T = unknown> = { signal?: AbortSignal; timeoutMs?: number | null; interruptOnAbort?: boolean; schema?: OutputSchema<T> }
 type Pending = { method: HostRequestName; resolve: (value: unknown) => void; reject: (error: Error) => void; cleanup: () => void }
+type PromptWait = { id: string; fail: (error: Error) => void; timers: Array<ReturnType<typeof setTimeout>> }
+const FOLD_GRACE_MS = 5000
+export const foldedPromptWords = (turn: number | undefined, status: string): string => `prompt: turn ${turn ?? '?'} ended ${status} and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again`
 
 export class MercurySession implements AsyncIterable<StreamRow> {
   readonly child: ChildProcess
@@ -61,8 +64,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #correlatedTurns = false
   #closing = false
   #normalEnd = false
-  #promptReject: ((error: Error) => void) | undefined
-  #promptId: string | undefined
+  #promptWait: PromptWait | undefined
+  #activeTurn: string | null = null
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
@@ -184,14 +187,21 @@ export class MercurySession implements AsyncIterable<StreamRow> {
         const waiter = this.#waiters.shift()
         if (waiter) waiter.resolve({ value: read.row, done: false }); else { this.#queue.push(read.row); capRows(this.#queue, this.options.maxRows) }
         const row = read.row
+        if (row.type === 'turn' && row.parent_call_id === undefined && row.state === 'started') this.#activeTurn = row.turn_id
         if (row.type === 'turn' && row.parent_call_id === undefined && row.message_ids !== undefined) {
           this.#correlatedTurns = true
           for (const id of row.message_ids) if (this.#promptTurns.has(id)) this.#promptTurns.set(id, row.turn_id)
+        }
+        if (row.type === 'text' && row.parent_call_id === undefined && row.in_reply_to !== undefined && this.#correlatedTurns && this.#activeTurn !== null) {
+          for (const mark of row.in_reply_to) if (this.#promptTurns.has(mark.id) && this.#promptTurns.get(mark.id) === undefined) this.#promptTurns.set(mark.id, this.#activeTurn)
         }
         this.#emit('row', row); this.#emit(row.type, row)
         if (row.type === 'outcome' && row.parent_call_id === undefined) {
           if (this.#correlatedTurns) { for (const [id, turn] of this.#promptTurns) if (turn === row.turn_id) this.#promptTurns.delete(id) }
           else { const id = this.#promptTurns.keys().next().value; if (id !== undefined) this.#promptTurns.delete(id) }
+          if (this.#activeTurn === row.turn_id) this.#activeTurn = null
+          const wait = this.#promptWait
+          if (this.#correlatedTurns && wait !== undefined && this.#uncorrelated(wait.id)) this.#reconcile(wait, row)
         }
       } else this.#emit('notification', { method: msg.method, params: msg.params })
       return
@@ -218,11 +228,23 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     } finally { this.#asks.delete(msg.id) }
   }
 
+  #uncorrelated(id: string): boolean { return this.#promptTurns.has(id) && this.#promptTurns.get(id) === undefined }
+  #reconcile(wait: PromptWait, outcome: OutcomeRow): void {
+    const unsettled = () => this.#promptWait === wait && this.#uncorrelated(wait.id) && !this.#closed
+    wait.timers.push(setTimeout(() => {
+      if (!unsettled()) return
+      this.request('session/facts', {}).then(facts => {
+        if (!unsettled() || facts.queue.some(item => item.uuid === wait.id)) return
+        wait.timers.push(setTimeout(() => { if (unsettled()) wait.fail(new MercuryError(foldedPromptWords(outcome.turn, outcome.status), null)) }, FOLD_GRACE_MS))
+      }, () => undefined)
+    }, 0))
+  }
+
   #fail(error: Error, graceful = false): void {
     if (this.#closed) return
     this.#closed = error
     this.#normalEnd = graceful
-    this.#promptReject?.(error)
+    this.#promptWait?.fail(error)
     for (const pending of this.#pending.values()) { pending.cleanup(); pending.reject(error) }
     this.#pending.clear()
     for (const ask of this.#asks.values()) ask.abort()
@@ -268,7 +290,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     const receipt = await this.request('queue/withdraw', { id })
     if (receipt.withdrawn) {
       this.#promptTurns.delete(id)
-      if (id === this.#promptId) this.#promptReject?.(new MercuryError('prompt: withdrawn', null))
+      if (id === this.#promptWait?.id) this.#promptWait.fail(new MercuryError('prompt: withdrawn', null))
     }
     return receipt
   }
@@ -318,8 +340,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     unlimitedSignal(options.signal)
     options.signal?.addEventListener('abort', abort, { once: true })
     if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
-    this.#promptReject = fail
-    this.#promptId = id
+    const wait: PromptWait = { id, fail, timers: [] }
+    this.#promptWait = wait
     this.on('outcome', done)
     try {
       const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
@@ -332,7 +354,8 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     } finally {
       clearTimeout(timer)
       if (this.#promptTurns.get(id) === undefined && (!accepted || this.#correlatedTurns)) this.#promptTurns.delete(id)
-      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptReject = undefined; this.#promptId = undefined; this.#prompting = false
+      for (const pending of wait.timers) clearTimeout(pending)
+      options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptWait = undefined; this.#prompting = false
     }
   }
 

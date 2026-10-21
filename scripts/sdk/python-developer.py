@@ -223,6 +223,58 @@ async def prompt_schema_refused_locally():
             assert len([row for row in received() if row['method'] == 'queue/add']) == 1, 'a refused schema never reaches the wire'
 
 
+def mid_turn_fixture(mode):
+    turn_row = testing.fixture_turn()[0]
+    text_row = {**example(sdk.ROW_SCHEMAS['text']), 'session_id': 'fixture-session', 'turn': 1, 'message_id': 'm2', 'block': 0, 'text': 'Folded answer.'}
+    facts = example(sdk.METHODS['session/facts']['result'])
+    script = r'''
+const { createInterface } = require('node:readline')
+const emit = message => process.stdout.write(JSON.stringify(message) + '\n')
+const row = params => emit({ jsonrpc: '2.0', method: 'row', params })
+const ids = []
+createInterface({ input: process.stdin }).on('line', line => {
+  const { id, method, params } = JSON.parse(line)
+  const reply = result => emit({ jsonrpc: '2.0', id, result })
+  if (method === 'initialize') reply(INIT)
+  else if (method === 'session/facts') reply({ ...FACTS, queue: MODE === 'queued-late' ? [{ uuid: ids[1], value: 'second', mode: 'prompt' }] : [] })
+  else if (method === 'queue/add') {
+    ids.push(params.id); reply({ accepted: true })
+    if (ids.length === 1) row({ ...TURN, turn: 1, turn_id: 'turn-1', message_ids: [params.id] })
+    if (ids.length !== 2) return
+    const second = () => { row({ ...TURN, seq: 5, turn: 2, turn_id: 'turn-2', message_ids: [params.id] }); row({ ...OUTCOME, seq: 6, turn: 2, turn_id: 'turn-2', answer: 'second' }) }
+    if (MODE === 'folded') { row({ ...TEXT, in_reply_to: [{ id: params.id, at: '2000-01-01T00:00:01.000Z' }] }); row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'Folded answer.' }) }
+    else if (MODE === 'queued') { row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'first' }); second() }
+    else if (MODE === 'queued-late') { row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', answer: 'first' }); setTimeout(second, 300) }
+    else row({ ...OUTCOME, turn: 1, turn_id: 'turn-1', status: 'interrupted' })
+  }
+})
+'''
+    for name, value in (('INIT', init['result']), ('FACTS', facts), ('TURN', turn_row), ('TEXT', text_row), ('OUTCOME', outcome), ('MODE', mode)): script = script.replace(name, json.dumps(value))
+    return ['node', '-e', script, '--']
+
+
+async def mid_turn_prompt():
+    words = 'prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again'
+    for mode in ('folded', 'queued', 'queued-late', 'swallowed'):
+        async with await sdk.connect(mercury=mid_turn_fixture(mode)) as session:
+            try: await session.prompt('slow', timeout=0.05)
+            except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.05 seconds', str(error)
+            else: raise AssertionError('the slow prompt resolved')
+            started = time.monotonic()
+            if mode == 'swallowed':
+                try: await session.prompt('second', timeout=15)
+                except sdk.MercuryError as error: assert type(error) is sdk.MercuryError and str(error) == words, repr(error)
+                else: raise AssertionError('a prompt the runner neither queued nor ran resolved')
+                elapsed = time.monotonic() - started
+                assert 4.5 <= elapsed < 9, f'the swallowed prompt was rejected after {elapsed:.2f} s, not within the grace'
+            else:
+                row = await session.prompt('second', timeout=15)
+                elapsed = time.monotonic() - started
+                assert row.get('answer') == ('Folded answer.' if mode == 'folded' else 'second') and row.get('turn') == (1 if mode == 'folded' else 2), (mode, row)
+                assert elapsed < 2, f'{mode} settled after {elapsed:.2f} s'
+            assert len((await session.facts())['queue']) == (1 if mode == 'queued-late' else 0)
+
+
 async def prompt_cancellation(correlated):
     with prompt_fixture(correlated) as (mercury, received):
         async with await sdk.connect(mercury=mercury) as session:
@@ -585,7 +637,7 @@ async def discovery_deeper():
 
 
 async def main():
-    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('prompt ids on every accepted send', prompt_ids), ('prompt withdrawal uncorrelated', lambda: prompt_withdrawal(False)), ('prompt withdrawal correlated', lambda: prompt_withdrawal(True)), ('a prompt waiting on its own withdrawn input uncorrelated', lambda: prompt_withdrawn_wait(False)), ('a prompt waiting on its own withdrawn input correlated', lambda: prompt_withdrawn_wait(True)), ('input answered with an error uncorrelated', lambda: prompt_error_reply(False)), ('input answered with an error correlated', lambda: prompt_error_reply(True)), ('a schema refused before sending leaves the session free', prompt_schema_refused_locally), ('a prompt sent while a turn is running settles: folded, queued, or rejected with the words within the grace', mid_turn_prompt), ('prompt cancellation uncorrelated', lambda: prompt_cancellation(False)), ('prompt cancellation correlated', lambda: prompt_cancellation(True)), ('sync prompt ids and options', sync_prompt_ids), ('unclaimed warm prompt guard and claimed identities', warm_identity), ('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 11 version floors: a runner below 1.0.0-beta.41 refuses a per-turn schema before sending and reads no file checkpoints; at the floor, or answering the .41 wire, the field is sent', version_floors), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 managed install: the Windows layout driven on this host, the POSIX layout live', managed_install), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
     await check('discovery one layer deeper: Windows env keys read without regard to case, the Homebrew wrapper to the keg bundle on its vendored node, a relative executable bound to cwd, a missing MERCURY_NODE refused by name', discovery_deeper)
 

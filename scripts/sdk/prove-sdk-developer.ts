@@ -300,6 +300,53 @@ try {
       assert.equal(fixture.received().filter(row => row.method === 'queue/add').length, 1, 'a refused schema never reaches the wire')
     } finally { await session.close() }
   })
+  await check('a prompt sent while a turn is running settles: folded into that turn it resolves with the reply it was marked in reply to, queued behind it with its own turn, and one the runner holds neither queued nor in a turn is rejected with the words within the grace', async () => {
+    const [turnRow] = testing.fixtureTurn()
+    const textRow = { ...example(sdk.ROW_SCHEMAS.text), session_id: 'fixture-session', turn: 1, message_id: 'm2', block: 0, text: 'Folded answer.' }
+    const facts = example(sdk.METHODS['session/facts'].result)
+    const midTurnFixture = (mode: 'folded' | 'queued' | 'queued-late' | 'swallowed') => ['node', '-e', `
+      const { createInterface } = require('node:readline')
+      const emit = message => process.stdout.write(JSON.stringify(message) + '\\n')
+      const row = params => emit({ jsonrpc: '2.0', method: 'row', params })
+      const ids = []
+      createInterface({ input: process.stdin }).on('line', line => {
+        const { id, method, params } = JSON.parse(line)
+        const reply = result => emit({ jsonrpc: '2.0', id, result })
+        if (method === 'initialize') reply(${JSON.stringify(init.result)})
+        else if (method === 'session/facts') reply({ ...${JSON.stringify(facts)}, queue: ${mode === 'queued-late' ? "[{ uuid: ids[1], value: 'second', mode: 'prompt' }]" : '[]'} })
+        else if (method === 'queue/add') {
+          ids.push(params.id); reply({ accepted: true })
+          if (ids.length === 1) row({ ...${JSON.stringify(turnRow)}, turn: 1, turn_id: 'turn-1', message_ids: [params.id] })
+          if (ids.length !== 2) return
+          const second = () => { row({ ...${JSON.stringify(turnRow)}, seq: 5, turn: 2, turn_id: 'turn-2', message_ids: [params.id] }); row({ ...${JSON.stringify(outcome)}, seq: 6, turn: 2, turn_id: 'turn-2', answer: 'second' }) }
+          if (${JSON.stringify(mode)} === 'folded') { row({ ...${JSON.stringify(textRow)}, in_reply_to: [{ id: params.id, at: '2000-01-01T00:00:01.000Z' }] }); row({ ...${JSON.stringify(outcome)}, turn: 1, turn_id: 'turn-1', answer: 'Folded answer.' }) }
+          else if (${JSON.stringify(mode)} === 'queued') { row({ ...${JSON.stringify(outcome)}, turn: 1, turn_id: 'turn-1', answer: 'first' }); second() }
+          else if (${JSON.stringify(mode)} === 'queued-late') { row({ ...${JSON.stringify(outcome)}, turn: 1, turn_id: 'turn-1', answer: 'first' }); setTimeout(second, 300) }
+          else row({ ...${JSON.stringify(outcome)}, turn: 1, turn_id: 'turn-1', status: 'interrupted' })
+        }
+      })
+    `, '--']
+    for (const mode of ['folded', 'queued', 'queued-late', 'swallowed'] as const) {
+      const session = await sdk.connect({ mercury: midTurnFixture(mode) })
+      try {
+        await assert.rejects(session.prompt('slow', { timeoutMs: 50 }), /prompt: no answer within 50 ms/)
+        const started = performance.now()
+        const second = session.prompt('second', { timeoutMs: 15000 })
+        if (mode === 'swallowed') {
+          await assert.rejects(second, (error: unknown) => error instanceof sdk.MercuryError && error.message === 'prompt: turn 1 ended interrupted and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again')
+          const elapsed = performance.now() - started
+          assert(elapsed >= 4500 && elapsed < 9000, `the swallowed prompt was rejected after ${elapsed.toFixed(0)} ms, not within the grace`)
+        } else {
+          const row = await second
+          const elapsed = performance.now() - started
+          assert.equal(row.answer, mode === 'folded' ? 'Folded answer.' : 'second', mode)
+          assert.equal(row.turn, mode === 'folded' ? 1 : 2, mode)
+          assert(elapsed < 2000, `${mode} settled after ${elapsed.toFixed(0)} ms`)
+        }
+        assert.equal((await session.facts()).queue.length, mode === 'queued-late' ? 1 : 0)
+      } finally { await session.close() }
+    }
+  })
   await check('unclaimed warm prompts fail locally within 50 ms and claim updates both identities', async () => {
     const message = 'session is unclaimed; call claim() before prompting'
     for (const open of [sdk.prewarm, (options: sdk.ConnectOptions) => sdk.connect({ ...options, warm: true })]) {
