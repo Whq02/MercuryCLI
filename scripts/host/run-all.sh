@@ -18,6 +18,7 @@
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bun "$ROOT/scripts/host/prove-host-cleanup.ts"
 bun "$ROOT/scripts/host/prove-vendors.ts"
 bun "$ROOT/scripts/host/prove-vendor-road-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
 bun "$ROOT/scripts/host/prove-door-drive.ts"

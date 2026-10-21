@@ -52,8 +52,9 @@ provider in `/model` and `/logins`.
    pod.
 4. **Confirm the hourly price.** Nothing is rented until you select the
    confirmation row and press Enter. The confirmation screen shows the time
-   estimate for each setup step (engine startup, weight download and model load)
-   alongside the vendor's storage and SSH-key terms. The two `llama.cpp` GGUF
+   estimate for each setup step (engine startup, weight download and model load),
+   the recipe's verification status, and the vendor's storage and SSH-key terms.
+   The two `llama.cpp` GGUF
    recipes (`GLM-5.3-Flash` and `Nemotron 3.5 Super VL 120B`) use the prebuilt
    CUDA 13 engine image (`ghcr.io/whq02/mercury-llamacpp`) and skip source
    compilation when the image's `llama-server` binary is present.
