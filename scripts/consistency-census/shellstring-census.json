@@ -416,6 +416,20 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/daemon/prove-dead-watch-first-request.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "return execSync(`pgrep -fl ${JSON.stringify(`[t]ail -n0 -F ${WATCHED}`)}`).toString().trim()",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/daemon/prove-dead-watch-first-request.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(`pkill -f ${JSON.stringify(`[t]ail -n0 -F ${WATCHED}`)}`)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/daemon/prove-helper-doors.ts",
       "mechanism": "shell-dash-c",
       "excerpt": "if (spawnSync('sh', ['-c', `git -C \"${root}\" archive ${OLD_SHA} | tar -x -C \"${cache}\"`]).status !== 0) return null",
