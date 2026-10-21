@@ -11,7 +11,7 @@ mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
-for (const key of ['MERCURY_VOICE_BACKEND', 'MERCURY_VOICE_FIXTURE_WAV', 'MERCURY_VOICE_PACK_DIR', 'MERCURY_VOICE_DEBUG_WAV_DIR', 'MERCURY_WHISPER_PACK_DIR', 'MERCURY_WHISPER_MODEL', 'MERCURY_VOICE_TRANSCRIBER', 'MERCURY_HOME']) delete process.env[key]
+for (const key of ['MERCURY_VOICE_BACKEND', 'MERCURY_VOICE_FIXTURE_WAV', 'MERCURY_VOICE_PACK_DIR', 'MERCURY_VOICE_DEBUG_WAV_DIR', 'MERCURY_WHISPER_PACK_DIR', 'MERCURY_WHISPER_MODEL', 'MERCURY_HOME']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(ROOT)
 
@@ -66,12 +66,12 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   mkdirSync(home, { recursive: true })
   const row = models.whisperDefaultModel()
   let state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice download fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), JSON.stringify(state))
+  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice on fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), JSON.stringify(state))
   const dir = models.whisperModelsDir(home)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, row.file), Buffer.alloc(1234))
   state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice download'), JSON.stringify(state))
+  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice on'), JSON.stringify(state))
   const cached = join(CACHE_DIR, row.file)
   const tiny = models.whisperModelByName('tiny.en-q5_1')
   const cachedTiny = tiny ? join(CACHE_DIR, tiny.file) : ''
@@ -245,15 +245,15 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   const unknownProbe = { state: 'unknown' as const, via: 'helper' as const, note: 'fixture: nothing reported' }
   pack.seedCpuFloorProbeForTest(unknownProbe)
   let l = pack.loadWhisperAddon()
-  check('an unknown floor never reaches the require: unavailable with the reason, the cloud road named, the junk file never loaded', l.state === 'unavailable' && l.note.includes('could not be read') && l.note.includes(pack.whisperCpuFloorWords()) && l.note.includes('fixture: nothing reported') && !l.note.includes('failed to load') && l.note.endsWith('; the cloud road serves'), l.state === 'unavailable' ? l.note : 'ok')
+  check('an unknown floor never reaches the require: unavailable with the reason, no other transcriber offered, the junk file never loaded', l.state === 'unavailable' && l.note.includes('could not be read') && l.note.includes(pack.whisperCpuFloorWords()) && l.note.includes('fixture: nothing reported') && !l.note.includes('failed to load') && !l.note.includes('cloud'), l.state === 'unavailable' ? l.note : 'ok')
   let r = transcribe.localTranscriberRead()
   check('the on-device read says so in one row, the same sentence', r.state === 'absent' && r.reason === 'cpu' && r.short === 'on-device CPU check inconclusive' && r.note === pack.cpuFloorRefusal(unknownProbe), JSON.stringify(r))
   const status = voiceSession.describeVoiceStatus()
   check('/voice says why', status.includes('on-device transcriber: the on-device transcriber is held back: fixture: nothing reported') && status.includes('could not be read'), status)
   const readiness = voiceSession.describeVoiceReadiness()
   check('the health row says why', readiness.detail.includes('fixture: nothing reported') && readiness.detail.includes('could not be read'), readiness.detail)
-  const door = await speak.call('download', {} as never)
-  check('/voice download refuses: nothing to download while the on-device transcriber cannot run here', door.type === 'text' && door.value.includes('could not be read') && door.value.includes('nothing to download while the on-device transcriber cannot run here'), door.type === 'text' ? door.value : door.type)
+  const door = await speak.call('on', {} as never)
+  check('/voice on refuses: nothing to download while the on-device transcriber cannot run here', door.type === 'text' && door.value.includes('could not be read') && door.value.startsWith('/voice on:') && !voiceSession.voiceInputEnabled(), door.type === 'text' ? door.value : door.type)
   pack.resetWhisperAddonForTest()
   pack.seedCpuFloorProbeForTest({ state: 'unmet', via: 'helper', missing: [], faulted: true })
   l = pack.loadWhisperAddon()
@@ -283,7 +283,7 @@ if (cargo === null || cmake === null) {
     check('no pack ⇒ the pack owner answers unavailable, naming the platform', resolved.note.includes(PLATFORM), resolved.note)
     const local = transcribe.localTranscriberRead()
     check('…and the transcriber\'s on-device read says absent with the remedy that fits a checkout', local.state === 'absent' && local.reason === 'pack' && local.note === pack.whisperPackAbsentNote() && local.note.includes('build-whisper.ts') && local.short === 'no on-device pack (bun run setup)', JSON.stringify(local))
-    check('a release install\'s words never name the checkout\'s build', pack.whisperPackAbsentNote(null) === 'absent — this build shipped without it')
+    check('a release install\'s words never name the checkout\'s build', pack.whisperPackAbsentNote(null).includes('this build carries no on-device transcriber for') && !pack.whisperPackAbsentNote(null).includes('bun run'))
   }
   finish(`no ${cargo === null ? 'cargo' : 'cmake'} — the loud skip`)
 }
@@ -327,9 +327,9 @@ if (load.state === 'ok') {
   check('the helper on the real addon agrees with the in-process cpuFloor()', byLoad.state === (floor.met ? 'met' : 'unmet') && byLoad.via === 'helper', JSON.stringify(byLoad))
   console.log(`  · engine ${load.addon.engineVersion()} · floor ${floor.floor} (${floor.met ? 'met' : 'unmet'}) · probe ${probe.state} by ${probe.via} · helper ${byLoad.state} in ${helperMs} ms · ${info.trim()}`)
   const local = transcribe.localTranscriberRead()
-  check('with the pack present and no model in the home, the on-device read names the download door', local.state === 'absent' && local.reason === 'model' && local.short === 'on-device model: /voice download' && local.download?.name === models.WHISPER_DEFAULT_MODEL, JSON.stringify(local))
+  check('with the pack present and no model in the home, the on-device read names the download door', local.state === 'absent' && local.reason === 'model' && local.short === 'on-device model: /voice on' && local.download?.name === models.WHISPER_DEFAULT_MODEL, JSON.stringify(local))
   const door = models.whisperDownloadDoor()
-  check('the download door names the size, the model, the licence, the directory and the verb', door.startsWith('on-device transcription needs a one-time 60 MB download — Whisper base.en') && door.includes('(MIT)') && door.includes(models.whisperModelsDir()) && door.includes('/voice download starts it') && door.endsWith('until then the cloud road serves'), door)
+  check('the download door names the size, the model, the licence, the directory and the verb', door.startsWith('on-device transcription needs a one-time 60 MB download — Whisper base.en') && door.includes('(MIT)') && door.includes(models.whisperModelsDir()) && door.includes('/voice on starts it') && !door.includes('cloud'), door)
 
   const empty = join(SCRATCH, 'no-pack')
   mkdirSync(empty, { recursive: true })
@@ -380,12 +380,11 @@ if (load.state === 'ok') {
 
     process.env.MERCURY_VOICE_BACKEND = 'fixture'
     process.env.MERCURY_VOICE_FIXTURE_WAV = join(import.meta.dir, 'fixtures', 'on-device-take.wav')
-    process.env.MERCURY_VOICE_TRANSCRIBER = 'on-device'
     voiceSession.setVoiceInputEnabled(true)
     const held = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
     check('a decode is held', transcribe.localDecodesInFlight() === 1)
     let outcome = await voiceSession.toggleVoiceCapture()
-    check('a start refuses a new take while the engine is held, naming the wait and the cloud door, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
+    check('a start refuses a new take while the engine is held, naming the wait, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
     await held
     await transcribe.transcribeWav(fixture, { choice })
     check('the engine is free once the held decode ends', transcribe.localDecodesInFlight() === 0)
@@ -395,7 +394,6 @@ if (load.state === 'ok') {
     voiceSession.setVoiceInputEnabled(false)
     delete process.env.MERCURY_VOICE_BACKEND
     delete process.env.MERCURY_VOICE_FIXTURE_WAV
-    delete process.env.MERCURY_VOICE_TRANSCRIBER
     let shape = ''
     try {
       await transcribe.transcribeWav(wav.encodeWav(new Int16Array(8000), { sampleRate: 8000 }), { choice })

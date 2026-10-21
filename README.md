@@ -838,14 +838,12 @@ Available commands include:
   and keeps screenshots out of the saved conversation file. Set
   `MERCURY_COMPUTER_USE=0` to remove the tool. See
   [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
-- **On-device Whisper voice input (`/voice`).** Run `/voice on`, then hold
-  space for 1 s to dictate into the composer and release it to stop.
-  Transcription runs on-device with `whisper.cpp` (using a 60 MB English
-  Whisper `base.en` model downloaded once with `/voice download`, with
-  `tiny.en-q5_1`, `small.en-q5_1` and multilingual `base-q5_1` also available)
-  or through a signed-in OpenAI or Gemini API key. With the on-device
-  transcriber, audio never leaves the machine; with a remote provider, audio is
-  sent only after you stop recording. See [docs/VOICE.md](docs/VOICE.md).
+- **On-device Whisper voice input (`/voice`).** `/voice on` downloads the
+  English speech model once (60 MB) and enables dictation; `/voice off`
+  disables it. Hold space for 1 s to speak and release to stop, or use bare
+  `/voice` to start and stop a capture while voice is on. Whisper transcribes
+  locally: voice audio never leaves the machine. Other speech models,
+  including a multilingual model, are available. See [docs/VOICE.md](docs/VOICE.md).
 - **Saturn cron and session scheduler (`/saturn`).** Schedule a prompt for an
   existing session (`CronCreate`, `CronList`, `CronDelete`, `ScheduleWakeup`,
   `/loop`) or schedule a new session to start at a set time. Schedules can run

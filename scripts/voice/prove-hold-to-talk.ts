@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const FIXTURE = join(import.meta.dir, 'voice-transcriber-fixture-server.ts')
+import { localFixture } from './localFixture.ts'
 const COMPOSER = join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx')
 const COMPOSER_MODULES = ['useComposerRawKeys.ts', 'useComposerDraft.ts'].map(name => join(ROOT, 'src', 'components', 'PromptInput', name))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'hold-to-talk-')))
@@ -28,7 +27,6 @@ for (const key of [
   'MERCURY_VOICE_PACK_DIR',
   'MERCURY_WHISPER_PACK_DIR',
   'MERCURY_WHISPER_MODEL',
-  'MERCURY_VOICE_TRANSCRIBER',
   'MERCURY_VOICE_BOUND_MS',
   'MERCURY_OPENAI_API_BASE',
   'MERCURY_GEMINI_API_BASE',
@@ -76,31 +74,10 @@ const EMPTY_BIN = join(SCRATCH, 'empty-bin')
 mkdirSync(EMPTY_BIN, { recursive: true })
 const TRANSCRIPT = 'world'
 
-interface Fixture {
-  child: ChildProcess
-  port: number
-  posts: () => number
-  stop: () => void
-}
-async function startFixture(): Promise<Fixture> {
-  const ledger = join(SCRATCH, 'ledger.log')
-  const child = spawn(process.execPath, ['run', FIXTURE, '0', ledger, TRANSCRIPT, ''], { stdio: ['ignore', 'pipe', 'pipe'] })
-  const port = await new Promise<number>((resolvePort, reject) => {
-    const killer = setTimeout(() => reject(new Error('fixture never printed PORT')), 15_000)
-    child.stdout?.on('data', (chunk: Buffer) => {
-      const m = /PORT (\d+)/.exec(chunk.toString())
-      if (m) {
-        clearTimeout(killer)
-        resolvePort(Number(m[1]))
-      }
-    })
-  })
-  return {
-    child,
-    port,
-    posts: () => (existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.includes(' POST ')).length : 0),
-    stop: () => child.kill('SIGTERM'),
-  }
+async function startFixture() {
+  const fx = localFixture(join(SCRATCH, 'pack'), TRANSCRIPT)
+  Object.assign(process.env, fx.env)
+  return { port: 9, posts: fx.calls, stop: () => {} }
 }
 
 const KEY: Key = {
@@ -274,8 +251,9 @@ async function settle(): Promise<void> {
 }
 const phase = (): string => session.voiceSnapshot().phase
 
-section('§0 the rig — the fixture microphone, a loopback transcriber that answers "world", /voice on, the composer stand-in')
+section('§0 the rig — the fixture microphone, an on-device fixture that answers "world", /voice on, the composer stand-in')
 const fx = await startFixture()
+check('voice has no remote transcriber choices', !session.describeVoiceStatus().includes('/voice options'))
 process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${fx.port}/v1`
 process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
 process.env.MERCURY_VOICE_BACKEND = 'fixture'

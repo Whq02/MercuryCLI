@@ -28,7 +28,7 @@ map and `/keybindings` opens your keybindings file.
 - [APOLLO-MODE.md](APOLLO-MODE.md): the specification interview and review that lead into a prototype build.
 - [MNEME.md](MNEME.md): Mneme is Mercury's project memory, on by default, storing facts in plain markdown topic pages under the config home, managed through four tools and the `/memory` centre.
 - [MEMORY-FINDINGS.md](MEMORY-FINDINGS.md): what the handoff note does and what it costs, measured on 1.0.0-beta.32 over 250 sessions in chains of five, with a control.
-- [VOICE.md](VOICE.md): hold-to-talk dictation, capture backends, transcriber selection and audio privacy.
+- [VOICE.md](VOICE.md): on-device dictation, `/voice on` and `/voice off`, microphone setup and audio privacy.
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
 
 ## Loading, extending and delegating

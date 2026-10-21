@@ -1,82 +1,47 @@
 import type { LocalCommandCall } from '../../types/command.js'
-import { toggleVoiceCapture } from '../../services/voice/voiceSession.js'
-import { localTranscriberRead, transcriberOptionNames } from '../../services/voice/transcribe.js'
-import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceOptions, describeVoiceStatus, setVoiceInputEnabled, setVoiceTranscriberChoice, voiceInputEnabled } from '../../services/voice/voiceSession.js'
-import { WHISPER_MODELS, checkWhisperModel, downloadWhisperModel, mbWords, resolveWhisperModelPin, whisperModelByName, whisperModelsDir } from '../../services/voice/whisperModels.js'
+import { localTranscriberRead } from '../../services/voice/transcribe.js'
+import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceStatus, setVoiceInputEnabled, toggleVoiceCapture, voiceInputEnabled } from '../../services/voice/voiceSession.js'
+import { checkWhisperModel, downloadWhisperModel, mbWords, resolveWhisperModelPin, whisperModelsDir } from '../../services/voice/whisperModels.js'
 
-const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
+let setup: Promise<string> | null = null
+let setupGeneration = 0
 
-async function download(rawName: string): Promise<string> {
+async function turnOn(generation: number): Promise<string> {
   const local = localTranscriberRead()
-  if (local.state === 'absent' && local.reason === 'cpu') {
-    return `on-device transcriber: ${local.note} — nothing to download while the on-device transcriber cannot run here`
+  if (local.state === 'absent' && local.reason !== 'model') return `/voice on: ${local.note}`
+  const pin = resolveWhisperModelPin()
+  if (pin.kind === 'broken') return `/voice on: ${pin.note}`
+  let downloaded = ''
+  if (pin.kind === 'catalogue') {
+    try {
+      const got = await downloadWhisperModel(pin.row, whisperModelsDir())
+      if (!got.reused) downloaded = `downloaded ${pin.row.file} (${mbWords(got.bytes)}, sha256 verified) — one-time speech model download\n`
+    } catch (error) {
+      return `/voice on: download failed — ${error instanceof Error ? error.message : String(error)}`
+    }
   }
-  if (local.state === 'absent' && (local.reason === 'pack' || (local.reason === 'pin' && !local.note.startsWith('MERCURY_WHISPER_MODEL')))) {
-    return `on-device transcriber: ${local.note} — the model download waits for the pack`
-  }
-  let row = null
-  if (rawName !== '') {
-    row = whisperModelByName(rawName)
-    if (row === null) return `/voice download takes a model name from the catalogue (${WHISPER_MODELS.map(r => r.name).join(' · ')}); got "${rawName}"`
-  } else {
-    const pin = resolveWhisperModelPin()
-    if (pin.kind === 'broken') return pin.note
-    if (pin.kind === 'path') return `MERCURY_WHISPER_MODEL names ${pin.path}, a file already on disk — nothing to download`
-    row = pin.row
-  }
-  const dir = whisperModelsDir()
-  const present = checkWhisperModel({ kind: 'catalogue', row, pinned: true })
-  if (present.state === 'present') return `${row.file} is already on disk (${mbWords(present.bytes)}) — ${present.path}\n${describeVoiceStatus()}`
-  try {
-    const got = await downloadWhisperModel(row, dir)
-    return `downloaded ${row.file} (${mbWords(got.bytes)}, sha256 verified) into ${dir} · ${seconds(got.ms)}\n${describeVoiceStatus()}`
-  } catch (error) {
-    return `download failed — ${error instanceof Error ? error.message : String(error)}`
-  }
-}
-
-function options(rawName: string): string {
-  if (rawName === '') return describeVoiceOptions()
-  const names = transcriberOptionNames()
-  if (rawName === 'default') {
-    setVoiceTranscriberChoice(null)
-    return `default transcriber: the shipped default (saved choice cleared)\n${describeVoiceOptions()}`
-  }
-  if (!names.includes(rawName)) {
-    return `/voice options takes one of ${names.join(' · ')} or default (got "${rawName}"); bare /voice options lists them`
-  }
-  setVoiceTranscriberChoice(rawName)
-  return `default transcriber: ${rawName} (saved)\n${describeVoiceOptions()}`
+  const model = checkWhisperModel(pin)
+  if (model.state !== 'present') return `/voice on: ${model.note}`
+  if (generation !== setupGeneration) return `${downloaded}voice input remains OFF — /voice off was requested during setup`
+  const ready = localTranscriberRead()
+  if (ready.state !== 'ok') return `/voice on: ${ready.note}`
+  const already = voiceInputEnabled()
+  setVoiceInputEnabled(true)
+  return `${downloaded}${already ? 'voice input already on' : `voice input ON — ${HOLD_WORDS}; the words land in the composer. ${NO_REPEAT_WORDS}`}\n${describeVoiceStatus()}`
 }
 
 export const call: LocalCommandCall = async rawArg => {
   const arg = rawArg.trim().toLowerCase()
-  if (arg === '') {
-    const outcome = await toggleVoiceCapture()
-    return { type: 'text', value: outcome.text }
+  if (arg === '' || arg === 'capture') return { type: 'text', value: (await toggleVoiceCapture()).text }
+  if (arg === 'off') {
+    setupGeneration += 1
+    const already = !voiceInputEnabled()
+    setVoiceInputEnabled(false)
+    return { type: 'text', value: already ? `voice input already off\n${describeVoiceStatus()}` : 'voice input OFF — space is a space again' }
   }
-  if (arg === 'capture' || arg === 'stop') {
-    const outcome = await toggleVoiceCapture()
-    return { type: 'text', value: outcome.text }
+  if (arg === 'on') {
+    if (setup === null) setup = turnOn(setupGeneration).finally(() => { setup = null })
+    return { type: 'text', value: await setup }
   }
-  if (arg === 'download' || arg.startsWith('download ')) {
-    return { type: 'text', value: await download(arg.slice('download'.length).trim()) }
-  }
-  if (arg === 'options' || arg.startsWith('options ')) {
-    return { type: 'text', value: options(arg.slice('options'.length).trim()) }
-  }
-  if (arg !== 'on' && arg !== 'off') {
-    return { type: 'text', value: `/voice takes on, off, capture, options or download (got "${rawArg.trim()}"); bare /voice starts or stops a capture` }
-  }
-  const next = arg === 'on'
-  if (voiceInputEnabled() === next) {
-    return { type: 'text', value: `voice input already ${next ? 'on' : 'off'}\n${describeVoiceStatus()}` }
-  }
-  setVoiceInputEnabled(next)
-  return {
-    type: 'text',
-    value: next
-      ? `voice input ON — ${HOLD_WORDS}; the words land in the composer. ${NO_REPEAT_WORDS}\n${describeVoiceStatus()}`
-      : 'voice input OFF — space is a space again',
-  }
+  return { type: 'text', value: `/voice takes on, off or capture (got "${rawArg.trim()}"); bare /voice starts or stops a capture while voice input is on` }
 }

@@ -150,9 +150,16 @@ type WhisperPackResolution =
   | { state: 'unavailable'; note: string }
 
 export function whisperPackAbsentNote(checkoutRoot: string | null = voiceCheckoutRoot()): string {
-  return checkoutRoot !== null
-    ? 'absent on this checkout — bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)'
-    : 'absent — this build shipped without it'
+  let remedy = checkoutRoot !== null
+    ? 'bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)'
+    : 'install the complete Mercury archive for this platform'
+  if (checkoutRoot === null) {
+    try {
+      const manifest = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'manifest.json'), 'utf8')) as { onDeviceTranscriber?: { remedy?: string } }
+      if (typeof manifest.onDeviceTranscriber?.remedy === 'string') remedy = manifest.onDeviceTranscriber.remedy
+    } catch {}
+  }
+  return `this build carries no on-device transcriber for ${voicePackPlatform()} — ${remedy}`
 }
 
 export function resolveWhisperPackDir(): WhisperPackResolution {
@@ -360,7 +367,7 @@ export function loadWhisperAddon(): WhisperAddonLoad {
   }
   const floor = probeCpuFloor({ addonPath: resolution.addonPath })
   if (floor.state !== 'met') {
-    loaded = { state: 'unavailable', note: `${cpuFloorRefusal(floor)}; the cloud road serves` }
+    loaded = { state: 'unavailable', note: cpuFloorRefusal(floor) }
     return loaded
   }
   try {

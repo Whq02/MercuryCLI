@@ -267,7 +267,6 @@ type TerminalSetup = {
 
 type Voice = {
   voiceInputEnabled?: boolean
-  voiceTranscriber?: string
   voiceNoticeSeenCount?: number
   voiceLangHintShownCount?: number
   voiceLangHintLastLanguage?: string
