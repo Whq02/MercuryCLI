@@ -78,6 +78,7 @@ from mercury_cli_sdk import (
     is_outcome, is_session_row, turn_opened, turn_waiting, main_thread_step, is_main_thread, outcome_failed, outcome_error_text, is_row_type, is_input_row_type,
     is_retryable_outcome, assert_completed, allow_permission, deny_permission,
     text_block, image_block, structured_schema, prewarm,
+    FEATURE_FLOORS, RunnerFeature, RunnerSupport, compare_versions, parse_version, runner_support,
 )
 
 
@@ -153,3 +154,14 @@ def typed_sync() -> None:
         assert_type(session.last_prompt_id, str | None)
         assert_type(session.file_checkpoints, InitializeResultFile_checkpoints | None)
         assert_type(next(iter(session)), StreamRow)
+        support: RunnerSupport = session.supports
+        assert_type(session.supports['per_turn_schema'], bool)
+        assert_type(session.supports['file_checkpoints'], bool)
+        assert_type(session.runner_version, str | None)
+        assert_type(runner_support(session.session.initialized), RunnerSupport)
+        assert_type(FEATURE_FLOORS['per_turn_schema'], str)
+        assert_type(compare_versions('1.0.0', '1.0.1'), int | None)
+        parsed = parse_version('1.0.0-beta.41')
+        if parsed is not None: assert_type(parsed[0], tuple[int, int, int])
+        feature: RunnerFeature = 'per_turn_schema'
+        print(support, feature)

@@ -7,12 +7,15 @@ import { BUN, PYTHON, resolvePython } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-build-'))
-const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, allowPermission, denyPermission, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, isOutcome, isSessionRow, turnOpened, turnWaiting, mainThreadStep, isMainThread, outcomeFailed, outcomeErrorText, isRetryableOutcome, assertCompleted, isRowType, isInputRowType, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type PermissionHandler, type ElicitationHandler, type ReadTextFileHandler, type WriteTextFileHandler, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
+const STRICT_CONSUMER = String.raw`import { run, connect, prewarm, textBlock, imageBlock, allowPermission, denyPermission, structuredSchema, defineAgent, defineTool, serveTools, MercuryRefusal, argvOf, rowOf, parseRow, validate, isOutcome, isSessionRow, turnOpened, turnWaiting, mainThreadStep, isMainThread, outcomeFailed, outcomeErrorText, isRetryableOutcome, assertCompleted, isRowType, isInputRowType, FEATURE_FLOORS, compareVersions, parseVersion, runnerSupport, type RunnerFeature, type RunnerSupport, type StreamRow, type OutcomeRow, type SessionRow, type RunOptions, type ConnectOptions, type HostHandlers, type PermissionHandler, type ElicitationHandler, type ReadTextFileHandler, type WriteTextFileHandler, type MercuryRun, type MercurySession } from 'mercury-cli-sdk'
 import { startFixtureServer } from 'mercury-cli-sdk/testing'
 
 const descriptor = structuredSchema({ type: 'object' }, value => ({ count: (value as { count: number }).count }))
 const typedRun = run({ prompt: [textBlock('hello'), imageBlock(new Uint8Array([1]), 'image/png')], schema: descriptor })
 console.log((await typedRun.outcome).structured?.count satisfies number | undefined)
+const floors: RunnerSupport = runnerSupport(undefined)
+const feature: RunnerFeature = 'perTurnSchema'
+console.log(floors.perTurnSchema satisfies boolean, floors[feature], FEATURE_FLOORS.fileCheckpoints satisfies '1.0.0-beta.41', compareVersions('1.0.0', '1.0.1') satisfies number | undefined, parseVersion('1.0.0-beta.41')?.release satisfies number[] | undefined)
 const options: RunOptions = { tools: [defineTool({ name: 'echo', description: 'Echo', inputSchema: {}, execute: (_input, { signal }) => String(signal.aborted) })], debug: true, worktree: 'branch', reasoningMode: 'enabled', briefFile: 'brief.txt', briefAddFile: 'extra.txt', replayTo: 'm1', restoreFiles: 'm2', prompt: 'Explain', mode: 'default', partial: true, mercury: ['ssh', 'host', 'mercury'], schema: { type: 'object' } }
 const task: MercuryRun = run(options)
 task.on('text', row => process.stdout.write(row.text))
@@ -29,6 +32,7 @@ const handlers: HostHandlers = { 'fs/write_text_file': async () => {}, 'permissi
 const connectOptions: ConnectOptions = { handlers, partial: true, checkpoints: false, schema: { type: 'object' }, onElicitation: () => ({ action: 'decline' }) }
 const session: MercurySession = await connect(connectOptions)
 console.log(session.fileCheckpoints?.capture satisfies boolean | undefined, session.fileCheckpoints?.source satisfies 'interactive' | 'seat' | 'initialize' | 'setting' | 'headless' | undefined, session.initialized.file_checkpoints?.source)
+console.log(session.supports.perTurnSchema satisfies boolean, session.supports.fileCheckpoints satisfies boolean, session.runnerVersion satisfies string | undefined, runnerSupport(session.initialized).perTurnSchema)
 try {
   console.log((await session.prompt('typed', { schema: descriptor })).structured?.count satisfies number | undefined)
   await session.steer('now'); await session.followUp('later')
