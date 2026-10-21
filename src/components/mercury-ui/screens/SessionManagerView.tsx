@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { getSessionId } from '../../../bootstrap/state.js'
 import type { ResumeEntrypoint } from '../../../commands.js'
 import { Box, Text, useInput } from '../../../ink.js'
+import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { formatFileSize, formatRelativeTimeAgo } from '../../../utils/format.js'
@@ -229,6 +230,7 @@ function LiveSessionManager({
     if (phase === 'swapping') onCloseAll()
   }
 
+  usePopupListPaging(sel, navLen, WINDOW, moveTo, switching === null && prune === null && confirming === null)
   useInput(
     (input, key) => {
       if (switching !== null) {
@@ -325,7 +327,7 @@ function LiveSessionManager({
     confirming !== null
       ? '↵ yes, switch · esc / n cancel'
       : navLen > 0
-        ? `↑↓ / click browse · ↵ switch · n new · d prune · ${scopeHint} · esc / ← close`
+        ? `↑↓ / click browse · pgup/pgdn page · ↵ switch · n new · d prune · ${scopeHint} · esc / ← close`
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
   if (switching !== null) {
@@ -462,13 +464,9 @@ function LiveSessionManager({
   }
 
   return (
-    <CommandCenter
-      view="sessions"
+    <CommandCenter view="sessions"
       onClose={onClose}
-      captureInput={false}
-      footer={footer}
-    >
-      <Box marginTop={1}>
+      captureInput={false} footer={footer} bodyOwnsPageKeys ><Box marginTop={1}>
         <Text wrap="truncate">
           <Text color={accent}>▣ </Text>
           <Text bold color={IVORY}>this session</Text>
@@ -581,7 +579,6 @@ function LiveSessionManager({
             )}
           </Text>
         </Box>
-      )}
-    </CommandCenter>
+      )}</CommandCenter>
   )
 }

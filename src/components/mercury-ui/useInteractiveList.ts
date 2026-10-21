@@ -40,7 +40,7 @@ export function useInteractiveList<Row>({
   reasonUnavailable,
   idNamespace = 'list',
   orientation = 'vertical',
-  pageSize = 5,
+  pageSize,
 }: {
   rows: readonly Row[]
   rowId: (row: Row) => string
@@ -64,6 +64,8 @@ export function useInteractiveList<Row>({
   activate: (i: number) => void
   rowProps: (row: Row, i: number) => InteractiveListRowProps
 } {
+  const renderedRows = useRef(new Set<number>())
+  renderedRows.current = new Set()
   const clampIndex = (i: number): number => Math.min(Math.max(0, i), Math.max(0, rows.length - 1))
   const initialIndex = ((): number => {
     if (rows.length === 0) return 0
@@ -148,7 +150,7 @@ export function useInteractiveList<Row>({
         return
       }
       if (action !== null && action !== 'activate') {
-        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation, pageSize })
+        const target = applyNavMotion(action, liveIndexRef.current, rows.length, { orientation, pageSize: pageSize ?? Math.max(1, renderedRows.current.size) })
         if (target !== null) {
           event.stopImmediatePropagation()
           select(
@@ -187,18 +189,21 @@ export function useInteractiveList<Row>({
       ? actions
           .filter(a => selectedRow == null || (a.when?.(selectedRow) ?? true))
           .map(a => `${a.key === 'return' ? '↵' : a.key === 'backspace' ? '⌫' : a.key} ${a.hint}`)
-          .concat(rows.length > pageSize ? ['pgup/pgdn page'] : [])
+          .concat(rows.length > 1 ? ['pgup/pgdn page'] : [])
           .join(' · ') || undefined
       : undefined
 
-  const rowProps = (row: Row, i: number): InteractiveListRowProps => ({
+  const rowProps = (row: Row, i: number): InteractiveListRowProps => {
+    renderedRows.current.add(i)
+    return ({
     id: `${idNamespace}:row:${rowId(row)}`,
     selected: i === selectedIndex,
     unavailable: isUnavailable(row),
     reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined,
     onSelect: () => select(i),
     onActivate: () => activate(i),
-  })
+    })
+  }
 
   return {
     selectedIndex,

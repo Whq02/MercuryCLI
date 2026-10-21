@@ -259,7 +259,7 @@ export function ModelPicker({
           <Text dimColor>
             {exitState.pending
               ? exitChordNoticeText(exitState.keyName)
-              : 'enter confirm · esc close'}
+              : '↑↓ move · pgup/pgdn page · ↵ confirm · esc close'}
           </Text>
         </Box>
       </Box>
@@ -278,7 +278,7 @@ export function ModelPicker({
         <Text dimColor>
           {exitState.pending
             ? exitChordNoticeText(exitState.keyName)
-            : 'enter confirm · esc exit'}
+            : '↑↓ move · pgup/pgdn page · ↵ confirm · esc exit'}
         </Text>
       </Box>
     </Box>

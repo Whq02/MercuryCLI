@@ -16,7 +16,7 @@ function MercuryCostThreshold({ onDone }: Props): React.ReactNode {
   return (
     <CommandCenter
       view="cost threshold"
-      footer="acknowledge to continue"
+      footer="↵ acknowledge to continue · esc close"
       onClose={onDone}
       captureInput={true}
     >

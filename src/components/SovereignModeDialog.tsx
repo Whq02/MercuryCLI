@@ -53,6 +53,7 @@ export function SovereignModeDialog({
         }}
         onCancel={() => gracefulShutdownSync(0)}
       />
+      <Text dimColor>↑↓ move · ↵ confirm · esc exits</Text>
     </Box>
   )
 }

@@ -2,6 +2,7 @@ import figures from 'figures'
 import * as React from 'react'
 import { useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
+import { usePopupListNavigation } from '../CustomSelect/popup-list.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import type { SampleRowV1 } from '../../services/engine-connector/types.js'
 import { openSampleUrl } from '../../services/samples/open.js'
@@ -32,17 +33,14 @@ export function SamplesListView({ onClose }: { onClose: () => void }): React.Rea
   const open = (sample: SampleRowV1 | undefined): void => {
     if (sample?.url !== undefined) void openSampleUrl(sample.url)
   }
+  usePopupListNavigation(selectedIndex, samples.length, SAMPLES_LIST_WINDOW, next => move(next - selectedIndex))
   useKeybindings(
     {
       'confirm:no': () => {
         onClose()
       },
-      'confirm:previous': () => {
-        move(-1)
-      },
-      'confirm:next': () => {
-        move(1)
-      },
+      'confirm:previous': () => { move(-1) },
+      'confirm:next': () => { move(1) },
       'confirm:yes': () => {
         open(selected)
       },
@@ -59,7 +57,7 @@ export function SamplesListView({ onClose }: { onClose: () => void }): React.Rea
       <Box flexDirection="row">
         <Text bold color={tokens.textPrimary}>{title}</Text>
         <Box flexGrow={1} />
-        <Text color={tokens.textMuted}>{SAMPLES_LIST_HINT}</Text>
+        <Text color={tokens.textMuted}>↑↓ move · pgup/pgdn page · {SAMPLES_LIST_HINT}</Text>
       </Box>
       {start > 0 ? <Text dimColor>↑ {start} more above</Text> : null}
       {samples.slice(start, end).map((sample, i) => {

@@ -69,6 +69,7 @@ export function MCPServerApprovalDialog({
         }
         onCancel={() => choose('disable')}
       />
+      <Text dimColor>↑↓ move · ↵ confirm · esc reject</Text>
     </Box>
   )
 }

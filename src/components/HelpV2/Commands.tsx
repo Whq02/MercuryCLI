@@ -30,7 +30,7 @@ export function Commands({
   const { headerFocused, focusHeader, blurHeader } = useTabHeaderFocus()
   const [pageFocus, setPageFocus] = useState<string | undefined>()
   const maxWidth = Math.max(1, columns - 10)
-  const visibleCount = Math.max(1, Math.floor((maxHeight - 12) / 2))
+  const visibleCount = Math.max(1, Math.floor((maxHeight - 13) / 2))
 
   const options = useMemo(() => {
     const seen = new Set<string>()
@@ -89,6 +89,7 @@ export function Commands({
             />
           </Box>
           <Box marginTop={1}>
+            <Text dimColor>↑↓ move · pgup/pgdn page · ↵ stage · esc close</Text>
             <Text dimColor>↵ stages the command in the composer — nothing runs until you send it</Text>
           </Box>
         </>

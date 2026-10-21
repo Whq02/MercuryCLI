@@ -231,7 +231,7 @@ export function saturnSummaryRows(f: SaturnScreenFactsV1, nowMs: number): Array<
 
 export function saturnLegendOf(state: { busy: boolean }): string {
   if (state.busy) return 'working… (the screen settles before the next key)';
-  return '↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back';
+  return '↑↓ move · pgup/pgdn page · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back';
 }
 
 export function saturnStatusLine(f: SaturnScreenFactsV1): string {
@@ -435,8 +435,8 @@ export function saturnFormDetailLines(
 
 export function saturnFormLegendOf(state: { prompt: boolean; pick: boolean }): string {
   if (state.prompt) return 'type · ↵ set · esc cancel';
-  if (state.pick) return '↑↓ move · ↵ pick · esc back';
-  return '↑↓ move · ↵ edit · ⌫ clear · s schedule it · esc back';
+  if (state.pick) return '↑↓ move · pgup/pgdn page · ↵ pick · esc back';
+  return '↑↓ move · pgup/pgdn page · ↵ edit · ⌫ clear · s schedule it · esc back';
 }
 
 interface BootSaturnScreenProps {

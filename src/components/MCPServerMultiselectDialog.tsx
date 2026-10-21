@@ -61,7 +61,7 @@ export function MCPServerMultiselectDialog({
         onCancel={() => commit([], serverNames)}
       />
       <Text dimColor>
-        space to select · enter to confirm · esc to reject all
+        ↑↓ move · pgup/pgdn page · space select · ↵ confirm · esc reject all
       </Text>
     </Box>
   )

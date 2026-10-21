@@ -2,6 +2,7 @@
 import figures from 'figures'
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
+import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
@@ -491,6 +492,7 @@ export function BackgroundTasksDialog({
     }
   }
 
+  usePopupListPaging(selectedIndex, flat.length, WINDOW, next => { if (ownsInputNow()) moveSelection(next - selectedIndex) }, !inDetail)
   useKeybindings(
     {
       'confirm:no': () => {
@@ -712,6 +714,8 @@ export function BackgroundTasksDialog({
   return (
     <CommandCenter elevated
       view={summaryEntry ? "activity" : "runs"}
+      bodyOwnsPageKeys
+      footer="↑↓ move · pgup/pgdn page · ↵ open · esc close"
       subtitle={subtitle}
       onClose={onDone}
       captureInput={false}

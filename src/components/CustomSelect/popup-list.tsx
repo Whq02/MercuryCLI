@@ -47,13 +47,21 @@ export function PopupListViewport({ above, below, rows, children }: {
   )
 }
 
-export function usePopupListPaging(cursor: number, total: number, rows: number | (() => number), move: (index: number) => void, active = true): void {
+export function usePopupListNavigation(cursor: number, total: number, rows: number | (() => number), move: (index: number) => void, active = true, pagesOnly = false): void {
+  const liveCursor = React.useRef(cursor)
+  liveCursor.current = cursor
   useInput((input, key, event) => {
-    if (!key.pageUp && !key.pageDown) return
-    const target = popupListMotion(input, key, cursor, total, typeof rows === 'function' ? rows() : rows)
+    if (pagesOnly && !key.pageUp && !key.pageDown) return
+    const target = popupListMotion(input, key, liveCursor.current, total, typeof rows === 'function' ? rows() : rows)
+    if (target === null) return
     event.stopImmediatePropagation()
-    if (target !== null) move(target)
+    liveCursor.current = target
+    move(target)
   }, { isActive: active })
+}
+
+export function usePopupListPaging(cursor: number, total: number, rows: number | (() => number), move: (index: number) => void, active = true): void {
+  usePopupListNavigation(cursor, total, rows, move, active, true)
 }
 
 export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null>): { top: number; total: number; rows: number } {

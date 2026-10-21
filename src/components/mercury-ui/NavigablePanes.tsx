@@ -13,6 +13,7 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { CursorCell } from './LiveGlyphs.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { useNavigablePanes } from './useNavigablePanes.js'
+import { PopupScrollViewport } from '../CustomSelect/popup-list.js'
 
 
 export type ColumnDef<Row> = {
@@ -329,6 +330,7 @@ export function NavigablePanes<Row>({
   const nav = useNavigablePanes({
     sectionCount: Math.max(1, safeSections.length),
     rowCount: liveRowCount,
+    pageSize: () => listHeight,
     onClose,
     escOverride: () => {
       if (!composerSlot?.active) return false
@@ -497,7 +499,7 @@ export function NavigablePanes<Row>({
           .join(' · ')
       : undefined
   const footerHeadText = [
-    listNavLive && !composerOwnsInput && nav.level !== 'detail' && liveRowCount > 0 ? '↑↓ select' : undefined,
+    listNavLive && !composerOwnsInput && nav.level !== 'detail' && liveRowCount > 0 ? '↑↓ select · pgup/pgdn page' : undefined,
     listNavLive && !composerOwnsInput && nav.level !== 'detail' && liveRowCount > 0 ? '↵/→ view' : undefined,
   ]
     .filter(Boolean)
@@ -510,7 +512,7 @@ export function NavigablePanes<Row>({
     composerSlot?.active
       ? 'esc composer'
       : nav.level === 'detail'
-        ? ['↑↓ select', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']
+        ? ['↑↓ select · pgup/pgdn page', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']
             .filter(Boolean)
             .join(' · ')
         : [
@@ -566,6 +568,7 @@ export function NavigablePanes<Row>({
             <Text color={tokens.textMuted}>{section?.emptyHint ?? 'nothing here'}</Text>
           </Box>
         ) : (
+          <PopupScrollViewport scrollRef={scrollRef}>
           <ScrollBox
             ref={scrollRef}
             height={listHeight}
@@ -582,7 +585,7 @@ export function NavigablePanes<Row>({
                   rowId={`${idBase}:row:${rowKey(r)}`}
                   columns={columns}
                   selected={gi === sel}
-                  totalWidth={totalWidth}
+                  totalWidth={Math.max(1, totalWidth - (N > listHeight ? 1 : 0))}
                   rowRef={gi === sel ? (nav.rowRef as React.Ref<DOMElement>) : undefined}
                   onSelect={() => nav.selectRow(gi)}
                   onActivate={nav.activateCurrent}
@@ -592,6 +595,7 @@ export function NavigablePanes<Row>({
             })}
             {winEnd < N ? <Box height={N - winEnd} flexShrink={0} /> : null}
           </ScrollBox>
+          </PopupScrollViewport>
         )}
       </Box>
     )

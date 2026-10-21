@@ -102,7 +102,7 @@ export function SessionSkillsDial({
       subtitle={subtitle}
       onClose={close}
       captureInput={false}
-      footer={`${list.motionHint} move · ↵ cycle · esc close`}
+      footer={`${list.motionHint} move · pgup/pgdn page · ↵ cycle · esc close`}
     >
       {skills.length === 0 ? (
         <Box marginTop={1}>
