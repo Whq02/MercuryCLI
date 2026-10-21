@@ -115,7 +115,7 @@ try {
   command('python3', ['-I', '-S', '-c', `import sys,zipfile;sys.path.insert(0,${JSON.stringify(join(scratch, 'artifacts', wheel))});import mercury_cli_sdk as s;assert s.__version__=='0.1.0';assert len(s.ROW_SCHEMAS)==25;assert callable(s.connect_sync);z=zipfile.ZipFile(sys.path[0]);assert 'mercury_cli_sdk/py.typed' in z.namelist();assert b'Requires-Dist:' not in z.read('mercury_cli_sdk-0.1.0.dist-info/METADATA')`], scratch)
   const sdist = readdirSync(join(scratch, 'artifacts')).find(f => f.endsWith('.tar.gz'))!
   mkdirSync(join(scratch, 'unpack'))
-  command('python3', ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},filter='data')`], scratch)
+  command('python3', ['-I', '-S', '-c', `import tarfile;tarfile.open(${JSON.stringify(join(scratch, 'artifacts', sdist))}).extractall(${JSON.stringify(join(scratch, 'unpack'))},**({'filter':'data'} if hasattr(tarfile,'data_filter') else {}))`], scratch)
   command('python3', ['-I', '-S', join(scratch, 'unpack/mercury_cli_sdk-0.1.0/build_backend.py'), join(scratch, 'rebuilt')], scratch)
   assert.deepEqual(readFileSync(join(scratch, 'artifacts', wheel)), readFileSync(join(scratch, 'rebuilt', wheel)))
   assert(!loaded.includes('error'))

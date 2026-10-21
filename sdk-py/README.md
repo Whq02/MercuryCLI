@@ -6,6 +6,8 @@
 python -m pip install mercury-cli-sdk
 ```
 
+On Windows run that as `py -3 -m pip install mercury-cli-sdk` (or with the full path of `python.exe`): the `python3` name there is often the Store stub, which answers with exit code 9009. If `python -m venv` fails because `ensurepip` is missing, install `python3-venv` (Debian and Ubuntu: `apt install python3-venv`), or create the environment with `--without-pip` and install into it from an interpreter that has pip: `python -m pip --python .venv/bin/python install mercury-cli-sdk`.
+
 ## Quickstart
 
 ```python
