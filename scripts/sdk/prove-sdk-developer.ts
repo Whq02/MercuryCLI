@@ -173,6 +173,18 @@ try {
     assert.equal(installed.command, 'mercury')
     assert.deepEqual(installed.args.slice(0, 5), ['--project', '/p', 'run', '--format', 'rows'])
   })
+  await check('row 9 a JavaScript entry point runs on the runtime bundled beside it, else node', async () => {
+    const entry = join(scratch, 'entry.mjs')
+    writeFileSync(entry, `console.log(${JSON.stringify(JSON.stringify(sessionRow))});console.log(${JSON.stringify(JSON.stringify(outcome))})`)
+    const named = sdk.argvOf({ env: { ...process.env, MERCURY_BIN: entry } })
+    assert.equal(named.args[0], entry, 'MERCURY_BIN may name the entry point itself'); assert.match(named.command, /node$/)
+    assert.equal((await sdk.run({ env: { ...process.env, MERCURY_BIN: entry }, prompt: 'x' }).outcome).status, 'completed')
+    const runtime = join(scratch, 'vendor/node/bin/node'); mkdirSync(join(scratch, 'vendor/node/bin'), { recursive: true })
+    writeFileSync(runtime, '#!/bin/sh\nexec node "$@"\n'); chmodSync(runtime, 0o755)
+    assert.equal(sdk.argvOf({ mercury: entry }).command, runtime, 'the bundled runtime beside the entry point is preferred')
+    assert.equal((await sdk.run({ mercury: entry, prompt: 'x' }).outcome).status, 'completed')
+    assert.throws(() => sdk.argvOf({ mercury: join(scratch, 'missing.mjs') }), /JavaScript entry point that does not exist/)
+  })
   const child = spawn('python3', [join(root, 'scripts/sdk/python-developer.py')], { env: { ...process.env, PYTHONPATH: join(root, 'sdk-py/src'), PYTHONDONTWRITEBYTECODE: '1' }, stdio: 'inherit' })
   await check('Python developer API mirrors', async () => { assert.equal(await new Promise(r => child.once('close', r)), 0) })
 } finally { clearTimeout(guard); rmSync(scratch, { recursive: true, force: true }) }

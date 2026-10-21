@@ -166,6 +166,27 @@ async def flags():
         assert installed[:6] == ['mercury', '--project', '/p', 'run', '--format', 'rows']
 
 
+async def entry_point():
+    with tempfile.TemporaryDirectory(prefix='sdk-entry-') as directory:
+        path = Path(directory)
+        entry = path / 'entry.mjs'
+        entry.write_text('console.log(' + repr(json.dumps(session_row)) + '); console.log(' + repr(json.dumps(outcome)) + ')')
+        named = sdk.argv_of(sdk.RunOptions(env={**os.environ, 'MERCURY_BIN': str(entry)}))
+        assert named[1] == str(entry) and named[0].endswith('node'), named
+        task = await sdk.run('x', env={**os.environ, 'MERCURY_BIN': str(entry)})
+        assert (await task.outcome)['status'] == 'completed'
+        runtime = path / 'vendor/node/bin/node'
+        runtime.parent.mkdir(parents=True)
+        runtime.write_text('#!/bin/sh\nexec node "$@"\n')
+        runtime.chmod(0o755)
+        assert sdk.argv_of(sdk.RunOptions(mercury=str(entry)))[0] == str(runtime)
+        task = await sdk.run('x', mercury=str(entry))
+        assert (await task.outcome)['status'] == 'completed'
+        try: sdk.argv_of(sdk.RunOptions(mercury=str(path / 'missing.mjs')))
+        except sdk.MercuryError as error: assert 'JavaScript entry point that does not exist' in str(error)
+        else: raise AssertionError('a missing entry point was accepted')
+
+
 async def sync():
     assert callable(getattr(sdk.SyncSession, 'facts', None)) and '__getattr__' not in vars(sdk.SyncSession)
     async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': [{'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': outcome}]}], 'session/facts': [{'result': {}}]}}) as fixture:
@@ -178,7 +199,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 JavaScript entry points', entry_point), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

@@ -25,5 +25,11 @@ export function executableOf(executable: string | readonly string[] | undefined,
     const localNode = join(dirname(path), 'node.exe')
     return [existsSync(localNode) ? localNode : onPath('node') ?? 'node', script, ...parts]
   }
+  if (/\.(mjs|cjs|js)$/i.test(command)) {
+    const script = resolve(cwd, command)
+    if (!existsSync(script)) throw new MercuryError(`the executable is a JavaScript entry point that does not exist: ${script}`, null)
+    const bundled = [join(dirname(script), 'vendor', 'node', 'bin', 'node'), join(dirname(script), 'vendor', 'node', 'node.exe')].find(runnable)
+    return [bundled ?? onPath('node') ?? 'node', script, ...parts]
+  }
   return [command, ...parts]
 }

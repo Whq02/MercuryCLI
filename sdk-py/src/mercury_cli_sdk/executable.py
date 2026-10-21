@@ -27,4 +27,9 @@ def executable_of(executable: str | list[str] | None, env: dict[str, str] | None
         if script is None or not script.is_file(): raise MercuryError('the executable is a command shim without a readable Node entry point; pass [node, script]')
         node = path.parent / 'node.exe'
         return [str(node) if node.is_file() else shutil.which('node', path=environment.get('PATH', '')) or 'node', str(script), *args]
+    if command.lower().endswith(('.mjs', '.cjs', '.js')):
+        script = Path(cwd or '.', command).resolve()
+        if not script.is_file(): raise MercuryError(f'the executable is a JavaScript entry point that does not exist: {script}')
+        bundled = next((str(node) for node in (script.parent / 'vendor/node/bin/node', script.parent / 'vendor/node/node.exe') if node.is_file() and os.access(node, os.X_OK)), None)
+        return [bundled or shutil.which('node', path=environment.get('PATH', '')) or 'node', str(script), *args]
     return [command, *args]
