@@ -16,12 +16,18 @@ try {
   mkdirSync(join(scratch, 'node_modules'), { recursive: true })
   cpSync(join(root, 'sdk'), join(scratch, 'node_modules/mercury-cli-sdk'), { recursive: true, filter: p => !p.includes('/node_modules/') && !p.includes('/src/') })
   const consumer = join(scratch, 'consumer.ts')
-  writeFileSync(consumer, `import { run, connect, ROW_SCHEMAS, rowOf } from 'mercury-cli-sdk';
+  writeFileSync(consumer, `import { run, connect, ROW_SCHEMAS, rowOf, type SessionFactsResult } from 'mercury-cli-sdk';
 import { startFixtureServer } from 'mercury-cli-sdk/testing';
 const unknown = rowOf({type:'future',extra:42});
 if(!unknown.ok || unknown.row.type!=='unknown_row') throw Error('unknown row');
-const fixture=await startFixtureServer({methods:{initialize:[{result:{protocol:1,runner:{version:'fixture',pid:1},session_id:'fixture'}}],'session/facts':[{result:{fixture:true}}]}});
-try { const s=await connect({mercury:fixture.mercury}); try {if(!(await s.facts()).fixture) throw Error('facts')} finally {await s.close()} } finally {await fixture.close()}
+const facts: SessionFactsResult = {
+  model: { effective: 'fixture-model', setting: null },
+  usage: { total_cost_usd: 0, total_api_duration_ms: 0, total_duration_ms: 0, total_lines_added: 0, total_lines_removed: 0, total_input_tokens: 0, total_output_tokens: 0, total_cache_read_input_tokens: 0, total_cache_creation_input_tokens: 0, has_unknown_model_cost: false },
+  identity: { first_party_api: false, console_billing: false, claude_ai_billing: false, account_email: null },
+  skills: [], mcp: [], permission_mode: 'default', workspace: { cwd: '/fixture', original_cwd: '/fixture', project_root: '/fixture' }, queue: [],
+};
+const fixture=await startFixtureServer({methods:{initialize:[{result:{protocol:1,runner:{version:'fixture',pid:1},session_id:'fixture'}}],'session/facts':[{result:facts}]}});
+try { const s=await connect({mercury:fixture.mercury}); try {if((await s.facts()).model.effective !== facts.model.effective) throw Error('facts')} finally {await s.close()} } finally {await fixture.close()}
 if(typeof run !== 'function'||Object.keys(ROW_SCHEMAS).length!==25)throw Error('exports');
 console.log('bundled consumer passed');`)
   symlinkSync(join(root, 'node_modules/@types'), join(scratch, 'node_modules/@types'))
