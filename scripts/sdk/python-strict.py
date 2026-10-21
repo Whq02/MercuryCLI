@@ -44,9 +44,13 @@ async def main() -> None:
         await session.close()
     result = run_sync('hello')
     print(result.outcome['status'], len(result.rows), result.exit.code)
-    with connect_sync() as sync_session:
+    with connect_sync(on_permission_request=lambda ask, context: {'outcome': 'deny', 'message': ask['tool_name'] + str(context.id)}, mode='default', partial=True, timeout=30) as sync_session:
         print(sync_session.prompt('x')['status'])
         print(sync_session.facts())
+    typed_task = await run('Explain', model='m', effort='high', mode='dontAsk', allowed_tools=['Read'], max_turns=3, budget_usd=1.5, worktree=True, debug='rpc', checkpoint_files=True, cancel=asyncio.Event())
+    print(run_sync('hello', mode='default', partial=True).outcome['status'], typed_task.child.pid)
+    typed_session = await connect(on_elicitation=lambda ask, context: {'action': 'decline'}, mode='default', timeout=5, schema={'type': 'object'})
+    await typed_session.close()
     tool = define_tool('greeting', 'Return a greeting', {'type': 'object', 'properties': {}}, lambda _: 'Hello')
     async with await serve_tools([tool]) as tools:
         agent = define_agent({'description': 'Reviewer', 'prompt': 'Review.', 'tools': ['Read']})

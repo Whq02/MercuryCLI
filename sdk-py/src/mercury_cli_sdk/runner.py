@@ -6,8 +6,8 @@ import signal
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, cast, overload
-from .client import Listener, RunOptions, argv_of, checkpoint_options, end_child, prepare_tools, spawn, untrack
+from typing import Any, Awaitable, Callable, AsyncIterator, Mapping, TypeVar, Unpack, cast, overload
+from .client import ConnectKwargs, Listener, RunOptions, argv_of, checkpoint_options, end_child, prepare_tools, spawn, untrack
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
 from .generated import TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult
 from .framing import read_lines
@@ -335,9 +335,11 @@ class MercurySession(TypedRequests):
         return row
 
 
-async def connect(*, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, options: RunOptions | None = None, **kwargs: Any) -> MercurySession:
+async def connect(*, warm: bool = False, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
     """Start ``mercury runner`` and complete ``initialize`` (within ``timeout`` seconds when given); the keyword arguments are ``RunOptions`` fields."""
-    opts = replace(options, **kwargs) if options is not None else RunOptions(**kwargs)
+    overrides: dict[str, Any] = dict(kwargs)
+    if schema is not None: overrides['schema'] = schema
+    opts = replace(options, **overrides) if options is not None else RunOptions(**overrides)
     if warm and (opts.session_id or opts.resume or opts.continue_ or opts.fork): raise MercuryError('warm cannot be combined with session identity options')
     opts = checkpoint_options(opts, warm)
     if opts.schema is not None and not isinstance(opts.schema, StructuredSchema): opts = replace(opts, schema=schema_object(opts.schema, opts.cwd))
@@ -362,5 +364,6 @@ async def connect(*, warm: bool = False, timeout: float | None = None, on_read_t
         raise
 
 
-async def prewarm(**options: Any) -> MercurySession:
-    return await connect(**{**options, 'warm': True})
+async def prewarm(*, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:
+    """``connect(warm=True)``: an unclaimed runner to ``claim`` before prompting."""
+    return await connect(warm=True, timeout=timeout, on_read_text_file=on_read_text_file, on_write_text_file=on_write_text_file, on_permission_request=on_permission_request, on_elicitation=on_elicitation, handlers=handlers, capabilities=capabilities, host=host, schema=schema, options=options, **kwargs)

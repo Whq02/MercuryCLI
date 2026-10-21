@@ -161,7 +161,7 @@ async def flags():
     args = sdk.argv_of(sdk.RunOptions(mercury='fixture', worktree='branch', debug=True, reasoning_mode='enabled', brief_file='a', brief_add_file='b', replay_to='m1', restore_files='m2'))
     assert all(flag in args for flag in ['--worktree', '--debug', '--reasoning-mode', '--brief-file', '--brief-add-file', '--replay-to', '--restore-files'])
     with tempfile.TemporaryDirectory(prefix='sdk-discovery-') as directory:
-        path = Path(directory)
+        path = Path(directory).resolve()
         (path / 'entry.cjs').write_text('console.log(' + repr(__import__('json').dumps(session_row)) + '); console.log(' + repr(__import__('json').dumps(outcome)) + ')')
         shim = path / 'mercury.cmd'
         shim.write_text('@echo off\n"node" "%~dp0\\entry.cjs" %*\n')
@@ -172,14 +172,14 @@ async def flags():
         target.parent.mkdir(parents=True)
         target.write_text('#!/bin/sh\nexit 0\n')
         target.chmod(0o755)
-        assert sdk.argv_of(sdk.RunOptions(env={'HOME': directory, 'PATH': ''}))[0] == str(target)
-        installed = sdk.argv_of(sdk.RunOptions(env={'HOME': directory, 'PATH': str(target.parent)}, project='/p'))
+        assert sdk.argv_of(sdk.RunOptions(env={'HOME': str(path), 'PATH': ''}))[0] == str(target)
+        installed = sdk.argv_of(sdk.RunOptions(env={'HOME': str(path), 'PATH': str(target.parent)}, project='/p'))
         assert installed[:6] == ['mercury', '--project', '/p', 'run', '--format', 'rows']
 
 
 async def entry_point():
     with tempfile.TemporaryDirectory(prefix='sdk-entry-') as directory:
-        path = Path(directory)
+        path = Path(directory).resolve()
         entry = path / 'entry.mjs'
         entry.write_text('console.log(' + repr(json.dumps(session_row)) + '); console.log(' + repr(json.dumps(outcome)) + ')')
         named = sdk.argv_of(sdk.RunOptions(env={**os.environ, 'MERCURY_BIN': str(entry)}))
@@ -198,6 +198,21 @@ async def entry_point():
         else: raise AssertionError('a missing entry point was accepted')
 
 
+async def keyword_types():
+    from dataclasses import fields
+    from typing import ForwardRef
+    def spelled(annotation):
+        if isinstance(annotation, ForwardRef): return annotation.__forward_arg__
+        return annotation if isinstance(annotation, str) else repr(annotation)
+    declared = {f.name: spelled(f.type) for f in fields(sdk.RunOptions)}
+    run_keys = {name: spelled(value) for name, value in sdk.RunKwargs.__annotations__.items()}
+    connect_keys = {name: spelled(value) for name, value in sdk.ConnectKwargs.__annotations__.items()}
+    assert set(run_keys) | {'prompt', 'schema'} == set(declared), set(declared) ^ (set(run_keys) | {'prompt', 'schema'})
+    assert set(connect_keys) == set(run_keys) - {'cancel', 'input', 'stdin'}, set(connect_keys) ^ (set(run_keys) - {'cancel', 'input', 'stdin'})
+    assert all(run_keys[name] == declared[name] for name in run_keys), [(name, run_keys[name], declared[name]) for name in run_keys if run_keys[name] != declared[name]]
+    assert set(sdk.RunKwargs.__required_keys__) == set() and set(sdk.ConnectKwargs.__required_keys__) == set()
+
+
 async def sync():
     assert callable(getattr(sdk.SyncSession, 'facts', None)) and '__getattr__' not in vars(sdk.SyncSession)
     async with await testing.start_fixture_server({'methods': {'initialize': [init], 'queue/add': [{'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': outcome}]}], 'session/facts': [{'result': {}}]}}) as fixture:
@@ -210,7 +225,7 @@ async def sync():
 
 
 async def main():
-    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 JavaScript entry points', entry_point), ('row 10 typed sync iteration', sync)]:
+    for name, function in [('row 1 inferred schemas and cancellation', inline), ('rows 2 and 5 capability and warm options', capabilities), ('row 6 structured', structured), ('row 7 rich prompts', rich), ('row 8 factories', factories), ('row 8 fixture validation', fixture_validation), ('row 9 flags and executable discovery', flags), ('row 9 JavaScript entry points', entry_point), ('row 10 keyword option types mirror RunOptions', keyword_types), ('row 10 typed sync iteration', sync)]:
         await check(name, function)
 
 

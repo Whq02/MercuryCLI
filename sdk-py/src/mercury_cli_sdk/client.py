@@ -6,7 +6,7 @@ import os
 import signal
 import uuid
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypeVar, cast, overload
+from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InputRow, OutcomeRow, SessionRow, TypedOutcome, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
 from .framing import read_lines
@@ -74,6 +74,65 @@ class RunOptions:
     provider_preview: list[str] = field(default_factory=list)
     log_file: str | None = None
     extra_args: list[str] = field(default_factory=list)
+
+
+class ConnectKwargs(TypedDict, total=False):
+    """The ``RunOptions`` fields ``connect``, ``connect_sync`` and ``prewarm`` accept as keywords; ``schema`` is a named parameter."""
+    worktree: bool | str
+    reasoning_mode: Literal['enabled', 'adaptive', 'disabled'] | None
+    brief_file: str | None
+    brief_add_file: str | None
+    debug: bool | str
+    checkpoint_files: bool
+    replay_to: str | None
+    restore_files: str | None
+    tools: list[ToolDefinition]
+    auto_allow_tools: bool
+    mercury: str | list[str] | None
+    cwd: str | None
+    env: dict[str, str] | None
+    project: str | None
+    model: str | None
+    effort: EffortLevel | None
+    mode: PermissionMode | None
+    agent: str | None
+    agent_defs: dict[str, Any] | None
+    backup_model: str | None
+    sovereign: bool
+    allow_sovereign: bool
+    allowed_tools: list[str]
+    block_tools: list[str]
+    toolset: list[str]
+    mcp: list[str]
+    only_mcp: bool
+    brief: str | None
+    brief_add: str | None
+    max_turns: int | None
+    max_time: str | None
+    budget_usd: float | None
+    partial: bool
+    config: str | dict[str, Any] | None
+    config_layers: list[str] | None
+    extensions: list[str]
+    session_id: str | None
+    title: str | None
+    resume: str | None
+    continue_: bool
+    fork: bool
+    ephemeral: bool
+    lean: bool
+    advise: bool
+    no_commands: bool
+    provider_preview: list[str]
+    log_file: str | None
+    extra_args: list[str]
+
+
+class RunKwargs(ConnectKwargs, total=False):
+    """The ``RunOptions`` fields ``run`` and ``run_sync`` accept as keywords beside ``prompt`` and ``schema``."""
+    cancel: asyncio.Event | None
+    input: Literal['rows'] | None
+    stdin: str | None
 
 
 def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list[str]:
@@ -334,13 +393,14 @@ class TypedRun(MercuryRun, Generic[T]):
 
 
 @overload
-async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[T], options: RunOptions | None = None, **kwargs: Any) -> TypedRun[T]: ...
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[T], options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> TypedRun[T]: ...
 @overload
-async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, options: RunOptions | None = None, **kwargs: Any) -> MercuryRun: ...
-async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, options: RunOptions | None = None, **kwargs: Any) -> MercuryRun:
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> MercuryRun: ...
+async def run(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | None = None, *, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[RunKwargs]) -> MercuryRun:
     """Start ``mercury run`` for a prompt (or ``input='rows'`` for streamed input) and return its handle once the process has started."""
-    overrides = dict(kwargs)
+    overrides: dict[str, Any] = dict(kwargs)
     if prompt is not None: overrides['prompt'] = prompt
+    if schema is not None: overrides['schema'] = schema
     opts = replace(options, **overrides) if options is not None else RunOptions(**overrides)
     if opts.prompt is not None and not isinstance(opts.prompt, str): opts = replace(opts, input='rows')
     if opts.input not in (None, 'rows'): raise MercuryError('input must be rows')
