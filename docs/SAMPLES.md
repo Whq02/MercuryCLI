@@ -21,13 +21,13 @@ one of the nine blocks below. Mercury renders the document into one
 self-contained HTML page and keeps that page as the version. The data stays
 in the cell, so a redraw is a small edit, and every redraw is the next version
 of the same sample: the same name appends a version and never makes a second
-sample. The cell's result names each sample it kept (its title, its version,
-its address) and the words of yours it answered.
+sample. The cell's result lists each sample it saved (title, version and local
+URL) along with the prompt text passed in `ask`.
 
-Raw `html` from a model is refused with a teaching error that names `doc`; a
-model never writes markup or styles. `/memory page` keeps one sample of its
-own through the product's own `html` road: the memory library drawn as a page
-([MNEME.md](MNEME.md)). Each `/memory page` keeps its next version.
+Passing raw `html` from a cell is refused with an error pointing to `doc`; the
+model never writes raw HTML or CSS. `/memory page` renders your memory library
+as a sample page ([MNEME.md](MNEME.md)), adding a new version each time you run
+it.
 
 ## The nine blocks
 
@@ -45,11 +45,10 @@ own through the product's own `html` road: the memory library drawn as a page
 
 Blocks with a heading are numbered I, II, III … in order (`numeral: ""`
 suppresses one); three or more headed blocks get an outline under the title.
-The renderer takes `kind` or `type`, hyphen or underscore, and a few
-synonyms (`before-after` is `diff`, `code` and `log` are `terminal`,
-`checks` is `checklist`, `decision` is `question`); a block it cannot place,
-or a field it cannot read, is refused with the field named, and nothing is
-kept.
+The renderer accepts `kind` or `type` (with hyphens or underscores) and block
+aliases (`before-after` for `diff`, `code` and `log` for `terminal`, `checks`
+for `checklist`, `decision` for `question`). An unknown block kind or invalid
+field is refused with the offending field path named, and no version is saved.
 
 ## The two surfaces
 
@@ -83,9 +82,9 @@ font.
 
 ## Opening a sample
 
-In the full layout the status row under the view counts the session's
-samples (`· 1 sample`) after the model and its effort, and `/samples` is the
-road to them. In the compact layout the line under the
+In the full layout, the status row beneath the chat shows the session's sample
+count (`· 1 sample`) after the model and effort, and `/samples` opens the
+list. In the compact layout the line under the
 composer counts the session's samples (`· 1 sample`), and the detail view
 that line opens lists them; Enter on one opens it. `/samples` lists the
 session's samples, newest first (the name, `v<N>`, the state and when it

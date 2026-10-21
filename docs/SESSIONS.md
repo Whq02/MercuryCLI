@@ -551,10 +551,11 @@ With a `.md` file selected, `r` opens a reader in the same menu. Markdown
 wraps to the popup width; `↑`/`↓` scroll a row and `PageUp`/`PageDown` scroll a
 page, with the visible row range in the footer. `←` or one `Esc` returns to
 the same file, and `Enter` attaches it just as it does from the list. Image
-references show their alt text and path. Large files show their first 256 KiB
-with a notice; git-ignored files can be read too. Looking does not send the
-file to the model or add it to the conversation. Folders and other file
-types keep the list open when you press `r`.
+references show their alt text and path. Large files display their first
+256 KiB with a truncation notice, and git-ignored Markdown files open normally.
+Reading a file here does not send it to the model or record it in the
+transcript. On folders and non-Markdown files, pressing `r` leaves the file list
+in place.
 
 When you open an external editor, suspend Mercury with `Ctrl+Z`, or exit,
 Mercury waits up to 250 ms (`MERCURY_TERMINAL_QUERY_SETTLE_MS`) for pending

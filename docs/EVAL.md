@@ -95,9 +95,9 @@ page you asked to see: `doc` is `{ subtitle?, meta?, verdict?, parts: [...] }`,
 a list of typed blocks (verdict, section, cards, table, diff, terminal,
 figure, checklist, question) that Mercury renders into the page; raw `html`
 from a cell is refused. JavaScript awaits it; Python also accepts keyword
-arguments. The result lists the title, version and address, with your
-request when supplied as `ask`. Use it only when you asked to see something;
-see [Samples](SAMPLES.md).
+arguments. The result lists the title, version and local URL, plus `ask` when
+supplied. The model calls `sample()` only when you ask to see a page; see
+[Samples](SAMPLES.md).
 
 ## Results and budgets
 
