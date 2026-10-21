@@ -1,6 +1,6 @@
 # Video generation
 
-The `Video` tool lets your Mercury model send a prompt and optional reference files to MiniMax, then save the generated MP4 in your project. Video generation is billable and sends those inputs to the configured provider.
+The `Video` tool sends a prompt and optional project reference files to MiniMax and saves the generated MP4 in your project. Video generation is billable and sends those inputs to the configured provider.
 
 ## Set up
 
@@ -18,9 +18,9 @@ The `Video` tool lets your Mercury model send a prompt and optional reference fi
 }
 ```
 
-`baseUrl` is optional and defaults to `https://api.minimax.io`; an override must be an HTTPS origin without a path, query or credentials. HTTP is accepted only for a loopback provider. Keys stay with `/logins`, not in this setting.
+`baseUrl` is optional and defaults to `https://api.minimax.io`; an override must be an HTTPS origin without a path, query or credentials. HTTP is accepted only for a loopback provider. API keys are stored through `/logins` and never in this setting.
 
-`Video` appears in the tool roster when a provider is configured. With several named providers, the call must choose one using `provider`. With none, the withheld-tool row names `/logins minimax` and the `videoProvider` setting.
+`Video` appears in the tool roster when at least one provider is configured. If you configure more than one, the call must select one with `provider`. Without a configured provider, the withheld-tool row points to `/logins minimax` and `videoProvider`.
 
 ## Ask for a video
 
@@ -37,7 +37,7 @@ The model can call:
 }
 ```
 
-The permission request names the provider endpoint, model, prompt, reference paths and destination. A permission mode or rule that already grants the call permits it without another question.
+The permission prompt lists the provider endpoint, model, prompt, reference paths and output directory. If your permission mode or an allow rule already covers the call, it runs without prompting.
 
 ### Reference files and options
 
@@ -57,11 +57,11 @@ First/last-frame images cannot be mixed with reference-mode inputs. MiniMax's me
 
 ### Results and failures
 
-Mercury polls every ten seconds and downloads the MP4 when the job succeeds. The result names its local path, duration and MiniMax job ID. MiniMax reports metered usage such as `total_seconds` and `input_image_count`, rather than a monetary charge; Mercury displays those fields without inventing a price.
+Mercury polls every ten seconds and downloads the MP4 when the job succeeds. The result lists the local file path, duration and MiniMax job ID. MiniMax returns metered usage fields such as `total_seconds` and `input_image_count` instead of a dollar amount, and Mercury displays those fields without estimating a price.
 
-With `ffmpeg` on PATH, Mercury saves a PNG frame from the first second beside the MP4 and offers the frame in chat. Without it, generation still succeeds and the result says the frame grab was skipped. Image-capable models receive the preview; the full MP4 is never included in model context.
+When `ffmpeg` is on `PATH`, Mercury extracts a PNG frame at the one-second mark beside the MP4 and links it in chat. Without `ffmpeg`, the MP4 download still succeeds and the result notes that frame extraction was skipped. Image-capable models receive that PNG preview, while the MP4 file itself stays out of model context.
 
-A failed job returns MiniMax's error words. If a download URL has expired, Mercury queries the same job for a fresh URL instead of creating another billable generation. A local cancellation or deadline does not cancel the vendor job: retain the returned job ID and do not automatically submit the prompt again.
+A failed job returns MiniMax's error message verbatim. If a download URL expires, Mercury queries the same job ID for a fresh URL instead of submitting a new generation request. Cancelling locally or hitting the timeout does not cancel the job on MiniMax, so keep the returned job ID and avoid re-submitting the prompt automatically.
 
 For a zero-code alternative, add [MiniMax's own MCP server](https://platform.minimax.io/docs/guides/mcp-guide) through `mercury mcp add` using the vendor's setup instructions.
 

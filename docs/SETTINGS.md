@@ -135,11 +135,11 @@ replace hyphens with underscores. The default endpoint also honours
 
 ## Video generators
 
-`videoProvider` names video generators the `Video` tool may call, in user
-or project settings. Each map key is a name of your choosing; the tool
-appears in the roster only when at least one generator is configured, and
-with several it must be told which one with `provider`. Keys stay with
-`/logins minimax`, never in this setting ([VIDEO.md](VIDEO.md)).
+`videoProvider` configures named generators for the `Video` tool in user or
+project settings. The `Video` tool is added to the roster when at least one
+generator is configured; if you configure more than one, calls must pass
+`provider` to select one. Store the API key with `/logins minimax`, never in
+this setting ([VIDEO.md](VIDEO.md)).
 
 | Key | What it sets |
 | --- | --- |

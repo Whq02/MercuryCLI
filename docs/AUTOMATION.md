@@ -57,16 +57,16 @@ Each input row accepts an optional `id`; `prompt` and `shell` rows also accept
 line whose shape is invalid emits a `notice` row with `code: "input_refused"`
 and is skipped; a line that is not valid JSON ends the run with exit `1`.
 
-A `prompt` row may also carry `schema`, a JSON Schema object for that turn's
-structured output: the turn offers the `StructuredOutput` tool bound to it,
-the model answers through the tool, and the turn's `outcome` row carries the
-validated object as `structured`. A prompt without `schema` keeps the
-session's schema (`--schema`, or the runner's `initialize`), and a prompt
-with its own never joins another prompt's turn. A `schema` the validation
-engine refuses is refused on that row alone and the session goes on: with
-`--input rows` a `notice` row with `code: "input_refused"` names the row's
-`id` and the fault; on the runner `queue/add` answers `-32602` with the same
-words under `error.data.issues` (path `schema`).
+A `prompt` row can also include `schema`, a JSON Schema object for that turn's
+structured output. For that turn, Mercury binds the `StructuredOutput` tool to
+`schema`, the model replies through the tool, and the `outcome` row returns
+the validated object in `structured`. A prompt without `schema` uses the
+session's default schema (`--schema` or `initialize.schema`), and a prompt with
+its own `schema` never batches into another prompt's turn. If `schema` is not a
+valid JSON Schema, only that row is rejected and the session continues:
+`--input rows` emits a `notice` row (`code: "input_refused"`) naming the row
+`id` and reason, and `queue/add` on the runner returns `-32602` with the same
+message under `error.data.issues` (`path: ["schema"]`).
 
 ### TypeScript (Node 24, zero dependencies)
 
@@ -132,22 +132,22 @@ for both.
   `{"protocol":1,"host":{"name":"...","version":"..."},"capabilities":{"holds_asks":true,"elicitation":false,"partial_rows":false}}`
   and wait for its result (`{"protocol":1,"runner":{"version":"...","pid":123},"session_id":"..."}`)
   before sending other requests. A request sent before `initialize` answers
-  `-32002`. `initialize` also takes an optional `schema`, a JSON Schema object
-  every turn without a `schema` of its own answers through; one the
-  validation engine refuses answers `-32602` (path `schema`) and `initialize`
-  may be sent again.
-- **File checkpoints:** A hosted runner captures no per-turn file checkpoints
-  by default, so `session/rewind` with `mode: "code"` refuses `capture-off`.
-  Send `"file_checkpoints": true` in `initialize` to capture them: every turn
-  then saves the pre-edit bytes of each file its tools change, `session/rewind`
-  can restore them, and the session's crewmates run as usual. The result of
-  `initialize` and `session/facts` both carry `file_checkpoints` with
-  `capture` (`true` or `false`) and `source`: `initialize` (the host asked),
-  `headless` (nothing asked, the default), `setting` (the operator's
-  `fileCheckpointingEnabled: false` setting turned capture off, which it does
-  for every process), `seat` (the Mercury screen's own session runner) or
-  `interactive`. `session/facts` adds `restorable`, the prompt ids that carry
-  a saved point.
+  `-32002`. `initialize` also accepts an optional `schema` (a JSON Schema object
+  used for any turn that does not specify its own `schema`); an invalid schema
+  returns `-32602` (`path: ["schema"]`), after which `initialize` can be sent
+  again.
+- **File checkpoints:** A hosted runner does not capture per-turn file
+  checkpoints by default, so `session/rewind` with `mode: "code"` returns
+  `capture-off`. Pass `"file_checkpoints": true` in `initialize` to enable
+  them: each turn then records the pre-edit bytes of every file its tools
+  modify, `session/rewind` can restore those files, and crewmates run
+  normally. Both the `initialize` result and `session/facts` include
+  `file_checkpoints` with `capture` (`true` or `false`) and `source`:
+  `initialize` (enabled by `initialize`), `headless` (the default when not
+  requested), `setting` (disabled by `fileCheckpointingEnabled: false`, which
+  overrides all modes), `seat` (the interactive screen's session runner) or
+  `interactive`. `session/facts` also includes `restorable`, the list of prompt
+  IDs with saved checkpoints.
 - **Send a prompt and read rows:** Call `queue/add` with a `prompt`, `shell` or
   `note` input row; the runner answers `{"accepted":true}` (or
   `{"accepted":false,"reason":"duplicate"}` when `id` was already processed, so

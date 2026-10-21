@@ -12,7 +12,7 @@ An agent reads and edits files, runs shell commands, steps through tests and deb
 - **Compiler, AST and DAP debugging tools:** connects LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) for stepping into failing Python, Node, Go and Rust tests, and persistent Python and JavaScript `Eval` cells.
 - **Keyless `WebSearch` and markdown `WebFetch`:** searches through provider-native search, Brave or Tavily keys, official APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG and keyless DuckDuckGo, and fetches public documentation as markdown within a 38,000-character call budget.
 - **Desktop computer use, Whisper voice, Saturn scheduling and editor bridges:** controls desktop applications (`Computer`), transcribes push-to-talk voice dictation on-device with Whisper (`/voice`), schedules recurring or one-shot sessions with Saturn (`/saturn`), and connects to VS Code over the Agent Client Protocol (`mercury acp`) alongside Unity, Blender, Godot and Aseprite.
-- **Video generation:** use the [Video tool](docs/VIDEO.md) to send prompts and project reference files to a configured MiniMax generator, then save the MP4 and an optional preview frame in your project.
+- **Video generation (`Video`):** send prompts and project reference files to a configured MiniMax generator ([docs/VIDEO.md](docs/VIDEO.md)) and save the generated MP4 and optional 1-second PNG preview frame in your project.
 
 I use Mercury to build Mercury, running multiple sessions and models across long tasks. Keeping track of that work is the hard part: what is still running, what changed, and what needs a decision. Each session writes its own handoff note when it finishes, and the next session reads that note once at startup alongside my pinned rules, stopping context poisoning between sessions.
 
@@ -840,11 +840,13 @@ Available commands include:
   `MERCURY_COMPUTER_USE=0` to remove the tool. See
   [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
 - **On-device Whisper voice input (`/voice`).** `/voice on` downloads the
-  English speech model once (60 MB) and enables dictation; `/voice off`
-  disables it. Hold space for 1 s to speak and release to stop, or use bare
-  `/voice` to start and stop a capture while voice is on. Whisper transcribes
-  locally: voice audio never leaves the machine. Other speech models,
-  including a multilingual model, are available. See [docs/VOICE.md](docs/VOICE.md).
+  60 MB English speech model (`base.en-q5_1`) on first use, verifies its
+  SHA-256 digest, and enables dictation; `/voice off` disables it. Hold space
+  for 1 s to speak and release to stop, or run bare `/voice` to start and
+  stop a take while voice is on. Whisper transcribes on-device so voice audio
+  never leaves the machine, and `MERCURY_WHISPER_MODEL` selects
+  `tiny.en-q5_1`, `small.en-q5_1`, the multilingual `base-q5_1`, or a local
+  `.gguf` file. See [docs/VOICE.md](docs/VOICE.md).
 - **Saturn cron and session scheduler (`/saturn`).** Schedule a prompt for an
   existing session (`CronCreate`, `CronList`, `CronDelete`, `ScheduleWakeup`,
   `/loop`) or schedule a new session to start at a set time. Schedules can run

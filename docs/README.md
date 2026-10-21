@@ -28,7 +28,7 @@ map and `/keybindings` opens your keybindings file.
 - [APOLLO-MODE.md](APOLLO-MODE.md): the specification interview and review that lead into a prototype build.
 - [MNEME.md](MNEME.md): Mneme is Mercury's project memory, on by default, storing facts in plain markdown topic pages under the config home, managed through four tools and the `/memory` centre.
 - [MEMORY-FINDINGS.md](MEMORY-FINDINGS.md): what the handoff note does and what it costs, measured on 1.0.0-beta.32 over 250 sessions in chains of five, with a control.
-- [VOICE.md](VOICE.md): on-device dictation, `/voice on` and `/voice off`, microphone setup and audio privacy.
+- [VOICE.md](VOICE.md): on-device Whisper dictation with `/voice on` and `/voice off`, hold-to-talk capture, model selection and microphone setup.
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
 
 ## Loading, extending and delegating
@@ -60,7 +60,7 @@ map and `/keybindings` opens your keybindings file.
 - [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor package, play and scene operations, tests and reconnects after a reload.
 - [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender add-on, scene and render operations, and Python execution inside Blender.
 - [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): Aseprite batch operations, sprite exports, sheets and Lua scripts.
-- [VIDEO.md](VIDEO.md): configure a billable MiniMax video generator, send prompts and project reference files, and save MP4 results with optional preview frames.
+- [VIDEO.md](VIDEO.md): the `Video` tool and `videoProvider` settings for generating MP4 clips and preview frames with MiniMax.
 
 ## Reference
 
