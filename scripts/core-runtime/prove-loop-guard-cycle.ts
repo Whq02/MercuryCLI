@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const homeRoot = process.env.MERCURY_CONFIG_DIR ?? tmpdir()
 mkdirSync(homeRoot, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(homeRoot, 'loop-guard-cycle-'))
@@ -66,10 +66,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const budgetMs = vshotBudgetMs(120_000)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — loop-guard cycle prover exceeded 120s')
+  console.log(`\nTIMEOUT — loop-guard cycle prover exceeded ${budgetMs / 1000}s`)
   process.exit(1)
-}, 120_000)
+}, budgetMs)
 watchdog.unref?.()
 
 const NUDGE = 'Loop notice: your last'
