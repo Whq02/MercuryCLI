@@ -381,11 +381,12 @@ function staticImports(src: string): {
   }
 
   const inkAppSrc = readFileSync(join(SRC, 'ink/components/App.tsx'), 'utf8')
-  const armIdx = inkAppSrc.indexOf("stdin.addListener('readable', this.handleReadable)")
+  const rawModeIdx = inkAppSrc.indexOf('handleSetRawMode = (isEnabled: boolean)')
+  const armIdx = inkAppSrc.indexOf("stdin.addListener('readable', this.handleReadable)", rawModeIdx)
   const signalIdx = inkAppSrc.indexOf('signalInputLive();')
   check(
     'launch-graph: signalInputLive fires at the raw-mode arm (owned Ink runtime)',
-    armIdx > 0 && signalIdx > armIdx && signalIdx - armIdx < 400,
+    rawModeIdx > 0 && armIdx > rawModeIdx && signalIdx > armIdx && signalIdx - armIdx < 400,
     `${armIdx},${signalIdx}`,
   )
 }
