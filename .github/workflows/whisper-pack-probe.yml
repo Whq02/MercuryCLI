@@ -22,7 +22,6 @@ permissions:
 
 jobs:
   probe:
-    if: github.repository == 'Whq02/PreRelease'
     strategy:
       matrix:
         include: >-

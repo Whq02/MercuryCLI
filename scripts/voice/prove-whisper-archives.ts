@@ -85,7 +85,7 @@ try {
   assert.deepEqual(probe.permissions, { contents: 'read' })
   assert.deepEqual(Object.keys(probe.jobs), ['probe'])
   const job = probe.jobs.probe
-  assert.equal(job.if, "github.repository == 'Whq02/PreRelease'")
+  assert.equal(job.if, undefined, 'the bench is dispatch-only like private-release.yml; a repository-name guard would name an unpublished repository in tracked text')
   const rows = JSON.parse(/fromJSON\('([\s\S]+)'\)/.exec(job.strategy.matrix.include)?.[1] ?? 'null')
   assert.deepEqual(Object.keys(rows).sort(), [...RELEASE_TARGETS].sort())
   for (const target of RELEASE_TARGETS) {
