@@ -130,7 +130,7 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
   const critter = readFileSync(join(root, 'src/components/CritterSelect.tsx'), 'utf8')
   const qview = readFileSync(join(root, 'src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx'), 'utf8')
 
-  check('useInteractiveList decodes through the vocabulary', list.includes('decodeNavKey(input, key, { orientation })'))
+  check('useInteractiveList decodes through the vocabulary', list.includes('decodeNavKey(input, key, { orientation, pageKeys: true })'))
   check('useInteractiveList: the ←→↑↓ alias is DEAD (no raw arrow moves)', !/key\.upArrow \|\| key\.leftArrow/.test(list) && !/key\.downArrow \|\| key\.rightArrow/.test(list))
   check('useInteractiveList: keyboard motion skips unavailable rows', list.includes('skipDisabled('))
   check('useInteractiveList: the cursor never OPENS on an unavailable row', list.includes('rows.findIndex(r => !unavailable(r))'))

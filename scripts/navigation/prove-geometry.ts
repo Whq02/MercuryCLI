@@ -175,12 +175,12 @@ console.log('== adoption pins: the real surfaces ride the contracts ==')
   check('the inline window math is dead in the console', !consoleSrc.includes('sel - Math.floor(LIST_ROWS / 2)'))
   const shell = read('src/components/mercury-ui/components.tsx')
   check('CommandCenter packs every hosted footer (the §8 chokepoint)', shell.includes('packFooter('))
-  check('NavigablePanes packs its footer (complete segments, close reserved — clickable hints only when the WHOLE canonical line fits; the packed fallback carries the hints in their canonical slot)', panes.includes('headText.length + 3 + hintsWidth + footerTailText.length <= budget') && panes.includes('packFooter(fullText, budget)'))
+  check('NavigablePanes keeps every footer word in measured wrapped rows; clickable hints require the complete line to fit', panes.includes('headText.length + 3 + hintsWidth + footerTailText.length <= budget') && panes.includes("wrapText(footerText, Math.max(1, innerWidth), 'wrap')") && panes.includes('height={measuredFooterRows}') && panes.includes('VIEWPORT_RESERVE + Math.max(0, footerRows - 1)'))
 
   check('CommandCenter footer budget floors at ZERO (no manufactured cells)', shell.includes('Math.max(0, cols - 4)') && !shell.includes('Math.max(10, cols - 4)'))
   check('NavigablePanes footer budget floors at ZERO', panes.includes('Math.max(0, cols - 4)') && !panes.includes('Math.max(10, cols - 4)'))
   check('NavigablePanes width floors are DEAD (owner clamp only)', !panes.includes('Math.max(20, innerPaneWidth') && !panes.includes('Math.max(16, innerWidth'))
-  check('NavigablePanes height budget rides viewportRows (aspirational min)', panes.includes('viewportRows(termRows, {') && panes.includes("(regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE) +") && panes.includes('(composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0)') && !panes.includes('Math.max(3, termRows - VIEWPORT_RESERVE)'))
+  check('NavigablePanes height budget rides viewportRows (aspirational min)', panes.includes('viewportRows(termRows, {') && panes.includes("(regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE + Math.max(0, footerRows - 1)) +") && panes.includes('(composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0)') && !panes.includes('Math.max(3, termRows - VIEWPORT_RESERVE)'))
   check('NavigablePanes fold split rides viewportRows too', panes.includes('viewportRows(viewportBudget, { reserve: detailBaseRows + 1, min: 3 })'))
 }
 
