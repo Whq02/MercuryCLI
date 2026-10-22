@@ -10,7 +10,7 @@ const clusterSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name:
 export type HostCluster = z.infer<typeof clusterSchema>
 export type HostPod = z.infer<typeof podSchema> & { family?: HostCluster; nodes?: HostClusterPod[] }
 export type HostClusterPod = z.infer<typeof clusterPodSchema>
-export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string; hostingType?: 'datacenter' | 'marketplace host' | 'hosting type unknown' }
+export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string; hostingType?: 'datacenter' | 'community host' | 'hosting type unknown' }
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0

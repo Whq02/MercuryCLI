@@ -229,7 +229,8 @@ const today = (): string => new Date().toISOString().slice(0, 10)
 const commonPrefix = (paths: readonly string[]): string => paths.reduce((prefix, path) => { let at = 0; while (at < prefix.length && at < path.length && prefix[at] === path[at]) at++; return prefix.slice(0, at) })
 
 function withWeightManifest(recipe: HostRecipe, files: readonly HfFile[], revision?: string): HostRecipe {
-  const manifest = hostWeightManifestSchema.safeParse({ model: recipe.model, include: recipe.include ?? '', revision, files })
+  const candidate = { model: recipe.model, include: recipe.include ?? '', revision, files }
+  const manifest = hostWeightManifestSchema.safeParse(candidate)
   if (!manifest.success) return recipe
   return { ...recipe, weightsGb: files.reduce((sum, file) => sum + file.size, 0) / 1e9, weightManifest: manifest.data }
 }

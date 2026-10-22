@@ -98,7 +98,7 @@ try {
   for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
     await until('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
-    if (vendor === 'vast') check('Vast offer rows display their hosting type beside the region', /region unknown · (datacenter|marketplace host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
+    if (vendor === 'vast') check('Vast offer rows display their hosting type beside the region', /region unknown · (datacenter|community host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
     await choose('Rent · ' + label); await until('Confirm the hourly price')
     await capture('80-' + vendor + '-confirmation')
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')

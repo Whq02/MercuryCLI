@@ -82,7 +82,7 @@ try {
 
     check('Vast reads the current instance-list shape on v1 without moving the v0 routes', (await v.pods()).length === 0 && vast.requests.at(-1)!.path === '/api/v1/instances/')
     const offers = await v.offers(signal())
-    check('Vast tags each hosting type from the datacenter boolean without filtering out marketplace hosts', offers.some(row => row.gpuId === 'NVIDIA H200' && row.hostingType === 'datacenter') && offers.some(row => row.gpuId === 'NVIDIA RTX PRO 6000 Blackwell' && row.hostingType === 'marketplace host') && vast.requests.filter(row => row.path.endsWith('/bundles/')).every(row => !('datacenter' in row.body)))
+    check('Vast tags each hosting type from the datacenter boolean without filtering out community hosts', offers.some(row => row.gpuId === 'NVIDIA H200' && row.hostingType === 'datacenter') && offers.some(row => row.gpuId === 'NVIDIA RTX PRO 6000 Blackwell' && row.hostingType === 'community host') && vast.requests.filter(row => row.path.endsWith('/bundles/')).every(row => !('datacenter' in row.body)))
     const legacy = new VendorApi('Vast.ai', vast.key, vast.baseUrl, 'https://console.vast.ai/api/v0', [410], {})
     const retired = await expectFailure(() => legacy.request('/instances/', z.unknown()), /Vast\.ai retired this route \(\/api\/v0\/instances\/ is deprecated\. Use \/api\/v1\/instances\/ instead\.\); Mercury needs an update — nothing was rented by this request/)
     check('a deliberately retired route names the update and preserves HTTP 410 without claiming existing rentals ended', retired instanceof HostVendorHttpError && retired.status === 410 && retired.message.includes('Check existing instances') && vast.state.creates === 0)
