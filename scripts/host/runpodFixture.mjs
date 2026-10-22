@@ -223,7 +223,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       }
       if (local && remote.includes('nohup setsid')) {
         state.restarts++
-        const engine = state.script.split('\n').find(line => line.includes('/llama-server'))
+        const engine = state.script.split('\n').find(line => line.includes('/llama-server') || /^'?llama-server'?(?:\s|$)/.test(line))
         if (engine) { const flags = shell(engine); modelState.slots = Number(flags[flags.indexOf('--parallel') + 1]); modelState.window = Number(flags[flags.indexOf('--ctx-size') + 1]) / modelState.slots }
         if (state.engine) { try { process.kill(-state.engine.pid, 'SIGKILL') } catch {} children.delete(state.engine) }
         state.engine = spawn('bash', ['-c', 'sleep 100000; true', join(local, 'engine.sh')], { detached: true, stdio: 'ignore' })
@@ -231,7 +231,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
         children.add(state.engine)
         writeFileSync(join(local, 'engine.pid'), String(state.engine.pid) + '\n')
       }
-      if (remote.includes('/props')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
+      if (remote.includes('/props') && !remote.includes('MERCURY_ENGINE_READ ')) output = JSON.stringify({ default_generation_settings: { n_ctx: modelState?.window }, total_slots: modelState?.slots })
       if (remote.includes('nvidia-smi')) output = state.gpus ?? Array.from({ length: 4 }, () => 'NVIDIA B200, 196608').join('\n') + (state.docker ? '\nDOCKER_ENGINE_PRESENT' : '')
       if (remote.includes('/health')) {
         if (state.holdHealth || state.failRetune && state.retuned || state.failRestore && state.restored) throw new Error('fixture model loading')
