@@ -42,7 +42,17 @@ const expectFailure = async (work: () => Promise<unknown>, pattern: RegExp): Pro
   throw new Error('Expected failure: ' + pattern)
 }
 try {
+  const { HOST_VENDORS, vendorKey } = await import('../../src/services/host/vendors/client.ts')
+  check('the rental registry includes Hugging Face as its fourth vendor', HOST_VENDORS.join(',') === 'runpod,vast,lambda,huggingface')
   const secrets = await import('../../src/services/providers/providerSecrets.ts')
+  const { hfEndpointsFixture } = await import('./hfEndpointsFixture.mjs')
+  const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
+  const hf = await hfEndpointsFixture()
+  try {
+    const managed: HostVendor = new HuggingfaceClient(hf.key, hf.baseUrl)
+    check('HF implements the managed contract without root disk or SSH', managed.vendor === 'huggingface' && managed.capabilities.managed && managed.capabilities.stop && managed.capabilities.persistentDisk === 'none' && Boolean(managed.managedEndpoint))
+    check('HF lists real shapes and does not offer B200 stock', (await managed.offers(signal())).every(row => row.recipe.gpu !== 'B200') && managed.shapes().length > 0)
+  } finally { await hf.close() }
   secrets.writeStoredRunpodApiKey('fixture-runpod-preserved')
   secrets.writeStoredVastApiKey(' fixture-vast ')
   secrets.writeStoredLambdaApiKey(' fixture-lambda ')
@@ -51,6 +61,9 @@ try {
   secrets.writeStoredVastApiKey(null); secrets.writeStoredLambdaApiKey(' ')
   check('keys clear independently without losing another vendor', secrets.readStoredVastApiKey() === undefined && secrets.readStoredLambdaApiKey() === undefined && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
   check('no vendor secrets select a model family', !existsSync(join(home, '.sign-ins.json')))
+  secrets.writeStoredHuggingfaceApiKey('fixture-hf-shared-token')
+  check('HF rental reads the existing login token without another key slot', vendorKey('huggingface') === 'fixture-hf-shared-token')
+  secrets.writeStoredHuggingfaceApiKey(null)
 
   const vast = await vastFixture()
   const lambda = await lambdaFixture()

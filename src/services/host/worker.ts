@@ -118,7 +118,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       for (const name of vendors) if (vendorKey(name)) clients.set(name, vendorClient(name === vendor ? initial : name))
       if (!clients.size) throw new Error('The saved ' + vendors.map(vendorLabel).join(', ') + ' key is unavailable.')
       const runpod = clients.get('runpod') && runpodOnly(clients.get('runpod')!, 'Fast-load weights disks')
-      const sshKey = await ensureHostKey(runner, signal)
+      let sshKey: Awaited<ReturnType<typeof ensureHostKey>> | undefined
       const pollMs = options.pauseMs ?? initial.pollIntervalMs ?? 5000
       const watchWindowMs = options.timeoutMs ?? initial.pollWindowMs ?? 12 * 3600_000
       const deadline = (initial.jobStartedAt ?? Date.now()) + watchWindowMs
@@ -201,7 +201,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
         try {
-          pod = await createHostResource(api, offer, sshKey.publicKey, podName, volume)
+          if (!api.capabilities.managed) sshKey ??= await ensureHostKey(runner, signal)
+          pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', podName, volume)
         } catch (error) {
           const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
@@ -230,14 +231,15 @@ export async function runHostJob(id: string, generation: string, options: { runn
           name: pod.name,
           recipe: offer.recipe.id,
           price: offer.price,
+          ...(hit === 'huggingface' ? { recipeRow: offer.recipe } : {}),
           startedAt: pod.startedAt ?? pod.createdAt,
           status: pod.status,
           sessionId: afterPoll.sessionId,
           workspace: afterPoll.workspace,
-          sshKey: sshKey.path,
+          sshKey: api.capabilities.managed ? undefined : sshKey?.path,
           watchedFrom: id,
           volumeId: volume?.id,
-          ...(hit === 'runpod' && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
+          ...(hit === vendor && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
         })
         hostNotice(setupRecord, 'rented', rentedWords)
         removeHostRecord(id)
@@ -271,7 +273,19 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const api = vendorClient(initial)
-    if (initial.cluster) {
+    let endpointBase: string | undefined
+    if (api.capabilities.managed) {
+      if (!api.managedEndpoint) throw new Error('The managed provider has no readiness reader.')
+      while (!signal.aborted && Date.now() + pause < deadline) {
+        const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); throw error })
+        patchHostRecord(id, { status: observed.pod.status })
+        if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await readOnly('log', readSignal => api.logs(id, readSignal)))
+        if (observed.pod.status === 'RUNNING' && observed.baseUrl) { endpointBase = observed.baseUrl; break }
+        mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
+        await delay(Math.min(pause, Math.max(1, deadline - Date.now())), undefined, { signal })
+      }
+      if (!endpointBase) throw new Error('HF endpoint did not reach running within the setup budget.')
+    } else if (initial.cluster) {
       target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
     } else {
     let last = 'SSH address not yet assigned'
@@ -304,18 +318,23 @@ export async function runHostJob(id: string, generation: string, options: { runn
     await waitHostEngine(target, recipe, runner, signal, pause, timeout, log)
     }
     patchHostRecord(id, { target, status: 'RUNNING' })
-    mark('starting engine')
-    const port = await openHostTunnel(id, target, runner, signal)
-    patchHostRecord(id, { localPort: port })
-    mark('tunnel on 127.0.0.1:' + port)
+    if (!api.capabilities.managed) {
+      if (!target) throw new Error('The pod has no SSH address.')
+      mark('starting engine')
+      const port = await openHostTunnel(id, target, runner, signal)
+      patchHostRecord(id, { localPort: port })
+      mark('tunnel on 127.0.0.1:' + port)
+      endpointBase = 'http://127.0.0.1:' + port + '/v1'
+    }
+    const setupSignal = api.capabilities.managed ? AbortSignal.any([signal, AbortSignal.timeout(Math.max(1, deadline - Date.now()))]) : signal
     let provider = initial.provider ?? ('pod-' + id.toLowerCase().replaceAll('_', '-')).slice(0, 32)
     const result = await runLlmHost(async question => {
       switch (question.step) {
         case 'servers': return initial.provider ?? '__add__'
         case 'action': return 'repoint'
-        case 'address': return 'http://127.0.0.1:' + port + '/v1'
+        case 'address': return endpointBase!
         case 'dialect': return recipe.engine ?? 'sglang'
-        case 'key': if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
+        case 'key': if (api.capabilities.managed) return key; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
         case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
         case 'name':
           if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
@@ -323,7 +342,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         case 'confirm': return 'run'
       }
       throw new Error('Setup needs input at ' + question.title + '. Resume from /llmhost.')
-    }, () => {}, signal)
+    }, () => {}, setupSignal)
     if (result.registered) {
       patchHostRecord(id, { provider })
       linkLlmHostPod(provider, id)
@@ -337,14 +356,14 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const observed = readHostRecord(id)
       if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
       let response: Response
-      try { response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' }) } catch (error) {
+      try { response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed ? { headers: { Authorization: 'Bearer ' + key } } : {}), redirect: 'error' }) } catch (error) {
         const current = readHostRecord(id)
         if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
         throw error
       }
       const after = readHostRecord(id)
       if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
-      if (!response.ok) throw new Error('The SSH tunnel no longer answers: HTTP ' + response.status)
+      if (!response.ok) throw new Error((api.capabilities.managed ? 'The HF endpoint' : 'The SSH tunnel') + ' no longer answers: HTTP ' + response.status)
       await response.body?.cancel()
     }
   } catch (error) {

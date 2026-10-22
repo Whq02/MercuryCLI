@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Text, useInput, wrapText } from '../ink.js'
 import TextInput from './TextInput.js'
+import { HuggingfaceConnect } from './HuggingfaceConnect.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { fitMeasuredWindow, paneWindow } from './mercury-ui/geometry.js'
@@ -68,7 +69,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
         setHost(event.host)
         setQuestion(current => {
           if (current?.step !== 'pod-controls') return current
-          const rows = [...(event.host?.canTune ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(event.host?.canResume ? [{ value: 'resume', label: 'Resume setup' }] : []), ...(current.rows ?? []).filter(row => row.value !== 'resume' && row.value !== 'tune')]
+          const rows = [...(event.host?.canTune ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(event.host?.canResume ? [{ value: 'resume', label: event.host.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(current.rows ?? []).filter(row => row.value !== 'resume' && row.value !== 'tune')]
           setCursor(selected => {
             if (selected === null) return null
             const value = current.rows?.[selected]?.value
@@ -134,7 +135,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const disclosure = question?.step !== 'rent-confirm' ? [] : (question.lines ?? []).flatMap(text => wrapPlain(text, width))
   const choiceHint = question?.rows ? cursor !== null && rows[cursor] ? words.suggested : words.choose : words.input
   const hours = host ? Math.max(0, now - Date.parse(host.startedAt)) / 3600_000 : 0
-  const meter = !host ? '' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Number.isFinite(hours) ? hours.toFixed(2) + 'h = $' + (host.price * hours).toFixed(2) + ' so far (estimate; storage extra)' : 'elapsed time unknown')
+  const meter = !host ? '' : host.managed ? host.status === 'TERMINATED' ? 'HF endpoint terminated · verified absent' : host.status === 'EXITED' ? 'HF endpoint · Paused · no compute bills' : 'HF endpoint · $' + host.price.toFixed(2) + '/hr · billed by the minute until Pause or Terminate' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Number.isFinite(hours) ? hours.toFixed(2) + 'h = $' + (host.price * hours).toFixed(2) + ' so far (estimate; storage extra)' : 'elapsed time unknown')
   const hostLines = compact || result && host?.status === 'TERMINATED' ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
   const labelDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
   const sectioned = Boolean(question?.search && query)
@@ -168,6 +169,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + (question?.search ? 'type to search · ' : '') + (question?.search && query ? 'esc clears the search' : exit) + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
   useLayoutEffect(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
   useInput((input, key, event) => {
+    if (question?.step === 'huggingface-login') return
     if (key.escape) { event.stopImmediatePropagation(); if (question?.search && query) { retarget(''); return } stop(); return }
     const action = keyActions.length && !key.ctrl && !key.meta && input.length === 1 ? keyActions.find(row => row.key === input) : undefined
     if (action) {
@@ -201,6 +203,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
       if (pastOpenEvent() && detailsFit && cursor !== null && rows[cursor]) answer(rows[cursor]!.value)
     }
   })
+  if (question?.step === 'huggingface-login') return <HuggingfaceConnect onResult={outcome => { setHistory(rows => [...rows, { title: 'Hugging Face sign-in', words: outcome.receipt }]); answer(outcome.ok ? 'connected' : 'cancel') }} />
   return <Box flexDirection="column" width={width} flexShrink={0} height={rowBudget} overflow="hidden">
     {shownHistory.map((text, index) => <Text key={'log-' + index} color={tokens.textMuted}>{text}</Text>)}
     {question ? <>
