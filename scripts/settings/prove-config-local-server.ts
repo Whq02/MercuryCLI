@@ -242,7 +242,7 @@ section('§5 the Ollama app form: the review lists launchctl setenv per knob, th
   m.push(KEY.right)
   await settle(200)
   const flat = m.lines().map(line => line.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '').trim()).filter(line => line !== '').join(' ')
-  check('the review: the two setenv lines with their previous values, the quit, the wait, the open, the revert road, the app hint', m.screen().includes('Apply 2 changes to the Ollama app') && flat.includes('launchctl setenv OLLAMA_MAX_LOADED_MODELS 2  (was 1)') && flat.includes('launchctl setenv OLLAMA_NUM_PARALLEL 1  (was unset)') && flat.includes('osascript -e tell application "Ollama" to quit · wait for 127.0.0.1:11434 to close · open -a Ollama · wait for /api/version') && flat.includes('revert road: launchctl setenv OLLAMA_MAX_LOADED_MODELS 1 · launchctl unsetenv OLLAMA_NUM_PARALLEL') && flat.includes('↵ sets the variables and restarts the app · esc back, nothing set'), flat)
+  check('the review: the two setenv lines with their previous values, the quit, the wait, the open, the revert road, the app hint', m.screen().includes('Apply 2 changes to the Ollama app') && flat.includes('launchctl setenv OLLAMA_MAX_LOADED_MODELS 2  (was 1)') && flat.includes('launchctl setenv OLLAMA_NUM_PARALLEL 1  (was unset)') && flat.includes('osascript -e tell application "Ollama" to quit · wait for 127.0.0.1:11434 to close · open -a Ollama · wait for /api/version') && flat.includes('revert: launchctl setenv OLLAMA_MAX_LOADED_MODELS 1 · launchctl unsetenv OLLAMA_NUM_PARALLEL') && flat.includes('↵ sets the variables and restarts the app · esc back, nothing set'), flat)
   save('config-local-server-app-178x51', m)
   m.push(KEY.esc)
   await settle(150)

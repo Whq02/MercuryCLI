@@ -365,7 +365,7 @@ function DossierCard({
           : agent.lastToolName
             ? `${agent.lastToolName}(${agent.lastToolSummary ?? ''})`
             : agent.state === 'start'
-              ? 'waiting for a worker slot'
+              ? 'starting…'
               :
                 'working…'))
       : `settled · ${agent.toolCalls ?? view?.toolCallsTotal ?? 0} ${plural(agent.toolCalls ?? view?.toolCallsTotal ?? 0, 'tool call')}`

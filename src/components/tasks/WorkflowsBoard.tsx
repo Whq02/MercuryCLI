@@ -1037,7 +1037,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
               title: 'No workflow runs',
               hint:
                 presence === 'dormant'
-                  ? 'the session has no live runner — a replay revives it (↵ in the chat); its workflows list here'
+                  ? 'this session is parked — press ↵ in the chat to resume it; its workflows list here'
                   : presence === 'blank'
                     ? 'this chat has no session yet — its first message creates one; the Workflow tool lists runs here live'
                     : 'Call the Workflow tool to launch one — /workflows will list it here live',

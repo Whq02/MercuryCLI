@@ -183,7 +183,7 @@ section('§3 — the surfaces tell the truth')
   check("the old 'not available for a managed session yet' refusal no longer fronts the rewind", !repl.includes("refuseSessionRewrite('rewinding the conversation')") && !repl.includes("refuseSessionRewrite('restoring files to a checkpoint')"))
   const config = read('src/components/Settings/Config.tsx')
   check("Settings carries 'Checkpoints in this session' beside the switch, read from the focused connector", config.includes("label: 'Checkpoints in this session'") && config.includes('getFocusedSessionConnector().checkpointFacts()'))
-  check('…with the three honest states', config.includes("'not capturing in this session'") && config.includes("predates checkpoint capture (/daemon restart when ready)") && config.includes('restore point'))
+  check('…with the three honest states', config.includes("'not capturing in this session'") && config.includes("started before checkpoint capture (start a new session when ready)") && config.includes('restore point'))
 }
 
 section('§4 — the display projection is wired into the paint')

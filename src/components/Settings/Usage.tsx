@@ -353,7 +353,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   openai: {
     title: 'OpenAI usage',
     connect: '/logins adds an OpenAI account',
-    limitsNote: 'Usage bills to your OpenAI account; no polled limit meter exists on this lane.',
+    limitsNote: 'Usage bills to your OpenAI account; no polled limit meter exists here.',
   },
   zai: {
     title: 'Z.AI usage',
@@ -393,7 +393,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   'openai-compat': {
     title: 'Custom endpoint usage',
     connect: 'set MERCURY_COMPAT_BASE_URL (key optional — MERCURY_COMPAT_API_KEY)',
-    limitsNote: 'Usage bills to the endpoint you configured; no polled limit meter exists on this lane.',
+    limitsNote: 'Usage bills to the endpoint you configured; no polled limit meter exists here.',
   },
   mistral: {
     title: 'Mistral usage',
@@ -413,12 +413,12 @@ const ENGINE_USAGE_PRESENTATION: Record<
   together: {
     title: 'Together AI usage',
     connect: '/logins together adds a Together AI API key (TOGETHER_API_KEY works too)',
-    limitsNote: 'One key bills the prepaid balance at each model\'s price; the balance and spend controls live at api.together.ai/settings/billing — no polled meter exists on this lane.',
+    limitsNote: 'One key bills the prepaid balance at each model\'s price; the balance and spend controls live at api.together.ai/settings/billing — no polled meter exists here.',
   },
   cohere: {
     title: 'Cohere usage',
     connect: '/logins cohere adds a Cohere API key (COHERE_API_KEY works too)',
-    limitsNote: 'A trial key is rate-limited for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com — no polled meter exists on this lane.',
+    limitsNote: 'A trial key is rate-limited for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com — no polled meter exists here.',
   },
   groq: { title: 'Groq usage', connect: '/logins groq adds an API key (GROQ_API_KEY works too)', limitsNote: 'Rate limits are read from response headers; account spend is shown at console.groq.com/dashboard/usage.' },
   cerebras: { title: 'Cerebras usage', connect: '/logins cerebras adds an API key (CEREBRAS_API_KEY works too)', limitsNote: 'The session ledger counts tokens and spend; the cloud console shows account limits and credits.' },
