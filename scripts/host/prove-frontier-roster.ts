@@ -46,5 +46,13 @@ for (const row of added.filter(row => row.model === 'stepfun-ai/Step-5-Preview')
   assert.equal(row.efforts?.verified.source, row.source)
   assert.match(row.efforts?.verified.note ?? '', /high is the default/)
 })
+for (const id of ['step5-preview-b300', 'step5-preview-h200', 'nemotron35-super-nvfp4-rtx-pro-6000']) check(id + ' carries the vendor verificationStatus badge without claiming a Mercury measurement', () => {
+  const row = added.find(row => row.id === id)!
+  assert.equal(row.verified.by, 'documented')
+  assert.equal(row.verified.note, 'verified')
+  assert.equal(row.verified.on, '2026-10-22')
+  assert.equal(row.verified.source, row.source)
+  assert.ok(row.verification.startsWith('verified · '))
+})
 console.log(`FRONTIER ROSTER ${failures ? 'RED' : 'GREEN'} — ${checks} checks, ${failures} failed`)
 process.exitCode = failures ? 1 : 0

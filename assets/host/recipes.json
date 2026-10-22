@@ -3593,11 +3593,11 @@
         "qwen3_coder"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3.5-Super",
-      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cell sets 262,144 context",
+      "verification": "verified · NVIDIA OpenMDW-1.1 licence · the cell sets 262,144 context",
       "verified": {
         "by": "documented",
         "on": "2026-10-22",
-        "note": "documented",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3.5-Super"
       },
       "efforts": {
@@ -4302,11 +4302,11 @@
         "step5"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
-      "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "verified · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-22",
-        "note": "documented",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
       },
       "efforts": {
@@ -4375,11 +4375,11 @@
         "step5"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
-      "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
+      "verification": "verified · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
         "on": "2026-10-22",
-        "note": "documented",
+        "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
       },
       "efforts": {
