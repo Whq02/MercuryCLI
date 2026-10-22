@@ -2,13 +2,16 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 delete process.env.NODE_ENV
 for (const key of ['MERCURY_HOME', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_SM_COMPACT', 'ANTHROPIC_API_KEY', 'MERCURY_COMPACT_KEEP_TAIL', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_CTX_COMPACTION', 'MERCURY_THINKING_BUDGET']) delete process.env[key]
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-ladder-rungs-'))
+if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
+mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
+const proofHome = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'fold-ladder-rungs-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
@@ -177,6 +180,7 @@ async function fold(model: string, messages: Message[], road: 'auto' | 'manual' 
 }
 const SUMMARY: Turn = { text: '<summary>1. Operator Intent: read the sources and write the memo.\n8. Where Work Stands: the sources are read.\n10. Agents in flight: none.</summary>', usage: { input: 1000, output: 60 } }
 const thinkingLevelOf = (request: Captured): string => String(((request.body.generationConfig as { thinkingConfig?: { thinkingLevel?: string } } | undefined)?.thinkingConfig?.thinkingLevel) ?? 'none')
+const keepsGenerationSettings = (requests: Captured[]): boolean => requests.length > 0 && thinkingLevelOf(requests[0]!) === 'HIGH' && requests.every(request => JSON.stringify(request.body.generationConfig) === JSON.stringify(requests[0]!.body.generationConfig))
 
 section('R1 (c) already over the window with the automatic fold failed: a 1,048,576-token Gemini seat at 1,03x,xxx tokens — the operator\'s /compact lands on rung 1 in one request')
 {
@@ -198,7 +202,7 @@ section('R1 (c) already over the window with the automatic fold failed: a 1,048,
   check('the post-fold context is under the threshold with a verbatim tail', (run.post ?? Infinity) < getAutoCompactThreshold(GEMINI) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept}`)
 }
 
-section('R2 (c, the provider answers nothing whatever it is sent): rung 2 halves the input with thinking off, twice; rung 3 lands the fold on Mercury\'s own records and says so in one line')
+section('R2 (c, the provider answers nothing whatever it is sent): rung 2 halves the input without reducing thinking or effort, twice; rung 3 lands the fold on Mercury\'s own records and says so in one line')
 {
   const messages = conversation({ rounds: 40, resultChars: 100_000, model: GEMINI, lastUsage: { input: 24_000, output: 1_200, cacheRead: 985_000 }, gauge: { ratio: 1.36, fixed: 40_000 } })
   const before = fixture.captured.length
@@ -207,7 +211,7 @@ section('R2 (c, the provider answers nothing whatever it is sent): rung 2 halves
   const requests = fixture.captured.slice(before)
   record(`${run.landed ? 'LANDED' : `FAILED (${run.error})`} after ${requests.length} request(s); thinking levels on the wire: ${requests.map(thinkingLevelOf).join(', ')}; ${run.ms} ms`)
   check('the fold landed without a model (red on the base: Failed to generate a conversation summary.)', run.landed, run.error ?? '')
-  check('rung 2: the first request rode the session\'s thinking level, the retries rode thinking off', requests.length >= 3 && thinkingLevelOf(requests[0]!) === 'HIGH' && requests.slice(1).every(request => thinkingLevelOf(request) === 'LOW'), requests.map(thinkingLevelOf).join(','))
+  check('rung 2: every retry preserves the first request\'s thinking, effort and output fields', requests.length >= 3 && keepsGenerationSettings(requests), requests.map(thinkingLevelOf).join(','))
   check('rung 2 is bounded: two no-summary retries and no more', requests.length <= 4, String(requests.length))
   const line = `${PROSE_SKIPPED_KEY}: the answer had no text (stop reason end_turn; 0 thinking blocks, 0 tool calls).`
   check('the summary card opens on the one-line notice naming the cause', (run.summaryText ?? '').includes(line), (run.summaryText ?? '').slice(0, 400))
@@ -227,7 +231,7 @@ section('R3 a Gemini-shaped empty candidate on an ordinary fold is rung 2, not a
   const requests = fixture.captured.slice(before)
   record(`${run.landed ? 'LANDED' : `FAILED (${run.error})`} after ${requests.length} request(s); thinking levels ${requests.map(thinkingLevelOf).join(', ')}`)
   check('the fold landed (red on the base: Failed to generate a conversation summary. after one request)', run.landed, run.error ?? '')
-  check('the empty candidate was retried on half the input with thinking off and the fold carries the model\'s prose', requests.length === 3 && thinkingLevelOf(requests[1]!) === 'LOW' && (run.summaryText ?? '').includes('Where Work Stands') && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY), `${requests.length} · ${(run.summaryText ?? '').slice(0, 200)}`)
+  check('the empty candidate was retried on half the input with thinking and effort unchanged and the fold carries the model\'s prose', requests.length === 3 && keepsGenerationSettings(requests) && (run.summaryText ?? '').includes('Where Work Stands') && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY), `${requests.length} · ${(run.summaryText ?? '').slice(0, 200)}`)
   check('the retry\'s second half opened on the first half\'s part capsule', JSON.stringify(requests[2]?.body ?? {}).includes('earlier turns folded into this summary for the compaction'), JSON.stringify(requests[2]?.body ?? {}).slice(0, 200))
 }
 
@@ -240,6 +244,7 @@ section('R4 an answer that spent its output before any text (finish reason MAX_T
   const requests = fixture.captured.slice(before)
   record(`${run.landed ? 'LANDED' : `FAILED (${run.error})`} after ${requests.length} request(s)`)
   check('the fold landed with the model\'s prose (red on the base: Compaction was interrupted before a summary arrived)', run.landed && (run.summaryText ?? '').includes('Where Work Stands') && requests.length === 3, run.error ?? String(requests.length))
+  check('an output-limit retry preserves the first request\'s thinking, effort and output fields', keepsGenerationSettings(requests), requests.map(thinkingLevelOf).join(','))
 }
 
 section('R5 (d) a 32,768-token local model: the fold lands with the summariser\'s input shaped to the served window, and lands on rung 3 when the model answers nothing')
@@ -309,7 +314,7 @@ section('R8 a provider that ends the response under its own policy is rung 2, th
   const once = await fold(GEMINI, geminiRows, 'auto')
   let requests = fixture.captured.slice(before)
   record(`Gemini SAFETY once: ${once.landed ? 'LANDED' : `FAILED (${once.error})`} after ${requests.length} request(s); thinking levels ${requests.map(thinkingLevelOf).join(', ')}`)
-  check('a Gemini SAFETY finish on the first request is rung 2: the halved retry with thinking off answers and the fold lands with the model\'s prose (red on 41304f7c53: the stream fault was thrown past the ladder)', once.landed && requests.length === 3 && thinkingLevelOf(requests[1]!) === 'LOW' && (once.summaryText ?? '').includes('Where Work Stands') && !(once.summaryText ?? '').includes(PROSE_SKIPPED_KEY), once.error ?? `${requests.length} · ${(once.summaryText ?? '').slice(0, 160)}`)
+  check('a Gemini SAFETY finish on the first request is rung 2: the halved retry preserves thinking and effort and the fold lands with the model\'s prose', once.landed && requests.length === 3 && keepsGenerationSettings(requests) && (once.summaryText ?? '').includes('Where Work Stands') && !(once.summaryText ?? '').includes(PROSE_SKIPPED_KEY), once.error ?? `${requests.length} · ${(once.summaryText ?? '').slice(0, 160)}`)
   before = fixture.captured.length
   fixture.script(() => ({ refusal: true }))
   const always = await fold(GEMINI, geminiRows, 'auto')

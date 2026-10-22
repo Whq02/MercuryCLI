@@ -237,7 +237,7 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
     const weightsGb = gguf.bytes / 1e9
     const shape = smallestShape(weightsGb * 1.2)
     if (!shape) return { ok: false, reason: 'needs more than 8× B300 (' + Math.ceil(weightsGb * 1.2) + ' GB) · no single-machine recipe' }
-    const slot = Math.min(HF_SLOT_CONTEXT, model.ggufContext ?? HF_SLOT_CONTEXT)
+    const slot = model.ggufContext ?? HF_SLOT_CONTEXT
     const paths = gguf.files.map(file => file.path).sort()
     const first = paths.find(path => /-00001-of-\d{5}\.gguf$/i.test(path)) ?? paths[0]!
     const format = 'GGUF ' + gguf.quant

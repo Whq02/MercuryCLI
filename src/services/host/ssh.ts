@@ -222,7 +222,9 @@ export async function inspectBoxMachine(target: SshTarget | undefined, os: 'darw
 }
 
 export class HostTuneUnchanged extends Error {}
-const processTable = `def processes():
+const processTable = `def is_llama(argv):
+    return bool(argv) and pathlib.PurePosixPath(argv[0]).name == 'llama-server'
+def processes():
     rows = []
     if os.path.isdir('/proc'):
         for entry in os.listdir('/proc'):
@@ -280,7 +282,7 @@ for line in text.splitlines():
         continue
     if args[:1] == ['exec']:
         args = args[1:]
-    if args and args[0].endswith('/llama-server'):
+    if is_llama(args):
         engine = args
         break
 if engine is None:
@@ -305,12 +307,12 @@ if (p / 'engine.pid').exists():
 group = None
 if leader is not None:
     command = ' '.join(leader[3])
-    if leader[0] <= 1 or str(script) not in command and not ('/llama-server' in command and weights in command):
+    if leader[0] <= 1 or str(script) not in command and not (is_llama(leader[3]) and weights in command):
         unchanged('engine.pid names a process that is not this engine')
     if leader[1] != leader[0]:
         unchanged('the engine is not its own process group')
     group = leader[0]
-strays = [row[0] for row in processes() if row[1] != group and row[3][:1] and row[3][0].endswith('/llama-server') and weights in ' '.join(row[3])]
+strays = [row[0] for row in processes() if row[1] != group and is_llama(row[3]) and weights in ' '.join(row[3])]
 if strays:
     unchanged('another engine for these weights is running as process ' + str(strays[0]))
 if not restore and (group is None or not serving()):
@@ -359,7 +361,7 @@ try:
     group = int((p / 'engine.pid').read_text().strip())
     rows = [row for row in processes() if row[1] == group]
     out['alive'] = bool(rows)
-    out['argv'] = next((row[3] for row in rows if row[3][:1] and row[3][0].endswith('/llama-server')), [])
+    out['argv'] = next((row[3] for row in rows if is_llama(row[3])), [])
 except (OSError, ValueError):
     pass
 try:
