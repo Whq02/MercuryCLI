@@ -5,7 +5,7 @@
 # gate-watch: src/runner/wire/** src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/utils/lazySchema.ts
 # gate-watch: src/main.tsx src/types/permissions.ts src/utils/effortLadder.ts
 # gate-watch: src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/generated-assets-map.mjs scripts/gate/generated-assets.tsv
+# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/generated-assets-map.mjs scripts/gate/generated-assets.tsv scripts/provider-compat/fixtures/engineRules.mjs scripts/providers/lib/llmhostFixture.ts src/services/providers/providerSecrets.ts src/utils/settings/settingsCache.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
