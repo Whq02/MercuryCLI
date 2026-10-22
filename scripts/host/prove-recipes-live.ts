@@ -108,14 +108,14 @@ try {
   const qwenH200 = row('qwen38-27b-h200')
   const interfaceBody = /export interface HostRecipe \{([\s\S]*?)\n\}/.exec(readFileSync(join(repo, 'src/services/host/recipes.ts'), 'utf8'))![1]!
   const interfaceFields = [...interfaceBody.matchAll(/^\s+(\w+)(\?)?:/gm)].map(match => ({ name: match[1]! as keyof HostRecipe, optional: Boolean(match[2]) }))
-  const fullRow: Record<string, unknown> = { ...glmGguf, nodes: 1, weightsGb: 200, pythonInstall: 'true', environment: { HF_HUB_ENABLE_HF_TRANSFER: '1' }, files: { 'a.json': '{}' } }
+  const fullRow: Record<string, unknown> = { ...glmGguf, nodes: 1, weightsGb: 200, pythonInstall: 'true', environment: { HF_HUB_ENABLE_HF_TRANSFER: '1' }, files: { 'a.json': '{}' }, weightManifest: { model: glmGguf.model, include: glmGguf.include ?? '', revision: 'a'.repeat(40), files: [{ path: 'a.gguf', size: 200e9, sha256: 'b'.repeat(64) }] } }
   const fullParsed = hostRecipeSchema.safeParse(fullRow)
   const parity = interfaceFields.map(field => {
     const rest = { ...fullRow }
     delete rest[field.name]
     return { field: field.name, typed: !hostRecipeSchema.safeParse({ ...fullRow, [field.name]: Symbol('not a recipe value') }).success, optional: hostRecipeSchema.safeParse(rest).success === field.optional }
   })
-  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 28 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
+  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 29 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
   const readDates = new Set(HOST_RECIPES.map(entry => entry.efforts?.verified.on))
   check('effort levels and their dated template sources survive the recipe schema and exported file: every row carries the date its template was read (2026-10-20 or 2026-10-22) and an https source', HOST_RECIPES.every(entry => /^\d{4}-\d{2}-\d{2}$/.test(entry.efforts?.verified.on ?? '') && entry.efforts!.verified.source.startsWith('https://')) && JSON.stringify([...readDates].sort()) === JSON.stringify(['2026-10-20', '2026-10-22']) && parsedShipped.recipes.every(entry => canonical(entry.efforts) === canonical(HOST_RECIPES.find(own => own.id === entry.id)!.efforts)))
   const extra = hostRecipeSchema.safeParse({ ...qwenRtx, futureField: 'from a newer file' })

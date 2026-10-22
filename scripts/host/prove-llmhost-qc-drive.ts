@@ -27,7 +27,7 @@ const lambda = await lambdaFixture()
 rp.state.customGpus = [{ ...liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA H100 80GB HBM3'), availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
 vast.state.customOffers = [{ id: 101, gpu_name: 'H100', gpu_ram: 80 * 1024, num_gpus: 1, dph_total: 1.2, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000, geolocation: 'US' }]
 const data = Buffer.from('fixture weights for the integrated popup journey\n')
-fixtureRepos.gguf.files = [{ path: 'tiny-Q4_K_M.gguf', size: data.length }]
+fixtureRepos.gguf.files = [{ path: 'tiny-Q4_K_M.gguf', size: data.length, git: createHash('sha1').update('blob ' + data.length + '\0').update(data).digest('hex') }]
 fixtureRepos.gguf.gguf.context_length = 131072
 const hf = await hfFixture()
 process.env.MERCURY_HOST_HF_API_BASE = hf.baseUrl
@@ -156,7 +156,7 @@ try {
     await choose(width === 120 ? 'bank' : 'verify')
     await Promise.all(jobs); await step('door-model')
     const derived = currentHostRecipes().find(row => row.model === fixtureRepos.gguf.id)!
-    check('the background bank job verifies the downloaded HF files', bank.bankState(derived).banked && bank.bankState(derived).check === 'download')
+    check('the background bank job verifies the downloaded HF files against the trusted manifest the derived recipe now carries', bank.bankState(derived).banked && bank.bankState(derived).check === 'manifest')
     await choose('bank'); await step('door-bank')
     await capture(width + '-bank')
     check('the Bank table and all four action keys are offered', ['MODEL', 'SIZE', 'BANKED', 'VERIFIED', 'VOLUME'].every(word => question!.rows![0]!.label.includes(word)) && question!.keys!.map(row => row.key).join() === 'b,v,m,d')
@@ -168,9 +168,9 @@ try {
     await choose('refresh'); await step('door-bank')
     check('verification keeps the HF bank readable', bank.bankState(derived).verifiedAt !== undefined)
     await select(derived.id); mounted!.push('m')
-    await until('No pinned weight manifest')
-    await capture(width + '-hf-mirror-unavailable')
-    check('an HF mirror without a manifest refuses before billing', rp.state.volumeCreates === (width === 120 ? 0 : 1))
+    await step('fast-load-how')
+    await capture(width + '-hf-mirror-how')
+    check('an HF model banked with its trusted manifest can be mirrored, and nothing is created before the confirm', rp.state.volumeCreates === (width === 120 ? 0 : 1))
     await close()
     await open(); await choose('DeepSeek Tiny'); await step('door-model')
     await select('bank'); mounted!.push('m'); await step('fast-load-how')
