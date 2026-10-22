@@ -123,21 +123,26 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
       const head = nodes[0]!.cluster.ip!
       onHead(targets[0]!)
       onStep('installing on ' + nodes.length + ' nodes')
-      await Promise.all(targets.map((target, rank) => startHostEngine(target, recipe, runner, signal, false, true, undefined, undefined, { nodes: nodes.length, rank, head, address: nodes[rank]!.cluster.ip! })))
-      onStep('waiting for cluster head ' + head)
-      const dir = '/workspace/mercury-host/' + recipe.id
-      for (;;) {
-        try {
-          await waitHostEngine(targets[0]!, recipe, runner, signal, pauseMs, Math.max(1, Math.min(deadline - Date.now(), pauseMs * 12)))
-          return targets[0]!
-        } catch (error) {
-          if (signal.aborted || Date.now() >= deadline || !String(error).includes('Engine not ready.')) throw error
+      try {
+        await Promise.all(targets.map((target, rank) => startHostEngine(target, recipe, runner, signal, false, true, undefined, undefined, { nodes: nodes.length, rank, head, address: nodes[rank]!.cluster.ip! })))
+        onStep('waiting for cluster head ' + head)
+        const dir = '/workspace/mercury-host/' + recipe.id
+        for (;;) {
+          try {
+            await waitHostEngine(targets[0]!, recipe, runner, signal, pauseMs, Math.max(1, Math.min(deadline - Date.now(), pauseMs * 12)))
+            return targets[0]!
+          } catch (error) {
+            if (signal.aborted || Date.now() >= deadline || !String(error).includes('Engine not ready.')) throw error
+          }
+          for (const [rank, target] of targets.entries()) {
+            if (rank === 0) continue
+            const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(() => '')
+            if (/^MERCURY_ENGINE_GONE\b/m.test(state)) throw new Error('Cluster node ' + nodes[rank]!.id + ' (rank ' + rank + ') stopped its engine, so the head cannot finish loading. ' + state.replace(/^MERCURY_ENGINE_GONE\b/m, '').trim())
+          }
         }
-        for (const [rank, target] of targets.entries()) {
-          if (rank === 0) continue
-          const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(() => '')
-          if (/^MERCURY_ENGINE_GONE\b/m.test(state)) throw new Error('Cluster node ' + nodes[rank]!.id + ' (rank ' + rank + ') stopped its engine, so the head cannot finish loading. ' + state.replace(/^MERCURY_ENGINE_GONE\b/m, '').trim())
-        }
+      } catch (error) {
+        signal.throwIfAborted()
+        return endHostCluster(api, record, cluster, 'failed during engine setup', error instanceof Error ? error.message : String(error), cleanupRead)
       }
     }
     await delay(pauseMs, undefined, { signal })
