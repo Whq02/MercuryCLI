@@ -1,7 +1,7 @@
-import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
+import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
-import type { ScreenMap } from './screenMap.js'
+import { boundsOfPixels, type ScreenMap } from './screenMap.js'
 
 interface ElementTarget {
   role?: string
@@ -78,17 +78,14 @@ export function regionRefusal(region: CaptureRegion, map: ScreenMap | null): str
   return null
 }
 
-async function cropCapture(capture: DesktopCapture, display: { width: number; height: number }, region?: CaptureRegion, map?: ScreenMap | null): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
-  if (region === undefined) return { capture, points: display }
-  const refusal = regionRefusal(region, map ?? null)
-  if (refusal !== null || !map) throw new Error(refusal ?? 'region has no screenshot frame')
-  if (capture.displayId !== map.displayId) throw new Error('the display changed since the last screenshot — take a full screenshot first')
+async function cropCapture(capture: DesktopCapture, display: { width: number; height: number }, bounds?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
+  if (bounds === undefined) return { capture, points: display }
   const scaleX = capture.width / display.width
   const scaleY = capture.height / display.height
-  const left = Math.floor((map.originX - capture.originX + region.x * map.pointWidth / map.imageWidth) * scaleX)
-  const top = Math.floor((map.originY - capture.originY + region.y * map.pointHeight / map.imageHeight) * scaleY)
-  const right = Math.ceil((map.originX - capture.originX + (region.x + region.width) * map.pointWidth / map.imageWidth) * scaleX)
-  const bottom = Math.ceil((map.originY - capture.originY + (region.y + region.height) * map.pointHeight / map.imageHeight) * scaleY)
+  const left = Math.floor((bounds.x - capture.originX) * scaleX)
+  const top = Math.floor((bounds.y - capture.originY) * scaleY)
+  const right = Math.ceil((bounds.x + bounds.width - capture.originX) * scaleX)
+  const bottom = Math.ceil((bounds.y + bounds.height - capture.originY) * scaleY)
   if (left < 0 || top < 0 || right > capture.width || bottom > capture.height) throw new Error('region is outside the current display — take a full screenshot first')
   const width = right - left
   const height = bottom - top
@@ -97,20 +94,44 @@ async function cropCapture(capture: DesktopCapture, display: { width: number; he
   return { capture: { ...capture, png, width, height, originX: capture.originX + left / scaleX, originY: capture.originY + top / scaleY }, points: { width: width / scaleX, height: height / scaleY } }
 }
 
-export async function settledCapture(driver: DesktopDriver, display: { index: number; width: number; height: number }, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number }; settled: string }> {
+export function windowOnDisplay(bounds: DesktopBounds, display: DesktopDisplay): DesktopBounds | undefined {
+  if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return undefined
+  const x = Math.max(display.originX, bounds.x)
+  const y = Math.max(display.originY, bounds.y)
+  const right = Math.min(display.originX + display.width, bounds.x + bounds.width)
+  const bottom = Math.min(display.originY + display.height, bounds.y + bounds.height)
+  return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : undefined
+}
+
+export async function settledCapture(driver: DesktopDriver, display: DesktopDisplay, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds, window?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number }; settled: string }> {
+  if (region) {
+    const refusal = regionRefusal(region, map ?? null)
+    if (refusal || !map) throw new Error(refusal ?? 'region has no screenshot frame')
+    if (map.displayId !== display.id) throw new Error('the display changed since the last screenshot — take a full screenshot first')
+  }
+  const wanted = region && map ? boundsOfPixels(map, region) : window
+  let bounds: DesktopBounds | undefined
+  if (wanted) {
+    const left = Math.floor((wanted.x - display.originX) * display.scale)
+    const top = Math.floor((wanted.y - display.originY) * display.scale)
+    const right = Math.ceil((wanted.x + wanted.width - display.originX) * display.scale)
+    const bottom = Math.ceil((wanted.y + wanted.height - display.originY) * display.scale)
+    bounds = { x: display.originX + left / display.scale, y: display.originY + top / display.scale, width: (right - left) / display.scale, height: (bottom - top) / display.scale }
+  }
   const deadline = Date.now() + settleMs
   let previous: Buffer | undefined
   for (;;) {
     if (signal.aborted) throw new Error('interrupted')
-    const answer = await driver.capture(display.index, signal)
+    const nativeRegion = bounds !== undefined && driver.captureRegion !== undefined
+    const answer = nativeRegion ? await driver.captureRegion!(display.index, bounds!, signal) : await driver.capture(display.index, signal)
     if (!answer.ok) throw new Error(answer.error.note)
     if (signal.aborted) throw new Error('interrupted')
-    const frame = await cropCapture(answer.value, display, region, map)
+    const frame = nativeRegion ? { capture: answer.value, points: { width: answer.value.width / answer.value.scale, height: answer.value.height / answer.value.scale } } : await cropCapture(answer.value, display, bounds)
     if (signal.aborted) throw new Error('interrupted')
     if (settleMs === 0) return { ...frame, settled: '' }
-    const local = observe && !region ? await observationPixels(answer.value, display, observe) : null
+    const local = observe && !region ? await observationPixels(frame.capture, frame.points, observe) : null
     const pixels = local ?? frame.capture.png
-    const where = local ? 'target region' : region ? 'capture region' : 'screen'
+    const where = local ? 'target region' : region ? 'capture region' : window ? 'window' : 'screen'
     if (previous?.equals(pixels)) return { ...frame, settled: local ? 'screen stable in target region (target region stable; other regions not checked)' : `${where} stable` }
     if (Date.now() >= deadline) return { ...frame, settled: `settle cap reached: ${where} kept changing — use wait-until for the expected element` }
     previous = pixels

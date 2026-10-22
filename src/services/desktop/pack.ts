@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../voice/voicePack.js'
+import type { DesktopFocusedText } from './driver.js'
 
 const DESKTOP_PACK_SEGMENTS = ['vendor', 'desktop'] as const
 export const DESKTOP_PACK_PATH = 'vendor/desktop'
@@ -251,6 +252,8 @@ export interface DesktopAddon {
   requestPermissions(): DesktopAddonPermissions
   displays(): DesktopAddonDisplays
   capture(display: number): Promise<DesktopAddonCapture>
+  captureRegion?(display: number, bounds: DesktopAddonBounds): Promise<DesktopAddonCapture>
+  focusedText?(pid: number): DesktopFocusedText | null
   frontmostApplication(): DesktopAddonApplication
   ownTerminalApplication(identity?: string, tty?: string, front?: number): DesktopAddonApplication
   accessibilityTree(pid: number, maxDepth: number, maxCount: number, scope?: string, requestWebAccessibility?: boolean): DesktopAddonTree

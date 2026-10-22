@@ -8,7 +8,7 @@ use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::NSString;
 
 use crate::keys::{Button, KeyName, Modifier};
-use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
+use crate::{tree_child_order, ApplicationAnswer, BoundsRecord, DisplayRecord, FocusedText, TextRange, PermissionsAnswer, TreeAnswer, TreeElement, TREE_BUDGET_MS, TREE_VALUE_CHARS};
 
 type CFTypeRef = *const c_void;
 type CGEventRef = *mut c_void;
@@ -62,6 +62,7 @@ extern "C" {
     fn CGDisplayModeGetPixelWidth(mode: CGDisplayModeRef) -> usize;
     fn CGDisplayModeRelease(mode: CGDisplayModeRef);
     fn CGDisplayCreateImage(display: CGDirectDisplayID) -> CGImageRef;
+    fn CGDisplayCreateImageForRect(display: CGDirectDisplayID, rect: CGRect) -> CGImageRef;
     fn CGImageGetWidth(image: CGImageRef) -> usize;
     fn CGImageGetHeight(image: CGImageRef) -> usize;
     fn CGImageGetBytesPerRow(image: CGImageRef) -> usize;
@@ -342,6 +343,17 @@ pub fn capture(display: &DisplayRecord) -> Result<(u32, u32, Vec<u8>), String> {
     }
 }
 
+pub fn capture_region(display: &DisplayRecord, bounds: &BoundsRecord) -> Result<(u32, u32, Vec<u8>), String> {
+    let id: u32 = display.id.parse().map_err(|_| format!("no display {}", display.index))?;
+    unsafe {
+        let image = CGDisplayCreateImageForRect(id, rect((bounds.x - display.origin_x) * display.scale, (bounds.y - display.origin_y) * display.scale, bounds.width * display.scale, bounds.height * display.scale));
+        if image.is_null() { return Err("the capture region has no image".to_string()); }
+        let result = image_rgba(image);
+        CGImageRelease(image);
+        result
+    }
+}
+
 unsafe fn app_facts(app: &AnyObject) -> (Option<String>, Option<String>, i32, isize) {
     let identity: Option<Retained<NSString>> = msg_send![app, bundleIdentifier];
     let name: Option<Retained<NSString>> = msg_send![app, localizedName];
@@ -595,6 +607,32 @@ unsafe fn tree_element(element: CFTypeRef, depth: u32, focused: CFTypeRef) -> Tr
     let title = ax_string(element, "AXTitle").or_else(|| ax_string(element, "AXDescription")).map(|text| clipped(text, TREE_VALUE_CHARS));
     let value = ax_string(element, "AXValue").map(|text| clipped(text, TREE_VALUE_CHARS));
     TreeElement { depth, role, title, value, frame: ax_frame(element), focused: if focused.is_null() { None } else { Some(CFEqual(element, focused) != 0) } }
+}
+
+pub fn focused_text(pid: i32) -> Result<Option<FocusedText>, String> {
+    autoreleasepool(|_| unsafe {
+        if !AXIsProcessTrusted() { return Err("Accessibility is not granted".to_string()); }
+        let app = AXUIElementCreateApplication(pid);
+        if app.is_null() { return Err("the application has no accessibility element".to_string()); }
+        AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
+        let focused = ax_attribute(app, "AXFocusedUIElement");
+        CFRelease(app);
+        if focused.is_null() { return Ok(None); }
+        let role = ax_string(focused, "AXRole").unwrap_or_default();
+        let answer = if role == "AXTextArea" {
+            let text = ax_string(focused, "AXValue");
+            let title = ax_string(focused, "AXTitle").or_else(|| ax_string(focused, "AXDescription"));
+            let raw = ax_attribute(focused, "AXVisibleCharacterRange");
+            let mut range = [0isize; 2];
+            let visible_range = if !raw.is_null() && AXValueGetValue(raw, 4, range.as_mut_ptr() as *mut c_void) && range[0] >= 0 && range[1] >= 0 {
+                Some(TextRange { location: range[0] as f64, length: range[1] as f64 })
+            } else { None };
+            if !raw.is_null() { CFRelease(raw); }
+            text.map(|text| FocusedText { text, role, title, visible_range })
+        } else { None };
+        CFRelease(focused);
+        Ok(answer)
+    })
 }
 
 pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, request_web: bool) -> TreeAnswer {

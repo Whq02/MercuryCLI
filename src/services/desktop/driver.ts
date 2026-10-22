@@ -94,6 +94,13 @@ export interface DesktopTreeElement {
   focused?: boolean
 }
 
+export interface DesktopFocusedText {
+  text: string
+  role: string
+  title: string | null
+  visibleRange?: { location: number; length: number } | null
+}
+
 export interface DesktopTree {
   elements: DesktopTreeElement[]
   truncated: boolean
@@ -164,6 +171,8 @@ export interface DesktopDriver {
   requestPermissions(): Promise<DesktopAnswer<DesktopPermissions>>
   displays(): Promise<DesktopAnswer<DesktopDisplays>>
   capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>
+  captureRegion?(display: number, bounds: DesktopBounds, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>
+  focusedText?(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>>
   frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>>
   ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>>
   accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>>
