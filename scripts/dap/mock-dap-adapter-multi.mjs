@@ -13,7 +13,7 @@ const CHILD_SILENT = process.env.MOCK_MULTI_CHILD_SILENT === '1'
 const LAZY_VERIFY = process.env.MOCK_MULTI_LAZY_VERIFY === '1'
 const ROOT_HOSTS = process.env.MOCK_MULTI_ROOT_HOSTS === '1'
 
-const childrenExpected = CHILDREN + (GRANDCHILD ? 1 : 0)
+let childrenExpected = CHILDREN + (GRANDCHILD ? 1 : 0)
 let childrenTerminated = 0
 let parentSession = null
 
@@ -146,8 +146,23 @@ function makeSession(write, onDisconnect) {
         const lines = (req.arguments?.breakpoints ?? []).map(b => b.line)
         breakpointsSet = breakpointsSet || lines.length > 0
         if (lines.length > 0) bpLines = lines
+        event('output', {
+          category: 'stdout',
+          output: `[mock] ${role === 'parent' ? 'parent' : `child ${childId}`} setBreakpoints ${String(req.arguments?.source?.path ?? '?')} lines=[${lines.join(',')}]\n`,
+        })
         const verified = role !== 'parent' && !LAZY_VERIFY
         respond(req, { breakpoints: lines.map(line => ({ verified, line, id: 700 + line })) })
+        break
+      }
+      case 'mock/spawnChild': {
+        const name = typeof req.arguments?.name === 'string' ? req.arguments.name : 'child-late'
+        const id = typeof req.arguments?.id === 'string' ? req.arguments.id : 'target-late'
+        childrenExpected++
+        respond(req, { name, id })
+        sendReverse('startDebugging', {
+          request: 'launch',
+          configuration: { type: 'mock-multi', name, __pendingTargetId: id, program: '/tmp/demo.js' },
+        })
         break
       }
       case 'configurationDone':

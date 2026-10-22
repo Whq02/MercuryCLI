@@ -85,7 +85,7 @@ const inputSchema = lazySchema(() =>
     args: z.array(z.string()).optional().describe('Program arguments for launch'),
     stopOnEntry: semanticBoolean(z.boolean().optional()).describe('Stop at the first instruction (launch)'),
     file: z.string().optional().describe('Source file for breakpoints'),
-    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file)'),
+    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file; [] clears the file\'s breakpoints on every session)'),
     breakpoints: z
       .array(
         z.strictObject({
@@ -96,7 +96,7 @@ const inputSchema = lazySchema(() =>
         }),
       )
       .optional()
-      .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed)'),
+      .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed; [] clears the file\'s breakpoints on every session)'),
     pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the running process id (or give port/program instead)'),
     port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port'),
     host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
@@ -361,6 +361,7 @@ function gateCapability(
 function requestedBreakpoints(input: Input): DapBreakpointSpec[] | undefined {
   if (input.breakpoints?.length) return input.breakpoints
   if (input.lines?.length) return input.lines.map(line => ({ line }))
+  if (input.breakpoints !== undefined || input.lines !== undefined) return []
   return undefined
 }
 
@@ -449,7 +450,7 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
         : 'lldb')
   const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
   const requested = requestedBreakpoints(input)
-  if (input.file && requested) {
+  if (input.file && requested && requested.length > 0) {
     breakpoints.set(expandPath(input.file), requested)
   }
   const displayProgram =
@@ -532,11 +533,18 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       const requested = requestedBreakpoints(input)
       if (!input.file || !requested) {
-        return { result: 'breakpoints needs file + lines (or the rich breakpoints array)', outcome: 'failed' }
+        return { result: 'breakpoints needs file + lines (or the rich breakpoints array); an empty array clears the file\'s breakpoints', outcome: 'failed' }
       }
       const gated = gateRichBreakpoints(r.session, requested)
       if (gated) return gated
       const verified = await r.session.setBreakpointsTree(expandPath(input.file), requested)
+      if (requested.length === 0) {
+        return {
+          result: `breakpoints on ${input.file}: 0 breakpoints — cleared on every session of the tree (a later child session inherits none)`,
+          outcome: 'succeeded',
+          details: { breakpoints: verified },
+        }
+      }
       const detail = verified
         .map(
           b =>
@@ -1170,7 +1178,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
 
 export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
-  keepEmptyInputs: ['functions', 'dataBreakpoints', 'instructionBreakpoints'],
+  keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
   straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
   get searchHint() {
     return (
@@ -1239,8 +1247,8 @@ export const DebugTool = buildTool({
     if (input.op === 'customRequest' && !input.method) {
       return { result: false as const, message: 'customRequest requires method', errorCode: 1 }
     }
-    if (input.op === 'breakpoints' && (!input.file || (!input.lines?.length && !input.breakpoints?.length))) {
-      return { result: false as const, message: 'breakpoints requires file + lines (or the rich breakpoints array)', errorCode: 1 }
+    if (input.op === 'breakpoints' && (!input.file || (input.lines === undefined && input.breakpoints === undefined))) {
+      return { result: false as const, message: 'breakpoints requires file + lines (or the rich breakpoints array); an empty array clears the file\'s breakpoints', errorCode: 1 }
     }
     if (input.op === 'functionBreakpoints' && !input.functions) {
       return { result: false as const, message: 'functionBreakpoints requires functions (empty array clears)', errorCode: 1 }

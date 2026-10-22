@@ -1058,10 +1058,18 @@ export class DapSession {
     breakpoints: Array<number | DapBreakpointSpec>,
   ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>> {
     const root = this.root()
-    if (!root.#requestedBreakpoints) root.#requestedBreakpoints = new Map()
-    root.#requestedBreakpoints.set(path, breakpoints)
+    const clearing = breakpoints.length === 0
+    if (clearing) {
+      root.#requestedBreakpoints?.delete(path)
+    } else {
+      if (!root.#requestedBreakpoints) root.#requestedBreakpoints = new Map()
+      root.#requestedBreakpoints.set(path, breakpoints)
+    }
     for (const s of root.treeSessions()) {
-      if (!s.alive) continue
+      if (!s.alive) {
+        if (clearing) s.breakpoints.delete(path)
+        continue
+      }
       try {
         await s.setBreakpoints(path, breakpoints)
       } catch (err) {
@@ -1606,7 +1614,8 @@ export class DapSession {
       ...(typeof reported[i]?.id === 'number' ? { id: reported[i]?.id } : {}),
       ...(typeof reported[i]?.message === 'string' ? { message: reported[i]?.message } : {}),
     }))
-    this.breakpoints.set(path, verified)
+    if (verified.length === 0) this.breakpoints.delete(path)
+    else this.breakpoints.set(path, verified)
     return verified
   }
 
