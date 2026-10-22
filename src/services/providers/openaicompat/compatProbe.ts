@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+export { assignLlamacppSlot } from './compatSlots.js'
 import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../../api/transportEvidence.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -22,57 +22,12 @@ const record = (value: unknown): Record<string, any> | undefined => typeof value
 const windowTokens = (value: unknown): number | undefined => typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined
 const llamacppSlotsCache = new Map<string, number>()
 const llamacppSlotsInFlight = new Map<string, Promise<number | undefined>>()
-const llamacppSlotHolders = new Map<string, Map<string, { slot: number; crewmate: boolean }>>()
-const LLAMACPP_SLOT_HOLDERS_KEPT = 64
 const LLAMACPP_SLOT_PROBE_MS = 5_000
 
 function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): string {
   return `${endpoint.name ?? 'default'}:${compatServerBase(endpoint.baseUrl)}`
 }
 
-export function assignLlamacppSlot(
-  endpoint: CompatEndpointSettings & { name?: string; baseUrl: string },
-  conversationKey: string,
-  totalSlots: number,
-  crewmate: boolean,
-): number {
-  const endpointKey = llamacppEndpointKey(endpoint)
-  let holders = llamacppSlotHolders.get(endpointKey)
-  if (holders === undefined) {
-    holders = new Map()
-    llamacppSlotHolders.set(endpointKey, holders)
-  }
-  const held = holders.get(conversationKey)
-  holders.delete(conversationKey)
-  let slot = held !== undefined && held.slot < totalSlots ? held.slot : undefined
-  if (slot === undefined) {
-    const taken = new Set<number>()
-    for (const holder of holders.values()) if (holder.slot < totalSlots) taken.add(holder.slot)
-    const preferred = createHash('sha256').update(conversationKey).digest().readUInt32BE(0) % totalSlots
-    for (let step = 0; step < totalSlots && slot === undefined; step++) {
-      const candidate = (preferred + step) % totalSlots
-      if (!taken.has(candidate)) slot = candidate
-    }
-    if (slot === undefined) {
-      let victim: string | undefined
-      let victimIsCrewmate = false
-      for (const [key, holder] of holders) {
-        if (holder.slot >= totalSlots) continue
-        if (victim === undefined || (!victimIsCrewmate && holder.crewmate)) {
-          victim = key
-          victimIsCrewmate = holder.crewmate
-          slot = holder.slot
-        }
-        if (victimIsCrewmate) break
-      }
-      if (victim !== undefined) holders.delete(victim)
-    }
-  }
-  const assigned = slot ?? 0
-  holders.set(conversationKey, { slot: assigned, crewmate: crewmate && held?.crewmate !== false })
-  while (holders.size > LLAMACPP_SLOT_HOLDERS_KEPT) holders.delete(holders.keys().next().value!)
-  return assigned
-}
 
 export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
   try { llamacppSlotsCache.delete(llamacppEndpointKey(endpoint)) } catch {}

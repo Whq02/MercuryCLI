@@ -1,6 +1,9 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
 import { getSessionId } from '../../../bootstrap/state.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
+import { noteCompatPrefixCache } from './compatPrefixCache.js'
+import type { CompatUsage } from './compatChatClient.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './compatAccounts.js'
@@ -76,6 +79,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const preservedReasoning = dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp' || ['kimi-k3', 'moonshotai/kimi-k3'].includes(wireId.toLowerCase())
   let observation: ReturnType<typeof captureSignInRequest>
   let totalSlots: number | undefined
+  let idSlot: number | undefined
+  let lastUsage: CompatUsage | undefined
   let slotReads = 0
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
@@ -92,6 +97,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
         if (slotReads > 0) invalidateLlamacppTotalSlots(endpoint)
         slotReads += 1
         totalSlots = await resolveLlamacppTotalSlots(endpoint, { key: key?.key, signal: params.signal })
+        idSlot = totalSlots === undefined ? undefined : await assignLlamacppSlot(endpoint, String(processOwnerForLane(params.options.agentId)), totalSlots, params.options.agentId !== undefined)
       }
       return key ? { apiKey: key.key } : {}
     },
@@ -126,15 +132,16 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
+    usageForSettlement: usage => { lastUsage = usage; return usage },
     buildExtras: args => {
-      if (dialect !== 'responses' && isKimiK3WireModel(wireId)) return { ...buildCompatSlotExtras(args), reasoning_effort: buildMoonshotExtras({ ...args, wireModel: 'kimi-k3', effortValue: args.effortValue ?? 'max' }).reasoning_effort, ...(dialect === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}) }
-      const slotKey = args.conversationKey ?? args.cacheDomainKey
-      const idSlot = dialect === 'llamacpp' && totalSlots !== undefined && slotKey ? assignLlamacppSlot(endpoint, slotKey, totalSlots, args.crewmate === true) : undefined
-      return buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) })
+      const cache = dialect === 'llamacpp' ? { cache_prompt: true, ...(idSlot !== undefined ? { id_slot: idSlot } : {}) } : {}
+      if (dialect !== 'responses' && isKimiK3WireModel(wireId)) return { ...buildCompatSlotExtras(args), ...cache, reasoning_effort: buildMoonshotExtras({ ...args, wireModel: 'kimi-k3', effortValue: args.effortValue ?? 'max' }).reasoning_effort, ...(dialect === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}) }
+      return { ...buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) }), ...cache }
     },
   }
   const startedAt = performance.now()
   for await (const event of compatChatCallModel(profile, params)) {
+    if (event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) noteCompatPrefixCache(endpoint, wireId, lastUsage)
     if (endpoint.name.startsWith('box-') && event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) {
       try {
         const { noteBoxTurn } = await import('../../host/boxService.js')
