@@ -175,7 +175,7 @@ section('§E the no-Anthropic boot honesty notice — every family alike')
       ...over,
     }) as never
   const notice = nonAnthropicBootNotice(u({}))
-  check('openai-only ⇒ the notice fires, naming OpenAI as the working lane', typeof notice === 'string' && /OpenAI is the working lane/.test(notice ?? ''))
+  check('openai-only ⇒ the notice fires, naming OpenAI as ready', typeof notice === 'string' && /OpenAI is ready/.test(notice ?? ''))
   check(
     'the notice names the dormant Claude-ACCOUNT surfaces and never claims crewmates stay Claude-backed (they ride the session family)',
     Boolean(notice && /usage windows/.test(notice) && /crewmates and workflows run on the session/.test(notice) && !/non-goal/.test(notice)),
@@ -199,11 +199,11 @@ section('§E the no-Anthropic boot honesty notice — every family alike')
       openrouter: { provider: 'openrouter', credential: 'api-key', limit: 'unknown', usable: true, blockers: [] },
     }),
   )
-  check('an OpenRouter-only boot gets the SAME honesty (no family-specific silence)', typeof openrouterOnly === 'string' && /OpenRouter is the working lane/.test(openrouterOnly ?? ''), String(openrouterOnly))
+  check('an OpenRouter-only boot gets the SAME honesty (no family-specific silence)', typeof openrouterOnly === 'string' && /OpenRouter is ready/.test(openrouterOnly ?? ''), String(openrouterOnly))
   const two = nonAnthropicBootNotice(
     u({ gemini: { provider: 'gemini', credential: 'oauth', limit: 'unknown', usable: true, blockers: [] } }),
   )
-  check('several usable lanes are all named', typeof two === 'string' && /OpenAI, Gemini are the working lanes/.test(two ?? ''), String(two))
+  check('several usable lanes are all named', typeof two === 'string' && /OpenAI, Gemini are ready/.test(two ?? ''), String(two))
   const helpers = readFileSync(join(ROOT, 'src/interactiveHelpers.tsx'), 'utf8')
   check('the notice is seeded as a boot note at entry', /nonAnthropicBootNotice/.test(helpers) && /addBootNote\('info', notice\)/.test(helpers))
 }

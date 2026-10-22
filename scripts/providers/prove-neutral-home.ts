@@ -358,7 +358,7 @@ section("§7 the surfaces name the session's family — never the first-party on
   const { nonAnthropicBootNotice } = await import('../../src/services/providers/providerUsability.js')
   const lane = (provider: string, usable: boolean) => ({ provider, credential: usable ? 'api-key' : 'none', limit: 'unknown', usable, blockers: usable ? [] : ['x'] })
   const notice = nonAnthropicBootNotice({ anthropic: lane('anthropic', false), openai: lane('openai', false), openrouter: lane('openrouter', true) } as never)
-  check('the boot honesty notice LEADS with the working lane (base: "No Anthropic credential: …")', typeof notice === 'string' && /^OpenRouter is the working lane/.test(notice), String(notice))
+  check('the boot honesty notice LEADS with the ready provider (base: "No Anthropic credential: …")', typeof notice === 'string' && /^OpenRouter is ready/.test(notice), String(notice))
   check('…and still names the dormant first-party surfaces honestly', typeof notice === 'string' && /usage windows/.test(notice) && /No Anthropic credential —/.test(notice), String(notice))
   const { notLoggedInGateDecision } = await import('../../src/services/wallet/wallet.js')
   const missing = notLoggedInGateDecision([{ provider: 'openai' }] as never, 'anthropic')

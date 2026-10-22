@@ -632,7 +632,7 @@ function OpenaiKeyLeg({
   return (
     <Box flexDirection="column" gap={compact ? 0 : 1}>
       {compact ? <KeyCardTitle family="openai">OpenAI key</KeyCardTitle> : <Text>{keyPageLine('openai')}</Text>}
-      {compact ? null : <Text>Paste your OpenAI API key. It is stored in the auth-scoped secret store (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>}
+      {compact ? null : <Text>Paste your OpenAI API key. Stored auth-scoped (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>}
       <Box>
         <Text>Key: </Text>
         <TextInput

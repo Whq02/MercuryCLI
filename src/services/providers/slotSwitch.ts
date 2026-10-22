@@ -281,7 +281,7 @@ export function switchActiveSlot(
     return {
       switched: false,
       family,
-      receipt: `${view.envPinned} owns the ${family} credential — the shell's pin wins; unset it to switch slots here`,
+      receipt: `${view.envPinned} owns the ${family} credential — the shell's environment variable wins; unset it to switch slots here`,
     }
   }
   if (view.active === undefined) {

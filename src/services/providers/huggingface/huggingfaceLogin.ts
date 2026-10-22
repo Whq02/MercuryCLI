@@ -224,6 +224,6 @@ export async function storeHuggingfaceTokenLogin(
     stored: true,
     receipt: identity
       ? `Hugging Face token stored for ${identity.username} (auth-scoped, mode 600). Requests bill your Hugging Face credits, then pay-as-you-go.${catalogueNote} Dispatch is ${HUGGINGFACE_UNVERIFIED_NOTE} until the first live turn settles.`
-      : `Hugging Face token stored UNVERIFIED (auth-scoped, mode 600) — the Hub could not be reached to confirm it${probe.state === 'unreachable' ? ` (${probe.message})` : ''}; the lane refuses at dispatch if the token is wrong.${catalogueNote}`,
+      : `Hugging Face token stored UNVERIFIED (auth-scoped, mode 600) — the Hub could not be reached to confirm it${probe.state === 'unreachable' ? ` (${probe.message})` : ''}; the first turn refuses if the token is wrong.${catalogueNote}`,
   }
 }

@@ -38,7 +38,7 @@ export async function storeNousApiKeyLogin(key: string, io?: NousUsageIo): Promi
   } catch (error) {
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }
-  const shadowNote = env[NOUS_API_KEY_ENV]?.trim() ? ` NOTE: a ${NOUS_API_KEY_ENV} env pin is set and WINS over the store this session.` : ''
+  const shadowNote = env[NOUS_API_KEY_ENV]?.trim() ? ` NOTE: ${NOUS_API_KEY_ENV} is set in the environment and WINS over the store this session.` : ''
   const ride = `Requests ride ${nousApiBase(env)} against the Portal credits or subscription behind the key (portal.nousresearch.com manages both); the Portal rows join /model.`
   const probe = await fetchNousAccount(key, io)
   if (probe.state === 'confirmed') {
@@ -53,13 +53,13 @@ export async function storeNousApiKeyLogin(key: string, io?: NousUsageIo): Promi
     return {
       ok: true,
       stored: true,
-      receipt: `Nous Portal API key stored (auth-scoped, mode 600) — the Portal account endpoint did not confirm it (HTTP ${probe.status}${probe.message ? `: ${probe.message}` : ''}); the first turn proves the key, and the lane refuses at dispatch if it is wrong. ${ride}${shadowNote}`,
+      receipt: `Nous Portal API key stored (auth-scoped, mode 600) — the Portal account endpoint did not confirm it (HTTP ${probe.status}${probe.message ? `: ${probe.message}` : ''}); the first turn proves the key and refuses if it is wrong. ${ride}${shadowNote}`,
     }
   }
   return {
     ok: true,
     stored: true,
-    receipt: `Nous Portal API key stored UNVERIFIED (auth-scoped, mode 600) — the Portal could not be reached to confirm it (${probe.message}); the lane refuses at dispatch if the key is wrong. ${ride}${shadowNote}`,
+    receipt: `Nous Portal API key stored UNVERIFIED (auth-scoped, mode 600) — the Portal could not be reached to confirm it (${probe.message}); the first turn refuses if the key is wrong. ${ride}${shadowNote}`,
   }
 }
 
