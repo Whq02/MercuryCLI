@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -19,8 +19,8 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 const scratch = realpathSync(mkdtempSync(path.join(tmpdir(), 'lsp-fanout-')))
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'lsp-fanout-home-'))
-process.env.MERCURY_CHANGESET_DIR = mkdtempSync(path.join(tmpdir(), 'lsp-fanout-cs-'))
+process.env.MERCURY_CONFIG_DIR ??= path.join(scratch, 'home')
+process.env.MERCURY_CHANGESET_DIR = path.join(scratch, 'changesets')
 delete process.env.MERCURY_LSP
 process.chdir(scratch)
 
@@ -33,6 +33,7 @@ const importsUri = pathToFileURL(importsFile).href
 const logA = path.join(scratch, 'a.log')
 const logB = path.join(scratch, 'b.log')
 const logC = path.join(scratch, 'c.log')
+const responseB = path.join(scratch, 'response-b.json')
 const CAPS = JSON.stringify({ workspace: { fileOperations: { willRename: {}, didRename: {} } } })
 const editsA = JSON.stringify({
   changes: {
@@ -61,7 +62,7 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify({
     command: process.execPath,
     args: [scripted],
     extensionToLanguage: { '.zz': 'zed' },
-    env: { RENAME_CAPS: CAPS, RENAME_EDITS: editsB, RENAME_LOG: logB },
+    env: { RENAME_CAPS: CAPS, RENAME_EDITS: editsB, RENAME_LOG: logB, RENAME_RESPONSE_FILE: responseB },
   },
   serverC: {
     command: process.execPath,
@@ -163,7 +164,50 @@ console.log('— R. directory rename claims through contained extensions —')
   check('read-state followed the tree', readFileState.has(path.join(dest, 'inner.yy')) && !readFileState.has(inner))
 }
 
+console.log('— X. a participating failure aborts the whole move —')
+const invalidResponses = [
+  ['throwing', { error: { code: -32603, message: 'fixture refuses the rename' } }, /fixture refuses the rename/],
+  ['malformed-document', { result: { documentChanges: [null] } }, /malformed/],
+  ['malformed-changes', { result: { changes: { [importsUri]: 'not an edit list' } } }, /malformed/],
+  ['malformed-range', { result: { changes: { [importsUri]: [{ newText: 'bad' }] } } }, /malformed/],
+  ['malformed-result', { result: 7 }, /malformed/],
+] as const
+for (const [name, response, reason] of invalidResponses) {
+  writeFileSync(responseB, JSON.stringify(response))
+  for (const apply of [false, true]) {
+    const source = path.join(scratch, `${name}-${apply}.zz`)
+    const destination = path.join(scratch, `${name}-${apply}-moved.zz`)
+    writeFileSync(source, 'export const untouched = 1\n')
+    writeFileSync(importsFile, "import OLD from './moving'\nimport OLD2 from './moving'\n")
+    const originals = new Map([source, importsFile, path.join(scratch, 'moved.zz'), path.join(scratch, 'pkg2/inner.yy')]
+      .map(file => [file, readFileSync(file)]))
+    readFileState.set(importsFile, { content: readFileSync(importsFile, 'utf8'), timestamp: Date.now() })
+    const aRequests = logLines(logA).filter(line => line === 'workspace/willRenameFiles').length
+    const bRequests = logLines(logB).filter(line => line === 'workspace/willRenameFiles').length
+    const notifications = [logA, logB].map(log => logLines(log).filter(line => line === 'workspace/didRenameFiles').length)
+    let r: Awaited<ReturnType<typeof drive>> | undefined
+    try {
+      r = await drive({ operation: 'pathRename', filePath: source, newPath: destination, apply }, source)
+    } catch (error) {
+      check(`${name}/${apply}: returns a typed failure`, false, String(error))
+    }
+    check(`${name}/${apply}: both participants were asked`,
+      logLines(logA).filter(line => line === 'workspace/willRenameFiles').length > aRequests &&
+      logLines(logB).filter(line => line === 'workspace/willRenameFiles').length > bRequests)
+    check(`${name}/${apply}: abort names the failed participant and error`,
+      r?.effect.outcome === 'failed' && /serverB/.test(r.result) && reason.test(r.result), r?.result)
+    check(`${name}/${apply}: result promises unchanged files`, /all files (?:are )?unchanged/i.test(r?.result ?? ''), r?.result)
+    check(`${name}/${apply}: every file is byte-identical and no destination exists`,
+      [...originals].every(([file, bytes]) => existsSync(file) && readFileSync(file).equals(bytes)) && !existsSync(destination))
+    check(`${name}/${apply}: no changed paths or rename notifications`,
+      r?.effect.changedPaths.length === 0 && [logA, logB].every((log, i) =>
+        logLines(log).filter(line => line === 'workspace/didRenameFiles').length === notifications[i]))
+  }
+}
+
 await mgrModule.shutdownLspServerManager()
+process.chdir(repo)
+rmSync(scratch, { recursive: true, force: true })
 console.log('')
 if (failures > 0) {
   console.error(`prove-lsp-rename-fanout: RED (${failures})`)

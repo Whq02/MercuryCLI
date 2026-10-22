@@ -7,6 +7,7 @@ import { createHash, type UUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import type { ServerCapabilities } from 'vscode-languageserver-protocol'
+import { z } from 'zod/v4'
 
 import { runVerbatimTextCommit } from '../../services/changeTransaction/changeSetCommit.js'
 import { canonicalPathKey, sha256Hex } from '../../services/changeTransaction/changeSetPlan.js'
@@ -2153,6 +2154,29 @@ function coalesceWorkspaceEdits(
   }
 }
 
+const renamePositionSchema = z.object({ line: z.number().int().nonnegative(), character: z.number().int().nonnegative() })
+const renameTextEditSchema = z.object({
+  range: z.object({ start: renamePositionSchema, end: renamePositionSchema }).refine(
+    ({ start, end }) => end.line > start.line || (end.line === start.line && end.character >= start.character),
+    'edit has end before start',
+  ),
+  newText: z.string(),
+})
+const renameUriSchema = z.string().refine(uri => {
+  try {
+    return isAbsolute(uriToFilePath(uri))
+  } catch {
+    return false
+  }
+}, 'invalid file URI')
+const renameWorkspaceEditSchema = z.object({
+  changes: z.record(renameUriSchema, z.array(renameTextEditSchema)).optional(),
+  documentChanges: z.array(z.union([
+    z.object({ textDocument: z.object({ uri: renameUriSchema }), edits: z.array(renameTextEditSchema) }),
+    z.object({ kind: z.string() }),
+  ])).optional(),
+}).nullish()
+
 async function prepareApplyFanOut(
   env: OpEnv,
   requesters: Array<{ name: string; request: () => Promise<WorkspaceEditLike | null | undefined> }>,
@@ -2169,13 +2193,17 @@ async function prepareApplyFanOut(
       try {
         edit = await r.request()
       } catch (error) {
-        notes.push(`${r.name}: willRenameFiles failed (${error instanceof Error ? error.message : String(error)}) — its import edits are not included`)
-        continue
+        return { ok: false, reason: `${r.name}: willRenameFiles failed (${error instanceof Error ? error.message : String(error)})` }
+      }
+      const validated = renameWorkspaceEditSchema.safeParse(edit)
+      if (!validated.success) {
+        const issue = validated.error.issues[0]!
+        return { ok: false, reason: `${r.name}: willRenameFiles returned a malformed edit (${issue.path.join('.') || 'result'}: ${issue.message})` }
       }
       const normalized = normalizeWorkspaceEdit(edit)
       if (!normalized.ok) {
         if (!/edit set is empty|server returned no edit/.test(normalized.reason)) {
-          notes.push(`${r.name}: ${normalized.reason} — its import edits are not included`)
+          return { ok: false, reason: `${r.name}: willRenameFiles returned an invalid edit (${normalized.reason})` }
         }
         continue
       }
@@ -2285,13 +2313,13 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     )
     if (!fan.ok) {
       return {
-        result: `LspMoveFile failed while preparing import edits: ${fan.reason}. Nothing was moved.`,
+        result: `LspMoveFile failed while preparing import edits: ${fan.reason}. Nothing was written or moved; all files are unchanged.`,
         resultCount: 0,
         fileCount: 0,
         effect: {
           outcome: 'failed',
           changedPaths: [],
-          evidence: 'import-edit preparation failed — nothing moved',
+          evidence: 'import-edit preparation failed — all files unchanged',
         },
       }
     }
