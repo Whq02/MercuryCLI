@@ -94,7 +94,8 @@ const RUNPOD_POD_STATUSES = ['PROVISIONING', 'STARTING', 'RUNNING', 'EXITED', 'E
   check('a Runpod problem+json carries title, status, detail and errors[]', ['title', 'status', 'detail', 'errors'].every(key => property(errorShape, key) !== undefined), Object.keys(errorShape?.properties ?? {}))
   const credentials = await fetchText('https://docs.runpod.io/get-started/credentials.md')
   const keyPage = /Create an API key[\s\S]*?\((https:\/\/console\.runpod\.io\/user\/[a-z]+)\)/.exec(credentials.text)?.[1]
-  check('Runpod’s credentials document still names https://console.runpod.io/user/credentials as the page where an API key is created (the words in HOST_VENDOR_INFO.runpod.keyHelp point there)', credentials.status === 200 && keyPage === 'https://console.runpod.io/user/credentials', keyPage)
+  const { HOST_VENDOR_INFO } = await import('../../src/services/host/vendors/vendor.ts')
+  check('Runpod’s credentials document still names the page the key words point to (https://console.runpod.io/user/credentials)', credentials.status === 200 && keyPage !== undefined && HOST_VENDOR_INFO.runpod.keyHelp.includes(keyPage), { keyPage, keyHelp: HOST_VENDOR_INFO.runpod.keyHelp })
   const keyHelp = (await fetchText('https://console.runpod.io/user/credentials', { headers: { 'user-agent': 'Mozilla/5.0' } })).status
   check('the Runpod credentials page answers', keyHelp === 200, keyHelp)
 }
