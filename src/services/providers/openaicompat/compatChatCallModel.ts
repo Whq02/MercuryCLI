@@ -1,6 +1,9 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash, randomUUID } from 'crypto'
+import { getSessionId } from '../../../bootstrap/state.js'
+import { compatEngineRefusalText } from './compatRefusals.js'
+import { compatToolSchemaRefusal, firstCompatToolRefusal } from './compatToolSchemas.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
 import type {
@@ -309,8 +312,8 @@ export function compatFaultToTypedError(
 }
 
 export function compatTerminalFaultText(
-  profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy'>,
-  fault: Pick<CompatFault, 'code' | 'message'> & { retryAfterMs?: number },
+  profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy' | 'dialect'>,
+  fault: Pick<CompatFault, 'code' | 'message'> & { retryAfterMs?: number; status?: number },
   typed: TypedError,
   opts?: { recovery?: 'retried' | 'no-new-credential' },
 ): string {
@@ -334,8 +337,10 @@ export function compatTerminalFaultText(
           : ''
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})${asked} — retry in a moment, or /model picks another model meanwhile.`
     }
-    default:
-      return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stream failed (${fault.code}) — ${fault.message}`
+    default: {
+      const refusal = compatEngineRefusalText(profile.dialect, fault)
+      return refusal ? `${API_ERROR_MESSAGE_PREFIX}: ${refusal}` : `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stream failed (${fault.code}) — ${fault.message}`
+    }
   }
 }
 
@@ -359,6 +364,7 @@ async function buildApiShapedTools(
   model: string,
   conversationKey?: string,
   pool: Tools = tools,
+  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
@@ -376,11 +382,12 @@ async function buildApiShapedTools(
   for (const schema of schemas) {
     const record = schema as { name?: string; description?: string; input_schema?: unknown }
     if (typeof record.name === 'string' && record.input_schema !== undefined) {
-      out.push({
+      const tool: ApiShapedTool = {
         name: record.name,
         ...(record.description ? { description: record.description } : {}),
         input_schema: record.input_schema,
-      })
+      }
+      if (!accept || accept(tool)) out.push(tool)
     }
   }
   return out
@@ -392,11 +399,12 @@ async function buildToolDeclarationRows(
   options: Options,
   model: string,
   build: ToolDeclarationRowBuilder,
+  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<{ rows: ReadonlyMap<string, ZaiWireMessage>; admitted: readonly ApiShapedTool[] }> {
   const rows = new Map<string, ZaiWireMessage>()
   const admitted: ApiShapedTool[] = []
   for (const declaration of plan.admissionDeclarations) {
-    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool)
+    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool, accept)
     if (shaped.length > 0) rows.set(declaration.toolUseId, build(mapToolsToZai(shaped)))
     admitted.push(...shaped)
   }
@@ -467,8 +475,17 @@ export async function* compatChatCallModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
-  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const toolNotes: string[] = []
+  const withheldTools = new Set<string>()
+  const acceptTool = (tool: ApiShapedTool): boolean => {
+    const refusal = compatToolSchemaRefusal(profile.dialect, tool)
+    if (!refusal) return true
+    withheldTools.add(tool.name)
+    if (firstCompatToolRefusal(getSessionId(), `${profile.requestUrl()}:${modelId}`, refusal)) toolNotes.push(refusal)
+    return false
+  }
+  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey, plan.roster, acceptTool)
+  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText, acceptTool)
   const toolDeclarations = declared.rows
   const callableTools = [...apiTools, ...declared.admitted].filter(tool => !plan.isDeferredUnadmitted(tool.name))
   const contract = resolveBehaviourContract([...systemPrompt])
@@ -639,7 +656,7 @@ export async function* compatChatCallModel(
       apiKey: credential.apiKey,
       requestUrl: credential.requestUrl ?? profile.requestUrl(),
       signal,
-      tools,
+      tools: tools.filter(tool => !withheldTools.has(tool.name)),
       options,
       modelId,
       messages,
@@ -649,7 +666,7 @@ export async function* compatChatCallModel(
       effort: effortOnWire,
       ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       ...(deferral !== undefined ? { deferral } : {}),
-      ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
+      ...((profile.leadingNotes?.length || toolNotes.length) ? { leadingNotes: [...(profile.leadingNotes ?? []), ...toolNotes] } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {

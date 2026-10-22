@@ -35,6 +35,7 @@ echo "############################################################"
 echo "# provider-compat — multi-provider proof harness"
 echo "############################################################"
 shopt -s nullglob
+echo "# Engine request contracts: prove-engine-shapes.ts and prove-tool-schemas-no-refs.ts"
 for proof in "$here"/prove-*.ts; do
   echo
   echo "── $(basename "$proof") ──"

@@ -344,7 +344,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       opts.detect || endpoint.dialect === 'llamacpp' ? optional('/props') : undefined,
       opts.detect || endpoint.dialect === 'ollama' ? optional('/api/tags') : undefined,
     ])
-    const detected: CompatDialect | undefined = typeof sglang?.model_path === 'string' && windowTokens(sglang.context_length) ? 'sglang'
+    const detected: CompatDialect | undefined = typeof sglang?.model_path === 'string' ? 'sglang'
       : record(llama?.default_generation_settings) ? 'llamacpp'
       : Array.isArray(ollama?.models) ? 'ollama'
       : rows.some(row => record(row)?.owned_by === 'sglang') ? 'sglang'
@@ -353,6 +353,15 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     if (dialect === 'sglang') {
       const tokens = windowTokens(sglang?.context_length)
       if (tokens) for (const id of models) if (models.length === 1 || id === sglang?.model_path || id === sglang?.served_model_name) contextWindows[id] = tokens
+      for (const id of models) {
+        if (models.length !== 1 && id !== sglang?.model_path && id !== sglang?.served_model_name) continue
+        const facts = {
+          ...(typeof sglang?.has_image_understanding === 'boolean' ? { images: sglang.has_image_understanding } : {}),
+          ...(typeof sglang?.tool_call_parser === 'string' || sglang?.tool_call_parser === null ? { tools: Boolean(sglang.tool_call_parser) } : {}),
+          ...(typeof sglang?.reasoning_parser === 'string' || sglang?.reasoning_parser === null ? { reasoning: Boolean(sglang.reasoning_parser) } : {}),
+        }
+        if (Object.keys(facts).length) capabilities[id] = { ...capabilities[id], ...facts }
+      }
     }
     if (dialect === 'llamacpp') {
       const vision = rememberProjector(endpoint, llama)
@@ -364,12 +373,29 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
         if (tokens) contextWindows[models[0]!] = tokens
       }
     }
+    if (dialect === 'llamacpp' && models.length === 1) {
+      const caps = record(llama?.chat_template_caps)
+      const tools = caps?.supports_tools === false || caps?.supports_tool_calls === false ? false
+        : caps?.supports_tools === true && caps?.supports_tool_calls === true ? true : undefined
+      const reasoning = caps?.supports_preserve_reasoning === true || caps?.supports_reasoning_effort === true ? true : undefined
+      if (tools !== undefined || reasoning !== undefined) capabilities[models[0]!] = {
+        ...capabilities[models[0]!],
+        ...(tools !== undefined ? { tools } : {}),
+        ...(reasoning !== undefined ? { reasoning } : {}),
+      }
+    }
     if (dialect === 'ollama') {
       const ps = await optional('/api/ps')
       for (const id of models) {
         const served = Array.isArray(ps?.models) ? ps.models.find((row: any) => row.name === id || row.model === id) : undefined
         const info = await optional('/api/show', { model: id })
         efforts[id] = Array.isArray(info?.thinking?.values) ? info.thinking.values.filter((value: unknown): value is string => typeof value === 'string') : []
+        if (Array.isArray(info?.capabilities)) capabilities[id] = {
+          ...capabilities[id],
+          images: info.capabilities.includes('vision'),
+          tools: info.capabilities.includes('tools'),
+          reasoning: info.capabilities.includes('thinking'),
+        }
         let tokens = windowTokens(served?.context_length)
         if (!tokens) {
           const explicit = typeof info?.parameters === 'string' ? info.parameters.match(/(?:^|\n)\s*num_ctx\s+(\d+)/)?.[1] : undefined

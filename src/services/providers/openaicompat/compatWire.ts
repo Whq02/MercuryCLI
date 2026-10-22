@@ -224,6 +224,7 @@ export function buildHostedExtras(args: LaneExtrasArgs & { dialect: import('./co
 
 export function rejectedHostedEffortField(extra: Record<string, unknown>, fault: { status?: number; message: string; parameter?: string }): 'reasoning_effort' | 'chat_template_kwargs' | undefined {
   if (fault.status !== 400) return undefined
+  if (/input should|must (?:be|not be)|invalid (?:value|reasoning effort)|expected (?:one of|a |an )/i.test(fault.message)) return undefined
   const template = extra.chat_template_kwargs as Record<string, unknown> | undefined
   if (extra.reasoning_effort === undefined && template?.reasoning_effort === undefined) return undefined
   const named = fault.parameter ?? fault.message

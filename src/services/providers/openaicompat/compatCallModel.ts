@@ -9,6 +9,8 @@ import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
 import { buildHostedExtras, buildMoonshotExtras } from './compatWire.js'
 import { compatModelEfforts } from './compatEffort.js'
+import { cachedCompatCatalogue } from './compatCatalogue.js'
+import { compatToolSupportRefusal } from './compatRefusals.js'
 import { isKimiK3WireModel } from './kimiReplay.js'
 import {
   compatChatCallModel,
@@ -106,6 +108,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     },
     requestUrl: () => `${endpoint.baseUrl}/chat/completions`,
     wireModelId: () => wireId,
+    toolCapabilityRefusal: () => cachedCompatCatalogue(endpoint)?.capabilities?.[wireId]?.tools === false ? compatToolSupportRefusal(dialect, wireId) : undefined,
     ...(endpoint.named || dialect === 'llamacpp'
       ? {
           onResponseHeaders: (_headers: Headers, status?: number) => {
