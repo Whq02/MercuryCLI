@@ -953,13 +953,13 @@ async function streamingFallbackAttempts(
       for await (const event of stream) {
         bound.content()
         if (event.type === 'stream_event') {
-          const inner = event.event as { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string } }
+          const inner = event.event as { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string; thinking?: string } }
           if (inner.type === 'content_block_start' && inner.content_block?.type === 'text') {
             streamingStarted = true
             context.setStreamMode?.('responding')
           }
-          if (inner.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
-            const length = inner.delta.text?.length ?? 0
+          if (inner.type === 'content_block_delta' && (inner.delta?.type === 'text_delta' || inner.delta?.type === 'thinking_delta')) {
+            const length = (inner.delta.type === 'thinking_delta' ? inner.delta.thinking : inner.delta.text)?.length ?? 0
             context.setResponseLength?.(prev => prev + length)
           }
         } else if (event.type === 'assistant') {

@@ -76,6 +76,7 @@ import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowA
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
 import { effortVocabularyFor, getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
+import { compatImageRefusalWords, compatModelImageReading, refreshCompatModelImageReading } from './compatProbe.js'
 import type { MediaRefusal } from '../../api/mediaRefusal.js'
 import {
   streamCompatChat,
@@ -124,7 +125,8 @@ type CompatLaneId =
   | 'qwen'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
-  return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
+  const reading = compatModelImageReading(model)
+  return reading !== undefined ? reading.supported : modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
 }
 
 export function compatDispatchModelId(model: string): string {
@@ -443,6 +445,10 @@ export async function* compatChatCallModel(
     yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${wireVerdict.reason}`)
     return
   }
+  if (profile.lane === 'openai-compat' && messages.some(message => message.type === 'user' && Array.isArray(message.message.content) && message.message.content.some(block =>
+    block.type === 'image' || block.type === 'tool_result' && Array.isArray(block.content) && block.content.some(part => part.type === 'image'),
+  ))) await refreshCompatModelImageReading(modelId, signal)
+  if (signal.aborted) return
   let credential = await profile.resolveCredential()
   if (credential === undefined) {
     yield apiErrorMessage(
@@ -790,8 +796,11 @@ export async function* compatChatCallModel(
     const refusedImage = imageRefusalWords(request, outcome.fault)
     if (refusedImage !== null) {
       noteImageRefusal(modelId, refusedImage)
+      const serverRefusal = compatImageRefusalWords(modelId, refusedImage)
       yield withEffort(apiErrorMessage(
-        `${API_ERROR_MESSAGE_PREFIX}: the model on the ${profile.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
+        serverRefusal !== null
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${serverRefusal} — the server refused the image: ${refusedImage}`
+          : `${API_ERROR_MESSAGE_PREFIX}: the model on the ${profile.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
         typed,
         outcome.fault.code,
         overflowOf(profile, outcome.fault, { request, model: modelId }),

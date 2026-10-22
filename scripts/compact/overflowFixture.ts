@@ -173,7 +173,7 @@ interface OverflowFixture {
   close(): Promise<void>
 }
 
-export async function startOverflowFixture(): Promise<OverflowFixture> {
+export async function startOverflowFixture(options: { stream?: (request: Captured, response: ServerResponse) => boolean } = {}): Promise<OverflowFixture> {
   const captured: Captured[] = []
   const asks: Captured[] = []
   const refusals: OverflowFixture['refusals'] = []
@@ -219,6 +219,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
       }
       if (req.method === 'POST' && dialect !== undefined) {
         captured.push({ dialect, path, body })
+        if (options.stream?.({ dialect, path, body }, res)) return
         if (control.inputRule && dialect === 'responses') {
           const refusal = responsesInputRefusal(body)
           if (refusal !== null) {
