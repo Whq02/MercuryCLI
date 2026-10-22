@@ -1,7 +1,7 @@
 
 import * as React from 'react'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { builtinCommands, type Command } from '../../commands.js'
 import { useIsInsideModal } from '../../context/modalContext.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -28,6 +28,7 @@ export function HelpV2({
   const insideModal = useIsInsideModal()
   const exitState = useExitOnCtrlCDWithKeybindings()
 
+  const [tab, setTab] = useState('general')
   const dismiss = () => onClose('Help closed', { display: 'system' })
   useKeybinding('help:dismiss', dismiss, { context: 'Help' })
 
@@ -59,6 +60,7 @@ export function HelpV2({
       view="help"
       onClose={dismiss}
       captureInput={false}
+      bodyOwnsPageKeys={tab === 'commands' || tab === 'custom-commands'}
       closeKeys="esc"
       footer={
         exitState.pending
@@ -66,7 +68,7 @@ export function HelpV2({
           : undefined
       }
     >
-      <Tabs defaultTab="general" contentHeight={insideModal ? undefined : budget}>
+      <Tabs selectedTab={tab} onTabChange={setTab} contentHeight={insideModal ? undefined : budget}>
         <Tab title="general" id="general">
           <General />
         </Tab>

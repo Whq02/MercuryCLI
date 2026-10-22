@@ -1,11 +1,10 @@
 import * as React from 'react'
 import { useEffect, useRef, useLayoutEffect } from 'react'
-import { Box, Text, useInput, type DOMElement } from '../../ink.js'
+import { Box, Text, useInput, wrapText, type DOMElement } from '../../ink.js'
 import { AlternateScreen } from '../../ink/components/AlternateScreen.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
-import { packFooter } from './footerHint.js'
 import { innerWidth as innerPaneWidth, viewportRows } from './geometry.js'
 import { truncateToWidth } from './glyphs.js'
 import { EmptyState, ProductLockup } from './components.js'
@@ -305,6 +304,7 @@ export function NavigablePanes<Row>({
   const { columns: cols, rows: termRows } = useTerminalSize()
   const layout = pickLayout(cols)
   const tokens = useMercuryTokens()
+  const [footerRows, setFooterRows] = React.useState(1)
   const accent = tokens.accent
   const idBase = `np:${view}`
 
@@ -458,7 +458,7 @@ export function NavigablePanes<Row>({
 
   const viewportBudget = viewportRows(termRows, {
     reserve:
-      (regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE) +
+      (regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE + Math.max(0, footerRows - 1)) +
       (composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0),
     min: 3,
   })
@@ -522,6 +522,9 @@ export function NavigablePanes<Row>({
         ]
           .filter(Boolean)
           .join(' · ')
+  const footerText = [...footerFullParts, footerTailText].filter(Boolean).join(' · ')
+  const measuredFooterRows = regionChrome ? 0 : wrapText(footerText, Math.max(1, innerWidth), 'wrap').split('\n').length
+  useLayoutEffect(() => { setFooterRows(measuredFooterRows) }, [measuredFooterRows])
 
   let body: React.ReactNode
   if (loading) {
@@ -799,9 +802,7 @@ export function NavigablePanes<Row>({
           </Box>
         ) : null}
 
-        {
-}
-        <Box marginTop={regionChrome ? 0 : 1} flexShrink={0} height={regionChrome ? 0 : 1} overflow="hidden" columnGap={0}>
+        <Box marginTop={regionChrome ? 0 : 1} flexShrink={0} height={measuredFooterRows} overflow="hidden" columnGap={0}>
           {(() => {
             const hintable =
               nav.level !== 'detail' &&
@@ -813,9 +814,6 @@ export function NavigablePanes<Row>({
               ? rowActions!.filter(a => a.when(selectedRow!))
               : []
             const headText = footerHeadText
-            const fullText = [...footerFullParts, footerTailText]
-              .filter(Boolean)
-              .join(' · ')
             const hintsWidth = hints.reduce(
               (w, a) => w + (a.hint ?? `${a.key} ${a.label}`).length + 3,
               0,
@@ -826,8 +824,8 @@ export function NavigablePanes<Row>({
               headText.length + 3 + hintsWidth + footerTailText.length <= budget
             if (!clickable) {
               return (
-                <Text color={tokens.textMuted} wrap="truncate-end">
-                  {packFooter(fullText, budget)}
+                <Text color={tokens.textMuted} wrap="wrap">
+                  {footerText}
                 </Text>
               )
             }

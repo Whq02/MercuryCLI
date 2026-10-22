@@ -202,7 +202,7 @@ console.log('§10 D6 — the daemon cursor survives the roster shuffle by key')
   check('the cursor carries a key beside the index', view.includes("const [selKey, setSelKey] = React.useState<string | null>(null)"))
   check('the key wins where it exists; the clamp is the reap fallback', view.includes('const clampedSel = keyAt >= 0 ? keyAt : indexClamped'))
   check('the index state re-anchors to the painted row', view.includes('if (sel !== clampedSel) setSel(clampedSel)'))
-  check('arrows move from the PAINTED cursor and restamp the key', view.includes('const next = Math.max(0, clampedSel - 1)') && view.includes('setSelKey(v.workers[next]?.short ?? null)'))
+  check('arrows move from the PAINTED cursor and restamp the key', view.includes('usePopupListNavigation(clampedSel, v.workers.length, MAX_ROWS, next => { setSel(next); setSelKey(v.workers[next]?.short ?? null); setNote(null) })'))
   check('no bare functional index-walk survives', !view.includes('setSel(s => Math.max(0, s - 1))'))
 }
 
