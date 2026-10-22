@@ -138,9 +138,13 @@ const inputSchema = lazySchema(() =>
       .optional()
       .describe('next/stepIn: step granularity — "instruction" steps one machine instruction (capability-gated)'),
     threadId: semanticNumber(z.number().int().optional()).describe('Thread for stack/continue/step/pause (defaults to the stopped thread)'),
-    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack)'),
-    variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables to expand (variables/setVariable)'),
+    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack); evaluate defaults to the top frame of the thread that stopped last'),
+    variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables/evaluate to expand (variables/setVariable)'),
     expression: z.string().optional().describe('Expression for evaluate (runs in the debuggee)'),
+    context: z
+      .enum(['repl', 'watch', 'hover', 'clipboard', 'variables'])
+      .optional()
+      .describe('evaluate: the context the adapter evaluates in (default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value)'),
     filters: z
       .array(z.string())
       .optional()
@@ -667,20 +671,64 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       if (!input.expression) return { result: 'evaluate needs expression', outcome: 'failed' }
+      const context = input.context ?? 'repl'
+      let frameId = input.frameId
+      if (frameId === undefined) {
+        if (!r.target.lastStopped) {
+          const state = r.root.treeTerminated() ? ('terminated' as const) : ('running' as const)
+          return {
+            result:
+              `evaluate needs a stopped frame: the debuggee is ${state} and no frameId was given — ` +
+              (state === 'running' ? 'op:"pause" first, or give frameId from op:"stack"' : 'op:"launch" again'),
+            outcome: 'failed',
+            debuggee: state,
+          }
+        }
+        const current = await r.target.stoppedFrameId()
+        if (current === null) {
+          return {
+            result: `evaluate: the stopped thread reports no frame to evaluate in — give frameId from op:"stack"`,
+            outcome: 'failed',
+            debuggee: 'stopped',
+          }
+        }
+        frameId = current
+      }
       const body = await r.target.request('evaluate', {
         expression: input.expression,
-        frameId: input.frameId,
-        context: 'repl',
+        frameId,
+        context,
       })
       const debuggee = r.root.treeTerminated()
         ? ('terminated' as const)
         : r.root.treeStopped()
           ? ('stopped' as const)
           : ('running' as const)
+      const variablesReference =
+        typeof body.variablesReference === 'number' && body.variablesReference > 0 ? body.variablesReference : 0
+      const namedVariables = typeof body.namedVariables === 'number' ? body.namedVariables : undefined
+      const indexedVariables = typeof body.indexedVariables === 'number' ? body.indexedVariables : undefined
+      const counts = [
+        ...(namedVariables !== undefined ? [`${namedVariables} named`] : []),
+        ...(indexedVariables !== undefined ? [`${indexedVariables} indexed`] : []),
+      ].join(', ')
+      const type = typeof body.type === 'string' && body.type ? body.type : undefined
       return {
-        result: `${input.expression} = ${String(body.result ?? '?')}${body.type ? ` (${String(body.type)})` : ''} [debuggee ${debuggee}]`,
+        result:
+          `${input.expression} = ${String(body.result ?? '?')}${type ? ` (${type})` : ''}` +
+          (variablesReference ? ` [variablesReference ${variablesReference}${counts ? `, ${counts}` : ''}]` : '') +
+          ` [debuggee ${debuggee}]`,
         outcome: 'succeeded',
         debuggee,
+        details: {
+          context,
+          frameId,
+          ...(variablesReference ? { variablesReference } : {}),
+          ...(namedVariables !== undefined ? { namedVariables } : {}),
+          ...(indexedVariables !== undefined ? { indexedVariables } : {}),
+          ...(type ? { type } : {}),
+          ...(typeof body.memoryReference === 'string' ? { memoryReference: body.memoryReference } : {}),
+        },
       }
     }
     case 'continue':
