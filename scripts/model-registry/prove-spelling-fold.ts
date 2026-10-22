@@ -103,17 +103,27 @@ check(
 {
   console.log('\n§4 the run road takes the fold too (FC-073)')
   const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
+  const headlessModelSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'headless', 'model.ts'), 'utf8')
   check(
-    'the entry seed folds (call-shaped)',
-    /activeModel: string \| undefined =\s*\n\s*options\.userSpecifiedModel === undefined\s*\n\s*\? undefined\s*\n\s*: parseUserSpecifiedModel\(options\.userSpecifiedModel\)/.test(printSrc),
+    'the headless resolver imports and applies the spelling fold (call-shaped)',
+    headlessModelSrc.includes("import { parseUserSpecifiedModel } from '../../utils/model/model.js'") &&
+      /else model = parseUserSpecifiedModel\(requested\)/.test(headlessModelSrc) &&
+      /return model/.test(headlessModelSrc) &&
+      printSrc.includes("import { resolveHeadlessModel } from './headless/model.js'"),
   )
   check(
-    'the set_model control folds (call-shaped)',
-    /: parseUserSpecifiedModel\(requested\)/.test(printSrc),
+    'the entry seed folds through the headless resolver (call-shaped)',
+    /bootModel = await resolveHeadlessModel\(options\.userSpecifiedModel\)/.test(printSrc) &&
+      /let activeModel: string \| undefined = bootModel/.test(printSrc),
   )
   check(
-    'the warm-claim write folds (call-shaped)',
-    /activeModel = parseUserSpecifiedModel\(claimedModel\)/.test(printSrc),
+    'the set_model control folds through the headless resolver (call-shaped)',
+    /resolved = await resolveHeadlessModel\(requested === undefined \|\| requested === 'default'\s*\n\s*\? \(getDefaultEngineModelSetting\(\) \?\? getEngineModel\(\)\)\s*\n\s*: requested\)/.test(printSrc),
+  )
+  check(
+    'the warm-claim write folds through the headless resolver (call-shaped)',
+    /claimedModel = await resolveHeadlessModel\(params\.model\)/.test(printSrc) &&
+      /activeModel = claimedModel/.test(printSrc),
   )
   const { existsSync } = await import('node:fs')
   const { spawn } = await import('node:child_process')
