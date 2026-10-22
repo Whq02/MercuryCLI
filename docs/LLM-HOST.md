@@ -456,10 +456,10 @@ reported by the server.
   `#/…` JSON schema pointers, `$defs` and `oneOf`/`anyOf`. Every shipped
   Mercury tool (including `Computer`, whose `sequence` steps use a flat
   one-level schema) passes directly; if a custom or MCP tool carries a bare
-  `$ref: "#"` or external reference on `llama.cpp`, Mercury omits only that tool
-  and posts
-  `llama.cpp cannot take the <Tool> tool's schema: <fault> — only this tool is left out on this route; update its schema before retrying`
-  once per session. If a server reports that tool calling is disabled
+  `$ref: "#"` or external reference on `llama.cpp`, Mercury refuses the request
+  before dispatch and names the tool and schema fault:
+  `llama.cpp cannot take the <Tool> tool's schema: <fault> — the request was not sent and no tools were removed; update its schema before retrying`.
+  No tools are removed; repair the schema before retrying. If a server reports that tool calling is disabled
   (`tools: false` in `SGLang` `/get_model_info`, `llama.cpp`
   `chat_template_caps` or `Ollama` `/api/show`), Mercury stops before sending
   the request and reports

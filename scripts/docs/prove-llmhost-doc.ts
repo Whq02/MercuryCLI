@@ -217,8 +217,8 @@ function validateLlmHostDoc(
     doc.includes('`--enable-auto-tool-choice`') &&
     sampleNoTools.includes('reports no tool-call support') &&
     flatDoc.includes('reports no tool-call support') &&
-    sampleBadSchema.includes('only this tool is left out on this route') &&
-    flatDoc.includes('only this tool is left out on this route') &&
+    sampleBadSchema.includes('the request was not sent and no tools were removed') &&
+    flatDoc.includes('the request was not sent and no tools were removed') &&
     doc.includes('`waiting for the first token`')
 
   const indexLine = idx.split('\n').find(line => line.includes('[LLM-HOST.md](LLM-HOST.md)')) ?? ''
