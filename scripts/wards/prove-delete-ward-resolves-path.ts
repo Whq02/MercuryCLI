@@ -3,9 +3,10 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
+import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 
+const scratch = withProofAccountHome()
 const configScratch = realpathSync(mkdtempSync(join(tmpdir(), 'ward-path-')))
-const scratch = mkdtempSync(join(homedir(), '.ward-proof-'))
 const project = join(scratch, 'hunt')
 const inside = join(project, 'scratch-dir', 'zzz-test')
 mkdirSync(inside, { recursive: true })
@@ -41,6 +42,7 @@ const bash = (command: string, resolvePath?: PendingToolCall['resolvePath']): Pe
 
 try {
   console.log('delete-ward resolves the path — SH-02')
+  check('the account home is the fixture, not the invoking account', homedir() === scratch)
   process.env.MERCURY_SPAWNED_BY = 'proof:ward-path#1'
   check('the autonomous delete-ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive())
 
@@ -187,6 +189,6 @@ try {
   console.log(`ward-path: ${passed} passed, ${failed} failed`)
 } finally {
   delete process.env.MERCURY_SPAWNED_BY
-  rmSync(scratch, { recursive: true, force: true })
+  rmSync(configScratch, { recursive: true, force: true })
 }
 process.exit(failed ? 1 : 0)

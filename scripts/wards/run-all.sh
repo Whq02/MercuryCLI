@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: scripts/lib/proofAccountHome.ts
 # gate-watch: sdk-py/README.md sdk/README.md
 # gate-watch: src/utils/hooks/sessionHooks* src/guards/wardsGuard* src/utils/wards/wards*
 # gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json docs/EXTENSIONS.md
