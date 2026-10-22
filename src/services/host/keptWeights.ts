@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { HostRecipe } from './recipes.js'
+import type { HostRecipe, HostWeightManifest as WeightManifest } from './recipes.js'
+import { hostWeightManifestSchema } from './recipesFile.js'
 import type { HostRecord } from './store.js'
 import { patchHostRecord, removeHostRecord } from './store.js'
 import { hostNotice } from './notices.js'
@@ -17,7 +18,7 @@ import type { HostVendor } from './vendors/vendor.js'
 import { downloadFailure, downloadWatchScript, keptDownloadMinutes, keptRunMs, type DownloadWatchOptions } from './download.js'
 export { keptDownloadMinutes, keptStallWords } from './download.js'
 export class HostPreparationCleanupFailed extends Error {}
-export interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
+export type { HostWeightManifest as WeightManifest } from './recipes.js'
 interface WeightScriptOptions extends DownloadWatchOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string }
 const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
@@ -29,8 +30,9 @@ export function weightManifests(): WeightManifest[] {
   return shippedManifests
 }
 export function pinnedWeightManifest(recipe: HostRecipe): WeightManifest | undefined {
-  const row = weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
-  return row && row.files.reduce((sum, file) => sum + file.size, 0) === Math.round(recipe.weightsGb * 1e9) ? row : undefined
+  const embedded = hostWeightManifestSchema.safeParse(recipe.weightManifest)
+  const row = embedded.success ? embedded.data : weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
+  return row && row.model === recipe.model && row.include === (recipe.include ?? '') && row.files.reduce((sum, file) => sum + file.size, 0) === Math.round(recipe.weightsGb * 1e9) ? row : undefined
 }
 export function weightManifest(recipe: HostRecipe): WeightManifest {
   const row = pinnedWeightManifest(recipe)

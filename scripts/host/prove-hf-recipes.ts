@@ -76,7 +76,7 @@ try {
   check('a gated repo without a token says sign in with /logins huggingface and reads nothing', !gatedPick.ok && gatedPick.words === gated.id + ' · ' + HF_GATED_WORDS && hf.state.trees === 2)
   const gatedPicked = await pickHuggingFaceModel(gated, { base, token: hf.token })
   assert.ok(gatedPicked.ok, 'a gated repo with the token derives: ' + JSON.stringify(gatedPicked))
-  check('with the token the tree is read with the bearer and the BF16 recipe fits 1× H200 (72 GB × 1.2)', hf.requests.some(row => row.path.includes('/tree/main') && row.authorization === 'Bearer ' + hf.token) && gatedPicked.row.recipe.gpu === 'H200' && gatedPicked.row.recipe.count === 1 && gatedPicked.row.recipe.label === gated.id + ' · BF16' && gatedPicked.row.recipe.flags.join(' ') === '--max-model-len 131072 --tensor-parallel-size 1')
+  check('with the token the tree is read with the bearer and the BF16 recipe fits 1× H200 (72 GB × 1.2)', hf.requests.some(row => /\/tree\/[a-f0-9]{40}$/.test(row.path) && row.authorization === 'Bearer ' + hf.token) && gatedPicked.row.recipe.gpu === 'H200' && gatedPicked.row.recipe.count === 1 && gatedPicked.row.recipe.label === gated.id + ' · BF16' && gatedPicked.row.recipe.flags.join(' ') === '--max-model-len 131072 --tensor-parallel-size 1')
   check('no token ever reaches a record: the recipe carries the repo URL and the stamp, never the bearer', !JSON.stringify(gatedPicked.row.recipe).includes(hf.token))
 
   const picked = await pickHuggingFaceModel(gguf, { base })

@@ -31,6 +31,12 @@ const hostRecipeVerifiedSchema = z.object({
   message: 'measured recipe requires verified.on',
 })
 
+export const hostWeightPathSchema = z.string().regex(/^[^\\\p{Cc}]+$/u).refine(path => path.split('/').every(part => part !== '' && part !== '.' && part !== '..'))
+export const hostWeightManifestSchema = z.object({
+  model: z.string().regex(printable), include: z.string(), revision: z.string().regex(/^[a-f0-9]{40}$/),
+  files: z.array(z.object({ path: hostWeightPathSchema, size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine(file => Boolean(file.sha256 || file.git))).min(1),
+}).refine(manifest => new Set(manifest.files.map(file => file.path)).size === manifest.files.length)
+
 const hostRecipeObject = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/),
   label: z.string().regex(printable),
@@ -60,6 +66,7 @@ const hostRecipeObject = z.object({
   weightFile: z.string().optional(),
   mmproj: z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._/-]+$/).optional(),
   include: z.string().optional(),
+  weightManifest: hostWeightManifestSchema.optional(),
 })
 
 export const hostRecipeSchema: z.ZodType<HostRecipe> = hostRecipeObject

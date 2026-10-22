@@ -3,7 +3,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
-import { hostRecipeSchema, rememberSessionHostRecipe } from './recipesFile.js'
+import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, rememberSessionHostRecipe } from './recipesFile.js'
 
 export const HF_SEARCH_PLACEHOLDER = 'model name — e.g. deepseek, qwen, glm'
 export const HF_SEARCH_LIMIT = 20
@@ -13,7 +13,6 @@ export const HF_GATED_WORDS = 'gated · sign in with /logins huggingface'
 export const HF_NOT_CHAT_WORDS = '— not a chat model'
 const HF_HUB = 'https://huggingface.co'
 const HF_TIMEOUT_MS = 5000
-const HF_TREE_PAGES = 5
 const HF_SHAPES = [{ gpu: 'H100', vramGb: 80 }, { gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }, { gpu: 'B300', vramGb: 288 }] as const
 const HF_COUNTS = [1, 2, 4, 8] as const
 const HF_SLOT_CONTEXT = 131072
@@ -38,9 +37,9 @@ export interface HfModel {
   ggufContext?: number
   config: Record<string, unknown>
 }
-export interface HfFile { path: string; size: number }
+export interface HfFile { path: string; size: number; sha256?: string; git?: string }
 export type HfSearchOutcome = { state: 'ready'; models: HfModel[] } | { state: 'offline'; words: string }
-export type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown> } | { ok: false; words: string }
+export type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown>; revision?: string } | { ok: false; words: string }
 export type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
 export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number }
 export interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
@@ -59,7 +58,7 @@ const modelSchema = z.object({
   cardData: z.object({ license: z.union([z.string(), z.array(z.string())]).nullable().optional(), license_name: z.string().nullable().optional() }).nullable().optional(),
   config: z.record(z.string(), z.unknown()).nullable().optional(),
 })
-const treeSchema = z.array(z.object({ type: z.string(), path: z.string(), size: z.number().nullable().optional(), lfs: z.object({ size: z.number() }).nullable().optional() }))
+const treeSchema = z.array(z.object({ type: z.string(), path: hostWeightPathSchema, oid: z.string().optional(), size: z.number().int().nonnegative().nullable().optional(), lfs: z.object({ size: z.number().int().nonnegative(), oid: z.string().optional() }).nullable().optional() }))
 
 const derived = new Map<string, DerivedHfRecipe>()
 
@@ -115,23 +114,32 @@ export async function fetchHuggingFaceRepo(id: string, options: HfHubOptions = {
   if (darkInProof(options)) return { ok: false, words: HF_PROOF_WORDS }
   const repoPath = id.split('/').map(encodeURIComponent).join('/')
   try {
+    const info = await hubGet('/api/models/' + repoPath + '?expand=sha', options)
+    if (info.status === 401 || info.status === 403) return { ok: false, words: 'gated · your Hugging Face account has no access to ' + id + ' · accept its terms at https://huggingface.co/' + id }
+    if (!info.ok) throw new Error('HTTP ' + info.status)
+    const revision = z.object({ sha: z.string().regex(/^[a-f0-9]{40}$/) }).parse(await info.json()).sha
     const files: HfFile[] = []
-    let next: string | undefined = '/api/models/' + repoPath + '/tree/main?recursive=true&limit=1000'
-    for (let page = 0; next && page < HF_TREE_PAGES; page++) {
+    let next: string | undefined = '/api/models/' + repoPath + '/tree/' + revision + '?recursive=true&limit=1000'
+    const pages = new Set<string>()
+    while (next) {
+      if (pages.has(next)) throw new Error('Repeated file-list page')
+      pages.add(next)
       const response = await hubGet(next, options)
       if (response.status === 401 || response.status === 403) return { ok: false, words: 'gated · your Hugging Face account has no access to ' + id + ' · accept its terms at https://huggingface.co/' + id }
       if (!response.ok) throw new Error('HTTP ' + response.status)
-      for (const entry of treeSchema.parse(await response.json())) if (entry.type === 'file') files.push({ path: entry.path, size: entry.lfs?.size ?? entry.size ?? 0 })
+      for (const entry of treeSchema.parse(await response.json())) if (entry.type === 'file') files.push({ path: entry.path, size: entry.lfs?.size ?? entry.size ?? 0, ...(entry.lfs?.oid ? { sha256: entry.lfs.oid } : entry.oid ? { git: entry.oid } : {}) })
       const link = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') ?? '')?.[1]
-      next = link ? new URL(link).pathname + new URL(link).search : undefined
+      const url = link ? new URL(link, options.base ?? HF_HUB) : undefined
+      if (url && (url.origin !== new URL(options.base ?? HF_HUB).origin || url.pathname !== '/api/models/' + repoPath + '/tree/' + revision)) throw new Error('File-list page changed repository or revision')
+      next = url ? url.pathname + url.search : undefined
     }
     let config: Record<string, unknown> = {}
     if (files.some(file => file.path === 'config.json')) {
-      const response = await hubGet('/' + repoPath + '/raw/main/config.json', options, 'text/plain')
+      const response = await hubGet('/' + repoPath + '/raw/' + revision + '/config.json', options, 'text/plain')
       if (response.ok) config = z.record(z.string(), z.unknown()).parse(JSON.parse(await response.text()))
       else if (response.status !== 404) throw new Error('HTTP ' + response.status)
     }
-    return { ok: true, files, config }
+    return { ok: true, files, config, revision }
   } catch {
     return { ok: false, words: 'Hugging Face is unreachable · nothing was derived' }
   }
@@ -207,7 +215,13 @@ const slug = (id: string): string => id.toLowerCase().replace(/[^a-z0-9._-]+/g, 
 const today = (): string => new Date().toISOString().slice(0, 10)
 const commonPrefix = (paths: readonly string[]): string => paths.reduce((prefix, path) => { let at = 0; while (at < prefix.length && at < path.length && prefix[at] === path[at]) at++; return prefix.slice(0, at) })
 
-export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], config: Record<string, unknown> = {}): HfDerivation {
+function withWeightManifest(recipe: HostRecipe, files: readonly HfFile[], revision?: string): HostRecipe {
+  const manifest = hostWeightManifestSchema.safeParse({ model: recipe.model, include: recipe.include ?? '', revision, files })
+  if (!manifest.success) return recipe
+  return { ...recipe, weightsGb: files.reduce((sum, file) => sum + file.size, 0) / 1e9, weightManifest: manifest.data }
+}
+
+export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], config: Record<string, unknown> = {}, revision?: string): HfDerivation {
   const chat = hfModelChat({ ...model, config: { ...model.config, ...config } })
   if (!chat.ok) return { ok: false, reason: HF_NOT_CHAT_WORDS + ' (' + chat.reason + ')' }
   const source = 'https://huggingface.co/' + model.id
@@ -235,7 +249,8 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
       include: paths.length === 1 ? first : commonPrefix(paths) + '*', weightFile: first,
       flags: ['--n-gpu-layers', 'all', '--jinja', '--ctx-size', String(slot * HF_PARALLEL), '--parallel', String(HF_PARALLEL), '--flash-attn', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0', '--cache-reuse', '256'],
     }
-    return { ok: true, recipe: hostRecipeSchema.parse(recipe), engine: 'llama.cpp', format, weightsGb }
+    const trusted = hostRecipeSchema.parse(withWeightManifest(recipe, gguf.files, revision))
+    return { ok: true, recipe: trusted, engine: 'llama.cpp', format, weightsGb: trusted.weightsGb }
   }
   const fileBytes = safetensors.reduce((sum, file) => sum + file.size, 0)
   const dtypeBytes = Object.entries(model.dtypes).reduce((sum, [dtype, count]) => sum + count * (DTYPE_BYTES[dtype] ?? 2), 0)
@@ -255,7 +270,8 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
     ...(context ? { context, contextPerSlot: context } : {}),
     flags: [...(context ? ['--max-model-len', String(context)] : []), '--tensor-parallel-size', String(shape.count), ...(model.tags.includes('custom_code') ? ['--trust-remote-code'] : [])],
   }
-  return { ok: true, recipe: hostRecipeSchema.parse(recipe), engine: 'vLLM', format, weightsGb }
+  const trusted = hostRecipeSchema.parse(withWeightManifest(recipe, files, revision))
+  return { ok: true, recipe: trusted, engine: 'vLLM', format, weightsGb: trusted.weightsGb }
 }
 
 export function derivedHfRecipe(repo: string): DerivedHfRecipe | undefined {
@@ -283,7 +299,7 @@ export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions
   if (model.gated && !options.token) return { ok: false, words: model.id + ' · ' + HF_GATED_WORDS }
   const repo = await (options.fetchRepo ?? fetchHuggingFaceRepo)(model.id, options)
   if (!repo.ok) return { ok: false, words: model.id + ' · ' + repo.words }
-  const derivation = deriveHostRecipe(model, repo.files, repo.config)
+  const derivation = deriveHostRecipe(model, repo.files, repo.config, repo.revision)
   if (!derivation.ok) return { ok: false, words: model.id + ' · ' + derivation.reason }
   const row: DerivedHfRecipe = { repo: model.id, recipe: rememberSessionHostRecipe(derivation.recipe), engine: derivation.engine, format: derivation.format, weightsGb: derivation.weightsGb, derivedAt: Date.now() }
   derived.set(model.id, row)

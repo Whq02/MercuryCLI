@@ -239,7 +239,7 @@ export function volumeWords(recipe: HostRecipe): string {
 }
 export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => sizeWords(recipe.weightsGb) + ' from Hugging Face · ' + bankedWords(state) + ' · ' + volumeWords(recipe)
 export function bankRowWords(recipe: HostRecipe, state = bankState(recipe)): string {
-  if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · m mirror to a fast-load volume ($0.07/GB·month)'
+  if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: no trusted file manifest')
   const where = state.folder ? shortFolder(state.folder) : 'a folder you name'
   return 'Bank · b bank the weights to ' + where + ' (' + sizeWords(recipe.weightsGb) + ', hash-verified) — your own copy, kept on your drive'
 }

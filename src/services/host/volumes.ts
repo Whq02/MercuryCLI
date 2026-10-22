@@ -6,11 +6,13 @@ import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostDirectory } from './store.js'
 import type { HostRecipe } from './recipes.js'
+import { hostRecipeSchema } from './recipesFile.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { createRefusal, RunpodHttpError, type HostPod, type RunpodClient, type HostVolume } from './runpod.js'
 
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
+  recipeRow: hostRecipeSchema.optional(),
   kind: z.enum(['network', 'global']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
   state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), checkedBy: z.string().optional(), preparingPod: z.string().optional(), error: z.string().optional(), partialBytes: z.number().nonnegative().optional(),
   verifiedSums: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), sampleManifestSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), check: z.enum(['full', 'sampled']).optional(), files: z.number().int().positive(), bytes: z.number().positive(), at: z.string() }).optional(),
@@ -65,7 +67,7 @@ async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kin
   if (existing) throw new Error('This model already has a weights disk: ' + existing.id)
   signal.throwIfAborted()
   const suffix = randomUUID()
-  const record: KeptVolume = { id: 'pending-' + suffix, name: 'mercury-weights-' + suffix, model: recipe.model, include: recipe.include ?? '', kind, dataCenter: kind === 'global' ? 'any DC' : dataCenter, size: recipe.diskGb, price: kind === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb), createdAt: new Date().toISOString(), state: 'creating' }
+  const record: KeptVolume = { id: 'pending-' + suffix, name: 'mercury-weights-' + suffix, model: recipe.model, include: recipe.include ?? '', recipeRow: recipe, kind, dataCenter: kind === 'global' ? 'any DC' : dataCenter, size: recipe.diskGb, price: kind === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb), createdAt: new Date().toISOString(), state: 'creating' }
   writeKeptVolume(record)
   try {
     const volume = await api.createVolume(kind, record.name, record.size, dataCenter)

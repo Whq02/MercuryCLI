@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { basename, dirname } from 'node:path'
 import type { LlmHostRoad, LlmHostResult } from '../llmHost/index.js'
 import { currentHostRecipes, rememberSessionHostRecipe } from './recipesFile.js'
-import { keptDownloadMinutes, keptStallWords, weightManifest } from './keptWeights.js'
+import { keptDownloadMinutes, keptStallWords, pinnedWeightManifest } from './keptWeights.js'
 import type { HostRecipe } from './recipes.js'
 import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
 import { ensureHostKey, type HostRunner } from './ssh.js'
@@ -23,7 +23,8 @@ const pad = (text: string, width: number): string => text.length >= width ? text
 const fit = (text: string, width: number): string => text.length <= width ? text : text.slice(0, Math.max(1, width - 1)) + '…'
 export const fastLoadRecipes = (): HostRecipe[] => {
   const current = currentHostRecipes()
-  for (const recipe of bankedHostRecipes()) if (!current.some(row => row.id === recipe.id)) rememberSessionHostRecipe(recipe)
+  const saved = [...bankedHostRecipes(), ...keptVolumes().flatMap(volume => volume.state !== 'gone' && volume.recipeRow && matchesVolume(volume, volume.recipeRow) ? [volume.recipeRow] : [])]
+  for (const recipe of saved) if (!current.some(row => row.id === recipe.id)) rememberSessionHostRecipe(recipe)
   return [...new Map(currentHostRecipes().map(row => [volumeModel(row), row])).values()]
 }
 export function fastLoadState(recipe: HostRecipe): string {
@@ -78,8 +79,11 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
   }
 }
 export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal, options: FastLoadOptions): Promise<LlmHostResult | undefined> {
+  if (!pinnedWeightManifest(recipe)) {
+    emit({ title: modelTitle(recipe), words: 'This recipe cannot be mirrored without a trusted file manifest. You can still bank and verify your local copy. No volume or pod was created.' })
+    return
+  }
   await reconcileVolumes(api, signal)
-  weightManifest(recipe)
   const existing = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (existing) {
     const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod for full SHA256' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), { value: 'back', label: 'Back' }] })
@@ -132,7 +136,7 @@ function volumeCell(recipe: HostRecipe, banked: boolean): string {
   if (volume?.state === 'kept') return '✓ ' + volume.dataCenter + ' · boots ~' + bootMinutes(recipe, volume) + ' min'
   if (volume?.state === 'preparing' || volume?.state === 'creating') return '… preparing in ' + volume.dataCenter
   if (volume?.state === 'failed') return '✗ failed in ' + volume.dataCenter + ' · d to drop'
-  return banked ? '— m to mirror' : '—'
+  return banked ? pinnedWeightManifest(recipe) ? '— m to mirror' : '— no trusted file hashes' : '—'
 }
 const bankDrive = (folder: string): string => shortFolder(basename(folder) === 'mercury-model-bank' ? dirname(folder) : folder)
 function bankCell(state: BankState, job: HostRecord | undefined, width: number): string {
