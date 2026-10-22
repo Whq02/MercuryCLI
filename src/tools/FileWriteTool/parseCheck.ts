@@ -1,6 +1,7 @@
 import { extname } from 'node:path'
 
 import { getLspServerManager } from '../../services/lsp/manager.js'
+import type { TSNode } from '../../services/structure/grammarFacility.js'
 
 type ParseFormat = 'JSON' | 'YAML' | 'TOML'
 
@@ -53,17 +54,80 @@ function normalizeParseError(err: string): string {
     .replace(/\b(?:line|column|position|offset)\s+\d+/gi, '')
 }
 
-export function checkIntroducedParseError(
+type SourceParseError = { line: number; node: string; key: string }
+
+function sourceParseErrors(root: TSNode): SourceParseError[] {
+  const errors: SourceParseError[] = []
+  const stack = [root]
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    if (!node.hasError && !node.isMissing && node.type !== 'ERROR') continue
+    const children = node.children.filter(child => child.hasError || child.isMissing || child.type === 'ERROR')
+    if (children.length > 0) {
+      for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]!)
+      continue
+    }
+    const problem = node.isMissing ? `missing ${node.type}` : node.type === 'ERROR' ? 'ERROR' : `syntax error in ${node.type}`
+    errors.push({
+      line: node.startPosition.row + 1,
+      node: problem,
+      key: node.type === 'ERROR' ? `${problem}:${node.text.replace(/\s+/g, ' ').trim()}` : problem,
+    })
+  }
+  return errors
+}
+
+async function checkSourceParseError(filePath: string, before: string | null, after: string): Promise<string | undefined> {
+  try {
+    const { languageForFile, loadGrammarEngine, parsePolyglot } = await import('../../services/structure/grammarFacility.js')
+    const language = languageForFile(filePath)
+    if (!language) return undefined
+    const engine = await loadGrammarEngine()
+    if (engine.state !== 'ok') return undefined
+    const errorsIn = async (text: string): Promise<SourceParseError[] | undefined> => {
+      const parsed = await parsePolyglot(engine, language, stripBom(text))
+      if ('state' in parsed) return undefined
+      try {
+        return sourceParseErrors(parsed.tree.rootNode)
+      } finally {
+        parsed.tree.delete()
+      }
+    }
+    const afterErrors = await errorsIn(after)
+    if (!afterErrors?.length) return undefined
+    const beforeErrors = before === null ? [] : await errorsIn(before)
+    if (beforeErrors === undefined) return undefined
+    const remaining = new Map<string, number>()
+    for (const error of beforeErrors) remaining.set(error.key, (remaining.get(error.key) ?? 0) + 1)
+    const introduced = afterErrors.find(error => {
+      const count = remaining.get(error.key) ?? 0
+      if (count === 0) return true
+      remaining.set(error.key, count - 1)
+      return false
+    })
+    if (!introduced) return undefined
+    const names: Record<string, string> = {
+      typescript: 'TypeScript', javascript: 'JavaScript', tsx: 'TSX', 'c-sharp': 'C#', cpp: 'C++',
+      css: 'CSS', php: 'PHP', powershell: 'PowerShell', ini: 'INI', html: 'HTML',
+    }
+    const name = names[language.name] ?? language.name.charAt(0).toUpperCase() + language.name.slice(1)
+    return `${name} parse error at line ${introduced.line}: ${introduced.node} (the edit introduced it)`
+  } catch {
+    return undefined
+  }
+}
+
+export async function checkIntroducedParseError(
   filePath: string,
   beforeContent: string | null,
   afterContent: string,
   hasLspServer?: boolean,
-): string | undefined {
+): Promise<string | undefined> {
   const format = formatForPath(filePath)
-  if (format === undefined) return undefined
   const coveredByLsp =
     hasLspServer ?? ((getLspServerManager()?.getServersForFile(filePath).length ?? 0) > 0)
   if (coveredByLsp) return undefined
+  if (format === undefined) return checkSourceParseError(filePath, beforeContent, afterContent)
   const afterErr = parseOnce(format, afterContent)
   if (afterErr === undefined) return undefined
   if (beforeContent !== null) {

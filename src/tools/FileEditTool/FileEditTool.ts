@@ -1463,7 +1463,7 @@ export const FileEditTool = buildTool({
 
     const { added, removed } = patchLineCounts(patch)
     const hunkCount = usingHunks ? (input.hunks as EditHunkInput[]).length : 0
-    const parseError = checkIntroducedParseError(
+    const parseError = await checkIntroducedParseError(
       expandedPath,
       fileExists ? freshContent : null,
       updatedFile,

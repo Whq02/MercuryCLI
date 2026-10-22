@@ -786,7 +786,7 @@ export async function callStructuredWriteTarget(
       startedAt,
       `${state.exists ? 'updated' : 'created'} zip entry ${target.entryName} in ${target.hostPath} (${bytes} bytes)`,
       bytes,
-      checkIntroducedParseError(target.canonicalPath, state.exists ? state.text : null, content),
+      await checkIntroducedParseError(target.canonicalPath, state.exists ? state.text : null, content),
     )
   }
 
@@ -1024,7 +1024,7 @@ export async function callStructuredEditTarget(
       plan.updatedFile,
       plan,
       `${state.exists ? 'edited' : 'created'} zip entry ${target.entryName} in ${target.hostPath} (${bytes} bytes)`,
-      checkIntroducedParseError(target.canonicalPath, state.exists ? freshContent : null, plan.updatedFile),
+      await checkIntroducedParseError(target.canonicalPath, state.exists ? freshContent : null, plan.updatedFile),
     )
   }
 

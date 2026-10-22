@@ -376,7 +376,7 @@ export const FileWriteTool = buildTool({
     })
 
     let gitDiff: Output['gitDiff']
-    const parseError = checkIntroducedParseError(
+    const parseError = await checkIntroducedParseError(
       expandedPath,
       fileExists ? normalizedContent : null,
       writtenContent,
