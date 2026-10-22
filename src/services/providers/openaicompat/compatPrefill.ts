@@ -1,7 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import type { CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
-import { compatServerBase } from './compatProbe.js'
+import { SGLANG_LEGACY_MODEL_INFO_PATH, SGLANG_MODEL_INFO_PATH, compatServerBase } from './compatProbe.js'
 
 const readings = new Map<string, { at: number; speed: number | undefined }>()
 const positive = (value: number): number | undefined => Number.isFinite(value) && value > 0 ? value : undefined
@@ -72,7 +72,7 @@ export async function readCompatPrefillSpeed(
   try {
     let servedModel = model
     if (dialect === 'sglang') {
-      const info = await read('/get_model_info')
+      const info = await read(SGLANG_MODEL_INFO_PATH) ?? await read(SGLANG_LEGACY_MODEL_INFO_PATH)
       if (info === undefined) return undefined
       const body = JSON.parse(info) as { model_path?: unknown; served_model_name?: unknown }
       if (body.served_model_name !== model && body.model_path !== model) return undefined

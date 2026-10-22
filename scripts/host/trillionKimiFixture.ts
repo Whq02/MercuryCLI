@@ -15,7 +15,7 @@ export async function trillionKimiFixture() {
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     const path = new URL(req.url).pathname
     if (path === '/v1/models') return Response.json({ data: [{ id: model, owned_by: 'sglang', context_length: 1048576 }] })
-    if (path === '/get_model_info') return Response.json({ model_path: model, context_length: 1048576 })
+    if (path === '/model_info') return Response.json({ model_path: model, served_model_name: model, tokenizer_path: model, is_generation: true, reasoning_parser: 'kimi', tool_call_parser: 'kimi_k2', has_image_understanding: false, has_audio_understanding: false })
     if (path !== '/v1/chat/completions') return new Response('not found', { status: 404 })
     const body = await req.json() as any
     captures.push(body)

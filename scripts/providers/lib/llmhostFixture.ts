@@ -26,7 +26,7 @@ export async function llmhostFixture(options: { model?: string } = {}) {
     const path = new URL(req.url).pathname
     if (state.auth && req.headers.get('authorization') !== `Bearer ${key}`) return Response.json({ error: { message: 'fixture key required' } }, { status: 401 })
     if (path === '/v1/models') return Response.json({ data: state.listed ? state.modelIds.map(id => ({ id, owned_by: state.dialect, ...(state.field ? { [state.field]: state.window } : {}), ...(state.inputModalities ? { architecture: { input_modalities: state.inputModalities } } : {}) })) : [] })
-    if (path === '/get_model_info' && state.dialect === 'sglang') return Response.json({ model_path: model, context_length: state.window })
+    if (path === '/model_info' && state.dialect === 'sglang') return Response.json({ model_path: model, served_model_name: model, tokenizer_path: model, is_generation: true, reasoning_parser: 'qwen3', tool_call_parser: 'qwen', has_image_understanding: state.inputModalities ? state.inputModalities.includes('image') : true, has_audio_understanding: false })
     if (path === '/props' && state.dialect === 'llamacpp') { state.propsRequests++; return Response.json({ default_generation_settings: { n_ctx: state.window }, total_slots: state.slots, ...(state.vision !== undefined ? { modalities: { vision: state.vision } } : {}) }) }
     if (path === '/api/tags' && state.dialect === 'ollama') return Response.json({ models: [{ name: model }] })
     if (path === '/api/ps' && state.dialect === 'ollama') return Response.json({ models: [{ name: model, context_length: state.window }] })
