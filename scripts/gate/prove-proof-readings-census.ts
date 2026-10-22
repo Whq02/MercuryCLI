@@ -81,7 +81,7 @@ for (const path of runners) for (const line of unreachableProofs(read(path))) fa
 let historical = 0
 for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !path.endsWith('/prove-proof-readings-census.ts'))) {
   const source = read(path)
-  if (/^scripts\/(workflows|compact)\//.test(path)) for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
+  if (/^scripts\/(workflows|compact|agent-dispatch)\//.test(path)) for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
   const result = historicalBuild(source)
   if (!result.builds) continue
   historical++

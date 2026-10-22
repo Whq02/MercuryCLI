@@ -15,7 +15,6 @@ for (const ambient of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-404-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key-agent-404'
 
-const PORT = 38311
 const MODEL = 'mercury-no-such-model'
 const REQUEST_ID = 'req_fixture_404_evidence'
 
@@ -54,8 +53,8 @@ const server = createServer((req, res) => {
     }))
   })
 })
-await new Promise<void>(resolve => server.listen(PORT, '127.0.0.1', resolve))
-process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${PORT}`
+await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
