@@ -120,3 +120,7 @@ Non-completed turns resolve their outcome status (including failed authenticatio
 | `tool_input_delta` | `type`, `seq`, `timestamp`, `session_id`, `message_id`, `block`, `json` |
 | `retracted` | `type`, `seq`, `timestamp`, `session_id`, `message_id` |
 <!-- vocabulary:end -->
+
+## Licence
+
+Licensed under the Apache License 2.0 (`Apache-2.0`); see [LICENSE](LICENSE). The Mercury CLI is licensed separately under the Business Source License 1.1 (`BUSL-1.1`).

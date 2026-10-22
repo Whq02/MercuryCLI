@@ -58,9 +58,46 @@ try {
     check('the stated terms SHA-256 equals the terms file', p.termsSha256 === sha256(TERMS), `licence: ${p.termsSha256}`)
     check('no bracketed placeholder, no review banner', p.placeholders.length === 0 && !p.reviewBanner, p.placeholders.join(', '))
     const SDK_DIRS = ['sdk', 'sdk-py']
+    const licenceIntro = LICENCE.split('\n## Non-binding plain-English summary')[0] ?? ''
+    check(
+      'LICENSE.md opens (before the summary) with the CLI (BUSL-1.1 + Community Production Grant) and SDK (Apache-2.0 in sdk/LICENSE and sdk-py/LICENSE) split',
+      licenceIntro.includes('This file covers the Mercury CLI under the Business Source License 1.1 (`BUSL-1.1`), with the Mercury Community Production Grant set out in the section of that name below and its companion terms in `MERCURY-COMMUNITY-PRODUCTION-TERMS.md`.') &&
+        licenceIntro.includes('The TypeScript and Python SDKs in `sdk/` and `sdk-py/` (`mercury-cli-sdk` on npm and PyPI) are licensed separately under the Apache License 2.0 (`Apache-2.0`) by their own `sdk/LICENSE` and `sdk-py/LICENSE` files, and are not covered by this file.'),
+      licenceIntro.slice(-240),
+    )
     const scopeLine = /^- \*\*Licensed Work:\*\* .*$/m.exec(LICENCE)?.[0] ?? ''
     check('the Licensed Work line says sdk/ and sdk-py/ are licensed separately under the Apache License 2.0 by their own LICENSE files and are not part of the Licensed Work', SDK_DIRS.every(d => scopeLine.includes(`\`${d}/\``)) && /licensed separately under the Apache License, Version 2\.0, by the LICENSE file each carries, and are not part of the Licensed Work\./.test(scopeLine), scopeLine.slice(-160))
     check('each of those directories carries an Apache License 2.0 LICENSE file (the sentence is true)', SDK_DIRS.every(d => existsSync(join(ROOT, d, 'LICENSE')) && /Apache License\s+Version 2\.0/.test(readFileSync(join(ROOT, d, 'LICENSE'), 'utf8'))))
+    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
+    check(
+      'README.md top source-available line names both the CLI (Business Source License 1.1) and the SDKs (Apache License 2.0)',
+      readme.includes('Mercury is source-available under the Business Source License 1.1, and the SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/) are licensed under the Apache License 2.0. See [Licence](#licence) for the production-use terms.'),
+    )
+    const readmeLicence = readme.split('\n## Licence\n\n')[1] ?? ''
+    check(
+      'README.md Licence section opens with the two-sentence CLI (BUSL-1.1) and SDK (Apache-2.0, linking sdk/LICENSE and sdk-py/LICENSE) split before the summary paragraph',
+      readmeLicence.startsWith(
+        'The Mercury CLI is licensed under the Business Source License 1.1 (`BUSL-1.1`)\nwith the Mercury Community Production Grant in [LICENSE.md](LICENSE.md). The\nTypeScript and Python SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/)\n(`mercury-cli-sdk` on npm and PyPI) are licensed separately under the Apache\nLicense 2.0 (`Apache-2.0`), each by the LICENSE file it carries\n([sdk/LICENSE](sdk/LICENSE) and [sdk-py/LICENSE](sdk-py/LICENSE)), and are not\npart of the Licensed Work.\n\nMercury is source-available under the Business Source License 1.1, with the\nMercury Community Production Grant.',
+      ),
+      readmeLicence.slice(0, 240),
+    )
+    const sdkLicenceSection = '## Licence\n\nLicensed under the Apache License 2.0 (`Apache-2.0`); see [LICENSE](LICENSE). The Mercury CLI is licensed separately under the Business Source License 1.1 (`BUSL-1.1`).'
+    for (const d of SDK_DIRS) {
+      const sdkReadme = readFileSync(join(ROOT, d, 'README.md'), 'utf8')
+      check(`${d}/README.md carries the one-line Apache-2.0 Licence section linking to LICENSE`, sdkReadme.includes(sdkLicenceSection))
+    }
+    const sdkPkg = JSON.parse(readFileSync(join(ROOT, 'sdk/package.json'), 'utf8')) as { name?: string; license?: string; files?: string[] }
+    const sdkPyproject = readFileSync(join(ROOT, 'sdk-py/pyproject.toml'), 'utf8')
+    check(
+      'sdk/package.json and sdk-py/pyproject.toml declare Apache-2.0 and ship LICENSE',
+      sdkPkg.name === 'mercury-cli-sdk' &&
+        sdkPkg.license === 'Apache-2.0' &&
+        Array.isArray(sdkPkg.files) &&
+        sdkPkg.files.includes('LICENSE') &&
+        /^name = "mercury-cli-sdk"$/m.test(sdkPyproject) &&
+        /^license = "Apache-2.0"$/m.test(sdkPyproject) &&
+        /^license-files = \["LICENSE"\]$/m.test(sdkPyproject),
+    )
     for (const doc of owner.LICENCE_DOCUMENTS) check(`${doc} is in the tree`, existsSync(join(ROOT, doc)))
     const tree = owner.checkReleaseDocuments({ root: ROOT, version: VERSION })
     check('the owner passes the tree for the version root', tree.ok, detailOf(tree))
