@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,6 +11,15 @@ const expected = 'fixture-hf-selected-token'
 if (childAt !== -1) {
   assert.equal(process.env.HF_TOKEN, undefined)
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
+  if (process.argv[childAt + 1] === 'queue-command') {
+    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const { queueHostBank } = await import('../../src/services/host/jobs.ts')
+    const { resolveHuggingfaceApiKey } = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
+    assert.equal(resolveHuggingfaceApiKey()?.key, expected)
+    const row = queueHostBank({ id: 'command', name: 'Command credential', recipe: HOST_RECIPES[0]!.id, recipeRow: HOST_RECIPES[0], price: 0, status: 'QUEUED', startedAt: new Date().toISOString(), bankFolder: join(process.env.MERCURY_CONFIG_DIR!, 'bank') })
+    console.log(JSON.stringify({ captured: row.huggingfaceCredential?.source === 'captured' }))
+    process.exit(0)
+  }
   const { readHostRecord } = await import('../../src/services/host/store.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const record = readHostRecord(process.argv[childAt + 1]!)!
@@ -41,8 +50,8 @@ if (childAt !== -1) {
   let failures = 0
   const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
   const record = (id: string) => ({ id, name: 'Credential boundary', recipe: HOST_RECIPES[0]!.id, recipeRow: HOST_RECIPES[0]!, price: 0, status: 'QUEUED', startedAt: new Date().toISOString(), bankFolder: join(home, 'bank'), sessionId: 'credential-session' })
-  const child = async (id: string) => {
-    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', id], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = async (id: string, cwd = home) => {
+    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', id], { cwd, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' }, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''; let err = ''
     worker.stdout.on('data', c => { out += c }); worker.stderr.on('data', c => { err += c })
     const timer = setTimeout(() => worker.kill('SIGTERM'), 15000)
@@ -83,6 +92,13 @@ if (childAt !== -1) {
     if (missingSecret) unlinkSync(missingSecret)
     const absent = await child('missing')
     check('a missing captured credential refuses rather than falling back to another account', Boolean(missingSecret) && !absent.called && absent.missing)
+    delete process.env.HF_TOKEN
+    const caller = join(home, 'caller')
+    mkdirSync(caller)
+    writeFileSync(join(caller, 'credential.txt'), expected)
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ credentials: { keyCommands: { huggingface: 'cat credential.txt' } } }))
+    check('a directory-dependent key command is captured where it was resolved', (await child('queue-command', caller)).captured)
+    check('the detached worker receives the command credential without rerunning it in another directory', (await child('command')).received)
     check('all captures created by these completed jobs have been removed', !existsSync(join(home, '.host-credentials')) || readdirSync(join(home, '.host-credentials')).length === 0)
     console.log('BOUNDARY CREDENTIALS ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; synthetic credentials, actual spawned workers, no network')
   } finally { clearAuthScope(); delete process.env.HF_TOKEN; process.env.MERCURY_CONFIG_DIR = outer; rmSync(home, { recursive: true, force: true }) }
