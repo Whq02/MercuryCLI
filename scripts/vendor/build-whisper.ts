@@ -86,9 +86,9 @@ function cmakeRemedy(): string {
   return 'apt-get install cmake (or your package manager)'
 }
 
-function hasLibclang(): boolean {
+function libclangFound(): string | null {
   const named = process.env.LIBCLANG_PATH
-  if (named !== undefined && named !== '' && existsSync(named)) return true
+  if (named !== undefined && named !== '' && existsSync(named)) return named
   const candidates: string[] = []
   if (process.platform === 'darwin') {
     candidates.push('/Library/Developer/CommandLineTools/usr/lib/libclang.dylib', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib', '/opt/homebrew/opt/llvm/lib/libclang.dylib', '/usr/local/opt/llvm/lib/libclang.dylib')
@@ -113,7 +113,8 @@ function hasLibclang(): boolean {
     } catch {
     }
   }
-  return candidates.some(c => existsSync(c))
+  const found = candidates.find(c => existsSync(c))
+  return found === undefined ? null : dirname(found)
 }
 
 function packInvalidReason(): string | null {
@@ -250,7 +251,6 @@ function toolchainEnv(): Record<string, string> {
     CMAKE_C_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
     CMAKE_CXX_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
     CXXFLAGS: [process.env.CXXFLAGS, '/EHsc'].filter(Boolean).join(' '),
-    WHISPER_DONT_GENERATE_BINDINGS: '1',
   }
 }
 
@@ -319,7 +319,8 @@ function main(): void {
   }
   if (invalid !== null && existsSync(OUT_DIR)) console.log(`build-whisper: rebuilding — ${invalid}`)
   const floor = kernelFloorEnv()
-  const bindings = hasLibclang() ? {} : { WHISPER_DONT_GENERATE_BINDINGS: '1' }
+  const libclang = libclangFound()
+  const bindings = libclang === null ? { WHISPER_DONT_GENERATE_BINDINGS: '1' } : { LIBCLANG_PATH: libclang }
   if ('WHISPER_DONT_GENERATE_BINDINGS' in bindings) console.log('build-whisper: no libclang found — whisper-rs uses its bundled bindings')
   console.log(`build-whisper: ${cargo} · ${cmake} — cargo build --release (${WHISPER_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''}; ${Object.entries(floor).map(([k, v]) => `${k}=${v}`).join(' ')})`)
   const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])], { env: { ...floor, ...bindings, ...toolchainEnv() } })

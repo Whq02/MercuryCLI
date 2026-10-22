@@ -52,6 +52,7 @@ try {
       assert.equal(decision.env.CMAKE_CXX_COMPILER, 'clang-cl')
       assert.equal(decision.env.CMAKE_CXX_COMPILER_TARGET, 'aarch64-pc-windows-msvc')
       assert.ok(String(decision.env.CXXFLAGS ?? '').split(/\s+/).includes('/EHsc'), 'clang-cl compiles whisper.cpp with exceptions on (/EHsc): gguf.cpp uses try')
+      assert.equal(decision.env.WHISPER_DONT_GENERATE_BINDINGS, undefined, 'the bundled bindings were generated on Linux and their struct layouts fail on Windows: bindgen runs when libclang is present')
     }
     console.log(`${target}: absent, present, corrupt, missing licence and toolchain decision verified`)
   }
