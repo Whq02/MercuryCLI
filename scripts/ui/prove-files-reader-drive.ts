@@ -8,7 +8,7 @@ import { gridToPng } from './gridToPng.ts'
 
 pinSourceRef()
 const home = process.env.MERCURY_CONFIG_DIR
-if (!home || process.env.MERCURY_HOME) throw new Error('Run with a scratch MERCURY_CONFIG_DIR and MERCURY_HOME unset')
+if (!home) throw new Error('Run with a scratch MERCURY_CONFIG_DIR (it outranks MERCURY_HOME, so a pinned suite home is fine)')
 mkdirSync(home, { recursive: true })
 const root = mkdtempSync(join(home, 'files-reader-'))
 const framesAt = process.argv.indexOf('--frames')

@@ -6,7 +6,7 @@ import { mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/sett
 import { settledFrame } from './popupFrameSettle.ts'
 import { gridToPng } from './gridToPng.ts'
 
-if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_HOME) throw new Error('Use a scratch MERCURY_CONFIG_DIR with MERCURY_HOME unset')
+if (!process.env.MERCURY_CONFIG_DIR) throw new Error('Use a scratch MERCURY_CONFIG_DIR (it outranks MERCURY_HOME, so a pinned suite home is fine)')
 const sourceRef = pinSourceRef()
 if (sourceRef) {
   const root = join(import.meta.dir, '../..')

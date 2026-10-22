@@ -6,7 +6,7 @@ import { mountOffscreen, pinSourceRef, waitFor } from '../lib/settingsPopupHarne
 import { settledFrame } from './popupFrameSettle.ts'
 import { gridToPng } from './gridToPng.ts'
 
-if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_HOME) throw new Error('Use a scratch MERCURY_CONFIG_DIR with MERCURY_HOME unset')
+if (!process.env.MERCURY_CONFIG_DIR) throw new Error('Use a scratch MERCURY_CONFIG_DIR (it outranks MERCURY_HOME, so a pinned suite home is fine)')
 pinSourceRef()
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
