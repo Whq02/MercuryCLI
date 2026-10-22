@@ -58,7 +58,7 @@ export function findActiveCheckpoint(messages: readonly Message[]): ActiveCheckp
           b => b.type === 'tool_result' && b.tool_use_id === block.id,
         )
         if (result === undefined) continue
-        if (result.is_error === true) return null
+        if (result.is_error === true) break
         const goal = (block.input as { goal?: unknown } | undefined)?.goal
         return {
           id: block.id,
@@ -67,7 +67,6 @@ export function findActiveCheckpoint(messages: readonly Message[]): ActiveCheckp
           messageCountAtCreation: j + 1,
         }
       }
-      return null
     }
   }
   return null
