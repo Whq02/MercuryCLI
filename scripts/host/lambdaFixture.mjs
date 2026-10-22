@@ -6,7 +6,7 @@ export async function lambdaFixture() {
   const key = 'fixture-lambda-key'
   const requests = []
   const types = [type('gpu_4x_b200', 'B200 (180 GB SXM6)', 4, 1196), type('gpu_8x_b200', 'B200 (180 GB SXM6)', 8, 2392, 22528), type('gpu_1x_h100_sxm5', 'H100 (80 GB SXM5)', 1, 299, 2816)]
-  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, bootIp: null, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false }
+  const state = { failNext: null, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, bootIp: null, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
@@ -16,6 +16,14 @@ export async function lambdaFixture() {
     const json = (value, status = 200) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)) }
     const fail = (status, code, message) => json({ error: { code, message: message + ' ' + key } }, status)
     if (req.headers.authorization !== 'Bearer ' + key) { fail(401, 'global/invalid-api-key', 'Invalid API key'); return }
+    const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + path)
+    if (failure) {
+      failure.times--
+      if (failure.status === 'disconnect') return req.socket.destroy()
+      const retryAfter = failure.retryAfter ?? state.retryAfter
+      if (retryAfter !== undefined) res.setHeader('Retry-After', String(retryAfter))
+      fail(failure.status, 'fixture/unavailable', 'fixture route failure'); return
+    }
     const create = path === '/api/v1/instance-operations/launch' && req.method === 'POST'
     if (create) state.creates++
     if (state.rateLimited) { res.setHeader('Retry-After', state.retryAfter); fail(429, 'global/rate-limited', 'Too many requests'); return }

@@ -4,7 +4,8 @@ import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
 import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
-import { HostCreateError, HostVendorHttpError, VendorApi, isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
+import { HostCreateError, HostVendorHttpError, VendorApi, isOpenSshKey, keyMaterial, retryAfterSeconds, type VendorTiming } from './http.js'
+import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
 export const VAST_STORAGE_NOTICE = '/workspace uses the instance container disk. Stop retains data and storage billing, and a restart waits until the host’s GPUs are free; terminate deletes the disk and its data. No separate volume is created.'
 export const VAST_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your Vast.ai account keys, which Vast.ai installs on your instances. Remove it at https://cloud.vast.ai/manage-keys/ when you stop renting through Mercury.'
@@ -181,21 +182,22 @@ export class VastClient implements HostVendor {
     await this.api.request('/instances/' + id + '/', success, 'PUT', { state: 'stopped' })
     return this.get(id)
   }
-  async terminate(id: string): Promise<void> {
+  async terminate(id: string, readOnly?: HostReadOnly): Promise<void> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
     await this.api.request('/instances/' + id + '/', success, 'DELETE')
     const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
     let last = ''
     for (;;) {
-      try { if (!(await this.pods()).some(row => row.id === id)) return } catch (error) { last = ' ' + (error instanceof Error ? error.message : String(error)) }
+      try { if (!(await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods())).some(row => row.id === id)) return } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
       if (Date.now() >= deadline) throw new Error('Vast.ai termination is not verified; check the instance list in the console.' + last)
       await delay(this.timing.pollMs ?? 2000)
     }
   }
-  async logs(id: string): Promise<string> {
+  async logs(id: string, jobSignal?: AbortSignal): Promise<string> {
     try {
       if (!/^[1-9][0-9]*$/.test(id)) throw new Error('invalid instance ID')
-      const signal = AbortSignal.timeout(10000)
+      const deadline = AbortSignal.timeout(10000)
+      const signal = jobSignal ? AbortSignal.any([jobSignal, deadline]) : deadline
       const result = await this.api.request('/instances/request_logs/' + id + '/', z.object({ success: z.literal(true), result_url: z.string() }), 'PUT', { tail: '12' }, signal)
       const url = new URL(result.result_url)
       const fixture = new URL(this.api.base)
@@ -211,8 +213,9 @@ export class VastClient implements HostVendor {
           return this.api.redact(text).split('\n').filter(Boolean).slice(-12).join('\n')
         }
         await response.body?.cancel().catch(() => {})
+        if (jobSignal) throw new HostVendorHttpError('Vast.ai log read returned HTTP ' + response.status, response.status, retryAfterSeconds(response.headers.get('retry-after')))
         await delay(300, undefined, { signal })
       }
-    } catch { return 'Vast.ai log tail unavailable; open the instance in its console.' }
+    } catch (error) { if (jobSignal) throw error; return 'Vast.ai log tail unavailable; open the instance in its console.' }
   }
 }

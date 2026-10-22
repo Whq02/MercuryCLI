@@ -11,6 +11,9 @@ import { hostNotice } from './notices.js'
 import { fullCheckMinutes, gigabytes, keptDiskPrice, readKeptVolume, volumePrice, writeKeptVolume } from './volumes.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { RunpodHttpError, type RunpodClient } from './runpod.js'
+import { HostTerminationUnconfirmed, hostJobReadOnly, type HostReadOnly } from './retry.js'
+import { HostVendorHttpError } from './vendors/http.js'
+import type { HostVendor } from './vendors/vendor.js'
 
 export interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
 interface WeightScriptOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string; deadlineSeconds?: number; stallSeconds?: number; stallBytes?: number; stallPollSeconds?: number; netDevPath?: string }
@@ -240,11 +243,13 @@ function downloadFailure(error: unknown, recipe: HostRecipe): { words: string; b
   const last = text.split('\n').map(row => row.trim()).filter(row => row && !row.includes('MERCURY_')).at(-1) ?? text
   return { words: (text.includes(KEPT_MISMATCH) ? 'Downloaded weights failed verification' : 'Download failed') + at + ': ' + last.slice(0, 240), bytes }
 }
-async function terminateVerified(api: RunpodClient, id: string): Promise<void> {
-  try { await api.terminate(id) } catch (error) { if (!(error instanceof RunpodHttpError && error.status === 404)) throw error }
-  if ((await api.pods()).some(row => row.id === id)) throw new Error('The preparation pod is still listed and may still bill.')
+export async function terminateVerified(api: Pick<HostVendor, 'terminate' | 'pods'>, id: string, readOnly: HostReadOnly, label = 'Runpod'): Promise<void> {
+  try { await api.terminate(id, readOnly) } catch (error) { if (!((error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404)) throw error }
+  let pods
+  try { pods = await readOnly('pod listing', signal => api.pods(signal)) } catch (error) { throw new HostTerminationUnconfirmed(label, error) }
+  if (pods.some(row => row.id === id && row.status !== 'TERMINATED')) throw new Error(label + ' still lists the pod and it may still bill.')
 }
-export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe, api: RunpodClient, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void): Promise<string> {
+export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe, api: RunpodClient, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void, cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs: 5000, timeoutMs: 4 * 60_000, signal, mark })): Promise<string> {
   const volume = record.volumeId && readKeptVolume(record.volumeId)
   if (!volume || volume.state === 'gone' || volume.state === 'creating') throw new Error('The kept weights disk is not available; open Fast-load before resuming.')
   const manifest = weightManifest(recipe)
@@ -290,10 +295,11 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
   } finally {
     if (record.prepareWeightsOnly) {
       try {
-        await terminateVerified(api, record.id)
+        await terminateVerified(api, record.id, cleanupRead)
         removeHostRecord(record.id)
       } catch (error) {
         patchHostRecord(record.id, { jobState: 'failed', error: (failure ? String(failure) + ' · ' : '') + 'Preparation pod cleanup failed: ' + String(error), prepareWeightsOnly: true })
+        if (error instanceof HostTerminationUnconfirmed) throw error
         throw new Error('Preparation pod ' + record.id + ' may still bill. Pods I’m paying for → Terminate. ' + String(error))
       }
       const disk = readKeptVolume(volume.id)

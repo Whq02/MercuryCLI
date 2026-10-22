@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 export async function vastFixture() {
   const key = 'fixture-vast-key'
   const requests = []
-  const state = { noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false, plainTextError: false, messageOnlyError: false, provisioningRead: false }
+  const state = { failNext: null, retryAfter: undefined, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false, plainTextError: false, messageOnlyError: false, provisioningRead: false }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
@@ -14,6 +14,14 @@ export async function vastFixture() {
     const fail = (status, msg) => json({ success: false, error: 'invalid_args', msg: msg + ' ' + key }, status)
     if (url.pathname.startsWith('/fixture-logs/')) { res.writeHead(200); res.end('booted\n' + key + '\nready\n'); return }
     if (req.headers.authorization !== 'Bearer ' + key) { fail(401, 'Invalid user key'); return }
+    const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + url.pathname)
+    if (failure) {
+      failure.times--
+      if (failure.status === 'disconnect') return req.socket.destroy()
+      const retryAfter = failure.retryAfter ?? state.retryAfter
+      if (retryAfter !== undefined) res.setHeader('Retry-After', String(retryAfter))
+      fail(failure.status, 'fixture route failure'); return
+    }
     if (state.plainTextError) { res.writeHead(429, { 'content-type': 'text/plain' }); res.end('API requests too frequent: endpoint threshold=4.5 ' + key); return }
     if (state.messageOnlyError) { json({ message: 'Offer unavailable ' + key }, 400); return }
     const create = req.method === 'PUT' && url.pathname.startsWith('/api/v0/asks/')

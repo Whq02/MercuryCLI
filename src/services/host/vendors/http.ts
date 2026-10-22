@@ -7,9 +7,16 @@ export class HostCreateError extends Error {
 }
 
 export class HostVendorHttpError extends Error {
-  constructor(message: string, readonly status: number) { super(message) }
+  constructor(message: string, readonly status: number, readonly retryAfterSeconds?: number) { super(message) }
 }
 
+export class HostVendorNetworkError extends Error {}
+export function retryAfterSeconds(value: string | null): number | undefined {
+  if (!value) return undefined
+  const seconds = Number(value)
+  const wait = Number.isFinite(seconds) ? seconds : (Date.parse(value) - Date.now()) / 1000
+  return Number.isFinite(wait) && wait > 0 ? wait : undefined
+}
 export interface VendorTiming { requestTimeoutMs?: number; readyTimeoutMs?: number; pollMs?: number; settleMs?: number }
 
 export const keyMaterial = (key: string): string => key.trim().split(/\s+/).slice(0, 2).join(' ')
@@ -115,6 +122,9 @@ export class VendorApi {
         method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json', ...(fresh ? { Connection: 'close' } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(fresh ? { keepalive: false } : {}), redirect: 'error',
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      }).catch(error => {
+        if (signal?.aborted) throw signal.reason
+        throw new HostVendorNetworkError(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' network request failed.'), { cause: error })
       })
       this.observedPolicy = response.headers.get('ratelimit-policy') ?? this.observedPolicy
       if (response.status === 429) this.gate?.throttle(response.headers.get('retry-after'))
@@ -134,7 +144,7 @@ export class VendorApi {
         if (paid && !this.refusals.includes(response.status)) throw this.ambiguous(response.status)
         const message = this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (paid ? ' · ' + this.label + ' refused it; nothing was rented.' : ''))
         if (paid) throw new HostCreateError(message, 'refused', undefined, response.status, code || undefined)
-        throw new HostVendorHttpError(message, response.status)
+        throw new HostVendorHttpError(message, response.status, retryAfterSeconds(response.headers.get('retry-after')))
       }
       const parsed = schema.safeParse(await response.json())
       if (!parsed.success) throw new Error('unreadable response')
@@ -143,6 +153,8 @@ export class VendorApi {
       if (error instanceof HostCreateError || error instanceof HostVendorHttpError) throw error
       if (paid && sending) throw this.ambiguous()
       if (paid) throw new HostCreateError(this.label + ' request was not sent; nothing was rented.', 'refused')
+      if (signal?.aborted) throw signal.reason
+      if (error instanceof HostVendorNetworkError) throw error
       throw new Error(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' failed or returned an unreadable response. Check the ' + this.label + ' console.'))
     }
   }

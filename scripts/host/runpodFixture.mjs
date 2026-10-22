@@ -12,16 +12,23 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, clusters: new Map(), clusterNodes: new Map(), clusterGpus: [], clusterCreateBodies: [], clusterCreateOutcomes: [], clusterCreates: 0, clusterDeletes: 0, clusterCatalogReads: 0, clusterReads: 0, holdClusterDelete: false, clusterCuda: '13.0', pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
+  const state = { failNext: null, retryAfter: undefined, volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, clusters: new Map(), clusterNodes: new Map(), clusterGpus: [], clusterCreateBodies: [], clusterCreateOutcomes: [], clusterCreates: 0, clusterDeletes: 0, clusterCatalogReads: 0, clusterReads: 0, holdClusterDelete: false, clusterCuda: '13.0', pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     let raw = ''; for await (const chunk of req) raw += chunk
     const body = raw ? JSON.parse(raw) : undefined
-    requests.push({ method: req.method, path: url.pathname, search: url.search, body })
+    requests.push({ method: req.method, path: url.pathname, search: url.search, body, at: Date.now() })
     const send = (value, status = 200, headers = {}) => { res.writeHead(status, { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json', ...(state.policy ? { 'RateLimit-Policy': state.policy } : {}), ...headers }); res.end(value === undefined ? undefined : JSON.stringify(value)) }
     const problem = (status, title, detail, headers) => send({ title, status, detail }, status, headers)
     if (req.headers.authorization !== 'Bearer ' + key) return send({ error: 'fixture key needed' }, 401)
+    const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + url.pathname)
+    if (failure) {
+      failure.times--
+      if (failure.status === 'disconnect') return req.socket.destroy()
+      const retryAfter = failure.retryAfter ?? state.retryAfter
+      return problem(failure.status, 'Scripted failure', 'fixture route failure', retryAfter === undefined ? {} : { 'Retry-After': String(retryAfter) })
+    }
     if (url.pathname === '/v2/catalog/gpus') {
       assert.equal(url.searchParams.get('include'), 'AVAILABILITY')
       if (url.searchParams.get('product') === 'CLUSTER') {

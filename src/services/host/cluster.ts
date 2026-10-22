@@ -8,6 +8,7 @@ import { recipeFits, type HostRecipe } from './recipes.js'
 import { hostNotice } from './notices.js'
 import { patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
+import { hostJobReadOnly, HostTerminationUnconfirmed, type HostReadOnly } from './retry.js'
 
 export class HostClusterEnded extends Error {}
 const clusterPlacementMs = 30 * 60_000
@@ -57,11 +58,13 @@ export async function getHostResource(api: RunpodClient | HostVendor, id: string
   return familyPod(cluster, nodes, readHostRecord(id)?.price)
 }
 
-export async function terminateHostResource(api: RunpodClient | HostVendor, pod: HostPod): Promise<void> {
+export async function terminateHostResource(api: RunpodClient | HostVendor, pod: HostPod, readOnly?: HostReadOnly): Promise<void> {
   if (pod.family) {
     const client = runpodOnly(api, 'Clusters')
     await client.terminateCluster(pod.id)
-    if ((await client.clusters()).some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this cluster. Check it again; deletion is not yet verified.')
+    let clusters
+    try { clusters = await (readOnly ? readOnly('cluster listing', signal => client.clusters(signal)) : client.clusters()) } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed('Runpod', error); throw error }
+    if (clusters.some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this cluster. Check it again; deletion is not yet verified.')
   } else {
     await api.terminate(pod.id)
     if ((await api.pods()).some(row => row.id === pod.id)) throw new Error(('label' in api ? api.label : 'Runpod') + ' accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
@@ -74,31 +77,34 @@ function privateIp(value?: string): value is string {
   return parts[0] === 10 || parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31 || parts[0] === 192 && parts[1] === 168
 }
 
-async function endHostCluster(api: RunpodClient, record: HostRecord, cluster: HostCluster, reason: string, detail: string): Promise<never> {
+async function endHostCluster(api: RunpodClient, record: HostRecord, cluster: HostCluster, reason: string, detail: string, cleanupRead: HostReadOnly): Promise<never> {
   const current = readHostRecord(record.id) ?? record
   const minutes = Math.max(0, (Date.now() - Date.parse(current.startedAt)) / 60_000)
   const cost = 'about $' + (current.price * minutes / 60).toFixed(2) + ' billed over ' + Math.ceil(minutes) + ' min at $' + current.price.toFixed(2) + '/hr, storage extra'
   try {
-    await terminateHostResource(api, { id: record.id, name: record.name, status: 'ERROR', cost: current.price, createdAt: current.startedAt, family: cluster })
+    await terminateHostResource(api, { id: record.id, name: record.name, status: 'ERROR', cost: current.price, createdAt: current.startedAt, family: cluster }, cleanupRead)
   } catch (error) {
+    if (error instanceof HostTerminationUnconfirmed) throw error
     throw new Error('Cluster ' + record.id + ' ' + reason + '. Terminating it failed, so it still bills $' + current.price.toFixed(2) + '/hr · ' + cost + ' · /llmhost → Pods I’m paying for → Terminate · ' + String(error) + (detail ? ' · ' + detail : ''))
   }
   throw new HostClusterEnded('Cluster ' + record.id + ' ' + reason + '. Mercury terminated it through the clusters API and Runpod no longer lists it · ' + cost + (detail ? ' · ' + detail : ''))
 }
 
 export async function startHostCluster(api: RunpodClient, record: HostRecord, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs: number, timeoutMs: number, onStep: (step: string) => void, onHead: (target: SshTarget) => void = () => {}): Promise<SshTarget> {
-  const cluster = await api.getCluster(record.id, signal)
-  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) throw new Error('The cluster shape does not match the saved recipe.')
   const deadline = Date.now() + timeoutMs
+  const readOnly = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, deadline, mark: onStep })
+  const cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, mark: onStep })
+  const cluster = await readOnly('cluster', readSignal => api.getCluster(record.id, readSignal))
+  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) throw new Error('The cluster shape does not match the saved recipe.')
   const placementMs = Math.min(timeoutMs, clusterPlacementMs)
   const placed = Date.now() + placementMs
   let last = 'Cluster nodes have not all received private addresses and SSH access.'
   let rated = false
   while (!signal.aborted && Date.now() < placed) {
-    const nodes = (await api.clusterPods(record.id, signal)).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
+    const nodes = (await readOnly('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
     patchHostRecord(record.id, { nodes, cluster })
     const failed = nodes.find(node => ['ERROR', 'EXITED', 'TERMINATED'].includes(node.status))
-    if (failed) await endHostCluster(api, record, cluster, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await api.logs(failed.id))
+    if (failed) await endHostCluster(api, record, cluster, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)), cleanupRead)
     if (nodes.length === recipe.nodes && nodes.every((node, rank) => node.cluster.id === cluster.id && node.cluster.rank === rank && privateIp(node.cluster.ip) && node.status === 'RUNNING' && node.ssh?.direct)) {
       const billed = nodes.reduce((sum, node) => sum + node.cost, 0)
       const confirmed = readHostRecord(record.id)
@@ -111,7 +117,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
       const floor = recipe.cuda.split('.').map(Number)
       for (const node of nodes) {
         const cuda = node.cudaVersion?.split('.').map(Number)
-        if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(api, record, cluster, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '')
+        if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(api, record, cluster, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '', cleanupRead)
       }
       try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); await delay(pauseMs, undefined, { signal }); continue }
       const head = nodes[0]!.cluster.ip!
@@ -137,5 +143,5 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
     await delay(pauseMs, undefined, { signal })
   }
   signal.throwIfAborted()
-  return endHostCluster(api, record, cluster, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last)
+  return endHostCluster(api, record, cluster, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last, cleanupRead)
 }
