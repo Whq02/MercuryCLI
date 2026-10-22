@@ -13,7 +13,7 @@ for (const ambient of ['MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'ANTHROPIC_A
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-roster-pure-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
-const FIXTURE_PORT = Number(process.env.COMPACT_ROSTER_PURE_PORT ?? 34123)
+const FIXTURE_PORT = Number(process.env.COMPACT_ROSTER_PURE_PORT ?? 0)
 
 let failures = 0
 let checks = 0

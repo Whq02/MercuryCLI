@@ -23,9 +23,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const DUMP_DIR = mkdtempSync(join(tmpdir(), 'fold-roads-dump-'))
 process.env.MERCURY_WIRE_DUMP = DUMP_DIR
 
-const SHARED_PORT = 34131
-const CENSUS_PORT = 34132
-const PACED_PORT = 34133
+const SHARED_PORT = 0
+const CENSUS_PORT = 0
+const PACED_PORT = 0
 
 let failures = 0
 let checks = 0
@@ -846,7 +846,7 @@ section('§6 the fold bounds, measured — a cut stream is never a summary (the 
   })
   await new Promise<void>(resolve => server.listen(PACED_PORT, '127.0.0.1', resolve))
   const savedBase = process.env.ANTHROPIC_BASE_URL
-  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${PACED_PORT}`
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   setFoldBoundsForTests({ stallMs: STALL_MS })
   const healthyMs = CHUNKS.length * PACE_MS
   type FoldRow = { kind: string; road?: string; outcome?: string; detail?: string; ms?: number }

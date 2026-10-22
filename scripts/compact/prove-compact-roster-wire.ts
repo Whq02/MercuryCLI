@@ -244,7 +244,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
     server.listen(port, '127.0.0.1', () => resolvePromise())
   })
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
     hits,
     close: () => new Promise<void>(resolvePromise => server.close(() => resolvePromise())),
   }
@@ -289,7 +289,7 @@ if (!existsSync(DIST)) {
   if (!nodeBin) {
     check('a node binary on PATH', false)
   } else {
-    const PORT = Number(process.env.COMPACT_ROSTER_PORT ?? 34121)
+    const PORT = Number(process.env.COMPACT_ROSTER_PORT ?? 0)
     const arenaSeed = makeArena('', nodeBin)
     const fixture = await startFixture(PORT, arenaSeed.cwd)
     const arena: Arena = { ...arenaSeed, env: { ...arenaSeed.env, ANTHROPIC_BASE_URL: fixture.base } }
