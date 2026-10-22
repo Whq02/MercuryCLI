@@ -1,7 +1,317 @@
 {
-  "version": 1,
-  "publishedAt": "2026-10-20",
+  "version": 2,
+  "publishedAt": "2026-10-22",
   "recipes": [
+    {
+      "id": "beam1-fp8-b300",
+      "label": "Beam 1.0 501B-A23B · FP8",
+      "model": "reflection/Beam-1.0-501B-A23B-FP8",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 650,
+      "weightsGb": 503.299122421,
+      "image": "lmsysorg/sglang:beam",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--attention-backend",
+        "trtllm_mha",
+        "--page-size",
+        "64",
+        "--context-length",
+        "1048576",
+        "--mem-fraction-static",
+        "0.85",
+        "--enable-unified-memory",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "reflection/Beam-1.0-501B-A23B-DFlash2",
+        "--speculative-dflash-block-size",
+        "8",
+        "--tool-call-parser",
+        "beam",
+        "--reasoning-parser",
+        "beam"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high, xhigh and max map to 32, 64, 128, 256 and 512; max is the default; minimal (8) and plain integers are also accepted",
+          "source": "https://huggingface.co/reflection/Beam-1.0-501B-A23B-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "beam1-fp8-gb300",
+      "label": "Beam 1.0 501B-A23B · FP8",
+      "model": "reflection/Beam-1.0-501B-A23B-FP8",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 650,
+      "weightsGb": 503.299122421,
+      "image": "lmsysorg/sglang:beam",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--attention-backend",
+        "trtllm_mha",
+        "--page-size",
+        "64",
+        "--context-length",
+        "1048576",
+        "--mem-fraction-static",
+        "0.85",
+        "--enable-unified-memory",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "reflection/Beam-1.0-501B-A23B-DFlash2",
+        "--speculative-dflash-block-size",
+        "8",
+        "--tool-call-parser",
+        "beam",
+        "--reasoning-parser",
+        "beam"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high, xhigh and max map to 32, 64, 128, 256 and 512; max is the default; minimal (8) and plain integers are also accepted",
+          "source": "https://huggingface.co/reflection/Beam-1.0-501B-A23B-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576,
+      "environment": {
+        "NCCL_MNNVL_ENABLE": "1",
+        "NCCL_CUMEM_ENABLE": "1",
+        "NCCL_NVLS_ENABLE": "1"
+      }
+    },
+    {
+      "id": "beam1-fp8-h200",
+      "label": "Beam 1.0 501B-A23B · FP8",
+      "model": "reflection/Beam-1.0-501B-A23B-FP8",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 650,
+      "weightsGb": 503.299122421,
+      "image": "lmsysorg/sglang:beam",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "8",
+        "--attention-backend",
+        "fa3",
+        "--page-size",
+        "64",
+        "--context-length",
+        "1048576",
+        "--mem-fraction-static",
+        "0.85",
+        "--enable-unified-memory",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "reflection/Beam-1.0-501B-A23B-DFlash2",
+        "--speculative-dflash-block-size",
+        "8",
+        "--tool-call-parser",
+        "beam",
+        "--reasoning-parser",
+        "beam"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high, xhigh and max map to 32, 64, 128, 256 and 512; max is the default; minimal (8) and plain integers are also accepted",
+          "source": "https://huggingface.co/reflection/Beam-1.0-501B-A23B-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "beam1-nvfp4-b300",
+      "label": "Beam 1.0 501B-A23B · NVFP4",
+      "model": "reflection/Beam-1.0-501B-A23B-NVFP4",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 400,
+      "weightsGb": 293.654927078,
+      "image": "lmsysorg/sglang:beam",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--attention-backend",
+        "trtllm_mha",
+        "--page-size",
+        "64",
+        "--context-length",
+        "1048576",
+        "--mem-fraction-static",
+        "0.85",
+        "--enable-unified-memory",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "reflection/Beam-1.0-501B-A23B-DFlash2",
+        "--speculative-dflash-block-size",
+        "8",
+        "--tool-call-parser",
+        "beam",
+        "--reasoning-parser",
+        "beam"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high, xhigh and max map to 32, 64, 128, 256 and 512; max is the default; minimal (8) and plain integers are also accepted",
+          "source": "https://huggingface.co/reflection/Beam-1.0-501B-A23B-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "beam1-nvfp4-gb300",
+      "label": "Beam 1.0 501B-A23B · NVFP4",
+      "model": "reflection/Beam-1.0-501B-A23B-NVFP4",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 400,
+      "weightsGb": 293.654927078,
+      "image": "lmsysorg/sglang:beam",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--attention-backend",
+        "trtllm_mha",
+        "--page-size",
+        "64",
+        "--context-length",
+        "1048576",
+        "--mem-fraction-static",
+        "0.85",
+        "--enable-unified-memory",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "reflection/Beam-1.0-501B-A23B-DFlash2",
+        "--speculative-dflash-block-size",
+        "8",
+        "--tool-call-parser",
+        "beam",
+        "--reasoning-parser",
+        "beam"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high, xhigh and max map to 32, 64, 128, 256 and 512; max is the default; minimal (8) and plain integers are also accepted",
+          "source": "https://huggingface.co/reflection/Beam-1.0-501B-A23B-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576,
+      "environment": {
+        "NCCL_MNNVL_ENABLE": "1",
+        "NCCL_CUMEM_ENABLE": "1",
+        "NCCL_NVLS_ENABLE": "1"
+      }
+    },
     {
       "id": "deepseek-v4-pro-0813-b200",
       "label": "DeepSeek-V4-Pro-0813 · MXFP4",
@@ -323,6 +633,94 @@
           "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
         }
       }
+    },
+    {
+      "id": "gemma4-31b-b200",
+      "label": "Gemma 4 31B · BF16",
+      "model": "google/gemma-4-31B-it",
+      "gpu": "B200",
+      "count": 1,
+      "vramGb": 180,
+      "diskGb": 100,
+      "weightsGb": 62.578686256,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--reasoning-parser",
+        "gemma4",
+        "--tool-call-parser",
+        "gemma4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4",
+      "verification": "documented · Apache-2.0",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/google/gemma-4-31B-it/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "gemma4-31b-h200",
+      "label": "Gemma 4 31B · BF16",
+      "model": "google/gemma-4-31B-it",
+      "gpu": "H200",
+      "count": 2,
+      "vramGb": 141,
+      "diskGb": 100,
+      "weightsGb": 62.578686256,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--tp-size",
+        "2",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-draft-model-path",
+        "google/gemma-4-31B-it-assistant",
+        "--speculative-num-steps",
+        "5",
+        "--speculative-num-draft-tokens",
+        "6",
+        "--speculative-eagle-topk",
+        "1",
+        "--mem-fraction-static",
+        "0.85",
+        "--reasoning-parser",
+        "gemma4",
+        "--tool-call-parser",
+        "gemma4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4",
+      "verification": "documented · Apache-2.0 · the engine fetches the gemma-4-31B-it-assistant MTP draft at start",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/google/gemma-4-31B-it/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "glm53-b200",
@@ -1037,6 +1435,808 @@
       "contextPerSlot": 1048576
     },
     {
+      "id": "gpt-oss-120b-h100",
+      "label": "gpt-oss-120b · MXFP4",
+      "model": "openai/gpt-oss-120b",
+      "gpu": "H100",
+      "count": 1,
+      "vramGb": 80,
+      "diskGb": 260,
+      "weightsGb": 195.764040609,
+      "image": "vllm/vllm-openai:latest",
+      "cuda": "13.0",
+      "flags": [],
+      "source": "https://huggingface.co/openai/gpt-oss-120b",
+      "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "Vendor model-card vLLM recipe; GPU serving not measured by Mercury",
+        "source": "https://huggingface.co/openai/gpt-oss-120b"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort defaults to medium; the model card names low, medium and high",
+          "source": "https://huggingface.co/openai/gpt-oss-120b/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 131072,
+      "contextPerSlot": 131072,
+      "engine": "vllm"
+    },
+    {
+      "id": "gpt-oss-120b-h200",
+      "label": "gpt-oss-120b · MXFP4",
+      "model": "openai/gpt-oss-120b",
+      "gpu": "H200",
+      "count": 1,
+      "vramGb": 141,
+      "diskGb": 260,
+      "weightsGb": 195.764040609,
+      "image": "vllm/vllm-openai:latest",
+      "cuda": "13.0",
+      "flags": [],
+      "source": "https://huggingface.co/openai/gpt-oss-120b",
+      "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "Vendor model-card vLLM recipe; GPU serving not measured by Mercury",
+        "source": "https://huggingface.co/openai/gpt-oss-120b"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort defaults to medium; the model card names low, medium and high",
+          "source": "https://huggingface.co/openai/gpt-oss-120b/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 131072,
+      "contextPerSlot": 131072,
+      "engine": "vllm"
+    },
+    {
+      "id": "hy4-preview-bf16-b300",
+      "label": "Hy4-preview 780B · BF16",
+      "model": "tencent/Hy4-preview",
+      "gpu": "B300",
+      "count": 8,
+      "vramGb": 288,
+      "diskGb": 2000,
+      "weightsGb": 1560.01822126,
+      "image": "lmsysorg/sglang:hy4-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "8",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
+      },
+      "efforts": {
+        "levels": [
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort takes high or no_think only; high is the default",
+          "source": "https://huggingface.co/tencent/Hy4-preview/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "hy4-preview-mxfp8-b200",
+      "label": "Hy4-preview 780B · MXFP8",
+      "model": "tencent/Hy4-preview-FP8",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 1000,
+      "weightsGb": 813.800659217,
+      "image": "lmsysorg/sglang:hy4-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "8",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--fp8-gemm-backend",
+        "deep_gemm",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
+      },
+      "efforts": {
+        "levels": [
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort takes high or no_think only; high is the default",
+          "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "hy4-preview-mxfp8-b300",
+      "label": "Hy4-preview 780B · MXFP8",
+      "model": "tencent/Hy4-preview-FP8",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 1000,
+      "weightsGb": 813.800659217,
+      "image": "lmsysorg/sglang:hy4-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--fp8-gemm-backend",
+        "deep_gemm",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
+      },
+      "efforts": {
+        "levels": [
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort takes high or no_think only; high is the default",
+          "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "hy4-preview-mxfp8-gb300",
+      "label": "Hy4-preview 780B · MXFP8",
+      "model": "tencent/Hy4-preview-FP8",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 1000,
+      "weightsGb": 813.800659217,
+      "image": "lmsysorg/sglang:hy4-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--fp8-gemm-backend",
+        "deep_gemm",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
+      },
+      "efforts": {
+        "levels": [
+          "high"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "reasoning_effort takes high or no_think only; high is the default",
+          "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-nvfp4-b200",
+      "label": "Inkling 952B · NVFP4",
+      "model": "thinkingmachines/Inkling-NVFP4",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 800,
+      "weightsGb": 592.037337118,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-nvfp4-b300",
+      "label": "Inkling 952B · NVFP4",
+      "model": "thinkingmachines/Inkling-NVFP4",
+      "gpu": "B300",
+      "count": 8,
+      "vramGb": 288,
+      "diskGb": 800,
+      "weightsGb": 592.037337118,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-nvfp4-gb300",
+      "label": "Inkling 952B · NVFP4",
+      "model": "thinkingmachines/Inkling-NVFP4",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 800,
+      "weightsGb": 592.037337118,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-nvfp4-h200",
+      "label": "Inkling 952B · NVFP4",
+      "model": "thinkingmachines/Inkling-NVFP4",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 800,
+      "weightsGb": 592.037337118,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "marlin",
+        "--moe-runner-backend",
+        "marlin",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-small-nvfp4-b200",
+      "label": "Inkling-Small 266B · NVFP4",
+      "model": "thinkingmachines/Inkling-Small-NVFP4",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 250,
+      "weightsGb": 170.764923366,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-Small-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-small-nvfp4-b300",
+      "label": "Inkling-Small 266B · NVFP4",
+      "model": "thinkingmachines/Inkling-Small-NVFP4",
+      "gpu": "B300",
+      "count": 8,
+      "vramGb": 288,
+      "diskGb": 250,
+      "weightsGb": 170.764923366,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-Small-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-small-nvfp4-gb300",
+      "label": "Inkling-Small 266B · NVFP4",
+      "model": "thinkingmachines/Inkling-Small-NVFP4",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 250,
+      "weightsGb": 170.764923366,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "flashinfer_trtllm",
+        "--moe-runner-backend",
+        "flashinfer_trtllm_routed",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-Small-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "inkling-small-nvfp4-h200",
+      "label": "Inkling-Small 266B · NVFP4",
+      "model": "thinkingmachines/Inkling-Small-NVFP4",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 250,
+      "weightsGb": 170.764923366,
+      "image": "lmsysorg/sglang:dev-inkling-dspark",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--quantization",
+        "modelopt_fp4",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "128",
+        "--fp4-gemm-backend",
+        "marlin",
+        "--moe-runner-backend",
+        "marlin",
+        "--enable-torch-symm-mem",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--mem-fraction-static",
+        "0.85",
+        "--swa-full-tokens-ratio",
+        "0.1",
+        "--mamba-full-memory-ratio",
+        "0.1",
+        "--enable-multimodal",
+        "--reasoning-parser",
+        "inkling",
+        "--tool-call-parser",
+        "inkling"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
+      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "max"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
+          "source": "https://huggingface.co/thinkingmachines/Inkling-Small-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
       "id": "kimi-k3-b200",
       "label": "Kimi K3 · MXFP4",
       "model": "moonshotai/Kimi-K3",
@@ -1247,6 +2447,401 @@
       }
     },
     {
+      "id": "ling31-flash-b200",
+      "label": "Ling-3.1-flash 572B · FP8",
+      "model": "inclusionAI/Ling-3.1-flash",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 750,
+      "weightsGb": 573.813967733,
+      "image": "lmsysorg/sglang:dev-ling-3.1-flash",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "8",
+        "--speculative-algorithm",
+        "NEXTN"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
+      "verification": "in-progress · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "in-progress",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/inclusionAI/Ling-3.1-flash/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "ling31-flash-gb300",
+      "label": "Ling-3.1-flash 572B · FP8",
+      "model": "inclusionAI/Ling-3.1-flash",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 750,
+      "weightsGb": 573.813967733,
+      "image": "lmsysorg/sglang:dev-ling-3.1-flash",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--speculative-algorithm",
+        "NEXTN"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
+      "verification": "verified · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/inclusionAI/Ling-3.1-flash/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "ling31-flash-h200",
+      "label": "Ling-3.1-flash 572B · FP8",
+      "model": "inclusionAI/Ling-3.1-flash",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 750,
+      "weightsGb": 573.813967733,
+      "image": "lmsysorg/sglang:dev-ling-3.1-flash",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "8",
+        "--speculative-algorithm",
+        "NEXTN"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
+      "verification": "verified · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/inclusionAI/Ling-3.1-flash/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144,
+      "environment": {
+        "SGLANG_ENABLE_FP8_BLOCK_GEMV": "1",
+        "SGLANG_ENABLE_FUSED_KDA_OUTPUT_QUANT": "1"
+      }
+    },
+    {
+      "id": "longcat2-fp8-b200",
+      "label": "LongCat-2.0 1.8T · FP8",
+      "model": "meituan-longcat/LongCat-2.0-FP8",
+      "gpu": "B200",
+      "count": 8,
+      "nodes": 2,
+      "vramGb": 180,
+      "diskGb": 2500,
+      "weightsGb": 2051.220418466,
+      "image": "lmsysorg/sglang:dev",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "16",
+        "--ep",
+        "16",
+        "--max-running-requests",
+        "64",
+        "--mem-fraction-static",
+        "0.92",
+        "--chunked-prefill-size",
+        "2048",
+        "--dsa-prefill-backend",
+        "fa3",
+        "--kv-cache-dtype",
+        "bfloat16",
+        "--model-loader-extra-config",
+        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
+      "verification": "in-progress · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "in-progress",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking and thinking_budget; no effort levels",
+          "source": "https://huggingface.co/meituan-longcat/LongCat-2.0-FP8/blob/main/tokenizer_config.json"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "longcat2-fp8-b300",
+      "label": "LongCat-2.0 1.8T · FP8",
+      "model": "meituan-longcat/LongCat-2.0-FP8",
+      "gpu": "B300",
+      "count": 8,
+      "vramGb": 288,
+      "diskGb": 2500,
+      "weightsGb": 2051.220418466,
+      "image": "lmsysorg/sglang:dev-cu13",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--ep",
+        "8",
+        "--max-running-requests",
+        "64",
+        "--mem-fraction-static",
+        "0.92",
+        "--chunked-prefill-size",
+        "2048",
+        "--dsa-prefill-backend",
+        "fa3",
+        "--kv-cache-dtype",
+        "bfloat16",
+        "--model-loader-extra-config",
+        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
+      "verification": "verified · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking and thinking_budget; no effort levels",
+          "source": "https://huggingface.co/meituan-longcat/LongCat-2.0-FP8/blob/main/tokenizer_config.json"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "longcat2-fp8-h200",
+      "label": "LongCat-2.0 1.8T · FP8",
+      "model": "meituan-longcat/LongCat-2.0-FP8",
+      "gpu": "H200",
+      "count": 8,
+      "nodes": 2,
+      "vramGb": 141,
+      "diskGb": 2500,
+      "weightsGb": 2051.220418466,
+      "image": "lmsysorg/sglang:dev",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "16",
+        "--ep",
+        "16",
+        "--max-running-requests",
+        "64",
+        "--mem-fraction-static",
+        "0.92",
+        "--chunked-prefill-size",
+        "2048",
+        "--dsa-prefill-backend",
+        "fa3",
+        "--kv-cache-dtype",
+        "bfloat16",
+        "--model-loader-extra-config",
+        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
+      "verification": "in-progress · MIT · configured 256K context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "in-progress",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking and thinking_budget; no effort levels",
+          "source": "https://huggingface.co/meituan-longcat/LongCat-2.0-FP8/blob/main/tokenizer_config.json"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "mimo26-flash-b300",
+      "label": "MiMo-V2.6-Flash-RL 309B-A15B · MXFP4",
+      "model": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 250,
+      "weightsGb": 177.767644198,
+      "image": "lmsysorg/sglang:dev",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--ep",
+        "4",
+        "--dp",
+        "1",
+        "--pp-size",
+        "1",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--moe-a2a-backend",
+        "deepep",
+        "--deepep-mode",
+        "auto",
+        "--moe-dense-tp-size",
+        "1",
+        "--enable-dp-lm-head",
+        "--log-level-http",
+        "warning",
+        "--enable-cache-report",
+        "--page-size",
+        "1",
+        "--cuda-graph-max-bs-decode",
+        "64",
+        "--max-running-requests",
+        "64",
+        "--trust-remote-code",
+        "--mem-fraction-static",
+        "0.6",
+        "--swa-full-tokens-ratio",
+        "0.03",
+        "--chunked-prefill-size",
+        "49152",
+        "--max-prefill-tokens",
+        "65536",
+        "--reasoning-parser",
+        "mimo",
+        "--tool-call-parser",
+        "mimo",
+        "--attention-backend",
+        "fa4",
+        "--speculative-algorithm",
+        "DFLASH",
+        "--speculative-draft-model-path",
+        "/workspace/mercury-host/mimo26-flash-b300/weights/dflash",
+        "--speculative-num-draft-tokens",
+        "8",
+        "--context-length",
+        "1048576",
+        "--cuda-graph-backend-prefill=disabled",
+        "--mm-enable-dp-encoder",
+        "--mm-attention-backend",
+        "fa4"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
+      "verification": "verified · MIT · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "mimo26-flash-h200",
+      "label": "MiMo-V2.6-Flash-RL 309B-A15B · MXFP4",
+      "model": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+      "gpu": "H200",
+      "count": 4,
+      "vramGb": 141,
+      "diskGb": 250,
+      "weightsGb": 177.767644198,
+      "image": "lmsysorg/sglang:dev",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--moe-runner-backend",
+        "marlin",
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "mimo",
+        "--tool-call-parser",
+        "mimo"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
+      "verification": "in-progress · MIT · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "in-progress",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template knows enable_thinking only; no effort levels",
+          "source": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
       "id": "mimo26-pro-b300",
       "label": "MiMo-V2.6-Pro-RL · MXFP4",
       "model": "XiaomiMiMo/MiMo-V2.6-Pro-RL",
@@ -1375,6 +2970,192 @@
       "contextPerSlot": 1048576
     },
     {
+      "id": "minimax-m3-bf16-h200",
+      "label": "MiniMax-M3 427B-A23B · BF16",
+      "model": "MiniMaxAI/MiniMax-M3",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 1100,
+      "weightsGb": 854.200504173,
+      "image": "lmsysorg/sglang:dev-cu12-minimax-m3",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--tp",
+        "8",
+        "--mem-fraction-static",
+        "0.75"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
+      "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "thinking_mode is enabled, disabled or adaptive; no effort levels",
+          "source": "https://huggingface.co/MiniMaxAI/MiniMax-M3/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "minimax-m3-mxfp8-b200",
+      "label": "MiniMax-M3 427B-A23B · MXFP8",
+      "model": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 600,
+      "weightsGb": 443.776005285,
+      "image": "lmsysorg/sglang:dev-minimax-m3",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--tp",
+        "8",
+        "--attention-backend",
+        "fa4",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--chunked-prefill-size",
+        "8192",
+        "--mem-fraction-static",
+        "0.65"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
+      "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "thinking_mode is enabled, disabled or adaptive; no effort levels",
+          "source": "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "minimax-m3-mxfp8-b300",
+      "label": "MiniMax-M3 427B-A23B · MXFP8",
+      "model": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 600,
+      "weightsGb": 443.776005285,
+      "image": "lmsysorg/sglang:dev-cu13-minimax-m3",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--tp",
+        "4",
+        "--attention-backend",
+        "fa4",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--chunked-prefill-size",
+        "8192",
+        "--mem-fraction-static",
+        "0.75"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
+      "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "thinking_mode is enabled, disabled or adaptive; no effort levels",
+          "source": "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "minimax-m3-mxfp8-gb300",
+      "label": "MiniMax-M3 427B-A23B · MXFP8",
+      "model": "MiniMaxAI/MiniMax-M3-MXFP8",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 600,
+      "weightsGb": 443.776005285,
+      "image": "lmsysorg/sglang:dev-cu13-minimax-m3",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
+        "auto",
+        "--tp",
+        "4",
+        "--attention-backend",
+        "fa4",
+        "--moe-runner-backend",
+        "deep_gemm",
+        "--chunked-prefill-size",
+        "8192",
+        "--mem-fraction-static",
+        "0.75"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
+      "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "thinking_mode is enabled, disabled or adaptive; no effort levels",
+          "source": "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
       "id": "mistral-large3-b200",
       "label": "Mistral Large 3 675B · FP8",
       "model": "mistralai/Mistral-Large-3-675B-Instruct-2512",
@@ -1469,6 +3250,226 @@
       "engine": "vllm"
     },
     {
+      "id": "nemotron3-ultra-bf16-b200",
+      "label": "Nemotron 3 Ultra 550B-A55B · BF16",
+      "model": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "gpu": "B200",
+      "count": 8,
+      "vramGb": 180,
+      "diskGb": 1400,
+      "weightsGb": 1121.078448762,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--attention-backend",
+        "trtllm_mha",
+        "--tool-call-parser",
+        "qwen3_coder",
+        "--reasoning-parser",
+        "nemotron_3"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "nemotron3-ultra-bf16-b300",
+      "label": "Nemotron 3 Ultra 550B-A55B · BF16",
+      "model": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "gpu": "B300",
+      "count": 8,
+      "vramGb": 288,
+      "diskGb": 1400,
+      "weightsGb": 1121.078448762,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--attention-backend",
+        "trtllm_mha",
+        "--tool-call-parser",
+        "qwen3_coder",
+        "--reasoning-parser",
+        "nemotron_3"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "nemotron3-ultra-nvfp4-b200",
+      "label": "Nemotron 3 Ultra 550B-A55B · NVFP4",
+      "model": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+      "gpu": "B200",
+      "count": 4,
+      "vramGb": 180,
+      "diskGb": 500,
+      "weightsGb": 352.381245755,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--attention-backend",
+        "trtllm_mha",
+        "--reasoning-parser",
+        "nemotron_3",
+        "--tool-call-parser",
+        "qwen3_coder"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "nemotron3-ultra-nvfp4-b300",
+      "label": "Nemotron 3 Ultra 550B-A55B · NVFP4",
+      "model": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 500,
+      "weightsGb": 352.381245755,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--attention-backend",
+        "trtllm_mha",
+        "--reasoning-parser",
+        "nemotron_3",
+        "--tool-call-parser",
+        "qwen3_coder"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "nemotron3-ultra-nvfp4-gb300",
+      "label": "Nemotron 3 Ultra 550B-A55B · NVFP4",
+      "model": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 500,
+      "weightsGb": 352.381245755,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--mamba-radix-cache-strategy",
+        "extra_buffer",
+        "--attention-backend",
+        "trtllm_mha",
+        "--reasoning-parser",
+        "nemotron_3",
+        "--tool-call-parser",
+        "qwen3_coder"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
       "id": "nemotron35-super-gguf-rtx-pro-6000",
       "label": "Nemotron 3.5 Super VL 120B · UD-Q3_K_XL",
       "model": "unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF",
@@ -1529,6 +3530,79 @@
       "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",
       "weightFile": "UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf",
       "include": "*UD-Q3_K_XL*"
+    },
+    {
+      "id": "nemotron35-super-nvfp4-rtx-pro-6000",
+      "label": "Nemotron 3.5 Super VL 120B · NVFP4",
+      "model": "nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4",
+      "gpu": "RTX PRO 6000",
+      "count": 1,
+      "vramGb": 96,
+      "diskGb": 120,
+      "weightsGb": 75.063321726,
+      "image": "lmsysorg/sglang:nemotron3-5-super",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp-size",
+        "1",
+        "--context-length",
+        "262144",
+        "--attention-backend",
+        "flashinfer",
+        "--kv-cache-dtype",
+        "fp8_e4m3",
+        "--mamba-ssm-dtype",
+        "bfloat16",
+        "--max-running-requests",
+        "2",
+        "--mem-fraction-static",
+        "0.90",
+        "--max-total-tokens",
+        "1016382",
+        "--cuda-graph-max-bs-decode",
+        "2",
+        "--cuda-graph-bs-decode",
+        "1",
+        "2",
+        "--max-mamba-cache-size",
+        "25",
+        "--chunked-prefill-size",
+        "1024",
+        "--max-prefill-tokens",
+        "16384",
+        "--speculative-algorithm",
+        "EAGLE",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--reasoning-parser",
+        "nemotron_3",
+        "--tool-call-parser",
+        "qwen3_coder"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3.5-Super",
+      "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cell sets 262,144 context",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3.5-Super"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "enable_thinking and medium_effort are boolean controls, not named reasoning_effort levels",
+          "source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "qwen38-24t-fp8-b200",
@@ -1901,6 +3975,404 @@
         }
       },
       "pythonInstall": "python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang"
+    },
+    {
+      "id": "qwen38-flash-next-fp8-b200",
+      "label": "Qwen3.8-Flash-Next 180B-A6B · FP8",
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "gpu": "B200",
+      "count": 4,
+      "vramGb": 180,
+      "diskGb": 250,
+      "weightsGb": 185.563783577,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--ep",
+        "4",
+        "--mem-fraction-static",
+        "0.85",
+        "--chunked-prefill-size",
+        "8192",
+        "--linear-attn-prefill-backend",
+        "flashinfer",
+        "--linear-attn-decode-backend",
+        "flashinfer",
+        "--mamba-ssm-dtype",
+        "bfloat16",
+        "--kv-cache-dtype",
+        "fp8_e4m3",
+        "--qsa-indexer-dtype",
+        "fp8_e4m3",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--reasoning-parser",
+        "auto"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
+      "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "only low, medium and xhigh are accepted; xhigh is the default",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "qwen38-flash-next-fp8-b300",
+      "label": "Qwen3.8-Flash-Next 180B-A6B · FP8",
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 250,
+      "weightsGb": 185.563783577,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--ep",
+        "4",
+        "--mem-fraction-static",
+        "0.85",
+        "--chunked-prefill-size",
+        "8192",
+        "--linear-attn-prefill-backend",
+        "flashinfer",
+        "--linear-attn-decode-backend",
+        "flashinfer",
+        "--mamba-ssm-dtype",
+        "bfloat16",
+        "--kv-cache-dtype",
+        "fp8_e4m3",
+        "--qsa-indexer-dtype",
+        "fp8_e4m3",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--reasoning-parser",
+        "auto"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
+      "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "only low, medium and xhigh are accepted; xhigh is the default",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "qwen38-flash-next-fp8-gb300",
+      "label": "Qwen3.8-Flash-Next 180B-A6B · FP8",
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "gpu": "GB300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 250,
+      "weightsGb": 185.563783577,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--ep",
+        "4",
+        "--mem-fraction-static",
+        "0.85",
+        "--chunked-prefill-size",
+        "8192",
+        "--linear-attn-prefill-backend",
+        "flashinfer",
+        "--linear-attn-decode-backend",
+        "flashinfer",
+        "--mamba-ssm-dtype",
+        "bfloat16",
+        "--kv-cache-dtype",
+        "fp8_e4m3",
+        "--qsa-indexer-dtype",
+        "fp8_e4m3",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--reasoning-parser",
+        "auto"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
+      "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "only low, medium and xhigh are accepted; xhigh is the default",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "qwen38-flash-next-fp8-h200",
+      "label": "Qwen3.8-Flash-Next 180B-A6B · FP8",
+      "model": "Qwen/Qwen3.8-Flash-Next-FP8",
+      "gpu": "H200",
+      "count": 4,
+      "vramGb": 141,
+      "diskGb": 250,
+      "weightsGb": 185.563783577,
+      "image": "lmsysorg/sglang:latest",
+      "cuda": "13.0",
+      "flags": [
+        "--tp",
+        "4",
+        "--ep",
+        "4",
+        "--mem-fraction-static",
+        "0.85",
+        "--chunked-prefill-size",
+        "8192",
+        "--linear-attn-prefill-backend",
+        "flashinfer",
+        "--linear-attn-decode-backend",
+        "flashinfer",
+        "--linear-attn-verify-backend",
+        "triton",
+        "--mamba-ssm-dtype",
+        "bfloat16",
+        "--kv-cache-dtype",
+        "fp8_e4m3",
+        "--qsa-indexer-dtype",
+        "fp8_e4m3",
+        "--speculative-algorithm",
+        "NEXTN",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--reasoning-parser",
+        "auto"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
+      "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "verified",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next"
+      },
+      "efforts": {
+        "levels": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "only low, medium and xhigh are accepted; xhigh is the default",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 262144,
+      "contextPerSlot": 262144
+    },
+    {
+      "id": "step5-preview-b300",
+      "label": "Step 5 Preview 604B-A27B · FP8",
+      "model": "stepfun-ai/Step-5-Preview",
+      "gpu": "B300",
+      "count": 4,
+      "vramGb": 288,
+      "diskGb": 850,
+      "weightsGb": 650.320093993,
+      "image": "lmsysorg/sglang:step-5-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "4",
+        "--moe-runner-backend",
+        "flashinfer_trtllm",
+        "--attention-backend",
+        "fa4",
+        "--page-size",
+        "64",
+        "--kv-cache-dtype",
+        "bfloat16",
+        "--mem-fraction-static",
+        "0.9",
+        "--swa-full-tokens-ratio",
+        "0.03",
+        "--chunked-prefill-size",
+        "16384",
+        "--max-running-requests",
+        "64",
+        "--flashinfer-allreduce-fusion-backend",
+        "trtllm",
+        "--speculative-algorithm",
+        "EAGLE",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--enable-multi-layer-eagle",
+        "--reasoning-parser",
+        "step5",
+        "--tool-call-parser",
+        "step5"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
+      "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template writes any reasoning_effort string into the system prompt verbatim; the model card names no levels",
+          "source": "https://huggingface.co/stepfun-ai/Step-5-Preview/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
+    },
+    {
+      "id": "step5-preview-h200",
+      "label": "Step 5 Preview 604B-A27B · FP8",
+      "model": "stepfun-ai/Step-5-Preview",
+      "gpu": "H200",
+      "count": 8,
+      "vramGb": 141,
+      "diskGb": 850,
+      "weightsGb": 650.320093993,
+      "image": "lmsysorg/sglang:step-5-preview",
+      "cuda": "13.0",
+      "flags": [
+        "--trust-remote-code",
+        "--tp",
+        "8",
+        "--ep-size",
+        "8",
+        "--moe-runner-backend",
+        "triton",
+        "--attention-backend",
+        "fa3",
+        "--page-size",
+        "64",
+        "--kv-cache-dtype",
+        "bfloat16",
+        "--mem-fraction-static",
+        "0.9",
+        "--swa-full-tokens-ratio",
+        "0.03",
+        "--chunked-prefill-size",
+        "16384",
+        "--max-running-requests",
+        "64",
+        "--flashinfer-allreduce-fusion-backend",
+        "trtllm",
+        "--speculative-algorithm",
+        "EAGLE",
+        "--speculative-num-steps",
+        "3",
+        "--speculative-eagle-topk",
+        "1",
+        "--speculative-num-draft-tokens",
+        "4",
+        "--enable-multi-layer-eagle",
+        "--reasoning-parser",
+        "step5",
+        "--tool-call-parser",
+        "step5"
+      ],
+      "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
+      "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
+      "verified": {
+        "by": "documented",
+        "on": "2026-10-22",
+        "note": "documented",
+        "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
+      },
+      "efforts": {
+        "levels": [],
+        "verified": {
+          "by": "documented",
+          "on": "2026-10-22",
+          "note": "the template writes any reasoning_effort string into the system prompt verbatim; the model card names no levels",
+          "source": "https://huggingface.co/stepfun-ai/Step-5-Preview/blob/main/chat_template.jinja"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576
     }
   ]
 }
