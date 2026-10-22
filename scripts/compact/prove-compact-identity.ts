@@ -25,7 +25,7 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-identity-'))
 
-const FIXTURE_PORT = 34125
+const FIXTURE_PORT = 0
 
 let failures = 0
 let checks = 0

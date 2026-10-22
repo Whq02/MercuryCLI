@@ -19,7 +19,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const BOUND_MS = 5_000
-const PORT = 36820
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-cli-verbs-exit-'))
 const HOME = join(SCRATCH, 'home')
 const CWD = join(SCRATCH, 'project')
@@ -33,16 +32,21 @@ const blackHole = spawn(
   'node',
   [
     '-e',
-    `const net=require('net');const fs=require('fs');const srv=net.createServer(s=>{fs.appendFileSync(process.env.BH_LOG,'accept\\n');s.on('error',()=>{})});srv.listen(${PORT},'127.0.0.1',()=>process.stdout.write('ready\\n'))`,
+    `const net=require('net');const fs=require('fs');const srv=net.createServer(s=>{fs.appendFileSync(process.env.BH_LOG,'accept\\n');s.on('error',()=>{})});srv.listen(0,'127.0.0.1',()=>process.stdout.write('ready '+srv.address().port+'\\n'))`,
   ],
   { env: { ...process.env, BH_LOG: ACCEPT_LOG }, stdio: ['ignore', 'pipe', 'inherit'] },
 )
-await new Promise<void>((resolve, reject) => {
-  const timer = setTimeout(() => reject(new Error('black hole never became ready')), 5_000)
+const PORT = await new Promise<number>((resolve, reject) => {
+  const timer = setTimeout(() => { blackHole.kill('SIGTERM'); reject(new Error('black hole never became ready')) }, 5_000)
+  let output = ''
+  blackHole.once('error', error => { clearTimeout(timer); reject(error) })
+  blackHole.once('exit', () => { clearTimeout(timer); reject(new Error('black hole exited before readiness')) })
   blackHole.stdout.on('data', d => {
-    if (String(d).includes('ready')) {
+    output += String(d)
+    const ready = /^ready (\d+)\n/m.exec(output)
+    if (ready) {
       clearTimeout(timer)
-      resolve()
+      resolve(Number(ready[1]))
     }
   })
 })

@@ -23,8 +23,8 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-router-'))
 
-const FIXTURE_PORT = 34101
-const PROXY_PORT = 34103
+const FIXTURE_PORT = 0
+const PROXY_PORT = 0
 const CAPTURE_DIR = process.env.COMPACT_ROUTER_CAPTURE_DIR
 
 let failures = 0
@@ -76,7 +76,7 @@ if (CAPTURE_DIR) {
     })
   })
   await new Promise<void>(resolve => proxy.listen(PROXY_PORT, '127.0.0.1', resolve))
-  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${PROXY_PORT}`
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(proxy.address() as { port: number }).port}`
   closeProxy = () => new Promise<void>(resolve => proxy.close(() => resolve()))
 }
 

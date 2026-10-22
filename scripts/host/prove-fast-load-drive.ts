@@ -7,6 +7,7 @@ import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopup
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
@@ -195,7 +196,7 @@ try {
   const failPod = await api.create(failOffer, sshKey.publicKey, 'fixture-ssh-failure', failVolume)
   const failed = queueHostSetup({ id: failPod.id, name: failPod.name, recipe: qwen.id, price: failOffer.price, startedAt: failPod.createdAt, status: failPod.status, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: failVolume.id, prepareWeightsOnly: true })
   ssh.state.refuse = true
-  await runHostJob(failed.id, failed.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })
+  await runHostJob(failed.id, failed.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: vshotBudgetMs(60), keepAlive: false })
   ssh.state.refuse = false
   check('prepare-only failure before SSH terminates its temporary billed pod', !rp.state.pods.has(failPod.id) && !readHostRecord(failPod.id) && volumes.readKeptVolume(failVolume.id)?.state === 'failed')
   const watch = queueHostWatch({ id: 'watch-kept', name: qwen.label, recipe: qwen.id, price: 5, maxPrice: 5, startedAt: new Date().toISOString(), status: 'WATCHING', apiBaseUrl: rp.baseUrl, sessionId: 'fast-load-proof' })
@@ -233,7 +234,7 @@ try {
   check('a delete without a clear answer says the disk may still exist and bill, and keeps its record', !unclearDelete.ok && unclearDelete.words.startsWith('Runpod gave no clear answer to deleting ' + shared.id + '; it may still exist and bill') && volumes.readKeptVolume(shared.id)?.state !== 'gone')
   const cleanupFailure = queueHostSetup({ id: otherPod.id, name: otherPod.name, recipe: qwen.id, price: failOffer.price, startedAt: otherPod.createdAt, status: otherPod.status, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: shared.id, prepareWeightsOnly: true })
   ssh.state.refuse = true; rp.state.failDelete = true
-  await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })
+  await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: vshotBudgetMs(60), keepAlive: false })
   check('failed cleanup keeps the billed pod id and names it in durable error words', readHostRecord(otherPod.id)?.error?.includes(otherPod.id + ' may still bill') && rp.state.pods.has(otherPod.id))
   ssh.state.refuse = false; rp.state.failDelete = false
   await api.terminate(otherPod.id); removeHostRecord(otherPod.id)

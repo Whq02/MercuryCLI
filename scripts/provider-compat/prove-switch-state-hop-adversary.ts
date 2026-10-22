@@ -107,7 +107,7 @@ const OPENAI_MODELS_BODY = {
   models: [{ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6-Sol', supported_reasoning_levels: [{ effort: 'high', description: 'high' }], default_reasoning_level: 'high', visibility: 'list', priority: 1, context_window: 272_000, input_modalities: ['text'], supported_in_api: true }],
 }
 
-const PORT = 35302
+const PORT = 0
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
@@ -144,7 +144,7 @@ await new Promise<void>((resolve, reject) => {
   server.once('error', reject)
   server.listen(PORT, '127.0.0.1', resolve)
 })
-const base = `http://127.0.0.1:${PORT}`
+const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 Object.assign(process.env, {
   ANTHROPIC_BASE_URL: base,
   ANTHROPIC_AUTH_TOKEN: 'fixture-token',

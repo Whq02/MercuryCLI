@@ -26,7 +26,7 @@ for (const ambient of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-compact-'))
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 
-const FIXTURE_PORT = 34117
+const FIXTURE_PORT = 0
 
 let failures = 0
 let checks = 0

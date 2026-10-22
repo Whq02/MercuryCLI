@@ -45,8 +45,6 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const PORT = 41211
-
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -66,7 +64,8 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const { startSearchFixture } = await import('./lib/searchFixture.ts')
-const fixture = await startSearchFixture(PORT)
+const fixture = await startSearchFixture(0)
+const PORT = fixture.port
 Object.assign(process.env, fixture.env)
 process.env.MERCURY_SEARCH_KEYLESS = '1'
 

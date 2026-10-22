@@ -25,8 +25,8 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-mech-'))
 
-const FIXTURE_PORT = 34111
-const STALL_PORT = 34112
+const FIXTURE_PORT = 0
+const STALL_PORT = 0
 
 let failures = 0
 let checks = 0
@@ -236,7 +236,7 @@ section('§4 dead-connection detection — a wedged wire refuses TYPED, the conv
   check('the typed timeout sentence exists (ERROR_MESSAGE_FOLD_TIMEOUT)', typeof sentence === 'string' && sentence.length > 0)
   if (typeof bounds === 'function' && typeof sentence === 'string') {
     const prevBase = process.env.ANTHROPIC_BASE_URL
-    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${STALL_PORT}`
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(stallServer.address() as { port: number }).port}`
     bounds({ stallMs: 800 })
     const run = await runFold('claude-opus-4-8')
     bounds(null)
@@ -261,7 +261,7 @@ section("§5 the operator's abort keeps its own sentence — never dressed as a 
   const sentence = seams.ERROR_MESSAGE_FOLD_TIMEOUT
   if (typeof bounds === 'function' && typeof sentence === 'string') {
     const prevBase = process.env.ANTHROPIC_BASE_URL
-    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${STALL_PORT}`
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(stallServer.address() as { port: number }).port}`
     bounds({ stallMs: 20_000 })
     const run = await runFold('claude-opus-4-8', { abortAfterMs: 300 })
     bounds(null)

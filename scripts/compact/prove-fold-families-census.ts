@@ -20,8 +20,8 @@ for (const key of Object.keys(process.env)) {
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-census-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const CENSUS_PORT = 34121
-const SHARED_PORT = 34123
+const CENSUS_PORT = 0
+const SHARED_PORT = 0
 
 let failures = 0
 let checks = 0
