@@ -9,12 +9,14 @@ import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
 import { pinnedWeightManifest } from './keptWeights.js'
 import type { HostRecipe } from './recipes.js'
+import { hostRecipeSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
 import { fastLoadEstimate, keptVolumes, matchesVolume, volumeModel, type KeptVolume } from './volumes.js'
 
 const bankedModelSchema = z.object({
   path: z.string(), bytes: z.number().nonnegative(), verifiedAt: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   check: z.enum(['manifest', 'download']).optional(), error: z.string().optional(), failedAt: z.string().optional(),
+  recipeRow: hostRecipeSchema.optional(),
 })
 const registrySchema = z.object({ folder: z.string().optional(), models: z.record(z.string(), bankedModelSchema) })
 export type BankRegistry = z.infer<typeof registrySchema>
@@ -35,9 +37,16 @@ export function writeBankRegistry(registry: BankRegistry): void { publishAtomicS
 export function patchBankedModel(recipe: HostRecipe, entry: BankedModel | undefined): void {
   const registry = readBankRegistry()
   const models = { ...registry.models }
-  if (entry) models[volumeModel(recipe)] = entry
+  if (entry) models[volumeModel(recipe)] = { ...entry, recipeRow: recipe }
   else delete models[volumeModel(recipe)]
   writeBankRegistry({ ...registry, models })
+}
+export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
+  if (!folder) return []
+  return Object.entries(readBankRegistry().models).flatMap(([model, entry]) => {
+    const recipe = entry.recipeRow
+    return recipe && model === volumeModel(recipe) && entry.path === bankModelFolder(folder, recipe) && isDirectory(entry.path) ? [recipe] : []
+  })
 }
 export function bankCandidates(): string[] {
   const home = homeDirectory()

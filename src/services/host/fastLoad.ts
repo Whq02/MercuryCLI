@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { basename, dirname } from 'node:path'
 import type { LlmHostRoad, LlmHostResult } from '../llmHost/index.js'
-import { currentHostRecipes } from './recipesFile.js'
+import { currentHostRecipes, rememberSessionHostRecipe } from './recipesFile.js'
 import { keptDownloadMinutes, keptStallWords, weightManifest } from './keptWeights.js'
 import type { HostRecipe } from './recipes.js'
 import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
@@ -9,7 +9,7 @@ import { ensureHostKey, type HostRunner } from './ssh.js'
 import { activeHostBanks, bankJobModel, queueHostBank, queueHostSetup, requireHostJobOwner } from './jobs.js'
 import { hostRecords, removeHostRecord, type HostRecord } from './store.js'
 import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
-import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
+import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bankedHostRecipes, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
 
 export { BANK_DOOR }
 export const FAST_LOAD_DOOR = 'Fast-load volume'
@@ -21,7 +21,11 @@ const cancelled = (): LlmHostResult => ({ ok: true, words: 'Fast-load closed. Ex
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const pad = (text: string, width: number): string => text.length >= width ? text + ' ' : text.padEnd(width)
 const fit = (text: string, width: number): string => text.length <= width ? text : text.slice(0, Math.max(1, width - 1)) + '…'
-export const fastLoadRecipes = (): HostRecipe[] => [...new Map(currentHostRecipes().map(row => [volumeModel(row), row])).values()]
+export const fastLoadRecipes = (): HostRecipe[] => {
+  const current = currentHostRecipes()
+  for (const recipe of bankedHostRecipes()) if (!current.some(row => row.id === recipe.id)) rememberSessionHostRecipe(recipe)
+  return [...new Map(currentHostRecipes().map(row => [volumeModel(row), row])).values()]
+}
 export function fastLoadState(recipe: HostRecipe): string {
   const row = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone') ?? keptVolumes().find(row => matchesVolume(row, recipe))
   if (!row) return 'not kept'
