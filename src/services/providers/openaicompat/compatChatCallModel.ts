@@ -53,9 +53,9 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { compatEffortWireFact, rejectedHostedEffortField, thinkingOffWireEffort, withoutHostedEffort } from './compatWire.js'
+import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
 import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
@@ -314,7 +314,7 @@ export function compatFaultToTypedError(
 
 export function compatTerminalFaultText(
   profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy' | 'dialect'>,
-  fault: Pick<CompatFault, 'code' | 'message'> & { retryAfterMs?: number; status?: number },
+  fault: Pick<CompatFault, 'code' | 'message' | 'parameter'> & { retryAfterMs?: number; status?: number },
   typed: TypedError,
   opts?: { recovery?: 'retried' | 'no-new-credential' },
 ): string {
@@ -561,7 +561,6 @@ export async function* compatChatCallModel(
             : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
           : undefined
       : undefined
-  let rejectedEffort: 'reasoning_effort' | 'chat_template_kwargs' | undefined
   const slotKey = plan.conversationKey ?? cacheDomainKey
   const makeRequestExtra = (): Record<string, unknown> => {
     const builtExtras = profile.buildExtras({
@@ -579,7 +578,7 @@ export async function* compatChatCallModel(
         : builtExtras),
       ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
     }
-    return rejectedEffort ? withoutHostedEffort(extra, rejectedEffort) : extra
+    return extra
   }
   const request: CompatChatRequest = {
     model: wireModel,
@@ -599,9 +598,8 @@ export async function* compatChatCallModel(
       thinkingEnabled,
       supported: effortTruth.supportsEffort,
     })
-  let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
+  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
-  let effortAdjusted: EffortAdjustedV1 | undefined
 
   if (profile.requestFitRefusal) {
     const requestBytes = JSON.stringify(request).length
@@ -665,7 +663,6 @@ export async function* compatChatCallModel(
       deferredUnadmitted: plan.isDeferredUnadmitted,
       callableTools,
       effort: effortOnWire,
-      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       ...(deferral !== undefined ? { deferral } : {}),
       ...((profile.leadingNotes?.length || toolNotes.length) ? { leadingNotes: [...(profile.leadingNotes ?? []), ...toolNotes] } : {}),
       ...(busy !== undefined ? { busy } : {}),
@@ -683,16 +680,6 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
-    const rejected = profile.lane === 'openai-compat' && !rejectedEffort && outcome.retryEligible ? rejectedHostedEffortField(request.extra ?? {}, outcome.fault) : undefined
-    if (rejected) {
-      rejectedEffort = rejected
-      request.extra = withoutHostedEffort(request.extra ?? {}, rejected)
-      effortOnWire = effortStampOf(effortTruth.requested, { kind: 'omitted' })
-      const asked = effortValue ?? (effortFact.kind === 'sent' ? String(effortFact.value) : undefined)
-      if (asked !== undefined) effortAdjusted = { model: modelId, name: wireModel, asked, fieldRejected: { server: profile.providerLabel, field: rejected } }
-      attempt--
-      continue
-    }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = compatFaultToTypedError(outcome.fault)
     if (
@@ -882,7 +869,6 @@ async function* streamOneCompatAttempt(ctx: {
   deferredUnadmitted?: (name: string) => boolean
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
-  effortAdjusted?: EffortAdjustedV1
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
@@ -930,7 +916,6 @@ async function* streamOneCompatAttempt(ctx: {
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
       ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
-      ...(ctx.effortAdjusted !== undefined ? { effortAdjusted: ctx.effortAdjusted } : {}),
     }
   }
 
