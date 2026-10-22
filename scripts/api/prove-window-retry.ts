@@ -106,7 +106,7 @@ section('W5 — the row carries the asked wait as a fact')
   check('a fault asking for hours carries the moment too', typeof fault.providerWaitEndsAtMs === 'number' && fault.providerWaitEndsAtMs >= before + 3 * 3_600_000 - 5_000, JSON.stringify(fault.providerWaitEndsAtMs))
 }
 
-section('W6 — the sign-in wall row needs no open config; an open one names the account')
+section('W6 — the sign-in wall names the remedy without an address, whether config is open or closed')
 {
   const revoked = (): Error =>
     new APIError(401, { type: 'error', error: { type: 'authentication_error', message: 'OAuth access token has been revoked' } }, '401 revoked', new Headers())
@@ -130,7 +130,7 @@ section('W6 — the sign-in wall row needs no open config; an open one names the
   enableConfigs()
   const openRow = errors.getAssistantMessageFromError(revoked(), 'claude-opus-5')
   const openText = textOf(openRow)
-  check('with the config open the same row names the account', openRow.error === 'authentication_failed' && openText.includes('Anthropic sign-in expired') && openText.endsWith(' · account fixture@example.invalid'), openText)
+  check('with the config open the same remedy remains address-free', openRow.error === 'authentication_failed' && openText === closedText && !openText.includes('@'), openText)
 }
 
 console.log(failures === 0 ? '\nprove-window-retry: all green' : `\nprove-window-retry: ${failures} FAILURE(S)`)
