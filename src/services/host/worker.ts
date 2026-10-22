@@ -229,6 +229,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           id: pod.id,
           name: pod.name,
           recipe: offer.recipe.id,
+          recipeRow: offer.recipe,
           price: offer.price,
           startedAt: pod.startedAt ?? pod.createdAt,
           status: pod.status,
