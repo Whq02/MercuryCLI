@@ -1,4 +1,3 @@
-import { toolContext } from '../computer/computerToolKit.ts'
 import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -6,6 +5,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
+const { toolContext } = await import('../computer/computerToolKit.ts')
 
 const f = await llmhostFixture({ model: 'Fixture/Vision' })
 const state = f.state as typeof f.state & { vision?: boolean; inputModalities?: string[] }
@@ -37,8 +37,9 @@ try {
   assert.doesNotMatch((missing as any).message, /model.*receives text only/)
   const propsBeforeText = state.propsRequests
   assert.equal(errors(await f.run(model)), '')
+  assert.equal(state.propsRequests, propsBeforeText + 1, 'the first dispatch reads the cold capability catalogue once')
   assert.equal(errors(await f.run(model)), '')
-  assert.equal(state.propsRequests, propsBeforeText, 'text-only turns keep the existing /props slot cache')
+  assert.equal(state.propsRequests, propsBeforeText + 1, 'warm text-only turns reuse the catalogue and /props slot cache')
   const unseenHistory = image()
   const unseen = await f.run(model, unseenHistory)
   assert.equal(errors(unseen), '')
