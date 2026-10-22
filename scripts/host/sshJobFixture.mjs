@@ -33,6 +33,15 @@ if (args.includes('-N')) {
   assert.ok(args.includes('127.0.0.1'), 'fixture must never connect to a public host')
   const syntax = spawnSync('bash', ['-n', '-c', remote], { encoding: 'utf8' })
   assert.equal(syntax.status, 0, syntax.stderr)
+  for (const answer of config.answers ?? []) {
+    const pattern = new RegExp(answer.pattern)
+    if (!pattern.test(remote)) continue
+    const count = readFileSync(join(home, 'ssh-fixture-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(call => pattern.test(call.at(-1))).length
+    const reply = answer.replies[Math.min(count - 1, answer.replies.length - 1)]
+    if (reply.stdout) process.stdout.write(reply.stdout)
+    if (reply.stderr) process.stderr.write(reply.stderr)
+    process.exit(reply.code ?? 0)
+  }
   if (remote.includes('nohup setsid')) {
     assert.ok(needleAt(remote, 'mkdir -p') < needleAt(remote, 'exec 2>>'))
     assert.ok(needleAt(remote, 'exec 2>>') < needleAt(remote, 'nohup setsid'))

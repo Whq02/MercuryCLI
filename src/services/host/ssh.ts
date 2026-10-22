@@ -8,6 +8,7 @@ import { hostDirectory } from './store.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
+import { downloadFailure, hostDownloadScript } from './download.js'
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
   run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>): Promise<string>
@@ -82,6 +83,13 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
   return { gpus, docker: output.includes('DOCKER_ENGINE_PRESENT') }
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
+function engineFailure(text: string, recipe: HostRecipe, exited = false): Error | undefined {
+  if (/MERCURY_(STALL|PARTIAL) /.test(text)) return new Error(downloadFailure(text, recipe).words)
+  const oom = /out of memory|OutOfMemoryError|\bOOM\b/i.test(text)
+  if (!exited && !oom && !/failed to load (?:model|weights)|error loading model|CUDA error|CUDA_ERROR_/i.test(text)) return
+  const tail = text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:').slice(-8).join(' · ')
+  return new Error('the engine died loading the weights: ' + (tail || 'the engine process exited') + (oom ? ' · the shape was too small for this quality; choose a larger GPU shape' : ''))
+}
 export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string, keptWeights?: string, cluster?: { nodes: number; rank: number; head: string; address: string }): Promise<void> {
   if (!pod && !docker && !recipe.pythonInstall) throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
   const dir = '/workspace/mercury-host/' + recipe.id
@@ -119,9 +127,10 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     ? [prebuilt ? 'llama-server' : '/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', (keptWeights ?? dir + '/weights') + '/' + recipe.weightFile, '--alias', recipe.model + ':' + posix.dirname(recipe.weightFile!), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : [...(recipe.engine === 'vllm' ? ['vllm', 'serve', model] : ['sglang', 'serve', '--model-path', model]), ...(localWeights ? ['--served-model-name', recipe.model] : []), ...recipe.flags, ...distributed, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
   const download = keptWeights ? "echo 'MERCURY_STEP weights kept · verified · download skipped'" : bank ? 'true' : recipe.engine === 'llamacpp' ? (prebuilt ? 'hf download ' : '/workspace/mercury-host/hf/bin/hf download ') + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model) + (localWeights ? ' --local-dir ' + quote(dir + '/weights') : '')
+  const guardedDownload = bank || keptWeights ? download : 'python3 -c ' + quote(hostDownloadScript(download, dir + '/weights', recipe))
   const install = prebuilt ? undefined : recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
   const imagePath = pod ? 'if test -r /proc/1/environ; then image_path="$(tr \'\\0\' \'\\n\' < /proc/1/environ | sed -n \'s/^PATH=//p\')"; if test -n "$image_path"; then export PATH="$image_path:$PATH"; fi; fi\n' : ''
-  let script = 'set -e\n' + imagePath + 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + (prebuilt ? "echo 'MERCURY_STEP using prebuilt engine'\n" : "echo 'MERCURY_STEP installing'\n") + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + download + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
+  let script = 'set -e\n' + imagePath + 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc\nexport HF_HOME=/workspace/huggingface\n' + Object.entries(recipe.environment ?? {}).map(([name, value]) => 'export ' + name + '=' + quote(value) + '\n').join('') + (prebuilt ? "echo 'MERCURY_STEP using prebuilt engine'\n" : "echo 'MERCURY_STEP installing'\n") + (install ? '( ' + install + ' )\n' : '') + "echo 'MERCURY_STEP downloading weights'\n" + guardedDownload + '\n' + "echo 'MERCURY_STEP starting engine'\n" + engine + '\nwait\n'
   if (cluster) {
     const network = 'export SGLANG_HOST_IP=' + quote(cluster.address) + '\nexport VLLM_HOST_IP=' + quote(cluster.address) + '\n' + 'export NCCL_SOCKET_IFNAME="$(ip -o -4 addr show | grep -F ' + quote(' ' + cluster.address + '/') + ' | awk ' + quote('{split($2,a,"@"); print a[1]; exit}') + ')"\ntest -n "$NCCL_SOCKET_IFNAME"\nexport GLOO_SOCKET_IFNAME="$NCCL_SOCKET_IFNAME"\n'
     script = 'set -e\n' + network + script
@@ -132,16 +141,24 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   const pidPath = quote(dir + '/engine.pid')
   const match = quote('[b]ash ' + dir + '/engine.sh')
   const remote = 'mkdir -p ' + quote(dir) + ' || exit 1; exec 2>>' + launchLog + '; set -e; trap ' + quote('cat ' + launchLog) + ' EXIT; if test -s ' + pidPath + ' && kill -0 "$(cat ' + pidPath + ')" 2>/dev/null && pgrep -f -- ' + match + ' >/dev/null; then echo "Engine job already running"; exit 0; fi; printf %s ' + quote(script) + ' > ' + scriptPath + '; nohup setsid bash ' + scriptPath + ' > ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + pidPath + '; sleep 5; if ! kill -0 "$(cat ' + pidPath + ')" 2>/dev/null || ! pgrep -f -- ' + match + ' >/dev/null; then echo "Engine launch failed; launch.log:"; cat ' + launchLog + '; tail -n 20 ' + quote(dir + '/engine.log') + '; exit 1; fi'
-  try { await runner.run('ssh', [...args, remote], signal) } catch (error) { throw new Error('launch.log: ' + String(error)) }
+  try { await runner.run('ssh', [...args, remote], signal) } catch (error) { throw engineFailure(String(error), recipe, String(error).includes('Engine launch failed')) ?? new Error('launch.log: ' + String(error)) }
 }
 export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000, onLog: (text: string) => void = () => {}): Promise<void> {
   const started = Date.now()
   let last = ''
+  let previous: string[] = []
+  const dir = '/workspace/mercury-host/' + recipe.id
+  const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
   while (!signal.aborted && Date.now() - started < timeoutMs) {
+    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; fi'], signal)
+    const rows = log.trimEnd().split('\n')
+    let overlap = Math.min(previous.length, rows.length)
+    while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
+    if (overlap < rows.length) onLog(rows.slice(overlap).join('\n'))
+    previous = rows
+    const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
+    if (failed) throw failed
     try { await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
-    const dir = '/workspace/mercury-host/' + recipe.id
-    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; if ! kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo "launch.log:"; cat ' + quote(dir + '/launch.log') + '; exit 1; fi'], signal).catch(error => { throw new Error('The engine stopped. ' + String(error)) })
-    onLog(log)
     last = log || last
     await delay(pauseMs, undefined, { signal })
   }
