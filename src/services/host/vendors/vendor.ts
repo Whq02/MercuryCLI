@@ -1,4 +1,5 @@
 import type { RunpodClient } from '../runpod.js'
+import type { HostReadOnly } from '../retry.js'
 
 export type { HostOffer, HostPod } from '../runpod.js'
 export type HostVendorInfo = { readonly label: string; readonly keyHelp: string; readonly booted?: { readonly on: string; readonly source: string } }
@@ -11,7 +12,8 @@ export const vendorStamp = (vendor: keyof typeof HOST_VENDOR_INFO): string => {
   const booted = HOST_VENDOR_INFO[vendor].booted
   return booted ? 'verified on a live rental ' + booted.on : 'API only — not yet booted'
 }
-export interface HostVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'terminate' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
+export interface HostVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
+  terminate(id: string, readOnly?: HostReadOnly): Promise<void>
   readonly vendor: 'runpod' | 'vast' | 'lambda'
   readonly label: string
   readonly keyHelp: string

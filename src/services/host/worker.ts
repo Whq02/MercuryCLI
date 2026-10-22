@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync } from 'node:fs'
-import { keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
+import { keptWeightsPath, prepareKeptWeights, terminateVerified } from './keptWeights.js'
 import { matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
@@ -22,6 +22,7 @@ import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
+import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } from './retry.js'
 
 const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
 const localOs = (): 'darwin' | 'linux' | 'windows' => process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
@@ -266,6 +267,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
     } finally { clearInterval(timer) }
     return
   }
+  const deadline = Date.now() + timeout
+  const readOnly = hostJobReadOnly({ label: vendorLabel(vendor), pauseMs: pause, timeoutMs: timeout, deadline, signal, mark })
+  const cleanupRead = hostJobReadOnly({ label: vendorLabel(vendor), pauseMs: pause, timeoutMs: timeout, signal, mark })
   try {
     if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
@@ -273,12 +277,11 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (initial.cluster) {
       target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
     } else {
-    const deadline = Date.now() + timeout
     let last = 'SSH address not yet assigned'
     while (!signal.aborted && Date.now() < deadline) {
-      const pod = await api.get(id, signal)
+      const pod = await readOnly('pod', readSignal => api.get(id, readSignal))
       const direct = pod.ssh?.direct
-      if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await api.logs(id))
+      if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await readOnly('log', readSignal => api.logs(id, readSignal)))
       if (direct && pod.status === 'RUNNING') {
         const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
         try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) { last = String(error) }
@@ -289,7 +292,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     patchHostRecord(id, { target, status: 'RUNNING' })
     let keptWeights: string | undefined
     if (initial.volumeId) {
-      keptWeights = await prepareKeptWeights(initial, recipe, runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark)
+      keptWeights = await prepareKeptWeights(initial, recipe, runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark, cleanupRead)
       if (initial.prepareWeightsOnly) return
     }
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
@@ -345,13 +348,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
   } catch (error) {
     let failure = error
     const failedSetup = readHostRecord(id)
-    if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && (initial.prepareWeightsOnly || vendor !== 'runpod' && failedSetup.jobState !== 'ready')) {
+    if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && !(error instanceof HostTerminationUnconfirmed) && !hostReadFailureWords(error) && (initial.prepareWeightsOnly || vendor !== 'runpod' && failedSetup.jobState !== 'ready')) {
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
       if (volume && volume.state !== 'kept' && volume.state !== 'failed') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: id })
       try {
         const cleanupApi = vendorClient(initial)
-        await cleanupApi.terminate(id)
-        if ((await cleanupApi.pods()).some(row => row.id === id)) throw new Error(cleanupApi.label + ' still lists the pod.')
+        await terminateVerified(cleanupApi, id, cleanupRead, cleanupApi.label)
         if (failedSetup.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(failedSetup.provider) }
         const ended = (initial.prepareWeightsOnly ? 'Preparation failed; temporary pod ' : 'Setup failed; ' + cleanupApi.label + ' pod ') + id + ' terminated and verified absent. ' + (initial.volumeId ? 'The weights disk still bills. ' : '') + clean(String(error))
         hostNotice(initial, 'failed', ended)
@@ -359,17 +361,19 @@ export async function runHostJob(id: string, generation: string, options: { runn
         else patchHostRecord(id, { status: 'TERMINATED', jobState: 'failed', step: 'setup failed · instance terminated', error: ended })
         closeHostTunnel(id)
         return
-      } catch (cleanup) { failure = new Error(id + ' may still bill: preparation failed and termination was not verified. Pods I’m paying for → Terminate. ' + clean(String(error)) + ' · ' + clean(String(cleanup))) }
+      } catch (cleanup) { failure = cleanup instanceof HostTerminationUnconfirmed ? cleanup : new Error(id + ' may still bill: preparation failed and termination was not verified. Pods I’m paying for → Terminate. ' + clean(String(error)) + ' · ' + clean(String(cleanup))) }
     }
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
-      const detail = clean(String(failure))
-      const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
+      const retried = hostReadFailureWords(failure)
+      const detail = clean(retried ? retried + ' · setup paused · Resume retries' : String(failure))
+      const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
       log(detail)
       if (error instanceof HostClusterEnded) {
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
-      } else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
+      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + ' · /llmhost → Pods I’m paying for')
+      else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
     }
     closeHostTunnel(id)
   } finally { clearInterval(timer) }

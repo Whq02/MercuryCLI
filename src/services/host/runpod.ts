@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from './recipes.js'
 import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
+import { retryAfterSeconds } from './vendors/http.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional(), mounts: z.object({ network: z.array(z.object({ volumeId: z.string() })).optional(), global: z.array(z.object({ volumeId: z.string() })).optional() }).nullish() })
 const clusterMemberSchema = z.object({ id: z.string(), rank: z.number().int().nonnegative().nullable(), ip: z.string().optional() })
@@ -43,8 +44,8 @@ export class RunpodClient {
       let detail = ''
       try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown }; detail = String(problem.detail ?? problem.error ?? problem.title ?? '') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
       detail = detail.split(this.key).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
-      const wait = Number(response.headers.get('retry-after'))
-      throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refused.includes(response.status) ? ' · Runpod refused it; no ' + resource + ' was created.' : create ? ' — no retry was sent. Refresh ' + resource + 's before retrying; creation may have reached the account.' : ''), response.status, detail, Number.isFinite(wait) && wait > 0 ? wait : undefined)
+      const wait = retryAfterSeconds(response.headers.get('retry-after'))
+      throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refused.includes(response.status) ? ' · Runpod refused it; no ' + resource + ' was created.' : create ? ' — no retry was sent. Refresh ' + resource + 's before retrying; creation may have reached the account.' : ''), response.status, detail, wait)
     }
     return response
   }
@@ -124,15 +125,15 @@ export class RunpodClient {
   }
   async stop(id: string): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id) + '/action', 'POST', { action: 'stop' })).json()) }
   async terminate(id: string): Promise<void> { await this.response('/pods/' + encodeURIComponent(id), 'DELETE') }
-  async logs(id: string): Promise<string> {
+  async logs(id: string, signal?: AbortSignal): Promise<string> {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 3000)
+    const timer = setTimeout(() => controller.abort(new DOMException('Log read timed out', 'TimeoutError')), 3000)
     let text = ''
     try {
-      const response = await this.response('/pods/' + encodeURIComponent(id) + '/logs?tail=12', 'GET', undefined, controller.signal)
+      const response = await this.response('/pods/' + encodeURIComponent(id) + '/logs?tail=12', 'GET', undefined, signal ? AbortSignal.any([signal, controller.signal]) : controller.signal)
       const reader = response.body?.getReader()
       if (reader) try { while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += new TextDecoder().decode(part.value) } } finally { await reader.cancel().catch(() => {}) }
-    } catch { if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
+    } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
     return text.split(this.key).join('[redacted]').split('\n').filter(Boolean).slice(-12).join('\n')
   }
   async volumes(signal?: AbortSignal): Promise<HostVolume[]> {

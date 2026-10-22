@@ -6,6 +6,7 @@ import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
 import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
 import { HostCreateError, VendorApi, isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
+import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
 export const LAMBDA_STORAGE_NOTICE = '/workspace uses the instance root disk and survives a restart, not termination. Lambda has no stop; compute keeps billing until termination. No persistent filesystem is created or attached.'
 export const LAMBDA_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your Lambda account keys, named mercury-host- and the key’s fingerprint; only instances launched with that key accept it. Remove it in the Lambda console when you stop renting through Mercury.'
@@ -142,16 +143,16 @@ export class LambdaClient implements HostVendor {
     return pod.createdAt ? pod : { ...pod, createdAt: launchedAt }
   }
   async stop(_id: string): Promise<HostPod> { throw new Error('Lambda has no stop operation. Use terminate to end compute billing; termination deletes the root disk and /workspace data.') }
-  async terminate(id: string): Promise<void> {
+  async terminate(id: string, readOnly?: HostReadOnly): Promise<void> {
     if (!idSchema.safeParse(id).success) throw new Error('Lambda requires a valid instance ID.')
     await this.api.request('/instance-operations/terminate', z.object({ data: z.object({ terminated_instances: z.array(z.object({ id: idSchema })) }) }), 'POST', { instance_ids: [id] })
     const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
     let last = ''
     for (;;) {
       try {
-        const pod = (await this.pods()).find(row => row.id === id)
+        const pod = (await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods())).find(row => row.id === id)
         if (!pod || pod.status === 'TERMINATED') return
-      } catch (error) { last = ' ' + (error instanceof Error ? error.message : String(error)) }
+      } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
       if (Date.now() >= deadline) throw new Error('Lambda termination is not verified; check the instance list in the console.' + last)
       await delay(this.timing.pollMs ?? 1000)
     }
