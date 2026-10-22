@@ -1592,6 +1592,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/sdk/prove-sdk-build.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(pkg.scripts.build.split(' && ')[1], { cwd: join(scratch, 'sdk'), stdio: 'inherit' })",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/self-hosting/prove-effective-size.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: armFix })",
@@ -2239,6 +2246,13 @@
       "file": "scripts/ui/prove-hover-e2e.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-keybindings-editor-safe.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const scratchBin = join(process.env.TMPDIR ?? '/tmp', `kb-editor-safe-bin-${process.pid}`)",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
