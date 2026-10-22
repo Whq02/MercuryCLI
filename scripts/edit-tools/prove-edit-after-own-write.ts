@@ -21,6 +21,7 @@ let foreignWriteDuringSave: { path: string; content: string } | null = null
 const managerPath = new URL('../../src/services/lsp/manager.ts', import.meta.url).pathname
 const realManagerModule = await import(managerPath)
 const fakeManager = {
+  getServersForFile: () => [],
   getDocumentVersion: (): number | undefined => undefined,
   async changeAndSaveFile(path: string): Promise<void> {
     if (foreignWriteDuringSave !== null && foreignWriteDuringSave.path === path) {
