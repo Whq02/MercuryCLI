@@ -95,7 +95,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
   const readOnly = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, deadline, mark: onStep })
   const cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, mark: onStep })
   const cluster = await readOnly('cluster', readSignal => api.getCluster(record.id, readSignal))
-  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) throw new Error('The cluster shape does not match the saved recipe.')
+  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) return endHostCluster(api, record, cluster, 'shape does not match the saved recipe', '', cleanupRead)
   const placementMs = Math.min(timeoutMs, clusterPlacementMs)
   const placed = Date.now() + placementMs
   let last = 'Cluster nodes have not all received private addresses and SSH access.'
