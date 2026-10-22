@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 
 const caps = process.env.RENAME_CAPS ? JSON.parse(process.env.RENAME_CAPS) : {}
 const edits = process.env.RENAME_EDITS ? JSON.parse(process.env.RENAME_EDITS) : null
@@ -29,7 +29,11 @@ function onMessage(msg) {
     return
   }
   if (msg.method === 'workspace/willRenameFiles') {
-    send({ jsonrpc: '2.0', id: msg.id, result: edits })
+    const responseFile = process.env.RENAME_RESPONSE_FILE
+    const response = responseFile && existsSync(responseFile)
+      ? JSON.parse(readFileSync(responseFile, 'utf8'))
+      : { result: edits }
+    send({ jsonrpc: '2.0', id: msg.id, ...response })
     return
   }
   if (msg.method === 'shutdown') {
