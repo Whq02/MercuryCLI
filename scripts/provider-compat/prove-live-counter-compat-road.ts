@@ -199,7 +199,9 @@ check('at the end every thinking character and every reply character is counted 
 feed(outcomeRow(scope, { turnId: 't-lcr', status: 'completed', stopReason: 'end_turn', answer: '', steps: 1, wallMs: 1, usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 0 }, models: {}, denials: [] }) as never)
 const after = factsOfTail()
 check('the turn\'s outcome retires the thinking count and the first-byte stamp with the rest', after.thinkingChars === 0 && after.replyChars === 0 && after.firstByteAtMs === null, JSON.stringify(after))
-check('the road published the wait once at the send and cleared it once at the first byte', waits.length === 2 && (waits[0] as { kind?: string })?.kind === 'first-byte' && waits[1] === null, JSON.stringify(waits))
+check('the road publishes send and token-phase waits, then clears at content and cleanup', waits.length === 4 && waits[0]?.kind === 'first-byte' && waits[0]?.phase === undefined && waits[1]?.kind === 'first-byte' && waits[1]?.phase === 'tokens' && waits[2] === null && waits[3] === null, JSON.stringify(waits))
+check('the token-phase wait keeps the original request clock, prompt, model and budget', waits[1] !== null && JSON.stringify(waits[1]) === JSON.stringify({ ...waits[0], phase: 'tokens' }), JSON.stringify(waits))
+check('the settled seat retains the provider output count rather than a character estimate', settled.wireOutputTokens === 130, JSON.stringify(settled))
 
 console.log(failures === 0 ? '\n✅ live counter on the compat road GREEN' : `\n❌ live counter on the compat road RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)
