@@ -3,12 +3,13 @@ import { keptVolumes } from './volumes.js'
 import { hostShape } from './cluster.js'
 import { heavyWeights, hostShortStorageWords } from './costs.js'
 import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
-import { hostSetupEstimate } from '../../commands/llmhost/words.js'
+import { LLM_HOST_SEARCH_MIN_CHARS, hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { configuredCompatEndpoints, resolveCompatApiKey, isCompatEndpointCredentialed } from '../providers/openaicompat/compatAccounts.js'
 import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
 import { cachedCompatCatalogue, refreshCompatCatalogues, rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
 import { currentHostRecipes } from './recipesFile.js'
+import { HF_OFFLINE_WORDS, HF_SEARCH_PLACEHOLDER, derivedRecipeWords, hfRowLabel, huggingFaceHubBase, huggingFaceToken, pickHuggingFaceModel, searchHuggingFace, type DerivedHfRecipe, type HfModel, type HfSearchOutcome } from './hfRecipes.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
 import { hostRecords, type HostRecord } from './store.js'
@@ -45,6 +46,8 @@ interface ModelDoorDeps {
   thinkingWords?: (recipe: HostRecipe) => string
   confirmRental?: Ask
   initialModel?: string
+  hfSearch?: (query: string, signal: AbortSignal) => Promise<HfSearchOutcome>
+  hfPick?: (model: HfModel, signal: AbortSignal) => Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }>
 }
 type RecipeFacts = HostRecipe & { weightsGb?: number; setup?: { engineMinutes?: number; weightsMinutes?: number; loadMinutes?: number } }
 const legacyAsks = new WeakSet<Ask>()
@@ -90,7 +93,31 @@ const boxName = (box: DoorBox): string => box.kind === 'this-computer' ? 'this c
 const verification = (recipe: HostRecipe): string => recipe.verified.by === 'measured'
   ? 'verified ' + recipe.verified.on
   : recipe.verified.by + (recipe.verified.on ? ' · ' + recipe.verified.on : '') + ' · not measured'
-const recipeFacts = (recipe: HostRecipe): string => [recipe.model.split('/')[0], /\b\d+(?:\.\d+)?B\b/i.exec(modelTitle(recipe))?.[0] ?? 'size unknown', 'tool calling and thinking', tokens(context(recipe)), verification(recipe)].join(' · ')
+const recipeFacts = (recipe: HostRecipe): string => derivedRecipeWords(recipe) ?? [recipe.model.split('/')[0], /\b\d+(?:\.\d+)?B\b/i.exec(modelTitle(recipe))?.[0] ?? 'size unknown', 'tool calling and thinking', tokens(context(recipe)), verification(recipe)].join(' · ')
+const STAMP_RANK: Readonly<Record<string, number>> = { measured: 0, documented: 1, community: 2, unverified: 3 }
+const stampRank = (recipes: readonly HostRecipe[]): number => Math.min(...recipes.map(recipe => STAMP_RANK[recipe.verified.by] ?? 3))
+const stampWord = (rank: number): string => Object.keys(STAMP_RANK).find(key => STAMP_RANK[key] === rank) ?? 'unverified'
+type HfLookup = HfSearchOutcome | { state: 'fetching'; settled: Promise<void> }
+function hfSearchMemory(deps: ModelDoorDeps, signal: AbortSignal): { lookup: (query: string) => HfLookup | undefined; pick: (model: HfModel) => Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> } {
+  const results = new Map<string, HfSearchOutcome>()
+  const inflight = new Map<string, Promise<void>>()
+  const search = deps.hfSearch ?? ((query: string, abort: AbortSignal) => searchHuggingFace(query, { signal: abort, base: huggingFaceHubBase(), token: huggingFaceToken() }))
+  const pick = deps.hfPick ?? ((model: HfModel, abort: AbortSignal) => pickHuggingFaceModel(model, { signal: abort, base: huggingFaceHubBase(), token: huggingFaceToken() }))
+  return {
+    lookup: query => {
+      if (query.length < LLM_HOST_SEARCH_MIN_CHARS) return undefined
+      const ready = results.get(query)
+      if (ready) return ready
+      let settled = inflight.get(query)
+      if (!settled) {
+        settled = search(query, signal).then(outcome => { results.set(query, outcome) }, () => { results.set(query, { state: 'offline', words: HF_OFFLINE_WORDS }) }).finally(() => inflight.delete(query))
+        inflight.set(query, settled)
+      }
+      return { state: 'fetching', settled }
+    },
+    pick: model => pick(model, signal),
+  }
+}
 function readyWords(recipe: HostRecipe): string {
   return hostSetupEstimate(recipe) + ' · weights at https://huggingface.co/' + recipe.model
 }
@@ -207,7 +234,10 @@ export function rentDoorVendor(road: LlmHostRoad, vendor: DoorVendor, offer: Hos
 export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, deps: ModelDoorDeps): Promise<LlmHostResult> {
   const stopped = (): LlmHostResult => ({ ok: false, words: 'Kept things as they are.' })
   let title = deps.initialModel
-  while (!signal.aborted) {
+  const search = hfSearchMemory(deps, signal)
+  let query = ''
+  let notice = ''
+  door: while (!signal.aborted) {
     let offerError = ''
     let podError = ''
     const [offers, pods, boxes] = await Promise.all([
@@ -235,24 +265,50 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const cheapest = allOffers.filter(offer => modelTitle(offer.recipe) === name).sort((a, b) => a.price - b.price)[0]
       const cheapestVendor = vendorOffers.find(row => row.offer === cheapest)?.vendor.label ?? 'Runpod'
       const runningRecipe = live && recipes.find(recipe => recipe.id === live.recipe)
-      const where = live && runningRecipe ? 'running on your pod ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
+      const stamp = stampRank(variants)
+      const derived = variants.every(recipe => recipe.verified.by === 'unverified' && recipe.id.startsWith('hf-'))
+      const where = (live && runningRecipe ? 'running on your pod ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
         : own ? 'fits ' + boxName(own) + ' (' + own.memoryGb + ' GB) — start here →'
         : cheapest ? cheapestVendor + ' ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
-        : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →'
-      return { name, variants, where, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
-    }).sort((a, b) => a.rank - b.rank || a.price - b.price || a.name.localeCompare(b.name))
+        : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →') + (derived ? '' : ' · ' + stampWord(stamp))
+      return { name, variants, where, derived, stamp, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
+    }).sort((a, b) => a.stamp - b.stamp || a.rank - b.rank || a.price - b.price || a.name.localeCompare(b.name))
     if (!title) {
       const paid = pods ?? records.filter(row => row.jobKind !== 'watch').map(row => ({ cost: row.price, startedAt: row.startedAt, createdAt: row.startedAt, status: row.status }))
       const spend = paid.filter(pod => pod.status === 'RUNNING' || pod.status === 'PROVISIONING').reduce((sum, pod) => sum + pod.cost * Math.max(0, Date.now() - Date.parse(pod.startedAt ?? pod.createdAt)) / 3600_000, 0)
-      const nameWidth = Math.max(0, ...groups.map(group => group.name.length))
-      const choice = await ask({ step: 'door-models', title: 'Which model?', found: 'Where each model can run right now. Nothing is rented until you confirm the price.', willRun: [offerError, podError, ...vendorErrors.values()].filter(Boolean).join(' · '), initial: groups[0]?.name, rows: [...groups.map(group => ({ value: group.name, label: group.name.padEnd(nameWidth) + ' · ' + group.where })), { value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'Other roads →' }] })
-      if (!choice) return stopped()
-      if (choice === 'refresh') continue
-      if (choice === 'other') return enterRoad(deps, ask, emit, signal)
-      if (choice === 'pods') return enterRoad(deps, ask, emit, signal, 'pods')
-      if (choice === 'boxes') return enterRoad(deps, ask, emit, signal, 'ssh')
-      if (!groups.some(group => group.name === choice)) return stopped()
-      title = choice
+      const verified = groups.filter(group => !group.derived)
+      const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
+      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'Other roads →' }]
+      for (;;) {
+        const live = search.lookup(query)
+        const models = live?.state === 'ready' ? live.models : []
+        const hfWidth = Math.max(0, ...models.map(model => model.id.length))
+        const heading = 'HUGGING FACE · ' + models.length + ' result' + (models.length === 1 ? '' : 's') + ' · unverified · sorted by downloads'
+        const note = live?.state === 'fetching' ? 'HUGGING FACE · fetching…' : live?.state === 'offline' ? 'HUGGING FACE · ' + live.words : live?.state === 'ready' && !models.length ? 'HUGGING FACE · no results for “' + query + '”' : undefined
+        const pending = ask({ step: 'door-models', title: 'Which model?', found: 'Where each model can run right now. Nothing is rented until you confirm the price.', willRun: [notice, offerError, podError, ...vendorErrors.values()].filter(Boolean).join(' · '), initial: verified[0]?.name, search: { placeholder: HF_SEARCH_PLACEHOLDER, query, ...(note ? { note } : {}) }, rows: [...verified.map(group => ({ value: group.name, label: group.name.padEnd(nameWidth) + ' · ' + group.where, section: 'VERIFIED RECIPES' })), ...models.map(model => ({ value: 'hf:' + model.id, label: hfRowLabel(model, hfWidth), section: heading })), ...also] })
+        notice = ''
+        const choice = live?.state === 'fetching' ? await Promise.race([pending, live.settled.then(() => undefined)]) : await pending
+        if (choice === undefined) continue
+        if (choice === null) return stopped()
+        if (choice.startsWith('search:')) { query = choice.slice(7).trim(); continue }
+        if (choice === 'refresh') continue door
+        if (choice === 'other') return enterRoad(deps, ask, emit, signal)
+        if (choice === 'pods') return enterRoad(deps, ask, emit, signal, 'pods')
+        if (choice === 'boxes') return enterRoad(deps, ask, emit, signal, 'ssh')
+        if (choice === 'bank') return enterRoad(deps, ask, emit, signal, 'fast-load')
+        if (choice.startsWith('hf:')) {
+          const model = models.find(row => row.id === choice.slice(3))
+          if (!model) continue
+          const picked = await search.pick(model)
+          if (signal.aborted) return stopped()
+          if (!picked.ok) { notice = picked.words; continue }
+          title = modelTitle(picked.row.recipe)
+          continue door
+        }
+        if (!groups.some(group => group.name === choice)) return stopped()
+        title = choice
+        break
+      }
     }
     const group = groups.find(group => group.name === title)
     if (!group) return { ok: false, words: 'That model no longer has a recipe. Open /llmhost for the current models.' }

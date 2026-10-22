@@ -87,6 +87,9 @@ export const LLM_HOST_WORDS = {
   stoppedSaved: 'stopped · provider saved · esc closes',
 } as const
 
+export const LLM_HOST_SEARCH_MIN_CHARS = 3
+export const LLM_HOST_SEARCH_SETTLE_MS = 450
+
 export const LLM_HOST_DIALECTS = [
   { value: 'sglang', label: 'SGLang' },
   { value: 'vllm', label: 'vLLM' },

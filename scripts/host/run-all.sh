@@ -16,6 +16,7 @@
 # gate-watch: scripts/lib/firstRunSeed.ts src/Tool.ts src/daemon/controlSocket.ts src/services/providers/credentialEnvSpellings.ts src/utils/config.ts src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/sessionStorage/paths.ts src/utils/systemPromptType.ts
 # gate-watch: src/types/message.ts src/utils/messages/pairing.ts scripts/host/trillionKimiFixture.ts src/utils/settings/settingsCache.ts
 # gate-watch: src/utils/settings/modelFacts.ts src/utils/settings/settings.ts scripts/host/prove-host-tune.ts scripts/host/runpodFixture.mjs
+# gate-watch: scripts/host/hfFixture.mjs scripts/host/prove-hf-recipes.ts scripts/host/prove-host-search-drive.ts src/services/host/hfRecipes.ts src/services/host/recipesFile.ts src/components/mercury-ui/menuFold.tsx
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -26,6 +27,8 @@ bun "$ROOT/scripts/host/prove-host-completion.ts"
 bun "$ROOT/scripts/host/prove-vendors.ts"
 bun "$ROOT/scripts/host/prove-vendor-road-drive.ts" --bundle "$ROOT/dist/mercury.mjs"
 bun "$ROOT/scripts/host/prove-door-drive.ts"
+bun "$ROOT/scripts/host/prove-hf-recipes.ts"
+bun "$ROOT/scripts/host/prove-host-search-drive.ts"
 bun "$ROOT/scripts/host/prove-door-tune-drive.ts"
 bun "$ROOT/scripts/host/prove-door-seams-drive.ts"
 bun "$ROOT/scripts/host/prove-mercury-host.ts" --bundle "$ROOT/dist/mercury.mjs"
