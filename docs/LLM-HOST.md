@@ -227,14 +227,14 @@ until you delete them with `d` or under **Pods I'm paying for**.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
    for the full shape (every GPU and node in the recipe) across the 32 shipped
    models (78 recipes in `assets/host/recipes.json` version 2, including
-   `GLM-5.3-Flash`, `Nemotron 3.5 Super VL 120B`, `Qwen3.8-27B`,
-   `DeepSeek-V4.1-Flash-1017`, `GLM-5.3`, `Kimi K3`, `Qwen3.8-2.4T-A95B`,
-   `DeepSeek-V4-Pro-0813`, `MiMo-V2.6-Pro-RL`, `Mistral Large 3 675B`,
-   `Beam 1.0 501B-A23B`, `Hy4-preview 780B`, `Step 5 Preview 604B-A27B`,
-   `MiniMax-M3 427B-A23B`, `Inkling 952B`, `Inkling-Small 266B`,
-   `Nemotron 3 Ultra 550B-A55B`, `LongCat-2.0 1.8T`, `Ling-3.1-flash 572B`,
-   `Qwen3.8-Flash-Next 180B-A6B`, `MiMo-V2.6-Flash-RL 309B-A15B`,
-   `gpt-oss-120b` and `Gemma 4 31B`) plus any `unverified` recipe derived from
+   GLM-5.3-Flash, Nemotron 3.5 Super VL 120B, Qwen3.8-27B,
+   DeepSeek-V4.1-Flash-1017, GLM-5.3, Kimi K3, Qwen3.8-2.4T-A95B,
+   DeepSeek-V4-Pro-0813, MiMo-V2.6-Pro-RL, Mistral Large 3 675B,
+   Beam 1.0 501B-A23B, Hy4-preview 780B, Step 5 Preview 604B-A27B,
+   MiniMax-M3 427B-A23B, Inkling 952B, Inkling-Small 266B,
+   Nemotron 3 Ultra 550B-A55B, LongCat-2.0 1.8T, Ling-3.1-flash 572B,
+   Qwen3.8-Flash-Next 180B-A6B, MiMo-V2.6-Flash-RL 309B-A15B,
+   gpt-oss-120b and Gemma 4 31B) plus any `unverified` recipe derived from
    Hugging Face search. Large single-node and multi-node Runpod Instant Cluster
    recipes list total hourly compute, per-node disk sizes, weight download
    sizes, estimated download times at 0.5 to 1 GB/s per node, and model-licence
