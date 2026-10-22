@@ -56,7 +56,7 @@ export const LLM_HOST_WORDS = {
   key: '3 · the server key',
   keyRequired: 'The server asked for a key. It is hidden here and stored only when you register.',
   keyOptional: 'No key was needed to list models. Leave blank, or give a key for replies.',
-  keyRun: 'Keep the key in memory for this check; registration uses the compat login store, never settings.',
+  keyRun: 'Used for this check; saved only when you register.',
   model: '4 · choose the model',
   modelRun: 'Choose one listed model for the reply check. Every listed model will appear in /model.',
   name: '5 · name the provider',

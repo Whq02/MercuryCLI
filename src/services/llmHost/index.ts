@@ -183,7 +183,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
       key = answer.trim() || undefined
       suppliedKey = Boolean(key)
     }
-    emit({ title: words.key, words: key ? 'key present · not written to settings' : 'no key' })
+    emit({ title: words.key, words: key ? 'key present' : 'no key' })
     probeEndpoint = { ...probeEndpoint, dialect }
     reading = await inspectCompatServer(probeEndpoint, { key, signal })
     const selected = reading.models.length === 1 ? reading.models[0]! : await question({ step: 'model', title: words.model, found: `${reading.models.length} models listed by the server`, willRun: words.modelRun, rows: reading.models.map(model => ({ value: model, label: `${model} · ${hostWindowWords(reading.contextWindows[model])}` })) })

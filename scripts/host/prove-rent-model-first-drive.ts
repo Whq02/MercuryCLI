@@ -314,7 +314,7 @@ try {
   patchHostRecord(gone.id, { jobState: 'running' })
   patchHostRecord(inflight.id, { jobState: 'running', creating: 'mercury-sweep-inflight' })
   await sweepHostJobs({ alive: row => !row.id.startsWith('watch-sweep-') })
-  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row.includes('GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again')) && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
+  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped · no pod was created · /llmhost → the model → Watch stock to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row.includes('GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped · no pod was created · /llmhost → the model → Watch stock to watch again')) && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
   removeHostRecord(gone.id); removeHostRecord(inflight.id)
 
   stockNow()

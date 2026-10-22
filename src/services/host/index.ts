@@ -83,7 +83,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     const connect = async (id: HostVendorId): Promise<boolean> => {
       if (id === 'huggingface') {
         if (!vendorKey(id)) {
-          const choice = await question({ step: 'huggingface-signin', title: 'Hugging Face sign-in', found: 'Use the same sign-in as /logins huggingface. The token needs Inference Endpoints management permission and access to the model.', willRun: 'No second HF key is stored. Nothing is rented until the price confirmation.', rows: [{ value: 'login', label: 'Open existing Hugging Face sign-in' }, { value: 'saved', label: 'Use saved sign-in' }, { value: 'cancel', label: words.cancel }] })
+          const choice = await question({ step: 'huggingface-signin', title: 'Hugging Face sign-in', found: 'Use the same sign-in as /logins huggingface. The token needs Inference Endpoints management permission and access to the model.', willRun: 'Nothing is rented until the price confirmation.', rows: [{ value: 'login', label: 'Open existing Hugging Face sign-in' }, { value: 'saved', label: 'Use saved sign-in' }, { value: 'cancel', label: words.cancel }] })
           if (choice === 'login') await question({ step: 'huggingface-login', title: 'Hugging Face sign-in', found: '', willRun: '' })
           else if (choice !== 'saved') return false
         }
@@ -96,7 +96,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         return true
       }
       const help = HOST_VENDOR_INFO[id].keyHelp
-      const entered = await question({ step: id + '-key', title: vendorLabel(id) + ' API key', found: help, willRun: 'Saved in Mercury’s credential store. Never written to the project or sent to another vendor.', secret: true })
+      const entered = await question({ step: id + '-key', title: vendorLabel(id) + ' API key', found: help, willRun: 'Nothing is rented until the price confirmation.', secret: true })
       if (!entered?.trim()) return false
       const client = vendorClient(id, { key: entered.trim(), apiBaseUrl: baseFor(id) })
       try { await client.pods(signal) } catch (error) { emit({ title: vendorLabel(id), words: String(error).split(entered.trim()).join('[redacted]') }); return false }
@@ -479,7 +479,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (!host) return stopped()
         const user = await question({ step: 'ssh-user', title: words.sshUser, found: host, willRun: '' }); if (user === null) return stopped()
         const port = await question({ step: 'ssh-port', title: words.sshPort, found: host, willRun: '' }); if (port === null) return stopped()
-        const path = await question({ step: 'ssh-key', title: words.sshKey, found: 'The key remains on your computer.', willRun: '' }); if (path === null) return stopped()
+        const path = await question({ step: 'ssh-key', title: words.sshKey, found: host, willRun: '' }); if (path === null) return stopped()
         target = { host: host.trim(), ...(user.trim() ? { user: user.trim() } : {}), ...(port.trim() ? { port: Number(port) } : {}), key: localKeyPath(path.trim()) }
         const hardware = await inspectSsh(target, runner, signal)
         docker = hardware.docker

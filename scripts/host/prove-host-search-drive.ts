@@ -124,7 +124,7 @@ try {
   await choose(ggufRow)
   await heading('unsloth/' + ggufRow); await until('WHERE')
   const model = screen().replace(/[│\s]+/g, ' ')
-  check('the model screen opens on the RECIPE line stamped unverified with the engine, format, size and the guard promise', model.includes('RECIPE · unverified — recipe derived from the repo’s config and file list a moment ago (engine llama.cpp · GGUF Q4_K_M · 120 GB); nobody has booted this exact recipe yet.') && model.includes('The price is confirmed before anything is rented; the pod guard terminates a pod that never answers.'))
+  check('the model screen opens on the RECIPE line stamped unverified with the engine, format, size and the guard promise', model.includes('RECIPE · unverified — recipe derived from the repo’s config and file list a moment ago (engine llama.cpp · GGUF Q4_K_M · 120 GB); nobody has booted this exact recipe yet.') && model.includes('The price is confirmed before anything is rented; a pod that never answers is terminated automatically.'))
   check('the derived recipe is priced on the live catalogue: 2× H100 from the file sizes × 1.2', model.includes('needs 2× H100 (120 GB)') && model.includes('from $7.98/hr') && model.includes('Rent · Runpod 2× H100 · $7.98/hr') && hf.state.trees === 1 && hf.state.configs === 0)
   check('the model screen keeps today’s sections', ['QUALITY', 'CONVERSATIONS × CONTEXT', 'THINKING', 'WHERE'].every(word => model.includes(word)))
   await capture('120-model')

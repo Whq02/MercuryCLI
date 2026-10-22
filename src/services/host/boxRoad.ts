@@ -20,7 +20,7 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
         const host = await question({ step: 'ssh-host', title: 'SSH host or config alias', found: 'Use a host or an existing SSH config alias.', willRun: '' }); if (!host) return stopped
         const user = await question({ step: 'ssh-user', title: 'SSH user (blank uses SSH config)', found: host, willRun: '' }); if (user === null) return stopped
         const port = await question({ step: 'ssh-port', title: 'SSH port (blank uses SSH config)', found: host, willRun: '' }); if (port === null) return stopped
-        const key = await question({ step: 'ssh-key', title: 'Private key path (blank uses SSH config or agent)', found: 'The private key stays here.', willRun: '' }); if (key === null) return stopped
+        const key = await question({ step: 'ssh-key', title: 'Private key path (blank uses SSH config or agent)', found: host, willRun: '' }); if (key === null) return stopped
         const os = await question({ step: 'box-os', title: 'Operating system on this computer', found: host, willRun: 'Windows uses PowerShell over SSH.', rows: [{ value: 'darwin', label: 'macOS' }, { value: 'linux', label: 'Linux' }, { value: 'windows', label: 'Windows' }] }); if (!os) return stopped
         if (!['darwin', 'linux', 'windows'].includes(os)) throw new Error('Choose a listed operating system.')
         box = await discoverBox({ name: name.trim(), kind: 'ssh', os: os as HostBox['os'], target: { host: host.trim(), ...(user.trim() ? { user: user.trim() } : {}), ...(port.trim() ? { port: Number(port) } : {}), key: localKeyPath(key.trim()) } }, runner, signal)
