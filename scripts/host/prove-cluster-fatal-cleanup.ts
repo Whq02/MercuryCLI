@@ -26,10 +26,10 @@ try {
   const recipe = HOST_RECIPES.find(row => row.nodes === 2 && row.gpu === 'B200')!
   assert.ok(recipe)
   const notices = (id: string): string[] => readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === id).map(row => row.words)
-  for (const mode of ['tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused'] as const) {
+  for (const mode of ['shape-mismatch', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused'] as const) {
     const id = 'cluster-' + mode
     const at = new Date().toISOString()
-    const cluster = { id, name: id, type: 'APPLICATION', compute: { podCount: 2, gpuCountPerPod: recipe.count, gpuTypeId: 'NVIDIA B200' }, primary: { podId: id + '-0', status: 'RUNNING' }, createdAt: at }
+    const cluster = { id, name: id, type: 'APPLICATION', compute: { podCount: mode === 'shape-mismatch' ? 3 : 2, gpuCountPerPod: recipe.count, gpuTypeId: 'NVIDIA B200' }, primary: { podId: id + '-0', status: 'RUNNING' }, createdAt: at }
     const nodes = [0, 1].map(rank => ({ id: id + '-' + rank, name: id + '-' + rank, cost: 10, status: 'RUNNING', cudaVersion: '13.0', createdAt: at, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
     rp.state.clusters.set(id, cluster)
     rp.state.clusterNodes.set(id, nodes)
@@ -37,10 +37,12 @@ try {
     rp.state.failNext = mode.endsWith('listing-unavailable') ? { route: 'GET /v2/clusters', status: 503, times: 100 } : mode === 'read-paused' ? { route: 'GET /v2/clusters/' + id, status: 503, times: 100 } : null
     const queued = queueHostSetup({ id, name: id, recipe: recipe.id, recipeRow: recipe, price: 20, status: 'RUNNING', startedAt: at, cluster, nodes, sessionId: id, apiBaseUrl: rp.baseUrl })
     let health = 0
+    let launches = 0
     const runner: HostRunner = {
       tunnel() { throw new Error(mode.startsWith('tunnel-') ? 'fixture tunnel failed after engine readiness' : 'a failed cluster never opens a tunnel') },
       async run(_command, args) {
         const remote = args.at(-1)!
+        if (remote.includes('nohup setsid')) launches++
         const rank = Number(args[args.indexOf('-p') + 1]) - 22000
         if (mode === 'node-launch' && rank === 1 && remote.includes('nohup setsid')) throw new Error('Engine launch failed; failed to load model: fixture node')
         if (remote.includes('/health')) { health++; if (mode.startsWith('tunnel-')) return '{}'; throw new Error('fixture head is still loading') }
@@ -64,7 +66,9 @@ try {
       if (mode.endsWith('delete-held') || mode.endsWith('listing-unavailable')) {
         check(mode + ' retains the failed record and does not claim verified termination', readHostRecord(id)?.jobState === 'failed' && readHostRecord(id)?.status !== 'TERMINATED' && !words[0]!.includes('Runpod no longer lists it') && /may still bill|still bills|did not confirm/.test(words[0]!))
       } else {
-        check(mode + ' removes the ended rental and names its cause and verified cluster termination', !readHostRecord(id) && !rp.state.clusters.has(id) && !rp.state.clusterNodes.has(id) && words[0]!.includes(mode.startsWith('tunnel-') ? 'fixture tunnel failed' : mode === 'node-launch' ? 'failed to load model' : 'out of memory') && words[0]!.includes('Runpod no longer lists it'))
+        const cause = mode === 'shape-mismatch' ? 'shape does not match' : mode.startsWith('tunnel-') ? 'fixture tunnel failed' : mode === 'node-launch' ? 'failed to load model' : 'out of memory'
+        check(mode + ' removes the ended rental and names its cause and verified cluster termination', !readHostRecord(id) && !rp.state.clusters.has(id) && !rp.state.clusterNodes.has(id) && words[0]!.includes(cause) && words[0]!.includes('Runpod no longer lists it'))
+        if (mode === 'shape-mismatch') check('a mismatched placement launches no engine', launches === 0)
         check(mode + ' ends promptly instead of consuming the setup timeout', health < 30)
       }
     }
