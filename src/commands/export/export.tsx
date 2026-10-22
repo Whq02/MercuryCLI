@@ -72,7 +72,7 @@ export async function call(
   try {
     secrets = await sessionSecretValues()
   } catch {
-    onDone('The credential store could not be read; nothing was exported.')
+    onDone('Saved credentials could not be read; nothing was exported.')
     return null
   }
   const redact = createSecretRedactor(secrets)

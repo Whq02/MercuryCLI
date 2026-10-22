@@ -3,7 +3,7 @@ import type { Command } from '../../commands.js'
 const defaultprovider = {
   type: 'local-jsx',
   name: 'defaultprovider',
-  description: 'Show or switch the default provider — the lane fresh sessions start on',
+  description: 'Show or switch the default provider — the provider fresh sessions start on',
   isEnabled: () => true,
   argumentHint: '[provider]',
   load: () => import('./defaultprovider.js'),

@@ -97,16 +97,16 @@ export function CapOfferCard({
   const chooseWords = list !== null ? `↑↓ choose ${GLYPH.dot} ` : ''
   const windowNoun = windowName ?? 'usage window'
   const stateLine = home
-    ? `the ${homeName} window has reset — ${homeSpend.kind === 'subscription' ? 'the subscription lane' : 'the home lane'} is open again`
+    ? `the ${homeName} window has reset — ${homeSpend.kind === 'subscription' ? 'your subscription' : homeName} is open again`
     : windowNoun === 'credits'
       ? `the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`
       : `the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`
   const spendLine = home
     ? awaySpend.kind === 'local'
-      ? `returning to ${homeName} — the local lane cost nothing to leave`
+      ? `returning to ${homeName} — the local model cost nothing to leave`
       : awaySpend.kind === 'subscription'
-        ? `returning to ${homeName} — the ${awayName} subscription lane stops carrying this session`
-        : `returning to ${homeName} — stops billing on the ${awayName} lane`
+        ? `returning to ${homeName} — the ${awayName} subscription stops carrying this session`
+        : `returning to ${homeName} — stops billing on ${awayName}`
     : `${awaySpend.words}; ${homeSpend.words}`
   const highlightedBlockers =
     highlighted !== null ? highlighted.blockers : targetUsability.usable ? [] : targetUsability.blockers
@@ -123,7 +123,7 @@ export function CapOfferCard({
               {`enter opens the transition preview ${GLYPH.dot} ${escKey} stays put`}
             </>
           ) : (
-            `${chooseWords}${escKey} dismisses ${GLYPH.dot} the offer returns when the lane is usable`
+            `${chooseWords}${escKey} dismisses ${GLYPH.dot} the offer returns when ${awayName} is usable`
           )}
         </Text>
       )}
@@ -171,7 +171,7 @@ export function CapOfferCard({
         </Text>
         {!usable ? (
           <Text>
-            <Text color={AMBER}>{GLYPH.warn}</Text> the {awayName} lane is not
+            <Text color={AMBER}>{GLYPH.warn}</Text> {awayName} is not
             usable right now: {highlightedBlockers.length > 0 ? highlightedBlockers.join(' · ') : 'at its own usage cap'}
           </Text>
         ) : null}

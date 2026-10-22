@@ -322,7 +322,7 @@ section('§4 /jev on with no key, then the key pasted through the masked entry (
   await press(m, KEY.enter, 350)
   check('↵ stores the key through storeJevApiKey: the store holds it', secrets.readStoredTypesafeApiKey() === PROOF_KEY)
   check('the receipt names the store and the clear road, never the value', said(m, 'TypeSafe API key stored (auth-scoped, mode 600)') && said(m, '⌫ on the Key row clears it') && !m.screen().includes(PROOF_KEY), m.lines().filter(line => line.includes('stored')).join(' | '))
-  check('the Key row now reads the owner\'s stored words', /Key\s+key stored \(the credential store; the value is never shown\)/.test(rowLine(m, 'Key')), rowLine(m, 'Key'))
+  check('the Key row now reads the owner\'s stored words', /Key\s+key stored \(the value is never shown\)/.test(rowLine(m, 'Key')), rowLine(m, 'Key'))
   check('the status is ready', status.jevStatus().kind === 'ready' && has(m.lines(), 'JEV ready'))
   check('only the secrets file holds the key (no sign-in, no second store)', filesMentioning(PROOF_KEY).length === 1 && filesMentioning(PROOF_KEY)[0] === secrets.providerSecretsPathForDisplay(), filesMentioning(PROOF_KEY).join(','))
   await closePopup(m)

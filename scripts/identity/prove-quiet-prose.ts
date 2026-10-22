@@ -112,6 +112,17 @@ const SURFACES: readonly string[] = [
   'src/components/InvalidConfigDialog.tsx',
   'src/components/MCPServerApprovalDialog.tsx',
   'src/components/MCPServerMultiselectDialog.tsx',
+  'src/commands/bootmenu/index.ts',
+  'src/commands/caching/caching.tsx',
+  'src/commands/defaultprovider/index.ts',
+  'src/commands/export/export.tsx',
+  'src/commands/palette/index.ts',
+  'src/components/CapOfferCard.tsx',
+  'src/components/CritterSelect.tsx',
+  'src/components/MessageSelector.tsx',
+  'src/components/SlotOfferCard.tsx',
+  'src/components/extensions/ExtensionsBoard.tsx',
+  'src/services/jev/jevKey.ts',
 ]
 
 const SKIP_FUNCTIONS = new Set([

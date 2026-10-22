@@ -276,7 +276,7 @@ export function ExtensionsBoard({
       }
       refresh()
       if (out.outcome === 'carried') {
-        setNote(`${entry.name} ${out.from} → ${out.to} · approval carried · r reloads`)
+        setNote(`${entry.name} ${out.from} → ${out.to} · approval kept · r reloads`)
         return
       }
       const pending = out.record.pendingUpdate
