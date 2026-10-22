@@ -91,7 +91,15 @@ try {
   open(); await mount(120)
   await heading('Which model?')
   const plain = screen()
-  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Pods I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('Other roads') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
+  const visibleNames = names.filter(name => plain.includes(name))
+  const first = selected()
+  check('without a query the list opens on the verified recipes (the list pages: the first screen holds the first rows, every row named is a recipe)', visibleNames.length >= 8 && names.some(name => first.includes(name)))
+  for (let n = 0; n < 80 && !screen().includes('Other roads'); n++) { mounted!.push(KEY.down); await waitFor(() => true, 10) }
+  assert.ok(await waitFor(() => screen().includes('Other roads'), 5000), 'the list pages down to the ALSO rows\n' + screen())
+  const tail = screen()
+  for (let n = 0; n < 120 && selected() !== first; n++) { mounted!.push(KEY.up); await waitFor(() => true, 10) }
+  assert.ok(await waitFor(() => selected() === first, 5000), 'the list pages back to its first row\n' + screen())
+  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && tail.includes('Bank · your weights') && tail.includes('Pods I’m paying for') && tail.includes('My computers') && tail.includes('Refresh stock and prices') && tail.includes('Other roads') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
   check('each verified row carries its stamp word, measured before documented', plain.indexOf(' · measured') >= 0 && plain.indexOf(' · documented') >= 0 && plain.indexOf(' · measured') < plain.indexOf(' · documented') && selected().includes('GLM-5.3-Flash'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
   hf.state.delayMs = 300
@@ -129,7 +137,7 @@ try {
   check('a new popup fetches afresh', hf.state.searches === 2)
   mounted!.push(KEY.esc)
   await gone('HUGGING FACE'); await until('GLM-5.3-Flash')
-  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && screen().includes(HF_SEARCH_PLACEHOLDER) && screen().includes('Pods I’m paying for') && hf.state.searches === 2)
+  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && screen().includes(HF_SEARCH_PLACEHOLDER) && screen().includes('GLM-5.3-Flash') && screen().includes('Beam 1.0 501B-A23B') && !screen().includes('VERIFIED RECIPES') && hf.state.searches === 2)
   type('deepseek'); await until(hfHeading)
   check('the same query in the same popup never refetches', hf.state.searches === 2)
   await choose('mercury-bounties/deepseek-coder-v4-bounty')

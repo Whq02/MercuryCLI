@@ -86,7 +86,15 @@ try {
   await heading('Which model?')
   const names = [...new Set(recipes.map(recipe => recipe.label.split(' · ')[0]!))]
   const screen1 = mounted!.screen()
-  check('Screen 1 has one row per model, with no filenames', names.every(name => mounted!.lines().filter(line => line.includes(name.padEnd(Math.max(...names.map(name => name.length))) + ' · ')).length === 1) && !/\.gguf|UD-Q/.test(screen1))
+  const nameWidth = Math.max(...names.map(name => name.length))
+  const rowsSeen = new Map<string, number>()
+  for (let n = 0; n < 120; n++) {
+    for (const name of names) if (mounted!.lines().some(line => line.includes(name.padEnd(nameWidth) + ' · '))) rowsSeen.set(name, Math.max(rowsSeen.get(name) ?? 0, mounted!.lines().filter(line => line.includes(name.padEnd(nameWidth) + ' · ')).length))
+    if (mounted!.screen().includes('Other roads')) break
+    mounted!.push(KEY.down); await waitFor(() => true, 10)
+  }
+  check('Screen 1 has one row per model, with no filenames (the list pages: every model appears exactly once as the cursor walks it)', names.every(name => rowsSeen.get(name) === 1) && !/\.gguf|UD-Q/.test(screen1) && !/\.gguf|UD-Q/.test(mounted!.screen()))
+  await walk('GLM-5.3-Flash', KEY.up)
   const at = (needle: string): number => { const index = screen1.indexOf(needle); assert.ok(index >= 0, 'Screen 1 carries ' + needle); return index }
   check('running first, then cheapest stock, then no stock', at('running on your pod') < at('in stock') && at('in stock') < at('no stock'))
   check('cursor starts on the already-paid model', selected().includes('GLM-5.3-Flash'))
@@ -94,8 +102,10 @@ try {
   check('account and own-computer rows follow a rule (the list pages past the frontier rows; the cursor returns to the paid model)', screenEnd.includes('Pods I’m paying for · 1') && screenEnd.includes('so far') && screenEnd.includes('My computers · 0') && screenEnd.includes('────────────────') && selected().includes('GLM-5.3-Flash'))
   check('opening the door never creates a pod', rp.state.creates === 0 && queued.length === 0)
   await capture('120-screen-1')
-  mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('WHERE')
-  const screen2 = mounted!.screen()
+  mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('THINKING')
+  const screen2a = mounted!.screen()
+  if (!screen2a.includes('WHERE')) { mounted!.push('\u001b[6~'); await until('WHERE') }
+  const screen2 = screen2a.includes('WHERE') ? screen2a : screen2a + '\n' + mounted!.screen()
   check('Screen 2 sections follow the approved order', ['QUALITY', 'CONVERSATIONS × CONTEXT', 'THINKING', 'WHERE'].every((word, i, words) => screen2.includes(word) && (i === 0 || screen2.indexOf(words[i - 1]!) < screen2.indexOf(word))))
   check('recipe facts, verification date and honest absent tune budget are visible', screen2.includes('verified ' + runningRecipe.verified.on) && /Mercury cannot promise what fits|GB\/GPU engine allowance/.test(screen2) && screen2.includes('change any time with /effort'))
   check('quality words distinguish measured and community recipes', screen2.includes('Balanced · 4-bit (recommended)') && screen2.includes('Best quality · 8-bit FP8') && screen2.includes('Fast crew · NVFP4 · community recipe'))
