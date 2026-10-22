@@ -23,10 +23,11 @@ export interface LlmHostQuestion {
   found: string
   willRun: string
   lines?: string[]
-  rows?: ReadonlyArray<{ value: string; label: string }>
+  rows?: ReadonlyArray<{ value: string; label: string; section?: string }>
   initial?: string
   secret?: boolean
   fullDetails?: boolean
+  search?: { placeholder: string; query: string; note?: string }
 }
 export interface LlmHostEvent { title: string; words: string; host?: { id: string; price: number; startedAt: string; status: string; step?: string; canResume?: boolean; canTune?: boolean } }
 export interface LlmHostResult { ok: boolean; words: string; model?: string; reply?: string; elapsedMs?: number; registered?: boolean }
