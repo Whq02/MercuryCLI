@@ -103,7 +103,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       if (dialect === 'llamacpp') {
         if (slotReads > 0) invalidateLlamacppTotalSlots(endpoint)
         slotReads += 1
-        totalSlots = await resolveLlamacppTotalSlots(endpoint, { key: key?.key, signal: params.signal })
+        totalSlots = await resolveLlamacppTotalSlots(endpoint, { key: key?.key, signal: params.signal, model: wireId })
         idSlot = totalSlots === undefined ? undefined : await assignLlamacppSlot(endpoint, String(processOwnerForLane(params.options.agentId)), totalSlots, params.options.agentId !== undefined)
       }
       return key ? { apiKey: key.key } : {}
@@ -134,6 +134,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
             readSelfHostedLiveness(endpoint, dialect, pinnedSlot, {
               key: resolveCompatApiKey(process.env, endpoint.name)?.key,
               signal: params.signal,
+              model: wireId,
             }),
         }
       : {}),

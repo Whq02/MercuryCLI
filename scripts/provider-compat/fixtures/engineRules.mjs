@@ -124,9 +124,24 @@ export async function startEngineRules(dialect, config = {}) {
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}
     const json = (status, value) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)) }
     if (req.url === '/v1/models') return json(200, { object: 'list', data: [{ id: model, owned_by: dialect, ...(dialect === 'vllm' || dialect === 'sglang' ? { max_model_len: 131072 } : {}) }] })
-    if (req.url === '/props' && dialect === 'llamacpp') return json(200, { default_generation_settings: { n_ctx: 131072 }, total_slots: 1, modalities: { vision: config.images ?? true }, chat_template_caps: { supports_tools: config.tools ?? true, supports_tool_calls: config.tools ?? true, supports_reasoning_effort: config.reasoning ?? true, supports_preserve_reasoning: config.reasoning ?? true } })
+    const path = req.url.split('?')[0]
+    const named = new URL(req.url, 'http://127.0.0.1').searchParams.get('model')
+    const routed = dialect === 'llamacpp' && config.router === true
+    const missingModel = () => json(400, { error: { code: 400, message: 'model name is missing from the request', type: 'invalid_request_error' } })
+    if (path === '/props' && dialect === 'llamacpp') {
+      if (routed && named === null) return json(200, { role: 'router', max_instances: 4, models_autoload: true, model_alias: 'llama-server', model_path: 'none', default_generation_settings: { params: {}, n_ctx: 0 }, ui_settings: {}, build_info: 'b0-fixture' })
+      if (routed && named !== model) return json(400, { error: { code: 400, message: `model '${named}' not found`, type: 'invalid_request_error' } })
+      return json(200, { default_generation_settings: { n_ctx: 131072 }, total_slots: 1, modalities: { vision: config.images ?? true }, chat_template_caps: { supports_tools: config.tools ?? true, supports_tool_calls: config.tools ?? true, supports_reasoning_effort: config.reasoning ?? true, supports_preserve_reasoning: config.reasoning ?? true } })
+    }
+    if (path === '/slots' && dialect === 'llamacpp') {
+      if (routed && named === null) return missingModel()
+      return json(200, [{ id: 0, id_task: -1, n_ctx: 131072, is_processing: false }])
+    }
     if (req.url === '/metrics' && dialect === 'sglang') { res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' }); return res.end(`sglang:prompt_tokens_total{model_name="${model}"} 1000\nsglang:time_to_first_token_seconds_sum{model_name="${model}"} 2\n`) }
-    if (req.url.split('?')[0] === '/metrics' && dialect === 'llamacpp') { res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' }); return res.end('llamacpp:prompt_tokens_seconds 1234\n') }
+    if (path === '/metrics' && dialect === 'llamacpp') {
+      if (routed && named === null) return missingModel()
+      res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' }); return res.end('llamacpp:prompt_tokens_seconds 1234\n')
+    }
     if ((req.url === '/model_info' && config.legacyOnly !== true || req.url === '/get_model_info' && (config.legacyInfo === true || config.legacyOnly === true)) && dialect === 'sglang') return json(200, { model_path: model, served_model_name: model, tokenizer_path: model, is_generation: true, preferred_sampling_params: null, weight_version: 'default', load_format: 'auto', reasoning_parser: config.reasoning === false ? null : 'qwen3', tool_call_parser: config.tools === false ? null : 'qwen', disaggregation_mode: 'null', has_image_understanding: config.images ?? true, has_audio_understanding: false, model_type: 'qwen3', architectures: ['Qwen3ForCausalLM'] })
     if (req.url === '/api/tags' && dialect === 'ollama') return json(200, { models: [{ name: model }] })
     if (req.url === '/api/ps' && dialect === 'ollama') return json(200, { models: [{ name: model, context_length: 131072 }] })

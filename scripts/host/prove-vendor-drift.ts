@@ -33,6 +33,7 @@ const { RunpodClient, RunpodHttpError, createRefusal, podLogLines } = await impo
 const { hostSpendSoFar, hostPodBills } = await import('../../src/services/host/costs.ts')
 const { LambdaClient } = await import('../../src/services/host/vendors/lambda.ts')
 const { searchHuggingFace, fetchHuggingFaceRepo, HF_RATE_LIMIT_WORDS, HF_OFFLINE_WORDS } = await import('../../src/services/host/hfRecipes.ts')
+const { HOST_VENDOR_INFO } = await import('../../src/services/host/vendors/vendor.ts')
 
 const recipeFile = join(home, 'drift-recipes.json')
 const previousRecipes = process.env.MERCURY_HOST_RECIPES_FILE
@@ -113,6 +114,8 @@ try {
   lambda.state.repeatPageToken = false
   lambda.state.pageSize = 50
   check('the Lambda fixture refuses a duplicate key name with the vendor’s own error code', lambda.state.keyCreates === 1 && lambda.state.keys.length === 1, { creates: lambda.state.keyCreates, keys: lambda.state.keys.length })
+
+  check('the Runpod key words send the user to the Credentials page its documents name, Lambda and Vast to theirs', HOST_VENDOR_INFO.runpod.keyHelp.includes('https://console.runpod.io/user/credentials') && HOST_VENDOR_INFO.lambda.keyHelp.includes('https://cloud.lambda.ai/api-keys') && HOST_VENDOR_INFO.vast.keyHelp.includes('https://cloud.vast.ai/manage-keys/'), HOST_VENDOR_INFO)
 
   hf.state.rateLimited = true
   const limited = await searchHuggingFace('deepseek', { base: hf.baseUrl })

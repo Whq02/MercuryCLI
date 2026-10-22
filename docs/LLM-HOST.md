@@ -434,7 +434,7 @@ reported by the server.
   `mmproj-BF16.gguf` for `Nemotron 3.5 Super VL 120B`), include it in the
   weight manifest and bank checks, and pass `--mmproj` to `llama-server`.
   Mercury reads image capability from `GET /props` (`modalities.vision`) on
-  `llama.cpp`, `GET /get_model_info` (`has_image_understanding`) on `SGLang`,
+  `llama.cpp`, `GET /model_info` (`has_image_understanding`) on `SGLang`,
   `POST /api/show` (`capabilities`) on `Ollama`, and `input_modalities` on
   `/v1/models`. If a `llama.cpp` server runs without a projector, Mercury
   reports
@@ -462,7 +462,7 @@ reported by the server.
   before dispatch and names the tool and schema fault:
   `llama.cpp cannot take the <Tool> tool's schema: <fault> — the request was not sent and no tools were removed; update its schema before retrying`.
   No tools are removed; repair the schema before retrying. If a server reports that tool calling is disabled
-  (`tools: false` in `SGLang` `/get_model_info`, `llama.cpp`
+  (`tools: false` in `SGLang` `/model_info`, `llama.cpp`
   `chat_template_caps` or `Ollama` `/api/show`), Mercury stops before sending
   the request and reports
   `<Engine> reports no tool-call support for '<model>' — select a tool-capable model or enable the model's tool parser on this server, then retry`.

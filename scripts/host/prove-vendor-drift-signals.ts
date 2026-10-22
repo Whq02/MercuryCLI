@@ -92,6 +92,12 @@ const RUNPOD_POD_STATUSES = ['PROVISIONING', 'STARTING', 'RUNNING', 'EXITED', 'E
   check('a Runpod 429 documents Retry-After in seconds beside the RateLimit headers', problem?.headers?.['Retry-After'] && problem?.headers?.['RateLimit-Policy'], Object.keys(problem?.headers ?? {}))
   const errorShape = resolveRefs(spec, paths['/v2/pods']?.post?.responses?.['422'])?.content?.['application/problem+json']?.schema
   check('a Runpod problem+json carries title, status, detail and errors[]', ['title', 'status', 'detail', 'errors'].every(key => property(errorShape, key) !== undefined), Object.keys(errorShape?.properties ?? {}))
+  const credentials = await fetchText('https://docs.runpod.io/get-started/credentials.md')
+  const keyPage = /Create an API key[\s\S]*?\((https:\/\/console\.runpod\.io\/user\/[a-z]+)\)/.exec(credentials.text)?.[1]
+  const { HOST_VENDOR_INFO } = await import('../../src/services/host/vendors/vendor.ts')
+  check('Runpod’s credentials document still names the page the key words point to (https://console.runpod.io/user/credentials)', credentials.status === 200 && keyPage !== undefined && HOST_VENDOR_INFO.runpod.keyHelp.includes(keyPage), { keyPage, keyHelp: HOST_VENDOR_INFO.runpod.keyHelp })
+  const keyHelp = (await fetchText('https://console.runpod.io/user/credentials', { headers: { 'user-agent': 'Mozilla/5.0' } })).status
+  check('the Runpod credentials page answers', keyHelp === 200, keyHelp)
 }
 
 const LAMBDA_SPEC = 'https://cloud.lambda.ai/api/v1/openapi.json'
@@ -194,6 +200,17 @@ const HF_RATE_LIMITS = 'https://huggingface.co/docs/hub/rate-limits'
   const newest = line[0]
   const behind = line.filter(row => row.version !== 'v' + node.version && row.version.localeCompare('v' + node.version, undefined, { numeric: true }) > 0)
   check('the pinned Node ' + node.version + ' is the newest release of its line (' + (newest?.version ?? '?') + ' on nodejs.org/dist/index.json)', newest?.version === 'v' + node.version, { newest, behind: behind.map(row => row.version + (row.security ? ' (security)' : '')) })
+}
+
+{
+  const engine = readFileSync(resolve(root, 'src/services/host/boxEngine.ts'), 'utf8')
+  const tag = /https:\/\/github\.com\/ollama\/ollama\/releases\/download\/(v[0-9.]+)\//.exec(engine)?.[1]
+  const release = tag ? (await fetchJson('https://api.github.com/repos/ollama/ollama/releases/tags/' + tag)).body : undefined
+  const assets: string[] = Array.isArray(release?.assets) ? release.assets.map((row: any) => row.name) : []
+  const wanted = ['ollama-linux-amd64.tar.zst', 'ollama-linux-arm64.tar.zst', 'ollama-windows-amd64.zip', 'ollama-windows-arm64.zip', 'sha256sum.txt']
+  check('the Ollama release the box road installs (' + (tag ?? '?') + ') still publishes the five assets the script downloads', tag !== undefined && wanted.every(name => assets.includes(name)), { tag, missing: wanted.filter(name => !assets.includes(name)) })
+  const advisories = tag ? (await fetchJson('https://api.github.com/advisories?ecosystem=go&affects=github.com/ollama/ollama@' + tag.slice(1) + '&per_page=10')).body : undefined
+  check('no published GitHub advisory names the pinned Ollama ' + (tag ?? '?'), Array.isArray(advisories) && advisories.length === 0, Array.isArray(advisories) ? advisories.map((row: any) => row.ghsa_id + ' ' + row.summary) : advisories)
 }
 
 console.log('prove-vendor-drift-signals: ' + checks + ' checks, ' + failures + ' failed')

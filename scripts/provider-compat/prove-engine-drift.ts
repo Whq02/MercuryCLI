@@ -28,10 +28,13 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
 const { readCompatPrefillSpeed } = await import('../../src/services/providers/openaicompat/compatPrefill.ts')
+const { resolveLlamacppTotalSlots, readSelfHostedLiveness, invalidateLlamacppTotalSlots } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
 
 const current = await startEngineRules('sglang')
 const legacy = await startEngineRules('sglang', { legacyOnly: true })
 const dark = await startEngineRules('sglang', { images: false, tools: false, reasoning: false })
+const router = await startEngineRules('llamacpp', { router: true, images: false })
+const single = await startEngineRules('llamacpp')
 try {
   const root = current.baseUrl.replace(/\/v1$/, '')
   const today = await (await realFetch(`${root}/model_info`)).json() as Record<string, unknown>
@@ -59,8 +62,31 @@ try {
   check('the prefill speed of an older SGLang server reads through the retired path', legacySpeed === 500, legacySpeed)
   const infoRequests = current.requests.length
   check('the engine fixture logs no chat requests for discovery reads', infoRequests === 0, infoRequests)
+
+  const routerRoot = router.baseUrl.replace(/\/v1$/, '')
+  const bare = await (await realFetch(`${routerRoot}/props`)).json() as Record<string, any>
+  check('the router-mode llama.cpp fixture answers a bare /props with the router\u2019s own props (no total_slots, no modalities) like server-models.cpp does', bare.role === 'router' && bare.total_slots === undefined && bare.modalities === undefined, bare)
+  check('the router-mode fixture refuses /slots and /metrics without a model name with the server\u2019s words', (await (await realFetch(`${routerRoot}/slots`)).json() as any).error?.message === 'model name is missing from the request' && (await realFetch(`${routerRoot}/metrics`)).status === 400)
+  const routerEndpoint = { baseUrl: router.baseUrl, dialect: 'llamacpp' as const }
+  const routed = await inspectCompatServer(routerEndpoint)
+  check('a router-mode llama.cpp server yields its projector, tool and reasoning facts and its window through /props?model=', routed.capabilities?.[router.model]?.images === false && routed.capabilities?.[router.model]?.tools === true && routed.capabilities?.[router.model]?.reasoning === true && routed.contextWindows[router.model] === 131072, routed)
+  const routedDetected = await inspectCompatServer({ baseUrl: router.baseUrl }, { detect: true })
+  check('a router-mode llama.cpp server is still recognised as llama.cpp', routedDetected.dialect === 'llamacpp', routedDetected)
+  invalidateLlamacppTotalSlots(routerEndpoint)
+  check('the slot count of a router-mode server reads through /props?model=', await resolveLlamacppTotalSlots(routerEndpoint, { model: router.model }) === 1)
+  const routedLiveness = await readSelfHostedLiveness(routerEndpoint, 'llamacpp', 0, { model: router.model })
+  check('the liveness read of a router-mode server reaches its slots through /slots?model=', routedLiveness.state === 'dead' && routedLiveness.answered && /slot 0 idle/.test(routedLiveness.words), routedLiveness)
+  const routedSpeed = await readCompatPrefillSpeed(routerEndpoint, router.model)
+  check('the prefill speed of a router-mode server reads through /metrics?model=', routedSpeed === 1234, routedSpeed)
+  const singleEndpoint = { baseUrl: single.baseUrl, dialect: 'llamacpp' as const }
+  const singleReading = await inspectCompatServer(singleEndpoint)
+  check('a single-model llama.cpp server still reads its facts in one bare /props', singleReading.capabilities?.[single.model]?.images === true && singleReading.contextWindows[single.model] === 131072 && single.requests.length === 0, singleReading)
+  invalidateLlamacppTotalSlots(singleEndpoint)
+  check('a single-model server accepts the model name on /props too', await resolveLlamacppTotalSlots(singleEndpoint, { model: single.model }) === 1)
+  const singleLiveness = await readSelfHostedLiveness(singleEndpoint, 'llamacpp', 0, { model: single.model })
+  check('a single-model server answers /slots?model= like /slots', singleLiveness.state === 'dead' && /slot 0 idle/.test(singleLiveness.words), singleLiveness)
 } finally {
-  await Promise.all([current.close(), legacy.close(), dark.close()])
+  await Promise.all([current.close(), legacy.close(), dark.close(), router.close(), single.close()])
   globalThis.fetch = realFetch
   rmSync(home, { recursive: true, force: true })
 }

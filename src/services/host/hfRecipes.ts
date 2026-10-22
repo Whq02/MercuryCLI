@@ -78,7 +78,7 @@ async function hubGet(path: string, options: HfHubOptions, accept = 'application
   const base = (options.base ?? HF_HUB).replace(/\/+$/, '')
   return fetch(base + path, { method: 'GET', headers: { Accept: accept, ...(options.token ? { Authorization: 'Bearer ' + options.token } : {}) }, redirect: 'error', signal: timeoutSignal(options) })
 }
-export function hfRateLimitWords(response: Response, options: HfHubOptions): string {
+function hfRateLimitWords(response: Response, options: HfHubOptions): string {
   const reset = /\bt=(\d+)/.exec(response.headers.get('ratelimit') ?? '')?.[1] ?? /^\d+$/.exec(response.headers.get('retry-after')?.trim() ?? '')?.[0]
   return HF_RATE_LIMIT_WORDS + (reset ? ' · resets in ' + reset + ' s' : '') + (options.token ? '' : ' · sign in with /logins huggingface for a higher limit')
 }
