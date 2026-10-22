@@ -48,7 +48,8 @@ import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
-import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
+import { resolveHeadlessModel } from './headless/model.js'
+import { refusedOutcome } from './headless/refusalEnvelope.js'
 import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
 import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
@@ -484,10 +485,15 @@ export async function runHeadless(
     gracefulShutdownSync(1)
     return
   }
+  let bootModel: string | undefined
   if (options.userSpecifiedModel !== undefined) {
-    const refusal = await modelRefusalBeforeAnyRequest(parseUserSpecifiedModel(options.userSpecifiedModel))
-    if (refusal !== null) {
-      process.stderr.write(`${refusal}\n`)
+    try {
+      bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
+      setEngineModelOverride(bootModel)
+    } catch (error) {
+      const message = errorMessage(error)
+      if (options.outputFormat === 'rows') process.stdout.write(jsonStringify(refusedOutcome([message])) + '\n')
+      else process.stderr.write(`${message}\n`)
       gracefulShutdownSync(1)
       return
     }
@@ -693,11 +699,13 @@ export async function runHeadless(
   if ((options.continue || options.resume) && !getEngineModelOverride()) {
     const recorded = restoreConversationModel({ messages, model: loaded.model })
     if (recorded && !options.userSpecifiedModel) {
-      const refusal = await modelRefusalBeforeAnyRequest(recorded)
-      if (refusal === null) {
-        setEngineModelOverride(recorded)
-      } else {
-        enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${refusal}) — this run uses ${getEngineModel()} instead.`))
+      try {
+        bootModel = await resolveHeadlessModel(recorded)
+        setEngineModelOverride(bootModel)
+      } catch (error) {
+        emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, wire ? 'text' : options.outputFormat)
+        gracefulShutdownSync(1)
+        return
       }
     }
   }
@@ -893,10 +901,7 @@ export async function runHeadless(
   noteRunPhase('config_auth')
 
   let sessionInitialized = false
-  let activeModel: string | undefined =
-    options.userSpecifiedModel === undefined
-      ? undefined
-      : parseUserSpecifiedModel(options.userSpecifiedModel)
+  let activeModel: string | undefined = bootModel
   saveSessionModel(activeModel ?? getEngineModel())
   let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
   let initializeJsonSchema: Record<string, unknown> | undefined
@@ -1929,10 +1934,14 @@ export async function runHeadless(
     },
     'session/set_model': async (params, ref) => {
       const requested = params.model
-      const resolved =
-        requested === undefined || requested === 'default'
+      let resolved: string
+      try {
+        resolved = await resolveHeadlessModel(requested === undefined || requested === 'default'
           ? (getDefaultEngineModelSetting() ?? getEngineModel())
-          : parseUserSpecifiedModel(requested)
+          : requested)
+      } catch (error) {
+        throw refused(errorMessage(error), 'model')
+      }
       const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
       if (inFlightAbort !== null) {
         heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
@@ -1967,6 +1976,11 @@ export async function runHeadless(
       if (params.openai_catalogue !== undefined) {
         primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue) as Parameters<typeof primeOpenaiCatalogue>[0])
       }
+      let claimedModel: string | undefined
+      if (typeof params.model === 'string' && params.model !== '') {
+        try { claimedModel = await resolveHeadlessModel(params.model) }
+        catch (error) { throw refused(errorMessage(error), 'claim') }
+      }
       const claimedHome = consumeSessionHomePin()
       clearSystemPromptSections()
       if (params.resume === true) {
@@ -1981,6 +1995,16 @@ export async function runHeadless(
           if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
           throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
         }
+        if (claimedModel === undefined) {
+          const recorded = restoreConversationModel(resumed)
+          if (recorded) {
+            try { claimedModel = await resolveHeadlessModel(recorded) }
+            catch (error) {
+              if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
+              throw refused(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, 'claim')
+            }
+          }
+        }
         switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
         resumeOf = String(resumed.sessionId ?? sid)
         if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
@@ -1992,9 +2016,8 @@ export async function runHeadless(
       } else {
         switchSession(sid as SessionId, claimedHome)
       }
-      const claimedModel = typeof params.model === 'string' && params.model !== '' ? params.model : undefined
       if (claimedModel !== undefined) {
-        activeModel = parseUserSpecifiedModel(claimedModel)
+        activeModel = claimedModel
         setEngineModelOverride(claimedModel)
         saveSessionModel(activeModel)
         setFlagEnv('MERCURY_MODEL', claimedModel)

@@ -34,6 +34,12 @@ asyncio.run(main())
 
 `run()` returns an async row iterator with listeners. Its `session`, `outcome` and `exit` are awaitable; `rows` retains received rows. Whole blocks arrive as `text`; `partial=True` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. `run_sync` returns `RunResult(outcome, rows, exit)`. `connect_sync` returns a typed `SyncSession` with the same control methods and blocking row iteration. Use it as a context manager; host callbacks run on its background loop and must not call the synchronous wrapper recursively.
 
+## Model selection
+
+`model` uses the CLI's model ids and credentials. For a named OpenAI-compatible endpoint, pass `compat/<endpoint>/<model>` to `run`, `run_sync` or `connect`, for example `run_sync('Explain the README', model='compat/my-server/model-id')`. Replace the example with an available row from `/model` or `mercury://models`; `/llmhost` registers a server as a named compat endpoint. The same route works in `define_agent({'description': 'Reader', 'prompt': 'Read the project', 'model': 'compat/my-server/model-id'})` and `await session.set_model('compat/my-server/model-id')`.
+
+With Mercury 1.0.0-beta.42 or newer, `compat`, `local` and `huggingface` also select through the CLI's resolver for that family. An unavailable class or an unknown named compat endpoint/model is refused, not replaced by another provider. A resumed session retains its recorded model unless you explicitly supply another; an unavailable recorded model refuses the resume. Tool results, streamed rows and structured output use the same SDK interfaces on compat and Anthropic models. Reasoning and usage rows report what the engine supplies; model capabilities remain the engine's.
+
 ## Host a session
 
 ```python

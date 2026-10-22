@@ -19,6 +19,12 @@ console.log(result.status, result.answer)
 
 `run()` returns an async row iterator with typed listeners. Its `session`, `outcome` and `exit` are promises; `rows` retains received rows. Use one consumption style: listeners or `for await`. Whole blocks arrive as `text`; `partial: true` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. With inline tools, `ready` resolves once the server and child have started; inspect `child` and `args` after that promise.
 
+## Model selection
+
+`model` uses the CLI's model ids and credentials. For a named OpenAI-compatible endpoint, pass `compat/<endpoint>/<model>` to `run` or `connect`, for example `run({ prompt: 'Explain the README', model: 'compat/my-server/model-id' })`. Replace the example with an available row from `/model` or `mercury://models`; `/llmhost` registers a server as a named compat endpoint. The same route works in `defineAgent({ description: 'Reader', prompt: 'Read the project', model: 'compat/my-server/model-id' })` and `await session.setModel('compat/my-server/model-id')`.
+
+With Mercury 1.0.0-beta.42 or newer, `compat`, `local` and `huggingface` also select through the CLI's resolver for that family. An unavailable class or an unknown named compat endpoint/model is refused, not replaced by another provider. A resumed session retains its recorded model unless you explicitly supply another; an unavailable recorded model refuses the resume. Tool results, streamed rows and structured output use the same SDK interfaces on compat and Anthropic models. Reasoning and usage rows report what the engine supplies; model capabilities remain the engine's.
+
 ## Host a session
 
 ```ts
