@@ -34,6 +34,7 @@ export interface ConcourseDispatchRecordV1 {
   clientMessageId: string
   promptDigest: string
   envelopeDigest?: string
+  envelopeVersion?: 2
   state: ConcourseSessionState
   stateRevision: number
   acceptedAt: number
@@ -64,6 +65,18 @@ export interface HeldOpEnvelopeV1 {
   permissionMode?: string
   runnerArgv?: string[]
   kitPreset?: string
+  kit?: ConcourseAdmitRequest['kit']
+  bypassConsent?: true
+  birthKey?: string
+  bornBlank?: boolean
+  vacatingSessionId?: string
+  restartReason?: 'update'
+  mode?: ConcoursePromptExtras['mode']
+  agentId?: string
+  priority?: ConcoursePromptExtras['priority']
+  content?: unknown[]
+  sentAt?: string
+  origin?: SaturnOrigin
 }
 
 interface DispatchFileV1 {
@@ -375,7 +388,7 @@ export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: 
   })
 }
 
-export function envelopeDigestOf(req: ConcourseDispatchRequest): string {
+export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 = 2): string {
   return createHash('sha256')
     .update(
       JSON.stringify({
@@ -395,6 +408,17 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest): string {
         content: req.content ?? null,
         permissionMode: req.permissionMode ?? null,
         runnerArgv: req.runnerArgv ?? null,
+        ...(version === 2 ? {
+          kit: req.kit ?? null,
+          kitPreset: req.kitPreset ?? null,
+          bypassConsent: req.bypassConsent ?? null,
+          birthKey: req.birthKey ?? null,
+          bornBlank: req.bornBlank ?? null,
+          vacatingSessionId: req.vacatingSessionId ?? null,
+          restartReason: req.restartReason ?? null,
+          sentAt: req.sentAt ?? null,
+          origin: req.origin ?? null,
+        } : {}),
       }),
       'utf8',
     )
@@ -768,9 +792,9 @@ export function makeConcourseDispatchHandler(
   let tail: Promise<unknown> = Promise.resolve()
   const run = async (req: ConcourseDispatchRequest): Promise<ConcourseDispatchResult> => {
     const digest = promptDigestOf(req.prompt)
-    const envDigest = envelopeDigestOf(req)
     const dispatches = readConcourseDispatches(deps.dir)
     const existing = dispatches[req.clientMessageId]
+    const envDigest = envelopeDigestOf(req, existing ? existing.envelopeVersion ?? 1 : 2)
     if (existing) {
       const edited =
         existing.envelopeDigest !== undefined
@@ -809,6 +833,7 @@ export function makeConcourseDispatchHandler(
           clientMessageId: req.clientMessageId,
           promptDigest: digest,
           envelopeDigest: envDigest,
+          envelopeVersion: 2,
           state: 'queued',
           stateRevision: 1,
           acceptedAt: Date.now(),
@@ -829,8 +854,8 @@ export function makeConcourseDispatchHandler(
       return attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))
     }
 
-    const { clientMessageId: _id, prompt, targetSessionId: _target, ...admitReq } = req
-    const admitted = await deps.admit(admitReq)
+    const { clientMessageId: _id, prompt, targetSessionId: _target, vacatingSessionId, ...admitReq } = req
+    const admitted = await deps.admit({ ...admitReq, ...(!held && vacatingSessionId !== undefined ? { vacatingSessionId } : {}) })
     if (!admitted.ok) {
       const retryable =
         admitted.code === 'runtime-ceiling' ||
@@ -865,6 +890,18 @@ export function makeConcourseDispatchHandler(
           ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
           ...(req.runnerArgv !== undefined ? { runnerArgv: [...req.runnerArgv] } : {}),
           ...(req.kitPreset !== undefined ? { kitPreset: req.kitPreset } : {}),
+          ...(req.kit !== undefined ? { kit: structuredClone(req.kit) } : {}),
+          ...(req.bypassConsent !== undefined ? { bypassConsent: req.bypassConsent } : {}),
+          ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
+          ...(req.bornBlank !== undefined ? { bornBlank: req.bornBlank } : {}),
+          ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
+          ...(req.restartReason !== undefined ? { restartReason: req.restartReason } : {}),
+          ...(req.mode !== undefined ? { mode: req.mode } : {}),
+          ...(req.agentId !== undefined ? { agentId: req.agentId } : {}),
+          ...(req.priority !== undefined ? { priority: req.priority } : {}),
+          ...(req.content !== undefined ? { content: structuredClone(req.content) } : {}),
+          ...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),
+          ...(req.origin !== undefined ? { origin: structuredClone(req.origin) } : {}),
         }
         publishDispatches(dispatches, deps.dir)
         if ((rec.heldReason === 'no-repository' || rec.heldReason === 'unborn-head') && rec.workspaceId !== undefined) {
@@ -1077,6 +1114,18 @@ async function replayHeldRecord(
       ...(op.permissionMode !== undefined ? { permissionMode: op.permissionMode as ConcourseAdmitRequest['permissionMode'] } : {}),
       ...(op.runnerArgv !== undefined ? { runnerArgv: op.runnerArgv } : {}),
       ...(op.kitPreset !== undefined ? { kitPreset: op.kitPreset } : {}),
+      ...(op.kit !== undefined ? { kit: op.kit } : {}),
+      ...(op.bypassConsent !== undefined ? { bypassConsent: op.bypassConsent } : {}),
+      ...(op.birthKey !== undefined ? { birthKey: op.birthKey } : {}),
+      ...(op.bornBlank !== undefined ? { bornBlank: op.bornBlank } : {}),
+      ...(op.vacatingSessionId !== undefined ? { vacatingSessionId: op.vacatingSessionId } : {}),
+      ...(op.restartReason !== undefined ? { restartReason: op.restartReason } : {}),
+      ...(op.mode !== undefined ? { mode: op.mode } : {}),
+      ...(op.agentId !== undefined ? { agentId: op.agentId } : {}),
+      ...(op.priority !== undefined ? { priority: op.priority } : {}),
+      ...(op.content !== undefined ? { content: op.content } : {}),
+      ...(op.sentAt !== undefined ? { sentAt: op.sentAt } : {}),
+      ...(op.origin !== undefined ? { origin: op.origin } : {}),
     })
     return {
       clientMessageId: rec.clientMessageId,

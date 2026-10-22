@@ -1,4 +1,4 @@
-import { chmodSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
@@ -428,6 +428,27 @@ export function readStoredTypesafeApiKey(): string | undefined {
 }
 export function writeStoredTypesafeApiKey(key: string | null): void {
   writeStoredKey('typesafeApiKey', key)
+}
+
+function hostCredentialPath(home: string, id: string): string {
+  if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid host credential reference')
+  return join(home, '.host-credentials', id + '.json')
+}
+
+export function writeHostCredential(home: string, id: string, key: string): void {
+  mkdirSync(join(home, '.host-credentials'), { recursive: true, mode: 0o700 })
+  durableAtomicPublishSync(hostCredentialPath(home, id), JSON.stringify({ key }) + '\n', { mode: 0o600 })
+}
+
+export function readHostCredential(home: string, id: string): string | undefined {
+  try {
+    const row = JSON.parse(readFileSync(hostCredentialPath(home, id), 'utf8')) as { key?: unknown }
+    return typeof row.key === 'string' && row.key.trim() ? row.key : undefined
+  } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw new Error('The saved host credential could not be read.') }
+}
+
+export function removeHostCredential(home: string, id: string): void {
+  try { unlinkSync(hostCredentialPath(home, id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
 }
 
 export function providerSecretsPathForDisplay(): string {

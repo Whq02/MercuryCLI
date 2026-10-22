@@ -137,7 +137,7 @@ export async function resumeAgentBackground(args: {
   const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
   const restoredModel = (await resumedModelOverride(args.model, toolUseContext.options.engineModel)) ?? meta?.model
   const lifecycleModel = getAgentModel(restoredModel ?? definition.model, getEngineModel())
-  const restoredEffort = args.effort ?? meta?.effortOverride
+  const restoredEffort = args.effort ?? meta?.effortOverride ?? meta?.effort
   if (args.effort !== undefined) {
     const selectable = resolveStampedEffortTruth(lifecycleModel, args.effort, { thinkingEnabled: true }).selectable
     if (!isEffortLevel(args.effort) || (args.effort !== 'max' && !selectable.includes(args.effort))) {
@@ -155,12 +155,12 @@ export async function resumeAgentBackground(args: {
   const structuredDefinition = restoredKey !== null && restoredRoster?.key === restoredKey
     ? restoredRoster.marks.find(mark => mark.name === STRUCTURED_OUTPUT_TOOL_NAME)?.definition
     : undefined
-  const structuredOutputSpec = structuredDefinition === undefined ? undefined : (() => {
+  const structuredOutputSpec = meta?.structuredOutputSpec ?? (structuredDefinition === undefined ? undefined : (() => {
     const { input_schema: schema } = JSON.parse(structuredDefinition) as { input_schema: Record<string, unknown> }
     const bound = getSchemaBoundStructuredOutputTool(schema)
     if (bound.error !== undefined) throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
     return { schema, mode: 'permissive' as const, source: 'dispatch' as const }
-  })()
+  })())
 
   const cleaned = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(
@@ -262,6 +262,8 @@ export async function resumeAgentBackground(args: {
     ...(launchedAt !== undefined ? { launchedAt } : {}),
     ...(restoredModel ? { model: restoredModel } : {}),
     ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
+    ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
+    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
     ...(instructionProfileOverride
       ? { instructionProfile: instructionProfileOverride }
       : {}),
@@ -316,6 +318,7 @@ export async function resumeAgentBackground(args: {
           ...(launchName ? { name: launchName } : {}),
           ...(launchedAt !== undefined ? { launchedAt } : {}),
           effortOverride: restoredEffort,
+          thinkingConfigOverride: meta?.thinkingConfig,
           ...(instructionProfileOverride
             ? { instructionProfileOverride }
             : {}),
