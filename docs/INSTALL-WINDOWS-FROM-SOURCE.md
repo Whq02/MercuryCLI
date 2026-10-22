@@ -128,7 +128,7 @@ Mercury runs on Node **24.x** (at least **24.20.0** and below 25). The floor mat
 Node 24 that carries the fix for nodejs/node#56645, and below it a headless
 `run` command that dispatched any tool aborts at exit with 0xC0000409. The exact
 patch the project builds with is written in the repository file
-`.node-version` (currently `24.20.0`); any 24.20.0 or newer 24.x works.
+`.node-version` (currently `24.22.1`); any 24.20.0 or newer 24.x works.
 
 Check:
 

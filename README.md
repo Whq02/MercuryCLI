@@ -951,6 +951,8 @@ Mercury Community Production Grant. The licence is in
 [LICENSE.md](LICENSE.md), with its companion
 [production terms](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and
 [trademark policy](TRADEMARKS.md). The licence text controls; this is a summary.
+The SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/) are licensed separately under
+the Apache License 2.0, each by the LICENSE file it carries.
 
 You may read, copy, modify and fork the source. Individuals and organisations
 below both community thresholds can use Mercury in production for free to

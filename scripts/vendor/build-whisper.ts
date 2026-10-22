@@ -150,7 +150,7 @@ interface CargoPackage {
 function graphCrates(): CargoPackage[] {
   const host = run('rustc', ['-vV'], { capture: true })
   const triple = CROSS ? (TRIPLE ?? undefined) : /host:\s*(\S+)/.exec(host.stdout)?.[1]
-  const args = ['metadata', '--format-version', '1', '--manifest-path', MANIFEST_PATH, ...(triple ? ['--filter-platform', triple] : [])]
+  const args = ['metadata', '--locked', '--format-version', '1', '--manifest-path', MANIFEST_PATH, ...(triple ? ['--filter-platform', triple] : [])]
   const res = run('cargo', args, { capture: true })
   if (res.status !== 0) fail(`cargo metadata failed: ${res.stderr.trim().slice(-400)}`)
   const meta = JSON.parse(res.stdout) as { packages: CargoPackage[]; resolve: { nodes: Array<{ id: string }> } | null }
@@ -254,9 +254,13 @@ function toolchainEnv(): Record<string, string> {
   }
 }
 
+function cargoBuildArgs(): string[] {
+  return ['build', '--release', '--locked', ...(argv.includes('--verbose') ? ['-vv'] : []), '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])]
+}
+
 function main(): void {
   if (argv.includes('--plan')) {
-    console.log(JSON.stringify({ target: TARGET_ARG, platform: PLATFORM, triple: TRIPLE, env: { ...kernelFloorEnv(), ...toolchainEnv() } }))
+    console.log(JSON.stringify({ target: TARGET_ARG, platform: PLATFORM, triple: TRIPLE, env: { ...kernelFloorEnv(), ...toolchainEnv() }, cargoArgs: cargoBuildArgs() }))
     return
   }
   if (checkOnly) {
@@ -323,7 +327,7 @@ function main(): void {
   const bindings = libclang === null ? { WHISPER_DONT_GENERATE_BINDINGS: '1' } : { LIBCLANG_PATH: libclang }
   if ('WHISPER_DONT_GENERATE_BINDINGS' in bindings) console.log('build-whisper: no libclang found — whisper-rs uses its bundled bindings')
   console.log(`build-whisper: ${cargo} · ${cmake} — cargo build --release (${WHISPER_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''}; ${Object.entries(floor).map(([k, v]) => `${k}=${v}`).join(' ')})`)
-  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])], { env: { ...floor, ...bindings, ...toolchainEnv() } })
+  const build = run('cargo', cargoBuildArgs(), { env: { ...floor, ...bindings, ...toolchainEnv() } })
   if (build.error) fail(`cargo could not be started: ${build.error.message}`)
   if (build.status !== 0) {
     fail(

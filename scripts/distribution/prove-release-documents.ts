@@ -57,6 +57,10 @@ try {
     check('the change date is exactly three years after the release date', p.changeDate !== null && p.changeDate === owner.expectedChangeDate(p.releaseDate ?? ''), `licence: ${p.changeDate}`)
     check('the stated terms SHA-256 equals the terms file', p.termsSha256 === sha256(TERMS), `licence: ${p.termsSha256}`)
     check('no bracketed placeholder, no review banner', p.placeholders.length === 0 && !p.reviewBanner, p.placeholders.join(', '))
+    const SDK_DIRS = ['sdk', 'sdk-py']
+    const scopeLine = /^- \*\*Licensed Work:\*\* .*$/m.exec(LICENCE)?.[0] ?? ''
+    check('the Licensed Work line says sdk/ and sdk-py/ are licensed separately under the Apache License 2.0 by their own LICENSE files and are not part of the Licensed Work', SDK_DIRS.every(d => scopeLine.includes(`\`${d}/\``)) && /licensed separately under the Apache License, Version 2\.0, by the LICENSE file each carries, and are not part of the Licensed Work\./.test(scopeLine), scopeLine.slice(-160))
+    check('each of those directories carries an Apache License 2.0 LICENSE file (the sentence is true)', SDK_DIRS.every(d => existsSync(join(ROOT, d, 'LICENSE')) && /Apache License\s+Version 2\.0/.test(readFileSync(join(ROOT, d, 'LICENSE'), 'utf8'))))
     for (const doc of owner.LICENCE_DOCUMENTS) check(`${doc} is in the tree`, existsSync(join(ROOT, doc)))
     const tree = owner.checkReleaseDocuments({ root: ROOT, version: VERSION })
     check('the owner passes the tree for the version root', tree.ok, detailOf(tree))
