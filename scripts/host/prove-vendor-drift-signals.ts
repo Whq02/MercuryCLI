@@ -202,5 +202,16 @@ const HF_RATE_LIMITS = 'https://huggingface.co/docs/hub/rate-limits'
   check('the pinned Node ' + node.version + ' is the newest release of its line (' + (newest?.version ?? '?') + ' on nodejs.org/dist/index.json)', newest?.version === 'v' + node.version, { newest, behind: behind.map(row => row.version + (row.security ? ' (security)' : '')) })
 }
 
+{
+  const engine = readFileSync(resolve(root, 'src/services/host/boxEngine.ts'), 'utf8')
+  const tag = /https:\/\/github\.com\/ollama\/ollama\/releases\/download\/(v[0-9.]+)\//.exec(engine)?.[1]
+  const release = tag ? (await fetchJson('https://api.github.com/repos/ollama/ollama/releases/tags/' + tag)).body : undefined
+  const assets: string[] = Array.isArray(release?.assets) ? release.assets.map((row: any) => row.name) : []
+  const wanted = ['ollama-linux-amd64.tar.zst', 'ollama-linux-arm64.tar.zst', 'ollama-windows-amd64.zip', 'ollama-windows-arm64.zip', 'sha256sum.txt']
+  check('the Ollama release the box road installs (' + (tag ?? '?') + ') still publishes the five assets the script downloads', tag !== undefined && wanted.every(name => assets.includes(name)), { tag, missing: wanted.filter(name => !assets.includes(name)) })
+  const advisories = tag ? (await fetchJson('https://api.github.com/advisories?ecosystem=go&affects=github.com/ollama/ollama@' + tag.slice(1) + '&per_page=10')).body : undefined
+  check('no published GitHub advisory names the pinned Ollama ' + (tag ?? '?'), Array.isArray(advisories) && advisories.length === 0, Array.isArray(advisories) ? advisories.map((row: any) => row.ghsa_id + ' ' + row.summary) : advisories)
+}
+
 console.log('prove-vendor-drift-signals: ' + checks + ' checks, ' + failures + ' failed')
 process.exitCode = failures ? 1 : 0
