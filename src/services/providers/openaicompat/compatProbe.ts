@@ -31,11 +31,20 @@ export const SGLANG_LEGACY_MODEL_INFO_PATH = '/get_model_info'
 type CompatImageReading = { supported: boolean; source: 'projector' | 'model' }
 const serverImages = new Map<string, { projector?: boolean; models: NonNullable<CompatServerReading['capabilities']> }>()
 
-function rememberProjector(endpoint: CompatEndpointSettings & { baseUrl: string }, body: Record<string, any> | undefined): boolean | undefined {
+const llamacppPropsPath = (model?: string): string => '/props' + (model === undefined ? '' : '?model=' + encodeURIComponent(model))
+const llamacppSlotsPath = (model?: string): string => '/slots' + (model === undefined ? '' : '?model=' + encodeURIComponent(model))
+
+function rememberProjector(endpoint: CompatEndpointSettings & { baseUrl: string }, body: Record<string, any> | undefined, model?: string): boolean | undefined {
   const key = compatServerBase(endpoint.baseUrl)
   const vision = body?.modalities?.vision
   const projector = typeof vision === 'boolean' ? vision : undefined
-  serverImages.set(key, { models: {}, ...(projector !== undefined ? { projector } : {}) })
+  if (model === undefined) {
+    serverImages.set(key, { models: {}, ...(projector !== undefined ? { projector } : {}) })
+    return projector
+  }
+  const current = serverImages.get(key) ?? { models: {} }
+  const { images: _stale, ...facts } = current.models[model] ?? {}
+  serverImages.set(key, { ...current, models: { ...current.models, [model]: { ...facts, ...(projector !== undefined ? { images: projector } : {}) } } })
   return projector
 }
 
@@ -43,7 +52,10 @@ export function compatModelImageReading(model: string): CompatImageReading | und
   const resolved = compatModelEndpoint(model)
   if (!resolved) return undefined
   const reading = serverImages.get(compatServerBase(resolved.endpoint.baseUrl))
-  if (resolved.endpoint.dialect === 'llamacpp' && reading?.projector !== undefined) return { supported: reading.projector, source: 'projector' }
+  if (resolved.endpoint.dialect === 'llamacpp') {
+    const projector = reading?.projector ?? reading?.models[resolved.wireId]?.images
+    return projector === undefined ? undefined : { supported: projector, source: 'projector' }
+  }
   const supported = reading?.models[resolved.wireId]?.images
   return supported === undefined ? undefined : { supported, source: 'model' }
 }
@@ -52,7 +64,7 @@ export async function refreshCompatModelImageReading(model: string, signal?: Abo
   const resolved = compatModelEndpoint(model)
   if (resolved?.endpoint.dialect !== 'llamacpp') return
   invalidateLlamacppTotalSlots(resolved.endpoint)
-  await resolveLlamacppTotalSlots(resolved.endpoint, { key: resolveCompatApiKey(process.env, resolved.endpoint.name)?.key, signal })
+  await resolveLlamacppTotalSlots(resolved.endpoint, { key: resolveCompatApiKey(process.env, resolved.endpoint.name)?.key, signal, model: resolved.wireId })
 }
 
 export function compatImageRefusalWords(model: string, error?: string): string | null {
@@ -69,15 +81,18 @@ function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string;
 
 export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
   try { serverImages.delete(compatServerBase(endpoint.baseUrl)) } catch {}
-  try { llamacppSlotsCache.delete(llamacppEndpointKey(endpoint)) } catch {}
+  try {
+    const prefix = llamacppEndpointKey(endpoint)
+    for (const key of [...llamacppSlotsCache.keys()]) if (key === prefix || key.startsWith(prefix + '?model=')) llamacppSlotsCache.delete(key)
+  } catch {}
 }
 
 export async function resolveLlamacppTotalSlots(
   endpoint: CompatEndpointSettings & { name?: string; baseUrl: string },
-  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal; model?: string } = {},
 ): Promise<number | undefined> {
   let cacheKey: string
-  try { cacheKey = llamacppEndpointKey(endpoint) } catch { return undefined }
+  try { cacheKey = llamacppEndpointKey(endpoint) + (opts.model === undefined ? '' : '?model=' + encodeURIComponent(opts.model)) } catch { return undefined }
   const cached = llamacppSlotsCache.get(cacheKey)
   if (cached !== undefined) return cached
   const pending = llamacppSlotsInFlight.get(cacheKey)
@@ -89,7 +104,7 @@ export async function resolveLlamacppTotalSlots(
     timer.unref?.()
     try {
       const root = compatServerBase(endpoint.baseUrl).replace(/\/v1$/, '')
-      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}/props`, {
+      const response = await (opts.fetchImpl ?? getApiFetch())(`${root}${llamacppPropsPath(opts.model)}`, {
         ...getProxyFetchOptions(),
         method: 'GET',
         headers: {
@@ -101,13 +116,13 @@ export async function resolveLlamacppTotalSlots(
         signal,
         redirect: 'error',
       } as RequestInit)
-      rememberProjector(endpoint, undefined)
+      rememberProjector(endpoint, undefined, opts.model)
       if (!response.ok) {
         await response.body?.cancel()
         return undefined
       }
       const body = record(await readJson(response))
-      rememberProjector(endpoint, body)
+      rememberProjector(endpoint, body, opts.model)
       const totalSlots = windowTokens(body?.total_slots)
       if (totalSlots !== undefined) llamacppSlotsCache.set(cacheKey, totalSlots)
       return totalSlots
@@ -135,7 +150,7 @@ export async function readSelfHostedLiveness(
   endpoint: CompatEndpointSettings & { baseUrl: string },
   dialect: string,
   pinnedSlot: number | undefined,
-  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+  opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal; model?: string } = {},
 ): Promise<CompatLivenessReading> {
   const name = `the ${SELF_HOSTED_NAMES[dialect] ?? 'self-hosted'} server`
   let base: string
@@ -202,7 +217,7 @@ export async function readSelfHostedLiveness(
     }
   }
   if (dialect === 'llamacpp' && pinnedSlot !== undefined) {
-    let answer = await ask(`${root}/slots`, true)
+    let answer = await ask(`${root}${llamacppSlotsPath(opts.model)}`, true)
     if (answer.kind !== 'answer') return unanswered(answer, 'GET /slots')
     if (answer.body === undefined) {
       const legacy = await attempt(`${root}/health?include_slots=1`, true)
@@ -322,23 +337,30 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     }
     if (dialect === 'llamacpp') {
       const vision = rememberProjector(endpoint, llama)
-      if (models.length === 1 && vision !== undefined) capabilities[models[0]!] = { ...capabilities[models[0]!], images: vision }
       const slots = windowTokens(llama?.total_slots)
       if (slots !== undefined) llamacppSlotsCache.set(llamacppEndpointKey(endpoint), slots)
-      if (models.length === 1) {
-        const tokens = windowTokens(llama?.default_generation_settings?.n_ctx)
-        if (tokens) contextWindows[models[0]!] = tokens
+      const facts = (id: string, props: Record<string, any> | undefined): void => {
+        const images = typeof props?.modalities?.vision === 'boolean' ? props.modalities.vision as boolean : undefined
+        const caps = record(props?.chat_template_caps)
+        const tools = caps?.supports_tools === false || caps?.supports_tool_calls === false ? false
+          : caps?.supports_tools === true && caps?.supports_tool_calls === true ? true : undefined
+        const reasoning = caps?.supports_preserve_reasoning === true || caps?.supports_reasoning_effort === true ? true : undefined
+        if (images !== undefined || tools !== undefined || reasoning !== undefined) capabilities[id] = {
+          ...capabilities[id],
+          ...(images !== undefined ? { images } : {}),
+          ...(tools !== undefined ? { tools } : {}),
+          ...(reasoning !== undefined ? { reasoning } : {}),
+        }
+        const tokens = windowTokens(props?.default_generation_settings?.n_ctx)
+        if (tokens) contextWindows[id] = tokens
+        const perModel = windowTokens(props?.total_slots)
+        if (perModel !== undefined) llamacppSlotsCache.set(llamacppEndpointKey(endpoint) + '?model=' + encodeURIComponent(id), perModel)
       }
-    }
-    if (dialect === 'llamacpp' && models.length === 1) {
-      const caps = record(llama?.chat_template_caps)
-      const tools = caps?.supports_tools === false || caps?.supports_tool_calls === false ? false
-        : caps?.supports_tools === true && caps?.supports_tool_calls === true ? true : undefined
-      const reasoning = caps?.supports_preserve_reasoning === true || caps?.supports_reasoning_effort === true ? true : undefined
-      if (tools !== undefined || reasoning !== undefined) capabilities[models[0]!] = {
-        ...capabilities[models[0]!],
-        ...(tools !== undefined ? { tools } : {}),
-        ...(reasoning !== undefined ? { reasoning } : {}),
+      if (models.length === 1 && (vision !== undefined || slots !== undefined)) facts(models[0]!, llama)
+      else for (const id of models) {
+        const props = await optional(llamacppPropsPath(id))
+        rememberProjector(endpoint, props, id)
+        facts(id, props)
       }
     }
     if (dialect === 'ollama') {
