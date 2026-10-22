@@ -139,6 +139,7 @@ export async function startEngineRules(dialect, config = {}) {
     if (turn.error) return json(turn.error.status, turn.error.body)
     res.writeHead(200, { 'content-type': 'text/event-stream' })
     const event = value => res.write(`data: ${JSON.stringify(value)}\n\n`)
+    if (turn.usage) event({ model, choices: [], usage: turn.usage })
     if (turn.empty) { res.end(); return }
     if (turn.reasoning) event({ model, choices: [{ delta: { [dialect === 'ollama' || dialect === 'vllm' ? 'reasoning' : 'reasoning_content']: turn.reasoning } }] })
     if (turn.call) event({ model, choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_engine', type: 'function', function: turn.call }] } }] })

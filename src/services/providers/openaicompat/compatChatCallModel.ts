@@ -942,6 +942,27 @@ async function* streamOneCompatAttempt(ctx: {
     | undefined
   let fault: CompatFault | undefined
 
+  let streamedCharacters = 0
+  let settledUsage: typeof EMPTY_USAGE | undefined
+  const settleUsage = (faultCode?: string): typeof EMPTY_USAGE => {
+    if (settledUsage !== undefined) return settledUsage
+    const estimate = usageSeen === undefined && faultCode !== undefined && (contentStarted || toolFragmentSeen)
+    settledUsage = estimate
+      ? estimateFaultedRequestUsage({
+          lane: profile.lane, model: modelId, request, faultCode,
+          minted: [{ message: { ...partial, content: [{ type: 'text', text: ' '.repeat(streamedCharacters), citations: null }] } }],
+        })
+      : mapCompatUsageToAnthropic(usageSeen)
+    if (usageSeen !== undefined || estimate) {
+      addToTotalSessionCost(
+        usageSeen?.statedCostUSD ?? calculateUSDCost(modelId, settledUsage),
+        settledUsage,
+        modelId,
+        usageSeen?.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined,
+      )
+    }
+    return settledUsage
+  }
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
     messageStarted = true
@@ -1066,6 +1087,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   const transport = profile.streamTransport?.(streamOptions, ctx.preparedMessages)
   const events = transport?.events ?? streamCompatChat(streamOptions)
+  try {
   for await (const event of events) {
     if (!firstEventSeen) {
       firstEventSeen = true
@@ -1075,6 +1097,7 @@ async function* streamOneCompatAttempt(ctx: {
         served = event.model
         break
       case 'reasoning-delta': {
+        streamedCharacters += event.text.length
         if (preserveKimi) kimiReasoning = (kimiReasoning ?? '') + event.text
         contentStarted = true
         yield* ensureMessageStart()
@@ -1097,6 +1120,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        streamedCharacters += event.text.length
         if (preserveKimi) kimiContent += event.text
         contentStarted = true
         yield* ensureMessageStart()
@@ -1111,6 +1135,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'tool-call-fragment': {
+        streamedCharacters += event.argumentsFragment.length
         toolFragmentSeen = true
         if (profile.lane === 'gemini') break
         yield* ensureMessageStart()
@@ -1171,6 +1196,9 @@ async function* streamOneCompatAttempt(ctx: {
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
     if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
+    const finalUsage = settleUsage('cancelled')
+    const lastMessage = minted.at(-1)
+    if (lastMessage) lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     paintSlots.length = 0
     while (released < minted.length) yield minted[released++]!
     return { kind: 'cancelled' }
@@ -1312,18 +1340,8 @@ async function* streamOneCompatAttempt(ctx: {
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'stop'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
-  const finalUsage = mapCompatUsageToAnthropic(usageSeen)
-  if (!usageSeen && fault !== undefined) {
-    const estimated = estimateFaultedRequestUsage({ lane: profile.lane, model: modelId, request, minted, faultCode: fault.code })
-    addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
-  }
+  const finalUsage = settleUsage(fault?.code)
   if (usageSeen) {
-    addToTotalSessionCost(
-      usageSeen.statedCostUSD ?? calculateUSDCost(modelId, finalUsage as never),
-      finalUsage as never,
-      modelId,
-      usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined,
-    )
     void checkResponseForCacheBreak(
       options.querySource,
       finalUsage.cache_read_input_tokens,
@@ -1367,4 +1385,7 @@ async function* streamOneCompatAttempt(ctx: {
     yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
   return { kind: 'done', ...(served !== undefined ? { served } : {}) }
+  } finally {
+    settleUsage(fault?.code ?? (signal.aborted ? 'cancelled' : 'consumer-closed'))
+  }
 }
