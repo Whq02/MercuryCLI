@@ -113,11 +113,13 @@ if (words !== null) {
   const wide = words.liveCounterLine(full, 173)
   const tight = words.liveCounterLine(full, 40)
   const tighter = words.liveCounterLine(full, 22)
+  const phaseOnly = words.liveCounterLine(full, 7)
   const tightest = words.liveCounterLine(full, 6)
   check(`the width law at 178 columns keeps every segment: ${wide}`, wide === '↓ ~1.2k thinking · 340 tokens · writing · 45s · no bytes for 45s — the server still answers', wide)
   check(`a tight row sheds the promise first and the long count next: ${tight}`, tight === '↓ ~1.5k tokens · writing · 45s', tight)
-  check(`tighter keeps the count and the clock: ${tighter}`, tighter === '↓ ~1.5k tokens · 45s', tighter)
-  check(`the clock is the last word to go: ${tightest}`, tightest === '45s', tightest)
+  check(`tighter keeps the phase and the clock: ${tighter}`, tighter === 'writing · 45s', tighter)
+  check(`the phase is the last word to go: ${phaseOnly}`, phaseOnly === 'writing', phaseOnly)
+  check(`a row too narrow for the phase prints no partial word or bare clock: ${tightest}`, tightest === '', tightest)
 }
 
 class Output extends EventEmitter {
