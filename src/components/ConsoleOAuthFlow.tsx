@@ -223,6 +223,16 @@ export function ConsoleOAuthFlow({
     { isActive: state.name === 'waiting' && pastePromptUp },
   )
 
+  useInput(
+    (input, key, event) => {
+      if (input === 's' && !key.ctrl && !key.meta && !key.shift) {
+        event.stopImmediatePropagation()
+        startFamily(SIGN_IN_LATER_ROW.value)
+      }
+    },
+    { isActive: menuUp && onSkip !== undefined },
+  )
+
   const submitCode = useCallback(
     (raw: string) => {
       if (!model.submitCode(raw)) {

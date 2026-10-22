@@ -29,7 +29,7 @@ t.section('§1 — process-ending esc is advertised, wording = truth')
 t.section('§2 — the walk footers keep naming the real move per step')
 {
   t.check("theme: 'esc exits'", walk.includes("theme: '↑↓ preview · ↵ keep · esc exits'"))
-  t.check("provider: 'esc back'", walk.includes("provider: '↑↓ move · ↵ choose · esc back'"))
+  t.check("provider: 'esc back', 's skip' named", walk.includes("provider: '↑↓ move · ↵ choose · s skip · esc back'"))
   t.check("guardrails: 'esc back'", walk.includes("guardrails: '↵ continue · esc back'"))
   t.check("terminal: 'esc back'", walk.includes("terminal: '↑↓ move · ↵ select · esc back'"))
 }

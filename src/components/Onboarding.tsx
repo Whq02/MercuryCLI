@@ -397,7 +397,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
 
   const footers: Record<StepId, string> = {
     theme: '↑↓ preview · ↵ keep · esc exits',
-    provider: '↑↓ move · ↵ choose · esc back',
+    provider: '↑↓ move · ↵ choose · s skip · esc back',
     'api-key': '↑↓ move · ↵ select',
     guardrails: '↵ continue · esc back',
     terminal: '↑↓ move · ↵ select · esc back',

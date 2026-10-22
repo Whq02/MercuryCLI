@@ -185,7 +185,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
     }
     check(`@${cols}: the "sign in later" row with its honest caveat`, grid.includes(SIGN_IN_LATER_ROW.label), SIGN_IN_LATER_ROW.label)
     check(`@${cols}: the opening line names the whole spread`, grid.includes('Use a Claude or OpenAI subscription'))
-    check(`@${cols}: the walk footer stays honest`, grid.includes('↑↓ move · ↵ choose · esc back'))
+    check(`@${cols}: the walk footer stays honest`, grid.includes('↑↓ move · ↵ choose · s skip · esc back'))
   }
 
   console.log('\n  ── the skip path: later-row ↵ lands Guardrails @ 100 ──')

@@ -50,7 +50,7 @@ for (const [cols, rows] of [[80, 24], [64, 20]]) {
     sends: [
       { data: '\r', awaitText: 'Choose your theme', requireAwait: true, awaitSettleTicks: 2 },
       { data: '\x1b[H', awaitText: 'sign in · 2/', requireAwait: true, awaitSettleTicks: 2, mark: 'list' },
-      { data: '\x1b[F', afterPrevTicks: 5, requireAwait: true, awaitText: '↑↓ move · ↵ choose · esc back', awaitSettleTicks: 2 },
+      { data: '\x1b[F', afterPrevTicks: 5, requireAwait: true, awaitText: '↑↓ move · ↵ choose · s skip · esc back', awaitSettleTicks: 2 },
     ],
     resizes: [{ afterMark: 'list', afterMs: 0, cols, rows }],
     readyText: '❯ Sign in later', readySettleTicks: 2,
