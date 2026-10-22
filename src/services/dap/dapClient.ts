@@ -53,6 +53,12 @@ export type DapBreakpointSpec = {
   logMessage?: string
 }
 
+export type DapFunctionBreakpointSpec = {
+  name: string
+  condition?: string
+  hitCondition?: string
+}
+
 export type DapDataAccessType = 'read' | 'write' | 'readWrite'
 
 export type DapDataBreakpointSpec = {
@@ -884,6 +890,7 @@ export class DapSession {
   #resolveInitialized!: () => void
   #stateWaiters = new Set<() => void>()
   #requestedBreakpoints: Map<string, Array<number | DapBreakpointSpec>> | null = null
+  #requestedFunctionBreakpoints: DapFunctionBreakpointSpec[] | null = null
   readonly children: DapSession[] = []
   readonly parentSession: DapSession | null
   readonly label: string
@@ -897,6 +904,7 @@ export class DapSession {
   #hostsDebuggee = false
   output: string[] = []
   breakpoints = new Map<string, Array<{ line: number; verified: boolean; message?: string; id?: number }>>()
+  functionBreakpoints: Array<{ name: string; verified: boolean; message?: string; id?: number }> = []
 
   constructor(
     adapterKey: string,
@@ -1089,7 +1097,7 @@ export class DapSession {
     }
     for (const s of root.treeSessions()) {
       if (!s.alive) {
-        if (clearing) s.breakpoints.delete(path)
+        s.breakpoints.delete(path)
         continue
       }
       try {
@@ -1099,6 +1107,42 @@ export class DapSession {
       }
     }
     return root.treeVerifiedBreakpoints().get(path) ?? []
+  }
+
+  acceptsFunctionBreakpoints(): boolean {
+    return this.capabilities === null || this.capabilities.supportsFunctionBreakpoints === true
+  }
+
+  treeVerifiedFunctionBreakpoints(): Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> {
+    const out: Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> = []
+    for (const s of this.treeSessions()) {
+      s.functionBreakpoints.forEach((r, i) => {
+        const prev = out[i]
+        if (!prev) out[i] = { ...r, ...(r.verified ? { verifier: s.label } : {}) }
+        else if (!prev.verified && r.verified) out[i] = { ...r, verifier: s.label }
+      })
+    }
+    return out
+  }
+
+  async setFunctionBreakpointsTree(
+    specs: DapFunctionBreakpointSpec[],
+  ): Promise<Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }>> {
+    const root = this.root()
+    root.#requestedFunctionBreakpoints = specs.length > 0 ? specs : null
+    for (const s of root.treeSessions()) {
+      if (!s.alive) {
+        s.functionBreakpoints = []
+        continue
+      }
+      if (!s.acceptsFunctionBreakpoints()) continue
+      try {
+        await s.setFunctionBreakpoints(specs)
+      } catch (err) {
+        this.#pushOutput(`[dap] function breakpoints on '${s.label}' failed: ${(err as Error).message}`)
+      }
+    }
+    return root.treeVerifiedFunctionBreakpoints()
   }
 
   treeTerminated(): boolean {
@@ -1315,6 +1359,12 @@ export class DapSession {
               }
             }
           }
+          for (const row of this.functionBreakpoints) {
+            if (typeof bp.id === 'number' && row.id === bp.id) {
+              if (bp.verified === true) row.verified = true
+              if (typeof bp.message === 'string') row.message = bp.message
+            }
+          }
           break
         }
         case 'terminated':
@@ -1423,6 +1473,12 @@ export class DapSession {
           ),
         )
       }
+    }
+    const requestedFunctions = this.root().#requestedFunctionBreakpoints
+    if (requestedFunctions && this.acceptsFunctionBreakpoints()) {
+      await this.setFunctionBreakpoints(requestedFunctions).catch(err =>
+        this.#pushOutput(`[dap] child '${this.label}' function breakpoints failed: ${(err as Error).message}`),
+      )
     }
     await this.request('configurationDone').catch(() => {
     })
@@ -1639,6 +1695,28 @@ export class DapSession {
     if (verified.length === 0) this.breakpoints.delete(path)
     else this.breakpoints.set(path, verified)
     return verified
+  }
+
+  async setFunctionBreakpoints(specs: DapFunctionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    const body = await this.request(
+      'setFunctionBreakpoints',
+      {
+        breakpoints: specs.map(s => ({
+          name: s.name,
+          ...(s.condition !== undefined ? { condition: s.condition } : {}),
+          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
+        })),
+      },
+      BREAKPOINT_REQUEST_TIMEOUT_MS,
+    )
+    const verdicts = this.#breakpointVerdicts(body, specs.length)
+    this.functionBreakpoints = specs.map((s, i) => ({
+      name: s.name,
+      verified: verdicts[i]?.verified === true,
+      ...(typeof verdicts[i]?.id === 'number' ? { id: verdicts[i]?.id } : {}),
+      ...(typeof verdicts[i]?.message === 'string' ? { message: verdicts[i]?.message } : {}),
+    }))
+    return verdicts
   }
 
   #breakpointVerdicts(body: Record<string, unknown>, count: number): DapBreakpointVerdict[] {

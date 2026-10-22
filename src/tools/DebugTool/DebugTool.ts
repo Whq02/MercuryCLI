@@ -26,6 +26,7 @@ import {
   removeDapSession,
   type DapBreakpointSpec,
   type DapDataBreakpointSpec,
+  type DapFunctionBreakpointSpec,
   type DapSession,
 } from '../../services/dap/dapClient.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -102,7 +103,19 @@ const inputSchema = lazySchema(() =>
     host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
     method: z.string().optional().describe('customRequest: the DAP request command to send verbatim'),
     body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
-    functions: z.array(z.string()).optional().describe('functionBreakpoints: function names to break on (replaces the function-breakpoint set)'),
+    functions: z
+      .array(
+        z.union([
+          z.string(),
+          z.strictObject({
+            name: z.string().describe('The function to break on entry of'),
+            condition: z.string().optional().describe('Condition expression (capability-gated)'),
+            hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
+          }),
+        ]),
+      )
+      .optional()
+      .describe('functionBreakpoints: functions to break on entry of — names, or {name, condition?, hitCondition?} rows (replaces the set on every session of the tree; [] clears it)'),
     dataBreakpoints: z
       .array(
         z.strictObject({
@@ -566,30 +579,37 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       }
     }
     case 'functionBreakpoints': {
-      const r = requireTarget(owner, sessionId)
+      const r = requireSession(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-      const gated = gateCapability(r.target, 'supportsFunctionBreakpoints', 'functionBreakpoints')
+      const gated = gateCapabilityTree(r.session, 'supportsFunctionBreakpoints', 'functionBreakpoints')
       if (gated) return gated
       if (!input.functions) {
         return { result: 'functionBreakpoints needs functions (empty array clears the set)', outcome: 'failed' }
       }
-      const body = await r.target.request('setFunctionBreakpoints', {
-        breakpoints: input.functions.map(name => ({ name })),
-      })
-      const reported = Array.isArray(body.breakpoints)
-        ? (body.breakpoints as Array<{ verified?: boolean; message?: string }>)
-        : []
-      const detail = input.functions
-        .map(
-          (name, i) =>
-            `${name}: ${reported[i]?.verified === true ? 'verified' : 'UNVERIFIED'}${reported[i]?.message ? ` (${reported[i]?.message})` : ''}`,
-        )
+      const specs: DapFunctionBreakpointSpec[] = input.functions.map(f => (typeof f === 'string' ? { name: f } : f))
+      const richGate = gateRichBreakpoints(r.session, specs)
+      if (richGate) return richGate
+      const verified = await r.session.setFunctionBreakpointsTree(specs)
+      if (specs.length === 0) {
+        return {
+          result: 'function breakpoints cleared on every session of the tree (a later child session inherits none)',
+          outcome: 'succeeded',
+          details: { functionBreakpoints: [] },
+        }
+      }
+      const detail = specs
+        .map((s, i) => {
+          const v = verified[i]
+          const spelled = `${s.name}${s.condition !== undefined ? ` if ${s.condition}` : ''}${s.hitCondition !== undefined ? ` hits ${s.hitCondition}` : ''}`
+          return `${spelled}: ${
+            v?.verified ? `verified${v.verifier && v.verifier !== r.session.label ? ` by ${v.verifier}` : ''}` : 'UNVERIFIED'
+          }${v?.message ? ` (${v.message})` : ''}`
+        })
         .join(', ')
       return {
-        result: input.functions.length
-          ? `function breakpoints: ${detail}`
-          : 'function breakpoints cleared',
+        result: `function breakpoints: ${detail}`,
         outcome: 'succeeded',
+        details: { functionBreakpoints: verified },
       }
     }
     case 'threads': {
@@ -1027,6 +1047,11 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
               )
               .join(' · ')
             if (bps) lines.push(`  breakpoints: ${bps}`)
+            const fbps = session
+              .treeVerifiedFunctionBreakpoints()
+              .map(b => `${b.name}${b.verified ? '' : '?'}`)
+              .join(',')
+            if (fbps) lines.push(`  function breakpoints: ${fbps}`)
             return lines.join('\n')
           })
           .join('\n'),

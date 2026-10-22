@@ -12,6 +12,7 @@ const GRANDCHILD = process.env.MOCK_MULTI_GRANDCHILD === '1'
 const CHILD_SILENT = process.env.MOCK_MULTI_CHILD_SILENT === '1'
 const LAZY_VERIFY = process.env.MOCK_MULTI_LAZY_VERIFY === '1'
 const ROOT_HOSTS = process.env.MOCK_MULTI_ROOT_HOSTS === '1'
+const NO_CONDITIONS = process.env.MOCK_MULTI_NO_CONDITIONS === '1'
 
 let childrenExpected = CHILDREN + (GRANDCHILD ? 1 : 0)
 let childrenTerminated = 0
@@ -139,9 +140,22 @@ function makeSession(write, onDisconnect) {
     switch (req.command) {
       case 'initialize':
         initArgs = req.arguments ?? {}
-        respond(req, { supportsConfigurationDoneRequest: true })
+        respond(req, {
+          supportsConfigurationDoneRequest: true,
+          supportsFunctionBreakpoints: true,
+          ...(NO_CONDITIONS ? {} : { supportsConditionalBreakpoints: true, supportsHitConditionalBreakpoints: true }),
+        })
         event('initialized')
         break
+      case 'setFunctionBreakpoints': {
+        const rows = req.arguments?.breakpoints ?? []
+        event('output', {
+          category: 'stdout',
+          output: `[mock] ${role === 'parent' ? 'parent' : `child ${childId}`} setFunctionBreakpoints ${JSON.stringify(rows)}\n`,
+        })
+        respond(req, { breakpoints: rows.map((b, i) => ({ verified: role !== 'parent', id: 800 + i })) })
+        break
+      }
       case 'setBreakpoints': {
         const lines = (req.arguments?.breakpoints ?? []).map(b => b.line)
         breakpointsSet = breakpointsSet || lines.length > 0
