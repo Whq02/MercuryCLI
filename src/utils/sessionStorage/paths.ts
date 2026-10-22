@@ -86,6 +86,7 @@ export type AgentMetadata = {
   agentType: string
   model?: string
   effortOverride?: string
+  thinkingConfig?: import('../thinking.js').ThinkingConfig
   launchedAt?: number
 } & Partial<Record<
   'worktreePath' | 'cwd' | 'description' | 'effort' |

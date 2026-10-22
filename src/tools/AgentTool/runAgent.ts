@@ -106,7 +106,7 @@ import {
   isRestrictedToExtensionsOnly,
   isSourceAdminTrusted,
 } from '../../utils/settings/extensionOnlyPolicy.js'
-import { modelSupportsAdaptiveThinking } from '../../utils/thinking.js'
+import { sessionThinkingConfig, type ThinkingConfig } from '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
@@ -185,6 +185,7 @@ export type RunAgentParams = {
   seatHolder?: string
   transcriptSubdir?: string
   effortOverride?: string
+  thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
   beforeQueryStep?: () => Promise<void> | undefined
@@ -589,6 +590,7 @@ export async function* runAgent(
     seatHolder,
     transcriptSubdir,
     effortOverride,
+    thinkingConfigOverride,
     instructionProfileOverride,
     onQueryProgress,
     beforeQueryStep,
@@ -969,14 +971,7 @@ export async function* runAgent(
     const parentOptions = toolUseContext.options
     const isNonInteractiveSession = posture.isNonInteractiveSession
 
-    const thinkingOverride = isFork
-      ? parentOptions.thinkingConfig !== undefined
-        ? { thinkingConfig: parentOptions.thinkingConfig }
-        : {}
-      : effortOverride !== undefined &&
-          modelSupportsAdaptiveThinking(resolvedAgentModel)
-        ? { thinkingConfig: { type: 'adaptive' as const } }
-        : { thinkingConfig: { type: 'disabled' as const } }
+    const thinkingOverride = { thinkingConfig: thinkingConfigOverride ?? parentOptions.thinkingConfig ?? sessionThinkingConfig() }
 
     const childContext = createSubagentContext(toolUseContext, {
       agentId,
@@ -1071,6 +1066,7 @@ export async function* runAgent(
       ...(name ? { name } : {}),
       ...(launchedAt !== undefined ? { launchedAt } : {}),
       model: resolvedAgentModel,
+      thinkingConfig: thinkingOverride.thinkingConfig,
       ...(effortOverride !== undefined && { effortOverride }),
       ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}),
       ...(instructionCapture
