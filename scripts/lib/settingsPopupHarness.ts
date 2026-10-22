@@ -131,7 +131,7 @@ export type Mounted = {
   unmount: () => void
 }
 
-export async function mountOffscreen(element: unknown, columns: number, rows: number): Promise<Mounted> {
+export async function mountOffscreen(element: unknown, columns: number, rows: number, opts?: { mouseTracking?: boolean }): Promise<Mounted> {
   const { default: Ink } = await import('../../src/ink/ink.js')
   const { default: instances } = await import('../../src/ink/instances.js')
   const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
@@ -145,7 +145,7 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
     patchConsole: false,
   })
   instances.set(stdout as never, ink)
-  ink.setAltScreenActive(true, false)
+  ink.setAltScreenActive(true, opts?.mouseTracking ?? false)
   ink.render(element as never)
   const replay = (): InstanceType<typeof AnsiEmulator> => {
     const emu = new AnsiEmulator(columns, rows, true)
