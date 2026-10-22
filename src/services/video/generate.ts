@@ -4,6 +4,7 @@ import { VideoProviderRefusal } from './minimax.js'
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createVideoProvider, videoProviderSelection } from './registry.js'
 import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from './types.js'
@@ -89,7 +90,7 @@ export async function prepareVideo(input: VideoInput, project: string): Promise<
 
 async function frameGrab(path: string, signal: AbortSignal): Promise<Buffer> {
   return new Promise((resolveFrame, reject) => {
-    const child = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-ss', '1', '-i', path, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'], { stdio: ['ignore', 'pipe', 'pipe'], signal, windowsHide: true })
+    const child = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-ss', '1', '-i', path, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'], { stdio: ['ignore', 'pipe', 'pipe'], signal, windowsHide: true, env: subprocessEnv() })
     const chunks: Buffer[] = []
     let error = ''
     child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
