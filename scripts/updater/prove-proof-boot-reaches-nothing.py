@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import os, sys, pty, time, select, signal, subprocess, tempfile, shutil, re, fcntl, termios, struct, threading
 
-ESCAPES = re.compile(rb"\x1b\[[0-9;?<>=]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Z0-9]|\x1b[=>]|[\x00-\x08\x0b-\x1f]")
+try:
+    import pyte
+except ImportError:
+    sys.exit('REFUSED proof-boot-reaches-nothing: pyte is required to read the rendered terminal; use the capture interpreter')
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BIN = os.environ.get("MERCURY_PROOF_BOOT_BIN", os.path.join(REPO, "dist", "mercury.mjs"))
 NODE = os.path.join(os.path.dirname(BIN), "vendor", "node", "bin", "node")
@@ -129,9 +132,10 @@ try:
 except OSError:
     pass
 
-buf = bytearray()
+screen = pyte.Screen(120, 40)
+stream = pyte.ByteStream(screen)
 def plain():
-    return ESCAPES.sub(b"", bytes(buf))
+    return '\n'.join(screen.display).encode('utf8')
 def pump(seconds):
     end = time.time() + seconds
     while time.time() < end:
@@ -143,7 +147,7 @@ def pump(seconds):
                 return False
             if not b:
                 return False
-            buf.extend(b)
+            stream.feed(b)
     return True
 
 t0 = time.time()
