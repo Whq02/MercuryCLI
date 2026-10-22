@@ -99,10 +99,12 @@ section('§1 the frame at 178×51: the page\'s rows, row for row')
     check('the label column is 36 cells (the mark and a 34-cell label): the value starts at cell 36 of the row, as the page draws it', frame.rows[6]!.slice(2 + 36).startsWith('on') && frame.rows[6]!.slice(2 + 35, 2 + 36) === ' ', JSON.stringify(frame.rows[6]!.slice(2, 2 + 50)))
     const longest = frame.rows.slice(6, 40).map(row => inner(row)).find(row => row.startsWith('  Respect .gitignore in file picker'))
     check('the longest label still fits before the value column with one cell to spare', longest !== undefined && longest.slice(36).startsWith('on') && longest.slice(35, 36) === ' ', longest)
-    const band = Array.from({ length: 108 }, (_, i) => m.styleAt(frame.left + 1 + i, frame.top + 6)?.bg ?? 'none')
+    const band = Array.from({ length: 106 }, (_, i) => m.styleAt(frame.left + 1 + i, frame.top + 6)?.bg ?? 'none')
+    const afterBand = [m.styleAt(frame.left + 107, frame.top + 6)?.bg ?? 'none', m.styleAt(frame.left + 108, frame.top + 6)?.bg ?? 'none']
     const outside = [m.styleAt(frame.left, frame.top + 6)?.bg ?? 'none', m.styleAt(frame.left + 109, frame.top + 6)?.bg ?? 'none']
     const unselected = m.styleAt(frame.left + 1, frame.top + 7)?.bg ?? 'none'
-    check('the selection band spans the 108 cells between the borders, one paint', new Set(band).size === 1 && band[0] !== unselected, `${band[0]} vs row below ${unselected}; distinct paints ${new Set(band).size}`)
+    check('the selection band spans the 106 cells from the left padding to the viewport marker column, one paint', new Set(band).size === 1 && band[0] !== unselected, `${band[0]} vs row below ${unselected}; distinct paints ${new Set(band).size}; cells off the band at ${band.map((bg, i) => (bg === band[0] ? -1 : i)).filter(i => i >= 0).join(',')}`)
+    check('the viewport marker column (cell 107, blank on the first row while nothing is above) and the right padding stand outside the band', afterBand.every(bg => bg !== band[0]) && frame.rows[6]!.charAt(107) === ' ', `after the band ${afterBand.join(',')} ${JSON.stringify(frame.rows[6]!.slice(105, 109))}`)
     check('the band stops at the border cells', outside.every(bg => bg !== band[0]), outside.join(','))
   }
   m.unmount()

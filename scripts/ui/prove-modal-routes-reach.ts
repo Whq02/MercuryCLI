@@ -71,7 +71,7 @@ const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
 const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'contract', 'mission'])
 const TEXT_ROUTES = ['contract', 'mission']
 const MARK: Readonly<Record<string, string>> = {
-  defaultprovider: 'Default provider', hooks: 'configured hooks', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
+  defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
   keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', copy: 'Mercury — copy', mcp: 'Mercury · mcp', mission: 'Mission',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session', showcase: 'Mercury — showcase',
 }
@@ -329,7 +329,7 @@ function familyWhole(frame: string[], head: string, nextHead: string, lineCount:
   const nextRow = frame.findIndex((line, index) => index > headRow && line.slice(column).startsWith(`  ${nextHead}`))
   const lines = frame.slice(headRow + 1, nextRow > headRow ? nextRow : frame.length)
   const family = lines.filter(line => line.slice(column).startsWith('   '))
-  const closing = nextRow > headRow || /esc close/.test(lines[family.length] ?? '')
+  const closing = nextRow > headRow || /^↑↓ family · pgup\/pgdn page · /.test((lines[family.length] ?? '').slice(column))
   return family.length === lineCount && closing
 }
 

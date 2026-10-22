@@ -8,6 +8,7 @@ import {
   popOverlay,
   pushOverlay,
   reserveOverlayToken,
+  setOverlayPageKeys,
   subscribeOverlayStack,
 } from './overlayStack.js';
 
@@ -25,6 +26,7 @@ export function useRegisterOverlay(
   const focusReturnRef = useRef(opts?.onFocusReturn);
   focusReturnRef.current = opts?.onFocusReturn;
   const ownsPageKeysRef = useRef(opts?.ownsPageKeys);
+  ownsPageKeysRef.current = opts?.ownsPageKeys;
 
   useLayoutEffect(() => {
     if (!enabled) {
@@ -42,6 +44,10 @@ export function useRegisterOverlay(
       instances.get(process.stdout)?.invalidatePrevFrame();
     };
   }, [id, enabled, token]);
+  const ownsPageKeys = opts?.ownsPageKeys;
+  useLayoutEffect(() => {
+    if (enabled) setOverlayPageKeys(token, ownsPageKeys);
+  }, [enabled, token, ownsPageKeys]);
 
   return enabled ? token : null;
 }

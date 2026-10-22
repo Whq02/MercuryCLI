@@ -38,13 +38,14 @@ function ensureDirectory(dir: string): string {
 export function hostDirectory(): string {
   return ensureDirectory(join(getMercuryHome(), 'host'))
 }
+const podsDirectory = (): string => join(getMercuryHome(), 'host', 'pods')
 function recordPath(id: string): string {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid host record id')
-  return join(ensureDirectory(join(hostDirectory(), 'pods')), id + '.json')
+  return join(podsDirectory(), id + '.json')
 }
-export function writeHostRecord(record: HostRecord): void { publishAtomicSync(recordPath(record.id), JSON.stringify({ ...record, vendor: record.vendor ?? 'runpod' }) + '\n', { mode: 0o600 }) }
+export function writeHostRecord(record: HostRecord): void { ensureDirectory(podsDirectory()); publishAtomicSync(recordPath(record.id), JSON.stringify({ ...record, vendor: record.vendor ?? 'runpod' }) + '\n', { mode: 0o600 }) }
 export function removeHostRecord(id: string): void { try { unlinkSync(recordPath(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
 export function hostRecords(): HostRecord[] {
-  const dir = join(hostDirectory(), 'pods')
+  const dir = podsDirectory()
   try { return readdirSync(dir).filter(name => name.endsWith('.json')).map(name => ({ vendor: 'runpod', ...JSON.parse(readFileSync(join(dir, name), 'utf8')) }) as HostRecord) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw new Error('Host records could not be read. The paid-pods list still shows the connected vendors’ account resources.') }
 }

@@ -56,6 +56,7 @@ const h = React.createElement
 
 const TITLE = 'Mercury · model'
 const DOWN = '\x1b[B'
+const UP = '\x1b[A'
 const ESC = '\x1b'
 const BACKSPACE = '\x7f'
 
@@ -295,12 +296,20 @@ for (const [columns, rows] of SIZES) {
   save('popup-q1-tail', columns, rows, scene.lines())
   if (window !== null) {
     const { budget, room, expected } = tailAsPainted(window)
-    const unfocused = rowWith(window, PREVIEW_NEEDLE)
+    for (let step = 0; step < 20 && rowWith(scene.window()!, PREVIEW_NEEDLE) === ''; step++) { scene.push(DOWN); await sleep(120) }
+    const landedFocused = cursorRow(scene.window()!).includes(PREVIEW_NEEDLE)
+    if (landedFocused) { scene.push(DOWN); await sleep(120) }
+    save('popup-q1-tail-walked', columns, rows, scene.lines())
+    const unfocused = rowWith(scene.window()!, PREVIEW_NEEDLE)
+    const modelRows = scene.window()!.rows.filter(row => /\d+(?:\.\d+)?[kM] ctx/.test(row)).length
+    const cursorOnly = unfocused === '' && landedFocused && modelRows <= 2
     console.log(`  ${columns}x${rows}: panel ${window.width} · ${compactAt(window) ? 'compact' : 'full'} tier · tail cell ${budget} · the line's room for it ${room} · expected "${expected}"`)
-    check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, bare(unfocused))
+    if (cursorOnly) check(`${columns}x${rows}: a two-line window between both markers — the no-alias row stands only as the cursor row (the door line after it is no stop), so its tail is read focused alone`, scene.window()!.rows.filter(row => /[↑↓] \d+ more/.test(row)).length === 2, `${modelRows} model rows in the window: ${scene.window()!.rows.map(bare).join(' | ')}`)
+    else check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, bare(unfocused))
+    if (landedFocused) { scene.push(UP); await sleep(120) }
     for (let step = 0; step < 6 && !cursorRow(scene.window()!).includes(PREVIEW_NEEDLE); step++) { scene.push(DOWN); await sleep(120) }
     const focused = cursorRow(scene.window()!)
-    check(`${columns}x${rows}: the focused no-alias row reads the same tail`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && lastCellOf(focused) === tailCell(unfocused), `focused "${focused}" · unfocused "${bare(unfocused)}"`)
+    check(`${columns}x${rows}: the focused no-alias row reads ${cursorOnly ? `"${expected}"` : 'the same tail'}`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && (cursorOnly || lastCellOf(focused) === tailCell(unfocused)), `focused "${focused}" · unfocused "${bare(unfocused)}"`)
   }
   await scene.close()
 }
@@ -367,7 +376,9 @@ for (const [columns, rows] of SIZES) {
   const window = scene.window()!
   const spoken = window.rows.map(inner).filter(r => /current Fable 5\.1|next Opus 5\.5|applies when the turn settles/.test(r)).map(r => r.trim()).join(' ')
   check(`${columns}x${rows}: the line reads "current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles" (whole or wrapped)`, spoken.replace(/\s+/g, ' ') === `current Fable 5.1 · ${GLYPH.pending} next Opus 5.5 · applies when the turn settles`, spoken)
-  check(`${columns}x${rows}: the queued row carries "next" in its calm state column`, window.rows.some(r => /\s{2}next\s{2}/.test(r) && r.includes('claude-opus-5-5')))
+  for (let step = 0; step < 12 && rowWith(scene.window()!, 'claude-opus-5-5') === ''; step++) { scene.push(DOWN); await sleep(120) }
+  const queued = rowWith(scene.window()!, 'claude-opus-5-5')
+  check(`${columns}x${rows}: the queued row carries "next" in its calm state column (walked into the window where the rows overflow it)`, /\s{2}next\s{2}/.test(queued), bare(queued))
   await scene.close()
 }
 

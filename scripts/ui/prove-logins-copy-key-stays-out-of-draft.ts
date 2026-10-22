@@ -46,7 +46,7 @@ seedFirstRun(TEMPLATE, [FOLDER])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
-const ROSTER_LEGEND = '↑↓ move · ↵ sign in · esc back'
+const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
 const CARD_FIELD = 'Paste code here if prompted >'
 const CARD_HINT = 'press c to copy the URL'
 const CARD_ACK = 'Copied to clipboard'

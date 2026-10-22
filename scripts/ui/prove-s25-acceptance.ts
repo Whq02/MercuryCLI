@@ -309,7 +309,7 @@ pin('grammar: digits full-list, change-only (17, 20)', 'components/CustomSelect/
 ])
 pin('grammar: escape one-layer top check (16)', 'components/CustomSelect/use-select-input.ts', [
   'isTopOverlayNow(token)',
-  "useRegisterOverlay('select', Boolean(onCancel))",
+  "useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })",
 ])
 pin('grammar: input rows own typing; paging never consumes (21, 23)', 'components/CustomSelect/use-select-input.ts', [
   'if (state.isInInput) {',
@@ -324,7 +324,7 @@ pin('select: expanded-only click, disabled suppressed (24)', 'components/CustomS
   "layout === 'expanded' && disableSelection !== true && !option.disabled",
 ])
 pin('multi: overlay unconditional + full raw grammar (25–28)', 'components/CustomSelect/use-multi-select-state.ts', [
-  "useRegisterOverlay('multi-select')",
+  "useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled })",
   "(input === 'j' && !key.ctrl && !key.shift)",
   'if (hideIndexes) return',
   'key.escape',

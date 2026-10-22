@@ -57,6 +57,13 @@ export function pushOverlay(entry: {
   return token
 }
 
+export function setOverlayPageKeys(token: number, ownsPageKeys: boolean | undefined): void {
+  const entry = stack.find(e => e.token === token)
+  if (!entry || entry.ownsPageKeys === ownsPageKeys) return
+  stack = stack.map(e => (e.token === token ? { ...e, ownsPageKeys } : e))
+  bump()
+}
+
 export function popOverlay(token: number): void {
   const idx = stack.findIndex(e => e.token === token)
   if (idx === -1) return

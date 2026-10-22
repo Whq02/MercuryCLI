@@ -54,6 +54,7 @@ const ROWS = 51
 const TITLE = 'Mercury · model'
 const COMPOSER = 'Type a prompt'
 const KEYS = '↑↓ select'
+const PAGE_KEYS = 'pgup/pgdn page'
 const DOWN = '\x1b[B'
 const ESC = '\x1b'
 
@@ -244,8 +245,8 @@ if (bootWindow !== null && sessionWindow !== null) {
   check(`the window's left edge equals the Boot face's (${bootWindow.left})`, sessionWindow.left === bootWindow.left, `session ${sessionWindow.left}`)
   check(`the window's top row equals the Boot face's (${bootWindow.top})`, sessionWindow.top === bootWindow.top, `session ${sessionWindow.top}`)
   check(`the window's width equals the Boot face's (${bootWindow.width})`, sessionWindow.width === bootWindow.width, `session ${sessionWindow.width}`)
-  const footer = inner(sessionWindow.rows[sessionWindow.height - 2]!)
-  check('the keys row is the window\'s last inner row', footer.startsWith(KEYS), footer)
+  const footer = inner(sessionWindow.rows[sessionWindow.height - 3]!)
+  check('the keys row is the window\'s second-to-last inner row, the page keys row under it', footer.startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!).trim() === PAGE_KEYS, `${footer} | ${inner(sessionWindow.rows[sessionWindow.height - 2]!)}`)
   const cells = cellsOf(session.frame[sessionWindow.top + 2] ?? '')
   check('the lanes rail stays visible left of the window', cells.slice(0, sessionWindow.left).join('').trim() !== '', 'nothing painted left of the window')
   const viewLeft = cellsOf(session.frame[0] ?? '').indexOf('╭')
@@ -271,8 +272,9 @@ if (sessionWindow !== null) {
   console.log(`session window after ↓×60: ${describe(afterWindow)}`)
   check('after ↓ past the last visible row the window keeps its place and its height', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width && afterWindow.height === beforeWindow.height, describe(afterWindow))
   check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[4]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : afterWindow.rows.slice(1, 5).map(inner).join(' | '))
-  const footer = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 2]!)
-  check('the footer stays the window\'s last inner row while the rows scroll', footer.startsWith(KEYS), footer)
+  const footer = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 3]!)
+  const pageRow = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 2]!).trim()
+  check('the footer rows stay the window\'s last two inner rows while the rows scroll', footer.startsWith(KEYS) && pageRow === PAGE_KEYS, `${footer} | ${pageRow}`)
   session.scene.push(ESC)
   const closed = await until(() => !session.scene.lines().some(line => line.includes(TITLE)) || session.done() > 0, 5000)
   check('esc closes the picker', closed)

@@ -149,7 +149,7 @@ function fieldAfter(frame: string): string | null {
   if (line === undefined) return null
   return line.slice(line.indexOf(CARD_FIELD) + CARD_FIELD.length).replace(/[\s│]+$/, '').trim()
 }
-const ROSTER_LEGEND = '↑↓ move · ↵ sign in · esc back'
+const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
 const FACE_HINT = 'c copies the URL'
 const FACE_ACK = 'copied to clipboard'
 const CARD_HINT = 'press c to copy the URL'

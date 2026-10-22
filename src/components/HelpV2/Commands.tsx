@@ -88,7 +88,7 @@ export function Commands({
               isDisabled={headerFocused}
             />
           </Box>
-          <Box marginTop={1}>
+          <Box marginTop={1} flexDirection="column">
             <Text dimColor>↑↓ move · pgup/pgdn page · ↵ stage · esc close</Text>
             <Text dimColor>↵ stages the command in the composer — nothing runs until you send it</Text>
           </Box>

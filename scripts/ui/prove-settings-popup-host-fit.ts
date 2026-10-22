@@ -218,7 +218,8 @@ section('§1 178×51, both rails and a health panel on the left: /config fits th
   const scene: Scene = { columns: 178, rows: 51, panel: 44 }
   const { m, before, after, paint } = await open(scene, configPopupRequest(context))
   judge('178×51 + panel', scene, paint, before, after, CONFIG_POPUP_WIDTH)
-  check('178×51 + panel: the hint row is cut to the narrower frame, never wrapped', paint !== null && !after.some(line => line.includes(CONFIG_POPUP_HINT)) && paint.rows.at(-2)!.includes('↑↓ select'), paint === null ? 'none' : paint.rows.at(-2))
+  const guide = paint === null ? [] : paint.rows.slice(-3, -1).map(row => row.slice(1, -1).trim())
+  check('178×51 + panel: the key guide, its mouse clause clamped to "esc closes", still outruns the 70-wide frame and wraps to two body rows — "↑↓ select … · esc" then "closes" alone — never a row wider than the frame', paint !== null && !after.some(line => line.includes(CONFIG_POPUP_HINT)) && guide[0] === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc' && guide[1] === 'closes', paint === null ? 'none' : guide.join(' | '))
   frame('config-beside-panel-178x51', after)
   await close(m, 'config')
 }

@@ -128,6 +128,9 @@ const sizeArg = process.argv.indexOf('--sizes')
 const sizes = sizeArg < 0 ? allSizes : allSizes.filter(s => (process.argv[sizeArg + 1] ?? '').split(',').includes(`${s.columns}x${s.rows}`))
 const title = 'Mercury · logins'
 const hint = 'esc or click outside closes'
+const listHint = '↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes'
+const listScreen = (name: string): boolean => name === 'menu' || name === 'short host' || /^(full|mixed) /.test(name)
+const hintOf = (name: string): string => (listScreen(name) ? listHint : hint)
 const compactHint = 'Mercury · logins · esc closes'
 const geometryOf = (s: Scene) => settingsPopupGeometry({ width: 100, rows: 29 }, s.columns, s.rows, 0, { top: 0, rows: s.rows - (s.bottom ?? 0) })
 const COMPACT_BELOW_BODY_ROWS = 8
@@ -163,8 +166,8 @@ function fits(m: Mounted, s: Scene, name: string) {
   const bottom = lines.findIndex((line, i) => i > top && line[left] === '╰')
   const geometry = geometryOf(s)
   const framed = top === geometry.top && left === geometry.left && right - left + 1 === geometry.width && bottom - top + 1 === geometry.rows && lines.slice(top + 1, bottom).every(line => line[left] === '│' && line[right] === '│')
-  if (isCompact(s)) check(`${name} ${s.columns}x${s.rows}: complete centred frame whose first row folds the title and the close hint`, framed && (lines[top + 1] ?? '').includes(compactHint) && !m.screen().includes(hint), m.screen())
-  else check(`${name} ${s.columns}x${s.rows}: complete centred frame and pinned close hint`, framed && m.screen().includes(hint), m.screen())
+  if (isCompact(s)) check(`${name} ${s.columns}x${s.rows}: complete centred frame whose first row folds the title and the close hint`, framed && (lines[top + 1] ?? '').includes(compactHint) && !m.screen().includes(hint) && !m.screen().includes(listHint), m.screen())
+  else check(`${name} ${s.columns}x${s.rows}: complete centred frame and pinned ${listScreen(name) ? 'list key guide' : 'close hint'}`, framed && m.screen().includes(hintOf(name)), m.screen())
   check(`${name}: every cell stays inside the terminal and the host bottom survives`, lines.length <= s.rows && lines.every(line => stringWidth(line) <= s.columns) && lines.slice(s.rows - (s.bottom ?? 0)).every(line => line === 'BOTTOM'))
 }
 async function walk(m: Mounted, end: string, step = '\x1b[6~'): Promise<boolean> {
@@ -210,7 +213,7 @@ for (const s of sizes) {
     for (let index = 0; index < 19; index++) await key(board.m, KEY.up)
     check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 20`, markerOf(board.m) === '1 of 20' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
   } else {
-    check('the readiness tail is reachable without moving the close hint', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(hint))
+    check('the readiness tail is reachable by paging past the last family row, without moving the list key guide', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(listHint))
     save(board.m, s, 'readiness')
     const scroll = store.settingsPopupRequest()?.scrollRef?.current
     const beforeWheel = scroll?.getScrollTop() ?? 0
