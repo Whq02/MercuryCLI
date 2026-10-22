@@ -48,7 +48,6 @@ try {
   const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
   const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
   const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-  const { queueHostWatch } = await import('../../src/services/host/jobs.ts')
   const { retuneHostEngine, defaultTune } = await import('../../src/services/host/tune.ts')
   const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
@@ -68,15 +67,16 @@ try {
   }
   const until = async (needle: string) => assert.ok(await waitFor(() => mounted!.screen().includes(needle), 30000), 'screen reaches ' + needle + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
-  const choose = async (needle: string) => {
+  const select = async (needle: string) => {
     for (let n = 0; n < 50; n++) {
       const before = selected()
-      if (before.includes(needle)) { mounted!.push(KEY.enter); return }
+      if (before.includes(needle)) return
       mounted!.push(KEY.down)
       assert.ok(await waitFor(() => selected() !== before, 3000), 'selection reaches ' + needle + '\n' + mounted!.screen())
     }
     throw new Error('Choice not found: ' + needle)
   }
+  const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
   const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   const capture = async (name: string) => {
     if (!frames) return
@@ -86,12 +86,12 @@ try {
     writeFileSync(path, JSON.stringify({ grid, cols: width, rows: 44 }))
     await gridToPng(path, join(frames, name + '.png'))
   }
-  open(); await mount(120); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE')
+  open(); await mount(120); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   check('WHERE offers every disconnected vendor, not just Runpod', ['Connect Runpod', 'Connect Vast.ai', 'Connect Lambda'].every(label => mounted!.screen().includes(label)))
   const { vendorClient, runpodOnly } = await import('../../src/services/host/vendors/client.ts')
   await capture('120-three-vendors')
   await close(); mounted!.unmount(); await mount(80)
-  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE'); await capture('80-three-vendors')
+  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await capture('80-three-vendors')
   for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
     await until('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
@@ -107,8 +107,7 @@ try {
     check(label + ' saved key routes reads through its own API', (await vendorClient(record).get(record.id)).id === record.id)
     assert.throws(() => runpodOnly(vendorClient(record), 'Fast-load weights disks'), /Runpod-only/)
     assert.throws(() => runpodOnly(vendorClient(record), 'Clusters'), /Runpod-only/)
-    assert.throws(() => queueHostWatch({ ...record, id: 'unsupported-watch' }), /Runpod-only/)
-    check(label + ' explicitly refuses Runpod-only reload, disks, clusters and watches', (await retuneHostEngine(record, defaultTune(currentHostRecipes().find(row => row.id === record.recipe)!), runner)).words.includes('Runpod-only'))
+    check(label + ' explicitly refuses Runpod-only reload, disks and clusters', (await retuneHostEngine(record, defaultTune(currentHostRecipes().find(row => row.id === record.recipe)!), runner)).words.includes('Runpod-only'))
     if (vendor === 'lambda') {
       check('Lambda offers no Stop', !mounted!.screen().includes('Stop ·'))
       check('Lambda waits for cloud-init and launches the recipe in Docker as ubuntu', record.target?.user === 'ubuntu' && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('cloud-init status --wait')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
@@ -123,22 +122,22 @@ try {
     check('Paid pods names ' + label, mounted!.screen().includes(label))
     await choose(record.id); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
     check(label + ' termination uses the right client and verifies absence', fixture.state.deletes === 1 && fixture.state.pods.size === 0 && !readHostRecord(record.id))
-    await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE')
+    await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   }
   fail = true
   await choose('Rent · Vast.ai'); await until('Confirm the hourly price'); await choose('Confirm $')
   check('Failed Vast setup is terminated through Vast', await waitFor(() => vast.state.deletes === 2 && vast.state.pods.size === 0, 15000))
   await Promise.all(jobs)
   check('Failed Vast setup leaves a truthful terminated receipt', hostRecords().some(row => row.vendor === 'vast' && row.status === 'TERMINATED' && row.error?.includes('verified absent')))
-  await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE')
+  await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   await choose('Connect Runpod'); await until('Runpod API key'); mounted!.push(rp.key); await until('********'); mounted!.push(KEY.enter)
-  await until('Rent · Runpod')
+  await until('Rent · Vast.ai'); await select('Rent · Runpod')
   check('Every connected vendor has a labelled WHERE rental row', ['Rent · Runpod', 'Rent · Vast.ai', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await capture('80-connected-three-vendors')
   await close(); mounted!.unmount(); await mount(120)
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('Rent · Runpod'); await capture('120-connected-three-vendors')
   await close(); denyVastStock = true
-  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WHERE'); await until('Vast.ai stock could not be read')
+  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai stock could not be read')
   check('Unreadable Vast stock keeps the other rental rows', ['Rent · Runpod', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await close(); denyVastStock = false; denyVastPods = true
   open(); await until('Which model?'); await until('Vast.ai paid machines could not be read')

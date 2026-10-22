@@ -1,11 +1,16 @@
 import type { RunpodClient } from '../runpod.js'
 
 export type { HostOffer, HostPod } from '../runpod.js'
-export const HOST_VENDOR_INFO = {
-  runpod: { label: 'Runpod', keyHelp: 'Create a Runpod API key at https://www.runpod.io/console/user/settings.' },
+export type HostVendorInfo = { readonly label: string; readonly keyHelp: string; readonly booted?: { readonly on: string; readonly source: string } }
+export const HOST_VENDOR_INFO: Readonly<Record<'runpod' | 'vast' | 'lambda', HostVendorInfo>> = {
+  runpod: { label: 'Runpod', keyHelp: 'Create a Runpod API key at https://www.runpod.io/console/user/settings.', booted: { on: '2026-10-21', source: 'a real Runpod rental booted through Mercury on 2026-10-21 (1.0.0-beta.41)' } },
   vast: { label: 'Vast.ai', keyHelp: 'Create a Vast.ai API key at https://cloud.vast.ai/manage-keys/.' },
   lambda: { label: 'Lambda', keyHelp: 'Create a Lambda Cloud API key at https://cloud.lambda.ai/api-keys.' },
-} as const
+}
+export const vendorStamp = (vendor: keyof typeof HOST_VENDOR_INFO): string => {
+  const booted = HOST_VENDOR_INFO[vendor].booted
+  return booted ? 'verified on a live rental ' + booted.on : 'API only — not yet booted'
+}
 export interface HostVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'terminate' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
   readonly vendor: 'runpod' | 'vast' | 'lambda'
   readonly label: string
@@ -16,7 +21,7 @@ export interface HostVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' |
 
 export function runpodVendor(client: RunpodClient): HostVendor {
   return {
-    vendor: 'runpod', ...HOST_VENDOR_INFO.runpod,
+    vendor: 'runpod', label: HOST_VENDOR_INFO.runpod.label, keyHelp: HOST_VENDOR_INFO.runpod.keyHelp,
     capabilities: { stop: true, dataCenters: true, persistentDisk: 'volume' },
     offers: client.offers.bind(client), watchOffer: client.watchOffer.bind(client), create: client.create.bind(client),
     pods: client.pods.bind(client), get: client.get.bind(client), stop: client.stop.bind(client), terminate: client.terminate.bind(client),

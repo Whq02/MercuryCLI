@@ -6,12 +6,7 @@ import type { HostRunner } from './ssh.js'
 async function readBankText(box: HostBox, path: string, runner: HostRunner, signal: AbortSignal): Promise<string> {
   return runBoxScript(box, box.os === 'windows' ? 'Get-Content -LiteralPath ' + psQuote(path) + ' -Raw' : 'cat ' + shQuote(path), runner, signal)
 }
-export async function verifyBoxBank(box: HostBox, recipe: BoxRecipe, destination: string, runner: HostRunner, signal: AbortSignal): Promise<void> {
-  boxAbsolutePath(box, destination)
-  let manifest = ''
-  for (const name of ['SHA256SUMS', 'SHA256SUMS.txt', 'SHA256SUMS.manifest', 'SHA256SUMS.verified']) {
-    try { manifest = await readBankText(box, boxJoin(box, destination, name), runner, signal); if (/^[a-f0-9]{64}\s/im.test(manifest)) break } catch (error) { signal.throwIfAborted() }
-  }
+export function parseBankSums(manifest: string): Map<string, string> {
   const hashes = new Map<string, string>()
   for (const line of manifest.split(/\r?\n/).filter(Boolean)) {
     const match = /^([a-fA-F0-9]{64}) [ *](.+)$/.exec(line)
@@ -21,6 +16,15 @@ export async function verifyBoxBank(box: HostBox, recipe: BoxRecipe, destination
     if (hashes.has(file)) throw new Error('Duplicate path in bank checksums.')
     hashes.set(file, match[1]!.toLowerCase())
   }
+  return hashes
+}
+export async function verifyBoxBank(box: HostBox, recipe: BoxRecipe, destination: string, runner: HostRunner, signal: AbortSignal): Promise<void> {
+  boxAbsolutePath(box, destination)
+  let manifest = ''
+  for (const name of ['SHA256SUMS', 'SHA256SUMS.txt', 'SHA256SUMS.manifest', 'SHA256SUMS.verified']) {
+    try { manifest = await readBankText(box, boxJoin(box, destination, name), runner, signal); if (/^[a-f0-9]{64}\s/im.test(manifest)) break } catch (error) { signal.throwIfAborted() }
+  }
+  const hashes = parseBankSums(manifest)
   let required = recipe.files ?? []
   if (recipe.engine === 'ollama') {
     const [model, tag = 'latest'] = recipe.model.split(':')

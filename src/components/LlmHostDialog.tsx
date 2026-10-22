@@ -124,10 +124,17 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const activeHost = host && !['TERMINATED', 'EXITED'].includes(host.status)
   const exit = activeHost ? host.status === 'WATCHING' ? 'esc closes · the stock watch keeps running' : host.step === 'ready' ? 'esc closes · the model keeps running' : 'esc closes · the setup keeps running' : 'esc closes'
   const choicesPage = Boolean(question?.rows) && detailsFit && !scrollDetails && window.end - window.start < rows.length
-  const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + exit + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
+  const keyActions = question?.rows && question.keys?.length ? question.keys : []
+  const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + exit + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
   useLayoutEffect(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
   useInput((_input, key, event) => {
     if (key.escape) { event.stopImmediatePropagation(); stop(); return }
+    const action = keyActions.length && !key.ctrl && !key.meta && _input.length === 1 ? keyActions.find(row => row.key === _input) : undefined
+    if (action) {
+      event.stopImmediatePropagation()
+      if (pastOpenEvent() && detailsFit && cursor !== null && rows[cursor]) answer(action.value + ':' + rows[cursor]!.value)
+      return
+    }
     if ((key.pageUp || key.pageDown) && choicesPage) {
       event.stopImmediatePropagation()
       const target = popupListMotion(_input, key, cursor ?? 0, rows.length, Math.max(1, window.end - window.start))

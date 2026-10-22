@@ -1,5 +1,9 @@
-import manifests from '../../../assets/host/weights.json' with { type: 'json' }
+import shippedManifests from '../../../assets/host/weights.json' with { type: 'json' }
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { z } from 'zod/v4'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostRecord } from './store.js'
 import { patchHostRecord, removeHostRecord } from './store.js'
@@ -8,8 +12,9 @@ import { fullCheckMinutes, gigabytes, keptDiskPrice, readKeptVolume, volumePrice
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { RunpodHttpError, type RunpodClient } from './runpod.js'
 
-interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
+export interface WeightManifest { model: string; include: string; revision: string; files: { path: string; size: number; sha256?: string; git?: string }[] }
 interface WeightScriptOptions { fully?: boolean; sampleManifestSha256?: string; progressPath?: string; fullWords?: string; deadlineSeconds?: number; stallSeconds?: number; stallBytes?: number; stallPollSeconds?: number; netDevPath?: string }
+const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(), revision: z.string(), files: z.array(z.object({ path: z.string(), size: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), git: z.string().regex(/^[a-f0-9]{40}$/).optional() })) }))
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
 const keptStall = { seconds: 600, bytes: 1e9, pollSeconds: 30 }
@@ -17,9 +22,18 @@ export const keptStallWords = 'under ' + keptStall.bytes / 1e9 + ' GB in ' + kep
 export const keptDownloadMinutes = (recipe: HostRecipe): number => 30 + Math.ceil(recipe.weightsGb / 6)
 const keptRunMs = (recipe: HostRecipe): number => (90 + Math.ceil(recipe.weightsGb / 4)) * 60_000
 export const keptWeightsPath = (recipe: HostRecipe): string => '/workspace/mercury-weights/' + createHash('sha256').update(recipe.model + '\n' + (recipe.include ?? '')).digest('hex').slice(0, 24)
+export function weightManifests(): WeightManifest[] {
+  const localPath = flagEnv('MERCURY_HOST_WEIGHTS_FILE')?.trim()
+  if (localPath) return manifestsSchema.parse(JSON.parse(readFileSync(resolve(localPath), 'utf8')))
+  return shippedManifests
+}
+export function pinnedWeightManifest(recipe: HostRecipe): WeightManifest | undefined {
+  const row = weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
+  return row && row.files.reduce((sum, file) => sum + file.size, 0) === Math.round(recipe.weightsGb * 1e9) ? row : undefined
+}
 export function weightManifest(recipe: HostRecipe): WeightManifest {
-  const row = manifests.find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
-  if (!row || row.files.reduce((sum, file) => sum + file.size, 0) !== Math.round(recipe.weightsGb * 1e9)) throw new Error('No pinned weight manifest matches this recipe; fast-load cannot trust its files.')
+  const row = pinnedWeightManifest(recipe)
+  if (!row) throw new Error('No pinned weight manifest matches this recipe; fast-load cannot trust its files.')
   return row
 }
 export function weightCheckScript(manifest: WeightManifest, directory: string, download: boolean, options: WeightScriptOptions = {}): string {

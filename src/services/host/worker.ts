@@ -1,10 +1,13 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
 import { matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
+import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { setTimeout as delay } from 'node:timers/promises'
-import { vendorClient, vendorKey, vendorLabel, runpodOnly } from './vendors/client.js'
+import { vendorClient, vendorKey, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
+import { HostVendorHttpError } from './vendors/http.js'
+import type { HostVendor } from './vendors/vendor.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
 import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
@@ -14,9 +17,14 @@ import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
+import { bankDownloadScript, bankModelFolder, bytesWords, folderBytes, recordBankFailure, sealBank, shortFolder, verifyBank } from './bank.js'
+import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
+
+const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
+const localOs = (): 'darwin' | 'linux' | 'windows' => process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
 
 export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
   const initial = readHostRecord(id)
@@ -64,13 +72,54 @@ export async function runHostJob(id: string, generation: string, options: { runn
       })
       .catch(() => {})
       .finally(() => { logBusy = false })
-  }, initial.jobKind === 'watch' ? Math.min(pause, 100) : pause)
+  }, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
+  if (initial.jobKind === 'bank') {
+    const verifying = initial.bankTask === 'verify'
+    const token = resolveHuggingfaceApiKey()
+    const scrub = (text: string): string => token ? clean(text).split(token.key).join('[redacted]') : clean(text)
+    try {
+      if (!recipe) throw new Error('The saved host recipe is unavailable.')
+      if (!initial.bankFolder) throw new Error('The bank folder is not recorded; open /llmhost → Bank and try again.')
+      const folder = initial.bankFolder
+      const path = bankModelFolder(folder, recipe)
+      if (verifying) {
+        const receipt = await verifyBank(recipe, folder, signal, mark)
+        mark('verified')
+        hostNotice(initial, 'verified', initial.name + ' · verified against the ' + (receipt.check === 'manifest' ? 'pinned manifest' : 'download') + ' · ' + receipt.files + ' files · ' + bytesWords(receipt.bytes) + ' on ' + shortFolder(folder) + ' · /llmhost → Bank')
+        removeHostRecord(id)
+        return
+      }
+      mkdirSync(path, { recursive: true })
+      mark('downloading from Hugging Face' + (token ? ' with your Hugging Face token' : ''))
+      const expected = recipe.weightsGb * 1e9
+      const progress = setInterval(() => { try { mark('downloading ' + bytesWords(folderBytes(path)) + ' of ' + bytesWords(expected)) } catch {} }, Math.max(1000, pause))
+      try { await runBoxScript({ os: localOs(), target: undefined }, bankDownloadScript(recipe, path), runner, signal, 12 * 3600_000, token ? { HF_TOKEN: token.key } : undefined) } finally { clearInterval(progress) }
+      const receipt = await sealBank(recipe, folder, signal, mark)
+      mark('banked')
+      hostNotice(initial, 'banked', initial.name + ' · banked on ' + shortFolder(folder) + ' · ' + bytesWords(receipt.bytes) + ' in ' + receipt.files + ' files · verified against the ' + (receipt.check === 'manifest' ? 'pinned manifest' : 'download') + ' · /llmhost → Bank')
+      removeHostRecord(id)
+    } catch (error) {
+      const current = readHostRecord(id)
+      if (current && current.generation === generation && current.jobState !== 'stopped') {
+        const detail = scrub(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 400)
+        const words = initial.name + ' · ' + (verifying ? 'verification failed: ' + detail + ' · b banks the weights again' : 'banking failed: ' + detail + ' · what was downloaded stays in the folder; b resumes') + ' · /llmhost → Bank'
+        if (recipe && initial.bankFolder) recordBankFailure(recipe, bankModelFolder(initial.bankFolder, recipe), detail)
+        log(words)
+        hostNotice(current, 'failed', words)
+        removeHostRecord(id)
+      }
+    } finally { clearInterval(timer) }
+    return
+  }
   if (initial.jobKind === 'watch') {
     let created: HostPod | undefined
     try {
-      if (!key) throw new Error('The saved ' + vendorLabel(vendor) + ' key is unavailable.')
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
-      const api = runpodOnly(vendorClient(initial), 'Stock watches')
+      const vendors: HostVendorId[] = initial.watchVendors?.length ? initial.watchVendors : [vendor]
+      const clients = new Map<HostVendorId, HostVendor>()
+      for (const name of vendors) if (vendorKey(name)) clients.set(name, vendorClient(name === vendor ? initial : name))
+      if (!clients.size) throw new Error('The saved ' + vendors.map(vendorLabel).join(', ') + ' key is unavailable.')
+      const runpod = clients.get('runpod') && runpodOnly(clients.get('runpod')!, 'Fast-load weights disks')
       const sshKey = await ensureHostKey(runner, signal)
       const pollMs = options.pauseMs ?? initial.pollIntervalMs ?? 5000
       const watchWindowMs = options.timeoutMs ?? initial.pollWindowMs ?? 12 * 3600_000
@@ -97,21 +146,36 @@ export async function runHostJob(id: string, generation: string, options: { runn
         }
         patchHostRecord(id, { advancedAt: Date.now() })
         let offer: HostOffer | undefined
+        let hit: HostVendorId = 'runpod'
         let volume: KeptVolume | undefined
         let outside: string | undefined
-        let stage = 'Runpod read failed'
+        let stage = 'provider read failed'
         try {
-          offer = await api.watchOffer(recipe, maxPrice, signal)
-          stage = 'weights disk not ready'
-          volume = offer ? await rentalVolume(api, offer.recipe, signal) : undefined
-          stage = 'Runpod read failed'
-          const disk = volume
-          if (offer && disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
-            outside = offer.dataCenter
-            offer = (await api.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
+          const reads = await Promise.allSettled([...clients].map(async ([name, client]) => ({ name, offer: await client.watchOffer(recipe, maxPrice, signal) })))
+          const failures: string[] = []
+          const hits: { name: HostVendorId; offer: HostOffer }[] = []
+          for (const [index, read] of reads.entries()) {
+            if (read.status === 'fulfilled') { if (read.value.offer) hits.push({ name: read.value.name, offer: read.value.offer }) }
+            else if (signal.aborted || unauthorized(read.reason) || clients.size === 1) throw read.reason
+            else failures.push(vendorLabel([...clients.keys()][index]!) + ' read failed: ' + clean(String(read.reason)).slice(0, 120))
+          }
+          if (!hits.length && failures.length === clients.size) throw new Error(failures.join(' · '))
+          if (failures.length) log(failures.join(' · '))
+          const best = hits.sort((a, b) => a.offer.price - b.offer.price)[0]
+          offer = best?.offer
+          hit = best?.name ?? 'runpod'
+          if (offer && hit === 'runpod' && runpod) {
+            stage = 'weights disk not ready'
+            volume = await rentalVolume(runpod, offer.recipe, signal)
+            stage = 'provider read failed'
+            const disk = volume
+            if (disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
+              outside = offer.dataCenter
+              offer = (await runpod.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
+            }
           }
         } catch (error) {
-          if (signal.aborted || error instanceof RunpodHttpError && (error.status === 401 || error.status === 403)) throw error
+          if (signal.aborted || unauthorized(error)) throw error
           wait = Math.max(Math.min(60_000, wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
           const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
           log(step)
@@ -120,7 +184,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           continue
         }
         wait = pollMs
-        const rateLimit = watchRateWords(pollMs, api.rateLimitPolicy() ?? '')
+        const rateLimit = watchRateWords(pollMs, runpod ? runpod.rateLimitPolicy() ?? '' : undefined, [...clients.keys()])
         const afterPoll = readHostRecord(id)
         if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
         if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
@@ -132,8 +196,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
           continue
         }
         if (!offer) { await rest(pollMs); continue }
+        const api = clients.get(hit)!
         const podName = 'mercury-' + randomUUID().slice(0, 12)
-        const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '')
+        const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + (hit !== 'runpod' || clients.size > 1 ? ' · ' + vendorLabel(hit) : '')
         const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
@@ -142,7 +207,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         } catch (error) {
           const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
-            const words = podName + ' may exist: Runpod gave no clear answer to the create · /llmhost → Pods I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
+            const words = podName + ' may exist: ' + vendorLabel(hit) + ' gave no clear answer to the create · /llmhost → Pods I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
             log(words)
             const failed = patchHostRecord(id, { jobState: 'failed', error: words, step: words })
             if (failed) hostNotice(failed, 'failed', failed.name + ' · ' + words)
@@ -150,8 +215,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
           }
           patchHostRecord(id, { creating: undefined })
           if (refusal.status !== 400 && refusal.status !== 429) throw error
-          refused = 'Runpod could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
-          const step = 'Runpod could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
+          refused = vendorLabel(hit) + ' could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
+          const step = vendorLabel(hit) + ' could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
           log(step)
           patchHostRecord(id, { step })
           await rest(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000))
@@ -162,6 +227,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         log(rentedWords)
         const setupRecord = queueHostSetup({
           ...hostClusterRecord(pod),
+          vendor: hit,
           id: pod.id,
           name: pod.name,
           recipe: offer.recipe.id,
@@ -173,7 +239,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           sshKey: sshKey.path,
           watchedFrom: id,
           volumeId: volume?.id,
-          ...(afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
+          ...(hit === 'runpod' && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
         })
         hostNotice(setupRecord, 'rented', rentedWords)
         removeHostRecord(id)

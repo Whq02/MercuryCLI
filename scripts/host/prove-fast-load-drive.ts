@@ -18,6 +18,7 @@ const frames = framesIndex >= 0 ? process.argv[framesIndex + 1] : undefined
 if (frames) mkdirSync(frames, { recursive: true })
 const f = await llmhostFixture()
 f.state.dialect = 'sglang'; f.state.window = 131072
+process.env.HOME = f.home
 const rp = await runpodFixture()
 const originalFetch = globalThis.fetch
 const external: string[] = []
@@ -47,7 +48,9 @@ try {
   const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const volumes = await import('../../src/services/host/volumes.ts')
-  const { fastLoadRecipes, fastLoadState, fastLoadDoor, volumeDeleteDoor } = await import('../../src/services/host/fastLoad.ts')
+  const { fastLoadRecipes, fastLoadState, mirrorToVolume, volumeDeleteDoor } = await import('../../src/services/host/fastLoad.ts')
+  const bankHome = join(f.home, 'mercury-model-bank')
+  const { sizeWords } = await import('../../src/services/host/bank.ts')
   const { weightManifest, weightCheckScript, keptWeightsPath } = await import('../../src/services/host/keptWeights.ts')
   writeStoredRunpodApiKey(rp.key)
   const api = new RunpodClient(rp.key, rp.baseUrl)
@@ -59,8 +62,8 @@ try {
   check('every shipped recipe has exact on-disk bytes from its pinned HF files', table.every(row => weightManifest(row).files.reduce((sum, file) => sum + file.size, 0) === Math.round(row.weightsGb * 1e9)))
   check('catalogue has one row for each model and weight variant, not duplicate GPU rows', fastLoadRecipes().length === new Set(table.map(volumes.volumeModel)).size)
   let catalogue: any
-  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'fast-load'; catalogue = q; return null }, () => {}, signal)
-  check('catalogue lists every known model with its size and not kept', fastLoadRecipes().every(recipe => catalogue.rows.some((row: any) => row.value === recipe.id && row.label.includes(recipe.weightsGb.toFixed(2) + ' GB') && row.label.endsWith('not kept'))))
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'fast-load'; if (q.step === 'door-bank-folder') return bankHome; catalogue = q; return null }, () => {}, signal)
+  check('the Bank lists every known model with its size and no volume', catalogue.step === 'door-bank' && fastLoadRecipes().every(recipe => catalogue.rows.some((row: any) => row.value === recipe.id && row.label.includes(sizeWords(recipe.weightsGb)) && /—\s*$/.test(row.label))))
   check('opening or cancelling catalogue creates no disk and rents no pod', rp.state.volumeCreates === 0 && rp.state.creates === 0)
   rp.state.customGpus = [
     { id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', name: 'RTX PRO 6000', memory: 96, secure: true, price: { secure: 2.49 }, maxCount: { secure: 8 }, availability: 'LOW', dataCenters: [{ id: 'EU-NL-1', availability: 'LOW' }] },
@@ -75,15 +78,16 @@ try {
     if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active screen reaches ' + needle + '\n' + m.screen())
   }
-  const choose = async (needle: string) => {
+  const select = async (needle: string) => {
     for (let i = 0; i < 25; i++) {
       const selected = m.lines().find(line => line.includes('› ')) ?? ''
-      if (selected.includes(needle)) { m.push(KEY.enter); return }
+      if (selected.includes(needle)) return
       m.push(KEY.down)
       assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 3000), 'selection moves toward ' + needle + '\n' + m.screen())
     }
     throw new Error('Missing choice ' + needle)
   }
+  const choose = async (needle: string) => { await select(needle); m.push(KEY.enter) }
   const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   const capture = async (name: string) => {
     check(name + ' renders without errors or secrets', !m.screen().includes('RENDER ERROR') && !m.screen().includes(rp.key))
@@ -93,8 +97,8 @@ try {
     writeFileSync(join(frames, name + '.json'), JSON.stringify({ grid, cols: 160, rows: 44 }))
     await gridToPng(join(frames, name + '.json'), join(frames, name + '.png'))
   }
-  await heading('Where should the model run?'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await capture('01-catalogue')
-  await choose('Qwen3.8-27B'); await heading('How?'); await capture('02-per-model-how')
+  await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await capture('01-bank')
+  await select('Qwen3.8-27B'); m.push('m'); await heading('How?'); await capture('02-per-model-how')
   check('per-model choice offers network, global and explicit SSH stub', m.screen().includes('network volume') && m.screen().includes('global volume (beta)') && m.screen().includes('mercury-host road'))
   await choose('network volume'); await heading('Where should'); await until('EU-NL-1')
   check('data centres come from catalogue and exclude non-standard-only storage', rp.requests.some((r: any) => r.path.endsWith('/catalog/datacenters')) && !m.screen().includes('HPS-ONLY'))
@@ -114,7 +118,7 @@ try {
   await volumes.reconcileVolumes(api, signal)
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
-  await close(); open(); await heading('Where should the model run?'); await choose('Fast-load'); await heading('Fast-load (keep weights'); await until('kept on ' + kept.id); await capture('04-kept-catalogue'); await close()
+  await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Rent from which vendor?'); await choose('Runpod'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
   check('rental confirm gives per-step short estimate and monthly disk charge', m.screen().includes('weights kept ~0') && m.screen().includes('loads ~3 min') && m.screen().includes('$5.60/month'))
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
@@ -132,8 +136,7 @@ try {
   check('confirmed Delete removes and verifies the live disk', !rp.state.volumes.has(kept.id) && rp.state.volumeDeletes === 1 && volumes.readKeptVolume(kept.id)?.state === 'gone')
   const nemotron = table.find(row => row.id.startsWith('nemotron'))!
   let nextConfirm: any
-  await fastLoadDoor(api, async q => {
-    if (q.step === 'fast-load') return fastLoadState(nemotron) === 'not kept' ? fastLoadRecipes().find(row => row.model === nemotron.model)!.id : null
+  await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === nemotron.model)!, async q => {
     if (q.step === 'fast-load-how') return 'global'
     if (q.step === 'fast-load-when') return 'next'
     if (q.step === 'fast-load-confirm') { nextConfirm = q; return 'confirm' }
@@ -234,10 +237,8 @@ try {
   ssh.state.refuse = false; rp.state.failDelete = false
   await api.terminate(otherPod.id); removeHostRecord(otherPod.id); await volumes.deleteKeptVolume(api, shared.id)
   const beforeStub = { disks: rp.state.volumeCreates, pods: rp.state.creates, commands: ssh.commands.length }
-  let stubOpened = false
-  await fastLoadDoor(api, async q => {
-    if (q.step === 'fast-load') return stubOpened ? null : fastLoadRecipes().find(row => row.model === qwen.model)!.id
-    if (q.step === 'fast-load-how') { stubOpened = true; return 'ssh' }
+  await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === qwen.model)!, async q => {
+    if (q.step === 'fast-load-how') return 'ssh'
     throw new Error('SSH bank stub must not invent another step')
   }, () => {}, signal, options)
   check('own SSH bank choice is only a named road, with no copy or billed action', rp.state.volumeCreates === beforeStub.disks && rp.state.creates === beforeStub.pods && ssh.commands.length === beforeStub.commands)
@@ -251,11 +252,9 @@ try {
     await runHostJob(seedJob.id, seedJob.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 3000, keepAlive: false })
     const fullBefore = ssh.state.fullChecks
     const podsBefore = rp.state.creates
-    let confirmedFull = false
-    await fastLoadDoor(api, async q => {
-      if (q.step === 'fast-load') return confirmedFull ? null : fastLoadRecipes().find(row => row.model === qwen.model)!.id
+    await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === qwen.model)!, async q => {
       if (q.step === 'fast-load-kept') return 'verify'
-      if (q.step === 'fast-load-verify-confirm') { check('Verify fully asks a separate temporary-pod price before creating it', q.willRun.includes('$2.49/hr') && rp.state.creates === podsBefore); confirmedFull = true; return 'verify' }
+      if (q.step === 'fast-load-verify-confirm') { check('Verify fully asks a separate temporary-pod price before creating it', q.willRun.includes('$2.49/hr') && rp.state.creates === podsBefore); return 'verify' }
       throw new Error('Unexpected full verification step ' + q.step)
     }, () => {}, signal, options)
     await Promise.all(jobs)
@@ -272,11 +271,9 @@ try {
     await volumes.deleteKeptVolume(api, winner.value.id)
   }
   const stallBefore = { creates: rp.state.creates, fetches: ssh.state.weightFetches }
-  let stallOpened = false
   ssh.state.weights.delete(keptWeightsPath(nemotron))
   ssh.state.stallDownload = 11.2e9
-  await fastLoadDoor(api, async q => {
-    if (q.step === 'fast-load') { if (stallOpened) return null; stallOpened = true; return fastLoadRecipes().find(row => row.model === nemotron.model)!.id }
+  await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === nemotron.model)!, async q => {
     if (q.step === 'fast-load-how') return 'network'
     if (q.step === 'fast-load-where') return 'EU-NL-1'
     if (q.step === 'fast-load-when') return 'now'

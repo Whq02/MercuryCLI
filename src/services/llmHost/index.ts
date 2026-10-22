@@ -24,6 +24,7 @@ export interface LlmHostQuestion {
   willRun: string
   lines?: string[]
   rows?: ReadonlyArray<{ value: string; label: string }>
+  keys?: ReadonlyArray<{ key: string; value: string; label?: string }>
   initial?: string
   secret?: boolean
   fullDetails?: boolean
