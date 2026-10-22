@@ -232,10 +232,11 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
     server.once('error', reject)
     server.listen(port, '127.0.0.1', resolve)
   })
-  const base = `http://127.0.0.1:${port}`
+  const boundPort = (server.address() as { port: number }).port
+  const base = `http://127.0.0.1:${boundPort}`
   return {
     base,
-    port,
+    port: boundPort,
     hits,
     modes,
     get script() {
