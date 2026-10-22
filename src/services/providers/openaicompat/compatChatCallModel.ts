@@ -1183,11 +1183,12 @@ async function* streamOneCompatAttempt(ctx: {
     return { kind: 'cancelled' }
   }
   const hasTool = toolFragmentSeen || (finish?.toolCalls.length ?? 0) > 0
-  const nothingYielded = !contentStarted && minted.length === 0 && !hasTool
+  const nothingYielded = !contentStarted && minted.length === 0
   const retryStream = fault !== undefined && !finish && !hasTool && streamReconnectCause(fault) !== null
   const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && !hasTool
   if (fault && nothingYielded && (!finish || retryTemporary)) {
-    return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
+    yield* closeOpenBlock()
+    return { kind: 'fault', fault, retryEligible: !hasTool && !isLocalLivenessCut(fault) }
   }
   const typedEnd =
     fault !== undefined && !finish && !retryTemporary && !retryStream
