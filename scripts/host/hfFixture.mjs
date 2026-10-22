@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 
 const GB = 1e9
 const shards = (folder, stem, count, bytesEach) => Array.from({ length: count }, (_, index) => ({ path: folder + '/' + stem + '-' + String(index + 1).padStart(5, '0') + '-of-' + String(count).padStart(5, '0') + '.gguf', size: bytesEach }))
@@ -46,7 +47,7 @@ const listRow = repo => ({ _id: 'fixture-' + repo.id, id: repo.id, downloads: re
 
 export async function hfFixture() {
   const requests = []
-  const state = { searches: 0, trees: 0, configs: 0, delayMs: 0, down: false, lastSearch: null }
+  const state = { searches: 0, trees: 0, configs: 0, delayMs: 0, down: false, lastSearch: null, pageSize: 0, repeatPage: false }
   const repos = Object.values(fixtureRepos)
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -68,7 +69,15 @@ export async function hfFixture() {
       await pause()
       return send(rows)
     }
-    const tree = /^\/api\/models\/([^/]+)\/([^/]+)\/tree\/main$/.exec(url.pathname)
+    const info = /^\/api\/models\/([^/]+)\/([^/]+)$/.exec(url.pathname)
+    if (info) {
+      const repo = repos.find(row => row.id === decodeURIComponent(info[1]) + '/' + decodeURIComponent(info[2]))
+      if (!repo) return send({ error: 'Repository not found' }, 404)
+      if (repo.gated && !authorised) return send({ error: 'Access restricted' }, 401)
+      await pause()
+      return send({ id: repo.id, sha: createHash('sha1').update(repo.id).digest('hex') })
+    }
+    const tree = /^\/api\/models\/([^/]+)\/([^/]+)\/tree\/(main|[a-f0-9]{40})$/.exec(url.pathname)
     if (tree) {
       state.trees++
       const repo = repos.find(row => row.id === decodeURIComponent(tree[1]) + '/' + decodeURIComponent(tree[2]))
@@ -77,9 +86,14 @@ export async function hfFixture() {
       assert.equal(url.searchParams.get('recursive'), 'true')
       await pause()
       const entries = [...new Set(repo.files.filter(file => file.path.includes('/')).map(file => file.path.slice(0, file.path.indexOf('/'))))].map(path => ({ type: 'directory', oid: 'd' + path, size: 0, path }))
-      return send([...entries, ...repo.files.map(file => ({ type: 'file', oid: 'f' + file.path, size: file.size, ...(file.size > 1e6 ? { lfs: { oid: 'l' + file.path, size: file.size, pointerSize: 134 } } : {}), path: file.path }))])
+      const rows = [...entries, ...repo.files.map(file => ({ type: 'file', oid: file.git ?? createHash('sha1').update(file.path).digest('hex'), size: file.size, ...(file.sha256 || file.size > 1e6 ? { lfs: { oid: file.sha256 ?? createHash('sha256').update(file.path).digest('hex'), size: file.size, pointerSize: 134 } } : {}), path: file.path }))]
+      const offset = Number(url.searchParams.get('cursor') ?? 0)
+      const size = state.pageSize || rows.length
+      const next = new URL(req.url, 'http://' + req.headers.host)
+      if (!state.repeatPage) next.searchParams.set('cursor', String(offset + size))
+      return send(rows.slice(offset, offset + size), 200, offset + size < rows.length || state.repeatPage ? { Link: '<' + next + '>; rel="next"' } : {})
     }
-    const raw = /^\/([^/]+)\/([^/]+)\/raw\/main\/config\.json$/.exec(url.pathname)
+    const raw = /^\/([^/]+)\/([^/]+)\/raw\/(main|[a-f0-9]{40})\/config\.json$/.exec(url.pathname)
     if (raw) {
       state.configs++
       const repo = repos.find(row => row.id === decodeURIComponent(raw[1]) + '/' + decodeURIComponent(raw[2]))

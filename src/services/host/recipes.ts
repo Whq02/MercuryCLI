@@ -7,6 +7,13 @@ interface HostRecipeVerified {
   source: string
 }
 
+export interface HostWeightManifest {
+  model: string
+  include: string
+  revision: string
+  files: { path: string; size: number; sha256?: string; git?: string }[]
+}
+
 export interface HostRecipe {
   id: string
   label: string
@@ -36,6 +43,7 @@ export interface HostRecipe {
   weightFile?: string
   mmproj?: string
   include?: string
+  weightManifest?: HostWeightManifest
 }
 
 const flashSource = 'https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3-Flash'
