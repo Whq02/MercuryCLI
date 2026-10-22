@@ -223,6 +223,7 @@ section('openai · Responses')
   check('the operator system prompt rides the instructions string', typeof body.instructions === 'string' && body.instructions.includes(SYSTEM))
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
   check('tools ride FLAT as function/parameters (the Responses spelling)', tools[0]?.type === 'function' && tools[0]?.name === BASH && typeof tools[0]?.parameters === 'object')
+  check('the Responses tool explicitly declares strict form', tools[0]?.strict === true)
   schemas.openai = tools[0]?.parameters
   const input = (body.input as Array<Record<string, unknown>> | undefined) ?? []
   const call = input.findIndex(i => i.type === 'function_call' && i.call_id === 'call_bash_1')
@@ -269,7 +270,9 @@ section('cross-family coherence')
 {
   const spellings = Object.entries(schemas)
   const reference = text(spellings[0]?.[1])
-  check(`the ONE tool schema is deep-equal across all ${spellings.length} dialect spellings`, spellings.length === 6 && spellings.every(([, s]) => text(s) === reference), spellings.map(([k, s]) => `${k}:${text(s).length}`).join(' '))
+  const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
+  const strict = toOpenaiStrictToolSchema(schemas.anthropic)
+  check(`all ${spellings.length} dialects carry the same tool schema in their declared form`, strict.strict && spellings.length === 6 && spellings.every(([lane, schema]) => text(schema) === (lane === 'openai' ? text(strict.schema) : reference)), spellings.map(([k, s]) => `${k}:${text(s).length}`).join(' '))
   const envelopes = Object.entries(usage)
   check('every family settles the same disjoint usage envelope (6 uncached beside 4 cached)', envelopes.length === 6 && envelopes.every(([, u]) => u.input === 6 && u.cached === 4), envelopes.map(([k, u]) => `${k}:${u.input}/${u.cached}`).join(' '))
 }
