@@ -4,13 +4,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
-import { AGENT_DESCRIPTION, LINE, RELAUNCH_TURN_ASK } from './dupline-fixture-words.ts'
-import { briefly, carriersOf, childEnv, CLOCK_TOLERANCE_MS, DIST, exportWorld, inMainFile, j, makeTally, MODEL, NODE, QUEUED_PLATE, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, sleep, startFixture, waitWire, WIN } from './dupline-world.ts'
+import { doneText, LINE, RELAUNCH_TURN_ASK } from './dupline-fixture-words.ts'
+import { briefly, carriersOf, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, DIST, exportWorld, inMainFile, j, makeTally, MODEL, NODE, QUEUED_PLATE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, sleep, startFixture, waitWire, WIN } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-relaunch-drive')
 const RESTART_HINT = 'the runner restarted'
 
-section("R the whole product in a terminal: the runner is relaunched while a line is queued behind a sub-agent's run")
+section('R the whole product in a terminal: a line remains queued under a held parent response when its runner is relaunched')
 const driver = resolveCaptureDriver()
 const preflight = driver.kind === 'unavailable' ? null : preflightCaptureDriver(driver, REPO)
 if (!existsSync(DIST)) {
@@ -21,13 +21,15 @@ if (!existsSync(DIST)) {
   const PTY_HOME = join(SCRATCH_ROOT, `mercury-dupline-relaunch-pty-${process.pid}`)
   const PTY_CWD = join(PTY_HOME, 'fixture-repo')
   seedHome(PTY_HOME, PTY_CWD)
-  const pfx = await startFixture(join(PTY_HOME, 'wire.jsonl'), 5, 6)
+  const release = join(PTY_HOME, 'release-final-answer')
+  const pfx = await startFixture(join(PTY_HOME, 'wire.jsonl'), 5, 6, 0, release)
   const out = join(PTY_HOME, 'grid.json')
+  const tee = join(PTY_HOME, 'terminal.raw')
   const sends = [
     { requireAwait: true, minTick: 3, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello there\r' },
     { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${RELAUNCH_TURN_ASK}\r`, mark: 'answered' },
-    { requireAwait: true, minTick: 5, awaitText: AGENT_DESCRIPTION, awaitSettleTicks: 8, data: `${LINE}\r`, mark: 'sent' },
+    { requireAwait: true, minTick: 5, awaitText: doneText(RELAUNCH_TURN_ASK), awaitSettleTicks: 2, data: `${LINE}\r`, mark: 'sent' },
     { requireAwait: true, minTick: 5, awaitText: QUEUED_PLATE, awaitSettleTicks: 1, data: '', mark: 'queued' },
     { requireAwait: true, minTick: 5, awaitText: `heard: ${LINE}`, awaitSettleTicks: 5, data: '', mark: 'relaunched' },
     { afterPrevTicks: 50, data: '', mark: 'relaunched+10s' },
@@ -38,7 +40,7 @@ if (!existsSync(DIST)) {
   const cfg = { argv: [resolveCaptureArgv0(NODE, driver), DIST, '--model', MODEL], cwd: PTY_CWD, sends, total: 1500, readyText: `heard: ${LINE}`, readySettleTicks: 3, cols: 120, rows: 40, out, ...hostProfile }
   const cfgPath = join(PTY_HOME, 'cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const env = { ...childEnv(PTY_HOME, pfx.port), VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
+  const env = { ...childEnv(PTY_HOME, pfx.port), VSHOT_TEE: tee, VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
   const stderr: string[] = []
   const capture = new Promise<number | null>(resolve => {
     const child = spawn(driver.python, [captureEngineEntry(driver, REPO), cfgPath], { cwd: PTY_CWD, env, stdio: ['ignore', 'ignore', 'pipe'] })
@@ -59,12 +61,23 @@ if (!existsSync(DIST)) {
       return undefined
     }
   }
+  const held = await waitWire(pfx.wire, 'the parent response held after its visible text', w => w.kind === 'held', vshotBudgetMs(150_000))
   const crossed = await waitWire(pfx.wire, "the sub-agent's request after its first boundary", w => w.kind === 'request' && w.arm === 'subrelaunch' && w.step === 1, vshotBudgetMs(150_000))
+  const projects = join(PTY_HOME, 'projects')
+  const queuedUntil = Date.now() + vshotBudgetMs(90_000)
+  let queuedBeforeKill = false
+  while (Date.now() < queuedUntil) {
+    const queued = queueJournal(projects).some(row => row.operation === 'enqueue' && row.content === LINE)
+    const painted = existsSync(tee) && readFileSync(tee, 'utf8').includes('queued')
+    if (queued && painted && carriersOf(projects, LINE).length === 0) { queuedBeforeKill = true; break }
+    if (pfx.wire().some(w => w.kind === 'released')) break
+    await sleep(50)
+  }
   const worker = liveWorker()
   let killedAtMs: number | null = null
   let killedPid: number | undefined
-  if (crossed !== null && worker?.pid !== undefined) {
-    await sleep(1500)
+  const releasedBeforeKill = pfx.wire().some(w => w.kind === 'released')
+  if (held !== null && crossed !== null && queuedBeforeKill && !releasedBeforeKill && worker?.pid !== undefined) {
     try {
       process.kill(worker.pid, 'SIGKILL')
       killedAtMs = Date.now()
@@ -73,7 +86,8 @@ if (!existsSync(DIST)) {
       console.log(`  [kill] the runner could not be ended: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  check("the runner was ended after the sub-agent's first boundary, while the line was queued behind it", crossed !== null && killedAtMs !== null, j({ crossed: crossed !== null, worker }))
+  writeFileSync(release, '')
+  check('the runner was ended with a genuinely pending operator line: parent response held, queue persisted, no delivered carrier', held !== null && crossed !== null && queuedBeforeKill && !releasedBeforeKill && killedAtMs !== null, j({ held: held?.at, crossed: crossed !== null, queuedBeforeKill, releasedBeforeKill, worker }))
   const status = await capture
   pfx.kill()
   check('the capture ran the whole journey', status === 0 && existsSync(out), `status=${status} ${stderr.join('').slice(-300)}`)
@@ -127,7 +141,7 @@ if (!existsSync(DIST)) {
   const requests = requestsOf(pfx.wire)
   check("no request of the sub-agent carried the line, before or after the relaunch", requests.filter(r => r.arm === 'subrelaunch').every(r => (r.counts?.[LINE] ?? 0) === 0), j(requests.map(r => [r.n, r.arm, r.step, r.counts?.[LINE]])))
   const carriers = carriersOf(join(PTY_HOME, 'projects'), LINE)
-  check("no sub-agent's transcript holds the line; the session persists the recovered row exactly once after the restart", carriers.every(inMainFile) && carriers.filter(inMainFile).length === 1 && killedAtMs !== null && Date.parse(carriers[0]!.occurredAt) >= killedAtMs && near(operatorRows(marks.end)[0] ?? '', Date.parse(carriers[0]!.occurredAt)), briefly(carriers))
+  check("no sub-agent's transcript holds the line; the session persists the recovered row exactly once after the restart", carriers.every(inMainFile) && carriers.filter(inMainFile).length === 1 && killedAtMs !== null && deliveryClockOf(carriers[0]!) >= killedAtMs && near(operatorRows(marks.end)[0] ?? '', Date.parse(carriers[0]!.sentAt || carriers[0]!.occurredAt)), briefly(carriers))
   exportWorld('terminal-relaunch', PTY_HOME, { ...Object.fromEntries(Object.entries(marks).map(([label, text]) => [`${label}.txt`, `${text}\n`])), 'capture-stderr.txt': stderr.join(''), 'kill.json': j({ killedAtMs, killedPid, worker }) })
   if (failed() === 0) await removeWorld(PTY_HOME)
   else {

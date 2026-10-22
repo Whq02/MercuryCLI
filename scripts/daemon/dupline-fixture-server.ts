@@ -153,11 +153,13 @@ const closeMessage = (stop: 'end_turn' | 'tool_use', index: number, u: Usage = u
   sse('content_block_stop', { type: 'content_block_stop', index }) +
   sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: u }) +
   sse('message_stop', { type: 'message_stop' })
-function answerText(res: ServerResponse, n: number, model: string, text: string): void {
+function answerText(res: ServerResponse, n: number, model: string, text: string, hold = false): void {
   openMessage(res, n, model)
   res.write(sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
   res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }))
-  res.end(closeMessage('end_turn', 0))
+  const end = (): void => { if (!res.destroyed) res.end(closeMessage('end_turn', 0)) }
+  if (hold) onceReleased(n, end)
+  else end()
 }
 type ToolCall = { id: string; name: string; input: Record<string, unknown> }
 function answerTools(res: ServerResponse, n: number, model: string, calls: ToolCall[], u: Usage = usage): void {
@@ -315,7 +317,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return answerText(res, n, model, doneText(WORKFLOW_TURN_ASK))
       case 'agentrelaunch':
         if (step === 0) return answerAgent(res, n, model, `toolu_agent_c${n}`, RELAUNCH_PROMPT)
-        return answerText(res, n, model, doneText(RELAUNCH_TURN_ASK))
+        return answerText(res, n, model, doneText(RELAUNCH_TURN_ASK), true)
       case 'subwork':
         if (step === 0) return answerSleep(res, n, model, `toolu_sub_c${n}`, AGENT_SLEEP_SECONDS)
         return answerText(res, n, model, 'agent done: the sub agent finished')
