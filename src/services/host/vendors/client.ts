@@ -17,7 +17,7 @@ export const saveVendorKey = (vendor: HostVendorId, key: string): void => {
   ;({ runpod: writeStoredRunpodApiKey, vast: writeStoredVastApiKey, lambda: writeStoredLambdaApiKey })[vendor](key)
 }
 export const vendorStorage = (vendor: HostVendorId): string => vendor === 'huggingface' ? HF_ENDPOINTS_STORAGE_NOTICE : vendor === 'vast' ? VAST_STORAGE_NOTICE : vendor === 'lambda' ? LAMBDA_STORAGE_NOTICE : 'Stop keeps the volume disk and its storage bill; terminate deletes the pod’s volume disk. Attached weights disks bill separately.'
-export const vendorKeyNotice = (vendor: HostVendorId): string => vendor === 'huggingface' ? HF_ENDPOINTS_KEY_NOTICE : vendor === 'vast' ? VAST_KEY_NOTICE : vendor === 'lambda' ? LAMBDA_KEY_NOTICE : 'The public key is injected into this pod only; the private key stays in Mercury.'
+export const vendorKeyNotice = (vendor: HostVendorId): string => vendor === 'huggingface' ? HF_ENDPOINTS_KEY_NOTICE : vendor === 'vast' ? VAST_KEY_NOTICE : vendor === 'lambda' ? LAMBDA_KEY_NOTICE : 'Mercury’s SSH key is added to this pod only, never to your Runpod account.'
 const runpodClients = new WeakMap<HostVendor, RunpodClient>()
 const recordKey = (record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'>, vendor: HostVendorId): string | undefined => {
   if (vendor !== 'huggingface') return vendorKey(vendor)

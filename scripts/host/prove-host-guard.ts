@@ -137,7 +137,7 @@ try {
           if (kind === 'key' || kind === 'key-reset') {
             const sshCalls = readFileSync(join(f.home, 'ssh-fixture-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
             check(name + ' counts consecutive publickey denials only', sshCalls.filter(args => /^(true|cloud-init status)/.test(args.at(-1))).length === (kind === 'key' ? 3 : 6))
-            check(name + ' names the key road and next step', notice.includes('the pod did not accept Mercury') && notice.includes(vendor === 'vast' ? 'https://cloud.vast.ai/manage-keys/' : vendor === 'lambda' ? 'Lambda account keys' : 'injected into this pod only') && notice.includes('/llmhost'))
+            check(name + ' names the key road and next step', notice.includes('the pod did not accept Mercury') && notice.includes(vendor === 'vast' ? 'https://cloud.vast.ai/manage-keys/' : vendor === 'lambda' ? 'Lambda account keys' : 'added to this pod only') && notice.includes('/llmhost'))
           } else if (kind === 'stall') {
             check(name + ' reports the watchdog verdict', notice.includes('Download stalled') && notice.includes('under 1 GB in 10 min'))
             check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights.*GB of .*GB.*stalled/.test(row.step)))

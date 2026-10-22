@@ -278,7 +278,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (confirmWatch === 'watch' && ceiling !== undefined) {
           if (!options.startJob) await requireHostJobOwner()
           const needsSsh = connected.some(id => !clientFor(id).capabilities.managed)
-          if (needsSsh) emit({ title: words.publicKey, words: 'ed25519 · private key stays in Mercury; public key is injected when stock appears.' })
+          if (needsSsh) emit({ title: words.publicKey, words: '' })
           const sshKey = needsSsh ? await ensureHostKey(runner, signal) : undefined
           signal.throwIfAborted()
           const id = 'watch-' + randomUUID().slice(0, 12)
@@ -451,7 +451,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           const volume = vendor === 'runpod' ? await rentalVolume(runpodOnly(api, 'Fast-load weights disks'), offer.recipe, signal) : undefined
           if (!options.startJob) await requireHostJobOwner()
           recipe = offer.recipe
-          emit({ title: api.capabilities.managed ? 'HF endpoint' : words.publicKey, words: (api.capabilities.managed ? '' : 'ed25519 · ') + vendorKeyNotice(vendor) })
+          emit({ title: api.capabilities.managed ? 'HF endpoint' : words.publicKey, words: vendorKeyNotice(vendor) })
           const sshKey = api.capabilities.managed ? undefined : await ensureHostKey(runner, signal)
           signal.throwIfAborted()
           pendingName = 'mercury-' + randomUUID().slice(0, 12)
