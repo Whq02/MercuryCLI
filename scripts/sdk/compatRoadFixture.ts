@@ -11,7 +11,7 @@ import { PYTHON } from './runtime.ts'
 export const root = resolve(import.meta.dir, '../..')
 export const mercury = ['node', process.env.SDK_PARITY_CLI ?? join(root, 'dist/mercury.mjs')]
 export const anthropicModel = 'claude-opus-4-8'
-export type CompatTurn = { text?: string; reasoning?: string; call?: { name: string; input: Record<string, unknown> }; when?: string }
+type CompatTurn = { text?: string; reasoning?: string; call?: { name: string; input: Record<string, unknown> }; when?: string }
 
 export async function compatRoadFixture(turns: ScriptedTurn[] = []) {
   const f = await llmhostFixture()

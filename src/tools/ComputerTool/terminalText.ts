@@ -7,7 +7,7 @@ export function isTerminalApplication(app: DesktopApplication): boolean {
   return process.platform === 'darwin' && TERMINALS.has(app.identity)
 }
 
-export function terminalTextWords(app: DesktopApplication, value: DesktopFocusedText): string {
+function terminalTextWords(app: DesktopApplication, value: DesktopFocusedText): string {
   const range = value.visibleRange
   const visible = range && Number.isInteger(range.location) && Number.isInteger(range.length) && range.location >= 0 && range.length >= 0 && range.location + range.length <= value.text.length
   const selected = visible ? value.text.slice(range.location, range.location + range.length) : value.text

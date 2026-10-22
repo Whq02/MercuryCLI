@@ -24,7 +24,7 @@ const manifestsSchema = z.array(z.object({ model: z.string(), include: z.string(
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const KEPT_MISMATCH = 'Kept weights failed pinned SHA256/sizes verification'
 export const keptWeightsPath = (recipe: HostRecipe): string => '/workspace/mercury-weights/' + createHash('sha256').update(recipe.model + '\n' + (recipe.include ?? '')).digest('hex').slice(0, 24)
-export function weightManifests(): WeightManifest[] {
+function weightManifests(): WeightManifest[] {
   const localPath = flagEnv('MERCURY_HOST_WEIGHTS_FILE')?.trim()
   if (localPath) return manifestsSchema.parse(JSON.parse(readFileSync(resolve(localPath), 'utf8')))
   return shippedManifests

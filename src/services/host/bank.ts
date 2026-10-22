@@ -19,11 +19,11 @@ const bankedModelSchema = z.object({
   recipeRow: hostRecipeSchema.optional(),
 })
 const registrySchema = z.object({ folder: z.string().optional(), models: z.record(z.string(), bankedModelSchema) })
-export type BankRegistry = z.infer<typeof registrySchema>
-export type BankedModel = z.infer<typeof bankedModelSchema>
-export interface BankFile { path: string; size?: number; sha256?: string; git?: string }
+type BankRegistry = z.infer<typeof registrySchema>
+type BankedModel = z.infer<typeof bankedModelSchema>
+interface BankFile { path: string; size?: number; sha256?: string; git?: string }
 export interface BankState { folder?: string; path?: string; banked: boolean; sealed: boolean; pinned: boolean; files: number; missing: number; bytes: number; verifiedAt?: string; check?: 'manifest' | 'download'; error?: string; failedAt?: string }
-export interface BankReceipt { sha256: string; bytes: number; files: number; check: 'manifest' | 'download'; at: string }
+interface BankReceipt { sha256: string; bytes: number; files: number; check: 'manifest' | 'download'; at: string }
 export const BANK_DOOR = 'Bank · your weights'
 const registryPath = (): string => join(hostDirectory(), 'bank.json')
 const homeDirectory = (): string => process.platform === 'win32' ? homedir() : process.env.HOME?.trim() || homedir()
@@ -34,7 +34,7 @@ export function readBankRegistry(): BankRegistry {
   try { return registrySchema.parse(JSON.parse(readFileSync(registryPath(), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { models: {} }; throw error }
 }
 export function writeBankRegistry(registry: BankRegistry): void { publishAtomicSync(registryPath(), JSON.stringify(registrySchema.parse(registry)) + '\n', { mode: 0o600 }) }
-export function patchBankedModel(recipe: HostRecipe, entry: BankedModel | undefined): void {
+function patchBankedModel(recipe: HostRecipe, entry: BankedModel | undefined): void {
   const registry = readBankRegistry()
   const models = { ...registry.models }
   if (entry) models[volumeModel(recipe)] = { ...entry, recipeRow: recipe }
@@ -220,17 +220,17 @@ export function folderBytes(path: string): number {
   walk(path)
   return total
 }
-export const bankVolume = (recipe: HostRecipe): KeptVolume | undefined => keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
+const bankVolume = (recipe: HostRecipe): KeptVolume | undefined => keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
 export const bootMinutes = (recipe: HostRecipe, volume?: KeptVolume): string => /~(\d+) min total/.exec(volume?.state === 'kept' ? fastLoadEstimate(recipe, volume) : hostSetupEstimate(recipe))?.[1] ?? '?'
 export const bootsFromVolume = (recipe: HostRecipe, dataCenter?: string): boolean => {
   const volume = bankVolume(recipe)
   return volume?.state === 'kept' && (volume.kind === 'global' || !dataCenter || volume.dataCenter === dataCenter)
 }
-export function bankedWords(state: BankState): string {
+function bankedWords(state: BankState): string {
   if (!state.banked) return 'not banked'
   return 'banked ✓ on ' + shortFolder(state.folder!) + (state.verifiedAt ? ' (verified ' + state.verifiedAt.slice(0, 10) + ')' : state.failedAt ? ' (verification failed ' + state.failedAt.slice(0, 10) + ')' : ' (not verified yet · v)')
 }
-export function volumeWords(recipe: HostRecipe): string {
+function volumeWords(recipe: HostRecipe): string {
   const volume = bankVolume(recipe)
   if (volume?.state === 'kept') return 'fast-load volume ✓ ' + volume.dataCenter + ' — boots in ~' + bootMinutes(recipe, volume) + ' min'
   if (volume?.state === 'preparing' || volume?.state === 'creating') return 'fast-load volume preparing in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)'

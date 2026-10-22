@@ -2,7 +2,7 @@ import type { RunpodClient } from '../runpod.js'
 import type { HostReadOnly } from '../retry.js'
 
 export type { HostOffer, HostPod } from '../runpod.js'
-export type HostVendorInfo = { readonly label: string; readonly keyHelp: string; readonly booted?: { readonly on: string; readonly source: string } }
+type HostVendorInfo = { readonly label: string; readonly keyHelp: string; readonly booted?: { readonly on: string; readonly source: string } }
 export const HOST_VENDOR_INFO: Readonly<Record<'runpod' | 'vast' | 'lambda' | 'huggingface', HostVendorInfo>> = {
   runpod: { label: 'Runpod', keyHelp: 'Create a Runpod API key at https://console.runpod.io/user/credentials (Credentials → API Keys).', booted: { on: '2026-10-21', source: 'a real Runpod rental booted through Mercury on 2026-10-21 (1.0.0-beta.41)' } },
   vast: { label: 'Vast.ai', keyHelp: 'Create a Vast.ai API key at https://cloud.vast.ai/manage-keys/.' },

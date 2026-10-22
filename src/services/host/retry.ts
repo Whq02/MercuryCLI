@@ -2,7 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { RunpodHttpError } from './runpod.js'
 import { HostVendorHttpError, HostVendorNetworkError } from './vendors/http.js'
 
-export interface HostReadRetryOptions {
+interface HostReadRetryOptions {
   label: string
   pauseMs: number
   timeoutMs: number
