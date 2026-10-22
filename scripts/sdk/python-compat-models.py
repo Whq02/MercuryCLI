@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import sys
 from mercury_cli_sdk import run, connect, MercuryRefusal
 
@@ -14,6 +15,10 @@ async def main():
         assert (await task.exit).code == 0
         assert (await task.session)['model'] == (compat if model == 'compat' else model)
         assert result.get('answer') == ('ANTHROPIC-ANSWER' if model == anthropic else 'LLMHOST-READY')
+    for model in (compat, 'compat'):
+        task = await run('Python compat without a subscription', model=model, env={key: value for key, value in os.environ.items() if key != 'ANTHROPIC_API_KEY'}, **options)
+        assert (await task.outcome)['answer'] == 'LLMHOST-READY'
+        assert (await task.exit).code == 0
     for model in ('local', 'huggingface', 'compat/fixture/not-listed', 'compat/absent/Reasoner'):
         task = await run('must refuse', model=model, **options)
         try:
@@ -22,6 +27,9 @@ async def main():
         except MercuryRefusal as error:
             assert error.error_class == 'option'
     async with await connect(model=anthropic, **options) as session:
+        assert (await session.prompt('Anthropic before switching'))['answer'] == 'ANTHROPIC-ANSWER'
+        assert (await session.set_model(compat))['model'] == compat
+        assert (await session.prompt('explicit compat switch'))['answer'] == 'LLMHOST-READY'
         assert (await session.set_model('compat'))['model'] == compat
         assert (await session.prompt('compat turn'))['answer'] == 'LLMHOST-READY'
         try:

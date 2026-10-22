@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { run, connect, defineAgent, structuredSchema, isMainThread, rowOf } from '../../sdk/src/index.ts'
 import { startFixtureServer } from '../../sdk/src/testing.ts'
 import { compatRoadFixture, mercury, anthropicModel, pythonProof, root } from './compatRoadFixture.ts'
-import type { ScriptedTurn } from '../lib/fixtureApi.ts'
+import { handoffTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const schema = { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false }
 const turns: ScriptedTurn[] = []
@@ -20,6 +20,13 @@ for (const language of ['TS', 'Python']) {
     { kind: 'text', text: 'CHILD-DONE', model: anthropicModel },
   )
 }
+turns.push(
+  { kind: 'tool_use', name: 'Write', input: { file_path: 'refused-sdk.txt', content: 'must not write' }, model: anthropicModel },
+  { kind: 'text', text: 'The write was denied.', model: anthropicModel },
+  { kind: 'error', status: 401, errorType: 'authentication_error', message: 'fixture refused' },
+  { kind: 'text', text: 'CLOSE-ANSWER', model: anthropicModel },
+  handoffTurn('The SDK fixture session ended.'),
+)
 const c = await compatRoadFixture(turns)
 const guard = setTimeout(() => { console.error('FAIL SDK compat roads timed out'); process.exit(1) }, 240_000)
 const options = { mercury, cwd: c.cwd, env: c.env, mode: 'sovereign' as const, ephemeral: true, partial: true }
@@ -72,6 +79,28 @@ try {
     { call: { name: 'StructuredOutput', input: { answer: 'runner answer' } } }, { text: 'Runner result delivered.' },
   )
   await pythonProof('python-compat-roads.py', c)
+  for (const model of [anthropicModel, c.model]) {
+    if (model === c.model) c.script({ call: { name: 'Write', input: { file_path: 'refused-sdk.txt', content: 'must not write' } } }, { text: 'The write was denied.' })
+    const denied = run({ ...options, mode: 'dontAsk', model, prompt: 'write refused-sdk.txt' })
+    const denial = await denied.outcome
+    assert.equal(denial.status, 'blocked')
+    assert(denial.denials.some(row => row.tool === 'Write'))
+    assert.equal((await denied.exit).code, 1)
+    assert.equal(existsSync(join(c.cwd, 'refused-sdk.txt')), false)
+    assert(denied.rows.some(row => row.type === 'tool_result' && row.status === 'error'))
+    if (model === c.model) c.state.mode = 'refuse'
+    const failed = run({ ...options, model, prompt: 'authentication failure' })
+    assert.equal((await failed.outcome).status, 'failed')
+    assert.equal((await failed.exit).code, 1)
+    c.state.mode = 'reply'
+    const closed = run({ ...options, ephemeral: false, model, prompt: 'close with usage' })
+    const outcome = await closed.outcome
+    assert.equal(outcome.status, 'completed'); assert.equal((await closed.exit).code, 0)
+    const usages = closed.rows.filter(row => (row.type === 'step' || row.type === 'close') && isMainThread(row)).map(row => 'usage' in row ? row.usage : undefined)
+    assert(closed.rows.some(row => row.type === 'close' && (row.usage?.output_tokens ?? 0) > 0))
+    for (const key of ['input_tokens', 'cached_input_tokens', 'output_tokens'] as const) assert.equal(outcome.usage[key], usages.reduce((sum, usage) => sum + (usage?.[key] ?? 0), 0))
+    console.log(`PASS ${model}: unanswered permission exits 1, authentication fails with exit 1, close usage folds into the outcome`)
+  }
   assert(c.requests.every(request => request.fault === undefined && request.body.model === c.model.slice('compat/fixture/'.length)))
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'tool')))
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'assistant' && message.reasoning_content)))
