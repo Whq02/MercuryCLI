@@ -124,6 +124,24 @@ function selectBindsCancel(text: string): boolean {
   return false
 }
 
+function consoleOAuthBindsSkip(text: string): boolean {
+  let i = text.indexOf('<ConsoleOAuthFlow')
+  while (i >= 0) {
+    let depth = 0
+    let j = i
+    for (; j < text.length; j++) {
+      const ch = text[j]
+      if (ch === '{') depth++
+      else if (ch === '}') depth--
+      else if (ch === '>' && depth === 0) break
+    }
+    const span = text.slice(i, j)
+    if (/^<ConsoleOAuthFlow[\s\n]/.test(span) && span.includes('onSkip={')) return true
+    i = text.indexOf('<ConsoleOAuthFlow', j)
+  }
+  return false
+}
+
 function hasBinding(text: string, token: string, file: string): boolean {
   const rendersCommandCenter = commandCenterBindsInput(text)
   const rendersSelectWithCancel = selectBindsCancel(text)
@@ -201,6 +219,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
       return /['"][+\-]['"]/.test(text) || rendersNavPanes || isFrameworkSelf
     default: {
       const ch = token.slice('letter:'.length)
+      if (ch === 's' && consoleOAuthBindsSkip(text)) return true
       if (ch === 'r' && usesFlatList) return true
       const tells = [
         `input === '${ch}'`,
@@ -231,6 +250,12 @@ console.log('============================================================')
 check('semantic paging follows the decoded variable, not a fixed variable-name list', ['nav', 'navigation', 'pageAction'].every(name => hasBinding(`const ${name} = decodeNavKey(input, key, { pageKeys: true }); if (${name} === 'pageNext') scroll();`, 'paging', 'fixture.tsx')))
 check('a decoded navigation value without a paging arm does not bind paging', !hasBinding("const nav = decodeNavKey(input, key); if (nav === 'moveNext') move();", 'paging', 'fixture.tsx'))
 check('a paging comparison on another value cannot borrow the decoder binding', !hasBinding("const nav = decodeNavKey(input, key); if (other === 'pageNext') scroll();", 'paging', 'fixture.tsx'))
+const consoleOAuth = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
+check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', consoleOAuth.includes("if (input === 's' && !key.ctrl && !key.meta && !key.shift) {\n        event.stopImmediatePropagation()\n        startFamily(SIGN_IN_LATER_ROW.value)") && consoleOAuth.includes('{ isActive: menuUp && onSkip !== undefined }') && /if \(value === SIGN_IN_LATER_ROW\.value\) \{[^}]*onSkip\?\.\(\)/.test(consoleOAuth))
+check('a ConsoleOAuthFlow onSkip callback binds the advertised s through the child', hasBinding('<ConsoleOAuthFlow onDone={() => done()} onSkip={advance} />', 'letter:s', 'fixture.tsx'))
+check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding('<ConsoleOAuthFlow onDone={done} />', 'letter:s', 'fixture.tsx'))
+check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'))
+check('a similarly named component cannot claim the ConsoleOAuthFlow binding', !hasBinding('<ConsoleOAuthFlowOther onSkip={advance} />', 'letter:s', 'fixture.tsx'))
 const files: string[] = []
 for (const t of TREES) walk(join(ROOT, t), files)
 
