@@ -1,3 +1,6 @@
+import { configuredCompatEndpoints } from '../../services/providers/openaicompat/compatAccounts.js'
+import { compatPrefixCacheWords } from '../../services/providers/openaicompat/compatPrefixCache.js'
+
 export const LLM_HOST_WORDS = {
   command: '/llmhost',
   description: 'Rent a GPU, use SSH, or connect a running model server',
@@ -126,12 +129,17 @@ export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: str
   return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
 }
 
-export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string }, record?: { step?: string; startedAt: string }, now = Date.now()): string {
+export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string }, record?: { step?: string; startedAt: string; provider?: string }, now = Date.now()): string {
   if (pod.status === 'EXITED') return `${pod.name} · ${pod.id} · stopped · storage still bills`
   const started = Date.parse(record?.startedAt ?? pod.startedAt ?? pod.createdAt)
   const hours = Number.isFinite(started) ? Math.max(0, now - started) / 3600_000 : undefined
   const cost = hours === undefined ? 'elapsed time and cost unknown' : `${Math.floor(hours * 60)} min · $${(pod.cost * hours).toFixed(2)} so far (estimate; storage extra)`
-  return `${pod.name} · ${pod.id} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}`
+  let cache = ''
+  try {
+    const endpoint = record?.provider ? configuredCompatEndpoints().find(row => row.name === record.provider) : undefined
+    if (endpoint && pod.status === 'RUNNING' && record?.step === 'ready') cache = compatPrefixCacheWords(endpoint, now)
+  } catch {}
+  return `${pod.name} · ${pod.id} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}${cache ? ' · ' + cache : ''}`
 }
 
 export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {

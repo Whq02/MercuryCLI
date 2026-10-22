@@ -34,7 +34,8 @@
         "--tool-call-parser",
         "beam",
         "--reasoning-parser",
-        "beam"
+        "beam",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
@@ -94,7 +95,8 @@
         "--tool-call-parser",
         "beam",
         "--reasoning-parser",
-        "beam"
+        "beam",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
@@ -159,7 +161,8 @@
         "--tool-call-parser",
         "beam",
         "--reasoning-parser",
-        "beam"
+        "beam",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
@@ -219,7 +222,8 @@
         "--tool-call-parser",
         "beam",
         "--reasoning-parser",
-        "beam"
+        "beam",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
@@ -279,7 +283,8 @@
         "--tool-call-parser",
         "beam",
         "--reasoning-parser",
-        "beam"
+        "beam",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Reflection/Beam-1_0",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured · the engine fetches the DFlash2 draft reflection/Beam-1.0-501B-A23B-DFlash2 at start",
@@ -341,7 +346,8 @@
         "--reasoning-parser",
         "deepseek-v4",
         "--tool-call-parser",
-        "deepseekv4"
+        "deepseekv4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
       "verification": "in-progress · MIT · configured 1M context, capacity not measured",
@@ -400,7 +406,8 @@
         "--reasoning-parser",
         "deepseek-v4",
         "--tool-call-parser",
-        "deepseekv4"
+        "deepseekv4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
       "verification": "in-progress · MIT · configured 1M context, capacity not measured",
@@ -455,7 +462,8 @@
         "--reasoning-parser",
         "deepseek-v4",
         "--tool-call-parser",
-        "deepseekv4"
+        "deepseekv4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4",
       "verification": "verified · MIT · configured 1M context, capacity not measured",
@@ -509,7 +517,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
       "verification": "verified",
@@ -560,7 +569,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
       "verification": "verified",
@@ -611,7 +621,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
       "verification": "verified",
@@ -649,7 +660,8 @@
         "--reasoning-parser",
         "gemma4",
         "--tool-call-parser",
-        "gemma4"
+        "gemma4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4",
       "verification": "documented · Apache-2.0",
@@ -700,7 +712,8 @@
         "--reasoning-parser",
         "gemma4",
         "--tool-call-parser",
-        "gemma4"
+        "gemma4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Google/Gemma4",
       "verification": "documented · Apache-2.0 · the engine fetches the gemma-4-31B-it-assistant MTP draft at start",
@@ -749,7 +762,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -802,7 +816,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -856,7 +871,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -910,7 +926,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -964,7 +981,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -1018,7 +1036,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "in-progress · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -1172,7 +1191,8 @@
         "--reasoning-parser",
         "glm45",
         "--tool-call-parser",
-        "glm47"
+        "glm47",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3-Flash",
       "verification": "in-progress",
@@ -1229,7 +1249,8 @@
         "--reasoning-parser",
         "glm45",
         "--tool-call-parser",
-        "glm47"
+        "glm47",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3-Flash",
       "verification": "verified",
@@ -1285,7 +1306,8 @@
         "--top-p",
         "0.95",
         "--chat-template-kwargs",
-        "{\"reasoning_effort\":\"max\"}"
+        "{\"reasoning_effort\":\"max\"}",
+        "--cache-prompt"
       ],
       "source": "https://unsloth.ai/docs/models/glm-5.3-flash",
       "verification": "llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)",
@@ -1356,7 +1378,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -1409,7 +1432,8 @@
         "--reasoning-parser",
         "auto",
         "--tool-call-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3",
       "verification": "verified · GLM-5.3 License · MaaS operators above $10B aggregate revenue in 12 months require Z.AI security review",
@@ -1446,7 +1470,9 @@
       "weightsGb": 195.764040609,
       "image": "vllm/vllm-openai:latest",
       "cuda": "13.0",
-      "flags": [],
+      "flags": [
+        "--enable-prefix-caching"
+      ],
       "source": "https://huggingface.co/openai/gpt-oss-120b",
       "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
       "verified": {
@@ -1483,7 +1509,9 @@
       "weightsGb": 195.764040609,
       "image": "vllm/vllm-openai:latest",
       "cuda": "13.0",
-      "flags": [],
+      "flags": [
+        "--enable-prefix-caching"
+      ],
       "source": "https://huggingface.co/openai/gpt-oss-120b",
       "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
       "verified": {
@@ -1534,7 +1562,8 @@
         "--speculative-eagle-topk",
         "1",
         "--speculative-num-draft-tokens",
-        "4"
+        "4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1587,7 +1616,8 @@
         "--speculative-eagle-topk",
         "1",
         "--speculative-num-draft-tokens",
-        "4"
+        "4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1640,7 +1670,8 @@
         "--speculative-eagle-topk",
         "1",
         "--speculative-num-draft-tokens",
-        "4"
+        "4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1693,7 +1724,8 @@
         "--speculative-eagle-topk",
         "1",
         "--speculative-num-draft-tokens",
-        "4"
+        "4",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1755,7 +1787,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1820,7 +1853,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1885,7 +1919,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -1950,7 +1985,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -2015,7 +2051,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -2080,7 +2117,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -2145,7 +2183,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -2210,7 +2249,8 @@
         "--reasoning-parser",
         "inkling",
         "--tool-call-parser",
-        "inkling"
+        "inkling",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-Small",
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
@@ -2265,7 +2305,8 @@
         "--reasoning-parser",
         "kimi_k3",
         "--tool-call-parser",
-        "kimi_k3"
+        "kimi_k3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
       "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
@@ -2312,7 +2353,8 @@
         "--reasoning-parser",
         "kimi_k3",
         "--tool-call-parser",
-        "kimi_k3"
+        "kimi_k3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
       "verification": "verified · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
@@ -2359,7 +2401,8 @@
         "--reasoning-parser",
         "kimi_k3",
         "--tool-call-parser",
-        "kimi_k3"
+        "kimi_k3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
       "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
@@ -2416,7 +2459,8 @@
         "--reasoning-parser",
         "kimi_k3",
         "--tool-call-parser",
-        "kimi_k3"
+        "kimi_k3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3",
       "verification": "in-progress · Kimi K3 License · MaaS operators above $20M aggregate revenue in 12 months need a separate agreement; internal use exempt · configured 1M context, capacity not measured",
@@ -2462,7 +2506,8 @@
         "--tp",
         "8",
         "--speculative-algorithm",
-        "NEXTN"
+        "NEXTN",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
       "verification": "in-progress · MIT · configured 256K context, capacity not measured",
@@ -2499,7 +2544,8 @@
         "--tp",
         "4",
         "--speculative-algorithm",
-        "NEXTN"
+        "NEXTN",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
       "verification": "verified · MIT · configured 256K context, capacity not measured",
@@ -2536,7 +2582,8 @@
         "--tp",
         "8",
         "--speculative-algorithm",
-        "NEXTN"
+        "NEXTN",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash",
       "verification": "verified · MIT · configured 256K context, capacity not measured",
@@ -2591,7 +2638,8 @@
         "--kv-cache-dtype",
         "bfloat16",
         "--model-loader-extra-config",
-        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+        "{\"enable_multithread_load\":true,\"num_threads\":12}",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
       "verification": "in-progress · MIT · configured 256K context, capacity not measured",
@@ -2641,7 +2689,8 @@
         "--kv-cache-dtype",
         "bfloat16",
         "--model-loader-extra-config",
-        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+        "{\"enable_multithread_load\":true,\"num_threads\":12}",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
       "verification": "verified · MIT · configured 256K context, capacity not measured",
@@ -2692,7 +2741,8 @@
         "--kv-cache-dtype",
         "bfloat16",
         "--model-loader-extra-config",
-        "{\"enable_multithread_load\":true,\"num_threads\":12}"
+        "{\"enable_multithread_load\":true,\"num_threads\":12}",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0",
       "verification": "in-progress · MIT · configured 256K context, capacity not measured",
@@ -2820,7 +2870,8 @@
         "--reasoning-parser",
         "mimo",
         "--tool-call-parser",
-        "mimo"
+        "mimo",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
       "verification": "in-progress · MIT · configured 1M context, capacity not measured",
@@ -2948,7 +2999,8 @@
         "--tool-call-parser",
         "mimo",
         "--moe-runner-backend",
-        "marlin"
+        "marlin",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6",
       "verification": "in-progress · MIT · configured 1M context, capacity not measured",
@@ -2990,7 +3042,8 @@
         "--tp",
         "8",
         "--mem-fraction-static",
-        "0.75"
+        "0.75",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
       "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
@@ -3038,7 +3091,8 @@
         "--chunked-prefill-size",
         "8192",
         "--mem-fraction-static",
-        "0.65"
+        "0.65",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
       "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
@@ -3086,7 +3140,8 @@
         "--chunked-prefill-size",
         "8192",
         "--mem-fraction-static",
-        "0.75"
+        "0.75",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
       "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
@@ -3134,7 +3189,8 @@
         "--chunked-prefill-size",
         "8192",
         "--mem-fraction-static",
-        "0.75"
+        "0.75",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3",
       "verification": "verified · MiniMax Community License · commercial use needs a \"Built with MiniMax M3\" notice and a one-time notice to MiniMax; above $20M yearly revenue a written authorisation · configured 1M context, capacity not measured",
@@ -3180,7 +3236,8 @@
         "mistral",
         "--enable-auto-tool-choice",
         "--tool-call-parser",
-        "mistral"
+        "mistral",
+        "--enable-prefix-caching"
       ],
       "source": "https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512",
       "verification": "Apache-2.0 · vendor FP8 serving recipe",
@@ -3227,7 +3284,8 @@
         "mistral",
         "--enable-auto-tool-choice",
         "--tool-call-parser",
-        "mistral"
+        "mistral",
+        "--enable-prefix-caching"
       ],
       "source": "https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512",
       "verification": "Apache-2.0 · vendor FP8 serving recipe",
@@ -3272,7 +3330,8 @@
         "--tool-call-parser",
         "qwen3_coder",
         "--reasoning-parser",
-        "nemotron_3"
+        "nemotron_3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
@@ -3316,7 +3375,8 @@
         "--tool-call-parser",
         "qwen3_coder",
         "--reasoning-parser",
-        "nemotron_3"
+        "nemotron_3",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
@@ -3360,7 +3420,8 @@
         "--reasoning-parser",
         "nemotron_3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
@@ -3404,7 +3465,8 @@
         "--reasoning-parser",
         "nemotron_3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
@@ -3448,7 +3510,8 @@
         "--reasoning-parser",
         "nemotron_3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cookbook names 1M context; config.json caps positions at 262,144",
@@ -3506,7 +3569,8 @@
         "--min-p",
         "0.0",
         "--reasoning-format",
-        "deepseek"
+        "deepseek",
+        "--cache-prompt"
       ],
       "source": "https://unsloth.ai/docs/models/nemotron-3.5-super-vl",
       "verification": "llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured",
@@ -3584,7 +3648,8 @@
         "--reasoning-parser",
         "nemotron_3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3.5-Super",
       "verification": "documented · NVIDIA OpenMDW-1.1 licence · the cell sets 262,144 context",
@@ -3635,7 +3700,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
       "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
@@ -3725,7 +3791,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
       "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
@@ -3786,7 +3853,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
       "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
@@ -3851,7 +3919,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8",
       "verification": "verified · Qwen3.8-Max License · MaaS or AI Work Assistant businesses above $50M aggregate revenue in 12 months need a separate licence; internal use exempt",
@@ -3906,7 +3975,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-27B",
       "verification": "verified",
@@ -3954,7 +4024,8 @@
         "--reasoning-parser",
         "qwen3",
         "--tool-call-parser",
-        "qwen3_coder"
+        "qwen3_coder",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-27B",
       "verification": "verified",
@@ -4017,7 +4088,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
       "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
@@ -4082,7 +4154,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
       "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
@@ -4147,7 +4220,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
       "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
@@ -4214,7 +4288,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
-        "auto"
+        "auto",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
       "verification": "verified · Qwen Community License 1.0 · MaaS or AI Work Assistant businesses need a separate licence; internal use exempt",
@@ -4285,7 +4360,8 @@
         "--reasoning-parser",
         "step5",
         "--tool-call-parser",
-        "step5"
+        "step5",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
       "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",
@@ -4354,7 +4430,8 @@
         "--reasoning-parser",
         "step5",
         "--tool-call-parser",
-        "step5"
+        "step5",
+        "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview",
       "verification": "documented · StepFun Model License 1.0 · MaaS operators above $20M revenue in 12 months and device makers need a commercial licence; internal use exempt · configured 1M context, capacity not measured",

@@ -645,7 +645,7 @@ export async function* compatChatCallModel(
       if (profile.dialect === 'llamacpp') {
         const slot = makeRequestExtra().id_slot
         if (typeof slot === 'number') request.extra = { ...request.extra, id_slot: slot, cache_prompt: true }
-        else if (request.extra) { delete request.extra.id_slot; delete request.extra.cache_prompt }
+        else if (request.extra) { delete request.extra.id_slot; request.extra.cache_prompt = true }
       }
     }
     attemptStartedAtMs = Date.now()

@@ -51,7 +51,15 @@ const mtp = ['--speculative-algorithm', 'EAGLE', '--speculative-num-steps', '5',
 const pythonInstall = 'python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang'
 const llamaInstall = 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server'
 
-export const HOST_RECIPES: readonly HostRecipe[] = [
+function withPrefixCaching(recipes: readonly HostRecipe[]): HostRecipe[] {
+  return recipes.map(recipe => {
+    const flags = recipe.engine === 'llamacpp' ? ['--cache-prompt']
+      : recipe.engine === 'vllm' ? ['--enable-prefix-caching'] : ['--enable-cache-report']
+    return { ...recipe, flags: [...recipe.flags, ...flags.filter(flag => !recipe.flags.includes(flag))] }
+  })
+}
+
+export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
   {
     id: 'glm53-flash-gguf-b300', label: 'GLM-5.3-Flash · UD-Q4_K_XL', model: 'unsloth/GLM-5.3-Flash-GGUF', weightsGb: 200.844798752, gpu: 'B300', count: 1, vramGb: 288, diskGb: 300,
     engine: 'llamacpp', image: 'ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8', cuda: '13.0', imageSource: 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-3bb63cb', source: 'https://unsloth.ai/docs/models/glm-5.3-flash', verification: 'llama.cpp (GGUF) · verified on 1× B300 (67 tok/s)',
@@ -487,7 +495,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = [
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/google/gemma-4-31B-it/blob/main/chat_template.jinja', note: 'the template knows enable_thinking only; no effort levels' } },
     flags: ['--reasoning-parser', 'gemma4', '--tool-call-parser', 'gemma4'],
   },
-]
+])
 
 export function hostRecipeVerificationWord(recipe: HostRecipe): HostRecipeVerificationKind {
   return recipe.verified.by
