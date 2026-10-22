@@ -1445,14 +1445,18 @@
       "weightsGb": 195.764040609,
       "image": "vllm/vllm-openai:latest",
       "cuda": "13.0",
-      "flags": [],
-      "source": "https://huggingface.co/openai/gpt-oss-120b",
+      "flags": [
+        "--tool-call-parser",
+        "openai",
+        "--enable-auto-tool-choice"
+      ],
+      "source": "https://recipes.vllm.ai/openai/gpt-oss-120b",
       "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
       "verified": {
         "by": "documented",
         "on": "2026-10-22",
         "note": "Vendor model-card vLLM recipe; GPU serving not measured by Mercury",
-        "source": "https://huggingface.co/openai/gpt-oss-120b"
+        "source": "https://recipes.vllm.ai/openai/gpt-oss-120b"
       },
       "efforts": {
         "levels": [
@@ -1482,14 +1486,18 @@
       "weightsGb": 195.764040609,
       "image": "vllm/vllm-openai:latest",
       "cuda": "13.0",
-      "flags": [],
-      "source": "https://huggingface.co/openai/gpt-oss-120b",
+      "flags": [
+        "--tool-call-parser",
+        "openai",
+        "--enable-auto-tool-choice"
+      ],
+      "source": "https://recipes.vllm.ai/openai/gpt-oss-120b",
       "verification": "Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three",
       "verified": {
         "by": "documented",
         "on": "2026-10-22",
         "note": "Vendor model-card vLLM recipe; GPU serving not measured by Mercury",
-        "source": "https://huggingface.co/openai/gpt-oss-120b"
+        "source": "https://recipes.vllm.ai/openai/gpt-oss-120b"
       },
       "efforts": {
         "levels": [
@@ -4015,6 +4023,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
@@ -4080,6 +4090,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
@@ -4145,6 +4157,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
@@ -4212,6 +4226,8 @@
         "--speculative-num-draft-tokens",
         "4",
         "--reasoning-parser",
+        "auto",
+        "--tool-call-parser",
         "auto"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next",
@@ -4294,12 +4310,16 @@
         "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
       },
       "efforts": {
-        "levels": [],
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ],
         "verified": {
           "by": "documented",
           "on": "2026-10-22",
-          "note": "the template writes any reasoning_effort string into the system prompt verbatim; the model card names no levels",
-          "source": "https://huggingface.co/stepfun-ai/Step-5-Preview/blob/main/chat_template.jinja"
+          "note": "the template renders reasoning_effort; the vendor documents low, medium and high; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
         }
       },
       "context": 1048576,
@@ -4363,12 +4383,16 @@
         "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
       },
       "efforts": {
-        "levels": [],
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ],
         "verified": {
           "by": "documented",
           "on": "2026-10-22",
-          "note": "the template writes any reasoning_effort string into the system prompt verbatim; the model card names no levels",
-          "source": "https://huggingface.co/stepfun-ai/Step-5-Preview/blob/main/chat_template.jinja"
+          "note": "the template renders reasoning_effort; the vendor documents low, medium and high; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview"
         }
       },
       "context": 1048576,
