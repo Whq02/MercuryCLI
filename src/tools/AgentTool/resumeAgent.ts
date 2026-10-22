@@ -155,12 +155,12 @@ export async function resumeAgentBackground(args: {
   const structuredDefinition = restoredKey !== null && restoredRoster?.key === restoredKey
     ? restoredRoster.marks.find(mark => mark.name === STRUCTURED_OUTPUT_TOOL_NAME)?.definition
     : undefined
-  const structuredOutputSpec = structuredDefinition === undefined ? undefined : (() => {
+  const structuredOutputSpec = meta?.structuredOutputSpec ?? (structuredDefinition === undefined ? undefined : (() => {
     const { input_schema: schema } = JSON.parse(structuredDefinition) as { input_schema: Record<string, unknown> }
     const bound = getSchemaBoundStructuredOutputTool(schema)
     if (bound.error !== undefined) throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
     return { schema, mode: 'permissive' as const, source: 'dispatch' as const }
-  })()
+  })())
 
   const cleaned = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(
@@ -263,6 +263,7 @@ export async function resumeAgentBackground(args: {
     ...(restoredModel ? { model: restoredModel } : {}),
     ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
     ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
+    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
     ...(instructionProfileOverride
       ? { instructionProfile: instructionProfileOverride }
       : {}),
