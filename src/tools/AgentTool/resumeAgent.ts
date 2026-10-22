@@ -137,7 +137,7 @@ export async function resumeAgentBackground(args: {
   const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
   const restoredModel = (await resumedModelOverride(args.model, toolUseContext.options.engineModel)) ?? meta?.model
   const lifecycleModel = getAgentModel(restoredModel ?? definition.model, getEngineModel())
-  const restoredEffort = args.effort ?? meta?.effortOverride
+  const restoredEffort = args.effort ?? meta?.effortOverride ?? meta?.effort
   if (args.effort !== undefined) {
     const selectable = resolveStampedEffortTruth(lifecycleModel, args.effort, { thinkingEnabled: true }).selectable
     if (!isEffortLevel(args.effort) || (args.effort !== 'max' && !selectable.includes(args.effort))) {
