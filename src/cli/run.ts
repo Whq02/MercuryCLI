@@ -48,7 +48,6 @@ import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
-import { modelRefusalBeforeAnyRequest } from '../services/providers/callModelRouter.js'
 import { resolveHeadlessModel } from './headless/model.js'
 import { refusedOutcome } from './headless/refusalEnvelope.js'
 import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
@@ -700,11 +699,13 @@ export async function runHeadless(
   if ((options.continue || options.resume) && !getEngineModelOverride()) {
     const recorded = restoreConversationModel({ messages, model: loaded.model })
     if (recorded && !options.userSpecifiedModel) {
-      const refusal = await modelRefusalBeforeAnyRequest(recorded)
-      if (refusal === null) {
-        setEngineModelOverride(recorded)
-      } else {
-        enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${refusal}) — this run uses ${getEngineModel()} instead.`))
+      try {
+        bootModel = await resolveHeadlessModel(recorded)
+        setEngineModelOverride(bootModel)
+      } catch (error) {
+        emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, wire ? 'text' : options.outputFormat)
+        gracefulShutdownSync(1)
+        return
       }
     }
   }
@@ -1993,6 +1994,16 @@ export async function runHeadless(
         if (!resumed || resumed.messages.length === 0) {
           if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
           throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
+        }
+        if (claimedModel === undefined) {
+          const recorded = restoreConversationModel(resumed)
+          if (recorded) {
+            try { claimedModel = await resolveHeadlessModel(recorded) }
+            catch (error) {
+              if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
+              throw refused(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, 'claim')
+            }
+          }
         }
         switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
         resumeOf = String(resumed.sessionId ?? sid)
