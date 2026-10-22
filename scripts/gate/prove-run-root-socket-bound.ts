@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
 let failures = 0
@@ -20,6 +21,8 @@ check("the runner budgets the preferred socket path against the product's own bo
 
 const socketPathUnder = (base: string): string => `${base}/mercury-proof-run.XXXXXX/config-home/daemon/control.sock`
 const fits = (base: string): boolean => Buffer.byteLength(socketPathUnder(base), 'utf8') <= productBound
+const shortBase = fits(join(realpathSync(tmpdir()), 'a-XXXXXX', 'h', 'r')) ? tmpdir() : '/tmp'
+const accountHome = withProofAccountHome('a-', shortBase)
 
 const world = mkdtempSync(join(tmpdir(), 'run-root-bound-'))
 const outside: string[] = []
@@ -76,11 +79,13 @@ const deepParent = join(world, 'deep')
 const deep = join(deepParent, 'x'.repeat(Math.max(1, 90 - deepParent.length - 1)))
 mkdirSync(deep, { recursive: true })
 legs.push({ name: 'deep', base: `${deep}/`, words: `a deliberately deep temp dir (${deep.length} chars)` })
-const short = mkdtempSync('/tmp/run-root-bound-')
+const short = mkdtempSync(join(shortBase, 's-'))
 outside.push(short)
 legs.push({ name: 'short', base: short, words: `a short temp dir (${short.length} chars)` })
-const runnerTemp = mkdtempSync(join(homedir(), '.run-root-bound-rt-'))
-outside.push(runnerTemp)
+const runnerTemp = join(accountHome, 'r')
+mkdirSync(runnerTemp)
+check('the synthetic account home is established before runtime reads', homedir() === accountHome)
+check('RUNNER_TEMP is a fitting path, so ignoring it cannot be blamed on socket length', fits(realpathSync(runnerTemp)))
 legs.push({ name: 'runner-temp', base: `${deep}/`, runnerTemp, words: `the deep temp dir again, with RUNNER_TEMP set to a fitting dir under the home (${runnerTemp}, ${runnerTemp.length} chars)` })
 
 try {

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-export function withProofAccountHome(): string {
+export function withProofAccountHome(prefix = 'proof-account-', base = tmpdir()): string {
   const flag = '--proof-account-home'
   const at = process.argv.indexOf(flag)
   if (at >= 0) {
@@ -11,8 +11,8 @@ export function withProofAccountHome(): string {
     if (!home || homedir() !== home || process.env.HOME !== home || process.env.USERPROFILE !== home) throw new Error('proof account home was not established before runtime startup')
     return home
   }
-  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'proof-account-')))
-  const home = join(scratch, 'home')
+  const scratch = realpathSync(mkdtempSync(join(base, prefix)))
+  const home = join(scratch, 'h')
   mkdirSync(home)
   let code = 1
   try {
