@@ -23,7 +23,7 @@ function parts(id: string): { namespace: string; name: string } {
   if (!id.startsWith('hf-') || !namespaceSchema.safeParse(namespace).success || !nameSchema.safeParse(name).success || extra !== undefined || identity(namespace!, name!) !== id) throw new Error('Hugging Face requires a valid endpoint ID.')
   return { namespace: namespace!, name: name! }
 }
-export function hfEndpointRecipeReason(recipe: HostRecipe): string | undefined {
+function hfEndpointRecipeReason(recipe: HostRecipe): string | undefined {
   if ((recipe.nodes ?? 1) !== 1) return 'cluster'
   if (recipe.files && Object.keys(recipe.files).length || recipe.flags.some(value => value.includes('/workspace/'))) return 'files'
   if (recipe.engine === 'llamacpp' && !recipe.weightFile) return 'GGUF'
@@ -84,8 +84,8 @@ export class HuggingfaceClient implements HostVendor {
     return rows.offers
   }
   async watchOffer(recipe: HostRecipe, maxPrice: number, signal?: AbortSignal): Promise<HostOffer | undefined> {
-    const siblings = currentHostRecipes().filter(row => row.label === recipe.label && row.count === recipe.count)
-    return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.find(row => row.price <= maxPrice)
+    const siblings = [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id && row.label === recipe.label && row.count === recipe.count)]
+    return (await this.search(siblings, signal)).offers.find(row => row.price <= maxPrice)
   }
   private pod(row: z.infer<typeof endpointSchema>, namespace: string): HostPod {
     const hardware = this.hardware?.find(hw => hw.vendor === row.provider.vendor && hw.region === row.provider.region && hw.instanceType === row.compute.instanceType && hw.instanceSize === row.compute.instanceSize)

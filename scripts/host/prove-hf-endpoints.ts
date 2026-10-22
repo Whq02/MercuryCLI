@@ -41,6 +41,9 @@ try {
   check('510 GB B200 recipe is not fabricated on HF hardware', !offers.some(row => row.recipe.id.startsWith('deepseek41-')))
   check('local-file and multi-node recipes are not offered', offers.every(row => !row.recipe.files && (row.recipe.nodes ?? 1) === 1))
   check('HF disclosure is managed and unstamped', api.capabilities.managed && api.offersNote().includes('HF-managed · per hour · no SSH') && vendorStamp('huggingface') === 'API only — not yet booted')
+  const selectedRecipe = { ...offers.find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!.recipe, flags: ['--fixture-selected-row'], image: 'fixture/selected-image' }
+  const watched = await api.watchOffer(selectedRecipe, 3, signal)
+  check('stock watch retains the saved same-id recipe instead of current catalogue defaults', watched?.recipe.flags.includes('--fixture-selected-row') && watched.recipe.image === selectedRecipe.image)
   await assert.rejects(api.create({ ...offer }, '', 'forged-offer'), /unchanged/)
   hf.state.computes[0].quota.maxAccelerators = 0
   const limited = new HuggingfaceClient(hf.key, hf.baseUrl)
