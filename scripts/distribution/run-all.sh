@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/distribution/**
+# gate-watch: bench/harbor/README.md bench/harbor/mercury_harbor/install.sh sdk/README.md sdk-py/README.md .node-version
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json
 # gate-watch: docs/AUTOMATION.md scripts/sdk/generate.ts src/cli/headless/runnerAsks.ts src/runner/wire/methods.ts
 # gate-watch: LICENSE.md TRADEMARKS.md MERCURY-COMMUNITY-PRODUCTION-TERMS.md scripts/release/releaseDocuments.mjs scripts/release/payloadContract.mjs
