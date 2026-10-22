@@ -71,6 +71,15 @@ const names = (text: string, words: string[]): string[] => words.filter(word => 
   check('SGLang chat requests still take separate_reasoning, reasoning_effort and chat_template_kwargs', requestFields.length === 0, requestFields)
   check('SGLang still refuses a boolean reasoning_effort with the words the engine fixture uses', /reasoning_effort must not be a boolean/.test(protocol))
   check('SGLang still names max_model_len from model_config.context_len on /v1/models', /max_model_len=_global_state\.tokenizer_manager\.model_config\.context_len/.test(server))
+  const fieldFiles = ['device', 'disagg', 'exec_', 'lora', 'memory', 'mm', 'model', 'observability', 'parallel', 'schedule', 'serving', 'spec']
+  const fields: string[] = []
+  for (const name of fieldFiles) fields.push(...(await read('https://raw.githubusercontent.com/sgl-project/sglang/main/python/sglang/srt/arg_groups/fields/' + name + '.py')).matchAll(/^ {4}([a-z][a-z0-9_]*): A\[/gm).map(match => match[1]!))
+  const tpLike = fields.filter(name => /^(tp|dp)[a-z0-9]*_/.test(name) && name !== 'tp_size' && name !== 'dp_size')
+  check('the recipes’ --tp and --dp spellings stay unambiguous argparse prefixes of SGLang’s tp_size and dp_size (' + fields.length + ' fields read; the cookbooks use the short forms)', fields.includes('tp_size') && fields.includes('dp_size') && tpLike.length === 0, { tpLike, fields: fields.length })
+  const arguments_ = await read('https://raw.githubusercontent.com/sgl-project/sglang/main/python/sglang/srt/arg_groups/arg_utils.py')
+  check('SGLang still derives --flag-names from field names with argparse (so the prefix rule above is the one that admits --tp)', /return "--" \+ name\.replace\("_", "-"\)/.test(arguments_) && !/allow_abbrev\s*=\s*False/.test(arguments_))
+  const serving = await read('https://raw.githubusercontent.com/sgl-project/sglang/main/python/sglang/srt/arg_groups/fields/serving.py')
+  check('SGLang still takes --enable-cache-report (the flag every SGLang recipe adds)', /^ {4}enable_cache_report: A\[/m.test(serving))
 }
 
 {
