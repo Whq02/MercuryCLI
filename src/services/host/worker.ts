@@ -357,7 +357,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const plain = (value: unknown): string => clean(value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
       const detail = plain(error)
       const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : initial.volumeId ? 'weights disk billing is not verified; check your account' : ''
-      const next = disk ? '/llmhost → Fast-load to delete the disk, or rent again' : '/llmhost to check the setup and rent again'
+      const next = disk ? '/llmhost → Bank → d deletes the disk, or rent again' : '/llmhost to check the setup and rent again'
       try {
         const cleanupApi = vendorClient(initial)
         const missing = error instanceof HostPodMissing
@@ -390,13 +390,17 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
       const retried = hostReadFailureWords(failure)
-      const detail = clean(retried ? retried + ' · setup paused · Resume retries' : String(failure))
+      const resource = initial.cluster ? 'cluster' : 'pod'
+      const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + initial.price.toFixed(2) + '/hr while it runs'
+      const wasReady = current.jobState === 'ready'
+      const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
       const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
       log(detail)
       if (error instanceof HostClusterEnded) {
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
       } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + ' · /llmhost → Pods I’m paying for')
+      else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill')
       else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
     }
     closeHostTunnel(id)

@@ -197,7 +197,7 @@ try {
         check(name + ' warns about both compute and storage with no false absence', words.length === 1 && words[0]!.includes('could not verify') && words[0]!.includes('check your account') && words[0]!.includes('$14.00/month') && !words[0]!.includes('nothing more bills') && readHostRecord(id)?.status !== 'TERMINATED')
       } else {
         check(name + ' kept pod is terminated exactly once and verified', rp.state.deletes === deleted + 1 && calls.some((row: any) => row.method === 'GET' && row.path === listPath.runpod))
-        check(name + ' kept failure has one notice with its bill and next step', words.length === 1 && words[0]!.includes('Download stalled') && words[0]!.includes('terminated') && words[0]!.includes('$14.00/month') && words[0]!.includes('Fast-load') && !words[0]!.includes('nothing more bills'))
+        check(name + ' kept failure has one notice with its bill and next step', words.length === 1 && words[0]!.includes('Download stalled') && words[0]!.includes('terminated') && words[0]!.includes('$14.00/month') && words[0]!.includes('/llmhost → Bank') && !words[0]!.includes('Fast-load') && !words[0]!.includes('nothing more bills'))
         check(name + ' final record truth matches temporary or rental ownership', prepareOnly ? !readHostRecord(id) : readHostRecord(id)?.status === 'TERMINATED')
         check(name + ' ended pod no longer owns disk preparation', !readKeptVolume(volumeId)?.preparingPod)
       }
@@ -213,7 +213,7 @@ try {
     const before = rp.requests.length
     await runHostJob(id, record.generation!, { runner: { tunnel() { throw new Error('No tunnel') }, async run() { throw new Error('No SSH for an absent pod') } }, pauseMs: 1, timeoutMs: 1000, keepAlive: false })
     const words = notices(name)
-    check('a vanished pod never sends DELETE and never erases kept-disk billing', !rp.requests.slice(before).some((row: any) => row.method === 'DELETE') && words.length === 1 && words[0]!.includes('nothing to terminate') && words[0]!.includes('$14.00/month') && words[0]!.includes('Fast-load') && readHostRecord(id)?.status === 'TERMINATED' && readKeptVolume(volumeId)?.state === 'kept')
+    check('a vanished pod never sends DELETE and never erases kept-disk billing', !rp.requests.slice(before).some((row: any) => row.method === 'DELETE') && words.length === 1 && words[0]!.includes('nothing to terminate') && words[0]!.includes('$14.00/month') && words[0]!.includes('/llmhost → Bank') && !words[0]!.includes('Fast-load') && readHostRecord(id)?.status === 'TERMINATED' && readKeptVolume(volumeId)?.state === 'kept')
     removeHostRecord(id)
   })
   await trial('cleanup-unverified', async () => {

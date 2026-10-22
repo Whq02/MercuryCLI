@@ -23,6 +23,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 bun "$ROOT/scripts/host/prove-host-cleanup.ts"
+bun "$ROOT/scripts/host/prove-host-words-truth.ts"
 bun "$ROOT/scripts/host/prove-pod-image-path.ts"
 bun "$ROOT/scripts/host/prove-host-notice-before-turn.ts" --bundle "$ROOT/dist/mercury.mjs"
 bun "$ROOT/scripts/host/prove-host-completion.ts"

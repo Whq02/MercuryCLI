@@ -17,7 +17,7 @@ type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
 interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; startJob?: (record: HostRecord) => void }
 export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
-const cancelled = (): LlmHostResult => ({ ok: true, words: 'Fast-load closed. Existing weights disks keep billing until deleted.' })
+const cancelled = (): LlmHostResult => ({ ok: true, words: 'Bank closed. Existing weights disks keep billing until deleted.' })
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const pad = (text: string, width: number): string => text.length >= width ? text + ' ' : text.padEnd(width)
 const fit = (text: string, width: number): string => text.length <= width ? text : text.slice(0, Math.max(1, width - 1)) + '…'
@@ -101,7 +101,7 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
   const how = await ask({ step: 'fast-load-how', title: recipe.label + ' · How?', found: recipe.weightsGb.toFixed(2) + ' GB of weights · not kept', willRun: 'Choose where to keep this model. No disk has been created.', rows: [{ value: 'network', label: 'Runpod network volume · one data centre · $0.07/GB/month' }, { value: 'global', label: 'Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS' }, { value: 'ssh', label: 'My own bank over SSH · mercury host' }, { value: 'back', label: 'Back' }] })
   if (!how) return cancelled()
   if (how === 'back') return
-  if (how === 'ssh') { emit({ title: 'My own bank over SSH', words: 'Use mercury host for an SSH bank. Fast-load does not create or copy an SSH bank.' }); return }
+  if (how === 'ssh') { emit({ title: 'My own bank over SSH', words: 'Use mercury host for an SSH bank. Mirroring from the Bank creates a Runpod volume only; it does not create or copy an SSH bank.' }); return }
   if (how !== 'network' && how !== 'global') throw new Error('Choose a storage kind from the catalogue.')
   let dataCenter = 'any DC'
   if (how === 'network') {

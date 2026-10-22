@@ -3579,7 +3579,7 @@
         "--cache-prompt"
       ],
       "source": "https://unsloth.ai/docs/models/nemotron-3.5-super-vl",
-      "verification": "llama.cpp (GGUF) · the road the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured",
+      "verification": "llama.cpp (GGUF) · the engine the model card names for RTX PRO 6000 · 65.8 GB, documented minimum 96 GB · GPU run not measured",
       "verified": {
         "by": "documented",
         "note": "NVIDIA's model card names llama.cpp for RTX PRO 6000; Unsloth's 96 GB minimum",

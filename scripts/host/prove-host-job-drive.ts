@@ -163,6 +163,12 @@ try {
   patchHostRecord(stalled.id, { generation: 'dead-generation', advancedAt: Date.now() }); await sweepHostJobs({ alive: () => false }); deliverHostNotices('rental-session')
   check('a vanished job reports stalled without waiting ten minutes', readHostRecord(stalled.id)?.jobState === 'failed' && getCommandQueue().filter(row => String(row.value).includes('fixture-stalled · setup stalled')).length === 2)
   removeHostRecord(stalled.id)
+  const dropped = { ...ready, id: 'fixture-dropped', name: 'fixture-dropped', jobState: 'ready' as const, generation: 'dropped-generation', step: 'ready', advancedAt: Date.now(), error: undefined }
+  writeHostRecord(dropped)
+  await sweepHostJobs({ alive: () => false }); deliverHostNotices('rental-session')
+  const droppedWords = getCommandQueue().map(row => String(row.value)).find(words => words.includes('fixture-dropped')) ?? ''
+  check('a job process that ends after READY says the tunnel is down, that the pod still bills, and how to reconnect — never "setup stalled at ready"', readHostRecord(dropped.id)?.jobState === 'failed' && droppedWords.includes('the job process ended after the pod was ready, so the tunnel is down') && droppedWords.includes('it bills $' + dropped.price.toFixed(2) + '/hr while it runs') && droppedWords.includes('Resume to reconnect, Terminate to stop the bill') && !droppedWords.includes('setup stalled at ready'))
+  removeHostRecord(dropped.id)
   config.failLaunch = true; save()
   open(); await screen('Where should the model run?'); await choose('Rent a GPU'); await screen('Optional spending budget'); m.push(KEY.enter); await screen('live Runpod stock'); await choose('UD-Q3_K_XL'); await screen('Choose a GPU shape'); await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await choose('Confirm $2.49/hr')
   check('failure rental recorded', await waitFor(() => hostRecords().length === 1, 15000))

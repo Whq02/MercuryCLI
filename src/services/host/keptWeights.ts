@@ -182,7 +182,7 @@ export async function terminateVerified(api: Pick<HostVendor, 'terminate' | 'pod
 }
 export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe, api: RunpodClient, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void, cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs: 5000, timeoutMs: 4 * 60_000, signal, mark })): Promise<string> {
   const volume = record.volumeId && readKeptVolume(record.volumeId)
-  if (!volume || volume.state === 'gone' || volume.state === 'creating') throw new Error('The kept weights disk is not available; open Fast-load before resuming.')
+  if (!volume || volume.state === 'gone' || volume.state === 'creating') throw new Error('The kept weights disk is not available; open /llmhost → Bank before resuming.')
   const manifest = weightManifest(recipe)
   const directory = keptWeightsPath(recipe)
   const progressPath = '/workspace/mercury-host/' + recipe.id + '/weights-check.log'
@@ -239,7 +239,7 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
       }
       const disk = readKeptVolume(volume.id)
       if (disk?.preparingPod === record.id) writeKeptVolume({ ...disk, preparingPod: undefined })
-      if (disk && failure) hostNotice(record, 'failed', recipe.label + ' · preparation stopped: ' + (disk.error ?? String(failure)) + ' · temporary pod ' + record.id + ' terminated and verified absent (Runpod no longer lists it) · weights disk ' + disk.id + ' is kept ' + (disk.partialBytes === undefined ? '' : 'with ' + gigabytes(disk.partialBytes) + ' downloaded ') + 'and bills ' + keptDiskPrice(disk) + ' · /llmhost → Fast-load to delete it, or the next rental downloads again')
+      if (disk && failure) hostNotice(record, 'failed', recipe.label + ' · preparation stopped: ' + (disk.error ?? String(failure)) + ' · temporary pod ' + record.id + ' terminated and verified absent (Runpod no longer lists it) · weights disk ' + disk.id + ' is kept ' + (disk.partialBytes === undefined ? '' : 'with ' + gigabytes(disk.partialBytes) + ' downloaded ') + 'and bills ' + keptDiskPrice(disk) + ' · /llmhost → Bank → d deletes the disk, or the next rental downloads again')
       else if (disk) hostNotice(record, 'prepared', recipe.label + ' · weights kept on ' + disk.id + ' (' + (disk.verifiedSums?.check ?? 'full') + ' check passed) · temporary pod ' + record.id + ' terminated (Runpod no longer lists it) · the disk bills ' + volumePrice(disk) + ' without a pod')
     }
   }

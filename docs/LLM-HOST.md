@@ -37,7 +37,7 @@ and then alphabetically by model name.
 
 Below the model list, **Which model?** includes **Pods I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
-`Other roads →` menu (`Rent a GPU (Runpod)`, `A box I can reach by SSH`,
+`Other roads →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda)`, `A box I can reach by SSH`,
 `A server that's already running`, `One of my computers`, and
 `Bank · your weights`). Each path reads the server's model list and context
 windows, runs a reply check, and registers the provider in `/model` and

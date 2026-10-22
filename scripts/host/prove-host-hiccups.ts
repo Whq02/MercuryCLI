@@ -71,8 +71,8 @@ try {
   const beforeBudget = Date.now()
   const paused = (await run(queue(failing), 350))!
   const count = podReads(failing.id).length
-  const counted = 'Runpod did not answer pod reads for 1 s (HTTP 503 ×' + count + ') · setup paused · Resume retries'
-  check('the read spends its budget, then pauses with the exact failed-read count', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'failed' && paused.error === counted && paused.step === counted)
+  const counted = 'Runpod did not answer pod reads for 1 s (HTTP 503 ×' + count + ') · setup paused · Mercury did not terminate the pod; it bills $' + paused.price.toFixed(2) + '/hr while it runs · Resume retries, Terminate stops the bill'
+  check('the read spends its budget, then pauses with the exact failed-read count and says the pod still bills', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'failed' && paused.error === counted && paused.step === counted && paused.price > 0)
   check('one counted pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(counted)))
   const original = new RunpodHttpError('original vendor error', 503, 'fixture')
   await assert.rejects(readOnly(100)('pod', async () => { throw original }), error => error === original && Boolean(hostReadFailureWords(error)))

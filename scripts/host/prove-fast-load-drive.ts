@@ -387,7 +387,7 @@ try {
   volumes.writeKeptVolume({ ...volumes.readKeptVolume(filling.id)!, state: 'preparing', preparingPod: fillPod.id })
   const whileFilling = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   await api.terminate(fillPod.id)
-  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when Fast-load shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
+  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when the Bank shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
   rp.state.failVolumeRead = true
   const blindRental = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   check('a model with a disk is not rented blind while the volume list is unreadable', blindRental.includes('cannot be confirmed while Runpod’s volume list is unavailable; no pod was created'))

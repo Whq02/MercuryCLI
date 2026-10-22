@@ -56,10 +56,10 @@ export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal
   if (!keptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
   try { await reconcileVolumes(api, signal) } catch (error) { throw new Error('The weights disk for this model cannot be confirmed while Runpod’s volume list is unavailable; no pod was created. ' + String(error)) }
   const rows = keptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
-  if (rows.length > 1) throw new Error('Multiple weights disks for this model; open Fast-load before renting.')
+  if (rows.length > 1) throw new Error('Multiple weights disks for this model; open /llmhost → Bank before renting.')
   const volume = rows[0]
-  if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh Fast-load before renting. No retry was sent.')
-  if (volume?.state === 'preparing' && volume.preparingPod && (await api.pods(signal)).some(pod => pod.id === volume.preparingPod)) throw new Error('Pod ' + volume.preparingPod + ' is still filling weights disk ' + volume.id + '; rent when Fast-load shows it kept, or terminate that pod in Pods I’m paying for. No pod was created.')
+  if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh /llmhost → Bank before renting. No retry was sent.')
+  if (volume?.state === 'preparing' && volume.preparingPod && (await api.pods(signal)).some(pod => pod.id === volume.preparingPod)) throw new Error('Pod ' + volume.preparingPod + ' is still filling weights disk ' + volume.id + '; rent when the Bank shows it kept, or terminate that pod in Pods I’m paying for. No pod was created.')
   return volume
 }
 async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
@@ -77,7 +77,7 @@ async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kin
     return created
   } catch (error) {
     if (createRefusal(error)) { removeRecord(record.id); throw new Error('Runpod refused the weights disk. ' + String(error)) }
-    throw new Error(record.name + ' may exist and bill: Runpod gave no clear create answer. Refresh Fast-load or Pods I’m paying for before retrying. ' + String(error))
+    throw new Error(record.name + ' may exist and bill: Runpod gave no clear create answer. Refresh the Bank or Pods I’m paying for before retrying. ' + String(error))
   }
 }
 export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
