@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: scripts/providers/lib/llmhostFixture.ts
 # gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact*
 # gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/mercuryCrewAgent* src/tools/AgentTool/built-in/mercuryScoutAgent*
 # gate-watch: src/tools/AgentTool/builtInAgents* src/tools.ts src/tools/MCPTool/absentToolShim.ts

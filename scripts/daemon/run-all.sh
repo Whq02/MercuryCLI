@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: src/utils/config.ts src/utils/worktree.ts
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/components/SwitchboardTagBar.tsx
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
