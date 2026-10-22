@@ -90,7 +90,7 @@ if (childAt !== -1) {
       { ...base, clientMessageId: 'legacy', prompt: 'older queued task' },
       { ...base, clientMessageId: 'shell', prompt: 'printf boundary', mode: 'bash', priority: 'later', sentAt, origin },
       { ...base, clientMessageId: 'rich', prompt: 'read this image', content: [{ type: 'text', text: 'image context' }, image], priority: 'next', sentAt },
-      { ...base, clientMessageId: 'kit', prompt: 'use the selected tools', kit, bypassConsent: true, birthKey: 'boundary-birth', bornBlank: true, vacatingSessionId: 'old-session', restartReason: 'update' },
+      { ...base, clientMessageId: 'kit', prompt: 'use the selected tools', kit, birthKey: 'boundary-birth', bornBlank: true, vacatingSessionId: 'old-session', restartReason: 'update' },
       { ...base, clientMessageId: 'preset', prompt: 'use the selected preset', kitPreset: 'fixture-preset' },
       { ...base, clientMessageId: 'note', prompt: 'addressed guidance', mode: 'task-notification', agentId: 'fixture-crew' },
     ]
@@ -106,13 +106,13 @@ if (childAt !== -1) {
     const rich = replayed.deliveries.find((row: any) => Array.isArray(row.content))
     check('rich content reaches the far side with its image bytes and send time intact', rich?.sent_at === sentAt && rich.content.some((row: any) => row.type === 'image' && row.data === image.source.data))
     const admittedKit = replayed.admissions.find((row: any) => row.kit)
-    check('the carried MCP/skill/extension kit and launch consent survive the wait', isDeepStrictEqual(admittedKit?.kit, kit) && admittedKit?.bypassConsent === true)
+    check('the carried MCP/skill/extension kit survives the wait, and no launch consent rides the held envelope (the dispatch door never carries it; a replayed birth asks again)', isDeepStrictEqual(admittedKit?.kit, kit) && admittedKit?.bypassConsent === undefined)
     check('birth and restart identity facts are retained, not defaulted by replay', admittedKit?.birthKey === 'boundary-birth' && admittedKit?.bornBlank === true && admittedKit?.restartReason === 'update')
     check('a held launch never reuses a stale seat-vacating hint to bypass admission', admittedKit !== undefined && admittedKit.vacatingSessionId === undefined && seeded.records.kit.heldOp.vacatingSessionId === 'old-session')
     check('the selected preset survives the wait', replayed.admissions.some((row: any) => row.kitPreset === 'fixture-preset'))
     check('addressed guidance remains addressed to its crewmate', replayed.deliveries.some((row: any) => row.type === 'note' && row.to === 'fixture-crew' && row.content === 'addressed guidance'))
     check('a replay consumes pending payloads and never delivers them twice', replayed.again.length === 0 && Object.values(replayed.records).every((row: any) => row.heldOp === undefined && row.heldReason === undefined))
-    for (const [name, change] of Object.entries({ kit: { kit }, preset: { kitPreset: 'different' }, consent: { bypassConsent: true }, birth: { birthKey: 'different' }, restart: { restartReason: 'update' } })) {
+    for (const [name, change] of Object.entries({ kit: { kit }, preset: { kitPreset: 'different' }, birth: { birthKey: 'different' }, restart: { restartReason: 'update' } })) {
       check(name + ' changes are material to a replay identity', envelopeDigestOf(requests[0]!) !== envelopeDigestOf({ ...requests[0]!, ...change } as ConcourseDispatchRequest))
     }
     console.log('BOUNDARY SESSION ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; two independent processes and the durable replay handler, no model calls')
