@@ -110,7 +110,7 @@ try {
     check('setup dispatch reaches ready through the cluster head', ready.jobState === 'ready')
     check('cluster setup tails the head engine log, so its steps and download progress advance while the head loads', ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22000') && String(row.args.at(-1)).startsWith('dd if=/workspace/mercury-host/kimi-k3-b200/engine.log')) && (ready.steps ?? []).some(row => row.step === 'downloading weights'))
     check('while the head loads, each worker is checked for a stopped engine', ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22001') && String(row.args.at(-1)).includes('MERCURY_ENGINE_GONE')))
-    const scripts = ssh.commands.filter((row: any) => row.command === 'ssh' && row.args.at(-1).includes('engine.sh')).map((row: any) => row.args.at(-1).replaceAll("'\\''", "'"))
+    const scripts = ssh.commands.filter((row: any) => row.command === 'ssh' && row.args.at(-1).includes('nohup setsid')).map((row: any) => row.args.at(-1).replaceAll("'\\''", "'"))
     check('both SGLang nodes receive the cookbook topology and private head', [0, 1].every(rank => scripts.some((script: string) => script.includes("'--nnodes' '2' '--node-rank' '" + rank + "' '--dist-init-addr' '10.65.0.2:20000'") && script.includes("'--pp-size' '2'") && script.includes("'--tp-size' '8'") && script.includes("'--reasoning-parser' 'kimi_k3'"))))
     check('each node downloads complete weights to the same local model path', scripts.length === 2 && scripts.every((script: string) => script.includes('hf download') && script.includes('/weights')))
     check('the public API is not exposed and the tunnel targets the head', rp.state.clusterCreateBodies[0].ports.join() === '22/tcp' && ssh.commands.some((row: any) => row.command === 'tunnel' && row.args.includes('22000')))
@@ -168,9 +168,13 @@ try {
     ssh.state.holdHealth = true
     ssh.state.goneEngines.add(22001)
     const dyingStarted = Date.now()
+    const deletesBeforeDeath = rp.state.clusterDeletes
+    const callsBeforeDeath = rp.requests.length
     try { await assert.rejects(() => startHostCluster(api, dying, recipe, ssh.runner, new AbortController().signal, 10, 15000, () => {}), /\(rank 1\) stopped its engine, so the head cannot finish loading\. fixture worker engine exited: CUDA out of memory/) } finally { ssh.state.holdHealth = false; ssh.state.goneEngines.clear() }
-    check('a worker whose engine stops while the head loads ends the wait at once, naming that node, and keeps the downloaded cluster for the owner', Date.now() - dyingStarted < 10_000 && rp.state.clusters.has(dying.id))
-    await terminateHostResource(api, (await listHostResources(api)).find(row => row.id === dying.id)!); removeHostRecord(dying.id)
+    const deathCalls = rp.requests.slice(callsBeforeDeath)
+    const deathDelete = deathCalls.findIndex((row: any) => row.method === 'DELETE' && row.path === '/v2/clusters/' + dying.id)
+    check('a worker whose engine stops while the head loads ends the wait promptly and terminates the cluster with verified absence', Date.now() - dyingStarted < 10_000 && !rp.state.clusters.has(dying.id) && !rp.state.clusterNodes.has(dying.id) && rp.state.clusterDeletes === deletesBeforeDeath + 1 && deathDelete >= 0 && deathCalls.slice(deathDelete + 1).some((row: any) => row.method === 'GET' && row.path === '/v2/clusters'))
+    removeHostRecord(dying.id)
     const stalled = await setupOf('ssh-bound-proof', new Date(Date.now() - 30 * 60_000).toISOString())
     ssh.state.refuse = true
     try { await runHostJob(stalled.id, stalled.generation!, { runner: ssh.runner, pauseMs: 10, timeoutMs: 1500, keepAlive: false }) } finally { ssh.state.refuse = false }
