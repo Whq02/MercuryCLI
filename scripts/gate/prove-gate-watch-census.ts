@@ -25,6 +25,7 @@ const WHOLE_TREE: Record<string, string> = {
   eval: 'prove-schema-conformance walks src (eval schemas)',
   gate: 'the gate censuses read every runner and proof under scripts; a whole-tree ratchet owed by every fold',
   identity: 'prove-docs-altitude walks the whole tree (doc surfaces); a whole-tree ratchet owed by every fold',
+  host: 'prove-host-words-truth walks src (every sentence a user reads on the host surfaces against the four words laws); a whole-tree ratchet owed by every fold',
   'ink-runtime': 'prove-deep-import-policy walks src (deep ink imports)',
   'interaction-pure': 'prove-board-coverage walks src (master-detail boards)',
   mcp: 'prove-disable-disconnects and prove-sdk-doorway walk src (MCP client seams)',
