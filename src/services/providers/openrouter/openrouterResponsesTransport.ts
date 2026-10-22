@@ -308,7 +308,14 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
       return
     }
     clearTimeout(firstByteTimer)
-    options.firstByte?.onWait?.(null)
+    options.firstByte?.onWait?.(response.ok ? { ...wait, phase: 'tokens' } : null)
+    let tokenWait = response.ok
+    const noteToken = (event: CompatStreamEvent): void => {
+      if (tokenWait && ['text-delta', 'reasoning-delta', 'reasoning-withheld', 'tool-call-fragment'].includes(event.type)) {
+        tokenWait = false
+        options.firstByte?.onWait?.(null)
+      }
+    }
     try {
       options.onResponseHeaders?.(response.headers, response.status)
     } catch (error) {
@@ -345,9 +352,9 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : error instanceof StreamIdleTimeoutError && error.noBytes
-              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: error.silentMs, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
               : error instanceof StreamIdleTimeoutError
-                ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+                ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: streamIdleFaultWords(idleMs), retryable: true }
                 : { kind: 'transport-error', code: 'read-failed', message: error instanceof Error ? error.message : String(error), retryable: true },
         }
         void reader.cancel().catch(() => {})
@@ -370,11 +377,13 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
           continue
         }
         for (const event of tapRaw(parsed, state)) {
+          noteToken(event)
           relay.noteEvent()
           yield event
         }
         for (const event of fold.fold(parsed)) {
           for (const translated of translate(event, state, slots)) {
+            noteToken(translated)
             relay.noteEvent()
             yield translated
           }
@@ -394,6 +403,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
     }
   } finally {
     clearTimeout(totalTimer)
+    options.firstByte?.onWait?.(null)
     idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()

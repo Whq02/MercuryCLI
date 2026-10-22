@@ -142,6 +142,7 @@ export interface CompatFault {
   code: string
   message: string
   retryable: boolean
+  silentMs?: number
   inStream?: true
   status?: number
   parameter?: string
@@ -247,6 +248,7 @@ export interface CompatStreamOptions {
     cold: boolean
     promptTokens: number
     model: string
+    prefillMs?: number
     attempt?: number
     onWait?: (wait: RequestWaitV1 | null) => void
   }
@@ -425,7 +427,8 @@ export async function* streamCompatChat(
         : firstByteBudgetMs({
             cold: options.firstByte?.cold === true,
             promptTokens: options.firstByte?.promptTokens ?? 0,
-            idleMs: idleMs,
+            idleMs,
+            prefillMs: options.firstByte?.prefillMs,
           })
     const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
       kind: 'first-byte',
@@ -435,6 +438,7 @@ export async function* streamCompatChat(
       budgetMs: firstByteBudget,
       sinceMs: timers.now(),
       attempt: options.firstByte?.attempt ?? 1,
+      ...(options.firstByte?.prefillMs !== undefined ? { prefillMs: options.firstByte.prefillMs } : {}),
       ...(local !== undefined ? { promise: true } : {}),
     }
     const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
@@ -600,7 +604,8 @@ export async function* streamCompatChat(
     }
     if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
     stopIngestWatch()
-    publish(null)
+    publish(response.ok ? { ...wait, phase: 'tokens' } : null)
+    let tokenWait = response.ok
 
     if (!response.ok) {
       let body: unknown
@@ -723,15 +728,15 @@ export async function* streamCompatChat(
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : livenessCut !== null
-              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - quietSinceMs, wait.promptTokens)} — ${livenessCut}`, retryable: true }
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: Date.now() - quietSinceMs, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - quietSinceMs, wait.promptTokens)} — ${livenessCut}`, retryable: true }
             : local !== undefined && cut.dead !== null
               ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
               : local !== undefined && cut.cap
                 ? { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'writing'), retryable: false }
                 : noBytes
-                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: `${silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens)}${slotNote}`, retryable: true }
+                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: error.silentMs, message: `${silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens)}${slotNote}`, retryable: true }
                   : isIdle
-                    ? { kind: 'timeout', code: 'idle-timeout', message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
+                    ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
                     : {
                       kind: 'transport-error',
                       code: 'read-failed',
@@ -788,6 +793,7 @@ export async function* streamCompatChat(
         }
         for (const event of decodeChunk(parsed, toolAcc)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
+            if (tokenWait) { tokenWait = false; publish(null) }
             chunkNotedEvent = true
           }
           if (event.type === 'served-model') {
@@ -853,6 +859,7 @@ export async function* streamCompatChat(
     }
   } finally {
     timers.clearTimeout(totalTimer)
+    options.firstByte?.onWait?.(null)
     if (livenessTimer !== null) timers.clearTimeout(livenessTimer)
     idleWatchdog?.stop()
     silenceWatch?.stop()

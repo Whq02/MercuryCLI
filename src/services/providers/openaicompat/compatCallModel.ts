@@ -7,6 +7,7 @@ import { compatKeyEnvName, compatModelEndpoint, compatModelRefusal } from './com
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { compatResponsesTransport } from './compatResponsesTransport.js'
 import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLiveness, resolveLlamacppTotalSlots } from './compatProbe.js'
+import { readCompatPrefillSpeed } from './compatPrefill.js'
 import { buildHostedExtras, buildMoonshotExtras } from './compatWire.js'
 import { compatModelEfforts } from './compatEffort.js'
 import { isKimiK3WireModel } from './kimiReplay.js'
@@ -80,6 +81,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
   const profile: CompatLaneProfile = {
     ...compatSlotLaneProfile,
     dialect,
+    prefillTokensPerSecond: () => readCompatPrefillSpeed(endpoint, wireId, { key: resolveCompatApiKey(process.env, endpoint.name)?.key, signal: params.signal }),
     providerLabel: endpoint.label,
     keepsReasoningHistory: () => preservedReasoning,
     keepsReasoningOnContinuations: () => preservedReasoning,

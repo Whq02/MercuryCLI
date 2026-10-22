@@ -94,6 +94,12 @@ export function outageCauseOfFetchFailure(error: unknown): OutageCause | null {
   return outageCauseOfChain(error)
 }
 
+export function streamReconnectCause(fault: { kind: string; code: string; retryable: boolean }): OutageCause | null {
+  if (!fault.retryable) return null
+  if (fault.kind === 'timeout' && (fault.code === 'idle-timeout' || fault.code === 'silent-after-headers')) return { code: fault.code, words: 'the stream went silent' }
+  if ((fault.kind === 'transport-error' || fault.kind === 'truncated-stream') && fault.code === 'read-failed') return { code: fault.code, words: 'the stream connection dropped' }
+  return null
+}
 export function outageCauseWords(cause: OutageCause): string {
   return `network unreachable (${cause.words})`
 }

@@ -274,6 +274,7 @@ Object.assign(process.env, {
   MERCURY_STREAM_IDLE_TIMEOUT_MS: String(IDLE_MS),
   MERCURY_SILENT_AFTER_HEADERS_MS: String(FENCE_MS),
   MERCURY_MAX_RETRIES: '1',
+  MERCURY_RECONNECT_SCALE: '0.01',
 })
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -330,9 +331,9 @@ section('L6 · the Moonshot road end to end: headers then nothing → one retry 
   const o = await drive('kimi-k3')
   check('the turn settled end_turn on the reissued request', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} errors=${o.errors.join('|').slice(0, 300)}`)
   check('two requests: the silent one, then the answer', seen.moonshot!.join(',') === 'silent,full', seen.moonshot!.join(','))
-  check('exactly one retry notice, carrying the dead-connection words with the model and the wait', o.notices.length === 1 && DEAD_WORDS.test(noticeWords(o.notices)), noticeWords(o.notices).slice(0, 300))
+  check('exactly one reconnect notice, naming the silent stream and its rung', o.notices.length === 1 && /^no tokens for 1 s · reconnecting \(1 of \d+\)$/.test(noticeWords(o.notices)), noticeWords(o.notices).slice(0, 300))
   const wait = o.notices[0] !== undefined ? idle.retryNoticeWait(o.notices[0]) : null
-  check('the status row reads "retrying — attempt 1 of 1 after a dead connection"', wait !== null && idle.requestWaitLine(wait).startsWith('retrying — attempt 1 of 1 after a dead connection'), wait !== null ? idle.requestWaitLine(wait) : 'no notice')
+  check('the status row carries the same silence and reconnect count', wait !== null && idle.requestWaitLine(wait) === noticeWords(o.notices) && wait.reconnecting === true && wait.silentMs! >= FENCE_MS, wait !== null ? idle.requestWaitLine(wait) : 'no notice')
   check('the whole turn took less than the idle budget (the base waits the budget out before its retry)', o.wallMs < IDLE_MS, `${o.wallMs.toFixed(0)} ms`)
 }
 

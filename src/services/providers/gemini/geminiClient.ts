@@ -65,6 +65,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
   let firstTimer: ReturnType<typeof setTimeout> | undefined
   let firstByteFired = false
   let headersReceived = false
+  let tokenWait = true
   const parts: GeminiPart[] = []
   const calls: CompatCompletedToolCall[] = []
   const nativeCalls: GeminiTurnItem['calls'] = []
@@ -209,7 +210,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     }
     headersReceived = true
     clearTimeout(firstTimer)
-    options.firstByte?.onWait?.(null)
+    options.firstByte?.onWait?.(response.ok && stream ? { ...wait, phase: 'tokens' } : null)
     options.onResponseHeaders?.(response.headers, response.status)
     watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: response.ok && stream ? options.silentAfterHeadersMs ?? null : null })
     if (!response.ok) {
@@ -249,7 +250,13 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
             yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'bad-json-chunk', message: 'Gemini returned an invalid JSON stream event', retryable: false } }
             continue
           }
-          yield* decode(value)
+          for (const decoded of decode(value)) {
+            if (tokenWait && (decoded.type === 'text-delta' || decoded.type === 'reasoning-delta' || decoded.type === 'reasoning-withheld' || decoded.type === 'tool-call-fragment')) {
+              tokenWait = false
+              options.firstByte?.onWait?.(null)
+            }
+            yield decoded
+          }
         }
         if (chunk.done) break
       }
@@ -276,10 +283,10 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       : firstByteFired
         ? { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true }
         : idle && error.noBytes
-          ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+          ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: error.silentMs, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
           : idle
-            ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-            : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: !headersReceived, ...(outage !== null ? { outage } : {}) } }
+            ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: streamIdleFaultWords(idleMs), retryable: true }
+            : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: true, ...(outage !== null ? { outage } : {}) } }
   } finally {
     if (firstTimer) clearTimeout(firstTimer)
     options.firstByte?.onWait?.(null)
