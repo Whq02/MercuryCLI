@@ -66,8 +66,11 @@ export async function terminateHostResource(api: RunpodClient | HostVendor, pod:
     try { clusters = await (readOnly ? readOnly('cluster listing', signal => client.clusters(signal)) : client.clusters()) } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed('Runpod', error); throw error }
     if (clusters.some(row => row.id === pod.id)) throw new Error('Runpod accepted termination but still lists this cluster. Check it again; deletion is not yet verified.')
   } else {
-    await api.terminate(pod.id)
-    if ((await api.pods()).some(row => row.id === pod.id)) throw new Error(('label' in api ? api.label : 'Runpod') + ' accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
+    const label = 'label' in api ? api.label : 'Runpod'
+    if ('vendor' in api) await api.terminate(pod.id, readOnly); else await api.terminate(pod.id)
+    let pods
+    try { pods = await (readOnly ? readOnly('pod listing', signal => api.pods(signal)) : api.pods()) } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(label, error); throw error }
+    if (pods.some(row => row.id === pod.id && row.status !== 'TERMINATED')) throw new Error(label + ' accepted termination but still lists this pod. Check it again; deletion is not yet verified.')
   }
 }
 

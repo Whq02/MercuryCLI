@@ -14,6 +14,7 @@ import { currentHostRecipes } from './recipesFile.js'
 import { pinnedWeightManifest } from './keptWeights.js'
 import { captureHostHuggingfaceCredential } from './jobCredentials.js'
 import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
+import { HOST_VENDOR_INFO } from './vendors/vendor.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -115,6 +116,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
     const watch = record.jobKind === 'watch'
     const bank = record.jobKind === 'bank'
     const bankWords = (detail: string): string => record.name + ' · ' + (record.bankTask === 'verify' ? 'bank verification' : 'banking') + ' ' + detail + ' · nothing was rented · /llmhost → Bank to try again'
+    const bills = (row: HostRecord): string => 'Mercury did not terminate the ' + (row.cluster ? 'cluster' : 'pod') + '; it bills $' + row.price.toFixed(2) + '/hr while it runs'
     const alive = options.alive?.(record) ?? active(record)
     if (record.jobState === 'queued' && !alive) {
       try {
@@ -127,7 +129,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
         }
       } catch (error) {
         patchHostRecord(record.id, { jobState: 'failed', error: String(error) })
-        hostNotice(record, 'failed', bank ? bankWords('could not start · ' + String(error)) : record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup stalled at ' + record.step + ' · ' + String(error) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+        hostNotice(record, 'failed', bank ? bankWords('could not start · ' + String(error)) : record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup could not start at ' + record.step + ': ' + String(error) + ' · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
       }
       continue
     }
@@ -146,14 +148,15 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
     if (watch && ['running', 'starting'].includes(record.jobState) && !alive) {
       const current = readHostRecord(record.id)
       if (!current || current.generation !== record.generation || !['running', 'starting'].includes(current.jobState ?? '') || hostRecords().some(row => row.watchedFrom === record.id)) continue
-      const words = current.creating ? current.creating + ' may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' : 'stock watch stopped: its process ended · no pod was created · /llmhost → Rent a GPU to watch again'
+      const words = current.creating ? current.creating + ' may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' : 'stock watch stopped: its process ended · no pod was created · /llmhost → the model → Watch stock to watch again'
       patchHostRecord(record.id, { jobState: 'failed', error: words })
       hostNotice(current, 'failed', current.name + ' · ' + words)
       continue
     }
     if (['running', 'starting'].includes(record.jobState) && (!alive || Date.now() - (record.advancedAt ?? 0) >= (options.stallMs ?? 600_000)) || record.jobState === 'ready' && !alive) {
-      if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: 'The setup job process is gone.' })
-      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read Runpod since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+      const dropped = record.jobState === 'ready'
+      if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: dropped ? 'The job process ended after the pod was ready; the tunnel is down.' : 'The setup job process is gone.' })
+      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read ' + ((record.watchVendors?.length ?? 0) > 1 ? 'any provider’s stock' : HOST_VENDOR_INFO[record.watchVendors?.[0] ?? record.vendor ?? 'runpod'].label + '’s stock') + ' since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : dropped ? ' · the job process ended after the ' + (record.cluster ? 'cluster' : 'pod') + ' was ready, so the tunnel is down · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
     }
   }
 }

@@ -154,7 +154,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
       }
     }
     const changedAddress = existing !== undefined && existing.baseUrl !== baseUrl
-    if (changedAddress && existing && (process.env[compatKeyEnvName(existing.name)] || existing.name === 'default' && (process.env.MERCURY_COMPAT_API_KEY || process.env.MERCURY_COMPAT_BASE_URL))) throw new Error('An environment pin controls this endpoint. Clear that pin before changing its address.')
+    if (changedAddress && existing && (process.env[compatKeyEnvName(existing.name)] || existing.name === 'default' && (process.env.MERCURY_COMPAT_API_KEY || process.env.MERCURY_COMPAT_BASE_URL))) throw new Error('An environment variable (' + (existing.name === 'default' ? 'MERCURY_COMPAT_API_KEY or MERCURY_COMPAT_BASE_URL' : compatKeyEnvName(existing.name)) + ') sets this endpoint. Unset it before changing the address.')
     let probeEndpoint: CompatEndpointSettings & { baseUrl: string } = recheck && existing ? existing : { baseUrl }
     key = recheck && existing ? resolveCompatApiKey(process.env, existing.name)?.key : undefined
     let reading: CompatServerReading
@@ -203,7 +203,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     const confirm = await question({ step: 'confirm', title: words.confirm, found: `${name} · ${baseUrl} · ${dialect} · ${selected}`, willRun: recheck ? words.recheckRun : words.confirmRun, rows: [{ value: 'run', label: recheck ? words.check : words.register }, { value: 'cancel', label: words.cancel }] })
     if (confirm !== 'run' || signal.aborted) return stop()
     const envKey = process.env[compatKeyEnvName(name)]?.trim() || (name === 'default' ? process.env.MERCURY_COMPAT_API_KEY?.trim() : undefined)
-    if (envKey && envKey !== key) throw new Error(`${compatKeyEnvName(name)} takes precedence over a stored key. Clear that pin before registering a different key or address.`)
+    if (envKey && envKey !== key) throw new Error(`${compatKeyEnvName(name)} takes precedence over a stored key. Unset that environment variable before registering a different key or address.`)
     if (!recheck) {
       editable()
       if (existing) writeStoredCompatApiKey(null, name)

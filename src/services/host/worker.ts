@@ -337,20 +337,42 @@ export async function runHostJob(id: string, generation: string, options: { runn
     mark('ready')
     const record = patchHostRecord(id, { jobState: 'ready' })!
     hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record))
-    if (options.keepAlive !== false) while (!signal.aborted) {
-      await delay(pause, undefined, { signal })
-      const observed = readHostRecord(id)
-      if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
-      let response: Response
-      try { response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' }) } catch (error) {
-        const current = readHostRecord(id)
-        if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
-        throw error
+    if (options.keepAlive !== false) {
+      const reconnects = 5
+      const reconnect = async (why: string): Promise<void> => {
+        for (let attempt = 1; ; attempt++) {
+          const words = 'tunnel dropped · reconnecting · attempt ' + attempt + ' of ' + reconnects + ' · ' + why
+          log(words)
+          patchHostRecord(id, { step: words })
+          try {
+            await openHostTunnel(id, target!, runner, signal, port)
+            patchHostRecord(id, { step: 'ready' })
+            log('tunnel reconnected on 127.0.0.1:' + port)
+            return
+          } catch (error) {
+            signal.throwIfAborted()
+            why = clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200)
+            if (attempt >= reconnects) throw new Error('The SSH tunnel dropped and ' + reconnects + ' reconnects failed: ' + why)
+            await delay(Math.min(60_000, pause * 2 ** attempt), undefined, { signal })
+          }
+        }
       }
-      const after = readHostRecord(id)
-      if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
-      if (!response.ok) throw new Error('The SSH tunnel no longer answers: HTTP ' + response.status)
-      await response.body?.cancel()
+      while (!signal.aborted) {
+        await delay(pause, undefined, { signal })
+        const observed = readHostRecord(id)
+        if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
+        let response: Response
+        try { response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), redirect: 'error' }) } catch (error) {
+          const current = readHostRecord(id)
+          if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
+          await reconnect(clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200))
+          continue
+        }
+        const after = readHostRecord(id)
+        if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
+        if (!response.ok) { await response.body?.cancel(); await reconnect('HTTP ' + response.status + ' from the tunnel'); continue }
+        await response.body?.cancel()
+      }
     }
   } catch (error) {
     if (error instanceof HostPreparationCleanupFailed) { closeHostTunnel(id); return }
@@ -363,7 +385,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const plain = (value: unknown): string => clean(value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
       const detail = plain(error)
       const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : initial.volumeId ? 'weights disk billing is not verified; check your account' : ''
-      const next = disk ? '/llmhost → Fast-load to delete the disk, or rent again' : '/llmhost to check the setup and rent again'
+      const next = disk ? '/llmhost → Bank → d deletes the disk, or rent again' : '/llmhost to check the setup and rent again'
       try {
         const cleanupApi = vendorClient(initial)
         const missing = error instanceof HostPodMissing
@@ -398,13 +420,17 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
       const retried = hostReadFailureWords(failure)
-      const detail = clean(retried ? retried + ' · setup paused · Resume retries' : String(failure))
+      const resource = initial.cluster ? 'cluster' : 'pod'
+      const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + initial.price.toFixed(2) + '/hr while it runs'
+      const wasReady = current.jobState === 'ready'
+      const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
       const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
       log(detail)
       if (error instanceof HostClusterEnded) {
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
-      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + ' · /llmhost → Pods I’m paying for')
+      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Pods I’m paying for')
+      else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill')
       else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
     }
     closeHostTunnel(id)

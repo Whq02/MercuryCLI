@@ -166,8 +166,9 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
   }
   throw new Error('Engine not ready. ' + last)
 }
-export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal): Promise<number> {
-  const port = await new Promise<number>((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(0, '127.0.0.1', () => { const address = server.address(); const port = typeof address === 'object' && address ? address.port : 0; server.close(() => resolve(port)) }) })
+export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, preferredPort?: number): Promise<number> {
+  tunnels.get(id)?.stop()
+  const port = await new Promise<number>((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(preferredPort ?? 0, '127.0.0.1', () => { const address = server.address(); const port = typeof address === 'object' && address ? address.port : 0; server.close(() => resolve(port)) }) })
   const args = sshArguments(target)
   const tunnel = runner.tunnel(['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + port + ':127.0.0.1:30000', ...args])
   try {

@@ -236,7 +236,16 @@ try {
   await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })
   check('failed cleanup keeps the billed pod id and names it in durable error words', readHostRecord(otherPod.id)?.error?.includes(otherPod.id + ' may still bill') && rp.state.pods.has(otherPod.id))
   ssh.state.refuse = false; rp.state.failDelete = false
-  await api.terminate(otherPod.id); removeHostRecord(otherPod.id); await volumes.deleteKeptVolume(api, shared.id)
+  await api.terminate(otherPod.id); removeHostRecord(otherPod.id)
+  const deleteWords: string[] = []
+  const retriedDelete = await volumeDeleteDoor(api, shared.id, async q => { if (q.step !== 'volume-delete') return null; rp.state.failNext = { route: 'GET /v2/network-volumes', status: 503, times: 2 }; return 'delete' }, signal, event => deleteWords.push(event.words), 20000)
+  check('a delete whose listing hiccups twice says it is waiting, retries with words, and still verifies the disk gone', retriedDelete.ok && retriedDelete.words === 'Weights disk deleted · next rental downloads the weights again.' && deleteWords[0] === shared.id + ' · deleting · waiting for Runpod to drop it from the volume list' && deleteWords.filter(words => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(words)).length === 2 && rp.state.failNext.times === 0 && volumes.readKeptVolume(shared.id)?.state === 'gone' && !rp.state.volumes.has(shared.id))
+  rp.state.failNext = null
+  const unconfirmedDisk = await volumes.createKeptVolume(api, qwen, 'global', 'any DC', signal)
+  const unconfirmedDelete = await volumeDeleteDoor(api, unconfirmedDisk.id, async q => { if (q.step !== 'volume-delete') return null; rp.state.failNext = { route: 'GET /v2/network-volumes', status: 503, times: 1000 }; return 'delete' }, signal, () => {}, 300)
+  rp.state.failNext = null
+  check('a delete whose listing never answers says the deletion was sent but not confirmed, that the disk may still bill, and keeps its record', !unconfirmedDelete.ok && unconfirmedDelete.words.startsWith('Deletion of ' + unconfirmedDisk.id + ' was sent, but Runpod did not confirm the disk is gone: ') && unconfirmedDelete.words.includes('it may still bill') && unconfirmedDelete.words.includes('refresh Pods I’m paying for') && volumes.readKeptVolume(unconfirmedDisk.id)?.state !== 'gone' && !rp.state.volumes.has(unconfirmedDisk.id))
+  await volumes.deleteKeptVolume(api, unconfirmedDisk.id)
   const beforeStub = { disks: rp.state.volumeCreates, pods: rp.state.creates, commands: ssh.commands.length }
   await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === qwen.model)!, async q => {
     if (q.step === 'fast-load-how') return 'ssh'
@@ -387,7 +396,7 @@ try {
   volumes.writeKeptVolume({ ...volumes.readKeptVolume(filling.id)!, state: 'preparing', preparingPod: fillPod.id })
   const whileFilling = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   await api.terminate(fillPod.id)
-  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when Fast-load shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
+  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when the Bank shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
   rp.state.failVolumeRead = true
   const blindRental = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   check('a model with a disk is not rented blind while the volume list is unreadable', blindRental.includes('cannot be confirmed while Runpod’s volume list is unavailable; no pod was created'))

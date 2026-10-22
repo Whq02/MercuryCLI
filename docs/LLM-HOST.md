@@ -37,7 +37,7 @@ and then alphabetically by model name.
 
 Below the model list, **Which model?** includes **Pods I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
-`Other roads →` menu (`Rent a GPU (Runpod)`, `A box I can reach by SSH`,
+`More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda)`, `A box I can reach by SSH`,
 `A server that's already running`, `One of my computers`, and
 `Bank · your weights`). Each path reads the server's model list and context
 windows, runs a reply check, and registers the provider in `/model` and
@@ -148,7 +148,7 @@ line (or the `RECIPE · unverified — …` line) and five sections:
 ## The Bank screen (`Bank · your weights`) and Runpod fast-load volumes
 
 Open `/llmhost` and select `Bank · your weights` (on **Which model?**, under
-`Other roads →`, or from a model screen's `Bank · …` row). Opening the Bank
+`More options →`, or from a model screen's `Bank · …` row). Opening the Bank
 screen does not require a GPU provider API key until you mirror or drop a
 Runpod volume.
 
@@ -350,7 +350,7 @@ limit without sending a request.
 
 ## Run a model on your own computer: `My computers` and `mercury host`
 
-Open `/llmhost` and choose **My computers** (or `Other roads →` → **One of my
+Open `/llmhost` and choose **My computers** (or `More options →` → **One of my
 computers**), or run `mercury host` from the command line:
 
 ```sh
@@ -381,7 +381,7 @@ service definition and leaves downloaded weights on disk.
 
 ## A box I can reach by SSH
 
-In `/llmhost` → `Other roads →` → **A box I can reach by SSH**, enter a host
+In `/llmhost` → `More options →` → **A box I can reach by SSH**, enter a host
 and user or an alias from your SSH config. Mercury runs `nvidia-smi` over SSH
 and lists the recipes that fit those GPUs. Nothing is installed or started
 until you confirm. You can use a local weight folder on that machine (checked
@@ -391,7 +391,7 @@ Mercury opens a local SSH tunnel.
 
 ## A server that's already running
 
-In `/llmhost` → `Other roads →` → **A server that's already running**, connect
+In `/llmhost` → `More options →` → **A server that's already running**, connect
 a local server, a direct HTTPS URL, or the local port of an SSH tunnel you
 already opened.
 
@@ -497,14 +497,14 @@ loopback, open an SSH tunnel from your terminal:
 ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:30000:127.0.0.1:30000 user@pod.example
 ```
 
-Leave that connection running, open `/llmhost` → `Other roads →` → **A server
+Leave that connection running, open `/llmhost` → `More options →` → **A server
 that's already running**, and enter `http://127.0.0.1:30000/v1`.
 
 ## Check, change or remove a server
 
 In `/model`, an unreachable keyless endpoint shows `Retry this server →`, and
 an unreachable custom endpoint shows `Retry this server →` and
-`Remove this endpoint →`. You can also open `/llmhost` → `Other roads →` →
+`Remove this endpoint →`. You can also open `/llmhost` → `More options →` →
 **A server that's already running** and pick a registered server to:
 
 - **Check a reply again:** refresh its model list and run a reply check with
