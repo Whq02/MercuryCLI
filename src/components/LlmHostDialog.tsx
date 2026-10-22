@@ -172,7 +172,8 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     const action = keyActions.length && !key.ctrl && !key.meta && input.length === 1 ? keyActions.find(row => row.key === input) : undefined
     if (action) {
       event.stopImmediatePropagation()
-      if (pastOpenEvent() && detailsFit && cursor !== null && rows[cursor]) answer(action.value + ':' + rows[cursor]!.value)
+      const target = question?.step === 'door-model' ? rows.find(row => row.value === 'bank') : cursor !== null ? rows[cursor] : undefined
+      if (pastOpenEvent() && detailsFit && target) answer(action.value + ':' + target.value)
       return
     }
     if ((key.pageUp || key.pageDown) && choicesPage) {

@@ -22,7 +22,7 @@ if (bundle) {
     const shots = grabScreens(arena, 120, 44, [7000, 9000, 11000, 13000].map(vshotBudgetMs))
     if (frames) shots.forEach((shot, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), shot.rows.join('\n')))
     check('built /llmhost opens the model-first popup', shots.some(shot => shot.rows.join(' ').includes('Which model?')))
-    check('built popup includes model choices and, a page down, the existing roads link', shots.some(shot => shot.rows.join(' ').includes('GLM-5.3-Flash')) && shots.some(shot => { const text = shot.rows.join(' '); return text.includes('My computers') && text.includes('Other roads') }))
+    check('built popup includes model choices and, a page down, the existing roads link', shots.some(shot => shot.rows.join(' ').includes('GLM-5.3-Flash')) && shots.some(shot => { const text = shot.rows.join(' '); return text.includes('My computers') && text.includes('More options') }))
   } finally { arena.cleanup() }
 }
 const f = await llmhostFixture()
@@ -52,7 +52,7 @@ try {
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15_000), 'screen reaches ' + needle + '\n' + m.screen())
   const heading = async (needle: string) => {
-    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('Other roads →') }
+    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('More options →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active question reaches ' + needle + '\n' + m.screen())
   }
   const images: Promise<unknown>[] = []

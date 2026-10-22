@@ -136,7 +136,7 @@ try {
     writeFileSync(path, JSON.stringify({ grid, cols: width, rows: 44 }))
     await gridToPng(path, join(frames, name + '.png'))
   }
-  const openBank = async () => { open(); await heading('Which model?'); await choose('Other roads'); await heading('Where should the model run?'); await choose('Bank · your weights') }
+  const openBank = async () => { open(); await heading('Which model?'); await choose('More options'); await heading('Where should the model run?'); await choose('Bank · your weights') }
   const bankFolder = join(f.home, 'mercury-model-bank')
   const tinyA = recipes.find(recipe => recipe.model === 'fixture/tiny-a')!
   const tinyB = recipes.find(recipe => recipe.model === 'fixture/tiny-b')!

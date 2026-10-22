@@ -283,7 +283,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const spend = paid.filter(pod => pod.status === 'RUNNING' || pod.status === 'PROVISIONING').reduce((sum, pod) => sum + pod.cost * Math.max(0, Date.now() - Date.parse(pod.startedAt ?? pod.createdAt)) / 3600_000, 0)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
-      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'Other roads →' }]
+      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
       for (;;) {
         const live = search.lookup(query)
         const models = live?.state === 'ready' ? live.models : []
@@ -369,7 +369,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
         if (!row) continue
         if (!row.vendor) return enterRoad(deps, ask, emit, signal, 'rent', row.offer.recipe, row.offer, offers)
         if (deps.rentVendor) return deps.rentVendor(row.vendor, row.offer, ask, emit, signal)
-        emit({ title: 'Rental unavailable', words: 'This vendor has no connected rental road. Nothing was rented.' })
+        emit({ title: 'Rental unavailable', words: 'This vendor has no connected rental service. Nothing was rented.' })
         continue
       }
       if (choice === 'watch') {
@@ -380,7 +380,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       }
       if (choice === 'bank' || BANK_KEYS.some(row => choice.startsWith(row.value + ':'))) {
         const action = choice === 'bank' ? 'open' : choice.slice(0, choice.indexOf(':')) as BankActionKind
-        if (!deps.bank) { emit({ title: 'Bank', words: 'The bank is not available on this road. Nothing was changed.' }); continue }
+        if (!deps.bank) { emit({ title: 'Bank', words: 'The bank is not available here. Nothing was changed.' }); continue }
         const result = await deps.bank(action, recipe)
         if (result) return result
         continue

@@ -90,10 +90,10 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
     if (!action) return cancelled()
     return
   }
-  const how = await ask({ step: 'fast-load-how', title: recipe.label + ' · How?', found: recipe.weightsGb.toFixed(2) + ' GB of weights · not kept', willRun: 'Choose where to keep this model. No disk has been created.', rows: [{ value: 'network', label: 'Runpod network volume · one data centre · $0.07/GB/month' }, { value: 'global', label: 'Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS' }, { value: 'ssh', label: 'My own bank over SSH · mercury-host road' }, { value: 'back', label: 'Back' }] })
+  const how = await ask({ step: 'fast-load-how', title: recipe.label + ' · How?', found: recipe.weightsGb.toFixed(2) + ' GB of weights · not kept', willRun: 'Choose where to keep this model. No disk has been created.', rows: [{ value: 'network', label: 'Runpod network volume · one data centre · $0.07/GB/month' }, { value: 'global', label: 'Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS' }, { value: 'ssh', label: 'My own bank over SSH · mercury host' }, { value: 'back', label: 'Back' }] })
   if (!how) return cancelled()
   if (how === 'back') return
-  if (how === 'ssh') { emit({ title: 'My own bank over SSH', words: 'Use the mercury-host SSH bank road. Fast-load does not create or copy an SSH bank.' }); return }
+  if (how === 'ssh') { emit({ title: 'My own bank over SSH', words: 'Use mercury host for an SSH bank. Fast-load does not create or copy an SSH bank.' }); return }
   if (how !== 'network' && how !== 'global') throw new Error('Choose a storage kind from the catalogue.')
   let dataCenter = 'any DC'
   if (how === 'network') {
