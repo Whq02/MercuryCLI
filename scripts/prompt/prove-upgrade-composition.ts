@@ -46,8 +46,10 @@ try {
     assert.equal(unpack.status, 0, unpack.stderr.toString())
     const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], { cwd: base, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
     assert.equal(install.status, 0, install.stdout + install.stderr)
+    const lockOf = (tree: string, name: string): string | undefined => existsSync(join(tree, 'vendor', `${name}.lock.json`)) ? readFileSync(join(tree, 'vendor', `${name}.lock.json`), 'utf8') : undefined
     for (const name of readdirSync(join(root, 'vendor'))) {
       if (name === 'desktop' || existsSync(join(base, 'vendor', name))) continue
+      if (lockOf(root, name) !== lockOf(base, name)) continue
       symlinkSync(join(root, 'vendor', name), join(base, 'vendor', name))
     }
     const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: base, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home'), MERCURY_BUILD_OUTDIR: baseOut }, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
