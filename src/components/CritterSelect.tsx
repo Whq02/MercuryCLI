@@ -46,7 +46,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
             setSessionCritter(picked.key)
             persistSessionCritter(picked.key)
           }
-          return `switched to ${picked?.name ?? 'crab'} — yours across relaunches (env pin still wins)`
+          return `switched to ${picked?.name ?? 'crab'} — yours across relaunches (MERCURY_CRITTER overrides)`
         },
         hint: 'pick',
       },

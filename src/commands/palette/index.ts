@@ -4,7 +4,7 @@ const palette = {
   type: 'local-jsx',
   name: 'palette',
   description:
-    'Fuzzy command palette — nucleo-style search over the live command roster + the command ladder',
+    'Fuzzy command palette — search across all commands',
   aliases: ['p'],
   isEnabled: () => true,
   isHidden: false,

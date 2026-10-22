@@ -78,7 +78,7 @@ export function SlotOfferCard({
         ) : (
           <Text color={FAINT}>
             {GLYPH.dot} the {toLabel} slot is signed in — its own usage window is
-            unobserved from this seat (it may hold its own limits); same family, same
+            unobserved from here (it may hold its own limits); same family, same
             session; the next turn rides it
           </Text>
         )}

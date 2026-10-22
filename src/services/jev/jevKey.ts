@@ -37,5 +37,5 @@ export function storeJevApiKey(key: string | null): void {
 export function jevKeySourceWords(presence: JevKeyPresence, road: JevRoad = readJevSettings().road): string {
   if (!presence.present) return road === 'openrouter' ? 'no key — sign in or paste an OpenRouter key at /logins' : 'no key'
   if (road === 'openrouter') return presence.source === 'env' ? 'key present (OPENROUTER_API_KEY)' : presence.source === 'oauth' ? 'OpenRouter sign-in (/logins)' : 'OpenRouter key stored (/logins)'
-  return presence.source === 'env' ? `key present (${JEV_KEY_ENV} in the environment outranks the store)` : 'key stored (the credential store; the value is never shown)'
+  return presence.source === 'env' ? `key present (${JEV_KEY_ENV} in the environment outranks the store)` : 'key stored (the value is never shown)'
 }

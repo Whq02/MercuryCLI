@@ -95,6 +95,34 @@ const SURFACES: readonly string[] = [
   'src/services/providers/accountSlots.ts',
   'src/services/providers/slotSwitch.ts',
   'src/services/providers/providerUsability.ts',
+  'src/components/Settings',
+  'src/components/HelpV2',
+  'src/components/tasks',
+  'src/components/TrustDialog',
+  'src/components/MercuryFilesMenu.tsx',
+  'src/components/MercuryFileOpen.tsx',
+  'src/components/LocalSetupDialog.tsx',
+  'src/components/WorktreeExitDialog.tsx',
+  'src/components/SovereignModeDialog.tsx',
+  'src/components/SessionPreview.tsx',
+  'src/components/ExportDialog.tsx',
+  'src/components/CrashResumeDialog.tsx',
+  'src/components/CostThresholdDialog.tsx',
+  'src/components/InvalidSettingsDialog.tsx',
+  'src/components/InvalidConfigDialog.tsx',
+  'src/components/MCPServerApprovalDialog.tsx',
+  'src/components/MCPServerMultiselectDialog.tsx',
+  'src/commands/bootmenu/index.ts',
+  'src/commands/caching/caching.tsx',
+  'src/commands/defaultprovider/index.ts',
+  'src/commands/export/export.tsx',
+  'src/commands/palette/index.ts',
+  'src/components/CapOfferCard.tsx',
+  'src/components/CritterSelect.tsx',
+  'src/components/MessageSelector.tsx',
+  'src/components/SlotOfferCard.tsx',
+  'src/components/extensions/ExtensionsBoard.tsx',
+  'src/services/jev/jevKey.ts',
 ]
 
 const SKIP_FUNCTIONS = new Set([
@@ -141,6 +169,36 @@ export const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: str
     file: 'src/services/host/vendors/lambda.ts',
     text: 'Renting adds Mercury’s SSH public key to your Lambda account keys, named mercury-host- and the key’s fingerprint; only instances launched with that key accept it. Remove it in the Lambda console when you stop renting through Mercury.',
     reason: 'Consent disclosure: tells the user what is added to their Lambda account and how to remove it.',
+  },
+  {
+    file: 'src/components/MercuryFileOpen.tsx',
+    text: 'fuzzy-find a file to reference…',
+    reason: 'User term: referencing a file in the prompt with @.',
+  },
+  {
+    file: 'src/components/Settings/Config.tsx',
+    text: 'a seat is one model call in flight; ',
+    reason: 'Product term: the /seats command and the Seats row in /config.',
+  },
+  {
+    file: 'src/components/Settings/Config.tsx',
+    text: 'set the seat ceiling to ',
+    reason: 'Product term: the /seats command and the Seats row in /config.',
+  },
+  {
+    file: 'src/components/Settings/Config.tsx',
+    text: 'on hides the lanes and vitals rails and the chat takes the full width of the terminal — /zen flips it too · view.zen in settings',
+    reason: 'User screen term: the LANES and VITALS side rails in the cockpit.',
+  },
+  {
+    file: 'src/components/Settings/Config.tsx',
+    text: ' · pin and unpin in /memory',
+    reason: 'User command term: pinning and unpinning rules in /memory.',
+  },
+  {
+    file: 'src/components/Settings/Config.tsx',
+    text: 'Memory at start, beyond the pins',
+    reason: 'User command term: pinned rules in /memory.',
   },
 ]
 
@@ -190,6 +248,7 @@ function insideSkippedContext(node: ts.Node): boolean {
     if (ts.isFunctionDeclaration(current) && current.name && SKIP_FUNCTIONS.has(current.name.text)) return true
     if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && SKIP_CONSTS.has(current.name.text)) return true
     if (ts.isCallExpression(current) && ts.isIdentifier(current.expression) && SKIP_CALLS.has(current.expression.text)) return true
+    if (ts.isPropertyAssignment(current) && ts.isIdentifier(current.name) && current.name.text === 'searchText') return true
     if (
       ts.isPropertyAssignment(current) &&
       ts.isIdentifier(current.name) &&

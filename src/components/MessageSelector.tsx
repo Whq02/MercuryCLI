@@ -539,7 +539,7 @@ export function MessageSelector({
               ? 'Wind back to a saved point — the files, the conversation, or both.'
               : checkpoints.capture === 'off'
                 ? 'File checkpoints are off for this session (Settings › File checkpointing) — the conversation can still be restored or forked.'
-                : "This session's runner reports no checkpoint capture (an older runner — /daemon restart when ready); the conversation can still be restored or forked."}
+                : 'This session started before checkpoint capture (start a new session when ready); the conversation can still be restored or forked.'}
           </Text>
         )}
         {visible.map((entry, offset) => {
@@ -760,7 +760,7 @@ export function MessageSelector({
       </Box>
       {canRestoreCode ? (
         <Text dimColor>
-          A file edited by hand since the session last touched it is refused by name — nothing is restored until you reconcile it.
+          A file edited by hand since the session last touched it is refused by name — nothing is restored until you resolve it.
         </Text>
       ) : null}
     </Box>

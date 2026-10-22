@@ -61,7 +61,7 @@ function familyRows(): FamilyCachingRow[] {
       dial: true,
       lines: [
         'how long Anthropic keeps your conversation cached between prompts — Anthropic calls only',
-        `adaptive picks per session from how you actually work · a 1h pin is explicit billing consent`,
+        `adaptive picks per session from how you actually work · 1h is explicit billing consent`,
         `cache economy: reads ${CACHE_COST.read}× input price · 5m writes ${CACHE_COST.write5m}× · 1h writes ${CACHE_COST.write1h}×`,
       ],
     },
@@ -89,7 +89,7 @@ function familyRows(): FamilyCachingRow[] {
       route: 'moonshot',
       lines: pinnedCacheHitLines(KIMI_DISPLAY_PINS) ?? ['no caching mechanism recorded — nothing to adjust'],
     },
-    { route: 'zai', lines: ['no caching mechanism recorded for the GLM lane — nothing to adjust'] },
+    { route: 'zai', lines: ['no caching mechanism recorded for GLM — nothing to adjust'] },
     {
       route: 'openrouter',
       lines: ['none of its own recorded — each routed vendor applies its own; nothing to adjust here'],
@@ -216,7 +216,7 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
         })}
         {currentValue === '1h' ? (
           <Text color={t.textInstruction}>
-            the 1h pin doubles every cache write — the saved choice is the consent
+            1h doubles every cache write — the saved choice is the consent
           </Text>
         ) : null}
       </Box>

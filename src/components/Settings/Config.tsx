@@ -218,7 +218,7 @@ export function configRowApplicability(
   return {
     applies: false,
     naText: `n/a — applies to ${laneLabel} models (${activeLabel} is active)`,
-    refuseNote: `This setting only affects the ${laneLabel} lane; the session runs on ${activeLabel} — /model switches provider.`,
+    refuseNote: `This setting only affects ${laneLabel}; the session runs on ${activeLabel} — /model switches provider.`,
   }
 }
 
@@ -688,8 +688,8 @@ export function Config({
       searchText: 'web search keyless DuckDuckGo page scraping terms',
       kind: 'boolean',
       setByYou: config.duckduckgoScraping !== undefined || pinned,
-      value: <Text>{enabled ? 'on' : 'off'}{pinned ? ' · env pin' : ''}</Text>,
-      warning: `on by default; off keeps general queries to the official sources and your keys · ${DUCKDUCKGO_TERMS}${pinned ? ' · MERCURY_SEARCH_KEYLESS decides this process; change that env pin to change the effective value' : ''}`,
+      value: <Text>{enabled ? 'on' : 'off'}{pinned ? ' · set by env' : ''}</Text>,
+      warning: `on by default; off keeps general queries to the official sources and your keys · ${DUCKDUCKGO_TERMS}${pinned ? ' · MERCURY_SEARCH_KEYLESS decides this process; change that environment variable to change the effective value' : ''}`,
       change: () => {
         if (pinned) return
         writeGlobal(current => ({ ...current, [DUCKDUCKGO_SETTING_KEY]: !enabled }))
@@ -788,7 +788,7 @@ export function Config({
         </Text>
       ),
       warning:
-        'applies to every provider: stream idle (6 min with keep-alives; 15 min on quiet roads), the non-streamed fallback ceiling and the retry budget · patient doubles the waits, including the 30 s wait for a first body byte after headers · custom raises that first-byte wait in proportion to the road\'s idle budget and writes the numbers to your user settings file to edit (patience: streamIdleSeconds · quietStreamIdleSeconds · fallbackCeilingSeconds · recoveryBudgetMinutes) · ←/→ walk the modes',
+        'applies to every provider: stream idle (6 min with keep-alives; 15 min on quiet streams), the non-streamed fallback ceiling and the retry budget · patient doubles the waits, including the 30 s wait for a first body byte after headers · custom raises that first-byte wait in proportion to the idle budget and writes the numbers to your user settings file to edit (patience: streamIdleSeconds · quietStreamIdleSeconds · fallbackCeilingSeconds · recoveryBudgetMinutes) · ←/→ walk the modes',
       change: direction => {
         const modes = ['normal', 'patient', 'custom'] as const
         const next = cycleIn(modes, patience.mode, direction)
@@ -845,7 +845,7 @@ export function Config({
       setByYou: merged.shell?.sessions !== undefined,
       value: <Text>{ceiling} · {share}{pinned ? ' · pinned by MERCURY_SHELL_ENGINE_SESSIONS' : ''}</Text>,
       warning: pinned
-        ? 'The env pin MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once the pin is gone.'
+        ? 'MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once that environment variable is unset.'
         : ceiling === 1
           ? `A ceiling of 1 keeps the main conversation's session only: a crewmate's engine call is refused with the reason (a run_in_background call still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'}).`
           : undefined,
@@ -1247,7 +1247,7 @@ export function Config({
         ? `capturing · ${points} restore point${points === 1 ? '' : 's'}`
         : facts.capture === 'off'
           ? 'not capturing in this session'
-          : "not reported — this session's runner predates checkpoint capture (/daemon restart when ready)"
+          : "not reported — this session started before checkpoint capture (start a new session when ready)"
     items.push({
       id: 'fileCheckpointsSession',
       label: 'Checkpoints in this session',
@@ -1343,7 +1343,7 @@ export function Config({
         {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
       </Text>
     ),
-    warning: 'default effort for a spawned crewmate when the call names none (independent of the lead\'s own effort) · ←/→ walk the ladder',
+    warning: 'default effort for a spawned crewmate when the call names none (independent of the lead\'s own effort) · ←/→ walk the levels',
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })

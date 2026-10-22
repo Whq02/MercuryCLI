@@ -192,7 +192,7 @@ export function localServerConfigItems(args: {
             : plan.kind === 'write'
               ? `${tildePath(plan.path)} — the exact lines are shown before anything is written; a backup goes beside the file; then ${plan.restart.words}`
               : plan.kind === 'app'
-                ? `launchctl setenv per changed knob, then the app quits and opens again — the exact lines are shown before anything is set; the previous values ride the plan as the revert road`
+                ? `launchctl setenv per changed knob, then the app quits and opens again — the exact lines are shown before anything is set; the previous values are shown to revert`
                 : plan.note,
         }
       : {}),
@@ -213,7 +213,7 @@ export function planLines(plan: LocalServerApplyPlan, home: string = homePath())
   if (plan.kind === 'nothing') return [plan.note]
   if (plan.kind === 'refused') return [plan.fit.words, ...plan.fit.models.map(model => `  ${model.name}  ${gibWords(model.bytes)} projected at the chosen window and slots`), 'nothing is applied until the choice fits']
   if (plan.kind === 'by-hand') return [`Mercury cannot write this launch form (${plan.form}) — set the values by hand:`, ...plan.lines.map(line => `  ${show(line)}`), plan.note]
-  if (plan.kind === 'app') return [...plan.lines.map((line, index) => `  ${line}  (was ${plan.previous[plan.changes[index]?.name ?? ''] ?? 'unset'})`), `then ${plan.restart.words}`, `revert road: ${plan.revert.join(' · ')}`, plan.note]
+  if (plan.kind === 'app') return [...plan.lines.map((line, index) => `  ${line}  (was ${plan.previous[plan.changes[index]?.name ?? ''] ?? 'unset'})`), `then ${plan.restart.words}`, `revert: ${plan.revert.join(' · ')}`, plan.note]
   const restart = home === '' ? plan.restart.words : plan.restart.words.split(home).join('~')
   if (plan.kind === 'restart') return [`${tildePath(plan.path, home)} already carries the values; the running server has:`, ...plan.changes.map(change => `  ${change.name}  ${change.before ?? '(unset)'} → ${change.after}`), `then ${restart}`, plan.note]
   const backup = plan.backupPath.startsWith(`${plan.path}.`) ? plan.backupPath.slice(plan.path.lastIndexOf('/') + 1) : tildePath(plan.backupPath, home)

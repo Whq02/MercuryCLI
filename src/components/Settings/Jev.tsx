@@ -191,7 +191,7 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'switch':
       return '↵, space or ←/→ flip the one switch — the same switch as the JEV row of /config and the JEV row of the Boot Menu; JevEval joins or leaves the roster at the next turn boundary and never answers a permission request'
     case 'road':
-      return '↵ or ←/→ selects official · OpenRouter, without changing the switch; each road keeps its own key, spend and cap. /jev on selects official; /jev or on selects OpenRouter. No automatic fallback.'
+      return '↵ or ←/→ selects official · OpenRouter, without changing the switch; each keeps its own key, spend and cap. /jev on selects official; /jev or on selects OpenRouter. No automatic fallback.'
     case 'key':
       if (road === 'openrouter') return 'OpenRouter uses the existing sign-in or pasted key from /logins; OPENROUTER_API_KEY outranks the store. Manage it at /logins; this card never stores an OpenRouter key as a TypeSafe key.'
       return `↵ pastes a TypeSafe API key (masked; the value never enters the transcript, receipts or logs) · ⌫ clears the stored key · ${JEV_KEY_ENV} in the environment outranks the store · Mercury ships no key`
@@ -245,7 +245,7 @@ export function jevKeyClearedReceipt(hadKey: boolean): string {
   return hadKey ? `stored TypeSafe API key cleared (auth-scoped)${tail}` : `no stored TypeSafe API key — nothing to clear${tail}`
 }
 
-export const JEV_KEY_ENTRY_PROMPT = 'Paste the TypeSafe API key — input is masked (the last 6 characters stay visible so you can confirm the paste); the value never enters the transcript, receipts or logs. ↵ saves to the auth-scoped secret store; esc cancels.'
+export const JEV_KEY_ENTRY_PROMPT = 'Paste the TypeSafe API key — input is masked (the last 6 characters stay visible so you can confirm the paste); the value never enters the transcript, receipts or logs. ↵ saves the key; esc cancels.'
 
 type JevEntryKind = 'key' | 'allowance' | 'pace' | 'ceiling'
 type JevEntry = { kind: JevEntryKind; value: string; cursor: number }
@@ -315,7 +315,7 @@ export function Jev({
   const toggleSubagents = (): void => settle(() => `crewmates ${jevRowValues(setJevSubagents(!facts.settings.subagents)).subagents}`)
   const toggleRoad = (): void => settle(() => {
     const settings = setJevRoad(facts.settings.road === 'official' ? 'openrouter' : 'official')
-    return `${jevRoadWords(settings.road)} road selected — ${settings.enabled ? 'on' : 'off'}; its own key, spend and allowance; no fallback`
+    return `${jevRoadWords(settings.road)} selected — ${settings.enabled ? 'on' : 'off'}; its own key, spend and allowance; no fallback`
   })
   const routerKeyReceipt = (): void => setReceipt({ words: 'Manage the OpenRouter sign-in or pasted key at /logins; no key written here', refused: false })
 
@@ -340,7 +340,7 @@ export function Jev({
   const reset = (index: number): void => {
     const id = JEV_ROWS[index]
     if (id === 'switch') settle(() => jevReceiptWords(setJevEnabled(false)))
-    else if (id === 'road') settle(() => `${jevValueWords(setJevRoad('official'))} — official road selected`)
+    else if (id === 'road') settle(() => `${jevValueWords(setJevRoad('official'))} — official selected`)
     else if (id === 'key' && facts.settings.road === 'openrouter') routerKeyReceipt()
     else if (id === 'key') {
       const hadKey = facts.key.present && facts.key.source === 'stored'
