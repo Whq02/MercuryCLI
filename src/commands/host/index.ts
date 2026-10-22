@@ -42,7 +42,7 @@ export async function hostCommand(args: string[], options: { runner?: HostRunner
       print(boxWeightsWords(recipe, destination, Boolean(value.bank)))
       print('Install/start ' + recipe.engine + ' as a private loopback service; it ' + boxServiceLifetimeWords(box) + '.')
       if (!value.yes) { print('Add --yes to confirm this plan. No service changed.'); return 0 }
-      await startBoxEngine(box, recipe, { destination, bank: Boolean(value.bank), confirmed: true, runner, signal })
+      await startBoxEngine(box, recipe, { destination, bank: Boolean(value.bank), confirmed: true, runner, signal, onStep: words => print(box.name + ' · ' + words) })
     } else if (action === 'stop' || action === 'uninstall') {
       await stopBoxEngine(box, runner, signal, action === 'uninstall')
       await stopBoxTunnel(box, runner, signal, action === 'uninstall')

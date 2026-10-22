@@ -104,9 +104,11 @@ const machine = { ...local, name: 'service-fixture', home: fixture.home, engines
 const recipe = { ...tiny, id: 'fixture', model: 'Fixture/Box', memoryGb: 1, contextPerSlot: 131072, slots: 2 }
 try {
   await assert.rejects(() => startBoxEngine(machine, recipe, { destination: fixture.bank, bank: true, confirmed: false, runner: fixture.runner, port }), /Confirm/)
-  const started = await startBoxEngine(machine, recipe, { destination: fixture.bank, bank: true, confirmed: true, runner: fixture.runner, port, timeoutMs: 10000, pauseMs: 30 })
+  const phases: string[] = []
+  const started = await startBoxEngine(machine, recipe, { destination: fixture.bank, bank: true, confirmed: true, runner: fixture.runner, port, timeoutMs: 10000, pauseMs: 30, onStep: words => phases.push(words) })
   assert.equal(started.state, 'running')
   assert.equal(started.contextPerSlot, 131072)
+  assert.deepEqual(phases, ['verifying the bank at ' + fixture.bank, 'installing the llamacpp service', 'waiting for the engine to load Fixture/Box (up to 1 min) · mercury host logs service-fixture shows the engine output'], 'every long phase of an engine start says what it is doing, in order, before it waits')
   assert.ok(existsSync(join(root, 'src/services/host/boxRegistration.ts')), 'own box service registers for every session')
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()

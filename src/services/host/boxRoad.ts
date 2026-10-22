@@ -65,7 +65,7 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
         const confirm = await question({ step: 'box-start-confirm', fullDetails: true, title: 'Confirm model service', found: boxWeightsWords(recipe, destination, source === 'bank'), willRun: 'Install/start ' + recipe.engine + ' · ' + boxServiceLifetimeWords(box) + ' · ' + recipe.verified.by + ' · ' + (recipe.verified.note ?? '') + ' · ' + recipe.verified.source, rows: [{ value: 'start', label: 'Confirm installation and start' }, { value: 'cancel', label: 'Keep things as they are' }] })
         if (confirm !== 'start') continue
         emit({ title: 'Preparing ' + box.name, words: 'Installing engine, checking weights and starting service · closing stops waiting, not an installed service.' })
-        await startBoxEngine(box, recipe, { destination, bank: source === 'bank', confirmed: true, runner, signal, port: readBoxService(box.name)?.port })
+        await startBoxEngine(box, recipe, { destination, bank: source === 'bank', confirmed: true, runner, signal, port: readBoxService(box.name)?.port, onStep: words => emit({ title: 'Preparing ' + box.name, words }) })
         const model = await registerBoxServer(box, runner, signal)
         emit({ title: 'Model ready', words: model + ' · available in /model in every session' })
       }
