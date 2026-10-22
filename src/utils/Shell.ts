@@ -25,6 +25,7 @@ import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 import { which } from './which.js'
 import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
+import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 
 export type { ExecResult } from './ShellCommand.js'
 
@@ -227,6 +228,29 @@ export async function exec(
           }
         },
       })
+    }
+  }
+
+  if (
+    shellType === 'bash' &&
+    getPlatform() === 'windows' &&
+    !abortSignal.aborted &&
+    resolveShellEngine(getInitialSettings().shell?.engine).engine === 'system'
+  ) {
+    const shellDirectory = getShellCwd()
+    if (directoryResolves(shellDirectory)) {
+      const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
+      if (invocation.kind === 'batch') {
+        logForDebugging(`batch invocation through cmd.exe: ${invocation.batchPath}`)
+        return await runWindowsBatchCommand(invocation, abortSignal, {
+          timeout,
+          cwd: shellDirectory,
+          shouldAutoBackground: options.shouldAutoBackground ?? false,
+          inheritSessionEnv: options.inheritSessionEnv === true,
+          ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+          ...(options.onStdout !== undefined ? { onStdout: options.onStdout } : {}),
+        })
+      }
     }
   }
 
