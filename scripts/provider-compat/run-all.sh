@@ -24,7 +24,7 @@
 # gate-watch: src/services/providers/qwen/**
 # gate-watch: src/services/api/client.ts src/services/api/sdkErrors.ts scripts/provider-compat/anthropicRoadCapture.ts scripts/provider-compat/anthropicTransportChecks.ts scripts/provider-compat/fixtures/**
 # gate-watch: scripts/compact/overflowFixture.ts src/services/api/outputFit.ts src/query/transitions.ts
-# gate-watch: src/services/providers/cacheFieldRetry.ts src/utils/config.ts src/utils/systemPromptType.ts src/Tool.ts
+# gate-watch: src/services/providers/cacheFieldRetry.ts src/utils/config.ts src/utils/systemPromptType.ts src/Tool.ts assets/host/recipes.json
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
