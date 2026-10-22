@@ -87,8 +87,9 @@ export const COLD_INGEST_MS_PER_1K_TOKENS = 1_200
 export const FIRST_BYTE_BUDGET_CEILING_MS = 300_000
 export const FIRST_BYTE_BUDGET_CEILING_FACTOR = 2
 
-export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number }): number {
+export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number; prefillMs?: number }): number {
   const idle = args.idleMs ?? streamIdleTimeoutMs()
+  if (args.prefillMs !== undefined && Number.isFinite(args.prefillMs) && args.prefillMs > 0 && pinnedStreamIdleTimeoutMs() === null) return idle + args.prefillMs
   if (!args.cold) return idle
   const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
   const allowance = Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS)
@@ -137,7 +138,17 @@ export function silentAfterHeadersMsForRoute(route: string | null, dialect?: str
   return Math.max(SILENT_AFTER_HEADERS_DEFAULT_MS, Math.round(SILENT_AFTER_HEADERS_DEFAULT_MS * scale))
 }
 
-export function silentAfterHeadersWindowMs(args: { route: string | null; dialect?: string | null; cold: boolean; promptTokens: number; idleMs: number }): number | null {
+export function measuredPrefillMs(promptTokens: number, prefillTokensPerSecond?: number): number | undefined {
+  if (!Number.isFinite(promptTokens) || promptTokens <= 0 || prefillTokensPerSecond === undefined || !Number.isFinite(prefillTokensPerSecond) || prefillTokensPerSecond <= 0) return undefined
+  const ms = Math.ceil(promptTokens / prefillTokensPerSecond * 1000)
+  return Number.isSafeInteger(ms) ? ms : undefined
+}
+
+export function silentAfterHeadersWindowMs(args: { route: string | null; dialect?: string | null; cold: boolean; promptTokens: number; idleMs: number; prefillTokensPerSecond?: number }): number | null {
+  if (isSelfHostedCompatDialect(args.dialect) || isSelfHostedCompatDialect(args.route)) {
+    const prefill = measuredPrefillMs(args.promptTokens, args.prefillTokensPerSecond)
+    return prefill === undefined || pinnedStreamIdleTimeoutMs() !== null ? null : args.idleMs + prefill
+  }
   const base = silentAfterHeadersMsForRoute(args.route, args.dialect)
   if (base === null) return null
   const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
@@ -160,7 +171,8 @@ export type RequestWaitV1 =
       sinceMs: number
       attempt: number
       promise?: boolean
-      phase?: 'loading'
+      phase?: 'loading' | 'tokens'
+      prefillMs?: number
       sizeGb?: number
       checkedMs?: number
     }
@@ -171,6 +183,8 @@ export type RequestWaitV1 =
       reason: string
       delayMs: number
       sinceMs: number
+      reconnecting?: boolean
+      silentMs?: number
     }
   | {
       kind: 'silence'
@@ -189,6 +203,7 @@ const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(toke
 
 export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
   if (wait.kind === 'retry') {
+    if (wait.reconnecting) return `${wait.silentMs === undefined ? 'connection dropped' : `no tokens for ${streamSilenceDuration(wait.silentMs)}`} · reconnecting (${wait.attempt} of ${wait.of})`
     const delay = wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''
     if (outageCauseWordsOf(wait.reason) !== undefined) return `reconnecting — reconnect ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
     return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
@@ -199,6 +214,8 @@ export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
     return wait.answered ? `${quiet} — ${wait.model}'s server still answers` : `${quiet} — ${wait.model}'s server is asked at ${seconds(wait.askAtMs ?? wait.silentMs)}`
   }
   const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
+  if (wait.prefillMs !== undefined) return `reading ${Math.round(wait.promptTokens / 1000)}k tokens of context · ~${streamSilenceDuration(wait.prefillMs)}${again}`
+  if (wait.phase === 'tokens') return `waiting for the first token${again}`
   if (wait.phase === 'loading') return `loading ${wait.model}${wait.sizeGb !== undefined && !compact ? ` (${wait.sizeGb} GB)` : ''}${again}`
   if (wait.promise === true) {
     const prompt = compact ? 'prompt' : `a ${kTokens(wait.promptTokens)} prompt on ${wait.model}`
@@ -243,7 +260,8 @@ export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
       sinceMs,
       attempt: num(w.attempt) ?? 1,
       ...(w.promise === true ? { promise: true } : {}),
-      ...(w.phase === 'loading' ? { phase: 'loading' as const } : {}),
+      ...(w.phase === 'loading' || w.phase === 'tokens' ? { phase: w.phase } : {}),
+      ...(num(w.prefillMs) !== null && Number(w.prefillMs) > 0 ? { prefillMs: Number(w.prefillMs) } : {}),
       ...(sizeGb !== null ? { sizeGb } : {}),
       ...(checkedMs !== null ? { checkedMs } : {}),
     }
@@ -260,7 +278,7 @@ export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
     const of = num(w.of)
     const sinceMs = num(w.sinceMs)
     if (attempt === null || of === null || sinceMs === null || typeof w.reason !== 'string') return null
-    return { kind: 'retry', attempt, of, reason: w.reason.slice(0, 120), delayMs: num(w.delayMs) ?? 0, sinceMs }
+    return { kind: 'retry', attempt, of, reason: w.reason.slice(0, 120), delayMs: num(w.delayMs) ?? 0, sinceMs, ...(w.reconnecting === true ? { reconnecting: true } : {}), ...(num(w.silentMs) !== null ? { silentMs: Number(w.silentMs) } : {}) }
   }
   return null
 }
@@ -274,6 +292,7 @@ const WAIT_WIRE_KEYS: Readonly<Record<string, string>> = {
   checkedMs: 'checked_ms',
   silentMs: 'silent_ms',
   askAtMs: 'ask_at_ms',
+  prefillMs: 'prefill_ms',
 }
 const WAIT_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(WAIT_WIRE_KEYS).map(([record, wire]) => [wire, record]),
@@ -304,7 +323,21 @@ export function retryReasonWords(status: number | null | undefined, message?: st
   return 'a connection error'
 }
 
+export function streamSilenceDuration(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000))
+  return s < 60 ? `${s} s` : `${Math.round(s / 60)} min`
+}
+
+export function streamReconnectSpentLine(route: string, silentMs?: number): string {
+  return `the ${route} stream ${silentMs === undefined ? 'connection dropped' : `went silent for ${streamSilenceDuration(silentMs)}`} and did not reconnect — nothing was lost before that; the request is not retried on its own`
+}
+
+export function streamReconnectWait(attempt: number, of: number, delayMs: number, silentMs?: number): Extract<RequestWaitV1, { kind: 'retry' }> {
+  return { kind: 'retry', attempt, of, delayMs, sinceMs: Date.now(), reason: silentMs === undefined ? 'a dropped stream' : `no tokens for ${streamSilenceDuration(silentMs)}`, reconnecting: true, ...(silentMs !== undefined ? { silentMs } : {}) }
+}
 export function retryNoticeWait(notice: SystemAPIErrorMessage, nowMs: number = Date.now()): Extract<RequestWaitV1, { kind: 'retry' }> {
+  const streamWait = decodeRequestWait((notice.error as Error & { streamWait?: unknown })?.streamWait)
+  if (streamWait?.kind === 'retry') return streamWait
   const status = notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status
   return { kind: 'retry', attempt: notice.retryAttempt, of: notice.maxRetries, reason: retryReasonWords(status, notice.error?.message), delayMs: notice.retryInMs, sinceMs: nowMs }
 }
@@ -356,6 +389,7 @@ export function createStreamIdleWatchdog(opts: {
 }): StreamIdleWatchdog {
   const timeoutMs = opts.timeoutMs
   const warningMs = streamIdleWarningMsOf(timeoutMs)
+  const initialTimeoutMs = Math.max(timeoutMs, opts.silentAfterHeadersMs ?? 0)
   const fenceMs =
     typeof opts.silentAfterHeadersMs === 'number' && opts.silentAfterHeadersMs > 0 && opts.silentAfterHeadersMs < timeoutMs
       ? opts.silentAfterHeadersMs
@@ -379,7 +413,7 @@ export function createStreamIdleWatchdog(opts: {
     if (stopped || fire !== null) return
     const silentMs = Date.now() - lastActivityAtMs
     const noBytes = fenceMs !== null && activity === 0 && silentMs >= fenceMs
-    if (silentMs >= timeoutMs || noBytes) {
+    if (silentMs >= (activity === 0 ? initialTimeoutMs : timeoutMs) || noBytes) {
       fire = { silentMs, activity, noBytes }
       const error = new StreamIdleTimeoutError(silentMs, noBytes)
       for (const reject of waiters) reject(error)
@@ -394,15 +428,17 @@ export function createStreamIdleWatchdog(opts: {
     arm()
   }
   function arm(): void {
-    const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? timeoutMs : warningMs)
+    const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? activity === 0 ? initialTimeoutMs : timeoutMs : warningMs)
     const nextDeadlineAt = fenceMs !== null && activity === 0 ? Math.min(idleDeadlineAt, createdAtMs + fenceMs) : idleDeadlineAt
     timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - Date.now()))
   }
   arm()
   return {
     noteActivity() {
+      const rearm = activity === 0 && initialTimeoutMs > timeoutMs && !stopped && fire === null
       lastActivityAtMs = Date.now()
       activity++
+      if (rearm) { clear(); arm() }
     },
     stop() {
       stopped = true

@@ -22,10 +22,10 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, measuredPrefillMs, retryNoticeWait, retryReasonWords, requestWaitLine, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, streamReconnectSpentLine, streamReconnectWait, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../api/backupEngines.js'
-import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
+import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, streamReconnectCause, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
@@ -145,6 +145,7 @@ interface CompatCredential {
 export interface CompatLaneProfile {
   lane: CompatLaneId
   dialect?: string
+  prefillTokensPerSecond?(): Promise<number | undefined>
   liveness?(pinnedSlot: number | undefined): Promise<CompatLivenessReading>
   streamTransport?(options: CompatStreamOptions, messages: readonly Message[]): {
     events: AsyncGenerator<CompatStreamEvent>
@@ -713,6 +714,26 @@ export async function* compatChatCallModel(
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
+    const streamCut = outcome.retryEligible && !singleShot ? streamReconnectCause(outcome.fault) : null
+    if (streamCut !== null) {
+      const now = Date.now()
+      const ladder = reconnect ?? openReconnectLadder(now, streamCut)
+      reconnect = ladder
+      const step = nextReconnect(ladder, streamCut, now)
+      if (step.waitMs <= 0) {
+        options.onWait?.(null)
+        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${streamReconnectSpentLine(profile.providerLabel, outcome.fault.silentMs)}`, typed, 'stream-reconnect-spent'))
+        return
+      }
+      const wait = streamReconnectWait(step.reconnect, step.of, step.waitMs, outcome.fault.silentMs)
+      const notice = createSystemAPIErrorMessage(Object.assign(new Error(requestWaitLine(wait)), { streamWait: wait }), step.waitMs, step.reconnect, step.of)
+      options.onWait?.(wait)
+      yield notice
+      await sleep(step.waitMs, signal)
+      if (signal.aborted) { options.onWait?.(null); return }
+      attempt--
+      continue
+    }
     const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
     if (outage !== undefined) {
       const now = Date.now()
@@ -915,6 +936,7 @@ async function* streamOneCompatAttempt(ctx: {
 
   let messageStarted = false
   let contentStarted = false
+  let toolFragmentSeen = false
   let firstEventSeen = false
   const blocks = {
     index: -1,
@@ -1029,6 +1051,9 @@ async function* streamOneCompatAttempt(ctx: {
   const idleTimeoutMs = streamIdleTimeoutMsForRoute(profile.lane, profile.dialect)
   const cold = coldPrefixOf(ctx.messages, modelId)
   const promptTokens = estimateRequestTokens(request)
+  const prefillTokensPerSecond = await profile.prefillTokensPerSecond?.()
+  if (signal.aborted) return { kind: 'cancelled' }
+  const prefillMs = measuredPrefillMs(promptTokens, prefillTokensPerSecond)
   const pinnedSlot = typeof request.extra?.id_slot === 'number' ? request.extra.id_slot : undefined
   const streamOptions: CompatStreamOptions = {
     ...(apiKey !== undefined ? { apiKey } : {}),
@@ -1038,7 +1063,7 @@ async function* streamOneCompatAttempt(ctx: {
     request,
     signal,
     idleTimeoutMs,
-    silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs }),
+    silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs, prefillTokensPerSecond }),
     ...(profile.liveness !== undefined
       ? {
           liveness: {
@@ -1051,6 +1076,7 @@ async function* streamOneCompatAttempt(ctx: {
     firstByte: {
       cold,
       promptTokens,
+      ...(prefillMs !== undefined ? { prefillMs } : {}),
       model: getPublicModelDisplayName(modelId) ?? modelId,
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },
@@ -1107,6 +1133,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'tool-call-fragment': {
+        toolFragmentSeen = true
         if (profile.lane === 'gemini') break
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
@@ -1170,14 +1197,15 @@ async function* streamOneCompatAttempt(ctx: {
     while (released < minted.length) yield minted[released++]!
     return { kind: 'cancelled' }
   }
-  const nothingYielded = !contentStarted && minted.length === 0
-  const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
+  const hasTool = toolFragmentSeen || (finish?.toolCalls.length ?? 0) > 0
+  const nothingYielded = !contentStarted && minted.length === 0 && !hasTool
+  const retryStream = fault !== undefined && !finish && !hasTool && streamReconnectCause(fault) !== null
+  const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && !hasTool
   if (fault && nothingYielded && (!finish || retryTemporary)) {
-    if (blocks.open?.kind === 'tool') yield* closeOpenBlock()
     return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
   }
   const typedEnd =
-    fault !== undefined && !finish && !retryTemporary
+    fault !== undefined && !finish && !retryTemporary && !retryStream
       ? typedStreamEndOf({
           fault,
           provider: profile.providerLabel,
@@ -1349,7 +1377,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
+  if (fault && (retryTemporary || retryStream)) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),

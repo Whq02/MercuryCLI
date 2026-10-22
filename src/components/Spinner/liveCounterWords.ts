@@ -1,4 +1,4 @@
-import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
+import { requestWaitLine, streamSilenceDuration, type RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
@@ -64,12 +64,15 @@ export function liveCounterPulse(facts: Pick<LiveTurnFactsV1, 'lastByteAtMs'>, p
 export function liveCounterPromise(wait: RequestWaitV1 | null, nowMs: number): string | null {
   if (wait === null) return null
   if (wait.kind === 'first-byte') {
+    if (wait.prefillMs !== undefined) return `~${streamSilenceDuration(wait.prefillMs)}`
+    if (wait.phase === 'tokens') return null
     if (wait.phase === 'loading') return `${wait.model}${wait.sizeGb !== undefined ? ` (${wait.sizeGb} GB)` : ''}`
     const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
     if (nowMs - wait.sinceMs > wait.budgetMs) return `past the ${budgetWords(wait.budgetMs)} first-byte budget${again}`
     return `first byte expected within ${budgetWords(wait.budgetMs)}${again}`
   }
   if (wait.kind === 'retry') {
+    if (wait.reconnecting) return requestWaitLine(wait)
     return `attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${wait.delayMs > 0 ? ` · in ${budgetWords(wait.delayMs)}` : ''}`
   }
   return `no bytes for ${budgetWords(wait.silentMs)}${wait.answered ? ' — the server still answers' : ''}`
@@ -78,14 +81,16 @@ export function liveCounterPromise(wait: RequestWaitV1 | null, nowMs: number): s
 export function liveCounterWords(facts: LiveCounterFacts, nowMs: number): LiveCounterWords {
   const figure = liveCounterFigure(facts)
   const wait = facts.wait
-  const reading = wait !== null && wait.kind === 'first-byte' && facts.firstByteAtMs === null
+  const reading = wait !== null && wait.kind === 'first-byte'
   const phase = reading
-    ? wait.phase === 'loading'
-      ? LOADING_PHASE_WORD
-      : READING_PHASE_WORD
+    ? wait.prefillMs !== undefined
+      ? `reading ${Math.round(wait.promptTokens / 1000)}k tokens of context`
+      : wait.phase === 'tokens'
+        ? 'waiting for the first token'
+        : wait.phase === 'loading' ? LOADING_PHASE_WORD : READING_PHASE_WORD
     : wait !== null && wait.kind === 'retry'
-      ? RETRY_PHASE_WORD
-      : facts.phase
+      ? wait.reconnecting ? 'reconnecting' : RETRY_PHASE_WORD
+      : facts.phase === 'waiting' || facts.phase === 'thinking' && facts.firstByteAtMs === null && figure.total === 0 && !facts.thinkingBlocks ? 'waiting for the first token' : facts.phase
   const count = liveCountWords(figure, phase === 'thinking' ? (facts.thinkingBlocks ?? 0) : 0)
   const clock = facts.sentAtMs === null ? '' : formatDuration(Math.max(0, nowMs - facts.sentAtMs))
   return {
@@ -106,13 +111,13 @@ export function liveCounterSegments(words: LiveCounterWords, count: string | nul
 
 export function liveCounterLine(words: LiveCounterWords, budget: number, separator = ' · '): string {
   const ladder: string[][] = [
+    ...(words.phase === 'reconnecting' && words.promise !== null ? [[words.promise, words.clock], [words.promise]] : []),
     liveCounterSegments(words),
     [words.count ?? '', words.pulse ?? '', words.phase, words.clock],
     [words.countShort ?? '', words.pulse ?? '', words.phase, words.clock],
     [words.countShort ?? '', words.phase, words.clock],
-    [words.countShort ?? '', words.clock],
     [words.phase, words.clock],
-    [words.clock],
+    [words.reading ? 'reading' : words.phase === 'waiting for the first token' ? 'waiting' : words.phase],
   ]
   for (const rung of ladder) {
     const parts = rung.filter(segment => segment !== '')

@@ -344,6 +344,7 @@ export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; res
 
 export function isRecoveryBudgetSpentLine(text: string): boolean {
   if (isReconnectBudgetSpentLine(text)) return true
+  if (/^(?:API Error: )?the .+ stream (?:went silent for \d+ (?:s|min)|connection dropped) and did not reconnect — nothing was lost before that; the request is not retried on its own$/.test(text)) return true
   return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+( \S+)? retry budget is spent waiting on the provider)/.test(text)
 }
 
