@@ -39,7 +39,7 @@ export function fixtureTool(name = 'WarmthEcho', revision = 'first') {
 export function startWarmthEngine() {
   const captures: Capture[] = []
   const cached = new Map<string, string>()
-  const state = { slots: 4, mode: 'reply', report: true, cache: true, msPerToken: 0.002 }
+  const state = { slots: 4, mode: 'reply', report: true, reportInput: true, cache: true, msPerToken: 0.002 }
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     const path = new URL(req.url).pathname
     if (path.endsWith('/props')) return Response.json({ total_slots: state.slots })
@@ -62,7 +62,7 @@ export function startWarmthEngine() {
     if (state.mode === 'cancel') return new Response(new ReadableStream({ start() {}, cancel() {} }), { headers: { 'content-type': 'text/event-stream' } })
     await Bun.sleep(costMs)
     cached.set(key, prompt)
-    const usage = { prompt_tokens: total, completion_tokens: 4, ...(state.report ? { prompt_tokens_details: { cached_tokens: hit } } : {}) }
+    const usage = { ...(state.reportInput ? { prompt_tokens: total } : {}), completion_tokens: 4, ...(state.report ? { prompt_tokens_details: { cached_tokens: hit } } : {}) }
     if (responses) {
       const output = [{ id: 'msg-warmth', type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'WARM', annotations: [] }] }]
       const frame = (type: string, extra: any) => `event: ${type}\ndata: ${JSON.stringify({ type, ...extra })}\n\n`

@@ -109,6 +109,11 @@ try {
     await turn(api, model, [api.createUserMessage({ content: 'no cache counters' })])
     check('a turn without cache counters clears the old measurement rather than inventing zero', compatPrefixCacheWords(endpoint) === '')
     engine.state.report = true
+    engine.state.reportInput = false
+    engine.clear()
+    await turn(api, model, [api.createUserMessage({ content: 'cache count without a prompt total' })])
+    check('a missing prompt total never becomes a measured zero-of-zero cache reading', compatPrefixCacheWords(endpoint) === '')
+    engine.state.reportInput = true
   } catch (error) { check('last-turn cache words are available', false); console.log(String(error).split('\n')[0]) }
   engine.state.mode = 'retry'
   const retryStart = engine.captures.length

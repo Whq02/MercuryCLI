@@ -12,7 +12,7 @@ const tokens = (value: unknown): value is number => typeof value === 'number' &&
 export function noteCompatPrefixCache(endpoint: { baseUrl: string }, model: string, usage: CompatUsage | undefined): void {
   try {
     const path = cachePath(endpoint.baseUrl)
-    if (!usage || !tokens(usage.inputTokens) || !tokens(usage.cachedInputTokens) || usage.cachedInputTokens > usage.inputTokens) {
+    if (!usage || !tokens(usage.inputTokens) || usage.inputTokens === 0 || !tokens(usage.cachedInputTokens) || usage.cachedInputTokens > usage.inputTokens) {
       try { unlinkSync(path) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
       return
     }
@@ -24,7 +24,7 @@ export function noteCompatPrefixCache(endpoint: { baseUrl: string }, model: stri
 export function compatPrefixCacheWords(endpoint: { baseUrl: string }, now = Date.now()): string {
   try {
     const row = JSON.parse(readFileSync(cachePath(endpoint.baseUrl), 'utf8')) as { cached?: unknown; total?: unknown; at?: unknown }
-    if (!tokens(row.cached) || !tokens(row.total) || row.cached > row.total || typeof row.at !== 'number' || !Number.isFinite(row.at) || row.at > now || now - row.at > 15 * 60_000) return ''
+    if (!tokens(row.cached) || !tokens(row.total) || row.total === 0 || row.cached > row.total || typeof row.at !== 'number' || !Number.isFinite(row.at) || row.at > now || now - row.at > 15 * 60_000) return ''
     return `prefix cached · ${row.cached.toLocaleString('en-US')} of ${row.total.toLocaleString('en-US')} tokens (last turn)`
   } catch { return '' }
 }
