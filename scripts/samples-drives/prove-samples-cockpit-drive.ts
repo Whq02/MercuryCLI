@@ -17,13 +17,13 @@ const dist = argOf('--dist') ?? DIST
 const driver = requireCaptureDriver('samples-cockpit')
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 
-const CELL = "const kept = await sample({ name: 'pricing-table', title: 'pricing table', html: '<!doctype html><html><head><meta charset=\"utf-8\"><title>Pricing</title></head><body><h1>Pricing</h1><p>Three plans. Billed monthly, cancel any time.</p></body></html>', ask: 'show me a pricing table' }); console.log('kept v' + kept.version)"
+const CELL = "const kept = await sample({ name: 'pricing-table', title: 'pricing table', doc: { parts: [{ kind: 'section', heading: 'Pricing', prose: 'Three plans. Billed monthly, cancel any time.' }] }, ask: 'show me a pricing table' }); console.log('kept v' + kept.version)"
 const TURNS = [
   { kind: 'tool_use' as const, name: 'Eval', input: { language: 'js', title: 'pricing table', code: CELL } },
   { kind: 'text' as const, text: 'Here it is.' },
   { kind: 'text' as const, text: 'Noted: the heading grows in the next version.' },
 ]
-const MARKS = { version: 1, pins: [{ x: 0.2, y: 0.1, target: 'h1 "Pricing"', text: 'make it bigger' }], note: 'keep it to three plans', verdict: 'changes-needed' }
+const MARKS = { version: 1, pins: [{ x: 0.2, y: 0.1, target: 'h1 "pricing table"', text: 'make it bigger' }], note: 'keep it to three plans', verdict: 'changes-needed' }
 const ADDRESS = /http:\/\/127\.0\.0\.1:\d+\/s\/[a-z0-9]{6,32}\?t=[0-9a-f]{32}/
 const ROW_TODAY = /^ ready · [^·]+(?: · [^·]+)?\s{2,}/
 const ROW_WITH_SAMPLE = /^ ready · [^·]+(?: · [^·]+)? · 1 sample\s{2,}/
@@ -161,7 +161,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   }
   check(`${tag}: the marks were posted to the address the runner relayed with its facts`, posted.address !== null && posted.status === 200, JSON.stringify(posted))
   const marksJoined = joined(marksText)
-  check(`${tag}: the marks arrive as one message from the operator, in the approved words`, marksJoined.includes('Marks on pricing table v1: 1 pin · 1 note · changes needed') && marksJoined.includes('- at h1 "Pricing": make it bigger') && marksJoined.includes('keep it to three plans'), marksJoined.slice(0, 400))
+  check(`${tag}: the marks arrive as one message from the operator, in the approved words`, marksJoined.includes('Marks on pricing table v1: 1 pin · 1 note · changes needed') && marksJoined.includes('- at h1 "pricing table": make it bigger') && marksJoined.includes('keep it to three plans'), marksJoined.slice(0, 400))
   check(`${tag}: the model answered the marks in the normal turn`, joined(list.concat(marksText)).includes('the heading grows'))
   check(`${tag}: /samples lists the session's samples: name, version, state, age`, list.some(row => row.includes('SAMPLES · this session · 1')) && list.some(row => LIST_ROW.test(row)), JSON.stringify(list.filter(row => row.includes('pricing table'))))
   check(`${tag}: the list's header carries the keys`, list.some(row => row.includes('SAMPLES · this session · 1') && row.includes('↵ open · esc back')), JSON.stringify(list.find(row => row.includes('SAMPLES')) ?? ''))
