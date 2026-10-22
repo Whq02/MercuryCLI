@@ -232,8 +232,11 @@ export async function startWorkflowAgentFixture(
       res.end('{}')
     })
   })
-  await new Promise<void>(resolve => server.listen(opts.port, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${opts.port}`
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(opts.port, '127.0.0.1', resolve)
+  })
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   const env: Record<string, string> = {
     ANTHROPIC_BASE_URL: base,
     ANTHROPIC_API_KEY: 'fixture-key-000',

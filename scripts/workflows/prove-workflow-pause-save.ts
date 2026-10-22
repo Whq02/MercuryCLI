@@ -222,8 +222,9 @@ const fixture = createServer((req, res) => {
     else reply()
   })
 })
-const PORT = Number(process.env.WF_PAUSE_PORT ?? 34937)
-await new Promise<void>(resolve => fixture.listen(PORT, '127.0.0.1', resolve))
+const requestedPort = Number(process.env.WF_PAUSE_PORT ?? 0)
+await new Promise<void>((resolve, reject) => { fixture.once('error', reject); fixture.listen(requestedPort, '127.0.0.1', resolve) })
+const PORT = (fixture.address() as { port: number }).port
 const requestsOf = (agent: string, since = 0): number => requests.filter(r => r.agent === agent && r.at >= since).length
 
 const CHILD = String.raw`

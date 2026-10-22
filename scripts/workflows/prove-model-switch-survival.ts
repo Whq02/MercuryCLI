@@ -28,10 +28,7 @@ console.log('============================================================')
 console.log(' Workflow survival — /model switch + rename under a live run')
 console.log('============================================================')
 
-const fixture = await startWorkflowAgentFixture({
-  port: 34905,
-  latencyMs: { anthropic: 1200 },
-})
+const fixture = await startWorkflowAgentFixture({ port: 0, latencyMs: { anthropic: 1200 } })
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

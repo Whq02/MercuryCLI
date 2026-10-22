@@ -21,6 +21,21 @@ function unreachableProofs(text: string): number[] {
   return hits
 }
 
+function fixedWorkflowPorts(text: string): number[] {
+  const source = ts.createSourceFile('proof.ts', text, ts.ScriptTarget.Latest, true)
+  const hits: number[] = []
+  visit(source, node => {
+    if (!ts.isCallExpression(node)) return
+    const name = calleeName(node)
+    const fallback = node.arguments[0]
+    if (name === 'Number' && ts.isVariableDeclaration(node.parent) && /port/i.test(node.parent.name.getText(source)) && fallback && ts.isBinaryExpression(fallback) && fallback.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && ts.isNumericLiteral(fallback.right) && Number(fallback.right.text) !== 0) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
+    if (name === 'listen' && node.arguments[0] && ts.isNumericLiteral(node.arguments[0]) && Number(node.arguments[0].text) !== 0) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
+    if (name !== 'startWorkflowAgentFixture' || !node.arguments[0] || !ts.isObjectLiteralExpression(node.arguments[0])) return
+    for (const prop of node.arguments[0].properties) if (ts.isPropertyAssignment(prop) && prop.name.getText(source) === 'port' && ts.isNumericLiteral(prop.initializer) && Number(prop.initializer.text) !== 0) hits.push(source.getLineAndCharacterOfPosition(prop.getStart()).line + 1)
+  })
+  return hits
+}
+
 function historicalBuild(text: string): { builds: boolean; lent: number[]; locked: boolean } {
   const source = ts.createSourceFile('proof.ts', text, ts.ScriptTarget.Latest, true)
   let archive = false
@@ -47,6 +62,10 @@ function historicalBuild(text: string): { builds: boolean; lent: number[]; locke
 assert.deepEqual(unreachableProofs('exec bun prove-first.ts\nbun prove-lost.ts\n'), [2])
 assert.deepEqual(unreachableProofs('bun prove-first.ts\nexec bun prove-last.ts\n# prove-note.ts\n'), [])
 assert.deepEqual(unreachableProofs('echo "exec bun prove-note.ts"\nbun prove-last.ts\n'), [])
+assert.deepEqual(fixedWorkflowPorts("server.listen(34906, '127.0.0.1'); startWorkflowAgentFixture({ port: 34907 })"), [1, 1])
+assert.deepEqual(fixedWorkflowPorts("server.listen(0, '127.0.0.1'); startWorkflowAgentFixture({ port: 0 }); console.log('listen(34906)')"), [])
+assert.deepEqual(fixedWorkflowPorts('const PORT = Number(process.env.PROOF_PORT ?? 34931)'), [1])
+assert.deepEqual(fixedWorkflowPorts('const requestedPort = Number(process.env.PROOF_PORT ?? 0)'), [])
 const borrowed = historicalBuild("execFileSync('git', ['archive', sha]); symlinkSync(join(root, 'node_modules'), join(base, 'node_modules')); spawnSync(bun, ['run', 'build.ts'])")
 assert.ok(borrowed.builds && borrowed.lent.length === 1 && !borrowed.locked)
 const own = historicalBuild("execFileSync('git', ['archive', sha]); spawnSync(bun, ['install', '--frozen-lockfile']); spawnSync(bun, ['run', 'build.ts'])")
@@ -59,7 +78,9 @@ const runners = tracked.filter(path => /^scripts\/[^/]+\/run-all\.sh$/.test(path
 for (const path of runners) for (const line of unreachableProofs(read(path))) failures.push(`${path}:${line}: a proof invocation after top-level exec is unreachable; keep the invocation before exec or remove the duplicate`)
 let historical = 0
 for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !path.endsWith('/prove-proof-readings-census.ts'))) {
-  const result = historicalBuild(read(path))
+  const source = read(path)
+  if (path.startsWith('scripts/workflows/')) for (const line of fixedWorkflowPorts(source)) failures.push(`${path}:${line}: workflow fixtures must bind an ephemeral port by default and publish the bound endpoint`)
+  const result = historicalBuild(source)
   if (!result.builds) continue
   historical++
   if (!result.locked) failures.push(`${path}: a historical build must install its own frozen lock`)

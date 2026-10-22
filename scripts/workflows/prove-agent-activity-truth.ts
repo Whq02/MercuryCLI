@@ -31,10 +31,7 @@ console.log('============================================================')
 console.log(' Workflow agent activity truth — counter + reasoning per dialect')
 console.log('============================================================')
 
-const fixture = await startWorkflowAgentFixture({
-  port: 34901,
-  reasoning: { chat: true, responses: true },
-})
+const fixture = await startWorkflowAgentFixture({ port: 0, reasoning: { chat: true, responses: true } })
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

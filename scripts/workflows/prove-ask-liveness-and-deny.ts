@@ -73,7 +73,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
   })
 })
-await new Promise<void>(resolve => server.listen(34906, '127.0.0.1', resolve))
+await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
@@ -170,7 +171,7 @@ const child = spawn(BUN, ['run', join(scratch, 'child.ts')], {
   cwd: scratch,
   env: {
     ...process.env,
-    ANTHROPIC_BASE_URL: 'http://127.0.0.1:34906',
+    ANTHROPIC_BASE_URL: base,
     ANTHROPIC_API_KEY: 'fixture-key-000',
   },
 })
