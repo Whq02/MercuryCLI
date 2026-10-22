@@ -377,7 +377,12 @@ async function main(): Promise<void> {
       tracked = listTree()
       console.log(`  · not a git checkout: ${tracked.length} files listed by walking the tree`)
     }
-    const partial = new Set(['assets/splash/splash-core.mjs', 'docs/EXTENSIONS.md'])
+    const partial = new Map([
+      ['assets/splash/splash-core.mjs', 'hand-written module with baked blocks'],
+      ['docs/EXTENSIONS.md', 'hand-written document with a generated contract section'],
+      ['sdk/README.md', 'hand-written guide; scripts/sdk/generate.ts replaces only the vocabulary:start/end region'],
+      ['sdk-py/README.md', 'hand-written guide; scripts/sdk/generate.ts replaces only the vocabulary:start/end region'],
+    ])
     const matches = (rel: string, asset: string): boolean => (/[*?{]/.test(asset) ? new Bun.Glob(asset).match(rel) : rel === asset)
     const scriptsFor = (rel: string): Set<string> => {
       const out = new Set<string>()
@@ -404,7 +409,7 @@ async function main(): Promise<void> {
           const call = edit(join(ROOT, rel), 'const changed = 2', realReader, realResolver)
           const v = verdictOf(call)
           if (partial.has(rel)) {
-            check(`${rel} is hand-written with a baked region ⇒ allowed by design`, v.allow, v.allow ? '' : buildWardDenial(v, 'Edit'))
+            check(`${rel} ⇒ allowed by design (${partial.get(rel)})`, v.allow, v.allow ? '' : buildWardDenial(v, 'Edit'))
             continue
           }
           if (asset === 'src/skills/bundled/**' && !rel.slice(BUNDLED.length).includes('/')) {
