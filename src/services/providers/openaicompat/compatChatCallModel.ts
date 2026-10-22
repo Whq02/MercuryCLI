@@ -451,9 +451,10 @@ export async function* compatChatCallModel(
     yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${wireVerdict.reason}`)
     return
   }
-  if (profile.lane === 'openai-compat' && messages.some(message => message.type === 'user' && Array.isArray(message.message.content) && message.message.content.some(block =>
+  const hasImage = (message: Message): boolean => message.type === 'user' && Array.isArray(message.message.content) && message.message.content.some(block =>
     block.type === 'image' || block.type === 'tool_result' && Array.isArray(block.content) && block.content.some(part => part.type === 'image'),
-  ))) await refreshCompatModelImageReading(modelId, signal)
+  )
+  if (profile.lane === 'openai-compat' && messages.some(hasImage)) await refreshCompatModelImageReading(modelId, signal)
   if (signal.aborted) return
   let credential = await profile.resolveCredential()
   if (credential === undefined) {
@@ -495,13 +496,19 @@ export async function* compatChatCallModel(
       .digest('hex')
       .slice(0, 16),
   })
+  const imagesSupported = imagesSupportedForCompatModel(modelId)
+  const lastAssistant = messages.findLastIndex(message => message.type === 'assistant')
+  const imageNotes = profile.lane === 'openai-compat' && !imagesSupported && messages.slice(lastAssistant + 1).some(hasImage)
+    ? [`Image content was not sent to the model: ${compatImageRefusalWords(modelId) ?? `${profile.providerLabel} does not accept images for this model — /model picks one that receives images`}. The text is still available.`]
+    : []
+  const leadingNotes = [...(profile.leadingNotes ?? []), ...imageNotes]
   const deferral: CompatDeferralFacts | undefined = plan.enabled
     ? {
         form: plan.wireForm,
         deferredNames: plan.deferredNames,
         ...(plan.conversationKey !== undefined ? { conversationKey: plan.conversationKey } : {}),
         cacheDomainKey,
-        imagesSupported: imagesSupportedForCompatModel(modelId),
+        imagesSupported,
       }
     : undefined
   const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
@@ -540,7 +547,7 @@ export async function* compatChatCallModel(
   const mappedMessages = mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(preparedMessages), {
     keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
     keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
-    imagesSupported: imagesSupportedForCompatModel(modelId),
+    imagesSupported,
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
   const effortView = effortVocabularyFor(modelId)
@@ -657,7 +664,7 @@ export async function* compatChatCallModel(
       callableTools,
       effort: effortOnWire,
       ...(deferral !== undefined ? { deferral } : {}),
-      ...(profile.leadingNotes?.length ? { leadingNotes: profile.leadingNotes } : {}),
+      ...(leadingNotes.length ? { leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
