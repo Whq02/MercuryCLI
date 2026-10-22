@@ -7,6 +7,7 @@ import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopup
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
@@ -51,7 +52,7 @@ try {
   const { fastLoadRecipes, fastLoadState, mirrorToVolume, volumeDeleteDoor } = await import('../../src/services/host/fastLoad.ts')
   const bankHome = join(f.home, 'mercury-model-bank')
   const { sizeWords } = await import('../../src/services/host/bank.ts')
-  const { weightManifest, weightCheckScript, keptWeightsPath } = await import('../../src/services/host/keptWeights.ts')
+  const { weightManifest, weightCheckScript, keptWeightsPath, keptDownloadMinutes } = await import('../../src/services/host/keptWeights.ts')
   writeStoredRunpodApiKey(rp.key)
   const api = new RunpodClient(rp.key, rp.baseUrl)
   const signal = new AbortController().signal
@@ -75,7 +76,7 @@ try {
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15000), 'screen reaches ' + needle + '\n' + m.screen())
   const heading = async (needle: string) => {
-    if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
+    if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('More options →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active screen reaches ' + needle + '\n' + m.screen())
   }
   const select = async (needle: string) => {
@@ -100,7 +101,7 @@ try {
   }
   await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await capture('01-bank')
   await select('Qwen3.8-27B'); m.push('m'); await heading('How?'); await capture('02-per-model-how')
-  check('per-model choice offers network, global and explicit SSH stub', m.screen().includes('network volume') && m.screen().includes('global volume (beta)') && m.screen().includes('mercury-host road'))
+  check('per-model choice offers network, global and explicit SSH stub', m.screen().includes('network volume') && m.screen().includes('global volume (beta)') && m.screen().includes('mercury host'))
   await choose('network volume'); await heading('Where should'); await until('EU-NL-1')
   check('data centres come from catalogue and exclude non-standard-only storage', rp.requests.some((r: any) => r.path.endsWith('/catalog/datacenters')) && !m.screen().includes('HPS-ONLY'))
   await choose('EU-NL-1'); await heading('When should'); await choose('Prepare now'); await heading('Confirm weights disk')
@@ -119,7 +120,7 @@ try {
   await volumes.reconcileVolumes(api, signal)
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
-  await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await focus('Qwen3.8-27B'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
+  await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await select('Qwen3.8-27B'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Rent from which vendor?'); await choose('Runpod'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
   check('rental confirm gives per-step short estimate and monthly disk charge', m.screen().includes('weights kept ~0') && m.screen().includes('loads ~3 min') && m.screen().includes('$5.60/month'))
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
@@ -195,7 +196,7 @@ try {
   const failPod = await api.create(failOffer, sshKey.publicKey, 'fixture-ssh-failure', failVolume)
   const failed = queueHostSetup({ id: failPod.id, name: failPod.name, recipe: qwen.id, price: failOffer.price, startedAt: failPod.createdAt, status: failPod.status, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: failVolume.id, prepareWeightsOnly: true })
   ssh.state.refuse = true
-  await runHostJob(failed.id, failed.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })
+  await runHostJob(failed.id, failed.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: vshotBudgetMs(60), keepAlive: false })
   ssh.state.refuse = false
   check('prepare-only failure before SSH terminates its temporary billed pod', !rp.state.pods.has(failPod.id) && !readHostRecord(failPod.id) && volumes.readKeptVolume(failVolume.id)?.state === 'failed')
   const watch = queueHostWatch({ id: 'watch-kept', name: qwen.label, recipe: qwen.id, price: 5, maxPrice: 5, startedAt: new Date().toISOString(), status: 'WATCHING', apiBaseUrl: rp.baseUrl, sessionId: 'fast-load-proof' })
@@ -233,10 +234,19 @@ try {
   check('a delete without a clear answer says the disk may still exist and bill, and keeps its record', !unclearDelete.ok && unclearDelete.words.startsWith('Runpod gave no clear answer to deleting ' + shared.id + '; it may still exist and bill') && volumes.readKeptVolume(shared.id)?.state !== 'gone')
   const cleanupFailure = queueHostSetup({ id: otherPod.id, name: otherPod.name, recipe: qwen.id, price: failOffer.price, startedAt: otherPod.createdAt, status: otherPod.status, apiBaseUrl: rp.baseUrl, sshKey: sshKey.path, volumeId: shared.id, prepareWeightsOnly: true })
   ssh.state.refuse = true; rp.state.failDelete = true
-  await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: 60, keepAlive: false })
+  await runHostJob(cleanupFailure.id, cleanupFailure.generation!, { runner: ssh.runner, pauseMs: 5, timeoutMs: vshotBudgetMs(60), keepAlive: false })
   check('failed cleanup keeps the billed pod id and names it in durable error words', readHostRecord(otherPod.id)?.error?.includes(otherPod.id + ' may still bill') && rp.state.pods.has(otherPod.id))
   ssh.state.refuse = false; rp.state.failDelete = false
-  await api.terminate(otherPod.id); removeHostRecord(otherPod.id); await volumes.deleteKeptVolume(api, shared.id)
+  await api.terminate(otherPod.id); removeHostRecord(otherPod.id)
+  const deleteWords: string[] = []
+  const retriedDelete = await volumeDeleteDoor(api, shared.id, async q => { if (q.step !== 'volume-delete') return null; rp.state.failNext = { route: 'GET /v2/network-volumes', status: 503, times: 2 }; return 'delete' }, signal, event => deleteWords.push(event.words), 20000)
+  check('a delete whose listing hiccups twice says it is waiting, retries with words, and still verifies the disk gone', retriedDelete.ok && retriedDelete.words === 'Weights disk deleted · next rental downloads the weights again.' && deleteWords[0] === shared.id + ' · deleting · waiting for Runpod to drop it from the volume list' && deleteWords.filter(words => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(words)).length === 2 && rp.state.failNext.times === 0 && volumes.readKeptVolume(shared.id)?.state === 'gone' && !rp.state.volumes.has(shared.id))
+  rp.state.failNext = null
+  const unconfirmedDisk = await volumes.createKeptVolume(api, qwen, 'global', 'any DC', signal)
+  const unconfirmedDelete = await volumeDeleteDoor(api, unconfirmedDisk.id, async q => { if (q.step !== 'volume-delete') return null; rp.state.failNext = { route: 'GET /v2/network-volumes', status: 503, times: 1000 }; return 'delete' }, signal, () => {}, 300)
+  rp.state.failNext = null
+  check('a delete whose listing never answers says the deletion was sent but not confirmed, that the disk may still bill, and keeps its record', !unconfirmedDelete.ok && unconfirmedDelete.words.startsWith('Deletion of ' + unconfirmedDisk.id + ' was sent, but Runpod did not confirm the disk is gone: ') && unconfirmedDelete.words.includes('it may still bill') && unconfirmedDelete.words.includes('refresh Pods I’m paying for') && volumes.readKeptVolume(unconfirmedDisk.id)?.state !== 'gone' && !rp.state.volumes.has(unconfirmedDisk.id))
+  await volumes.deleteKeptVolume(api, unconfirmedDisk.id)
   const beforeStub = { disks: rp.state.volumeCreates, pods: rp.state.creates, commands: ssh.commands.length }
   await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === qwen.model)!, async q => {
     if (q.step === 'fast-load-how') return 'ssh'
@@ -278,18 +288,18 @@ try {
     if (q.step === 'fast-load-how') return 'network'
     if (q.step === 'fast-load-where') return 'EU-NL-1'
     if (q.step === 'fast-load-when') return 'now'
-    if (q.step === 'fast-load-confirm') { check('prepare-now confirm states the stall and deadline bound before any disk or pod exists', q.willRun.includes('A stalled download (under 1 GB in 10 min) or one past 41 min also terminates the pod and keeps the partial disk') && rp.state.creates === stallBefore.creates); return 'confirm' }
+    if (q.step === 'fast-load-confirm') { check('prepare-now confirm states the stall and deadline bound before any disk or pod exists', q.willRun.includes('A stalled download (under 1 GB in 10 min) or one past ' + keptDownloadMinutes(nemotron) + ' min also terminates the pod and keeps the partial disk') && rp.state.creates === stallBefore.creates); return 'confirm' }
     throw new Error('Unexpected stall step ' + q.step)
   }, () => {}, signal, options)
   await Promise.all(jobs)
   ssh.state.stallDownload = 0
   const stalled = volumes.keptVolumes().find(row => row.model === nemotron.model && row.state !== 'gone')!
   const stallPodId = 'fixture-pod-' + rp.state.creates
-  check('a stalled download marks the kept disk failed with its partial bytes and the stall words', stalled?.state === 'failed' && stalled.partialBytes === 11.2e9 && stalled.error === 'Download stalled at 11.20 GB of 65.76 GB (under 1 GB in 10 min)')
+  check('a stalled download marks the kept disk failed with its partial bytes and the stall words', stalled?.state === 'failed' && stalled.partialBytes === 11.2e9 && stalled.error === 'Download stalled at 11.20 GB of ' + (nemotron.weightsGb * 1e9 / 1e9).toFixed(2) + ' GB (under 1 GB in 10 min)')
   const deleteAt = rp.requests.findIndex((r: any) => r.method === 'DELETE' && r.path === '/v2/pods/' + stallPodId)
   check('the stalled temporary pod is terminated and the live list is read back before it counts as gone', rp.state.creates === stallBefore.creates + 1 && deleteAt >= 0 && rp.requests.slice(deleteAt + 1).some((r: any) => r.method === 'GET' && r.path === '/v2/pods') && !rp.state.pods.has(stallPodId) && !readHostRecord(stallPodId) && ssh.state.weightFetches === stallBefore.fetches)
   const notices = readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8')).words as string)
-  check('the stall notice names the stall, the verified termination and the half-filled disk price', notices.some(words => words.includes('preparation stopped: Download stalled at 11.20 GB of 65.76 GB') && words.includes('temporary pod ' + stallPodId + ' terminated') && words.includes('with 11.20 GB downloaded') && words.includes('$8.40/month for its 120 GB')))
+  check('the stall notice names the stall, the verified termination and the half-filled disk price', notices.some(words => words.includes('preparation stopped: Download stalled at 11.20 GB of ' + (nemotron.weightsGb * 1e9 / 1e9).toFixed(2) + ' GB') && words.includes('temporary pod ' + stallPodId + ' terminated') && words.includes('with 11.20 GB downloaded') && words.includes('$8.40/month for its 120 GB')))
   check('catalogue and paid list show the failed partial disk and its monthly price', fastLoadState(nemotron).startsWith('failed · ' + stalled.id) && fastLoadState(nemotron).includes('$8.40/month for its 120 GB') && volumes.volumeLabel(rp.state.volumes.get(stalled.id)).includes('failed · 11.20 GB downloaded'))
   check('a finished preparation leaves a notice naming the kept disk and the terminated pod', notices.some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')))
   await volumes.deleteKeptVolume(api, stalled.id)
@@ -317,7 +327,7 @@ try {
   const tiny = join(f.home, 'tiny-weights'); mkdirSync(tiny)
   const bytes = Buffer.from('verified weights')
   writeFileSync(join(tiny, 'model.gguf'), bytes)
-  const manifest = { model: 'fixture/tiny', include: '', revision: 'fixture', files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
+  const manifest = { model: 'fixture/tiny', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
   const verify = (options: { fully?: boolean; sampleManifestSha256?: string } = {}) => spawnSync('python3', ['-c', weightCheckScript(manifest, tiny, false, options)], { encoding: 'utf8' })
   const firstCheck = verify()
   check('real verification executes SHA256 and writes sizes plus SHA256SUMS', firstCheck.status === 0 && readFileSync(join(tiny, 'SHA256SUMS'), 'utf8').includes(manifest.files[0]!.sha256) && JSON.parse(readFileSync(join(tiny, 'SIZES.json'), 'utf8'))[0][1] === bytes.length)
@@ -341,7 +351,7 @@ try {
   writeFileSync(join(source, 'model.gguf'), payload)
   const netDev = join(f.home, 'fake-net-dev')
   writeFileSync(netDev, 'Inter-|   Receive\n face |bytes    packets\n  eth0: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0\n')
-  const fillManifest = { model: 'fixture/fill', include: '', revision: 'fixture', files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
+  const fillManifest = { model: 'fixture/fill', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
   const fill = (name: string, mode: string, extra: NonNullable<Parameters<typeof weightCheckScript>[3]>) => {
     const started = Date.now()
     const run = spawnSync('python3', ['-c', weightCheckScript(fillManifest, join(f.home, name), true, { stallSeconds: 0.5, stallBytes: 1000, stallPollSeconds: 0.05, netDevPath: netDev, ...extra })], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PYTHONPATH: join(f.home, 'fake-hub'), FAKE_HF_MODE: mode, FAKE_HF_SOURCE: source } })
@@ -360,7 +370,7 @@ try {
   const sparse = join(f.home, 'sparse-weights'); mkdirSync(sparse)
   const sparseFiles = [{ path: 'big.gguf', size: 2048 * MiB }, { path: 'mid.gguf', size: 300 * MiB + 7 }, { path: 'small.json', size: 1000 }]
   for (const file of sparseFiles) { writeFileSync(join(sparse, file.path), ''); truncateSync(join(sparse, file.path), file.size) }
-  const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'fixture', files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
+  const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'd'.repeat(40), files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
   const counted = "import pathlib as _pl, atexit as _ax\n_read = [0]\n_open = _pl.Path.open\nclass _Counted:\n    def __init__(self, f): self.f = f\n    def read(self, n=-1):\n        b = self.f.read(n)\n        _read[0] += len(b)\n        return b\n    def __getattr__(self, name): return getattr(self.f, name)\n    def __enter__(self): return self\n    def __exit__(self, *a): return self.f.__exit__(*a)\ndef _counted_open(self, mode='r', *a, **k):\n    f = _open(self, mode, *a, **k)\n    return _Counted(f) if 'r' in mode and 'b' in mode else f\n_pl.Path.open = _counted_open\n_ax.register(lambda: print('BYTES_READ ' + str(_read[0])))\n"
   const sparseFill = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false)], { encoding: 'utf8', timeout: 120_000 })
   const sparseAnchor = JSON.parse(sparseFill.stdout.split('\n').find(line => line.startsWith('MERCURY_WEIGHTS '))!.slice('MERCURY_WEIGHTS '.length)).sampleManifestSha256 as string
@@ -387,7 +397,7 @@ try {
   volumes.writeKeptVolume({ ...volumes.readKeptVolume(filling.id)!, state: 'preparing', preparingPod: fillPod.id })
   const whileFilling = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   await api.terminate(fillPod.id)
-  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when Fast-load shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
+  check('a rental never attaches a disk another pod is still filling, and attaches it once that pod is gone', whileFilling.includes('Pod ' + fillPod.id + ' is still filling weights disk ' + filling.id + '; rent when the Bank shows it kept') && (await volumes.rentalVolume(api, nemotron, signal))?.id === filling.id)
   rp.state.failVolumeRead = true
   const blindRental = await volumes.rentalVolume(api, nemotron, signal).then(() => '', error => String(error))
   check('a model with a disk is not rented blind while the volume list is unreadable', blindRental.includes('cannot be confirmed while Runpod’s volume list is unavailable; no pod was created'))

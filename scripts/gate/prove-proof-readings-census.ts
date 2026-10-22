@@ -93,6 +93,20 @@ for (const path of ['scripts/edit-tools/prove-write-preserves-file-shape.ts', 's
   const source = read(path)
   if (!/const budgetMs = vshotBudgetMs\(120_000\)/.test(source) || !/\}, budgetMs\)/.test(source)) failures.push(`${path}: the outer watchdog must honor the runner's pace, not a fixed 120-second wall`)
 }
+const fastLoad = read('scripts/host/prove-fast-load-drive.ts')
+const fastLoadSource = ts.createSourceFile('fast-load.ts', fastLoad, ts.ScriptTarget.Latest, true)
+let shortJobBudgets = 0
+visit(fastLoadSource, node => {
+  if (!ts.isCallExpression(node) || calleeName(node) !== 'runHostJob') return
+  const options = node.arguments[2]
+  if (!options || !ts.isObjectLiteralExpression(options)) return
+  for (const prop of options.properties) {
+    if (!ts.isPropertyAssignment(prop) || prop.name.getText(fastLoadSource) !== 'timeoutMs') continue
+    if (ts.isNumericLiteral(prop.initializer) && Number(prop.initializer.text) === 60) failures.push('scripts/host/prove-fast-load-drive.ts: short inner failure-job budgets must honor the runner scale')
+    if (ts.isCallExpression(prop.initializer) && calleeName(prop.initializer) === 'vshotBudgetMs' && prop.initializer.arguments[0]?.getText(fastLoadSource) === '60') shortJobBudgets++
+  }
+})
+if (shortJobBudgets !== 2) failures.push('scripts/host/prove-fast-load-drive.ts: both short failure/cleanup job budgets must remain present and runner-scaled')
 const splash = read('scripts/splash/prove-splash.py')
 for (const name of ['run_pty', 'run_corpus']) {
   const body = splash.split(`def ${name}(`)[1]?.split('\ndef ')[0] ?? ''
