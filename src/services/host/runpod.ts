@@ -83,14 +83,14 @@ export class RunpodClient {
   }
   async watchOffer(recipe: HostRecipe, maxPrice: number, signal?: AbortSignal): Promise<HostOffer | undefined> {
     if ((recipe.nodes ?? 1) > 1) {
-      const candidates = currentHostRecipes().filter(row => row.label === recipe.label && row.nodes === recipe.nodes && row.count === recipe.count && row.cuda === recipe.cuda)
+      const candidates = [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id && (row.label === recipe.label && row.nodes === recipe.nodes && row.count === recipe.count && row.cuda === recipe.cuda))]
       const result = await this.clusterOffers(candidates.length ? candidates : [recipe], signal)
       return result.offers.filter(row => cents(row.price) <= cents(maxPrice)).sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || stockRank(b.availability) - stockRank(a.availability) || a.price - b.price)[0]
     }
     const response = await this.response('/catalog/gpus?include=AVAILABILITY&product=POD&cloud=SECURE&count=' + recipe.count + '&minCudaVersion=' + recipe.cuda, 'GET', undefined, signal)
     const { gpus } = z.object({ gpus: z.array(gpuSchema) }).parse(await response.json())
     const model = recipe.label.split(' · ')[0]
-    const candidates = currentHostRecipes().filter(row => row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda)
+    const candidates = [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id && (row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda))]
     const offers: HostOffer[] = []
     for (const candidate of candidates.length ? candidates : [recipe]) for (const gpu of gpus) {
       if (!gpu.secure || gpu.price.secure <= 0 || !stock(gpu.availability) || !recipeFits(candidate, gpu.id, gpu.memory, gpu.maxCount.secure)) continue
