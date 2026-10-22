@@ -102,14 +102,15 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     if (recipe.weightFile) {
       const first = join(local, recipe.weightFile)
       const parts = /-00001-of-(\d+)\.gguf$/.exec(first)
-      if (!parts || !existsSync(first)) throw new Error('The bank folder must contain the selected GGUF quant and all its shards.')
-      for (let part = 1; part <= Number(parts[1]); part++) if (!existsSync(first.replace('-00001-of-', '-' + String(part).padStart(5, '0') + '-of-'))) throw new Error('A GGUF shard is missing from the bank folder.')
+      if (!existsSync(first)) throw new Error('The bank folder must contain the selected GGUF quant and all its shards.')
+      if (parts) for (let part = 1; part <= Number(parts[1]); part++) if (!existsSync(first.replace('-00001-of-', '-' + String(part).padStart(5, '0') + '-of-'))) throw new Error('A GGUF shard is missing from the bank folder.')
       if (recipe.mmproj && (!existsSync(join(local, recipe.mmproj)) || statSync(join(local, recipe.mmproj)).size === 0)) throw new Error('The bank folder is missing the vision projector: ' + recipe.mmproj)
     } else {
       const config = JSON.parse(readFileSync(join(local, 'config.json'), 'utf8')) as { _name_or_path?: string }
       if (config._name_or_path?.includes('/') && config._name_or_path !== recipe.model) throw new Error('The bank config names another model: ' + config._name_or_path)
-      const index = JSON.parse(readFileSync(join(local, 'model.safetensors.index.json'), 'utf8')) as { weight_map: Record<string, string> }
-      for (const file of new Set(Object.values(index.weight_map))) if (!/^[a-zA-Z0-9_.-]+$/.test(file) || !existsSync(join(local, file)) || statSync(join(local, file)).size === 0) throw new Error('A weight shard is missing from the bank folder.')
+      const indexPath = join(local, 'model.safetensors.index.json')
+      const files = existsSync(indexPath) ? Object.values((JSON.parse(readFileSync(indexPath, 'utf8')) as { weight_map: Record<string, string> }).weight_map) : ['model.safetensors']
+      for (const file of new Set(files)) if (!/^[a-zA-Z0-9_.-]+$/.test(file) || !existsSync(join(local, file)) || statSync(join(local, file)).size === 0) throw new Error('A weight shard is missing from the bank folder.')
     }
     await runner.run('ssh', [...args, 'mkdir -p ' + quote(dir + '/weights')], signal)
     const remote = (target.user ? target.user + '@' : '') + target.host + ':' + dir + '/weights/'
