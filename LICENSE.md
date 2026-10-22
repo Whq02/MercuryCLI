@@ -20,7 +20,7 @@ This summary is only a guide. The operative terms below control.
 ## License parameters
 
 - **Licensor:** Waleed Al Qusous, trading as Mercury CLI
-- **Licensed Work:** The version of Mercury CLI identified below, including its Mercury-owned source code, object code, documentation, and other materials distributed with this notice, but excluding third-party components expressly identified as being under another licence.
+- **Licensed Work:** The version of Mercury CLI identified below, including its Mercury-owned source code, object code, documentation, and other materials distributed with this notice, but excluding third-party components expressly identified as being under another licence. The `sdk/` and `sdk-py/` directories are licensed separately under the Apache License, Version 2.0, by the LICENSE file each carries, and are not part of the Licensed Work.
 - **Version:** `v1.0.0-beta.41` — the Mercury CLI release this file is distributed with, as named by its release tag and by `mercury --version`; a later version ships its own copy of this file with its own values
 - **Version Release Date:** 2026-10-22 (published at https://github.com/Whq02/MercuryCLI/releases/tag/v1.0.0-beta.41)
 - **Additional Use Grant:** The Mercury Community Production Grant set out below.
