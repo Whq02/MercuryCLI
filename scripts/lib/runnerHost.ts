@@ -67,7 +67,7 @@ export function hostRunner(opts: HostOptions): HostedRunner {
   const scratch = opts.home === undefined ? scratchHome() : null
   const cwd = opts.cwd ?? scratch?.cwd ?? process.cwd()
   const env: Record<string, string | undefined> = {
-    PATH: `/usr/bin:/bin:${dirname(opts.node)}`,
+    PATH: dirname(opts.node) === '.' ? (process.env.PATH ?? '/usr/bin:/bin') : `/usr/bin:/bin:${dirname(opts.node)}`,
     ...(scratch?.env ?? {}),
     ...(opts.env ?? {}),
   }
@@ -119,7 +119,10 @@ export function hostRunner(opts: HostOptions): HostedRunner {
       )
     })
   })
-  const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+  const exited = new Promise<number | null>(resolve => {
+    child.on('close', code => resolve(code))
+    child.once('error', () => resolve(null))
+  })
   const logFile = (() => {
     const argv = opts.argv ?? []
     const at = argv.indexOf('--log-file')

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { DIST, NODE, REPO, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -10,6 +10,16 @@ import { processGone } from '../lib/seatForensics.ts'
 const tally = makeTally('prove-seat-launcher')
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'seat-launcher-')))
 const launcherModule = join(REPO, 'scripts', 'lib', 'seatLauncher.ts')
+const exeOf = (pid: number): string => {
+  if (process.platform === 'linux') {
+    try {
+      return readlinkSync(`/proc/${pid}/exe`)
+    } catch {
+      return ''
+    }
+  }
+  return psOf(pid, 'comm')
+}
 const psOf = (pid: number, column: string): string => {
   try {
     return execFileSync('ps', ['-o', `${column}=`, '-p', String(pid)], { encoding: 'utf8' }).trim()
@@ -61,7 +71,7 @@ if (launcher !== null && existsSync(DIST)) {
   const seatLog = join(root, 'live-seat-debug.txt')
   const host = hostRunner({ node: seat.exe, dist: seat.script, argv: ['--model', 'claude-opus-4-8', '--log-file', seatLog], cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) as Record<string, string | undefined>, home: runHome, onRow: () => {} })
   const pid = host.child.pid ?? 0
-  const comm = psOf(pid, 'comm')
+  const comm = exeOf(pid)
   const args = psOf(pid, 'args')
   let answered = false
   let detail = ''
@@ -71,7 +81,7 @@ if (launcher !== null && existsSync(DIST)) {
   } catch (error) {
     detail = error instanceof Error ? error.message : String(error)
   }
-  tally.check('the live seat is a node process (ps comm), not bun', /node/.test(basename(comm)) && !/bun/.test(basename(comm)), `comm=${comm}`)
+  tally.check('the live seat is a node process (its executable, read from the live process), not bun', /node/.test(basename(comm)) && !/bun/.test(basename(comm)), `exe=${comm}`)
   tally.check('…running dist/mercury.mjs (ps args)', args.includes('mercury.mjs') && !args.includes('cli.tsx'), `args=${args.slice(0, 160)}`)
   tally.check('…and it answers initialize', answered, detail)
   host.end()
