@@ -25,7 +25,8 @@ const windowTokens = (value: unknown): number | undefined => typeof value === 'n
 const llamacppSlotsCache = new Map<string, number>()
 const llamacppSlotsInFlight = new Map<string, Promise<number | undefined>>()
 const LLAMACPP_SLOT_PROBE_MS = 5_000
-
+export const SGLANG_MODEL_INFO_PATH = '/model_info'
+export const SGLANG_LEGACY_MODEL_INFO_PATH = '/get_model_info'
 
 type CompatImageReading = { supported: boolean; source: 'projector' | 'model' }
 const serverImages = new Map<string, { projector?: boolean; models: NonNullable<CompatServerReading['capabilities']> }>()
@@ -278,6 +279,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
   const optional = async (path: string, body?: unknown): Promise<Record<string, any> | undefined> => {
     try { return record(await request(`${root}${path}`, body)) } catch { return undefined }
   }
+  const sglangModelInfo = async (): Promise<Record<string, any> | undefined> => await optional(SGLANG_MODEL_INFO_PATH) ?? optional(SGLANG_LEGACY_MODEL_INFO_PATH)
   try {
     const body = record(await request(`${base}/models`))
     if (!Array.isArray(body?.data)) throw new Error('models endpoint returned no data array')
@@ -295,7 +297,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       if (Array.isArray(modalities) && modalities.length > 0 && modalities.every(value => typeof value === 'string')) capabilities[row.id.trim()] = { images: modalities.includes('image') }
     }
     const [sglang, llama, ollama] = await Promise.all([
-      opts.detect || endpoint.dialect === 'sglang' ? optional('/get_model_info') : undefined,
+      opts.detect || endpoint.dialect === 'sglang' ? sglangModelInfo() : undefined,
       opts.detect || endpoint.dialect === 'llamacpp' ? optional('/props') : undefined,
       opts.detect || endpoint.dialect === 'ollama' ? optional('/api/tags') : undefined,
     ])

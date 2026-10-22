@@ -27,7 +27,7 @@ try {
       assert.equal(compatProviderAdapter.describe().catalogue.find((row: any) => row.id === id)?.contextWindow, 1_048_576)
     }
     for (const dialect of ['sglang', 'llamacpp', 'ollama']) {
-      f.state.field = ''; f.state.dialect = dialect
+      f.state.field = dialect === 'sglang' ? 'max_model_len' : ''; f.state.dialect = dialect
       configure(dialect)
       await catalogue.refreshCompatCatalogues({ force: true })
       assert.equal(getContextWindowForModel(id), 1_048_576, `${dialect} native metadata reaches the budget`)

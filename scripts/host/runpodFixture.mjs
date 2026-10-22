@@ -12,7 +12,7 @@ const livePods = sample('pods-list')
 export async function runpodFixture() {
   const key = 'fixture-runpod-key-not-a-real-key'
   const requests = []
-  const state = { failNext: null, retryAfter: undefined, volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, clusters: new Map(), clusterNodes: new Map(), clusterGpus: [], clusterCreateBodies: [], clusterCreateOutcomes: [], clusterCreates: 0, clusterDeletes: 0, clusterCatalogReads: 0, clusterReads: 0, holdClusterDelete: false, clusterCuda: '13.0', pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
+  const state = { failNext: null, retryAfter: undefined, volumes: new Map(), volumeCreates: 0, volumeDeletes: 0, failVolumeDelete: false, volumeOutcomes: [], volumeBodies: [], volumePageSize: 100, repeatVolumeCursor: false, failVolumeRead: false, clusters: new Map(), clusterNodes: new Map(), clusterGpus: [], clusterCreateBodies: [], clusterCreateOutcomes: [], clusterCreates: 0, clusterDeletes: 0, clusterCatalogReads: 0, clusterReads: 0, holdClusterDelete: false, clusterCuda: '13.0', pods: new Map(), createBodies: [], keys: [], reads: 0, catalogReads: 0, catalogTimes: [], catalogFailures: [], creates: 0, createOutcomes: [], stops: 0, deletes: 0, noStock: false, stockLoss: false, stockAfterReads: 0, price: 7.99, failCreate: false, stuck: false, failStop: false, failDelete: false, customGpus: null, podPageSize: 1000, podCursorLost: false, repeatPodCursor: false, podListReads: 0, logLines: null, createErrors: null, policy: '"minute";q=60;w=60, "hour";q=3000;w=3600, "day";q=50000;w=86400' }
   const gpus = liveCatalogue.gpus
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -122,11 +122,19 @@ export async function runpodFixture() {
       return send(clusterMatch[2] ? { pods: state.clusterNodes.get(cluster.id) } : cluster)
     }
     if (url.pathname === '/v2/account/ssh-keys') { if (req.method === 'PUT') state.keys = body.keys; return send({ keys: state.keys }) }
-    if (url.pathname === '/v2/pods' && req.method === 'GET') return send({ ...livePods, pods: [...state.pods.values()], pagination: { hasNextPage: false, nextCursor: null } })
+    if (url.pathname === '/v2/pods' && req.method === 'GET') {
+      state.podListReads++
+      const all = [...state.pods.values()]
+      const start = Number(url.searchParams.get('cursor') ?? 0)
+      const next = start + state.podPageSize
+      const more = next < all.length || state.repeatPodCursor || state.podCursorLost
+      return send({ ...livePods, pods: all.slice(start, next), pagination: { hasNextPage: more, nextCursor: !more || state.podCursorLost ? null : state.repeatPodCursor ? String(start) : String(next) } })
+    }
     if (url.pathname === '/v2/pods' && req.method === 'POST') {
       const outcome = state.failCreate ? 'refuse' : state.createOutcomes.shift()
       if (outcome === 'refuse') return problem(400, 'Bad Request', 'fixture: this GPU and data center combination could not be placed')
       if (outcome === 'refuse402') return problem(402, 'Payment Required', 'fixture: insufficient balance')
+      if (outcome === 'refuse422') return send({ title: 'Unprocessable Entity', status: 422, detail: 'request validation failed', errors: state.createErrors ?? ['$.gpu.minCudaVersion: does not match pattern ^\\d+\\.\\d+$'] }, 422)
       state.creates++; state.createBodies.push(body)
       assert.deepEqual(body.ports, ['22/tcp'])
       assert.equal(body.cloud, 'SECURE')
@@ -160,7 +168,13 @@ export async function runpodFixture() {
     const pod = match && (state.pods.get(match[1]) ?? [...state.clusterNodes.values()].flat().find(node => node.id === match[1]))
     if (!pod) return send({ error: 'not found' }, 404)
     if (pod.cluster && req.method !== 'GET') return problem(400, 'Bad Request', 'Member pods are managed through the cluster API')
-    if (match[2] === '/logs') { res.writeHead(200, { 'Content-Type': 'text/event-stream' }); return res.end('data: {"source":"container","line":"fixture image pull pending"}\n\n') }
+    if (match[2] === '/logs') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+      const tail = Math.min(5000, Math.max(0, Number(url.searchParams.get('tail') ?? 100)))
+      const history = state.logLines ?? [{ source: 'system', line: 'pod assigned to machine' }, { source: 'container', line: 'fixture image pull pending' }]
+      const events = tail === 0 ? [] : history.slice(-tail)
+      return res.end(events.map((event, index) => { const ts = new Date(Date.now() - (events.length - index) * 1000).toISOString(); return 'id: ' + ts + '\ndata: ' + JSON.stringify({ ...event, ts }) + '\n\n' }).join(''))
+    }
     if (req.method === 'DELETE') { if (state.failDelete) return problem(503, 'Service Unavailable', 'fixture terminate could not be verified'); state.deletes++; state.pods.delete(pod.id); return send(undefined, 204) }
     if (match[2] === '/action') { if (state.failStop) return send({ error: 'stop refused' }, 409); assert.equal(body.action, 'stop'); state.stops++; pod.status = 'EXITED'; pod.cost = 0; return send(pod) }
     state.reads++

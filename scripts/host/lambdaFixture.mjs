@@ -6,13 +6,14 @@ export async function lambdaFixture() {
   const key = 'fixture-lambda-key'
   const requests = []
   const types = [type('gpu_4x_b200', 'B200 (180 GB SXM6)', 4, 1196), type('gpu_8x_b200', 'B200 (180 GB SXM6)', 8, 2392, 22528), type('gpu_1x_h100_sxm5', 'H100 (80 GB SXM5)', 1, 299, 2816)]
-  const state = { failNext: null, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, bootIp: null, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false }
+  const state = { failNext: null, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, keyCreates: 0, pods: new Map(), keys: [], types, bootReads: 1, bootIp: null, createStatus: 0, holdTerminate: false, badRead: false, mismatchKey: false, retryAfter: '1', ambiguousKey: false, pageSize: 50, repeatPageToken: false, listPages: 0 }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
     const body = raw ? JSON.parse(raw) : undefined
-    const path = new URL(req.url, 'http://127.0.0.1').pathname
-    requests.push({ path, method: req.method, body, at: Date.now(), socket: req.socket.remotePort, connection: req.headers.connection })
+    const url = new URL(req.url, 'http://127.0.0.1')
+    const path = url.pathname
+    requests.push({ path, search: url.search, method: req.method, body, at: Date.now(), socket: req.socket.remotePort, connection: req.headers.connection })
     const json = (value, status = 200) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)) }
     const fail = (status, code, message) => json({ error: { code, message: message + ' ' + key } }, status)
     if (req.headers.authorization !== 'Bearer ' + key) { fail(401, 'global/invalid-api-key', 'Invalid API key'); return }
@@ -32,7 +33,7 @@ export async function lambdaFixture() {
       if (req.method === 'GET') { json({ data: state.keys }); return }
       if (req.method === 'POST') {
         state.keyCreates++
-        if (state.keys.some(row => row.name === body.name)) { fail(400, 'ssh-keys/duplicate-name', 'Name exists'); return }
+        if (state.keys.some(row => row.name === body.name)) { fail(400, 'global/duplicate', 'An SSH key with that name already exists'); return }
         const row = { id: 'key-1', name: body.name, public_key: state.mismatchKey ? 'ssh-ed25519 ZGlmZmVyZW50' : body.public_key }
         state.keys.push(row); if (state.ambiguousKey) { req.socket.destroy(); return } json({ data: row }); return
       }
@@ -52,7 +53,14 @@ export async function lambdaFixture() {
       if (state.ambiguousCreate) { fail(503, 'provider/internal-unavailable', 'Provider unavailable'); return }
       json({ data: { instance_ids: [id] } }); return
     }
-    if (path === '/api/v1/instances' && req.method === 'GET') { json({ data: [...state.pods.values()], page_token: null }); return }
+    if (path === '/api/v1/instances' && req.method === 'GET') {
+      state.listPages++
+      const all = [...state.pods.values()]
+      const size = Math.min(100, state.pageSize, Math.max(1, Number(url.searchParams.get('page_size') ?? 50)))
+      const start = Number(url.searchParams.get('page_token') ?? 0)
+      const next = start + size
+      json({ data: all.slice(start, next), page_token: state.repeatPageToken ? String(start) : next < all.length ? String(next) : null }); return
+    }
     if (path === '/api/v1/instance-operations/terminate' && req.method === 'POST') {
       const terminated_instances = []
       state.deletes++

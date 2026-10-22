@@ -25,6 +25,20 @@ export const createRefusal = (error: unknown): RunpodHttpError | undefined => er
 export const clusterCreateRefusal = (error: unknown): RunpodHttpError | undefined => error instanceof RunpodHttpError && clusterRefusalStatuses.includes(error.status) ? error : undefined
 export const cents = (amount: number): number => Math.round(amount * 100)
 
+export function podLogLines(stream: string): string[] {
+  const lines: string[] = []
+  for (const frame of stream.split(/\r?\n\r?\n/)) {
+    const data = frame.split(/\r?\n/).filter(row => row.startsWith('data:')).map(row => row.slice(5).trim()).join('\n')
+    if (!data) continue
+    if (!data.startsWith('{')) { lines.push(data); continue }
+    try {
+      const event = JSON.parse(data) as { source?: unknown; line?: unknown }
+      if (typeof event.line === 'string') lines.push((event.source === 'system' ? 'system: ' : '') + event.line)
+    } catch {}
+  }
+  return lines
+}
+
 export class RunpodClient {
   private lastShapes: HostOffer[] = []
   private policy: string | undefined
@@ -42,7 +56,7 @@ export class RunpodClient {
     if (!response.ok) {
       const text = await response.text().catch(() => '')
       let detail = ''
-      try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown }; detail = String(problem.detail ?? problem.error ?? problem.title ?? '') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
+      try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown; errors?: unknown }; detail = [problem.detail ?? problem.error ?? problem.title ?? '', ...(Array.isArray(problem.errors) ? problem.errors : [])].map(String).filter(Boolean).join(' · ') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
       detail = detail.split(this.key).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
       const wait = retryAfterSeconds(response.headers.get('retry-after'))
       throw new RunpodHttpError('Runpod ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (response.status === 401 || response.status === 403 ? ' — check the key and its Pods, Catalog and billing read permissions.' : create && refused.includes(response.status) ? ' · Runpod refused it; no ' + resource + ' was created.' : create ? ' — no retry was sent. Refresh ' + resource + 's before retrying; creation may have reached the account.' : ''), response.status, detail, wait)
@@ -108,10 +122,10 @@ export class RunpodClient {
     const seen = new Set<string>()
     do {
       const response = await this.response('/pods' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), 'GET', undefined, signal)
-      const page = z.object({ pods: z.array(podSchema), pagination: z.object({ hasNextPage: z.boolean(), nextCursor: z.string().nullable() }).optional() }).parse(await response.json())
+      const page = z.object({ pods: z.array(podSchema), pagination: z.object({ hasNextPage: z.boolean(), nextCursor: z.string().nullable() }) }).parse(await response.json())
       pods.push(...page.pods)
-      cursor = page.pagination?.hasNextPage ? page.pagination.nextCursor ?? undefined : undefined
-      if (page.pagination?.hasNextPage && !cursor || cursor && seen.has(cursor)) throw new Error('Runpod returned an invalid pod-list cursor. The paid-pods list is incomplete.')
+      cursor = page.pagination.hasNextPage ? page.pagination.nextCursor ?? undefined : undefined
+      if (page.pagination.hasNextPage && !cursor || cursor && seen.has(cursor)) throw new Error('Runpod returned an invalid pod-list cursor. The paid-pods list is incomplete.')
       if (cursor) seen.add(cursor)
     } while (cursor)
     return pods
@@ -134,7 +148,8 @@ export class RunpodClient {
       const reader = response.body?.getReader()
       if (reader) try { while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += new TextDecoder().decode(part.value) } } finally { await reader.cancel().catch(() => {}) }
     } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
-    return text.split(this.key).join('[redacted]').split('\n').filter(Boolean).slice(-12).join('\n')
+    const lines = /^(?:data|id|event):/m.test(text) ? podLogLines(text) : text.split('\n')
+    return lines.map(line => line.split(this.key).join('[redacted]')).filter(Boolean).slice(-12).join('\n')
   }
   async volumes(signal?: AbortSignal): Promise<HostVolume[]> {
     const result: HostVolume[] = []

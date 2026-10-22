@@ -2,6 +2,12 @@ import type { HostRecipe } from './recipes.js'
 
 export const heavyWeights = (recipe: HostRecipe): boolean => recipe.weightsGb > 512
 
+export const HOST_UNBILLED_STATUSES: ReadonlySet<string> = new Set(['EXITED', 'TERMINATED'])
+export const hostPodBills = (pod: { status: string }): boolean => !HOST_UNBILLED_STATUSES.has(pod.status)
+export function hostSpendSoFar(pods: readonly { status: string; cost: number; startedAt?: string | null; createdAt: string }[], now = Date.now()): number {
+  return pods.filter(hostPodBills).reduce((sum, pod) => sum + pod.cost * Math.max(0, now - Date.parse(pod.startedAt ?? pod.createdAt)) / 3600_000, 0)
+}
+
 function hostSize(gb: number): string {
   return gb >= 1000 ? +(gb / 1000).toFixed(2) + ' TB' : +gb.toFixed(2) + ' GB'
 }
