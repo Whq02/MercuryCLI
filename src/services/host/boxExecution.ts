@@ -9,12 +9,12 @@ export function boxAbsolutePath(box: HostBox, path: string): string {
   if (/[\0\r\n]/.test(path) || !(box.os === 'windows' ? win32 : posix).isAbsolute(path)) throw new Error('Give an absolute folder path on the selected computer.')
   return path
 }
-export async function runBoxScript(box: Pick<HostBox, 'os' | 'target'>, script: string, runner: HostRunner, signal: AbortSignal, timeoutMs = 30_000): Promise<string> {
+export async function runBoxScript(box: Pick<HostBox, 'os' | 'target'>, script: string, runner: HostRunner, signal: AbortSignal, timeoutMs = 30_000, env?: Record<string, string>): Promise<string> {
   const windows = box.os === 'windows'
   const executable = windows ? 'powershell.exe' : '/bin/sh'
   if (!windows) script = 'export PATH=$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin\n' + script
   const args = windows ? ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from("$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\n" + script, 'utf16le').toString('base64')] : ['-c', 'set -eu\n' + script]
-  return box.target ? runner.run('ssh', [...sshArguments(box.target), windows ? executable + ' ' + args.join(' ') : executable + ' -c ' + shQuote('set -eu\n' + script)], signal, timeoutMs) : runner.run(executable, args, signal, timeoutMs)
+  return box.target ? runner.run('ssh', [...sshArguments(box.target), windows ? executable + ' ' + args.join(' ') : executable + ' -c ' + shQuote('set -eu\n' + script)], signal, timeoutMs) : runner.run(executable, args, signal, timeoutMs, env)
 }
 export async function writeBoxFile(box: HostBox, path: string, content: string, runner: HostRunner, signal: AbortSignal): Promise<void> {
   const base64 = Buffer.from(content).toString('base64')

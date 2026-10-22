@@ -22,9 +22,11 @@ const active = (record: HostRecord): boolean => {
 const watchPollIntervalMs = 5000
 const watchPollWindowMs = 12 * 3600_000
 const quota = (policy: string): string => [...policy.matchAll(/"(minute|hour|day)";q=(\d+)/g)].map(([, window, allowed]) => allowed + (window === 'hour' ? ' an ' : ' a ') + window).join(', ')
-export const watchRateWords = (pollMs: number, policy?: string): string => 'one catalogue read every ' + pollMs / 1000 + ' s (' + Math.round(60_000 / pollMs) + ' a minute) · ' + (policy === undefined ? 'Runpod meters each account per minute, hour and day' : quota(policy) ? 'this account’s Runpod quota: ' + quota(policy) : 'Runpod sent no rate-limit policy for this account')
+export const watchRateWords = (pollMs: number, policy?: string, vendors: readonly string[] = ['runpod']): string => 'one catalogue read' + (vendors.length > 1 ? ' per provider (' + vendors.length + ')' : '') + ' every ' + pollMs / 1000 + ' s (' + Math.round(60_000 / pollMs) + ' a minute' + (vendors.length > 1 ? ' each' : '') + ') · ' + (vendors.includes('runpod') ? policy === undefined ? 'Runpod meters each account per minute, hour and day' : quota(policy) ? 'this account’s Runpod quota: ' + quota(policy) : 'Runpod sent no rate-limit policy for this account' : 'each provider meters its own account')
 export const watchModel = (record: HostRecord): string => (currentHostRecipes().find(recipe => recipe.id === record.recipe)?.label ?? record.name).split(' · ')[0]!
 export const activeHostWatches = (): HostRecord[] => hostRecords().filter(row => row.jobKind === 'watch' && ['queued', 'starting', 'running'].includes(row.jobState ?? ''))
+export const activeHostBanks = (): HostRecord[] => hostRecords().filter(row => row.jobKind === 'bank' && ['queued', 'starting', 'running'].includes(row.jobState ?? ''))
+export const bankJobModel = (record: HostRecord): string => { const recipe = currentHostRecipes().find(recipe => recipe.id === record.recipe) ?? record.recipeRow; return recipe ? recipe.model + '\n' + (recipe.include ?? '') : record.name }
 
 export async function requireHostJobOwner(): Promise<void> {
   const daemon = await readDaemonState()
@@ -49,16 +51,29 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   return queued
 }
 export function queueHostWatch(record: HostRecord): HostRecord {
-  if (record.vendor && record.vendor !== 'runpod') throw new Error('Stock watches are Runpod-only. Nothing was queued or rented.')
   const watching = activeHostWatches().find(row => row.id !== record.id && watchModel(row) === watchModel(record))
   if (watching) return watching
   if (active(record)) return readHostRecord(record.id) ?? record
   const now = Date.now()
   const ceiling = record.maxPrice ?? record.price
   const pollIntervalMs = record.pollIntervalMs ?? watchPollIntervalMs
-  const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr'
+  const vendors = record.watchVendors?.length ? record.watchVendors : [record.vendor ?? 'runpod']
+  const recipe = currentHostRecipes().find(row => row.id === record.recipe) ?? record.recipeRow
+  const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr' + (vendors.length > 1 ? ' across ' + vendors.length + ' providers' : '')
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
-  const queued: HostRecord = { ...record, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, rateLimit: watchRateWords(pollIntervalMs), generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, creating: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
+  const queued: HostRecord = { ...record, recipeRow: recipe, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, watchVendors: vendors, rateLimit: watchRateWords(pollIntervalMs, undefined, vendors), generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, creating: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
+  writeHostRecord(queued)
+  return queued
+}
+export function queueHostBank(record: HostRecord): HostRecord {
+  const busy = activeHostBanks().find(row => row.id !== record.id && bankJobModel(row) === bankJobModel(record))
+  if (busy) return busy
+  if (active(record)) return readHostRecord(record.id) ?? record
+  const recipe = currentHostRecipes().find(row => row.id === record.recipe) ?? record.recipeRow
+  const now = Date.now()
+  const step = record.bankTask === 'verify' ? 'verifying the bank' : 'queued · downloading from Hugging Face'
+  const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
+  const queued: HostRecord = { ...record, vendor: 'runpod', recipeRow: recipe, jobKind: 'bank', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
   writeHostRecord(queued)
   return queued
 }
@@ -86,6 +101,8 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
   for (const record of options.records ?? hostRecords()) {
     if (!record.jobState || record.jobState === 'stopped') continue
     const watch = record.jobKind === 'watch'
+    const bank = record.jobKind === 'bank'
+    const bankWords = (detail: string): string => record.name + ' · ' + (record.bankTask === 'verify' ? 'bank verification' : 'banking') + ' ' + detail + ' · nothing was rented · /llmhost → Bank to try again'
     const alive = options.alive?.(record) ?? active(record)
     if (record.jobState === 'queued' && !alive) {
       try {
@@ -98,8 +115,20 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
         }
       } catch (error) {
         patchHostRecord(record.id, { jobState: 'failed', error: String(error) })
-        hostNotice(record, 'failed', record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup stalled at ' + record.step + ' · ' + String(error) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+        hostNotice(record, 'failed', bank ? bankWords('could not start · ' + String(error)) : record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup stalled at ' + record.step + ' · ' + String(error) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
       }
+      continue
+    }
+    if (bank && ['running', 'starting'].includes(record.jobState) && !alive) {
+      const current = readHostRecord(record.id)
+      if (!current || current.generation !== record.generation || !['running', 'starting'].includes(current.jobState ?? '')) continue
+      const words = bankWords('stopped: its process ended at ' + current.step)
+      patchHostRecord(record.id, { jobState: 'failed', error: words })
+      hostNotice(current, 'failed', words)
+      continue
+    }
+    if (bank && ['running', 'starting'].includes(record.jobState) && Date.now() - (record.advancedAt ?? 0) >= (options.stallMs ?? 600_000)) {
+      hostNotice(record, 'stalled', bankWords('has not advanced since ' + new Date(record.advancedAt ?? 0).toISOString() + ' (' + record.step + ')'))
       continue
     }
     if (watch && ['running', 'starting'].includes(record.jobState) && !alive) {

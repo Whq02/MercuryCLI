@@ -16,7 +16,7 @@ import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type Ho
 import { activeHostWatches as activeWatches, hostJobRunning, hostLogTail, queueHostSetup, queueHostWatch, requireHostJobOwner, stopHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { FAST_LOAD_DOOR, fastLoadDoor, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
+import { BANK_DOOR, bankAction, bankDoor, ensureBankFolder, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
 import { deleteKeptVolume, fastLoadEstimate, rentalVolume, reconcileVolumes, volumeLabel, volumePrice } from './volumes.js'
 
 type HostOptions = { apiBaseUrl?: string; vendorApiBaseUrls?: Partial<Record<HostVendorId, string>>; runner?: HostRunner; pauseMs?: number; readyTimeoutMs?: number; startJob?: (record: HostRecord) => void; sessionId?: string; rental?: { client: HostVendor; offer: HostOffer } }
@@ -40,7 +40,7 @@ async function forgetEndedPods(live: readonly HostPod[]): Promise<string[]> {
     lines.push(name + ' is no longer in the account — its model entry was removed')
   }
   for (const record of hostRecords()) {
-    if (record.jobKind === 'watch' || record.creating) continue
+    if (record.jobKind === 'watch' || record.jobKind === 'bank' || record.creating) continue
     if (listed(record.id)) continue
     if (record.jobState === 'queued' || record.jobState === 'starting' || hostJobRunning(record)) continue
     if (record.provider) removed(record.provider)
@@ -165,15 +165,20 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (record) { record.status = pod.status; writeHostRecord(record) }
       }
     }
+    const adoptRented = async (rented: HostRecord): Promise<LlmHostResult> => {
+      vendor = rented.vendor ?? 'runpod'
+      if (!vendorKey(vendor)) return { ok: true, words: rented.id + ' · rented by the stock watch on ' + vendorLabel(vendor) + ' · /llmhost → Pods I’m paying for' }
+      key = vendorKey(vendor); api = clientFor(vendor)
+      pod = await getHostResource(api, rented.id, signal); record = rented
+      return finish()
+    }
     const cancelWatch = async (watchId: string): Promise<LlmHostResult> => {
       const rentedBy = (): HostRecord | undefined => hostRecords().find(row => row.watchedFrom === watchId)
       let rented = rentedBy()
       if (!rented) { await stopHostSetup(watchId); rented = rentedBy() }
       if (rented) {
         emit({ title: words.paid, words: 'The stock watch already rented ' + rented.id + ' · billing has started' })
-        if (!api) return { ok: true, words: rented.id + ' · rented by the stock watch · /llmhost → Pods I’m paying for' }
-        pod = await getHostResource(api, rented.id, signal); record = rented
-        return finish()
+        return adoptRented(rented)
       }
       const creating = readHostRecord(watchId)?.creating
       removeHostRecord(watchId)
@@ -184,7 +189,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     const finishWatch = async (watchId: string): Promise<LlmHostResult> => {
       for (;;) {
         const rented = hostRecords().find(row => row.watchedFrom === watchId)
-        if (rented && api) { pod = await getHostResource(api, rented.id, signal); record = rented; return finish() }
+        if (rented) return adoptRented(rented)
         const watch = readHostRecord(watchId)
         if (!watch || watch.jobState === 'stopped' || watch.jobState === 'failed') return { ok: watch?.jobState !== 'failed', words: watch?.error ?? 'Stock watch ended · no pod was created.' }
         const markWatch = (current: HostRecord): void => emit({ title: words.manage, words: current.step ?? 'watching for stock ≤ ' + price(current.maxPrice ?? current.price), host: { id: current.id, price: current.maxPrice ?? current.price, startedAt: current.startedAt, status: 'WATCHING', step: current.step } })
@@ -200,9 +205,47 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           action = await question({ step: 'watch-controls', title: words.manage, found: watch.name + ' · ' + watch.id + ' · watching ≤ ' + price(watch.maxPrice ?? watch.price), willRun: watch.rateLimit ?? watchRateWords(watch.pollIntervalMs ?? 5000), rows: [{ value: 'cancel', label: 'Cancel · stop watching for stock' }, { value: 'close', label: 'Keep watching and close' }] })
         } finally { clearInterval(refresh) }
         const rentedAfter = hostRecords().find(row => row.watchedFrom === watchId)
-        if (rentedAfter && api) { pod = await getHostResource(api, rentedAfter.id, signal); record = rentedAfter; return finish() }
+        if (rentedAfter) return adoptRented(rentedAfter)
         if (!action || action === 'close') return { ok: true, words: watch.id + ' · watching for stock ≤ ' + price(watch.maxPrice ?? watch.price) + ' · /llmhost → Pods I’m paying for → Cancel' }
         if (action === 'cancel') return cancelWatch(watchId)
+      }
+    }
+    const watchRoad = async (watchRecipe: HostRecipe, watchVendors: HostVendorId[], budget?: number): Promise<LlmHostResult | 'models'> => {
+      const chosenModel = modelTitle(watchRecipe)
+      const watching = activeWatches().find(row => watchModel(row) === chosenModel)
+      if (watching) { emit({ title: words.paid, words: 'A stock watch for ' + chosenModel + ' is already running · ' + watching.id }); return finishWatch(watching.id) }
+      const connected = watchVendors.filter(id => vendorKey(id))
+      if (!connected.length) return { ok: false, words: 'No connected provider to watch. Connect one from the model screen first; nothing was rented.' }
+      const shapes = connected.flatMap(id => clientFor(id).shapes().filter(row => modelTitle(row.recipe) === chosenModel).map(row => ({ vendor: id, row }))).sort((a, b) => a.row.price - b.row.price)
+      const knownShape = shapes[0]
+      const cataloguePrice = knownShape?.row.price
+      const catalogueWords = cataloguePrice === undefined ? 'no catalogue price now' : 'catalogue ' + price(cataloguePrice) + (connected.length > 1 && knownShape ? ' at ' + vendorLabel(knownShape.vendor) : '')
+      const providers = connected.map(vendorLabel).join(', ')
+      let ceiling = cataloguePrice
+      for (;;) {
+        const ctx = (watchRecipe as HostRecipe & { contextPerSlot?: number }).contextPerSlot ?? watchRecipe.context
+        const confirmWatch = await question({ step: 'rent-confirm', lines: hostPriceLines(watchRecipe, ceiling), title: words.rentalConfirm, found: watchRecipe.label + ' · ' + shape(watchRecipe) + ' · no stock now · ' + (ceiling === undefined ? catalogueWords + ' · set a price ceiling' : 'ceiling ' + price(ceiling) + ' (' + catalogueWords + ')' + (budget ? ' · ~' + (budget / ceiling).toFixed(1) + 'h for $' + budget : '')) + (connected.length > 1 ? ' · across ' + providers : ''), willRun: watchRecipe.verification + ' · ' + (ctx ? ctx.toLocaleString('en-US') + ' context · ' : '') + (watchRecipe.weightsGb ? hostStorageWords(watchRecipe, ceiling) + ' ' : watchRecipe.diskGb + ' GB disk (extra). ') + watchRateWords(options.pauseMs ?? 5000, undefined, connected) + '; stops after 12 hours or on Cancel.' + (connected.length > 1 ? ' The first provider with stock at or under the ceiling rents it (the cheapest when several answer at once); the others keep their own storage and key terms.' : ''), rows: [...(ceiling === undefined ? [] : [{ value: 'watch', label: words.watchConfirm + ' (' + price(ceiling) + ')' }]), { value: 'ceiling', label: cataloguePrice === undefined ? 'Set a price ceiling' : 'Set a lower price ceiling (catalogue ' + price(cataloguePrice) + ')' }, { value: 'models', label: 'Choose another model' }, { value: 'cancel', label: words.cancel }] })
+        if (!confirmWatch || confirmWatch === 'cancel' || signal.aborted) return stopped()
+        if (confirmWatch === 'models') return 'models'
+        if (confirmWatch === 'ceiling') {
+          const entered = await question({ step: 'watch-ceiling', title: 'Price ceiling in USD/hr', found: watchRecipe.label + ' · ' + shape(watchRecipe) + ' · ' + (cataloguePrice === undefined ? catalogueWords : 'last known catalogue price ' + price(cataloguePrice)), willRun: 'Rent only when a fitting shape has stock at or under this hourly price' + (watchRecipe.count > 1 ? ' for all ' + watchRecipe.count * (watchRecipe.nodes ?? 1) + ' GPUs' : '') + (connected.length > 1 ? ' at any of ' + providers : '') + '.', initial: ceiling?.toFixed(2) ?? '' })
+          if (entered === null) return stopped()
+          const next = entered.trim() ? Number(entered) : cataloguePrice
+          if (next === undefined || !Number.isFinite(next) || next <= 0 || cataloguePrice !== undefined && cents(next) > cents(cataloguePrice)) { emit({ title: words.rentalConfirm, words: cataloguePrice === undefined ? 'Enter a positive hourly ceiling.' : 'Enter a positive hourly ceiling at or under ' + price(cataloguePrice) + '.' }); continue }
+          ceiling = next
+          continue
+        }
+        if (confirmWatch === 'watch' && ceiling !== undefined) {
+          if (!options.startJob) await requireHostJobOwner()
+          emit({ title: words.publicKey, words: 'ed25519 · private key stays in Mercury; public key is injected when stock appears.' })
+          const sshKey = await ensureHostKey(runner, signal)
+          signal.throwIfAborted()
+          const id = 'watch-' + randomUUID().slice(0, 12)
+          record = queueHostWatch({ id, name: watchRecipe.label, recipe: watchRecipe.id, price: ceiling, maxPrice: ceiling, watchVendors: connected, ...(options.pauseMs ? { pollIntervalMs: options.pauseMs } : {}), startedAt: new Date().toISOString(), status: 'WATCHING', sessionId, workspace: process.cwd(), sshKey: sshKey.path, ...(baseFor('runpod') ? { apiBaseUrl: baseFor('runpod') } : {}) })
+          if (record.id !== id) emit({ title: words.paid, words: 'A stock watch for ' + chosenModel + ' is already running · ' + record.id })
+          else options.startJob?.(record)
+          return finishWatch(record.id)
+        }
       }
     }
     try {
@@ -235,6 +278,13 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         },
         budgetLines: (recipe, gpuMemoryGb) => { const budget = tuneBudget(recipe, gpuMemoryGb / Math.max(1, recipe.count), recipe.count); return [budget.words, ...budget.candidates.filter(row => row.fits).slice(0, 4).map(row => row.label)] },
         connect: () => connect('runpod'),
+        watch: async recipe => { const watched = await watchRoad(recipe, HOST_VENDORS.filter(id => vendorKey(id))); return watched === 'models' ? undefined : watched },
+        bank: async (action, recipe) => {
+          const bankOptions = { runner, sessionId, apiBaseUrl: baseFor('runpod'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, connect: () => connect('runpod') }
+          if (action === 'open') return bankDoor(question, emit, signal, bankOptions)
+          const folder = await ensureBankFolder(question)
+          return folder ? bankAction(recipe, action, folder, question, emit, signal, bankOptions) : undefined
+        },
       })
       let pods = await paidPods()
       if (listsComplete && hostRecords().every(row => vendorKey(row.vendor ?? 'runpod'))) for (const line of await forgetEndedPods(pods)) emit({ title: words.paid, words: line })
@@ -242,26 +292,25 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       let volumeListError = ''
       if (vendorKey('runpod')) try { volumes = await reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal) } catch (error) { volumeListError = ' + volumes unread'; emit({ title: words.paid, words: 'Volume list unavailable; billed count is incomplete. ' + String(error) }) }
       const watches = activeWatches()
-      const door = await question({ step: 'where', title: words.where, found: 'Choose a road. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: FAST_LOAD_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + (pods.length + watches.length + volumes.length) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
+      const door = await question({ step: 'where', title: words.where, found: 'Choose a road. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + (pods.length + watches.length + volumes.length) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
       if (!door) return stopped()
       if (door === 'existing') return runLlmHost(ask, emit, signal)
       if (door === 'boxes') return createBoxRoad(runner)(ask, emit, signal)
+      if (door === 'fast-load') return bankDoor(question, emit, signal, { runner, sessionId, apiBaseUrl: baseFor('runpod'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, connect: () => connect('runpod') })
       let target: SshTarget
       let recipe: HostRecipe
       let docker = false
       let bank: string | undefined
-      if (door === 'rent' || door === 'fast-load' || door === 'pods' || door.startsWith('pod:') || door.startsWith('watch:')) {
+      if (door === 'rent' || door === 'pods' || door.startsWith('pod:') || door.startsWith('watch:')) {
         if (door === 'rent') {
-          const selected = await question({ step: 'rental-vendor', title: 'Rent from which vendor?', found: 'Each vendor has its own key, stock and billing. No rental starts before the price confirmation.', willRun: 'Stock watches, clusters and fast-load weights disks are Runpod-only.', rows: HOST_VENDORS.map(id => ({ value: id, label: vendorLabel(id) + (vendorKey(id) ? ' · connected' : ' · connect →') })) })
+          const selected = await question({ step: 'rental-vendor', title: 'Rent from which vendor?', found: 'Each vendor has its own key, stock and billing. No rental starts before the price confirmation.', willRun: 'Clusters and fast-load weights disks are Runpod-only.', rows: HOST_VENDORS.map(id => ({ value: id, label: vendorLabel(id) + (vendorKey(id) ? ' · connected' : ' · connect →') })) })
           if (!selected || !HOST_VENDORS.includes(selected as HostVendorId)) return stopped()
           vendor = selected as HostVendorId
         }
-        if (door === 'rent' || door === 'fast-load' || door.startsWith('watch:')) {
-          if (door !== 'rent') vendor = 'runpod'
+        if (door === 'rent') {
           if (!vendorKey(vendor) && !await connect(vendor)) return stopped()
           key = vendorKey(vendor); api = clientFor(vendor)
         }
-        if (door === 'fast-load') return fastLoadDoor(runpodOnly(api!, 'Fast-load weights disks'), question, emit, signal, { runner, sessionId, apiBaseUrl: baseFor(vendor), startJob: options.startJob })
         if (door === 'pods' || door.startsWith('pod:') || door.startsWith('watch:')) {
           if (door.startsWith('watch:')) return cancelWatch(door.slice(6))
           pods = await paidPods()
@@ -314,47 +363,18 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           }
           const modelOffers = offers.filter(row => modelTitle(row.recipe) === chosenModel)
           if (modelOffers.length === 0 && vendor !== 'runpod') {
-            const next = await question({ step: 'vendor-no-stock', title: api.label + ' · no stock', found: chosenModel + ' has no in-stock offer from ' + api.label + '.', willRun: 'Stock watches are Runpod-only. Nothing was rented.', rows: [{ value: 'refresh', label: 'Refresh stock' }, { value: 'models', label: 'Choose another model' }, { value: 'cancel', label: words.cancel }] })
+            const next = await question({ step: 'vendor-no-stock', title: api.label + ' · no stock', found: chosenModel + ' has no in-stock offer from ' + api.label + '.', willRun: 'Watch stock from the model screen (/llmhost → the model → Watch stock) to be told when any connected provider has it. Nothing was rented.', rows: [{ value: 'refresh', label: 'Refresh stock' }, { value: 'models', label: 'Choose another model' }, { value: 'cancel', label: words.cancel }] })
             if (!next || next === 'cancel') return stopped()
             if (next === 'models') chosenModel = undefined
             continue
           }
           if (modelOffers.length === 0 && !forceShapeList) {
-            const watching = activeWatches().find(row => watchModel(row) === chosenModel)
-            if (watching) { emit({ title: words.paid, words: 'A stock watch for ' + chosenModel + ' is already running · ' + watching.id }); return finishWatch(watching.id) }
             const modelRecipes = currentHostRecipes().filter(row => modelTitle(row) === chosenModel)
             const knownShape = api.shapes().filter(row => modelTitle(row.recipe) === chosenModel).sort((a, b) => a.price - b.price)[0]
-            const watchRecipe = knownShape?.recipe ?? modelRecipes[0]!
-            const cataloguePrice = knownShape?.price
-            const catalogueWords = cataloguePrice === undefined ? 'no catalogue price now' : 'catalogue ' + price(cataloguePrice)
-            let ceiling = cataloguePrice
-            let backToModels = false
-            for (;;) {
-              const ctx = (watchRecipe as HostRecipe & { contextPerSlot?: number }).contextPerSlot ?? watchRecipe.context
-              const confirmWatch = await question({ step: 'rent-confirm', lines: hostPriceLines(watchRecipe, ceiling), title: words.rentalConfirm, found: watchRecipe.label + ' · ' + shape(watchRecipe) + ' · no stock now · ' + (ceiling === undefined ? catalogueWords + ' · set a price ceiling' : 'ceiling ' + price(ceiling) + ' (' + catalogueWords + ')' + (budget ? ' · ~' + (budget / ceiling).toFixed(1) + 'h for $' + budget : '')), willRun: watchRecipe.verification + ' · ' + (ctx ? ctx.toLocaleString('en-US') + ' context · ' : '') + (watchRecipe.weightsGb ? hostStorageWords(watchRecipe, ceiling) + ' ' : watchRecipe.diskGb + ' GB disk (extra). ') + watchRateWords(options.pauseMs ?? 5000) + '; stops after 12 hours or on Cancel.', rows: [...(ceiling === undefined ? [] : [{ value: 'watch', label: words.watchConfirm + ' (' + price(ceiling) + ')' }]), { value: 'ceiling', label: cataloguePrice === undefined ? 'Set a price ceiling' : 'Set a lower price ceiling (catalogue ' + price(cataloguePrice) + ')' }, { value: 'models', label: 'Choose another model' }, { value: 'cancel', label: words.cancel }] })
-              if (!confirmWatch || confirmWatch === 'cancel' || signal.aborted) return stopped()
-              if (confirmWatch === 'models') { chosenModel = undefined; backToModels = true; break }
-              if (confirmWatch === 'ceiling') {
-                const entered = await question({ step: 'watch-ceiling', title: 'Price ceiling in USD/hr', found: watchRecipe.label + ' · ' + shape(watchRecipe) + ' · ' + (cataloguePrice === undefined ? catalogueWords : 'last known catalogue price ' + price(cataloguePrice)), willRun: 'Rent only when a fitting shape has stock at or under this hourly price' + (watchRecipe.count > 1 ? ' for all ' + watchRecipe.count * (watchRecipe.nodes ?? 1) + ' GPUs' : '') + '.', initial: ceiling?.toFixed(2) ?? '' })
-                if (entered === null) return stopped()
-                const next = entered.trim() ? Number(entered) : cataloguePrice
-                if (next === undefined || !Number.isFinite(next) || next <= 0 || cataloguePrice !== undefined && cents(next) > cents(cataloguePrice)) { emit({ title: words.rentalConfirm, words: cataloguePrice === undefined ? 'Enter a positive hourly ceiling.' : 'Enter a positive hourly ceiling at or under ' + price(cataloguePrice) + '.' }); continue }
-                ceiling = next
-                continue
-              }
-              if (confirmWatch === 'watch' && ceiling !== undefined) {
-                if (!options.startJob) await requireHostJobOwner()
-                emit({ title: words.publicKey, words: 'ed25519 · private key stays in Mercury; public key is injected when stock appears.' })
-                const sshKey = await ensureHostKey(runner, signal)
-                signal.throwIfAborted()
-                const id = 'watch-' + randomUUID().slice(0, 12)
-                record = queueHostWatch({ id, name: watchRecipe.label, recipe: watchRecipe.id, price: ceiling, maxPrice: ceiling, ...(options.pauseMs ? { pollIntervalMs: options.pauseMs } : {}), startedAt: new Date().toISOString(), status: 'WATCHING', sessionId, workspace: process.cwd(), sshKey: sshKey.path, ...(options.apiBaseUrl ? { apiBaseUrl: options.apiBaseUrl } : {}) })
-                if (record.id !== id) emit({ title: words.paid, words: 'A stock watch for ' + chosenModel + ' is already running · ' + record.id })
-                else options.startJob?.(record)
-                return finishWatch(record.id)
-              }
-            }
-            if (backToModels) continue
+            const watched = await watchRoad(knownShape?.recipe ?? modelRecipes[0]!, [vendor], budget)
+            if (watched !== 'models') return watched
+            chosenModel = undefined
+            continue
           }
           if (selectedRental) {
             offer = modelOffers.find(row => row.recipe.id === selectedRental!.recipe.id && row.gpuId === selectedRental!.gpuId && row.dataCenter === selectedRental!.dataCenter && row.price === selectedRental!.price)

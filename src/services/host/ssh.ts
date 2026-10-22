@@ -10,17 +10,17 @@ import { recipeFits, type HostRecipe } from './recipes.js'
 
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
-  run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number): Promise<string>
+  run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>): Promise<string>
   tunnel(args: string[]): { stop(): void; failed(): string | undefined }
 }
 const tunnels = new Map<string, ReturnType<HostRunner['tunnel']>>()
 const children = new Set<ChildProcess>()
 process.once('exit', () => { for (const child of children) child.kill() })
 export const hostRunner: HostRunner = {
-  run(command, args, signal, timeoutMs = 30_000) {
+  run(command, args, signal, timeoutMs = 30_000, env) {
     return new Promise((resolve, reject) => {
       if (signal.aborted) { reject(new Error('Stopped')); return }
-      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: subprocessEnv() })
+      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: env ? { ...subprocessEnv(), ...env } : subprocessEnv() })
       children.add(child)
       let output = ''
       let settled = false

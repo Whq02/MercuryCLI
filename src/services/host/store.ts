@@ -12,7 +12,9 @@ export interface HostRecord {
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
   target?: SshTarget; localPort?: number; provider?: string
   sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
-  jobKind?: 'setup' | 'watch'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string; creating?: string
+  jobKind?: 'setup' | 'watch' | 'bank'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string; creating?: string
+  watchVendors?: ('runpod' | 'vast' | 'lambda')[]
+  bankTask?: 'bank' | 'verify'; bankFolder?: string
   jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'failed' | 'stopped'
   generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
   steps?: { step: string; at: number }[]
