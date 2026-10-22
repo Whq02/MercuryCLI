@@ -1,0 +1,154 @@
+name: whisper-pack-probe
+run-name: Whisper pack · ${{ inputs.target }} · ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Pack target to build and load
+        type: choice
+        required: true
+        default: windows-arm64
+        options:
+          - windows-arm64
+          - windows-x64
+          - macos-arm64
+          - macos-x64
+          - linux-arm64
+          - linux-x64
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.repository == 'Whq02/PreRelease'
+    strategy:
+      matrix:
+        include: >-
+          ${{ fromJSON('{
+            "windows-arm64": [{"os":"windows-11-arm","target":"windows-arm64","node_pack":"win-arm64"}],
+            "windows-x64": [{"os":"windows-latest","target":"windows-x64","node_pack":"win-x64"}],
+            "macos-arm64": [{"os":"macos-14","target":"macos-arm64","node_pack":"darwin-arm64"}],
+            "macos-x64": [{"os":"macos-14","target":"macos-x64","node_pack":"darwin-x64","cross":true,"rust_targets":"x86_64-apple-darwin"}],
+            "linux-arm64": [{"os":"ubuntu-24.04-arm","target":"linux-arm64","node_pack":"linux-arm64"}],
+            "linux-x64": [{"os":"ubuntu-latest","target":"linux-x64","node_pack":"linux-x64"}]
+          }')[inputs.target] }}
+    name: Whisper build and load (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.11
+      - name: Install the held lockfile
+        run: bun install --frozen-lockfile
+      - name: Fetch the target Node runtime
+        run: bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
+      - name: Rosetta 2 for the cross-packaged archive
+        if: matrix.cross
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 /usr/bin/true
+      - name: Rust toolchain (pinned stable)
+        id: rust
+        continue-on-error: true
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          targets: ${{ matrix.rust_targets || '' }}
+      - name: cmake for the on-device transcriber pack
+        shell: bash
+        run: |
+          cmake --version && exit 0
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y cmake ;;
+            macOS) brew install cmake ;;
+            Windows) choco install cmake --no-progress -y ;;
+          esac
+      - name: LLVM toolchain for the on-device transcriber (Windows ARM64)
+        if: matrix.target == 'windows-arm64'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -property installationPath
+          if (!$vs) { throw 'Visual Studio is required for the ARM64 SDK and libraries' }
+          & "$vs\Common7\Tools\Launch-VsDevShell.ps1" -Arch arm64 -HostArch arm64 -SkipAutomaticLocation
+          $llvm = @('C:\Program Files\LLVM\bin', "$vs\VC\Tools\Llvm\ARM64\bin", "$vs\VC\Tools\Llvm\x64\bin") | Where-Object { Test-Path "$_\clang-cl.exe" } | Select-Object -First 1
+          if (!$llvm) { throw 'clang-cl is required to build whisper.cpp for Windows ARM64' }
+          $ninja = "$vs\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja"
+          $env:PATH = "$llvm;$ninja;$env:PATH"
+          clang-cl --version
+          if ($LASTEXITCODE -ne 0) { throw 'clang-cl did not start' }
+          ninja --version
+          if ($LASTEXITCODE -ne 0) { throw 'Ninja did not start' }
+          foreach ($name in @('PATH', 'INCLUDE', 'LIB', 'LIBPATH')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name))" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+      - name: Build the on-device transcriber pack
+        shell: bash
+        env:
+          PACK_TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/whisper-probe"
+          bun run scripts/vendor/build-whisper.ts --plan --verbose --target "$PACK_TARGET" | tee "$RUNNER_TEMP/whisper-probe/plan.json"
+          rustc -vV | tee "$RUNNER_TEMP/whisper-probe/rust.txt"
+          bun run scripts/vendor/build-whisper.ts --target "$PACK_TARGET" --force --verbose 2>&1 | tee "$RUNNER_TEMP/whisper-probe/build.log"
+          bun run scripts/vendor/build-whisper.ts --check --target "$PACK_TARGET" 2>&1 | tee "$RUNNER_TEMP/whisper-probe/check.log"
+          if [[ "$PACK_TARGET" == windows-* ]] && grep -Eq 'Using bundled bindings.rs|no libclang found' "$RUNNER_TEMP/whisper-probe/build.log"; then
+            echo 'Windows requires bindings generated for its own target' >&2
+            exit 1
+          fi
+      - name: Load the pack with host and vendored Node
+        shell: bash
+        env:
+          NODE_PACK: ${{ matrix.node_pack }}
+          CROSS: ${{ matrix.cross || false }}
+        run: |
+          cat > "$RUNNER_TEMP/whisper-probe/load.cjs" <<'NODE'
+          const assert = require('node:assert/strict')
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const crypto = require('node:crypto')
+          const platform = `${process.platform}-${process.arch}`
+          const dir = path.resolve('vendor/whisper', platform)
+          const manifest = JSON.parse(fs.readFileSync(path.join(dir, '.vendor-manifest.json'), 'utf8'))
+          assert.equal(manifest.platform, `${process.platform}-${process.arch}`)
+          const file = path.join(dir, manifest.addon)
+          assert.equal(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'), manifest.addonSha256)
+          const addon = require(file)
+          for (const fn of ['packVersion', 'engineVersion', 'systemInfo', 'cpuFloor', 'loadModel', 'modelInfo', 'transcribe', 'unloadModel']) assert.equal(typeof addon[fn], 'function', fn)
+          assert.equal(addon.packVersion(), manifest.version)
+          assert.equal(addon.engineVersion(), manifest.engine.version)
+          assert.equal(addon.cpuFloor().met, true)
+          const systemInfo = addon.systemInfo()
+          assert.match(systemInfo, /CPU|NEON|AVX/)
+          console.log(JSON.stringify({ result: 'LOADED', node: process.version, platform, pack: addon.packVersion(), engine: addon.engineVersion(), cpuFloor: addon.cpuFloor(), systemInfo }))
+          NODE
+          if [ "$CROSS" != true ]; then
+            node "$RUNNER_TEMP/whisper-probe/load.cjs" 2>&1 | tee "$RUNNER_TEMP/whisper-probe/load-host.log"
+          fi
+          runtime="vendor/node/extracted/$NODE_PACK/bin/node"
+          if [[ "$NODE_PACK" == win-* ]]; then runtime="vendor/node/extracted/$NODE_PACK/node.exe"; fi
+          if [ "$CROSS" = true ]; then
+            arch -x86_64 "$runtime" "$RUNNER_TEMP/whisper-probe/load.cjs" 2>&1 | tee "$RUNNER_TEMP/whisper-probe/load-vendored.log"
+          else
+            "$runtime" "$RUNNER_TEMP/whisper-probe/load.cjs" 2>&1 | tee "$RUNNER_TEMP/whisper-probe/load-vendored.log"
+          fi
+      - name: Pack and build evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: whisper-pack-probe-${{ matrix.target }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            vendor/whisper/
+            ${{ runner.temp }}/whisper-probe/
+            native/whisper/target/**/build/whisper-rs-sys-*/out/bindings.rs
+            native/whisper/target/**/build/whisper-rs-sys-*/out/build/CMakeCache.txt
+            native/whisper/target/**/build/whisper-rs-sys-*/out/build/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: error

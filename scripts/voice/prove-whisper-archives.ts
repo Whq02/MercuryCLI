@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { parse } from 'yaml'
+import { WHISPER_ADDON_EXPORTS } from '../../src/services/voice/whisperPack.ts'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -39,11 +41,13 @@ try {
     write(addon, 'fixture')
     rmSync(join(payload, path, 'licenses/whisper.cpp-1.8.3/LICENSE'))
     assert.equal(checkBundledVendorPacks(payload, target).ok, false, `${target}: missing engine licence fails`)
-    const plan = spawnSync(process.execPath, [join(root, 'scripts/vendor/build-whisper.ts'), '--plan', '--target', target], { cwd: root, env: process.env, encoding: 'utf8' })
+    const plan = spawnSync(process.execPath, [join(root, 'scripts/vendor/build-whisper.ts'), '--plan', '--verbose', '--target', target], { cwd: root, env: process.env, encoding: 'utf8' })
     assert.equal(plan.status, 0, plan.stderr)
     const decision = JSON.parse(plan.stdout)
     assert.equal(decision.platform, platform)
     assert.equal(decision.triple, voiceCargoTriple(platform))
+    assert.ok(decision.cargoArgs?.includes('--locked'), 'pack builds hold the bindgen lockfile')
+    assert.ok(decision.cargoArgs?.includes('-vv'), 'the bench can retain full build-script output')
     assert.equal(decision.env.GGML_NATIVE, 'OFF')
     assert.equal(decision.env.GGML_OPENMP, 'OFF')
     if (target === 'windows-arm64') {
@@ -71,7 +75,45 @@ try {
   assert.match(workflow, /LLVM toolchain for the on-device transcriber/)
   assert.match(workflow, /windows-11-arm/)
   assert.doesNotMatch(readFileSync(join(root, 'scripts/release/package.mjs'), 'utf8'), /new Set\(\[[^\]]*'on-device-transcriber'/)
-  console.log('prove-whisper-archives: green — every release target requires a verified Whisper pack')
+  const probeText = readFileSync(join(root, '.github/workflows/whisper-pack-probe.yml'), 'utf8')
+  const probe = parse(probeText)
+  const release = parse(workflow)
+  assert.deepEqual(Object.keys(probe.on), ['workflow_dispatch'])
+  assert.deepEqual([...probe.on.workflow_dispatch.inputs.target.options].sort(), [...RELEASE_TARGETS].sort())
+  assert.equal(probe.on.workflow_dispatch.inputs.target.default, 'windows-arm64')
+  assert.deepEqual(probe.permissions, { contents: 'read' })
+  assert.deepEqual(Object.keys(probe.jobs), ['probe'])
+  const job = probe.jobs.probe
+  assert.equal(job.if, "github.repository == 'Whq02/PreRelease'")
+  const rows = JSON.parse(/fromJSON\('([\s\S]+)'\)/.exec(job.strategy.matrix.include)?.[1] ?? 'null')
+  assert.deepEqual(Object.keys(rows).sort(), [...RELEASE_TARGETS].sort())
+  for (const target of RELEASE_TARGETS) {
+    const row = rows[target][0]
+    const releaseRow = release.jobs.package.strategy.matrix.include.find((r: { target: string }) => r.target === target)
+    assert.deepEqual(row, releaseRow, `${target}: probe uses the release runner and toolchain target`)
+  }
+  const stepNamed = (steps: Array<{ name?: string }>, name: string): any => steps.find(s => s.name === name)
+  for (const name of ['Rust toolchain (pinned stable)', 'cmake for the on-device transcriber pack', 'LLVM toolchain for the on-device transcriber (Windows ARM64)']) {
+    assert.deepEqual(stepNamed(job.steps, name), stepNamed(release.jobs.package.steps, name), name)
+  }
+  const buildStep = stepNamed(job.steps, 'Build the on-device transcriber pack')
+  assert.equal(buildStep['continue-on-error'], undefined)
+  assert.match(buildStep.run, /build-whisper\.ts --target.*--force --verbose/)
+  assert.match(buildStep.run, /build-whisper\.ts --check --target/)
+  const loadStep = stepNamed(job.steps, 'Load the pack with host and vendored Node')
+  assert.equal(loadStep['continue-on-error'], undefined)
+  for (const name of WHISPER_ADDON_EXPORTS) assert.ok(loadStep.run.includes(`'${name}'`), `load checks ${name}`)
+  assert.match(loadStep.run, /assert\.equal\(addon\.engineVersion\(\), manifest\.engine\.version\)/)
+  assert.match(loadStep.run, /assert\.equal\(addon\.packVersion\(\), manifest\.version\)/)
+  assert.match(loadStep.run, /assert\.equal\(manifest\.platform,.*process\.platform/)
+  assert.match(loadStep.run, /vendor\/node\/extracted/)
+  const upload = job.steps.find((s: { uses?: string }) => s.uses?.startsWith('actions/upload-artifact@'))
+  assert.equal(upload.if, 'always()')
+  assert.equal(upload.with['include-hidden-files'], true)
+  assert.match(upload.with.path, /vendor\/whisper/)
+  assert.match(upload.with.path, /bindings\.rs/)
+  assert.match(upload.with.path, /whisper-probe/)
+  console.log('prove-whisper-archives: green — every release target requires a verified Whisper pack; isolated bench builds and loads it')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
