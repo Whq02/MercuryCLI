@@ -92,6 +92,11 @@ const RUNPOD_POD_STATUSES = ['PROVISIONING', 'STARTING', 'RUNNING', 'EXITED', 'E
   check('a Runpod 429 documents Retry-After in seconds beside the RateLimit headers', problem?.headers?.['Retry-After'] && problem?.headers?.['RateLimit-Policy'], Object.keys(problem?.headers ?? {}))
   const errorShape = resolveRefs(spec, paths['/v2/pods']?.post?.responses?.['422'])?.content?.['application/problem+json']?.schema
   check('a Runpod problem+json carries title, status, detail and errors[]', ['title', 'status', 'detail', 'errors'].every(key => property(errorShape, key) !== undefined), Object.keys(errorShape?.properties ?? {}))
+  const credentials = await fetchText('https://docs.runpod.io/get-started/credentials.md')
+  const keyPage = /Create an API key[\s\S]*?\((https:\/\/console\.runpod\.io\/user\/[a-z]+)\)/.exec(credentials.text)?.[1]
+  check('Runpod’s credentials document still names https://console.runpod.io/user/credentials as the page where an API key is created (the words in HOST_VENDOR_INFO.runpod.keyHelp point there)', credentials.status === 200 && keyPage === 'https://console.runpod.io/user/credentials', keyPage)
+  const keyHelp = (await fetchText('https://console.runpod.io/user/credentials', { headers: { 'user-agent': 'Mozilla/5.0' } })).status
+  check('the Runpod credentials page answers', keyHelp === 200, keyHelp)
 }
 
 const LAMBDA_SPEC = 'https://cloud.lambda.ai/api/v1/openapi.json'
