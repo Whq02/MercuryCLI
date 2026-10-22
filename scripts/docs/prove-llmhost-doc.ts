@@ -275,7 +275,7 @@ check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d and their l
 check('the Bank section names Bank · your weights, the five table columns (MODEL, SIZE, BANKED, VERIFIED, VOLUME), bank.json and SHA256SUMS', res.bankScreenMatches)
 
 section('§4 GPU vendors and their live-rental / API-only stamps equal HOST_VENDORS')
-check('the Rent section names HOST_VENDORS in order (Runpod, Vast.ai, Lambda)', res.vendorsMatch, `${res.detail.docVendors} vs ${res.detail.expectedVendorLabels}`)
+check('the Rent section names HOST_VENDORS in order (Runpod, Vast.ai, Lambda, Hugging Face)', res.vendorsMatch, `${res.detail.docVendors} vs ${res.detail.expectedVendorLabels}`)
 check('every vendor stamp from vendorStamp(id) is documented verbatim', res.vendorStampsMatch)
 
 section('§5 Hugging Face search, model screen, cross-provider stock watch, failure cleanup, vendor hiccups, vision projectors and engine refusals')
@@ -301,7 +301,7 @@ check(
 )
 check(
   'poison control: omitting a vendor from the Rent heading fails vendorsMatch',
-  !validateLlmHostDoc(docText.replace('## Rent a GPU (Runpod, Vast.ai and Lambda)', '## Rent a GPU (Runpod and Vast.ai)'), indexText, expectedStamps, expectedWhereRows).vendorsMatch,
+  !validateLlmHostDoc(docText.replace('## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)', '## Rent a GPU (Runpod and Vast.ai)'), indexText, expectedStamps, expectedWhereRows).vendorsMatch,
 )
 check(
   'poison control: claiming stock watches are Runpod-only fails watchAndRunpodOnlyMatch',

@@ -37,7 +37,7 @@ and then alphabetically by model name.
 
 Below the model list, **Which model?** includes **Pods I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
-`More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda)`, `A box I can reach by SSH`,
+`More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face)`, `A box I can reach by SSH`,
 `A server that's already running`, `One of my computers`, and
 `Bank · your weights`). Each path reads the server's model list and context
 windows, runs a reply check, and registers the provider in `/model` and
@@ -214,14 +214,16 @@ Local banking (`b`) and verification (`v`) run on your computer at `$0.00`.
 Runpod fast-load volumes (`m`) bill monthly whether or not a pod is running
 until you delete them with `d` or under **Pods I'm paying for**.
 
-## Rent a GPU (Runpod, Vast.ai and Lambda)
+## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)
 
 1. **Connect a GPU provider.** Paste a Runpod, Vast.ai or Lambda API key into
-   the masked field. Mercury verifies the key against the provider's instance
-   list and saves it in the credential store (`0600`), never in a settings file
-   or URL. On the model screen, Runpod rental rows carry
-   `verified on a live rental 2026-10-21`, and Vast.ai and Lambda rows carry
-   `API only — not yet booted`.
+   the masked field; Hugging Face uses the sign-in `/logins huggingface` saved
+   (an HF endpoint runs the model on hardware Hugging Face sells and hands back
+   an address, with no SSH). Mercury verifies a key against the provider's
+   instance list and saves it in the credential store (`0600`), never in a
+   settings file or URL. On the model screen, Runpod rental rows carry
+   `verified on a live rental 2026-10-21`, and Vast.ai, Lambda and Hugging Face
+   rows carry `API only — not yet booted`.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
    for the full shape (every GPU and node in the recipe) across the 32 shipped
    models (78 recipes in `assets/host/recipes.json` version 2, including
