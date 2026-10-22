@@ -17,7 +17,18 @@ const degraded = manifest?.degraded
 if (!Array.isArray(degraded) || degraded.some(pack => typeof pack !== 'string' || pack.trim() === '')) {
   refuse(`bundle manifest ${path} has no valid degraded list; rebuild before running readings`)
 }
-if (degraded.length > 0) {
-  refuse(`bundle is degraded: ${degraded.join(', ')}; restore the named vendor packs and rebuild before running readings`)
+const builtPackAbsent = record => record !== null && typeof record === 'object' && record.vendored === false
+const allowedAbsences = new Set([
+  'voice-input',
+  'on-device-transcriber',
+  ...(builtPackAbsent(manifest.desktopDriver) ? ['desktop-driver'] : []),
+  ...(builtPackAbsent(manifest.semanticEmbedder) ? ['semantic-embedder'] : []),
+])
+const missing = degraded.filter(pack => !allowedAbsences.has(pack))
+if (missing.length > 0) {
+  refuse(`bundle is degraded: ${missing.join(', ')}; restore the named vendor packs and rebuild before running readings`)
 }
-console.log('bundle ready — degraded: []')
+if (new Set(degraded).size !== degraded.length) {
+  refuse(`bundle manifest ${path} lists a degraded pack twice; rebuild before running readings`)
+}
+console.log(degraded.length === 0 ? 'bundle ready — degraded: []' : `bundle ready — degraded only by the built packs this runner cannot carry: ${degraded.join(', ')}`)
