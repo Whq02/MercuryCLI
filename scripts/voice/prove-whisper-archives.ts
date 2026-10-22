@@ -55,9 +55,13 @@ try {
     console.log(`${target}: absent, present, corrupt, missing licence and toolchain decision verified`)
   }
   const builtManifest = JSON.parse(readFileSync(join(root, 'dist/manifest.json'), 'utf8'))
-  const built = checkBundledVendorPacks(join(root, 'dist'), builtManifest.target.release)
-  assert.equal(built.ok, true, JSON.stringify(built.findings))
-  console.log(`${builtManifest.target.release}: the real built payload carries its verified Whisper pack`)
+  if ((builtManifest.degraded as string[] | undefined)?.includes('on-device-transcriber')) {
+    console.log(`  [SKIP] this build carries no on-device transcriber pack (dist/manifest.json degraded: on-device-transcriber) — the built-payload row reads a build made with the pack; the release workflow builds it`)
+  } else {
+    const built = checkBundledVendorPacks(join(root, 'dist'), builtManifest.target.release)
+    assert.equal(built.ok, true, JSON.stringify(built.findings))
+    console.log(`${builtManifest.target.release}: the real built payload carries its verified Whisper pack`)
+  }
   const workflow = readFileSync(join(root, '.github/workflows/private-release.yml'), 'utf8')
   const step = workflow.split('- name: Build the on-device transcriber pack')[1]?.split('- name:')[0] ?? ''
   assert.ok(step.includes('build-whisper.ts --check --target'))

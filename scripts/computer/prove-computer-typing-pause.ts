@@ -67,7 +67,10 @@ __typingActivityResetForTest()
 const { DESKTOP_ADDON_EXPORTS, loadDesktopAddon } = await import('../../src/services/desktop/pack.ts')
 const { resolveNativeDesktopDriver } = await import('../../src/services/desktop/nativeDriver.ts')
 const addon = loadDesktopAddon()
-if (addon.state !== 'ok') throw new Error(addon.note)
+if (addon.state !== 'ok') {
+  console.log(`  [SKIP] the rebuilt-pack rows drive the real desktop driver and this host has none (${addon.note}) — the hosted gate builds no desktop pack; the Mac pool and the release road read them`)
+  finish('prove-computer-typing-pause')
+}
 const originalIdle = addon.addon.keyboardIdleMs
 check('the rebuilt pack exposes idle without making it mandatory for older packs', typeof originalIdle === 'function' && !(DESKTOP_ADDON_EXPORTS as readonly string[]).includes('keyboardIdleMs'))
 const native = resolveNativeDesktopDriver()

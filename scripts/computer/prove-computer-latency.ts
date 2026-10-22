@@ -64,7 +64,10 @@ driver.capture = original
 const { desktopPackDirFor, readDesktopPackManifest } = await import('../../src/services/desktop/pack.ts')
 const packDir = desktopPackDirFor(new URL('../..', import.meta.url).pathname)
 const manifest = readDesktopPackManifest(packDir)
-if (!manifest) throw new Error('build the desktop pack before measuring it')
+if (!manifest) {
+  console.log(`  [SKIP] the pack-load rows measure the real desktop pack and this host has none (${packDir}) — the hosted gate builds no desktop pack; the Mac pool and the release road read them`)
+  finish('prove-computer-latency')
+}
 const loads: number[] = []
 for (let n = 0; n < 5; n++) {
   const measured = spawnSync('node', ['-e', 'const t=performance.now();const a=require(process.argv[1]);a.packVersion();console.log(performance.now()-t)', join(packDir, manifest.addon)], { encoding: 'utf8', env: process.env })

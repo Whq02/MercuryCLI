@@ -21,8 +21,14 @@ const session = await import('../../src/services/voice/voiceSession.js')
 const pending = await import('../../src/input-core/pending-input.js')
 const { call } = await import('../../src/commands/voice/voice.js')
 const model = models.whisperDefaultModel()
-const bytes = readFileSync(join(ROOT, 'vendor/whisper-models', model.file))
-assert.equal(pack.loadWhisperAddon().state, 'ok', 'the real on-device pack must load')
+const modelPath = join(ROOT, 'vendor/whisper-models', model.file)
+const addonState = pack.loadWhisperAddon().state
+if (!existsSync(modelPath) || addonState !== 'ok') {
+  console.log(`  [SKIP] prove-voice-on-off drives the real on-device pack with the vendored model: ${existsSync(modelPath) ? `the pack does not load here (${addonState})` : `${modelPath} is absent`} — a host without the Whisper pack (the hosted gate builds none) cannot read this proof; the Mac pool and the release road do`)
+  process.exit(0)
+}
+const bytes = readFileSync(modelPath)
+assert.equal(addonState, 'ok', 'the real on-device pack must load')
 const originalFetch = globalThis.fetch
 const requests: string[] = []
 const words: string[] = []
