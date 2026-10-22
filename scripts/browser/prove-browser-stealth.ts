@@ -11,13 +11,17 @@ const SCRATCH_BROWSERS = join(SCRATCH_HOME, 'browsers')
 mkdirSync(SCRATCH_BROWSERS, { recursive: true })
 
 const inheritedCache = process.env.MERCURY_BROWSER_CACHE_DIR
+const ambientCache = process.env.MERCURY_CONFIG_DIR ? join(process.env.MERCURY_CONFIG_DIR, 'browsers') : null
 const sharedCache = '/private/tmp/mw/browser-stealth/browsers'
 const seedCache =
   inheritedCache && existsSync(join(inheritedCache, 'chrome'))
     ? inheritedCache
-    : existsSync(join(sharedCache, 'chrome'))
-      ? sharedCache
-      : null
+    : ambientCache && existsSync(join(ambientCache, 'chrome'))
+      ? ambientCache
+      : existsSync(join(sharedCache, 'chrome'))
+        ? sharedCache
+        : null
+if (seedCache) console.log(`  seeding the scratch home's managed browser from ${seedCache} (no second download)`)
 if (seedCache && !existsSync(join(SCRATCH_BROWSERS, 'chrome'))) {
   symlinkSync(join(seedCache, 'chrome'), join(SCRATCH_BROWSERS, 'chrome'))
 }
