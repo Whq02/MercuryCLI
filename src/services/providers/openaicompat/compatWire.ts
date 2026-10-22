@@ -221,27 +221,3 @@ export function buildHostedExtras(args: LaneExtrasArgs & { dialect: import('./co
     ? { ...base, chat_template_kwargs: { reasoning_effort: effort } }
     : { ...base, reasoning_effort: effort }
 }
-
-export function rejectedHostedEffortField(extra: Record<string, unknown>, fault: { status?: number; message: string; parameter?: string }): 'reasoning_effort' | 'chat_template_kwargs' | undefined {
-  if (fault.status !== 400) return undefined
-  if (/input should|must (?:be|not be)|invalid (?:value|reasoning effort)|expected (?:one of|a |an )/i.test(fault.message)) return undefined
-  const template = extra.chat_template_kwargs as Record<string, unknown> | undefined
-  if (extra.reasoning_effort === undefined && template?.reasoning_effort === undefined) return undefined
-  const named = fault.parameter ?? fault.message
-  if (/\breasoning_effort\b/i.test(named)) return 'reasoning_effort'
-  if (template?.reasoning_effort !== undefined && /\bchat_template_kwargs\b/i.test(named)) return 'chat_template_kwargs'
-  return undefined
-}
-
-export function withoutHostedEffort(extra: Record<string, unknown>, field: 'reasoning_effort' | 'chat_template_kwargs'): Record<string, unknown> {
-  const next = { ...extra }
-  delete next.reasoning_effort
-  if (field === 'chat_template_kwargs') delete next.chat_template_kwargs
-  else if (typeof next.chat_template_kwargs === 'object' && next.chat_template_kwargs !== null) {
-    const template = { ...next.chat_template_kwargs } as Record<string, unknown>
-    delete template.reasoning_effort
-    if (Object.keys(template).length) next.chat_template_kwargs = template
-    else delete next.chat_template_kwargs
-  }
-  return next
-}

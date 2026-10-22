@@ -13,7 +13,7 @@ try {
   f.state.slots = 4
   const { runLlmHost } = await import(`${f.root}/src/services/llmHost/index.ts`)
   const { updateSettingsForSource } = await import(`${f.root}/src/utils/settings/settings.ts`)
-  const { selectableEffortLevels, resolveEffortTruth, effortAdjustedReceiptLine } = await import(`${f.root}/src/utils/effort.ts`)
+  const { selectableEffortLevels, resolveEffortTruth } = await import(`${f.root}/src/utils/effort.ts`)
   const { effortPopupRows, EffortPopup, EffortApplyContext } = await import(`${f.root}/src/commands/effort/EffortPopup.tsx`)
   const { executeEffort } = await import(`${f.root}/src/commands/effort/effort.tsx`)
   const answers: Record<string, string> = { servers: '__add__', address: f.baseUrl, dialect: 'llamacpp', key: '', model: f.model, name: 'effort-host', confirm: 'run' }
@@ -122,38 +122,36 @@ try {
     const model = configure(`retry-${dialect}`, dialect)
     f.state.mode = 'reject-effort'
     const before = f.captures.length
-    const eventStart = f.events.length
     const replies = await f.run(model, undefined, undefined, 'high')
-    assert.equal(f.captures.length - before, 2, 'one retry without the rejected field')
-    assert.ok(replies.every(row => !row.isApiErrorMessage))
-    assert.equal(f.events.slice(eventStart).filter(row => row.type === 'system' && row.error?.message?.includes('server default')).length, 0, 'no error notice interrupts the reply; the settled message carries the adjustment for the turn receipt')
-    const adjusted = replies.at(-1).effortAdjusted
-    assert.ok(adjusted?.fieldRejected !== undefined, 'the settled reply stamps the rejected field')
-    assert.equal(adjusted.asked, 'high')
-    assert.equal(adjusted.name, f.model)
-    assert.match(effortAdjustedReceiptLine(adjusted), /^effort high: .+ rejected (reasoning_effort|chat_template_kwargs) for .+ — retried once without it; the server default applies$/)
-    const first = f.captures[before]!.body
-    const second = f.captures[before + 1]!.body
-    assert.equal(second.reasoning_effort, undefined)
-    assert.equal(second.chat_template_kwargs?.reasoning_effort, undefined)
-    assert.deepEqual(second.tools, first.tools)
-    assert.deepEqual(second.messages, first.messages)
-    assert.equal(second.id_slot, first.id_slot)
-    if (dialect === 'sglang') assert.equal(second.chat_template_kwargs.clear_thinking, false)
-    assert.equal(replies.at(-1).effort.wire, 'none')
+    assert.equal(f.captures.length - before, 1, 'a rejected effort field never authorises a server-default retry')
+    assert.equal(replies.length, 1)
+    assert.equal(replies[0].isApiErrorMessage, true)
+    assert.equal(replies[0].error, 'invalid_request')
+    assert.match(JSON.stringify(replies[0].message.content), /reasoning_effort.*selected effort and thinking are unchanged/)
+    assert.equal(replies[0].effortAdjusted, undefined)
+    assert.equal(replies[0].effort.asked, 'high')
+    assert.equal(replies[0].effort.applied, 'high')
+    const sent = f.captures[before]!.body
+    assert.equal(sent.reasoning_effort ?? sent.chat_template_kwargs?.reasoning_effort, 'high')
+    assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'))
+    if (dialect === 'llamacpp') assert.ok(Number.isInteger(sent.id_slot))
+    if (dialect === 'sglang') assert.equal(sent.chat_template_kwargs.clear_thinking, false)
   }
   f.state.dialect = 'llamacpp'
   f.state.mode = 'reject-template'
   const containerStart = f.captures.length
   const containerReplies = await f.run(id, undefined, undefined, 'high')
-  assert.equal(f.captures.length - containerStart, 2)
-  assert.ok(containerReplies.every(row => !row.isApiErrorMessage))
-  assert.equal(f.captures.at(-1)!.body.chat_template_kwargs, undefined, 'a rejected template container is omitted, with the parameter named separately from the message')
+  assert.equal(f.captures.length - containerStart, 1)
+  assert.ok(containerReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'))
+  assert.match(JSON.stringify(containerReplies[0].message.content), /chat_template_kwargs.*selected effort and thinking are unchanged/)
+  assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.reasoning_effort, 'high')
+  assert.equal(containerReplies[0].effort.applied, 'high')
   f.state.mode = 'reject-persistent'
   const persistentStart = f.captures.length
   const persistentReplies = await f.run(id, undefined, undefined, 'high')
-  assert.equal(f.captures.length - persistentStart, 2, 'a second named 400 is terminal, not an endless retry')
-  assert.ok(persistentReplies.some(row => row.isApiErrorMessage))
+  assert.equal(f.captures.length - persistentStart, 1, 'a named 400 is terminal, never an effort downgrade')
+  assert.ok(persistentReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'))
+  assert.equal(persistentReplies[0].effort.applied, 'high')
   f.state.mode = 'reply'
   f.state.dialect = 'ollama'
   f.state.thinkingValues = ['low', 'medium', 'high']
@@ -197,5 +195,5 @@ try {
   mounted = await open(id)
   assert.ok(await waitFor(() => mounted!.lines().some(line => /\bauto\b/.test(line) && line.includes(MODEL_PICKER_CURRENT)), 10000), mounted.screen())
   mounted.push(KEY.esc)
-  console.log('HOST EFFORT GREEN — registered template levels; keyboard popup selection; per-dialect wire; no-dial rows; bounded rejection retry; preserved tools, slots and reasoning options; loopback only')
+  console.log('HOST EFFORT GREEN — registered template levels; keyboard popup selection; per-dialect wire; no-dial rows; explicit effort refusal without downgrade; preserved tools, slots and reasoning options; loopback only')
 } finally { mounted?.unmount(); f.close() }

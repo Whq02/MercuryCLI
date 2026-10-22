@@ -33,13 +33,5 @@ function referenceFault(schema: unknown, root: unknown, seen: Set<unknown>): str
 export function compatToolSchemaRefusal(dialect: string | undefined, tool: ApiShapedTool): string | undefined {
   if (dialect !== 'llamacpp') return undefined
   const fault = referenceFault(tool.input_schema, tool.input_schema, new Set())
-  return fault ? `llama.cpp cannot take the ${tool.name} tool’s schema: ${fault} — only this tool is left out on this route; update its schema before retrying` : undefined
-}
-
-const announced = new Set<string>()
-export function firstCompatToolRefusal(session: string, route: string, text: string): boolean {
-  const key = JSON.stringify([session, route, text])
-  if (announced.has(key)) return false
-  announced.add(key)
-  return true
+  return fault ? `llama.cpp cannot take the ${tool.name} tool’s schema: ${fault} — the request was not sent and no tools were removed; update its schema before retrying` : undefined
 }

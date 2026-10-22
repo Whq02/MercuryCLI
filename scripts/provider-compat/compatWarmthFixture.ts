@@ -39,11 +39,11 @@ export function fixtureTool(name = 'WarmthEcho', revision = 'first') {
 export function startWarmthEngine() {
   const captures: Capture[] = []
   const cached = new Map<string, string>()
-  const state = { slots: 4, mode: 'reply', report: true, reportInput: true, cache: true, msPerToken: 0.002 }
+  const state = { slots: 4, mode: 'reply', report: true, reportInput: true, cache: true, msPerToken: 0.002, images: undefined as boolean | undefined, call: undefined as { name: string; arguments: string } | undefined }
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     const path = new URL(req.url).pathname
-    if (path.endsWith('/props')) return Response.json({ total_slots: state.slots })
-    if (path.endsWith('/models')) return Response.json({ data: [{ id: 'Fixture/Reasoner', max_model_len: 262144 }] })
+    if (path.endsWith('/props')) return Response.json({ total_slots: state.slots, ...(state.images !== undefined ? { modalities: { vision: state.images } } : {}) })
+    if (path.endsWith('/models')) return Response.json({ data: [{ id: 'Fixture/Reasoner', max_model_len: 262144, ...(state.images !== undefined ? { architecture: { input_modalities: state.images ? ['text', 'image'] : ['text'] } } : {}) }] })
     if (!path.endsWith('/chat/completions') && !path.endsWith('/responses')) return new Response('not found', { status: 404 })
     const body: any = await req.json()
     const responses = path.endsWith('/responses')
@@ -64,6 +64,15 @@ export function startWarmthEngine() {
     cached.set(key, prompt)
     const usage = { ...(state.reportInput ? { prompt_tokens: total } : {}), completion_tokens: 4, ...(state.report ? { prompt_tokens_details: { cached_tokens: hit } } : {}) }
     if (responses) {
+      if (state.call) {
+        const item = { id: 'fc-warmth', call_id: 'call-warmth', type: 'function_call', ...state.call }
+        const frame = (type: string, extra: any) => `event: ${type}\ndata: ${JSON.stringify({ type, ...extra })}\n\n`
+        return new Response(frame('response.created', { response: { id: 'r-warmth', model: body.model, status: 'in_progress', output: [] } }) +
+          frame('response.output_item.added', { output_index: 0, item: { ...item, arguments: '' } }) +
+          frame('response.function_call_arguments.delta', { item_id: item.id, output_index: 0, delta: item.arguments }) +
+          frame('response.output_item.done', { output_index: 0, item }) +
+          frame('response.completed', { response: { id: 'r-warmth', model: body.model, status: 'completed', output: [item], usage: { input_tokens: total, output_tokens: 4, input_tokens_details: { cached_tokens: hit } } } }), { headers: { 'content-type': 'text/event-stream' } })
+      }
       const output = [{ id: 'msg-warmth', type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'WARM', annotations: [] }] }]
       const frame = (type: string, extra: any) => `event: ${type}\ndata: ${JSON.stringify({ type, ...extra })}\n\n`
       return new Response(frame('response.created', { response: { id: 'r-warmth', model: body.model, status: 'in_progress', output: [] } }) +
@@ -73,8 +82,8 @@ export function startWarmthEngine() {
         frame('response.completed', { response: { id: 'r-warmth', model: body.model, status: 'completed', output, usage: { input_tokens: total, output_tokens: 4, input_tokens_details: { cached_tokens: hit } } } }), { headers: { 'content-type': 'text/event-stream' } })
     }
     const chunk = (delta: unknown, finish: string | null = null, use?: unknown) => `data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta, finish_reason: finish }], ...(use ? { usage: use } : {}) })}\n\n`
-    const toolCall = state.mode === 'tools'
-    const delta = toolCall ? { tool_calls: [{ index: 0, id: 'call-warmth', type: 'function', function: { name: 'WarmthEcho', arguments: '{"text":"hello"}' } }] } : { content: 'WARM' }
+    const toolCall = state.mode === 'tools' || state.call !== undefined
+    const delta = toolCall ? { tool_calls: [{ index: 0, id: 'call-warmth', type: 'function', function: state.call ?? { name: 'WarmthEcho', arguments: '{"text":"hello"}' } }] } : { content: 'WARM' }
     return new Response(chunk({ reasoning_content: 'thinking' }) + chunk(delta) + (state.mode === 'truncated' ? '' : chunk({}, toolCall ? 'tool_calls' : 'stop', usage) + 'data: [DONE]\n\n'), { headers: { 'content-type': 'text/event-stream' } })
   } })
   const base = `http://127.0.0.1:${server.port}`

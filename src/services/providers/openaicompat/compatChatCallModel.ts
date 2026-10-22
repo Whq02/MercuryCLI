@@ -1,9 +1,8 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash, randomUUID } from 'crypto'
-import { getSessionId } from '../../../bootstrap/state.js'
 import { compatEngineRefusalText } from './compatRefusals.js'
-import { compatToolSchemaRefusal, firstCompatToolRefusal } from './compatToolSchemas.js'
+import { compatToolSchemaRefusal } from './compatToolSchemas.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
 import type {
@@ -53,9 +52,9 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { compatEffortWireFact, rejectedHostedEffortField, thinkingOffWireEffort, withoutHostedEffort } from './compatWire.js'
+import { compatEffortWireFact, thinkingOffWireEffort } from './compatWire.js'
 import { isKimiK3WireModel, kimiReplayProjection, replayKimiHistory } from './kimiReplay.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
@@ -314,7 +313,7 @@ export function compatFaultToTypedError(
 
 export function compatTerminalFaultText(
   profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy' | 'dialect'>,
-  fault: Pick<CompatFault, 'code' | 'message'> & { retryAfterMs?: number; status?: number },
+  fault: Pick<CompatFault, 'code' | 'message' | 'parameter'> & { retryAfterMs?: number; status?: number },
   typed: TypedError,
   opts?: { recovery?: 'retried' | 'no-new-credential' },
 ): string {
@@ -365,7 +364,6 @@ async function buildApiShapedTools(
   model: string,
   conversationKey?: string,
   pool: Tools = tools,
-  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
@@ -388,7 +386,7 @@ async function buildApiShapedTools(
         ...(record.description ? { description: record.description } : {}),
         input_schema: record.input_schema,
       }
-      if (!accept || accept(tool)) out.push(tool)
+      out.push(tool)
     }
   }
   return out
@@ -400,12 +398,11 @@ async function buildToolDeclarationRows(
   options: Options,
   model: string,
   build: ToolDeclarationRowBuilder,
-  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<{ rows: ReadonlyMap<string, ZaiWireMessage>; admitted: readonly ApiShapedTool[] }> {
   const rows = new Map<string, ZaiWireMessage>()
   const admitted: ApiShapedTool[] = []
   for (const declaration of plan.admissionDeclarations) {
-    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool, accept)
+    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool)
     if (shaped.length > 0) rows.set(declaration.toolUseId, build(mapToolsToZai(shaped)))
     admitted.push(...shaped)
   }
@@ -454,9 +451,10 @@ export async function* compatChatCallModel(
     yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${wireVerdict.reason}`)
     return
   }
-  if (profile.lane === 'openai-compat' && messages.some(message => message.type === 'user' && Array.isArray(message.message.content) && message.message.content.some(block =>
+  const hasImage = (message: Message): boolean => message.type === 'user' && Array.isArray(message.message.content) && message.message.content.some(block =>
     block.type === 'image' || block.type === 'tool_result' && Array.isArray(block.content) && block.content.some(part => part.type === 'image'),
-  ))) await refreshCompatModelImageReading(modelId, signal)
+  )
+  if (profile.lane === 'openai-compat' && messages.some(hasImage)) await refreshCompatModelImageReading(modelId, signal)
   if (signal.aborted) return
   let credential = await profile.resolveCredential()
   if (credential === undefined) {
@@ -476,17 +474,13 @@ export async function* compatChatCallModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
-  const toolNotes: string[] = []
-  const withheldTools = new Set<string>()
-  const acceptTool = (tool: ApiShapedTool): boolean => {
-    const refusal = compatToolSchemaRefusal(profile.dialect, tool)
-    if (!refusal) return true
-    withheldTools.add(tool.name)
-    if (firstCompatToolRefusal(getSessionId(), `${profile.requestUrl()}:${modelId}`, refusal)) toolNotes.push(refusal)
-    return false
+  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey, plan.roster)
+  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const schemaRefusal = [...apiTools, ...declared.admitted].map(tool => compatToolSchemaRefusal(profile.dialect, tool)).find(refusal => refusal !== undefined)
+  if (schemaRefusal !== undefined) {
+    yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${schemaRefusal}`, 'invalid_request')
+    return
   }
-  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey, plan.roster, acceptTool)
-  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText, acceptTool)
   const toolDeclarations = declared.rows
   const callableTools = [...apiTools, ...declared.admitted].filter(tool => !plan.isDeferredUnadmitted(tool.name))
   const contract = resolveBehaviourContract([...systemPrompt])
@@ -502,13 +496,19 @@ export async function* compatChatCallModel(
       .digest('hex')
       .slice(0, 16),
   })
+  const imagesSupported = imagesSupportedForCompatModel(modelId)
+  const lastAssistant = messages.findLastIndex(message => message.type === 'assistant')
+  const imageNotes = profile.lane === 'openai-compat' && !imagesSupported && messages.slice(lastAssistant + 1).some(hasImage)
+    ? [`Image content was not sent to the model: ${compatImageRefusalWords(modelId) ?? `${profile.providerLabel} does not accept images for this model — /model picks one that receives images`}. The text is still available.`]
+    : []
+  const leadingNotes = [...(profile.leadingNotes ?? []), ...imageNotes]
   const deferral: CompatDeferralFacts | undefined = plan.enabled
     ? {
         form: plan.wireForm,
         deferredNames: plan.deferredNames,
         ...(plan.conversationKey !== undefined ? { conversationKey: plan.conversationKey } : {}),
         cacheDomainKey,
-        imagesSupported: imagesSupportedForCompatModel(modelId),
+        imagesSupported,
       }
     : undefined
   const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
@@ -547,7 +547,7 @@ export async function* compatChatCallModel(
   const mappedMessages = mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(preparedMessages), {
     keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
     keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
-    imagesSupported: imagesSupportedForCompatModel(modelId),
+    imagesSupported,
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
   const effortView = effortVocabularyFor(modelId)
@@ -561,7 +561,6 @@ export async function* compatChatCallModel(
             : nearestSupportedWireEffort(effortValue, effortView.vocabulary)
           : undefined
       : undefined
-  let rejectedEffort: 'reasoning_effort' | 'chat_template_kwargs' | undefined
   const slotKey = plan.conversationKey ?? cacheDomainKey
   const makeRequestExtra = (): Record<string, unknown> => {
     const builtExtras = profile.buildExtras({
@@ -579,7 +578,7 @@ export async function* compatChatCallModel(
         : builtExtras),
       ...(profile.lane === 'openai-compat' || profile.lane === 'openrouter' ? { prompt_cache_key: cacheDomainKey } : {}),
     }
-    return rejectedEffort ? withoutHostedEffort(extra, rejectedEffort) : extra
+    return extra
   }
   const request: CompatChatRequest = {
     model: wireModel,
@@ -599,9 +598,8 @@ export async function* compatChatCallModel(
       thinkingEnabled,
       supported: effortTruth.supportsEffort,
     })
-  let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
+  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
-  let effortAdjusted: EffortAdjustedV1 | undefined
 
   if (profile.requestFitRefusal) {
     const requestBytes = JSON.stringify(request).length
@@ -657,7 +655,7 @@ export async function* compatChatCallModel(
       apiKey: credential.apiKey,
       requestUrl: credential.requestUrl ?? profile.requestUrl(),
       signal,
-      tools: tools.filter(tool => !withheldTools.has(tool.name)),
+      tools,
       options,
       modelId,
       messages,
@@ -665,9 +663,9 @@ export async function* compatChatCallModel(
       deferredUnadmitted: plan.isDeferredUnadmitted,
       callableTools,
       effort: effortOnWire,
-      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
+      imagesSupported,
       ...(deferral !== undefined ? { deferral } : {}),
-      ...((profile.leadingNotes?.length || toolNotes.length) ? { leadingNotes: [...(profile.leadingNotes ?? []), ...toolNotes] } : {}),
+      ...(leadingNotes.length ? { leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
@@ -683,16 +681,6 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
-    const rejected = profile.lane === 'openai-compat' && !rejectedEffort && outcome.retryEligible ? rejectedHostedEffortField(request.extra ?? {}, outcome.fault) : undefined
-    if (rejected) {
-      rejectedEffort = rejected
-      request.extra = withoutHostedEffort(request.extra ?? {}, rejected)
-      effortOnWire = effortStampOf(effortTruth.requested, { kind: 'omitted' })
-      const asked = effortValue ?? (effortFact.kind === 'sent' ? String(effortFact.value) : undefined)
-      if (asked !== undefined) effortAdjusted = { model: modelId, name: wireModel, asked, fieldRejected: { server: profile.providerLabel, field: rejected } }
-      attempt--
-      continue
-    }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = compatFaultToTypedError(outcome.fault)
     if (
@@ -882,7 +870,7 @@ async function* streamOneCompatAttempt(ctx: {
   deferredUnadmitted?: (name: string) => boolean
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
-  effortAdjusted?: EffortAdjustedV1
+  imagesSupported: boolean
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
@@ -930,7 +918,6 @@ async function* streamOneCompatAttempt(ctx: {
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
       ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
-      ...(ctx.effortAdjusted !== undefined ? { effortAdjusted: ctx.effortAdjusted } : {}),
     }
   }
 
@@ -964,6 +951,27 @@ async function* streamOneCompatAttempt(ctx: {
     | undefined
   let fault: CompatFault | undefined
 
+  let streamedCharacters = 0
+  let settledUsage: typeof EMPTY_USAGE | undefined
+  const settleUsage = (faultCode?: string): typeof EMPTY_USAGE => {
+    if (settledUsage !== undefined) return settledUsage
+    const estimate = usageSeen === undefined && faultCode !== undefined && (contentStarted || toolFragmentSeen)
+    settledUsage = estimate
+      ? estimateFaultedRequestUsage({
+          lane: profile.lane, model: modelId, request, faultCode,
+          minted: [{ message: { ...partial, content: [{ type: 'text', text: ' '.repeat(streamedCharacters), citations: null }] } }],
+        })
+      : mapCompatUsageToAnthropic(usageSeen)
+    if (usageSeen !== undefined || estimate) {
+      addToTotalSessionCost(
+        usageSeen?.statedCostUSD ?? calculateUSDCost(modelId, settledUsage),
+        settledUsage,
+        modelId,
+        usageSeen?.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined,
+      )
+    }
+    return settledUsage
+  }
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
     messageStarted = true
@@ -1062,6 +1070,7 @@ async function* streamOneCompatAttempt(ctx: {
     url: requestUrl,
     request,
     signal,
+    imagesSupported: ctx.imagesSupported,
     idleTimeoutMs,
     silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs, prefillTokensPerSecond }),
     ...(profile.liveness !== undefined
@@ -1088,6 +1097,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   const transport = profile.streamTransport?.(streamOptions, ctx.preparedMessages)
   const events = transport?.events ?? streamCompatChat(streamOptions)
+  try {
   for await (const event of events) {
     if (!firstEventSeen) {
       firstEventSeen = true
@@ -1097,6 +1107,7 @@ async function* streamOneCompatAttempt(ctx: {
         served = event.model
         break
       case 'reasoning-delta': {
+        streamedCharacters += event.text.length
         if (preserveKimi) kimiReasoning = (kimiReasoning ?? '') + event.text
         contentStarted = true
         yield* ensureMessageStart()
@@ -1119,6 +1130,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        streamedCharacters += event.text.length
         if (preserveKimi) kimiContent += event.text
         contentStarted = true
         yield* ensureMessageStart()
@@ -1133,6 +1145,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'tool-call-fragment': {
+        streamedCharacters += event.argumentsFragment.length
         toolFragmentSeen = true
         if (profile.lane === 'gemini') break
         yield* ensureMessageStart()
@@ -1193,16 +1206,20 @@ async function* streamOneCompatAttempt(ctx: {
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
     if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
+    const finalUsage = settleUsage('cancelled')
+    const lastMessage = minted.at(-1)
+    if (lastMessage) lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     paintSlots.length = 0
     while (released < minted.length) yield minted[released++]!
     return { kind: 'cancelled' }
   }
   const hasTool = toolFragmentSeen || (finish?.toolCalls.length ?? 0) > 0
-  const nothingYielded = !contentStarted && minted.length === 0 && !hasTool
+  const nothingYielded = !contentStarted && minted.length === 0
   const retryStream = fault !== undefined && !finish && !hasTool && streamReconnectCause(fault) !== null
   const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && !hasTool
   if (fault && nothingYielded && (!finish || retryTemporary)) {
-    return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
+    yield* closeOpenBlock()
+    return { kind: 'fault', fault, retryEligible: !hasTool && !isLocalLivenessCut(fault) }
   }
   const typedEnd =
     fault !== undefined && !finish && !retryTemporary && !retryStream
@@ -1333,18 +1350,8 @@ async function* streamOneCompatAttempt(ctx: {
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'stop'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
-  const finalUsage = mapCompatUsageToAnthropic(usageSeen)
-  if (!usageSeen && fault !== undefined) {
-    const estimated = estimateFaultedRequestUsage({ lane: profile.lane, model: modelId, request, minted, faultCode: fault.code })
-    addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
-  }
+  const finalUsage = settleUsage(fault?.code)
   if (usageSeen) {
-    addToTotalSessionCost(
-      usageSeen.statedCostUSD ?? calculateUSDCost(modelId, finalUsage as never),
-      finalUsage as never,
-      modelId,
-      usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined,
-    )
     void checkResponseForCacheBreak(
       options.querySource,
       finalUsage.cache_read_input_tokens,
@@ -1388,4 +1395,7 @@ async function* streamOneCompatAttempt(ctx: {
     yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
   return { kind: 'done', ...(served !== undefined ? { served } : {}) }
+  } finally {
+    settleUsage(fault?.code ?? (signal.aborted ? 'cancelled' : 'consumer-closed'))
+  }
 }

@@ -256,6 +256,7 @@ export interface CompatStreamOptions {
   onResponseHeaders?: (headers: Headers, status?: number) => void
   timers?: StreamTimers
   local?: LocalStreamLaw
+  imagesSupported?: boolean
   deferral?: CompatDeferralFacts
 }
 
