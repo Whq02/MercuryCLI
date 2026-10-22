@@ -860,7 +860,6 @@ export async function* streamCompatChat(
     }
   } finally {
     timers.clearTimeout(totalTimer)
-    options.firstByte?.onWait?.(null)
     if (livenessTimer !== null) timers.clearTimeout(livenessTimer)
     idleWatchdog?.stop()
     silenceWatch?.stop()

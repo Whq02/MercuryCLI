@@ -709,7 +709,6 @@ export async function* compatChatCallModel(
       reconnect = ladder
       const step = nextReconnect(ladder, streamCut, now)
       if (step.waitMs <= 0) {
-        options.onWait?.(null)
         try {
           const { logAPIDuration } = await import('../../api/logging.js')
           logAPIDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
