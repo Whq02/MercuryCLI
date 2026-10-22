@@ -55,7 +55,13 @@ try {
   const g = ggufDerived.recipe
   check('GGUF → llama.cpp with the shipped image and install, the chosen quant as weightFile and include', g.engine === 'llamacpp' && g.image === llama.image && g.install === llama.install && g.cuda === llama.cuda && g.weightFile === 'Q4_K_M/DeepSeek-V4.1-Flash-Q4_K_M-00001-of-00004.gguf' && g.include === 'Q4_K_M/DeepSeek-V4.1-Flash-Q4_K_M-0000*')
   check('GGUF memory = file sizes × 1.2 → the smallest shape that fits (120 GB → 144 GB → 2× H100)', g.weightsGb === 120 && g.gpu === 'H100' && g.count === 2 && g.vramGb === 80 && g.diskGb === 200)
-  check('GGUF context comes from the GGUF header, capped per slot, with four slots', g.context === 131072 && g.contextPerSlot === 131072 && g.flags.join(' ').includes('--ctx-size 524288 --parallel 4') && g.flags.includes('--jinja'))
+  check('GGUF preserves the repo-declared context per slot without imposing a smaller ceiling', g.context === 1048576 && g.contextPerSlot === 1048576 && g.flags.join(' ').includes('--ctx-size 4194304 --parallel 4') && g.flags.includes('--jinja'))
+  for (const context of [32768, 2097152, undefined]) {
+    const variation = deriveHostRecipe({ ...gguf, ggufContext: context }, ggufRepo.files, ggufRepo.config)
+    assert.ok(variation.ok)
+    const expected = context ?? 131072
+    check('GGUF context ' + (context ?? 'unknown') + ' retains its declaration or the unknown-context default', variation.recipe.context === expected && variation.recipe.contextPerSlot === expected && variation.recipe.flags.join(' ').includes('--ctx-size ' + expected * 4 + ' --parallel 4'))
+  }
   check('the GGUF recipe is stamped unverified with the repo as its source and passes the schema', g.verified.by === 'unverified' && g.verified.source === 'https://huggingface.co/' + gguf.id && /^\d{4}-\d{2}-\d{2}$/.test(g.verified.on!) && g.verified.note!.includes('nobody has booted this recipe') && g.id === 'hf-unsloth-deepseek-v4.1-flash-gguf' && g.label === gguf.id + ' · Q4_K_M' && g.model === gguf.id && hostRecipeSchema.safeParse(g).success && ggufDerived.engine === 'llama.cpp' && ggufDerived.format === 'GGUF Q4_K_M')
 
   const fp8Repo = await fetchHuggingFaceRepo(fp8.id, { base })
