@@ -1,5 +1,5 @@
 {
-  "base": "049496bc559dda73a6b77722a5fbf0f1c654770c",
+  "base": "b9f415f48a8e3c67334db2e3a4aa2ef140d5d92a",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2738,7 +2738,7 @@
     },
     {
       "name": "Computer",
-      "description": "Drive the operator's screen. Coordinates are pixels of the last screenshot you received — take one before any act, and again after a compaction or when the result says the screenshot is gone. The result of every act carries a fresh screenshot after a short settle (settleMs; capture:false skips it) plus one line: the cursor, the application in front and the display size.\n\naction:\"screenshot\" (display?, label?) — the display under the cursor, or the numbered one from action:\"displays\".\naction:\"click\" | \"doubleClick\" | \"rightClick\" (x, y, modifiers?) · action:\"move\" (x, y) · action:\"drag\" (x, y, toX, toY, modifiers?) · action:\"scroll\" (x, y, dx?, dy? in wheel notches; positive dy scrolls down).\naction:\"type\" (text) — the characters as typed, up to 4000; newline and tab are the only control characters. action:\"key\" (key) — one chord: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by + (cmd+shift+s). action:\"hold\" (key, durationMs) — the chord stays down for durationMs (cap 5000).\naction:\"wait\" (durationMs?) — pause (default 1000, cap 10000) then screenshot. action:\"cursor\" · action:\"displays\" · action:\"frontmost\" — cheap facts, no image.\naction:\"tree\" (depth?, limit?) — read-only: the accessibility tree of the application in front: role, title, value and frame per element, indented by depth (points; centre in px of the last screenshot); depth and limit (default 8, 200) bound it and a cut is said; no clipboard, no input.\n\nPermissions: the first act in an application this session asks the operator by the application's name; later acts in it ride the grant; an act that lands in another application asks for that one before the next act there. Reads (screenshot, wait, cursor, displays, frontmost) never ask; tree asks like an act. Keystrokes never go to the terminal running this session: with that terminal in front, type and hold refuse, key allows only the application switch chord, and clicks must land outside its window. One session drives the desktop at a time; a second is refused naming the first. The operator's esc or ctrl+c ends the act in flight (held keys released) and the turn.\n\nTake a screenshot after acts that change the screen, act on what the latest one shows, and prefer key chords over clicks on menus. Screenshots are not kept in the saved conversation; older ones leave the context as newer ones arrive.",
+      "description": "Drive the operator's screen. Read tree first; screenshot for pixels. Coordinates are pixels of the last screenshot; renew after compaction or a frame change. target:{role?,name?,text?}: role/name exact, text substring, one match required. Acts resolve at the tree caps unless depth/limit is given.\n\nscreenshot(display?,label?,region?) captures under the cursor. region:{x,y,width,height} crops the last screenshot's pixels and becomes the coordinate frame; a full screenshot returns.\nclick(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move (hover). drag also takes toX,toY OR toTarget. scroll takes dx/dy wheel notches, positive down/right. Modifiers: Shift/Control/Alt/Meta.\ntype(text): up to 4000 chars; only newline/tab controls. key(key) taps; hold(key,durationMs) holds 50–5000ms. Keys: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by +.\naction:\"tree\" (depth?, limit?) — read-only: role, title, value and frame; a cut is said; no clipboard, no input. Marks focus. scope:window by default; scope:app includes other windows/menus. Budgets 8/200, caps 32/2000. find(target) filters it.\nwait(durationMs?,until?) pauses or polls the tree for a target (default 1000, cap 10000ms). capture:false skips the image. cursor/displays/frontmost are cheap facts.\nsequence(steps:[acts,tree,find,wait]) checks each step just as alone; first failure stops; no nesting. Set capture/region/settleMs on the sequence, not steps; one final screenshot.\nActs take label and verify:true for a tree change check (not task confirmation; no blind retry). capture:false skips capture/settle. settleMs caps matching-frame waits (300 default, 5000 max); target-local stability is not whole-page readiness. Use wait-until for that.\n\nThe first act in an application asks; later acts ride its grant. Other reads never ask; tree asks like an act. find/wait-until use tree's permission. Sovereign runs without asks. One session drives at a time. Never type into this session's terminal: only the application-switch chord is allowed there; clicks stay outside its window. esc/ctrl+c interrupts and releases input. Acts pause for operator typing, refusing if it continues.\nNever solve a captcha: send captcha:true for a visual challenge and hand it to the operator; named tree challenges also refuse. Screenshots leave saved history.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2759,44 +2759,36 @@
               "cursor",
               "displays",
               "frontmost",
-              "tree"
-            ],
-            "description": "screenshot · click · doubleClick · rightClick · move · drag · scroll · type · key · hold · wait · cursor · displays · frontmost · tree"
+              "tree",
+              "find",
+              "sequence"
+            ]
           },
           "x": {
-            "description": "click/doubleClick/rightClick/move/drag/scroll: x in pixels of the last screenshot (drag: the start)",
             "type": "number"
           },
           "y": {
-            "description": "the y of x",
             "type": "number"
           },
           "toX": {
-            "description": "drag: the end x, same pixels",
             "type": "number"
           },
           "toY": {
-            "description": "drag: the end y",
             "type": "number"
           },
           "dx": {
-            "description": "scroll: wheel notches right (negative = left)",
             "type": "number"
           },
           "dy": {
-            "description": "scroll: wheel notches down (negative = up)",
             "type": "number"
           },
           "text": {
-            "description": "type: the characters to type (up to 4000)",
             "type": "string"
           },
           "key": {
-            "description": "key/hold: one chord — Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by + (cmd+shift+s)",
             "type": "string"
           },
           "modifiers": {
-            "description": "click family, drag, scroll: modifiers held around the act",
             "type": "array",
             "items": {
               "type": "string",
@@ -2809,32 +2801,294 @@
             }
           },
           "durationMs": {
-            "description": "hold: how long the chord stays down (cap 5000) · wait: the pause before the screenshot (default 1000, cap 10000)",
             "type": "number"
           },
           "display": {
-            "description": "screenshot: the display number from displays (default: the display under the cursor)",
             "type": "number"
           },
           "settleMs": {
-            "description": "acts: the pause before the screenshot that follows the act (default 300, cap 5000)",
             "type": "number"
           },
           "capture": {
-            "description": "acts: false skips the screenshot after the act (default true)",
             "type": "boolean"
           },
           "label": {
-            "description": "screenshot: a name for the saved file",
             "type": "string"
           },
           "depth": {
-            "description": "tree: how many levels below the application to read (default 8, cap 32)",
             "type": "number"
           },
           "limit": {
-            "description": "tree: how many elements at most (default 200, cap 2000)",
             "type": "number"
+          },
+          "target": {
+            "description": "role/name exact; text substring; unique match",
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "toTarget": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "until": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "count": {
+            "type": "number"
+          },
+          "region": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "additionalProperties": false
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "window",
+              "app"
+            ]
+          },
+          "verify": {
+            "type": "boolean"
+          },
+          "captcha": {
+            "type": "boolean"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "screenshot",
+                    "click",
+                    "doubleClick",
+                    "rightClick",
+                    "move",
+                    "drag",
+                    "scroll",
+                    "type",
+                    "key",
+                    "hold",
+                    "wait",
+                    "cursor",
+                    "displays",
+                    "frontmost",
+                    "tree",
+                    "find",
+                    "sequence"
+                  ]
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "toX": {
+                  "type": "number"
+                },
+                "toY": {
+                  "type": "number"
+                },
+                "dx": {
+                  "type": "number"
+                },
+                "dy": {
+                  "type": "number"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "modifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Shift",
+                      "Control",
+                      "Alt",
+                      "Meta"
+                    ]
+                  }
+                },
+                "durationMs": {
+                  "type": "number"
+                },
+                "display": {
+                  "type": "number"
+                },
+                "settleMs": {
+                  "type": "number"
+                },
+                "capture": {
+                  "type": "boolean"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "depth": {
+                  "type": "number"
+                },
+                "limit": {
+                  "type": "number"
+                },
+                "target": {
+                  "description": "role/name exact; text substring; unique match",
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "toTarget": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "until": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "count": {
+                  "type": "number"
+                },
+                "region": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "width",
+                    "height"
+                  ],
+                  "additionalProperties": false
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "window",
+                    "app"
+                  ]
+                },
+                "verify": {
+                  "type": "boolean"
+                },
+                "captcha": {
+                  "type": "boolean"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#"
+                  }
+                }
+              },
+              "required": [
+                "action"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
