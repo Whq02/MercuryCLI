@@ -17,12 +17,12 @@ const bundle = option('--bundle')
 if (bundle) {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
-  const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: ['4500:/llmhost', '5300:\r'], seconds: 14, cols: 120, rows: 44, keep: true })
+  const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: ['4500:/llmhost', '5300:\r', '9800:\x1b[6~'], seconds: 14, cols: 120, rows: 44, keep: true })
   try {
     const shots = grabScreens(arena, 120, 44, [7000, 9000, 11000, 13000].map(vshotBudgetMs))
     if (frames) shots.forEach((shot, index) => writeFileSync(join(frames, 'bundle-' + index + '.txt'), shot.rows.join('\n')))
     check('built /llmhost opens the model-first popup', shots.some(shot => shot.rows.join(' ').includes('Which model?')))
-    check('built popup includes model choices and the existing roads link', shots.some(shot => { const text = shot.rows.join(' '); return text.includes('GLM-5.3-Flash') && text.includes('My computers') && text.includes('Other roads') }))
+    check('built popup includes model choices and, a page down, the existing roads link', shots.some(shot => shot.rows.join(' ').includes('GLM-5.3-Flash')) && shots.some(shot => { const text = shot.rows.join(' '); return text.includes('My computers') && text.includes('Other roads') }))
   } finally { arena.cleanup() }
 }
 const f = await llmhostFixture()
@@ -154,7 +154,7 @@ try {
   await close()
   f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await until('live Runpod stock'); await choose('UD-Q3_K_XL'); await heading('Confirm the hourly price'); await until('1× RTX PRO 6000'); await until('llama.cpp (GGUF)'); capture('15-gguf-one-gpu-confirm'); await choose('Confirm $2.49/hr')
+  await until('live Runpod stock'); await choose('UD-Q3_K_XL'); await heading('Choose a GPU shape'); await choose('UD-Q3_K_XL'); await heading('Confirm the hourly price'); await until('1× RTX PRO 6000'); await until('llama.cpp (GGUF)'); capture('15-gguf-one-gpu-confirm'); await choose('Confirm $2.49/hr')
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-3')?.jobState === 'ready', 15000)); await heading('Pod controls'); capture('16-gguf-ready')
   const { startHostEngine } = await import('../../src/services/host/ssh.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')

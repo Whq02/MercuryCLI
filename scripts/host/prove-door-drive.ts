@@ -61,15 +61,16 @@ try {
   const until = async (needle: string) => assert.ok(await waitFor(() => mounted!.screen().includes(needle), 15000), 'screen reaches ' + needle + '\n' + mounted!.screen())
   const heading = async (needle: string) => assert.ok(await waitFor(() => mounted!.lines().slice(0, 4).join(' ').includes(needle), 15000), 'question reaches ' + needle + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
-  const choose = async (needle: string) => {
-    for (let n = 0; n < 30; n++) {
+  const walk = async (needle: string, key: string = KEY.down) => {
+    for (let n = 0; n < 80; n++) {
       const before = selected()
-      if (before.includes(needle)) { mounted!.push(KEY.enter); return }
-      mounted!.push(KEY.down)
+      if (before.includes(needle)) return
+      mounted!.push(key)
       assert.ok(await waitFor(() => selected() !== before, 3000), 'selection reaches ' + needle + '\n' + mounted!.screen())
     }
     throw new Error('Choice not found: ' + needle)
   }
+  const choose = async (needle: string) => { await walk(needle); mounted!.push(KEY.enter) }
   const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   const capture = async (name: string) => {
     const screen = mounted!.screen()
@@ -89,7 +90,8 @@ try {
   const at = (needle: string): number => { const index = screen1.indexOf(needle); assert.ok(index >= 0, 'Screen 1 carries ' + needle); return index }
   check('running first, then cheapest stock, then no stock', at('running on your pod') < at('in stock') && at('in stock') < at('no stock'))
   check('cursor starts on the already-paid model', selected().includes('GLM-5.3-Flash'))
-  check('account and own-computer rows follow a rule', screen1.includes('Pods I’m paying for · 1') && screen1.includes('so far') && screen1.includes('My computers · 0') && screen1.includes('────────────────'))
+  await walk('Pods I’m paying for'); const screenEnd = mounted!.screen(); await walk('GLM-5.3-Flash', KEY.up)
+  check('account and own-computer rows follow a rule (the list pages past the frontier rows; the cursor returns to the paid model)', screenEnd.includes('Pods I’m paying for · 1') && screenEnd.includes('so far') && screenEnd.includes('My computers · 0') && screenEnd.includes('────────────────') && selected().includes('GLM-5.3-Flash'))
   check('opening the door never creates a pod', rp.state.creates === 0 && queued.length === 0)
   await capture('120-screen-1')
   mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('WHERE')

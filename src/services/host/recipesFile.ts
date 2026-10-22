@@ -14,8 +14,8 @@ const packagedSlug = typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL ==
 
 export const SHIPPED_HOST_RECIPES_PATH = 'assets/host/recipes.json'
 export const HOST_RECIPES_URL = `https://raw.githubusercontent.com/${packagedSlug ?? PUBLIC_HOME_SLUG}/main/${SHIPPED_HOST_RECIPES_PATH}`
-export const HOST_RECIPES_FILE_VERSION = 1
-const HOST_RECIPES_PUBLISHED_AT = '2026-10-20'
+export const HOST_RECIPES_FILE_VERSION = 2
+const HOST_RECIPES_PUBLISHED_AT = '2026-10-22'
 const HOST_RECIPES_FETCH_TTL_MS = 6 * 60 * 60 * 1000
 const HOST_RECIPES_FETCH_TIMEOUT_MS = 5_000
 

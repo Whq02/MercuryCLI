@@ -121,7 +121,7 @@ try {
     check('unbound copied offers cannot select a different paid resource', vast.state.creates === 2)
 
     const shipped = await l.offers(signal())
-    check('Lambda 180 GB B200 instances satisfy only the shipped B200 rows that ask 180 GB on 4 or 8 GPUs, never a row asking more memory, more GPUs or more disk', shipped.length > 0 && shipped.every(row => row.recipe.gpu === 'B200' && row.recipe.vramGb <= 180 && (row.recipe.count === 4 || row.recipe.count === 8) && row.recipe.diskGb <= (row.recipe.count === 4 ? 11264 : 22528)) && HOST_RECIPES.some(row => row.vramGb > 180) && !shipped.some(row => row.recipe.vramGb > 180))
+    check('Lambda 180 GB B200 instances satisfy only the shipped B200 rows that ask 180 GB on 1, 4 or 8 GPUs and its 1x 80 GB H100 instance only the one-GPU gpt-oss-120b row, never a row asking more memory, more GPUs or more disk', shipped.length > 0 && shipped.every(row => (row.recipe.gpu === 'B200' && row.recipe.vramGb <= 180 && (row.recipe.count === 1 || row.recipe.count === 4 || row.recipe.count === 8) && row.recipe.diskGb <= (row.recipe.count === 8 ? 22528 : 11264)) || (row.recipe.gpu === 'H100' && row.recipe.id === 'gpt-oss-120b-h100' && row.recipe.count === 1 && row.recipe.vramGb <= 80 && row.recipe.diskGb <= 2816)) && shipped.some(row => row.recipe.id === 'gpt-oss-120b-h100') && HOST_RECIPES.some(row => row.vramGb > 180) && !shipped.some(row => row.recipe.vramGb > 180))
     override()
     const regional = await l.offers(signal())
     const first = regional[0]!

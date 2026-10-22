@@ -23,7 +23,7 @@ VITALS                  │ │ │ Opus 5.5            claude-opus-5-5         
                         │ │ ▾ MOONSHOT · no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KE… │ │
                         │ │   Kimi K2.5           kimi-k2.5                 unavailable  200k ctx                    │ │
                         │ │ ▾ RUN A MODEL · 0 of 0                                                                   │ │
-                        │ │   ↓ 5 more                                                                               │ │
+                        │ │   ↓ 11 more                                                                              │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │

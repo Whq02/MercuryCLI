@@ -120,7 +120,7 @@ try {
   ]
   await choose('Refresh stock and prices')
   await until('$5.29/hr')
-  check('when prices differ, cursor moves to the cheapest in-stock model', selected().includes('Qwen3.8-27B') && selected().includes('$5.29/hr'))
+  check('when prices differ, cursor moves to the cheapest in-stock model (a one-GPU H200 row: gpt-oss-120b or Qwen3.8-27B at $5.29/hr)', /gpt-oss-120b|Qwen3\.8-27B/.test(selected()) && selected().includes('$5.29/hr'))
   rp.state.customGpus = null
   await choose('Refresh stock and prices')
   await until('$2.49/hr')
@@ -218,7 +218,7 @@ try {
   await heading('Choose a GPU shape · live Runpod stock')
   await until('Runpod could not place 1× RTX PRO 6000 · no pod was created')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
-  check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers with Runpod’s reason and no pod created', posts() === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 3 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
+  check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers (one catalogue read per GPU count the single-machine rows ask: 1, 2, 4 and 8) with Runpod’s reason and no pod created', posts() === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 4 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
   await close()
 
   rp.state.customGpus = [
@@ -227,6 +227,8 @@ try {
   ]
   await rent()
   await choose('Nemotron 3.5 Super VL 120B')
+  await heading('Choose a GPU shape')
+  await choose('UD-Q3_K_XL')
   await heading('Confirm the hourly price')
   rp.state.customGpus = [{ ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } }]
   await choose('Confirm $2.49/hr')
