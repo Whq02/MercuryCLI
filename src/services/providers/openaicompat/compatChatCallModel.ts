@@ -1,9 +1,8 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash, randomUUID } from 'crypto'
-import { getSessionId } from '../../../bootstrap/state.js'
 import { compatEngineRefusalText } from './compatRefusals.js'
-import { compatToolSchemaRefusal, firstCompatToolRefusal } from './compatToolSchemas.js'
+import { compatToolSchemaRefusal } from './compatToolSchemas.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
 import type {
@@ -365,7 +364,6 @@ async function buildApiShapedTools(
   model: string,
   conversationKey?: string,
   pool: Tools = tools,
-  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
@@ -388,7 +386,7 @@ async function buildApiShapedTools(
         ...(record.description ? { description: record.description } : {}),
         input_schema: record.input_schema,
       }
-      if (!accept || accept(tool)) out.push(tool)
+      out.push(tool)
     }
   }
   return out
@@ -400,12 +398,11 @@ async function buildToolDeclarationRows(
   options: Options,
   model: string,
   build: ToolDeclarationRowBuilder,
-  accept?: (tool: ApiShapedTool) => boolean,
 ): Promise<{ rows: ReadonlyMap<string, ZaiWireMessage>; admitted: readonly ApiShapedTool[] }> {
   const rows = new Map<string, ZaiWireMessage>()
   const admitted: ApiShapedTool[] = []
   for (const declaration of plan.admissionDeclarations) {
-    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool, accept)
+    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool)
     if (shaped.length > 0) rows.set(declaration.toolUseId, build(mapToolsToZai(shaped)))
     admitted.push(...shaped)
   }
@@ -476,17 +473,13 @@ export async function* compatChatCallModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
-  const toolNotes: string[] = []
-  const withheldTools = new Set<string>()
-  const acceptTool = (tool: ApiShapedTool): boolean => {
-    const refusal = compatToolSchemaRefusal(profile.dialect, tool)
-    if (!refusal) return true
-    withheldTools.add(tool.name)
-    if (firstCompatToolRefusal(getSessionId(), `${profile.requestUrl()}:${modelId}`, refusal)) toolNotes.push(refusal)
-    return false
+  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey, plan.roster)
+  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const schemaRefusal = [...apiTools, ...declared.admitted].map(tool => compatToolSchemaRefusal(profile.dialect, tool)).find(refusal => refusal !== undefined)
+  if (schemaRefusal !== undefined) {
+    yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${schemaRefusal}`, 'invalid_request')
+    return
   }
-  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey, plan.roster, acceptTool)
-  const declared = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText, acceptTool)
   const toolDeclarations = declared.rows
   const callableTools = [...apiTools, ...declared.admitted].filter(tool => !plan.isDeferredUnadmitted(tool.name))
   const contract = resolveBehaviourContract([...systemPrompt])
@@ -655,7 +648,7 @@ export async function* compatChatCallModel(
       apiKey: credential.apiKey,
       requestUrl: credential.requestUrl ?? profile.requestUrl(),
       signal,
-      tools: tools.filter(tool => !withheldTools.has(tool.name)),
+      tools,
       options,
       modelId,
       messages,
@@ -664,7 +657,7 @@ export async function* compatChatCallModel(
       callableTools,
       effort: effortOnWire,
       ...(deferral !== undefined ? { deferral } : {}),
-      ...((profile.leadingNotes?.length || toolNotes.length) ? { leadingNotes: [...(profile.leadingNotes ?? []), ...toolNotes] } : {}),
+      ...(profile.leadingNotes?.length ? { leadingNotes: profile.leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {

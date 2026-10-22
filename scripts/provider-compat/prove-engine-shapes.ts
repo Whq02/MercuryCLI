@@ -4,7 +4,9 @@ import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { z } from 'zod/v4'
 import { startEngineRules, validateEngineRequest, ENGINE_RULE_SOURCES } from './fixtures/engineRules.mjs'
+import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 
+pinSourceRef()
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const home = mkdtempSync(resolve(process.env.MERCURY_CONFIG_DIR, 'engine-shapes-'))
@@ -183,14 +185,15 @@ try {
   const invalid = { ...tools.find(tool => tool.name === 'Read')!, name: 'BadReference', inputSchema: z.object({}), inputJSONSchema: { type: 'object', properties: { child: { $ref: '#' } } } }
   const selected = [...tools.filter(tool => tool.name === 'Read'), invalid]
   const history = [createUserMessage({ content: 'schema isolation' })]
+  const beforeSchemaRefusal = fixture.requests.length
   const isolated = await route(fixture, history, 'schema-isolation', selected)
+  check('an unsupported schema refuses the turn without sending a reduced roster', fixture.requests.length === beforeSchemaRefusal && isolated.filter(row => row.type === 'assistant').length === 1 && isolated.some(row => row.isApiErrorMessage && row.error === 'invalid_request' && JSON.stringify(row.message.content).includes('BadReference') && JSON.stringify(row.message.content).includes('no tools were removed')))
+  const repeat = await route(fixture, history, 'schema-isolation', selected)
+  check('the schema refusal stays visible on every attempt, never a successful partial roster', fixture.requests.length === beforeSchemaRefusal && repeat.some(row => row.isApiErrorMessage && JSON.stringify(row.message.content).includes('BadReference')))
+  const repaired = { ...invalid, inputJSONSchema: { type: 'object', properties: { child: { type: 'string' } } } }
+  const repairedRows = await route(fixture, history, 'schema-repaired', [...tools.filter(tool => tool.name === 'Read'), repaired])
   const sent = fixture.requests.at(-1)!.body
-  check('one unsupported schema does not poison or remove the other tools', sent.tools?.length === 1 && sent.tools[0].function.name === 'Read' && isolated.some(row => row.type === 'assistant' && !row.isApiErrorMessage && JSON.stringify(row.message.content).includes('BadReference') && JSON.stringify(row.message.content).includes('only this tool is left out')))
-  const repeat = await route(fixture, [...history, createAssistantMessage({ content: 'accepted' }), createUserMessage({ content: 'again' })], 'schema-isolation', selected)
-  check('schema omission notice is once per session; the wire prefix remains frozen', !repeat.some(row => row.type === 'assistant' && JSON.stringify(row.message.content).includes('only this tool is left out')) && JSON.stringify(sent.tools) === JSON.stringify(fixture.requests.at(-1)!.body.tools))
-  fixture.script([{ call: { name: 'BadReference', arguments: '{}' } }])
-  const refusedCall = await route(fixture, history, 'schema-gate', selected)
-  check('a withheld tool cannot be executed if the server still calls it', refusedCall.some(row => row.refusedToolCalls?.some((call: any) => call.name === 'BadReference')) && !refusedCall.some(row => row.type === 'assistant' && row.message.content.some((part: any) => part.type === 'tool_use')))
+  check('a repaired schema restores the whole roster, including the previously refused tool', fixture.requests.length === beforeSchemaRefusal + 1 && sent.tools?.length === 2 && sent.tools.some((tool: any) => tool.function.name === 'Read') && sent.tools.some((tool: any) => tool.function.name === 'BadReference') && repairedRows.some(row => row.type === 'assistant' && !row.isApiErrorMessage && row.message.stop_reason === 'end_turn'))
   const projector = await startEngineRules('llamacpp', { images: false })
   try {
     const response = await fetch(`${projector.baseUrl}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...plain, messages }) })
