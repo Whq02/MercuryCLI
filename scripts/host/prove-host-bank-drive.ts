@@ -38,8 +38,8 @@ const hub: Record<string, Record<string, Buffer>> = {
   'fixture/tiny-b': { 'model.bin': randomBytes(8192) },
 }
 const manifests = [
-  { model: 'fixture/tiny-a', include: '', revision: 'fixture-rev-a', files: [{ path: 'shards/tiny-a-00001-of-00002.bin', size: 4096, sha256: sha256(hub['fixture/tiny-a']!['shards/tiny-a-00001-of-00002.bin']!) }, { path: 'shards/tiny-a-00002-of-00002.bin', size: 6144, git: gitBlob(hub['fixture/tiny-a']!['shards/tiny-a-00002-of-00002.bin']!) }] },
-  { model: 'fixture/tiny-b', include: '', revision: 'fixture-rev-b', files: [{ path: 'model.bin', size: 8192, sha256: sha256(hub['fixture/tiny-b']!['model.bin']!) }] },
+  { model: 'fixture/tiny-a', include: '', revision: 'a'.repeat(40), files: [{ path: 'shards/tiny-a-00001-of-00002.bin', size: 4096, sha256: sha256(hub['fixture/tiny-a']!['shards/tiny-a-00001-of-00002.bin']!) }, { path: 'shards/tiny-a-00002-of-00002.bin', size: 6144, git: gitBlob(hub['fixture/tiny-a']!['shards/tiny-a-00002-of-00002.bin']!) }] },
+  { model: 'fixture/tiny-b', include: '', revision: 'b'.repeat(40), files: [{ path: 'model.bin', size: 8192, sha256: sha256(hub['fixture/tiny-b']!['model.bin']!) }] },
 ]
 const shipped = JSON.parse(readFileSync(join(import.meta.dir, '../../assets/host/recipes.json'), 'utf8')) as { version: number; publishedAt: string; recipes: any[] }
 const shape = shipped.recipes.find(row => row.id === 'qwen38-27b-rtx-pro-6000')
@@ -203,7 +203,7 @@ try {
   check('b asks a confirm that names the source, the folder, the token use and the pinned manifest before any download', screen().includes('https://huggingface.co/fixture/tiny-b') && screen().includes('Hugging Face token is used when a repo is gated') && screen().includes('against the pinned manifest') && downloads.length === 0)
   await choose('Bank it'); await until('Banking the weights to ~/mercury-model-bank')
   await Promise.all(jobs)
-  check('the bank job downloads with hf download, the pinned revision and file list, the local dir and the stored token in the environment, never on the command line', downloads.length === 1 && downloads[0]!.model === 'fixture/tiny-b' && downloads[0]!.revision === 'fixture-rev-b' && downloads[0]!.include.join() === 'model.bin' && downloads[0]!.localDir === bank.bankModelFolder(bankFolder, tinyB) && downloads[0]!.token === hfToken)
+  check('the bank job downloads with hf download, the pinned revision and file list, the local dir and the stored token in the environment, never on the command line', downloads.length === 1 && downloads[0]!.model === 'fixture/tiny-b' && downloads[0]!.revision === manifests[1]!.revision && downloads[0]!.include.join() === 'model.bin' && downloads[0]!.localDir === bank.bankModelFolder(bankFolder, tinyB) && downloads[0]!.token === hfToken)
   check('the download is sealed with SHA256SUMS, verified against the pinned manifest and announced', readFileSync(join(bank.bankModelFolder(bankFolder, tinyB), 'SHA256SUMS'), 'utf8') === sha256(hub['fixture/tiny-b']!['model.bin']!) + '  model.bin\n' && bank.bankState(tinyB).banked && bank.bankState(tinyB).check === 'manifest' && notices().some(words => words.includes('Tiny-B · banked on ~/mercury-model-bank · 8.2 KB in 1 files · verified against the pinned manifest')))
   await close(); open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await until('WEIGHTS')
   const banked = screen().replace(/[│\s]+/g, ' ')

@@ -326,7 +326,7 @@ try {
   const tiny = join(f.home, 'tiny-weights'); mkdirSync(tiny)
   const bytes = Buffer.from('verified weights')
   writeFileSync(join(tiny, 'model.gguf'), bytes)
-  const manifest = { model: 'fixture/tiny', include: '', revision: 'fixture', files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
+  const manifest = { model: 'fixture/tiny', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
   const verify = (options: { fully?: boolean; sampleManifestSha256?: string } = {}) => spawnSync('python3', ['-c', weightCheckScript(manifest, tiny, false, options)], { encoding: 'utf8' })
   const firstCheck = verify()
   check('real verification executes SHA256 and writes sizes plus SHA256SUMS', firstCheck.status === 0 && readFileSync(join(tiny, 'SHA256SUMS'), 'utf8').includes(manifest.files[0]!.sha256) && JSON.parse(readFileSync(join(tiny, 'SIZES.json'), 'utf8'))[0][1] === bytes.length)
@@ -350,7 +350,7 @@ try {
   writeFileSync(join(source, 'model.gguf'), payload)
   const netDev = join(f.home, 'fake-net-dev')
   writeFileSync(netDev, 'Inter-|   Receive\n face |bytes    packets\n  eth0: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0\n')
-  const fillManifest = { model: 'fixture/fill', include: '', revision: 'fixture', files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
+  const fillManifest = { model: 'fixture/fill', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
   const fill = (name: string, mode: string, extra: NonNullable<Parameters<typeof weightCheckScript>[3]>) => {
     const started = Date.now()
     const run = spawnSync('python3', ['-c', weightCheckScript(fillManifest, join(f.home, name), true, { stallSeconds: 0.5, stallBytes: 1000, stallPollSeconds: 0.05, netDevPath: netDev, ...extra })], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PYTHONPATH: join(f.home, 'fake-hub'), FAKE_HF_MODE: mode, FAKE_HF_SOURCE: source } })
@@ -369,7 +369,7 @@ try {
   const sparse = join(f.home, 'sparse-weights'); mkdirSync(sparse)
   const sparseFiles = [{ path: 'big.gguf', size: 2048 * MiB }, { path: 'mid.gguf', size: 300 * MiB + 7 }, { path: 'small.json', size: 1000 }]
   for (const file of sparseFiles) { writeFileSync(join(sparse, file.path), ''); truncateSync(join(sparse, file.path), file.size) }
-  const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'fixture', files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
+  const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'd'.repeat(40), files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
   const counted = "import pathlib as _pl, atexit as _ax\n_read = [0]\n_open = _pl.Path.open\nclass _Counted:\n    def __init__(self, f): self.f = f\n    def read(self, n=-1):\n        b = self.f.read(n)\n        _read[0] += len(b)\n        return b\n    def __getattr__(self, name): return getattr(self.f, name)\n    def __enter__(self): return self\n    def __exit__(self, *a): return self.f.__exit__(*a)\ndef _counted_open(self, mode='r', *a, **k):\n    f = _open(self, mode, *a, **k)\n    return _Counted(f) if 'r' in mode and 'b' in mode else f\n_pl.Path.open = _counted_open\n_ax.register(lambda: print('BYTES_READ ' + str(_read[0])))\n"
   const sparseFill = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false)], { encoding: 'utf8', timeout: 120_000 })
   const sparseAnchor = JSON.parse(sparseFill.stdout.split('\n').find(line => line.startsWith('MERCURY_WEIGHTS '))!.slice('MERCURY_WEIGHTS '.length)).sampleManifestSha256 as string

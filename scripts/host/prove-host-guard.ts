@@ -155,7 +155,7 @@ try {
     const prepareOnly = mode !== 'rental'
     const { id, name } = seed('runpod')
     const folder = join(f.home, name); mkdirSync(folder)
-    const manifest = { model: recipe.model, include: recipe.include ?? '', revision: 'fixture', files: [{ path: 'weights.gguf', size: Math.round(recipe.weightsGb * 1e9), sha256: '0'.repeat(64) }] }
+    const manifest = { model: recipe.model, include: recipe.include ?? '', revision: 'e'.repeat(40), files: [{ path: 'weights.gguf', size: Math.round(recipe.weightsGb * 1e9), sha256: '0'.repeat(64) }] }
     const manifests = join(folder, 'manifests.json'); writeFileSync(manifests, JSON.stringify([manifest])); process.env.MERCURY_HOST_WEIGHTS_FILE = manifests
     writeFileSync(join(folder, 'huggingface_hub.py'), 'import time\ndef snapshot_download(**kwargs):\n    time.sleep(5)\n')
     writeFileSync(join(folder, 'net-dev'), 'eth0: 0 0 0 0 0 0 0 0\n')

@@ -38,7 +38,7 @@ const recipesFile = join(f.home, 'recipes.json')
 writeFileSync(recipesFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes }))
 process.env.MERCURY_HOST_RECIPES_FILE = recipesFile
 const weightsFile = join(f.home, 'weights.json')
-writeFileSync(weightsFile, JSON.stringify(recipes.map(recipe => ({ model: recipe.model, include: '', revision: 'fixture-revision', files: [{ path: 'model.bin', size: data.length, sha256: createHash('sha256').update(data).digest('hex') }] }))))
+writeFileSync(weightsFile, JSON.stringify(recipes.map(recipe => ({ model: recipe.model, include: '', revision: 'c'.repeat(40), files: [{ path: 'model.bin', size: data.length, sha256: createHash('sha256').update(data).digest('hex') }] }))))
 process.env.MERCURY_HOST_WEIGHTS_FILE = weightsFile
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
