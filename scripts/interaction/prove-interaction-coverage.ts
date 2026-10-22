@@ -59,6 +59,7 @@ const reg = (files: string[], klass: Klass, reason?: string): void => {
 
 reg(
   [
+    'src/components/CustomSelect/popup-list.tsx',
     'src/components/mercury-ui/InteractiveRow.tsx',
     'src/components/mercury-ui/InteractiveDisclosure.tsx',
     'src/components/mercury-ui/NavigablePanes.tsx',
@@ -135,6 +136,7 @@ reg(
 
 reg(
   [
+    'src/components/permissions/rules/PermissionRuleList.tsx',
     'src/commands/appearance/appearance.tsx',
     'src/commands/caching/caching.tsx',
     'src/commands/context/context.tsx',
