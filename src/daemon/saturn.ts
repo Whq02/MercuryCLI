@@ -13,6 +13,7 @@ import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 export interface ScheduleAccountV1 {
   family: string
   source: 'oauth' | 'api-key' | 'keyless'
+  modelKey?: string
   scopeDir?: string
   identity?: string
   knownExpiresAt?: number | null
