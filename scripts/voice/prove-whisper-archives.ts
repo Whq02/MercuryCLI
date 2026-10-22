@@ -79,6 +79,7 @@ try {
   const probe = parse(probeText)
   const release = parse(workflow)
   assert.deepEqual(Object.keys(probe.on), ['workflow_dispatch'])
+  assert.ok(probe.jobs.probe.strategy.matrix.include.includes("[inputs.target || 'windows-arm64']"))
   assert.deepEqual([...probe.on.workflow_dispatch.inputs.target.options].sort(), [...RELEASE_TARGETS].sort())
   assert.equal(probe.on.workflow_dispatch.inputs.target.default, 'windows-arm64')
   assert.deepEqual(probe.permissions, { contents: 'read' })

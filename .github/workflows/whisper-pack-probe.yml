@@ -1,5 +1,5 @@
 name: whisper-pack-probe
-run-name: Whisper pack · ${{ inputs.target }} · ${{ github.ref_name }}
+run-name: Whisper pack · ${{ inputs.target || 'windows-arm64' }} · ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
             "macos-x64": [{"os":"macos-14","target":"macos-x64","node_pack":"darwin-x64","cross":true,"rust_targets":"x86_64-apple-darwin"}],
             "linux-arm64": [{"os":"ubuntu-24.04-arm","target":"linux-arm64","node_pack":"linux-arm64"}],
             "linux-x64": [{"os":"ubuntu-latest","target":"linux-x64","node_pack":"linux-x64"}]
-          }')[inputs.target] }}
+          }')[inputs.target || 'windows-arm64'] }}
     name: Whisper build and load (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
