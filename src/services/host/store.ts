@@ -9,12 +9,12 @@ import type { HostRetune, HostTunePreferences } from './tune.js'
 import { releaseHostHuggingfaceCredential, type HostHuggingfaceCredential } from './jobCredentials.js'
 
 export interface HostRecord {
-  vendor?: 'runpod' | 'vast' | 'lambda'
+  vendor?: 'runpod' | 'vast' | 'lambda' | 'huggingface'
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
   target?: SshTarget; localPort?: number; provider?: string
   sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
   jobKind?: 'setup' | 'watch' | 'bank'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string; creating?: string
-  watchVendors?: ('runpod' | 'vast' | 'lambda')[]
+  watchVendors?: ('runpod' | 'vast' | 'lambda' | 'huggingface')[]
   bankTask?: 'bank' | 'verify'; bankFolder?: string
   huggingfaceCredential?: HostHuggingfaceCredential
   jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'failed' | 'stopped'
