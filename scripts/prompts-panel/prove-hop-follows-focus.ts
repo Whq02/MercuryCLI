@@ -22,7 +22,7 @@ const COLS = Number(process.env.PANEL_HOP_COLS ?? '120')
 const ROWS = Number(process.env.PANEL_HOP_ROWS ?? '40')
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
-const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? join(tmpdir(), 'prompts-panel-captures')
+const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? mkdtempSync(join(tmpdir(), 'prompts-panel-captures-'))
 mkdirSync(CAPTURE_DIR, { recursive: true })
 if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')

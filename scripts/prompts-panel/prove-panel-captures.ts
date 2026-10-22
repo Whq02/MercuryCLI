@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from '../ui/renderScenarios.ts'
@@ -32,7 +32,7 @@ function reapRenderDaemonSessions(): void {
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const REPO = join(import.meta.dir, '..', '..')
-const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? join(tmpdir(), 'prompts-panel-captures')
+const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? mkdtempSync(join(tmpdir(), 'prompts-panel-captures-'))
 const PROJECTS = getProjectDir(RUNTIME_CWD)
 
 type Cell = { c: string }
