@@ -281,6 +281,7 @@ src/utils/lockfile.ts :: cached :: static-for-process
 src/utils/markdownConfigLoader.ts :: loadMarkdownFilesForSubdir :: keyed-by-truth
 src/utils/mercuryTokens.ts :: rampCache :: keyed-by-truth
 src/utils/mercuryTokens.ts :: tokenCache :: keyed-by-truth
+src/utils/messages/toolSchemaDialect.ts :: memo :: keyed-by-truth
 src/utils/model/capabilities.ts :: getAllModelBetas :: keyed-by-truth
 src/utils/model/capabilities.ts :: getModelBetas :: keyed-by-truth
 src/utils/model/computedDefault.ts :: memo :: ttl-bounded
