@@ -50,7 +50,8 @@ import { runWithCwdOverride } from '../../utils/cwd.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { observedFamilyWindow } from '../../services/capFailover.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
-import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getEngineModel, getMarketingNameForModel } from '../../utils/model/model.js'
+import { getAgentModel } from '../../utils/model/agent.js'
 import { subscribeEngineModelOverride } from '../../bootstrap/state.js'
 import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 import { pauseGateWords, requestParkFrame } from '../../run-core/pauseGate.js'
@@ -613,7 +614,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (routed !== undefined) opts.model = routed
       }
       if (opts?.model !== undefined && opts.model !== null) {
-        const engine = await resolveEngineDispatch(String(opts.model))
+        const engine = await resolveEngineDispatch(getAgentModel(undefined, contextView.options?.engineModel ?? getEngineModel(), String(opts.model)))
         if (engine) opts.model = engine.model
       }
 
