@@ -68,7 +68,6 @@ export interface HeldOpEnvelopeV1 {
   kit?: ConcourseAdmitRequest['kit']
   birthKey?: string
   bornBlank?: boolean
-  vacatingSessionId?: string
   restartReason?: 'update'
   mode?: ConcoursePromptExtras['mode']
   agentId?: string
@@ -412,7 +411,6 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 =
           kitPreset: req.kitPreset ?? null,
           birthKey: req.birthKey ?? null,
           bornBlank: req.bornBlank ?? null,
-          vacatingSessionId: req.vacatingSessionId ?? null,
           restartReason: req.restartReason ?? null,
           sentAt: req.sentAt ?? null,
           origin: req.origin ?? null,
@@ -852,8 +850,8 @@ export function makeConcourseDispatchHandler(
       return attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))
     }
 
-    const { clientMessageId: _id, prompt, targetSessionId: _target, vacatingSessionId, ...admitReq } = req
-    const admitted = await deps.admit({ ...admitReq, ...(!held && vacatingSessionId !== undefined ? { vacatingSessionId } : {}) })
+    const { clientMessageId: _id, prompt, targetSessionId: _target, ...admitReq } = req
+    const admitted = await deps.admit(admitReq)
     if (!admitted.ok) {
       const retryable =
         admitted.code === 'runtime-ceiling' ||
@@ -891,7 +889,6 @@ export function makeConcourseDispatchHandler(
           ...(req.kit !== undefined ? { kit: structuredClone(req.kit) } : {}),
           ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
           ...(req.bornBlank !== undefined ? { bornBlank: req.bornBlank } : {}),
-          ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
           ...(req.restartReason !== undefined ? { restartReason: req.restartReason } : {}),
           ...(req.mode !== undefined ? { mode: req.mode } : {}),
           ...(req.agentId !== undefined ? { agentId: req.agentId } : {}),
@@ -1114,7 +1111,6 @@ async function replayHeldRecord(
       ...(op.kit !== undefined ? { kit: op.kit } : {}),
       ...(op.birthKey !== undefined ? { birthKey: op.birthKey } : {}),
       ...(op.bornBlank !== undefined ? { bornBlank: op.bornBlank } : {}),
-      ...(op.vacatingSessionId !== undefined ? { vacatingSessionId: op.vacatingSessionId } : {}),
       ...(op.restartReason !== undefined ? { restartReason: op.restartReason } : {}),
       ...(op.mode !== undefined ? { mode: op.mode } : {}),
       ...(op.agentId !== undefined ? { agentId: op.agentId } : {}),

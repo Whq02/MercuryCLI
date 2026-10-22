@@ -141,7 +141,7 @@ section('§3 the rewritten sites import the router, never the transport')
 {
   const read = (rel: string): string => stripComments(readFileSync(join(ROOT, rel), 'utf8'))
   const compact = read('src/services/compact/compact.ts')
-  check('compact.ts imports routedCallModel from the router', compact.includes("import { routedCallModel } from '../providers/callModelRouter.js'"))
+  check('compact.ts imports routedCallModel from the router', /import \{ routedCallModel(?:, [A-Za-z]+)* \} from '\.\.\/providers\/callModelRouter\.js'/.test(compact))
   check('compact.ts calls routedCallModel exactly once (the summariser\'s direct call)', (compact.match(/routedCallModel\(\{/g) ?? []).length === 1)
   check('compact.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(compact))
 
