@@ -169,6 +169,13 @@ try {
   const droppedWords = getCommandQueue().map(row => String(row.value)).find(words => words.includes('fixture-dropped')) ?? ''
   check('a job process that ends after READY says the tunnel is down, that the pod still bills, and how to reconnect — never "setup stalled at ready"', readHostRecord(dropped.id)?.jobState === 'failed' && droppedWords.includes('the job process ended after the pod was ready, so the tunnel is down') && droppedWords.includes('it bills $' + dropped.price.toFixed(2) + '/hr while it runs') && droppedWords.includes('Resume to reconnect, Terminate to stop the bill') && !droppedWords.includes('setup stalled at ready'))
   removeHostRecord(dropped.id)
+  for (const [name, watchVendors] of [['watch-one', ['vast']], ['watch-three', ['runpod', 'vast', 'lambda']]] as const) {
+    writeHostRecord({ ...ready, id: name, name, jobKind: 'watch' as const, jobState: 'running' as const, generation: name + '-generation', step: 'watching for stock', advancedAt: Date.now() - 250, error: undefined, watchVendors: [...watchVendors], provider: undefined })
+    await sweepHostJobs({ stallMs: 100, alive: () => true }); deliverHostNotices('rental-session')
+    const words = getCommandQueue().map(row => String(row.value)).find(text => text.includes(name + ' · stock watch has not read')) ?? ''
+    check('a stalled watch names the stock it stopped reading (' + watchVendors.length + ' provider' + (watchVendors.length === 1 ? '' : 's') + ')', words.includes(watchVendors.length === 1 ? 'has not read Vast.ai’s stock since' : 'has not read any provider’s stock since') && words.includes('/llmhost → Pods I’m paying for → Cancel'))
+    removeHostRecord(name)
+  }
   config.failLaunch = true; save()
   open(); await screen('Where should the model run?'); await choose('Rent a GPU'); await screen('Optional spending budget'); m.push(KEY.enter); await screen('live Runpod stock'); await choose('UD-Q3_K_XL'); await screen('Choose a GPU shape'); await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await choose('Confirm $2.49/hr')
   check('failure rental recorded', await waitFor(() => hostRecords().length === 1, 15000))

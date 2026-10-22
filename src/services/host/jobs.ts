@@ -12,6 +12,7 @@ import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostR
 import { hostNotice } from './notices.js'
 import { currentHostRecipes } from './recipesFile.js'
 import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
+import { HOST_VENDOR_INFO } from './vendors/vendor.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -143,7 +144,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
     if (['running', 'starting'].includes(record.jobState) && (!alive || Date.now() - (record.advancedAt ?? 0) >= (options.stallMs ?? 600_000)) || record.jobState === 'ready' && !alive) {
       const dropped = record.jobState === 'ready'
       if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: dropped ? 'The job process ended after the pod was ready; the tunnel is down.' : 'The setup job process is gone.' })
-      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read Runpod since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : dropped ? ' · the job process ended after the ' + (record.cluster ? 'cluster' : 'pod') + ' was ready, so the tunnel is down · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read ' + ((record.watchVendors?.length ?? 0) > 1 ? 'any provider’s stock' : HOST_VENDOR_INFO[record.watchVendors?.[0] ?? record.vendor ?? 'runpod'].label + '’s stock') + ' since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : dropped ? ' · the job process ended after the ' + (record.cluster ? 'cluster' : 'pod') + ' was ready, so the tunnel is down · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
     }
   }
 }
