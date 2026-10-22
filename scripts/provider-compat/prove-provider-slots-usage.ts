@@ -97,7 +97,7 @@ section('1 · /accounts slots for the key-lane families')
   check('moonshot env pin is the active winner', moonshotEnv?.active === true && moonshotEnv.envPinned === true)
   check(
     'moonshot stored key shadow-noted under the env pin',
-    moonshotStored?.active === false && (moonshotStored?.stateNote ?? '').includes('env pin wins'),
+    moonshotStored?.active === false && moonshotStored?.stateNote === 'shadowed — the environment variable wins',
   )
   const serialized = JSON.stringify(groups)
   check('no key VALUE rides any slot', !serialized.includes('sk-moon-env-0123456789') && !serialized.includes('sk-deep-stored-13579246') && !serialized.includes('tok-never-shown'))
@@ -105,7 +105,7 @@ section('1 · /accounts slots for the key-lane families')
   const moonshotOauthUnderEnv = moonshot?.slots.find(s => s.id === 'moonshot:oauth')
   check(
     'the Kimi sign-in stands shadowed under the env pin (env > sign-in > stored)',
-    moonshotOauthUnderEnv?.active === false && (moonshotOauthUnderEnv?.stateNote ?? '').includes('env pin wins'),
+    moonshotOauthUnderEnv?.active === false && moonshotOauthUnderEnv?.stateNote === 'shadowed — the environment variable wins',
   )
   const signedIn = deriveFamilySlotGroups(providers, {
     moonshotEnvKey: () => undefined,
