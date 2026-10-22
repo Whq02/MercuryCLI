@@ -69,6 +69,8 @@ def run_pty(cols, rows, env_extra=None, send=None, send_after=0.6, oneshot=True,
         os.environ.pop('MERCURY_FULLSCREEN', None)
         os.environ.pop('TERM_PROGRAM', None)
         os.environ.pop('TERM_PROGRAM_VERSION', None)
+        for spelling in ('NO_COLOR', 'FORCE_COLOR', 'MERCURY_TRUECOLOR'):
+            os.environ.pop(spelling, None)
         os.environ['COLORTERM'] = 'truecolor'
         for k, v in (env_extra or {}).items():
             if v is None:
@@ -646,6 +648,8 @@ def run_corpus(cols, rows, env_extra=None, steps=None, settle=1.4, resize=None):
         os.environ['COLORTERM'] = 'truecolor'
         os.environ.pop('TERM_PROGRAM', None)
         os.environ.pop('TERM_PROGRAM_VERSION', None)
+        for spelling in ('NO_COLOR', 'FORCE_COLOR', 'MERCURY_TRUECOLOR'):
+            os.environ.pop(spelling, None)
         os.environ['MERCURY_REDUCED_MOTION'] = '1'
         os.environ['MERCURY_FULLSCREEN'] = '0'
         home_pin = (env_extra or {}).get('MERCURY_HOME', EMPTY_HOME)

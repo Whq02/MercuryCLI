@@ -194,9 +194,18 @@ if (!existsSync(DIST)) {
     check('no thrash notice anywhere in the drive', !noticesOf(d.frames).some(t => t.includes(THRASH_HEAD)) && !outcomes.some(o => JSON.stringify(o).includes(THRASH_HEAD)), JSON.stringify(noticesOf(d.frames)).slice(0, 300))
     const summaries = main.filter(h => h.route === 'summary')
     check('the folds came at the seams: at least two automatic folds in the task run', summaries.length >= 2, String(summaries.length))
-    const gaps: number[] = []
-    for (let i = 1; i < summaries.length; i++) gaps.push(main.filter(h => h.seq > summaries[i - 1]!.seq && h.seq < summaries[i]!.seq && h.route !== 'summary').length)
-    check(`one fold frees room for the next turn: between consecutive folds the engine made at least two task calls (gaps ${gaps.join(',')}; red on the base: 1,1,…)`, gaps.length > 0 && gaps.every(g => g >= 2), gaps.join(','))
+    const readCalls = d.frames.filter(f => f.type === 'tool_call' && f.tool === 'Read')
+    const successfulReads = new Set(d.frames.filter(f => f.type === 'tool_result' && f.status === 'ok').map(f => f.call_id))
+    const readIds = new Set(readCalls.map(f => f.call_id))
+    check('all forty file reads have their own successful tool result, not just the fixture\'s final sentence', readIds.size === 40 && successfulReads.size === 40 && [...readIds].every(id => successfulReads.has(id)), `${readIds.size} read ids / ${successfulReads.size} successful results`)
+    const foldEnds = d.frames.flatMap((f, i) => f.type === 'compaction' && f.state === 'ended' && f.exit === 'landed' ? [i] : [])
+    const resumedReads = foldEnds.map(at => {
+      const next = d.frames.findIndex((f, i) => i > at && f.type === 'compaction' && f.state === 'started')
+      const resumed = d.frames.slice(at + 1, next < 0 ? undefined : next)
+      const calls = new Set(resumed.filter(f => f.type === 'tool_call' && f.tool === 'Read').map(f => f.call_id))
+      return resumed.filter(f => f.type === 'tool_result' && f.status === 'ok' && calls.has(f.call_id)).length
+    })
+    check('each landed fold resumes successful file work before the next fold starts; the last fold may resume the final answer', foldEnds.length >= 2 && resumedReads.slice(0, -1).every(n => n > 0), resumedReads.join(','))
     const threshold = Number('150000') - 20_000
     check('every fold landed with a turn of room under the threshold (post ≤ threshold − 20k)', boundaries.length >= 2 && boundaries.every(b => b.post <= threshold - 20_000), boundaries.map(b => `${b.pre}→${b.post}`).join(' '))
     const questionHit = main.find(h => h.route === 'question')

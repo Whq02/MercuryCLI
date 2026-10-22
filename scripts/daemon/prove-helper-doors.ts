@@ -128,24 +128,23 @@ const OLD_RELEASE = '1.0.0-beta.26'
 const releaseDist = (): string | null => {
   const pinned = process.env.HELPERS_OLD_DIST
   if (pinned !== undefined && existsSync(join(pinned, 'mercury.mjs'))) return pinned
-  const cache = join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}`)
-  const built = join(cache, 'dist')
-  const answers = (): boolean => existsSync(join(built, 'mercury.mjs')) && spawnSync('node', [join(built, 'mercury.mjs'), '--version'], { encoding: 'utf8' }).stdout.includes(OLD_RELEASE)
-  if (answers()) return built
   if (spawnSync('git', ['-C', root, 'cat-file', '-e', `${OLD_SHA}^{commit}`]).status !== 0) return null
-  rmSync(cache, { recursive: true, force: true })
-  mkdirSync(cache, { recursive: true })
-  if (spawnSync('sh', ['-c', `git -C "${root}" archive ${OLD_SHA} | tar -x -C "${cache}"`]).status !== 0) return null
-  symlinkSync(join(root, 'node_modules'), join(cache, 'node_modules'))
+  const cache = mkdtempSync(join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}-`))
+  const built = join(cache, 'dist')
+  process.once('exit', () => rmSync(cache, { recursive: true, force: true }))
+  const answers = (): boolean => existsSync(join(built, 'mercury.mjs')) && spawnSync('node', [join(built, 'mercury.mjs'), '--version'], { encoding: 'utf8' }).stdout.includes(OLD_RELEASE)
+  if (spawnSync('sh', ['-c', `git -C "${root}" archive ${OLD_SHA} | tar -x -C "${cache}"`]).status !== 0) throw new Error(`could not extract ${OLD_SHA}`)
+  const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], { cwd: cache, encoding: 'utf8', env: { ...process.env, BUN_INSTALL_CACHE_DIR: join(cache, '.bun-cache') } })
+  if (install.status !== 0) throw new Error(`the ${OLD_SHA} tree's own locked dependencies did not install: ${(install.stdout + install.stderr).slice(-2000)}`)
   const scratch = mkdtempSync(join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}-build-`))
   const build = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined, MERCURY_BUILD_OUTDIR: scratch } })
   if (build.status !== 0) {
-    note(`the ${OLD_SHA} tree did not build: ${(build.stdout + build.stderr).slice(-600)}`)
     rmSync(scratch, { recursive: true, force: true })
-    return null
+    throw new Error(`the ${OLD_SHA} tree did not build: ${(build.stdout + build.stderr).slice(-2000)}`)
   }
   renameSync(scratch, built)
-  return answers() ? built : null
+  if (!answers()) throw new Error(`the ${OLD_SHA} bundle did not answer as ${OLD_RELEASE}`)
+  return built
 }
 const listen = (path: string): Promise<net.Server> => new Promise((resolveServer, reject) => {
   const server = net.createServer(() => {})
@@ -300,7 +299,7 @@ try {
   {
     const oldDist = releaseDist()
     if (oldDist === null) {
-      note(`SKIPPED — the ${OLD_RELEASE} release could not be built beside this proof (its commit ${OLD_SHA} is not in this clone, or its tree did not build)`)
+      note(`[SKIP] the ${OLD_RELEASE} release is unavailable because commit ${OLD_SHA} is not in this clone`)
     } else {
       const oldDir = join(world, 'r26')
       mkdirSync(oldDir)

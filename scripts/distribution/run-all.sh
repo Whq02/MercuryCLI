@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: sdk/package.json sdk-py/pyproject.toml
 # gate-watch: scripts/distribution/**
 # gate-watch: bench/harbor/README.md bench/harbor/mercury_harbor/install.sh sdk/README.md sdk-py/README.md .node-version
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json

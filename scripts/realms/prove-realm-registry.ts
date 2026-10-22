@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 
+const homeScratch = withProofAccountHome()
 let failures = 0
 const check = (ok: boolean, label: string): void => {
   console.log(`${ok ? '✓' : '✗'} ${label}`)
@@ -9,7 +11,6 @@ const check = (ok: boolean, label: string): void => {
 }
 
 const configHome = mkdtempSync(join(tmpdir(), 'realm-cfg-'))
-const homeScratch = mkdtempSync(join(homedir(), '.realm-proof-'))
 const realmA = join(homeScratch, 'projA')
 const realmB = join(homeScratch, 'projB')
 mkdirSync(realmA, { recursive: true })
@@ -21,6 +22,7 @@ process.env.MERCURY_CONFIG_DIR = configHome
 const reg = (await import('../../src/utils/realmRegistry.js')) as typeof import('../../src/utils/realmRegistry.js')
 
 try {
+  check(homedir() === homeScratch, 'the account home is the fixture, not the invoking account')
   const outside = mkdtempSync(join(tmpdir(), 'realm-outside-'))
   const rOutside = reg.addRealm(outside)
   check(!rOutside.ok && /blocked/.test(rOutside.ok ? '' : rOutside.reason), 'outside-home dir REFUSED (blocked)')
@@ -88,7 +90,6 @@ try {
   if (prevEnv === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = prevEnv
   rmSync(configHome, { recursive: true, force: true })
-  rmSync(homeScratch, { recursive: true, force: true })
 }
 
 console.log(failures === 0 ? '✅ realm registry GREEN' : `❌ realm registry RED (${failures})`)

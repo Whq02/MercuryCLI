@@ -153,6 +153,7 @@ let beforePid = 0
 let escaped = false
 let added = false
 let signed = false
+let signingInFrame = ''
 let restarted = false
 let projectTrustAsked = false
 let projectStayedOff = false
@@ -212,7 +213,13 @@ try {
         check('Enter starts the existing OAuth flow', auth)
         const authorizationUrl = facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl
         if (authorizationUrl) {
-          check('the signing-in screen is painted before the callback', await until(() => screenNow(drive).includes('signing in… (browser)')))
+          check('the signing-in screen is painted before the callback', await until(() => {
+            const frame = screenNow(drive)
+            if (!frame.includes('signing in… (browser)')) return false
+            signingInFrame = frame
+            writeFileSync(join(CAPTURES, 'signing-in.txt'), frame + '\n')
+            return true
+          }))
           const response = await fetch(authorizationUrl)
           check('loopback OAuth callback completes', response.status === 200)
         } else check('loopback OAuth callback completes', false)
@@ -248,7 +255,7 @@ try {
   const frames = grabScreens(run, 120, 40, Array.from({ length: 134 }, (_, index) => S(2000 + index * 500))).map(frame => ({ at: frame.atMs, text: frame.rows.map(row => row.trimEnd()).join('\n') }))
   for (const [index, frame] of frames.entries()) if (index === 0 || frame.text !== frames[index - 1]!.text) writeFileSync(join(CAPTURES, `frame-${String(frame.at).padStart(6, '0')}.txt`), frame.text + '\n')
   const stepScreens = run.sendLog.flatMap(row => row.screen ? [row.screen.map(line => line.trimEnd()).join('\n')] : [])
-  const painted = [...frames.map(frame => frame.text), ...stepScreens].join('\n')
+  const painted = [...frames.map(frame => frame.text), ...stepScreens, signingInFrame].join('\n')
   check('the popup paints Mercury · mcp in a centered frame', frames.some(frame => frame.text.includes('Mercury · mcp') && frame.text.includes('╭')) || stepScreens.some(text => text.includes('Mercury · mcp') && text.includes('╭')))
   check('the added row paints added just now', painted.includes('runpod') && painted.includes('added just now'))
   check('the signing-in row names the browser', painted.includes('signing in… (browser)'))

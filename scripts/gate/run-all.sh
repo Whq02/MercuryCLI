@@ -32,6 +32,7 @@ run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" |
 run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
 run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
+run_proof "$here/prove-bundle-ready.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-bundle-ready.ts" || fail=1
 run_proof "$here/prove-ci-verdict.sh" bash "$here/prove-ci-verdict.sh" || fail=1
 run_proof "$here/prove-gate-ledger.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
 run_proof "$here/prove-suite-class-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-class-census.ts" || fail=1
@@ -44,6 +45,8 @@ run_proof "$here/prove-hermetic-shard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$her
 run_proof "$here/prove-skip-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skip-census.ts" || fail=1
 run_proof "$here/prove-comment-anchor-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-comment-anchor-census.ts" || fail=1
 run_proof "$here/prove-drive-wait-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drive-wait-census.ts" || fail=1
+run_proof "$here/prove-proof-readings-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-readings-census.ts" || fail=1
+run_proof "$here/prove-proof-account-home.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-account-home.ts" || fail=1
 run_proof "$here/prove-gate-watch-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-watch-census.ts" || fail=1
 run_proof "$here/prove-vocabulary-seal.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-vocabulary-seal.ts" || fail=1
 run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-seal-in-gate.ts" || fail=1

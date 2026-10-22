@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/components/App.tsx src/components/Spinner.tsx src/components/Spinner/liveCounterWords.ts
+# gate-watch: src/ink/ink.tsx src/ink/instances.ts
+# gate-watch: src/services/providers/openaicompat/compatPrefill.ts src/services/providers/openaicompat/compatResponsesTransport.ts
 # gate-watch: src/components/messages/SystemTextMessage.tsx
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence* src/services/api/withRetry.ts src/services/api/errors.ts scripts/api/authRetry* scripts/api/prove-authentication-retry.ts
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**

@@ -10,7 +10,6 @@ import { parseEngineTreeSpec } from '../../src/services/vulcan/engine/frozenTree
 import { liveEngines } from '../../src/services/vulcan/engine/spawn.js'
 import { engineRunPath, engineTreePath } from '../../src/services/vulcan/engine/paths.js'
 import { decodePng, encodePng } from '../../src/tools/FileReadTool/imageProcessorJs.js'
-import { resolveGodotExecutable } from '../../src/services/vulcan/portabilityHealth.js'
 import { godotEngineCli, parseGodotCliArgs } from '../../src/cli/godotEngineCli.js'
 import { vulcanOp } from '../../src/utils/vulcan/optable.generated.js'
 
@@ -112,10 +111,10 @@ check('CLI frames executes the statistics op', await godotEngineCli(['frames', '
 check('display routes name the window in the permission request', engineOpPermissionMessage('engine_capture', { route: 'display' })?.includes('asks for the real display') && engineOpPermissionMessage('engine_profile', { display: true })?.includes('asks for the real display'))
 check('median and nearest-rank p95 name the actual order statistics', JSON.stringify(engineMediaStats([4, 1, 3, 2], 'fixture')) === JSON.stringify({ samples: 4, median: 2.5, p95: 4 }))
 check('CLI missing numeric values refuse rather than silently default', await godotEngineCli(['frames', 'stats', flat, '--max-lag', '--project', project], cliIo) === 2)
-const executable = await resolveGodotExecutable({ census: [] })
+const executable = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!executable.resolved) {
-  console.log('SKIP real-engine captures and profiles: no Godot executable is available')
-  evidence.push({ label: 'live engine', value: 'SKIP: no Godot executable' })
+  console.log(`[SKIP] real-engine captures and profiles: ${executable.reason}`)
+  evidence.push({ label: 'live engine', value: `SKIP: ${executable.reason}` })
 } else {
   const service = EngineJobService.for(project, { workers: 2, executable: executable.resolved })
   const clock = { simulationTime: 2, shaderTime: 3, seed: 1234, fps: 60 }

@@ -65,7 +65,7 @@ section('§1 the pure law')
   check('the words: the spend, and the unmeasured turns beside it', workflowSpendWords(settled, fmt) === '16 spent' && workflowSpendWords(cut, fmt) === '16 spent · 1 turn unmeasured' && workflowSpendWords({ ...cut, unsettledTurns: 2 }, fmt) === '16 spent · 2 turns unmeasured', `${workflowSpendWords(settled, fmt)} · ${workflowSpendWords(cut, fmt)}`)
 }
 
-const fixture = await startWorkflowAgentFixture({ port: 34911, gptId: GPT, latencyMs: { anthropic: 600 } })
+const fixture = await startWorkflowAgentFixture({ port: 0, gptId: GPT, latencyMs: { anthropic: 600 } })
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

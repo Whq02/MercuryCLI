@@ -14,7 +14,6 @@ const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engi
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
 const { listVulcanInstances } = await import('../../src/services/vulcan/instances.js')
 const { resolveVulcanClientForTest } = { resolveVulcanClientForTest: (await import('../../src/services/vulcan/vulcanClient.js')).resetVulcanClientForTest }
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
@@ -159,10 +158,10 @@ try {
 }
 check('every proof-owned fake engine is gone and no instance is discoverable', liveEngines().length === 0 && listVulcanInstances(suites).length === 0 && listVulcanInstances(media).length === 0)
 
-const executable = process.env.GODOT_BIN ? { resolved: process.env.GODOT_BIN } : await resolveGodotExecutable({ census: [] })
+const executable = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!executable.resolved) {
-  console.log('SKIP real engine boot answers: no Godot executable is available')
-  evidence.push({ label: 'real engine', value: 'SKIP: no Godot executable' })
+  console.log(`[SKIP] real engine boot answers: ${executable.reason}`)
+  evidence.push({ label: 'real engine', value: `SKIP: ${executable.reason}` })
 } else {
   const real = project('real', [{ name: 'runtime_checks', marker: 'RUNTIME PASS', quitAfter: 1000000, timeoutMs: 120000 }])
   const realService = EngineJobService.for(real, { workers: 1, executable: executable.resolved })

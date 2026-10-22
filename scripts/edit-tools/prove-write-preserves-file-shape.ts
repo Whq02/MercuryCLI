@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'file-shape-home-'))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'file-shape-cs-'))
@@ -28,10 +28,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
+const budgetMs = vshotBudgetMs(120_000)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — file shape proof exceeded 120s')
+  console.log(`\nTIMEOUT — file shape proof exceeded ${budgetMs / 1000}s`)
   process.exit(1)
-}, 120_000)
+}, budgetMs)
 guard.unref?.()
 
 const repo = realpathSync(mkdtempSync(join(tmpdir(), 'file-shape-repo-')))

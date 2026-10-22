@@ -48,14 +48,17 @@ section(`§0 the released product: the tree of ${OLD_SHA} (v${OLD_VERSION}) buil
 const oldDist = ((): string => {
   const pinned = process.env.UPDATE_ROAD_OLD_DIST
   if (pinned !== undefined && existsSync(join(pinned, 'mercury.mjs'))) return pinned
-  const cache = join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}`)
+  const cache = mkdtempSync(join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}-`))
   const dist = join(cache, 'dist')
-  const fresh = existsSync(join(dist, 'mercury.mjs')) && spawnSync(REAL_NODE, [join(dist, 'mercury.mjs'), '--version'], { encoding: 'utf8' }).stdout.includes(OLD_VERSION)
-  if (fresh) return dist
-  rmSync(cache, { recursive: true, force: true })
-  mkdirSync(cache, { recursive: true })
+  process.once('exit', () => rmSync(cache, { recursive: true, force: true }))
   execFileSync('sh', ['-c', `git -C "${ROOT}" archive ${OLD_SHA} | tar -x -C "${cache}"`], { stdio: 'inherit' })
-  symlinkSync(join(ROOT, 'node_modules'), join(cache, 'node_modules'))
+  const install = spawnSync(process.execPath, ['install', '--frozen-lockfile'], {
+    cwd: cache, encoding: 'utf8', env: { ...process.env, BUN_INSTALL_CACHE_DIR: join(cache, '.bun-cache') },
+  })
+  if (install.status !== 0) {
+    console.error(`✗ the ${OLD_SHA} tree's own locked dependencies did not install: ${(install.stdout + install.stderr).slice(-2000)}`)
+    process.exit(1)
+  }
   const scratchDist = mkdtempSync(join(cache, 'build-'))
   const built = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined, MERCURY_BUILD_OUTDIR: scratchDist } })
   if (built.status !== 0) {
@@ -268,7 +271,7 @@ const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
 const { isProcessAlive } = await import(join(ROOT, 'src/daemon/ownerWatch.ts'))
 type Hello = { pid: number; buildTree: string | null; version: string; live: number; ownerPid: number | null }
 const hello = (): Promise<Hello | null> =>
-  sockMod.daemonControlRpc({ op: 'hello', proto: protocol.MERCURY_DAEMON_PROTO, clientVersion: OLD_VERSION, clientBuildTree: oldTree }, { timeoutMs: 1500, protoRetry: false }).then((r: { ok: boolean; op?: string; pid?: number; buildTree?: string | null; version?: string; live?: number; ownerPid?: number | null }) => (r.ok && r.op === 'hello' ? { pid: r.pid as number, buildTree: r.buildTree ?? null, version: r.version ?? '?', live: r.live ?? 0, ownerPid: r.ownerPid ?? null } : null))
+  sockMod.daemonControlRpc({ op: 'hello', proto: protocol.MERCURY_DAEMON_PROTO, clientVersion: OLD_VERSION, clientBuildTree: oldTree }, { timeoutMs: vshotBudgetMs(1500) }).then((r: { ok: boolean; op?: string; pid?: number; buildTree?: string | null; version?: string; live?: number; ownerPid?: number | null }) => (r.ok && r.op === 'hello' ? { pid: r.pid as number, buildTree: r.buildTree ?? null, version: r.version ?? '?', live: r.live ?? 0, ownerPid: r.ownerPid ?? null } : null))
 const stopEverything = async (home: string): Promise<string[]> =>
   withHome(home, async () => {
     const seen: string[] = []

@@ -34,12 +34,9 @@ console.log('============================================================')
 console.log(' GPT-6 Astra — a workflow call carries its own effort word')
 console.log('============================================================')
 
-const fixture = await startWorkflowAgentFixture({
-  port: 34907,
-  reasoning: { responses: true },
+const fixture = await startWorkflowAgentFixture({ port: 0, reasoning: { responses: true },
   gptId: ID,
-  gptReasoningLevels: LADDER,
-})
+  gptReasoningLevels: LADDER })
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

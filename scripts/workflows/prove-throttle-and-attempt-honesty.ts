@@ -28,11 +28,8 @@ console.log('============================================================')
 console.log(' Workflow honesty riders — 429 backoff visible · real attempts')
 console.log('============================================================')
 
-const fixture = await startWorkflowAgentFixture({
-  port: 34907,
-  throttle: { lane: 'anthropic', times: 2, retryAfterSec: 2 },
-  latencyMs: { anthropic: 700 },
-})
+const fixture = await startWorkflowAgentFixture({ port: 0, throttle: { lane: 'anthropic', times: 2, retryAfterSec: 2 },
+  latencyMs: { anthropic: 700 } })
 
 const CHILD = String.raw`
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }

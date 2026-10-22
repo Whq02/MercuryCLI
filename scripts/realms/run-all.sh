@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: scripts/lib/proofAccountHome.ts
 # gate-watch: src/utils/realmRegistry*
 # gate-watch: src/commands/realms/realms.tsx
 set -uo pipefail
