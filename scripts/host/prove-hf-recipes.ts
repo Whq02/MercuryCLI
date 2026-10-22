@@ -25,6 +25,17 @@ try {
   const { hostRecipeSchema, currentHostRecipes, sessionHostRecipes, forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const base = hf.baseUrl
+  const shard = (part: number, total = 2) => ({ path: 'Q4_K_M/model-Q4_K_M-' + String(part).padStart(5, '0') + '-of-' + String(total).padStart(5, '0') + '.gguf', size: 10 })
+  const single = { path: 'Q4_K_M/model-Q4_K_M.gguf', size: 10 }
+  check('a complete unordered GGUF shard set remains selectable', chooseGgufQuant([shard(2), shard(1)])?.files.length === 2)
+  check('a standalone GGUF remains selectable', chooseGgufQuant([single])?.files.length === 1)
+  for (const [name, files] of [
+    ['duplicate first shard', [shard(1), shard(1)]],
+    ['missing first shard and out-of-range ordinal', [shard(2), shard(3)]],
+    ['mixed declared shard totals', [shard(1), shard(2, 3)]],
+    ['zero shard ordinal', [shard(0), shard(1)]],
+  ] as const) check(name + ' cannot be selected as a complete GGUF quant', chooseGgufQuant(files) === undefined)
+  check('sharded and standalone layouts sharing a stem remain selectable without counting both copies', chooseGgufQuant([shard(1), shard(2), single])?.files.length === 2 && chooseGgufQuant([single, shard(1), shard(2)])?.files.length === 1)
 
   const dark = await searchHuggingFace('deepseek', {})
   check('a proof-shape run with the seam unset reaches nothing and says so', dark.state === 'offline' && dark.words === HF_PROOF_WORDS && fetches.length === 0)

@@ -172,7 +172,8 @@ function quantGroups(files: readonly HfFile[]): { quant: string; files: HfFile[]
     if (!isGgufWeight(file.path)) continue
     const quant = quantOf(file.path)
     if (!quant) continue
-    const key = (file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '') + '|' + quant + '|' + file.path.replace(/-\d{5}-of-\d{5}\.gguf$/i, '').replace(/\.gguf$/i, '')
+    const sharded = /-\d{5}-of-\d{5}\.gguf$/i.test(file.path)
+    const key = (file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '') + '|' + quant + '|' + file.path.replace(/-\d{5}-of-\d{5}\.gguf$/i, '').replace(/\.gguf$/i, '') + '|' + (sharded ? 'shards' : 'single')
     const group = groups.get(key) ?? { quant, files: [], bytes: 0 }
     group.files.push(file)
     group.bytes += file.size
@@ -180,7 +181,10 @@ function quantGroups(files: readonly HfFile[]): { quant: string; files: HfFile[]
   }
   return [...groups.values()].filter(group => {
     const shards = group.files.map(file => /-(\d{5})-of-(\d{5})\.gguf$/i.exec(file.path)).filter(Boolean)
-    return shards.length === 0 ? group.files.length === 1 : shards.length === Number(shards[0]![2])
+    if (!shards.length) return group.files.length === 1
+    const total = Number(shards[0]![2])
+    const parts = shards.map(shard => Number(shard![1]))
+    return shards.length === total && shards.length === group.files.length && new Set(parts).size === total && parts.every(part => part >= 1 && part <= total) && shards.every(shard => Number(shard![2]) === total)
   })
 }
 export function chooseGgufQuant(files: readonly HfFile[]): { quant: string; files: HfFile[]; bytes: number } | undefined {
