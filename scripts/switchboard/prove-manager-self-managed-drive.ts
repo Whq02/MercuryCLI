@@ -74,7 +74,7 @@ const sends: Send[] = [
   { data: '\r', afterPrevTicks: 4 },
   { data: '', afterPrevTicks: 10, mark: 'sent' },
   { data: SHIFT_TAB, afterPrevTicks: 1 },
-  { data: '', afterPrevTicks: 5, mark: 'disarmed' },
+  { data: '', requireAwait: true, awaitText: '↵ send · ⇧↵ newline', awaitSettleTicks: 2, mark: 'disarmed' },
 ]
 const out = join(OUT_DIR, 'manager-self-managed-120x40.json')
 const cfgPath = join(scratch, 'vshot-manager-self.json')

@@ -28,25 +28,28 @@ for (let i = 0; i < 110; i++) {
   deltas.push(i % 40 === 39 ? `${w}.\n` : `${w} `)
 }
 
+const END = '⟦END⟧'
+deltas[deltas.length - 1] += END
 const S = vshotBudgetScale()
 const SETTLE_HOLD = Math.round(1600 * S)
 const run = await runArtifactArena({
   turns: [{ kind: 'paced', deltas, gapMs: 40, settleDelayMs: SETTLE_HOLD }],
-  sends: ['4500:hello', '5300:\\r'],
+  sends: [
+    { awaitText: 'Type a prompt', text: 'hello\r' },
+    { awaitText: [END], awaitAbsent: 'ready · ', text: '' },
+    { awaitText: [END, 'ready · '], text: '' },
+  ],
   seconds: 16,
   probe: true,
   keep: true,
 })
 const emits = run.fixture.pacedEmits
 check('fixture streamed fully', emits.length === deltas.length, `${emits.length}/${deltas.length}`)
-const streamEnd = sendStamp(run, { sent: emits.at(-1)?.at ?? 0, atMs: 0, b64: '' })
-const settleAt = streamEnd + SETTLE_HOLD
-
-const [before, after, late] = grabScreens(run, 120, 40, [
-  streamEnd + 800 * S,
-  settleAt + 600 * S,
-  settleAt + 1400 * S,
-])
+const observed = run.sendLog.filter(record => Array.isArray(record.awaitText) && record.awaitText.includes(END))
+check('the last delta paints before settle, then the ready state paints with that same text', observed.length === 2 && observed.every(record => record.screen !== undefined) && observed[0]!.sent < observed[1]!.sent)
+const before = { rows: observed[0]?.screen ?? [] }
+const after = { rows: observed[1]?.screen ?? [] }
+const late = observed[1] === undefined ? { rows: [] } : grabScreens(run, 120, 40, [sendStamp(run, observed[1]) + 800 * S])[0]
 
 const sentinels = Array.from({ length: sIdx }, (_, i) => `⟦S${i}⟧`)
 const rowOf = (rows: string[], needle: string): number => findRows(rows, needle)[0] ?? -1
@@ -69,7 +72,7 @@ const rowOf = (rows: string[], needle: string): number => findRows(rows, needle)
     const l = rowOf(late!.rows, s)
     if (a !== l) lateMoved.push(`${s}:${a}→${l}`)
   }
-  check('no late reflow (settle+600 == settle+1400, in the stretched clock)', lateMoved.length === 0, lateMoved.join(' '))
+  check('no late reflow after the observed ready frame', lateMoved.length === 0, lateMoved.join(' '))
 }
 
 {
