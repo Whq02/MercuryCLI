@@ -92,9 +92,17 @@ export class LambdaClient implements HostVendor {
       ssh: { direct: row.status === 'active' && row.ip && isIP(row.ip) === 4 ? { host: row.ip, port: 22, username: 'ubuntu' } : null } }
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
-    const page = await this.api.request('/instances', z.object({ data: z.array(instanceSchema), page_token: z.string().nullable().optional() }), 'GET', undefined, signal)
-    if (page.page_token) throw new Error('Lambda returned an incomplete instance list; check the console before renting or declaring termination complete.')
-    return page.data.map(row => this.pod(row))
+    const rows: HostPod[] = []
+    const seen = new Set<string>()
+    let token: string | undefined
+    do {
+      const page = await this.api.request('/instances?page_size=100' + (token ? '&page_token=' + encodeURIComponent(token) : ''), z.object({ data: z.array(instanceSchema), page_token: z.string().nullable().optional() }), 'GET', undefined, signal)
+      rows.push(...page.data.map(row => this.pod(row)))
+      token = page.page_token || undefined
+      if (token && seen.has(token)) throw new Error('Lambda repeated an instance-list page token; the instance list is incomplete. Check the console before renting or declaring termination complete.')
+      if (token) seen.add(token)
+    } while (token)
+    return rows
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> {
     if (!idSchema.safeParse(id).success) throw new Error('Lambda requires a valid instance ID.')

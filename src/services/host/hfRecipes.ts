@@ -10,6 +10,7 @@ export const HF_SEARCH_LIMIT = 20
 export const HF_OFFLINE_WORDS = 'Hugging Face is unreachable · the verified list is shown'
 export const HF_PROOF_WORDS = 'Hugging Face is not reached in a proof run · the verified list is shown'
 export const HF_GATED_WORDS = 'gated · sign in with /logins huggingface'
+export const HF_RATE_LIMIT_WORDS = 'Hugging Face rate limit reached'
 export const HF_NOT_CHAT_WORDS = '— not a chat model'
 const HF_HUB = 'https://huggingface.co'
 const HF_TIMEOUT_MS = 5000
@@ -77,6 +78,10 @@ async function hubGet(path: string, options: HfHubOptions, accept = 'application
   const base = (options.base ?? HF_HUB).replace(/\/+$/, '')
   return fetch(base + path, { method: 'GET', headers: { Accept: accept, ...(options.token ? { Authorization: 'Bearer ' + options.token } : {}) }, redirect: 'error', signal: timeoutSignal(options) })
 }
+export function hfRateLimitWords(response: Response, options: HfHubOptions): string {
+  const reset = /\bt=(\d+)/.exec(response.headers.get('ratelimit') ?? '')?.[1] ?? /^\d+$/.exec(response.headers.get('retry-after')?.trim() ?? '')?.[0]
+  return HF_RATE_LIMIT_WORDS + (reset ? ' · resets in ' + reset + ' s' : '') + (options.token ? '' : ' · sign in with /logins huggingface for a higher limit')
+}
 const licenceWords = (row: z.infer<typeof modelSchema>): string | undefined => {
   const card = row.cardData?.license
   const named = Array.isArray(card) ? card.join('/') : card ?? row.tags?.find(tag => tag.startsWith('license:'))?.slice(8)
@@ -101,6 +106,7 @@ export async function searchHuggingFace(query: string, options: HfHubOptions = {
   const params = new URLSearchParams([['search', query], ['pipeline_tag', 'text-generation'], ['sort', 'downloads'], ['limit', String(HF_SEARCH_LIMIT)], ...EXPAND.map(key => ['expand', key])])
   try {
     const response = await hubGet('/api/models?' + params.toString(), options)
+    if (response.status === 429) return { state: 'offline', words: hfRateLimitWords(response, options) }
     if (!response.ok) throw new Error('HTTP ' + response.status)
     const rows = z.array(z.unknown()).parse(await response.json())
     const models = rows.map(row => modelSchema.safeParse(row)).filter(row => row.success).map(row => hfModel(row.data))
@@ -116,6 +122,7 @@ export async function fetchHuggingFaceRepo(id: string, options: HfHubOptions = {
   try {
     const info = await hubGet('/api/models/' + repoPath + '?expand=sha', options)
     if (info.status === 401 || info.status === 403) return { ok: false, words: 'gated · your Hugging Face account has no access to ' + id + ' · accept its terms at https://huggingface.co/' + id }
+    if (info.status === 429) return { ok: false, words: hfRateLimitWords(info, options) + ' · nothing was derived' }
     if (!info.ok) throw new Error('HTTP ' + info.status)
     const revision = z.object({ sha: z.string().regex(/^[a-f0-9]{40}$/) }).parse(await info.json()).sha
     const files: HfFile[] = []
@@ -126,6 +133,7 @@ export async function fetchHuggingFaceRepo(id: string, options: HfHubOptions = {
       pages.add(next)
       const response = await hubGet(next, options)
       if (response.status === 401 || response.status === 403) return { ok: false, words: 'gated · your Hugging Face account has no access to ' + id + ' · accept its terms at https://huggingface.co/' + id }
+      if (response.status === 429) return { ok: false, words: hfRateLimitWords(response, options) + ' · nothing was derived' }
       if (!response.ok) throw new Error('HTTP ' + response.status)
       for (const entry of treeSchema.parse(await response.json())) if (entry.type === 'file') files.push({ path: entry.path, size: entry.lfs?.size ?? entry.size ?? 0, ...(entry.lfs?.oid ? { sha256: entry.lfs.oid } : entry.oid ? { git: entry.oid } : {}) })
       const link = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') ?? '')?.[1]
@@ -136,6 +144,7 @@ export async function fetchHuggingFaceRepo(id: string, options: HfHubOptions = {
     let config: Record<string, unknown> = {}
     if (files.some(file => file.path === 'config.json')) {
       const response = await hubGet('/' + repoPath + '/raw/' + revision + '/config.json', options, 'text/plain')
+      if (response.status === 429) return { ok: false, words: hfRateLimitWords(response, options) + ' · nothing was derived' }
       if (response.ok) config = z.record(z.string(), z.unknown()).parse(JSON.parse(await response.text()))
       else if (response.status !== 404) throw new Error('HTTP ' + response.status)
     }

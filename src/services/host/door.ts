@@ -1,7 +1,7 @@
 import type { LlmHostResult, LlmHostRoad } from '../llmHost/index.js'
 import { keptVolumes } from './volumes.js'
 import { hostShape } from './cluster.js'
-import { heavyWeights, hostShortStorageWords } from './costs.js'
+import { heavyWeights, hostShortStorageWords, hostSpendSoFar } from './costs.js'
 import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
 import { vendorStamp } from './vendors/vendor.js'
 import { bankRowWords, bankState, bootsFromVolume, weightsLine } from './bank.js'
@@ -280,7 +280,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
     }).sort((a, b) => a.rank - b.rank || a.price - b.price || a.stamp - b.stamp || a.name.localeCompare(b.name))
     if (!title) {
       const paid = pods ?? records.filter(row => row.jobKind !== 'watch').map(row => ({ cost: row.price, startedAt: row.startedAt, createdAt: row.startedAt, status: row.status }))
-      const spend = paid.filter(pod => pod.status === 'RUNNING' || pod.status === 'PROVISIONING').reduce((sum, pod) => sum + pod.cost * Math.max(0, Date.now() - Date.parse(pod.startedAt ?? pod.createdAt)) / 3600_000, 0)
+      const spend = hostSpendSoFar(paid)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
       const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]

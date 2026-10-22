@@ -47,12 +47,13 @@ const listRow = repo => ({ _id: 'fixture-' + repo.id, id: repo.id, downloads: re
 
 export async function hfFixture() {
   const requests = []
-  const state = { searches: 0, trees: 0, configs: 0, delayMs: 0, down: false, lastSearch: null, pageSize: 0, repeatPage: false }
+  const state = { searches: 0, trees: 0, configs: 0, delayMs: 0, down: false, lastSearch: null, pageSize: 0, repeatPage: false, rateLimited: false, rateLimitReset: 117 }
   const repos = Object.values(fixtureRepos)
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     requests.push({ method: req.method, path: url.pathname, search: url.search, authorization: req.headers.authorization ?? null })
     if (state.down) { req.socket.destroy(); return }
+    if (state.rateLimited) { res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', RateLimit: '"api";r=0;t=' + state.rateLimitReset, 'RateLimit-Policy': '"fixed window";"api";q=500;w=300' }); res.end(JSON.stringify({ error: 'Too Many Requests' })); return }
     const pause = () => state.delayMs ? new Promise(resolve => setTimeout(resolve, state.delayMs)) : Promise.resolve()
     const send = (value, status = 200, headers = {}) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers }); res.end(JSON.stringify(value)) }
     const authorised = req.headers.authorization === 'Bearer ' + HF_FIXTURE_TOKEN
