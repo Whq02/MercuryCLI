@@ -99,3 +99,7 @@ prove-activity-screen-keys.ts
 prove-modal-routes-reach.ts
 prove-bang-clear-leaves-shell-mode.ts
 prove-bang-card-frame.ts
+prove-defaultprovider-popup.ts
+prove-files-reader-drive.ts
+prove-popup-contract.ts
+prove-voice-on-off.ts
