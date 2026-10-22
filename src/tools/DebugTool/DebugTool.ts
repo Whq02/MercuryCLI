@@ -26,6 +26,7 @@ import {
   removeDapSession,
   type DapBreakpointSpec,
   type DapDataBreakpointSpec,
+  type DapFunctionBreakpointSpec,
   type DapSession,
 } from '../../services/dap/dapClient.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -85,7 +86,7 @@ const inputSchema = lazySchema(() =>
     args: z.array(z.string()).optional().describe('Program arguments for launch'),
     stopOnEntry: semanticBoolean(z.boolean().optional()).describe('Stop at the first instruction (launch)'),
     file: z.string().optional().describe('Source file for breakpoints'),
-    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file)'),
+    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file; [] clears the file\'s breakpoints on every session)'),
     breakpoints: z
       .array(
         z.strictObject({
@@ -96,13 +97,25 @@ const inputSchema = lazySchema(() =>
         }),
       )
       .optional()
-      .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed)'),
+      .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed; [] clears the file\'s breakpoints on every session)'),
     pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the running process id (or give port/program instead)'),
     port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port'),
     host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
     method: z.string().optional().describe('customRequest: the DAP request command to send verbatim'),
     body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
-    functions: z.array(z.string()).optional().describe('functionBreakpoints: function names to break on (replaces the function-breakpoint set)'),
+    functions: z
+      .array(
+        z.union([
+          z.string(),
+          z.strictObject({
+            name: z.string().describe('The function to break on entry of'),
+            condition: z.string().optional().describe('Condition expression (capability-gated)'),
+            hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
+          }),
+        ]),
+      )
+      .optional()
+      .describe('functionBreakpoints: functions to break on entry of — names, or {name, condition?, hitCondition?} rows (replaces the set on every session of the tree; [] clears it)'),
     dataBreakpoints: z
       .array(
         z.strictObject({
@@ -138,9 +151,13 @@ const inputSchema = lazySchema(() =>
       .optional()
       .describe('next/stepIn: step granularity — "instruction" steps one machine instruction (capability-gated)'),
     threadId: semanticNumber(z.number().int().optional()).describe('Thread for stack/continue/step/pause (defaults to the stopped thread)'),
-    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack)'),
-    variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables to expand (variables/setVariable)'),
+    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack); evaluate defaults to the top frame of the thread that stopped last'),
+    variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables/evaluate to expand (variables/setVariable)'),
     expression: z.string().optional().describe('Expression for evaluate (runs in the debuggee)'),
+    context: z
+      .enum(['repl', 'watch', 'hover', 'clipboard', 'variables'])
+      .optional()
+      .describe('evaluate: the context the adapter evaluates in (default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value)'),
     filters: z
       .array(z.string())
       .optional()
@@ -361,6 +378,7 @@ function gateCapability(
 function requestedBreakpoints(input: Input): DapBreakpointSpec[] | undefined {
   if (input.breakpoints?.length) return input.breakpoints
   if (input.lines?.length) return input.lines.map(line => ({ line }))
+  if (input.breakpoints !== undefined || input.lines !== undefined) return []
   return undefined
 }
 
@@ -449,7 +467,7 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
         : 'lldb')
   const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
   const requested = requestedBreakpoints(input)
-  if (input.file && requested) {
+  if (input.file && requested && requested.length > 0) {
     breakpoints.set(expandPath(input.file), requested)
   }
   const displayProgram =
@@ -532,11 +550,18 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       const requested = requestedBreakpoints(input)
       if (!input.file || !requested) {
-        return { result: 'breakpoints needs file + lines (or the rich breakpoints array)', outcome: 'failed' }
+        return { result: 'breakpoints needs file + lines (or the rich breakpoints array); an empty array clears the file\'s breakpoints', outcome: 'failed' }
       }
       const gated = gateRichBreakpoints(r.session, requested)
       if (gated) return gated
       const verified = await r.session.setBreakpointsTree(expandPath(input.file), requested)
+      if (requested.length === 0) {
+        return {
+          result: `breakpoints on ${input.file}: 0 breakpoints — cleared on every session of the tree (a later child session inherits none)`,
+          outcome: 'succeeded',
+          details: { breakpoints: verified },
+        }
+      }
       const detail = verified
         .map(
           b =>
@@ -554,30 +579,37 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       }
     }
     case 'functionBreakpoints': {
-      const r = requireTarget(owner, sessionId)
+      const r = requireSession(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-      const gated = gateCapability(r.target, 'supportsFunctionBreakpoints', 'functionBreakpoints')
+      const gated = gateCapabilityTree(r.session, 'supportsFunctionBreakpoints', 'functionBreakpoints')
       if (gated) return gated
       if (!input.functions) {
         return { result: 'functionBreakpoints needs functions (empty array clears the set)', outcome: 'failed' }
       }
-      const body = await r.target.request('setFunctionBreakpoints', {
-        breakpoints: input.functions.map(name => ({ name })),
-      })
-      const reported = Array.isArray(body.breakpoints)
-        ? (body.breakpoints as Array<{ verified?: boolean; message?: string }>)
-        : []
-      const detail = input.functions
-        .map(
-          (name, i) =>
-            `${name}: ${reported[i]?.verified === true ? 'verified' : 'UNVERIFIED'}${reported[i]?.message ? ` (${reported[i]?.message})` : ''}`,
-        )
+      const specs: DapFunctionBreakpointSpec[] = input.functions.map(f => (typeof f === 'string' ? { name: f } : f))
+      const richGate = gateRichBreakpoints(r.session, specs)
+      if (richGate) return richGate
+      const verified = await r.session.setFunctionBreakpointsTree(specs)
+      if (specs.length === 0) {
+        return {
+          result: 'function breakpoints cleared on every session of the tree (a later child session inherits none)',
+          outcome: 'succeeded',
+          details: { functionBreakpoints: [] },
+        }
+      }
+      const detail = specs
+        .map((s, i) => {
+          const v = verified[i]
+          const spelled = `${s.name}${s.condition !== undefined ? ` if ${s.condition}` : ''}${s.hitCondition !== undefined ? ` hits ${s.hitCondition}` : ''}`
+          return `${spelled}: ${
+            v?.verified ? `verified${v.verifier && v.verifier !== r.session.label ? ` by ${v.verifier}` : ''}` : 'UNVERIFIED'
+          }${v?.message ? ` (${v.message})` : ''}`
+        })
         .join(', ')
       return {
-        result: input.functions.length
-          ? `function breakpoints: ${detail}`
-          : 'function breakpoints cleared',
+        result: `function breakpoints: ${detail}`,
         outcome: 'succeeded',
+        details: { functionBreakpoints: verified },
       }
     }
     case 'threads': {
@@ -659,20 +691,64 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       if (!input.expression) return { result: 'evaluate needs expression', outcome: 'failed' }
+      const context = input.context ?? 'repl'
+      let frameId = input.frameId
+      if (frameId === undefined) {
+        if (!r.target.lastStopped) {
+          const state = r.root.treeTerminated() ? ('terminated' as const) : ('running' as const)
+          return {
+            result:
+              `evaluate needs a stopped frame: the debuggee is ${state} and no frameId was given — ` +
+              (state === 'running' ? 'op:"pause" first, or give frameId from op:"stack"' : 'op:"launch" again'),
+            outcome: 'failed',
+            debuggee: state,
+          }
+        }
+        const current = await r.target.stoppedFrameId()
+        if (current === null) {
+          return {
+            result: `evaluate: the stopped thread reports no frame to evaluate in — give frameId from op:"stack"`,
+            outcome: 'failed',
+            debuggee: 'stopped',
+          }
+        }
+        frameId = current
+      }
       const body = await r.target.request('evaluate', {
         expression: input.expression,
-        frameId: input.frameId,
-        context: 'repl',
+        frameId,
+        context,
       })
       const debuggee = r.root.treeTerminated()
         ? ('terminated' as const)
         : r.root.treeStopped()
           ? ('stopped' as const)
           : ('running' as const)
+      const variablesReference =
+        typeof body.variablesReference === 'number' && body.variablesReference > 0 ? body.variablesReference : 0
+      const namedVariables = typeof body.namedVariables === 'number' ? body.namedVariables : undefined
+      const indexedVariables = typeof body.indexedVariables === 'number' ? body.indexedVariables : undefined
+      const counts = [
+        ...(namedVariables !== undefined ? [`${namedVariables} named`] : []),
+        ...(indexedVariables !== undefined ? [`${indexedVariables} indexed`] : []),
+      ].join(', ')
+      const type = typeof body.type === 'string' && body.type ? body.type : undefined
       return {
-        result: `${input.expression} = ${String(body.result ?? '?')}${body.type ? ` (${String(body.type)})` : ''} [debuggee ${debuggee}]`,
+        result:
+          `${input.expression} = ${String(body.result ?? '?')}${type ? ` (${type})` : ''}` +
+          (variablesReference ? ` [variablesReference ${variablesReference}${counts ? `, ${counts}` : ''}]` : '') +
+          ` [debuggee ${debuggee}]`,
         outcome: 'succeeded',
         debuggee,
+        details: {
+          context,
+          frameId,
+          ...(variablesReference ? { variablesReference } : {}),
+          ...(namedVariables !== undefined ? { namedVariables } : {}),
+          ...(indexedVariables !== undefined ? { indexedVariables } : {}),
+          ...(type ? { type } : {}),
+          ...(typeof body.memoryReference === 'string' ? { memoryReference: body.memoryReference } : {}),
+        },
       }
     }
     case 'continue':
@@ -971,6 +1047,11 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
               )
               .join(' · ')
             if (bps) lines.push(`  breakpoints: ${bps}`)
+            const fbps = session
+              .treeVerifiedFunctionBreakpoints()
+              .map(b => `${b.name}${b.verified ? '' : '?'}`)
+              .join(',')
+            if (fbps) lines.push(`  function breakpoints: ${fbps}`)
             return lines.join('\n')
           })
           .join('\n'),
@@ -1170,7 +1251,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
 
 export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
-  keepEmptyInputs: ['functions', 'dataBreakpoints', 'instructionBreakpoints'],
+  keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
   straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
   get searchHint() {
     return (
@@ -1239,8 +1320,8 @@ export const DebugTool = buildTool({
     if (input.op === 'customRequest' && !input.method) {
       return { result: false as const, message: 'customRequest requires method', errorCode: 1 }
     }
-    if (input.op === 'breakpoints' && (!input.file || (!input.lines?.length && !input.breakpoints?.length))) {
-      return { result: false as const, message: 'breakpoints requires file + lines (or the rich breakpoints array)', errorCode: 1 }
+    if (input.op === 'breakpoints' && (!input.file || (input.lines === undefined && input.breakpoints === undefined))) {
+      return { result: false as const, message: 'breakpoints requires file + lines (or the rich breakpoints array); an empty array clears the file\'s breakpoints', errorCode: 1 }
     }
     if (input.op === 'functionBreakpoints' && !input.functions) {
       return { result: false as const, message: 'functionBreakpoints requires functions (empty array clears)', errorCode: 1 }

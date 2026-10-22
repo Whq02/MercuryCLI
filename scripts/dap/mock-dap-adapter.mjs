@@ -7,6 +7,7 @@ let seq = 1000
 let launchReq = null
 let configDone = false
 let breakpointsSet = false
+let lastEvaluate = null
 const TERMINATE_CAP = process.env.MOCK_DAP_TERMINATE_CAP === '1'
 const TRACE = process.env.MOCK_DAP_TRACE ?? ''
 
@@ -128,21 +129,38 @@ function handle(req) {
     case 'scopes':
       respond(req, { scopes: [{ name: 'Locals', variablesReference: 100 }] })
       break
-    case 'variables':
+    case 'variables': {
+      const ref = req.arguments?.variablesReference
       respond(
         req,
-        req.arguments?.variablesReference === 100
+        ref === 100
           ? { variables: [{ name: 'x', value: '41', type: 'int' }] }
-          : { variables: [] },
+          : ref === 200
+            ? {
+                variables: [
+                  { name: 'a', value: '1', type: 'int' },
+                  { name: 'b', value: '[1, 2]', type: 'list', variablesReference: 201, indexedVariables: 2 },
+                ],
+              }
+            : ref === 201
+              ? { variables: [{ name: '0', value: '1', type: 'int' }, { name: '1', value: '2', type: 'int' }] }
+              : { variables: [] },
       )
       break
+    }
     case 'evaluate':
+      lastEvaluate = req.arguments ?? {}
       respond(
         req,
         req.arguments?.expression === 'x+1'
           ? { result: '42', type: 'int' }
-          : { result: `eval(${String(req.arguments?.expression ?? '')})` },
+          : req.arguments?.expression === 'obj'
+            ? { result: "{'a': 1, 'b': [1, 2]}", type: 'dict', variablesReference: 200, namedVariables: 2 }
+            : { result: `eval(${String(req.arguments?.expression ?? '')})` },
       )
+      break
+    case 'mock/lastEvaluate':
+      respond(req, { lastEvaluate })
       break
     case 'continue':
       respond(req, { allThreadsContinued: true })
