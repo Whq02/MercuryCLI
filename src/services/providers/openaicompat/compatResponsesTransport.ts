@@ -13,7 +13,7 @@ export function compatResponsesTransport(options: CompatStreamOptions, messages:
   const body = {
     model: request.model,
     ...(system && 'content' in system && typeof system.content === 'string' ? { instructions: system.content } : {}),
-    input: openrouterResponsesInput(history, request.model, options.deferral?.imagesSupported ?? true),
+    input: openrouterResponsesInput(history, request.model, options.imagesSupported ?? options.deferral?.imagesSupported ?? true),
     tools: (request.tools ?? []).map(tool => ({ type: 'function', name: tool.function.name, description: tool.function.description, parameters: tool.function.parameters })),
     ...(typeof extra.reasoning_effort === 'string' ? { reasoning: { effort: extra.reasoning_effort } } : {}),
     ...(typeof extra.max_tokens === 'number' ? { max_output_tokens: extra.max_tokens } : {}),

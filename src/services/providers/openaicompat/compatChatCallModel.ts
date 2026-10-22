@@ -663,6 +663,7 @@ export async function* compatChatCallModel(
       deferredUnadmitted: plan.isDeferredUnadmitted,
       callableTools,
       effort: effortOnWire,
+      imagesSupported,
       ...(deferral !== undefined ? { deferral } : {}),
       ...(leadingNotes.length ? { leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
@@ -869,6 +870,7 @@ async function* streamOneCompatAttempt(ctx: {
   deferredUnadmitted?: (name: string) => boolean
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
+  imagesSupported: boolean
   deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
@@ -1068,6 +1070,7 @@ async function* streamOneCompatAttempt(ctx: {
     url: requestUrl,
     request,
     signal,
+    imagesSupported: ctx.imagesSupported,
     idleTimeoutMs,
     silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs, prefillTokensPerSecond }),
     ...(profile.liveness !== undefined
