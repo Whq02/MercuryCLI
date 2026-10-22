@@ -140,7 +140,7 @@ export class HuggingfaceClient implements HostVendor {
     const original = offer.recipe
     const saved = readTunePreferences(original.label.split(' · ')[0]!)
     const recipe = tunedRecipe(original, saved?.quality === original.id ? saved : defaultTune(original))
-    if (hfEndpointRecipeReason(recipe)) throw new Error('This recipe needs files or a cluster unavailable on the HF managed road; nothing was rented.')
+    if (hfEndpointRecipeReason(recipe)) throw new Error('Hugging Face endpoints cannot run this recipe (it needs files or a cluster they do not provide); nothing was rented.')
     const engine = recipe.engine === 'vllm' ? 'vLLM' : recipe.engine === 'llamacpp' ? 'llamacpp' : 'sGLang'
     const image = { url: recipe.image, ...(engine === 'llamacpp' ? { modelPath: recipe.weightFile, ...(recipe.mmproj ? { mmprojModelPath: recipe.mmproj } : {}) } : { tensorParallelSize: recipe.count, ...(engine === 'vLLM' ? { dataParallelSize: 1 } : {}) }) }
     const flags = [...recipe.flags]

@@ -8,6 +8,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
+import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -20,13 +21,14 @@ process.env.HOME = f.home
 const rp = await runpodFixture()
 const vast = await vastFixture()
 const lambda = await lambdaFixture()
+const hf = await hfEndpointsFixture()
 lambda.state.types.push({ name: 'gpu_1x_rtxpro6000', description: '1x RTX PRO 6000', gpu_description: 'NVIDIA RTX PRO 6000 Blackwell (96 GB)', price_cents_per_hour: 210, specs: { vcpus: 32, memory_gib: 256, storage_gib: 2000, gpus: 1 }, architecture: 'x86_64' })
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
-  const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', '') } as Record<string, string>)[url.origin]
+  const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', ''), 'https://api.endpoints.huggingface.cloud': hf.origin, 'https://huggingface.co': hf.origin } as Record<string, string>)[url.origin]
   if (base) return nativeFetch(new Request(base + url.pathname + url.search, request))
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('Bank proof only permits loopback fixtures') }
   return nativeFetch(request)
@@ -75,8 +77,7 @@ try {
   const recipes = currentHostRecipes()
   assert.ok(bank.bankCandidates().length > 0 && bank.bankCandidates().every(path => path.startsWith(f.home + '/')) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home: ' + bank.bankCandidates().join(', '))
   check('the fixture recipes replace the shipped list and carry pinned manifests', recipes.length === 2 && recipes.every(recipe => bank.bankFiles(recipe, '/none').pinned))
-  const hfToken = 'fixture-hf-token-not-a-real-token'
-  writeStoredHuggingfaceApiKey(hfToken)
+  const hfToken = hf.key
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const downloads: { model: string; revision?: string; include: string[]; localDir: string; token?: string }[] = []
   const shellWords = (text: string): string[] => { const parsed = spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
@@ -199,6 +200,7 @@ try {
   check('the model screen WEIGHTS line reads not banked and no fast-load volume with the download estimate', unbanked.includes('WEIGHTS') && unbanked.includes('8.2 KB from Hugging Face · not banked · no fast-load volume — first boot downloads (~') && /first boot downloads \(~\d+ min\)/.test(unbanked))
   check('the Bank row offers b with the folder and size, and nobody is connected so no Rent or watch row', unbanked.includes('Bank · b bank the weights to ~/mercury-model-bank (8.2 KB, hash-verified)') && !unbanked.includes('Rent ·') && !unbanked.includes('Watch stock'))
   await capture('120-model-unbanked')
+  writeStoredHuggingfaceApiKey(hfToken)
   await press('Bank · b bank', 'b'); await heading('Bank Tiny-B')
   check('b asks a confirm that names the source, the folder, the token use and the pinned manifest before any download', screen().includes('https://huggingface.co/fixture/tiny-b') && screen().includes('Hugging Face token is used when a repo is gated') && screen().includes('against the pinned manifest') && downloads.length === 0)
   await choose('Bank it'); await until('Banking the weights to ~/mercury-model-bank')
@@ -217,7 +219,7 @@ try {
   await until('Watch stock')
   const rentRows = modelRows().filter(line => line.startsWith('Rent · '))
   const prices = rentRows.map(line => Number(/\$([\d.]+)\/hr/.exec(line)?.[1]))
-  check('every connected provider is side by side, cheapest first', rentRows.length === 4 && rentRows[0]!.startsWith('Rent · Vast.ai') && rentRows[3]!.startsWith('Rent · Runpod') && prices.every((price, index) => index === 0 || price >= prices[index - 1]!))
+  check('every connected provider is side by side, cheapest first', rentRows.length === 5 && rentRows[0]!.startsWith('Rent · Vast.ai') && rentRows[3]!.startsWith('Rent · Runpod') && rentRows[4]!.startsWith('Rent · Hugging Face') && rentRows[4]!.includes('API only — not yet booted') && prices.every((price, index) => index === 0 || price >= prices[index - 1]!))
   check('Runpod carries the live-rental stamp; Vast.ai and Lambda carry the API-only stamp', rentRows[3]!.includes('verified on a live rental 2026-10-21') && rentRows.slice(0, 3).every(line => line.includes('API only — not yet booted')))
   check('without a volume every row downloads the weights first', rentRows.every(line => line.includes('downloads the weights first')) && !screen().includes('Runpod-only'))
   check('one watch row covers every provider', modelRows().filter(line => line.startsWith('Watch stock · across every provider above')).length === 1)
@@ -246,21 +248,21 @@ try {
   await choose('Confirm Delete'); await heading('Bank'); await until('Weights disk deleted')
   check('d drops the volume copy and the bank on the drive stays', rp.state.volumeDeletes === 1 && volumes.readKeptVolume(kept.id)?.state === 'gone' && bank.bankState(tinyA).banked && screen().includes('the bank on your drive is untouched'))
   await close()
-  rp.state.noStock = true; vast.state.noStock = true; lambda.state.noStock = true
+  rp.state.noStock = true; vast.state.noStock = true; lambda.state.noStock = true; hf.state.noStock = true
   open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await until('No stock · watch')
-  check('with no stock anywhere the watch row says so and the three providers keep their rows', !screen().includes('Rent · ') && ['Runpod', 'Vast.ai', 'Lambda'].every(label => screen().includes(label)))
+  check('with no stock anywhere the watch row says so and the four providers keep their rows', !screen().includes('Rent · ') && ['Runpod', 'Vast.ai', 'Lambda', 'Hugging Face'].every(label => screen().includes(label)))
   await choose('No stock · watch'); await heading('Confirm the hourly price')
   const watchConfirm = screen().replace(/[│\s]+/g, ' ')
-  check('the watch confirm names every provider, the per-provider read rate and the first-hit rule, and rents nothing', watchConfirm.includes('across Runpod, Vast.ai, Lambda') && watchConfirm.includes('one catalogue read per provider (3)') && watchConfirm.includes('The first provider with stock at or under the ceiling rents it') && rp.state.creates === 1 && vast.state.creates === 0 && lambda.state.creates === 0)
+  check('the watch confirm names every provider, the per-provider read rate and the first-hit rule, and rents nothing', watchConfirm.includes('across Runpod, Vast.ai, Lambda, Hugging Face') && watchConfirm.includes('one catalogue read per provider (4)') && watchConfirm.includes('The first provider with stock at or under the ceiling rents it') && rp.state.creates === 1 && vast.state.creates === 0 && lambda.state.creates === 0)
   await choose('Watch for stock and rent at this price or less'); await heading('Pod controls')
   assert.ok(await waitFor(() => hostRecords().some(record => record.jobKind === 'watch' && record.jobState === 'running'), 10000), 'the watch job runs')
   const watch = hostRecords().find(record => record.jobKind === 'watch')!
-  check('the watch record covers the three providers and polls them without renting', watch.watchVendors?.join() === 'runpod,vast,lambda' && (await waitFor(() => vast.requests.filter((request: any) => request.path === '/api/v0/bundles/').length >= 2 && lambda.requests.filter((request: any) => request.path === '/api/v1/instance-types').length >= 2 && rp.state.catalogReads >= 2, 10000)) && vast.state.creates === 0)
+  check('the watch record covers the four providers and polls them without renting', watch.watchVendors?.join() === 'runpod,vast,lambda,huggingface' && (await waitFor(() => vast.requests.filter((request: any) => request.path === '/api/v0/bundles/').length >= 2 && lambda.requests.filter((request: any) => request.path === '/api/v1/instance-types').length >= 2 && rp.state.catalogReads >= 2 && hf.requests.filter((request: any) => request.path === '/v2/provider/fixture-owner').length >= 2, 10000)) && vast.state.creates === 0 && hf.state.creates === 0)
   vast.state.noStock = false
   check('when Vast.ai gets stock first the watch rents there and the setup reaches ready', await waitFor(() => hostRecords().some(record => record.watchedFrom === watch.id && record.vendor === 'vast' && record.jobState === 'ready'), 30000))
   await Promise.all(jobs)
-  check('the watch rented exactly one instance, on Vast.ai, and its notice names the provider', vast.state.creates === 1 && lambda.state.creates === 0 && rp.state.creates === 1 && notices().some(words => words.includes('Rented Tiny-B · 1× RTX PRO 6000 · $1.21/hr · Vast.ai · setting up')) && !readHostRecord(watch.id))
+  check('the watch rented exactly one instance, on Vast.ai, and its notice names the provider', vast.state.creates === 1 && lambda.state.creates === 0 && hf.state.creates === 0 && rp.state.creates === 1 && notices().some(words => words.includes('Rented Tiny-B · 1× RTX PRO 6000 · $1.21/hr · Vast.ai · setting up')) && !readHostRecord(watch.id))
   await close()
   check('no request left the loopback fixtures', escaped.length === 0)
   console.log('HOST BANK DRIVE GREEN — ' + checks + ' checks; real popup, the Bank screen at 120 and 80, b/v/m/d jobs with notices, the WEIGHTS line, three vendors side by side with stamps and boot words, a watch across providers; zero billable calls')
-} finally { mounted?.unmount(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); f.close(); globalThis.fetch = nativeFetch }
+} finally { mounted?.unmount(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); f.close(); globalThis.fetch = nativeFetch }

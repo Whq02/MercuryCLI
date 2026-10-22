@@ -4,7 +4,7 @@ export async function hfEndpointsFixture() {
   const key = 'fixture-hf-endpoints-not-a-real-token'
   const requests = []
   const compute = (instanceType, architecture, count, memory, price, status = 'available') => ({ id: 'gcp-us-south1-' + instanceType + '-x' + count, accelerator: 'gpu', numAccelerators: count, gpuMemoryGb: memory * count, memoryGb: 360 * count, instanceType, instanceSize: 'x' + count, architecture, status, pricePerHour: price, quota: { maxAccelerators: 64, usedAccelerators: 0 } })
-  const state = { creates: 0, deletes: 0, pauses: 0, resumes: 0, bootReads: 2, neverReady: false, holdDelete: false, ambiguousCreate: false, createStatus: 0, failNext: null, badCursor: false, pageSize: 2, endpointUrl: '', model: 'Qwen/Qwen3.8-27B-FP8', pods: new Map(), computes: [compute('nvidia-h200', 'Nvidia H200', 1, 141, 5), compute('nvidia-h200', 'Nvidia H200', 2, 141, 10), compute('nvidia-h200', 'Nvidia H200', 4, 141, 20), compute('nvidia-h200', 'Nvidia H200', 8, 141, 40), compute('nvidia-rtx-pro-6000', 'Nvidia RTX PRO 6000 Blackwell', 1, 96, 2.75)] }
+  const state = { noStock: false, creates: 0, deletes: 0, pauses: 0, resumes: 0, bootReads: 2, neverReady: false, holdDelete: false, ambiguousCreate: false, createStatus: 0, failNext: null, badCursor: false, pageSize: 2, endpointUrl: '', model: 'Qwen/Qwen3.8-27B-FP8', pods: new Map(), computes: [compute('nvidia-h200', 'Nvidia H200', 1, 141, 5), compute('nvidia-h200', 'Nvidia H200', 2, 141, 10), compute('nvidia-h200', 'Nvidia H200', 4, 141, 20), compute('nvidia-h200', 'Nvidia H200', 8, 141, 40), compute('nvidia-rtx-pro-6000', 'Nvidia RTX PRO 6000 Blackwell', 1, 96, 2.75)] }
   let origin = ''
   const server = createServer(async (req, res) => {
     let raw = ''
@@ -18,6 +18,7 @@ export async function hfEndpointsFixture() {
     const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + path)
     if (failure) { failure.times--; if (failure.status === 'disconnect') return req.socket.destroy(); res.setHeader('Retry-After', String(failure.retryAfter ?? 0.02)); return json({ error: 'fixture refusal ' + key }, failure.status) }
     if (path === '/api/whoami-v2') return json({ type: 'user', name: 'fixture-owner', orgs: [] })
+    if (path === '/v2/provider/fixture-owner' && state.noStock) return json({ vendors: [{ name: 'aws', regions: [{ name: 'us-east-2', computes: state.computes.map(row => ({ ...row, status: 'unavailable' })) }] }] })
     if (path === '/v2/provider/fixture-owner') return json({ vendors: [
       { name: 'gcp', regions: [{ name: 'us-south1', computes: state.computes.filter(row => row.instanceType !== 'nvidia-rtx-pro-6000') }] },
       { name: 'aws', regions: [{ name: 'us-east-2', computes: state.computes.filter(row => row.instanceType === 'nvidia-rtx-pro-6000').map(row => ({ ...row, id: row.id.replace('gcp-us-south1', 'aws-us-east-2') })) }] },
