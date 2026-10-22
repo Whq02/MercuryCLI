@@ -124,7 +124,7 @@ console.log('§1 first-party posture: a refused --model leaves nothing behind')
   check('no model request went out (nothing reached the proxy)', turns().length === before && proxied.length === 0 && tunnels === 0, `${turns().length - before} request(s), proxied ${JSON.stringify(proxied)}, ${tunnels} tunnel(s)`)
   check('no transcript was written in the home', transcripts(w).length === 0, transcripts(w).join(','))
   const rows = await run(w, ['run', '--format', 'rows', '--model', BAD, '--', 'hi'])
-  check('--format rows: the same refusal, exit 1, no rows on stdout, still no transcript', rows.code === 1 && rows.err.includes(`'${BAD}' is not a model id`) && rows.out.trim() === '' && transcripts(w).length === 0, `${rows.code} · ${clip(rows.out)} · ${clip(rows.err)}`)
+  check('--format rows: the same refusal as one refused outcome row naming the id, exit 1, no other row, still no transcript', rows.code === 1 && rowsOf(rows.out).length === 1 && rowsOf(rows.out)[0]?.type === 'outcome' && String((rowsOf(rows.out)[0] as { status?: string }).status) === 'refused' && rows.out.includes(`'${BAD}' is not a model id`) && transcripts(w).length === 0, `${rows.code} · ${clip(rows.out)} · ${clip(rows.err)}`)
   rmSync(w.home, { recursive: true, force: true })
   rmSync(w.cwd, { recursive: true, force: true })
 }
@@ -175,8 +175,8 @@ console.log('§4 the decision is the router\'s own: the boot and the retention s
   const router = readFileSync(join(REPO, 'src/services/providers/callModelRouter.ts'), 'utf8')
   const runSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   check('the router exports the before-any-request refusal over the same verdict and admission owner the call uses', /export async function modelRefusalBeforeAnyRequest\(model: string\)[\s\S]{0,400}classifyAfterLiveLists\(model\)[\s\S]{0,300}homeLaneAdmissionRefusal\(model\)/.test(router))
-  check('the boot refuses a user-given --model before the stdio object and the session', runSrc.indexOf('modelRefusalBeforeAnyRequest(parseUserSpecifiedModel(options.userSpecifiedModel))') !== -1 && runSrc.indexOf('modelRefusalBeforeAnyRequest(parseUserSpecifiedModel(options.userSpecifiedModel))') < runSrc.indexOf('const io = new StructuredIO('))
-  check('the retention site skips a recorded model the same function refuses and enqueues the notice naming the fallback', /const refusal = await modelRefusalBeforeAnyRequest\(recorded\)\s*\n\s*if \(refusal === null\) \{\s*\n\s*setEngineModelOverride\(recorded\)/.test(runSrc) && runSrc.includes("is not usable (${refusal}) — this run uses ${getEngineModel()} instead."))
+  check('the boot refuses a user-given --model before the stdio object and the session (the headless resolver carries the same before-any-request refusal)', runSrc.indexOf('resolveHeadlessModel(options.userSpecifiedModel)') !== -1 && runSrc.indexOf('resolveHeadlessModel(options.userSpecifiedModel)') < runSrc.indexOf('const io = new StructuredIO(') && /await modelRefusalBeforeAnyRequest\(model\)/.test(readFileSync(join(REPO, 'src/cli/headless/model.ts'), 'utf8')))
+  check('the retention site skips a recorded model the resolver refuses and enqueues the notice naming the fallback (a recorded compat route refuses instead: never another provider)', /bootModel = await resolveHeadlessModel\(recorded\)\s*\n\s*setEngineModelOverride\(bootModel\)/.test(runSrc) && runSrc.includes("if (recorded.toLowerCase().startsWith('compat/')) {") && runSrc.includes("is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead."))
 }
 
 await api.close()

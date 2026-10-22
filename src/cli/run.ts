@@ -703,9 +703,12 @@ export async function runHeadless(
         bootModel = await resolveHeadlessModel(recorded)
         setEngineModelOverride(bootModel)
       } catch (error) {
-        emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, wire ? 'text' : options.outputFormat)
-        gracefulShutdownSync(1)
-        return
+        if (recorded.toLowerCase().startsWith('compat/')) {
+          emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, wire ? 'text' : options.outputFormat)
+          gracefulShutdownSync(1)
+          return
+        }
+        enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
       }
     }
   }
@@ -2000,8 +2003,11 @@ export async function runHeadless(
           if (recorded) {
             try { claimedModel = await resolveHeadlessModel(recorded) }
             catch (error) {
-              if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
-              throw refused(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, 'claim')
+              if (recorded.toLowerCase().startsWith('compat/')) {
+                if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
+                throw refused(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, 'claim')
+              }
+              enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
             }
           }
         }

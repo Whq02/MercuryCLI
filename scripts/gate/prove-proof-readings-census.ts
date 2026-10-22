@@ -93,7 +93,7 @@ for (const path of ['scripts/edit-tools/prove-write-preserves-file-shape.ts', 's
   const source = read(path)
   if (!/const budgetMs = vshotBudgetMs\(120_000\)/.test(source) || !/\}, budgetMs\)/.test(source)) failures.push(`${path}: the outer watchdog must honor the runner's pace, not a fixed 120-second wall`)
 }
-const fastLoad = read('scripts/host/prove-fast-load-drive.ts')
+const fastLoad = readFileSync(resolve(ROOT, 'scripts/host/prove-fast-load-drive.ts'), 'utf8')
 const fastLoadSource = ts.createSourceFile('fast-load.ts', fastLoad, ts.ScriptTarget.Latest, true)
 let shortJobBudgets = 0
 visit(fastLoadSource, node => {
@@ -107,22 +107,22 @@ visit(fastLoadSource, node => {
   }
 })
 if (shortJobBudgets !== 2) failures.push('scripts/host/prove-fast-load-drive.ts: both short failure/cleanup job budgets must remain present and runner-scaled')
-const splash = read('scripts/splash/prove-splash.py')
+const splash = readFileSync(resolve(ROOT, 'scripts/splash/prove-splash.py'), 'utf8')
 for (const name of ['run_pty', 'run_corpus']) {
   const body = splash.split(`def ${name}(`)[1]?.split('\ndef ')[0] ?? ''
   const clear = body.indexOf("for spelling in ('NO_COLOR', 'FORCE_COLOR', 'MERCURY_TRUECOLOR'):")
   const pins = body.indexOf('for k, v in (env_extra or {}).items():')
   if (!(clear >= 0 && pins > clear && body.slice(clear, pins).includes('os.environ.pop(spelling, None)'))) failures.push(`scripts/splash/prove-splash.py ${name}: clear ambient color overrides before applying each leg's explicit pins`)
 }
-const fold = read('scripts/compact/prove-fold-loop-answers.ts')
+const fold = readFileSync(resolve(ROOT, 'scripts/compact/prove-fold-loop-answers.ts'), 'utf8')
 if (fold.includes('gaps.every') || !fold.includes("f.state === 'ended' && f.exit === 'landed'") || !fold.includes("f.type === 'tool_result' && f.status === 'ok'")) failures.push('scripts/compact/prove-fold-loop-answers.ts: read landed-fold and completed-tool marks, not a count of fixture request gaps')
-const upgrade = read('scripts/prompt/prove-upgrade-composition.ts')
+const upgrade = readFileSync(resolve(ROOT, 'scripts/prompt/prove-upgrade-composition.ts'), 'utf8')
 if (!upgrade.includes('lockOf(root, name) !== lockOf(base, name)')) failures.push('scripts/prompt/prove-upgrade-composition.ts: compare the historical and current vendor locks before lending a cache')
-const boot = read('scripts/updater/prove-proof-boot-reaches-nothing.py')
+const boot = readFileSync(resolve(ROOT, 'scripts/updater/prove-proof-boot-reaches-nothing.py'), 'utf8')
 if (!boot.includes('pyte.ByteStream(screen)') || !boot.includes('stream.feed(b)') || boot.includes('ESCAPES.sub')) failures.push('scripts/updater/prove-proof-boot-reaches-nothing.py: readiness is read from terminal cells; stripping cursor motion loses layout spaces')
-const popup = read('scripts/mcp/prove-mcp-popup-drive.ts')
+const popup = readFileSync(resolve(ROOT, 'scripts/mcp/prove-mcp-popup-drive.ts'), 'utf8')
 if (!popup.includes('signingInFrame = frame') || !popup.includes('...stepScreens, signingInFrame')) failures.push('scripts/mcp/prove-mcp-popup-drive.ts: retain the frame observed before the OAuth callback; later time samples can miss it')
-const relaunch = read('scripts/daemon/prove-dupline-relaunch-drive.ts')
+const relaunch = readFileSync(resolve(ROOT, 'scripts/daemon/prove-dupline-relaunch-drive.ts'), 'utf8')
 const pendingAt = relaunch.indexOf('carriersOf(projects, LINE).length === 0')
 const killAt = relaunch.indexOf("process.kill(worker.pid, 'SIGKILL')")
 if (pendingAt < 0 || killAt < pendingAt || !relaunch.includes('!releasedBeforeKill') || relaunch.includes('await sleep(1500)')) failures.push('scripts/daemon/prove-dupline-relaunch-drive.ts: prove the line is still pending under a held parent response before ending the runner')

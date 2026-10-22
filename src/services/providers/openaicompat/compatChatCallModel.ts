@@ -710,6 +710,10 @@ export async function* compatChatCallModel(
       const step = nextReconnect(ladder, streamCut, now)
       if (step.waitMs <= 0) {
         options.onWait?.(null)
+        try {
+          const { logAPIDuration } = await import('../../api/logging.js')
+          logAPIDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
+        } catch {}
         yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${streamReconnectSpentLine(profile.providerLabel, outcome.fault.silentMs)}`, typed, 'stream-reconnect-spent'))
         return
       }

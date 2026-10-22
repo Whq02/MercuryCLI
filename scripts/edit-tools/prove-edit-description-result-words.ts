@@ -30,18 +30,19 @@ function section(t: string): void {
 const NOT_UNIQUE_BULLET = '- A non-unique `old_string` writes nothing; the error names the line of every match and the Read that shows the first: widen it with a line that differs, or pass `replace_all` to rewrite every occurrence at once (the right tool for bulk substitutions, such as renaming an identifier throughout the file).'
 const LANDED_BULLET = '- A landed edit shows the changed lines as read back after the write, numbered as Read numbers them, with three lines of context; they count as read, so checking the edit needs no Read.'
 const OLD_BULLET = '- A non-unique `old_string` makes the edit fail outright: widen it with more of the surrounding lines, or pass `replace_all` to rewrite every occurrence at once (the right tool for bulk substitutions, such as renaming an identifier throughout the file).'
+const PARSE_BULLET = '- A newly introduced syntax error in a supported source file or JSON/YAML/TOML is reported after editing when no LSP covers it; an unavailable grammar never blocks the edit.'
 const STEERING = '\n- Semantic shortcut: cross-file renames belong to the LSP rename operation; repetitive structural JS/TS changes belong to the Structure tool (preview-first, stale-safe).'
 
 section('W1. the two bullets, byte for byte, in place of .28\'s non-unique bullet')
 const description = getEditToolDescription(null)
-check('W1 the description carries the non-unique bullet and the landed-edit bullet, in that order, each once', description.split(NOT_UNIQUE_BULLET).length === 2 && description.split(LANDED_BULLET).length === 2 && description.includes(`${NOT_UNIQUE_BULLET}\n${LANDED_BULLET}\n- \`append\` adds text`), description)
+check('W1 the description carries the non-unique bullet and the landed-edit bullet, in that order, each once', description.split(NOT_UNIQUE_BULLET).length === 2 && description.split(LANDED_BULLET).length === 2 && description.includes(`${NOT_UNIQUE_BULLET}\n${LANDED_BULLET}\n${PARSE_BULLET}\n- \`append\` adds text`), description)
 check('W1b .28\'s non-unique bullet is gone', !description.includes(OLD_BULLET) && !description.includes('makes the edit fail outright'), description)
 check('W1c every other line stands: the opener, the usage bullets before, the append and carry bullets after', description.startsWith('Swap one exact string for another inside a file.\n\nUsage:\n- An edit lands only after `Read` has read the file somewhere in this conversation — editing unread files errors.\n') && description.includes('\n- An edit that touches lines you have not read still lands in one call'), description)
 
-section('W2. the size: 1,797 bytes with the measured runs\' steering line')
+section('W2. the size: 1,971 bytes with the measured runs\' steering line')
 const withSteering = description + STEERING
-check('W2 the description with the LSP-and-Structure steering line is 1,797 bytes', Buffer.byteLength(withSteering) === 1797, `${Buffer.byteLength(withSteering)} bytes`)
-check('W2b the template alone is 1,627 bytes', Buffer.byteLength(description) === 1627, `${Buffer.byteLength(description)} bytes`)
+check('W2 the description with the LSP-and-Structure steering line is 1,971 bytes', Buffer.byteLength(withSteering) === 1971, `${Buffer.byteLength(withSteering)} bytes`)
+check('W2b the template alone is 1,801 bytes', Buffer.byteLength(description) === 1801, `${Buffer.byteLength(description)} bytes`)
 
 section('W3. the input schema is byte-identical to .28\'s stored copy')
 const schema = JSON.stringify(zodToJsonSchema((FileEditTool as { inputSchema: never }).inputSchema))

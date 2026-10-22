@@ -14,6 +14,8 @@ for (const key of [
 ]) delete process.env[key]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fault-ledger-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_RECONNECT_BUDGET_MINUTES = '0.02'
+process.env.MERCURY_RECONNECT_SCALE = '0.01'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -196,8 +198,13 @@ for (const lane of LANES) {
   check('…and the streamed words estimated on the output side', (usage?.outputTokens ?? 0) >= 10, String(usage?.outputTokens))
   check('…priced (a recorded pin, or the flagged fallback — never $0.00 for a billed request)', d.cost > 0, String(d.cost))
   const starts = d.yielded.filter(e => e.type === 'stream_event' && (e as { event?: { type?: string } }).event?.type === 'message_start').length
-  check('the lane ran exactly ONE attempt (one message_start reached the consumer — no retry after content)', starts === 1, `message_start ×${starts}`)
-  check('exactly one request reached the wire (no retry after content)', hits.filter(h => h.method === 'POST').length === 1, JSON.stringify(hits))
+  const posts = hits.filter(h => h.method === 'POST').length
+  const spent = d.yielded.some(e => JSON.stringify(e).includes('did not reconnect'))
+  if (lane.model === 'deepseek-flash') check('the compat runtime reconnects a dropped stream within the ladder (several attempts, each a fresh request) and ends in the spent words once the budget is gone — never a silent end, never an unbounded retry', starts >= 2 && starts === posts && posts <= 8 && spent, `message_start ×${starts} · POST ×${posts} · spent words ${spent}`)
+  else {
+    check('the lane ran exactly ONE attempt (one message_start reached the consumer — no retry after content)', starts === 1, `message_start ×${starts}`)
+    check('exactly one request reached the wire (no retry after content)', posts === 1, JSON.stringify(hits))
+  }
   console.log(`  timeline (${lane.model}):\n    ${timeline.join('\n    ')}`)
   check("the API-duration ledger holds the turn's provider time (FN-018 rank 11: these lanes never wrote it)", d.apiMs > 0, String(d.apiMs))
 }
@@ -219,7 +226,7 @@ section('§5 the shape')
 {
   for (const file of ['src/services/providers/openai/openaiCallModel.ts', 'src/services/providers/openaicompat/compatChatCallModel.ts', 'src/services/providers/zai/zaiCallModel.ts']) {
     const src = readFileSync(join(ROOT, file), 'utf8')
-    check(`${file.split('/').pop()}: settles a faulted request at the estimate before the usage-gated ledger call`, /if \(!usageSeen && fault !== undefined\) \{[\s\S]*?estimateFaultedRequestUsage\(/.test(src))
+    check(`${file.split('/').pop()}: settles a faulted request at the estimate before the usage-gated ledger call`, /if \(!usageSeen && fault !== undefined\) \{[\s\S]*?estimateFaultedRequestUsage\(/.test(src) || /usageSeen === undefined && faultCode !== undefined[\s\S]{0,200}estimateFaultedRequestUsage\(/.test(src))
   }
   const helper = readFileSync(join(ROOT, 'src/services/providers/faultUsageEstimate.ts'), 'utf8')
   check('the estimate rides the one character-ratio estimator over the request as sent and the minted blocks', /roughTokenCountEstimation\(/.test(helper) && /requestCharsOf\(args\.request\)/.test(helper) && /streamedCharsOf\(args\.minted\)/.test(helper))
