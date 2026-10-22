@@ -19,7 +19,7 @@ try {
   const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, hostDirectory } = await import('../../src/services/host/store.ts')
+  const { readHostRecord, hostDirectory, patchHostRecord } = await import('../../src/services/host/store.ts')
   const { vendorClient, saveVendorKey, runpodOnly } = await import('../../src/services/host/vendors/client.ts')
   saveVendorKey('runpod', rp.key)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
@@ -170,6 +170,28 @@ try {
   check('manual terminate whose listing never answers says the termination was sent, counts the failed reads, says it may still bill, sends no second DELETE and keeps the pod on the controls', !unconfirmed.result.ok && unconfirmed.events.includes(unconfirmedWords) && rp.state.deletes === unconfirmedDeletes + 1 && listings > 1 && readHostRecord(unconfirmedPod.id) !== undefined && !unconfirmed.events.some(words => words.includes('Set-up stopped')))
   rp.state.failNext = null
   closeHostTunnel(unconfirmedPod.id)
+
+  const livePod = await api.create(offer, 'ssh-ed25519 fixture', 'tunnel-drop')
+  const liveRecord = queue(livePod)
+  const liveStop = new AbortController()
+  const liveJob = runHostJob(liveRecord.id, liveRecord.generation!, { runner: ssh.runner, pauseMs: 20, timeoutMs: 5000, keepAlive: true, signal: liveStop.signal })
+  const until = async (test: () => boolean, ms: number): Promise<boolean> => { const end = Date.now() + ms; while (Date.now() < end) { if (test()) return true; await delay(20) } return test() }
+  assert.ok(await until(() => readHostRecord(livePod.id)?.jobState === 'ready', 10000), 'the live pod reaches READY under keep-alive')
+  const livePort = readHostRecord(livePod.id)!.localPort!
+  const liveDeletes = rp.state.deletes
+  closeHostTunnel(livePod.id)
+  const liveLog = () => readFileSync(liveRecord.log!, 'utf8')
+  assert.ok(await until(() => liveLog().includes('tunnel reconnected on 127.0.0.1:' + livePort), 10000), 'a dropped tunnel is reopened on the same port: ' + liveLog().slice(-400))
+  await until(() => readHostRecord(livePod.id)?.step === 'ready', 2000)
+  const live = readHostRecord(livePod.id)!
+  check('a tunnel that drops after READY is reconnected on the same port with words on the row, the job stays READY and nothing is terminated', live.jobState === 'ready' && live.step === 'ready' && live.localPort === livePort && liveLog().includes('tunnel dropped · reconnecting · attempt 1 of 5') && rp.state.deletes === liveDeletes && !notices().some(words => words.includes('tunnel-drop') && words.includes('<status>failed')))
+  const reconnectReads = rp.requests.filter(row => row.method === 'GET' && row.path === '/v2/pods/' + livePod.id).length
+  const health = await fetch('http://127.0.0.1:' + livePort + '/v1/models').then(response => response.ok).catch(() => false)
+  check('the reconnected tunnel answers and the reconnect read nothing from the vendor', health && rp.requests.filter(row => row.method === 'GET' && row.path === '/v2/pods/' + livePod.id).length === reconnectReads)
+  patchHostRecord(livePod.id, { jobState: 'stopped' })
+  liveStop.abort(new Error('proof done'))
+  await liveJob.catch(() => {})
+  closeHostTunnel(livePod.id)
 
   const keptOffer = offers.find(row => pinnedWeightManifest(row.recipe))!
   assert.ok(keptOffer, 'a shipped offered recipe has a pinned weights manifest')
