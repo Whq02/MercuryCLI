@@ -22,6 +22,8 @@ const EXCUSED: Array<[string, string]> = [
 ]
 const ROW_EXCUSED: Array<[string, RegExp, string]> = [
   ['scripts/engine-pass/frames-moved.tsv', REMOVAL_ROW, 'a removal row names the removed grid by its path'],
+  ['src/services/samples/docTheme.ts', /data-theme/, 'the browser sample parchment surface is not a terminal appearance'],
+  ['scripts/samples/prove-samples-doc.ts', /html\[data-theme=/, 'the sample stylesheet selector and contrast proof cover the browser parchment surface'],
 ]
 
 function retired(line: string): boolean {
@@ -84,6 +86,8 @@ check(
   "the movement record excuses a removal row only, never another row naming a retired grid",
   hits('scripts/engine-pass/frames-moved.tsv', removal).length === 0 && hits('scripts/engine-pass/frames-moved.tsv', moved).length === 1 && hits('scripts/ui/x.ts', removal).length === 1,
 )
+
+check('the browser selector exemption never admits a retired terminal appearance or a selector outside its two owners', hits('src/services/samples/docTheme.ts', J("theme: '", 'li', "ght'")).length === 1 && hits('src/components/x.ts', 'html[data-theme="light"]').length === 1)
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md'].includes(f))

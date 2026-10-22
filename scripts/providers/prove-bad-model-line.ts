@@ -150,7 +150,7 @@ section('§1 an uncached sign-in at an overridden endpoint: the wire answers, on
   const errLines = lines(run.stderr)
   const line = errLines[0] ?? ''
   check('exit 1', run.status === 1, `status ${run.status} · stdout ${run.stdout.slice(0, 200)} · stderr ${run.stderr.slice(0, 400)}`)
-  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' ⏎ ').slice(0, 600)}`)
+  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
   check('the wire refusal names the requested model and the endpoint answer', line.includes(BAD_MODEL) && line.includes('404') && !line.includes('not offered'), line)
   check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
   check('no catalogue probe preceded the wire request', api.hits.every(h => !h.url.startsWith('/v1/models')) && api.hits.some(h => h.method === 'POST' && h.url.startsWith('/v1/messages')), JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
@@ -178,7 +178,7 @@ section(`§2 the same sign-in with its token expired and the refresh refused: on
   const errLines = lines(run.stderr)
   const line = errLines[0] ?? ''
   check('exit 1', run.status === 1, `status ${run.status} · stderr ${run.stderr.slice(0, 400)}`)
-  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' ⏎ ').slice(0, 600)}`)
+  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
   check('the line names the family and the door', line.includes('Anthropic') && line.includes('/logins anthropic'), line)
   check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
   check('the line is not the model-not-offered sentence (the catalogue could not be read on an expired token — the door is the honest cause)', !line.includes('not offered'), line)
