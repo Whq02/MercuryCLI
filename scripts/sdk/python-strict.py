@@ -1,9 +1,9 @@
 import asyncio
 from mercury_cli_sdk import (
-    MercuryRefusal, MercuryRun, MercurySession, RunOptions, RequestContext, OutcomeRow, SessionRow, StreamRow, PermissionRequestParams, PermissionRequestResult,
+    MercuryRefusal, MercuryRun, MercurySession, RunOptions, RequestContext, OutcomeRow, SessionRow, StreamRow, TextRow, ToolCallRow, PermissionRequestParams, PermissionRequestResult,
     connect, run, run_sync, connect_sync, define_agent, define_tool, serve_tools, argv_of, parse_row, row_of, validate,
 )
-from mercury_cli_sdk.testing import start_fixture_server
+from mercury_cli_sdk.testing import start_fixture_server, fixture_session_row, fixture_outcome_row
 
 
 def on_text(row: StreamRow) -> None:
@@ -16,48 +16,57 @@ async def guard(ask: PermissionRequestParams, context: RequestContext) -> Permis
 
 
 async def main() -> None:
-    task: MercuryRun = await run('Explain', mode='default', partial=True)
-    task.on('text', on_text)
-    async for row in task:
-        if row['type'] == 'tool_call':
-            print(row['tool'])
-        if row['type'] == 'unknown_row':
-            print(row['original_type'])
-    outcome: OutcomeRow = await task.outcome
-    print(outcome['status'], outcome.get('answer'))
-    session_row: SessionRow = await task.session
-    print(session_row['model'], (await task.exit).code)
+    text: TextRow = {'type': 'text', 'seq': 2, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 'fixture-session', 'message_id': 'm1', 'block': 0, 'text': 'Explained.'}
+    tool_call: ToolCallRow = {'type': 'tool_call', 'seq': 3, 'timestamp': '2000-01-01T00:00:00.000Z', 'session_id': 'fixture-session', 'call_id': 'c1', 'tool': 'Read', 'input': {}, 'message_id': 'm2', 'block': 0}
+    async with await start_fixture_server({'rows': [fixture_session_row(), text, tool_call, fixture_outcome_row(answer='Explained.')]}) as replay:
+        task: MercuryRun = await run('Explain', mode='default', partial=True, mercury=replay.mercury)
+        task.on('text', on_text)
+        async for row in task:
+            if row['type'] == 'tool_call':
+                print(row['tool'])
+            if row['type'] == 'unknown_row':
+                print(row['original_type'])
+        outcome: OutcomeRow = await task.outcome
+        print(outcome['status'], outcome.get('answer'))
+        session_row: SessionRow = await task.session
+        print(session_row['model'], (await task.exit).code)
     opts = RunOptions(mercury=['ssh', 'host', 'mercury'], schema={'type': 'object'}, config={'a': 1}, input='rows')
     print(argv_of(opts))
-    session: MercurySession = await connect(on_permission_request=guard, partial=True)
-    try:
-        first = await session.prompt('Inspect')
-        print(first['status'])
-        facts = await session.facts()
-        print(facts)
-        await session.request('session/pause_gate', {'paused': False})
-        await session.set_model('x')
-        await session.send_prompt('more', id='abc', priority='next')
-    except MercuryRefusal as error:
-        print(error.outcome, error.error_class, error.detail, error.code)
-    finally:
-        await session.close()
-    result = run_sync('hello')
-    print(result.outcome['status'], len(result.rows), result.exit.code)
-    with connect_sync(on_permission_request=lambda ask, context: {'outcome': 'deny', 'message': ask['tool_name'] + str(context.id)}, mode='default', partial=True, timeout=30) as sync_session:
-        print(sync_session.prompt('x')['status'])
-        print(sync_session.facts())
-    typed_task = await run('Explain', model='m', effort='high', mode='dontAsk', allowed_tools=['Read'], max_turns=3, budget_usd=1.5, worktree=True, debug='rpc', cancel=asyncio.Event())
-    print(run_sync('hello', mode='default', partial=True).outcome['status'], typed_task.child.pid)
-    typed_session = await connect(on_elicitation=lambda ask, context: {'action': 'decline'}, mode='default', timeout=5, schema={'type': 'object'}, checkpoints=False)
-    checkpoints = typed_session.file_checkpoints
-    if checkpoints is not None: print(checkpoints['capture'], checkpoints['source'])
-    await typed_session.close()
+    async with await start_fixture_server({'methods': {'initialize': [{'result': {'protocol': 1, 'runner': {'version': 'fixture', 'pid': 1}, 'session_id': 'fixture-session'}}], 'queue/add': [{'result': {'accepted': True}, 'after': [{'jsonrpc': '2.0', 'method': 'row', 'params': fixture_outcome_row(answer='Inspected.')}]}, {'result': {'accepted': True}}], 'session/facts': [{'result': {}}], 'session/pause_gate': [{'result': {'paused': False, 'parked': 0, 'changed': False}}], 'session/set_model': [{'result': {'model': 'x', 'at': 'now'}}]}}) as hosted:
+        session: MercurySession = await connect(mercury=hosted.mercury, on_permission_request=guard, partial=True)
+        try:
+            first = await session.prompt('Inspect')
+            print(first['status'])
+            facts = await session.facts()
+            print(facts)
+            await session.request('session/pause_gate', {'paused': False})
+            await session.set_model('x')
+            await session.send_prompt('more', id='abc', priority='next')
+        except MercuryRefusal as error:
+            print(error.outcome, error.error_class, error.detail, error.code)
+        finally:
+            await session.close()
+        def guarded() -> None:
+            with connect_sync(mercury=hosted.mercury, on_permission_request=lambda ask, context: {'outcome': 'deny', 'message': ask['tool_name'] + str(context.id)}, mode='default', partial=True, timeout=30) as sync_session:
+                print(sync_session.prompt('x')['status'])
+                print(sync_session.facts())
+        await asyncio.to_thread(guarded)
+    async with await start_fixture_server({'rows': [fixture_session_row(), fixture_outcome_row()]}) as hello:
+        result = await asyncio.to_thread(run_sync, 'hello', mercury=hello.mercury)
+        print(result.outcome['status'], len(result.rows), result.exit.code)
+        typed_task = await run('Explain', model='m', effort='high', mode='dontAsk', allowed_tools=['Read'], max_turns=3, budget_usd=1.5, worktree=True, debug='rpc', cancel=asyncio.Event(), mercury=hello.mercury)
+        print((await asyncio.to_thread(run_sync, 'hello', mode='default', partial=True, mercury=hello.mercury)).outcome['status'], typed_task.child.pid)
+    async with await start_fixture_server({'methods': {'initialize': [{'result': {'protocol': 1, 'runner': {'version': 'fixture', 'pid': 1}, 'session_id': 'fixture-session'}}]}}) as answered:
+        typed_session = await connect(mercury=answered.mercury, on_elicitation=lambda ask, context: {'action': 'decline'}, mode='default', timeout=5, schema={'type': 'object'}, checkpoints=False)
+        checkpoints = typed_session.file_checkpoints
+        if checkpoints is not None: print(checkpoints['capture'], checkpoints['source'])
+        await typed_session.close()
     tool = define_tool('greeting', 'Return a greeting', {'type': 'object', 'properties': {}}, lambda _: 'Hello')
     async with await serve_tools([tool]) as tools:
         agent = define_agent({'description': 'Reviewer', 'prompt': 'Review.', 'tools': ['Read']})
-        task2 = await run('Review', agent='reviewer', agent_defs={'reviewer': agent}, mcp=[tools.mcp])
-        print((await task2.outcome).get('answer'))
+        async with await start_fixture_server({'rows': [fixture_session_row(), fixture_outcome_row(answer='Reviewed.')]}) as review:
+            task2 = await run('Review', agent='reviewer', agent_defs={'reviewer': agent}, mcp=[tools.mcp], mercury=review.mercury)
+            print((await task2.outcome).get('answer'))
     async with await start_fixture_server({'rows': task.rows}) as fixture:
         task3 = await run('test', mercury=fixture.mercury)
         print((await task3.outcome)['status'], fixture.received)
