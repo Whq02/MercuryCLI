@@ -89,11 +89,11 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
   await reconcileVolumes(api, signal)
   const existing = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (existing) {
-    const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod for full SHA256' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), { value: 'back', label: 'Back' }] })
+    const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod to check every file' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), { value: 'back', label: 'Back' }] })
     if (action === 'verify') {
       const offer = (await api.offers(signal)).filter(row => matchesVolume(existing, row.recipe) && (existing.kind === 'global' || !row.dataCenter || row.dataCenter === existing.dataCenter)).sort((a, b) => a.price - b.price)[0]
       if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No fitting verification pod has stock. No pod was created; the kept disk still bills.' }); return }
-      const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · full SHA256', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent $' + offer.price.toFixed(2) + '/hr for verification, then terminate. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
+      const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · check every file', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent $' + offer.price.toFixed(2) + '/hr for verification, then terminate. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
       if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, recipe, existing, offer, options, signal, true)
       return
     }
@@ -143,7 +143,7 @@ function volumeCell(recipe: HostRecipe, banked: boolean): string {
 }
 const bankDrive = (folder: string): string => shortFolder(basename(folder) === 'mercury-model-bank' ? dirname(folder) : folder)
 function bankCell(state: BankState, job: HostRecord | undefined, width: number): string {
-  if (job) return pad(fit('… ' + (job.step ?? 'queued'), width - 1), width)
+  if (job) return pad(fit('… ' + (job.step ?? 'starting'), width - 1), width)
   if (state.banked) return pad('✓ ' + fit(bankDrive(state.folder!), width - 3), width)
   if (state.files > 0 && state.missing < state.files) return pad(fit('… ' + (state.files - state.missing) + '/' + state.files + ' files · b resumes', width - 1), width)
   return pad('— b to bank', width)

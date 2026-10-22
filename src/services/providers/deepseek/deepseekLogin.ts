@@ -43,6 +43,6 @@ export async function storeDeepseekApiKeyLogin(
   return {
     ok: true,
     stored: true,
-    receipt: `DeepSeek API key stored UNVERIFIED (auth-scoped, mode 600) — the platform could not be reached to confirm it (${probe.message}); the lane refuses at dispatch if the key is wrong.${shadowNote}`,
+    receipt: `DeepSeek API key stored UNVERIFIED (auth-scoped, mode 600) — the platform could not be reached to confirm it (${probe.message}); the first turn refuses if the key is wrong.${shadowNote}`,
   }
 }

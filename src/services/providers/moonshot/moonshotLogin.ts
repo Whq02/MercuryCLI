@@ -208,7 +208,7 @@ export async function storeMoonshotApiKeyLogin(
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }
   const shadows: string[] = []
-  if (env.MOONSHOT_API_KEY?.trim()) shadows.push('a MOONSHOT_API_KEY env pin is set and WINS over the store this session')
+  if (env.MOONSHOT_API_KEY?.trim()) shadows.push('MOONSHOT_API_KEY is set in the environment and WINS over the store this session')
   else if (moonshotStoredTokens()) shadows.push('the Kimi sign-in outranks the stored key — ⌫ on the Kimi slot in /accounts makes the key the active source')
   const shadowNote = shadows.length > 0 ? ` NOTE: ${shadows.join('; ')}.` : ''
   if (probe.state === 'confirmed') {
@@ -221,6 +221,6 @@ export async function storeMoonshotApiKeyLogin(
   return {
     ok: true,
     stored: true,
-    receipt: `Moonshot API key stored UNVERIFIED (auth-scoped, mode 600) — the platform could not be reached to confirm it (${probe.message}); the lane refuses at dispatch if the key is wrong.${shadowNote}`,
+    receipt: `Moonshot API key stored UNVERIFIED (auth-scoped, mode 600) — the platform could not be reached to confirm it (${probe.message}); the first turn refuses if the key is wrong.${shadowNote}`,
   }
 }

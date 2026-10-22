@@ -353,7 +353,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
 
   const seat = reads.gptSeat()
   const openaiBlockers: string[] = []
-  if (seat.state !== 'ready') openaiBlockers.push(seat.reason ?? 'GPT lane unavailable')
+  if (seat.state !== 'ready') openaiBlockers.push(seat.reason ?? 'OpenAI unavailable')
   const seatCredentialAbsent =
     seat.state !== 'ready' &&
     (seat.why === 'no-account' ||
@@ -541,7 +541,7 @@ export function nonAnthropicBootNotice(
     .map(lane => providerDisplayName(lane.provider))
   if (usable.length === 0) return null
   return (
-    `${usable.join(', ')} ${usable.length === 1 ? 'is' : 'are'} the working lane${usable.length === 1 ? '' : 's'}: ` +
+    `${usable.join(', ')} ${usable.length === 1 ? 'is' : 'are'} ready: ` +
     'tools, crewmates and workflows run on the session\'s own family. ' +
     'No Anthropic credential — the Claude-account surfaces (the Anthropic usage windows) stay dormant; /logins adds one any time.'
   )
@@ -577,10 +577,10 @@ export function delegationDispatchBlocker(
   const why = anthropicSignInWords()
   const alternatives =
     usableAlternatives.length > 0
-      ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Crewmate model parameter).`
-      : ' No other lane is usable right now — sign in again first.'
+      ? ` Providers with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Crewmate model parameter).`
+      : ' No other provider is usable right now — sign in again first.'
   return (
-    `the ${route} lane cannot take delegated work right now (${why}). ` +
+    `${route} cannot take delegated work right now (${why}). ` +
     `Delegated crewmates are never silently rerouted across providers.` +
     alternatives
   )

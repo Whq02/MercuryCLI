@@ -63,7 +63,7 @@ export class VendorApi {
     try { url = new URL(base) } catch { throw new Error(label + ' needs a valid API URL.') }
     const allowed = (typeof official === 'string' ? [official] : official).map(value => new URL(value))
     this.allowedPaths = allowed.map(value => value.pathname)
-    if (url.username || url.password || url.search || url.hash || !allowed.some(value => url.pathname.replace(/\/$/, '') === value.pathname && (url.origin === value.origin || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error(label + ' uses its official API or a loopback fixture only.')
+    if (url.username || url.password || url.search || url.hash || !allowed.some(value => url.pathname.replace(/\/$/, '') === value.pathname && (url.origin === value.origin || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error(label + ' uses its official API URL only.')
     if (!key.trim()) throw new Error(label + ' needs an API key.')
     this.base = base.replace(/\/$/, '')
     this.account = JSON.stringify([url.origin + allowed[0]!.pathname, key])

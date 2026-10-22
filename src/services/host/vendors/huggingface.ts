@@ -8,7 +8,7 @@ import { HostCreateError, VendorApi, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
 export const HF_ENDPOINTS_STORAGE_NOTICE = 'HF-managed · per hour · no SSH · downloads the weights first. One replica, billed by the minute while initializing or running. Pause ends compute billing; Resume starts it again. No weights disk is attached.'
-export const HF_ENDPOINTS_KEY_NOTICE = 'your Hugging Face token (the one /logins huggingface saved) is sent to HF only'
+export const HF_ENDPOINTS_KEY_NOTICE = 'Uses your Hugging Face sign-in (/logins huggingface)'
 const official = 'https://api.endpoints.huggingface.cloud/v2'
 const nameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
 const namespaceSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/)
@@ -140,7 +140,7 @@ export class HuggingfaceClient implements HostVendor {
     const original = offer.recipe
     const saved = readTunePreferences(original.label.split(' · ')[0]!)
     const recipe = tunedRecipe(original, saved?.quality === original.id ? saved : defaultTune(original))
-    if (hfEndpointRecipeReason(recipe)) throw new Error('Hugging Face endpoints cannot run this recipe (it needs files or a cluster they do not provide); nothing was rented.')
+    if (hfEndpointRecipeReason(recipe)) throw new Error('This recipe needs files or a cluster unavailable on Hugging Face Inference Endpoints; nothing was rented.')
     const engine = recipe.engine === 'vllm' ? 'vLLM' : recipe.engine === 'llamacpp' ? 'llamacpp' : 'sGLang'
     const image = { url: recipe.image, ...(engine === 'llamacpp' ? { modelPath: recipe.weightFile, ...(recipe.mmproj ? { mmprojModelPath: recipe.mmproj } : {}) } : { tensorParallelSize: recipe.count, ...(engine === 'vLLM' ? { dataParallelSize: 1 } : {}) }) }
     const flags = [...recipe.flags]

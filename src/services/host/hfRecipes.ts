@@ -8,7 +8,7 @@ import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, remem
 export const HF_SEARCH_PLACEHOLDER = 'model name — e.g. deepseek, qwen, glm'
 export const HF_SEARCH_LIMIT = 20
 export const HF_OFFLINE_WORDS = 'Hugging Face is unreachable · the verified list is shown'
-export const HF_PROOF_WORDS = 'Hugging Face is not reached in a proof run · the verified list is shown'
+export const HF_PROOF_WORDS = 'Hugging Face search is off in this environment · the verified list is shown'
 export const HF_GATED_WORDS = 'gated · sign in with /logins huggingface'
 export const HF_RATE_LIMIT_WORDS = 'Hugging Face rate limit reached'
 export const HF_NOT_CHAT_WORDS = '— not a chat model'
@@ -301,7 +301,7 @@ export function derivedRecipeWords(recipe: HostRecipe, now = Date.now()): string
   if (!row) return undefined
   const minutes = Math.floor((now - row.derivedAt) / 60_000)
   const when = minutes < 1 ? 'a moment ago' : minutes + ' min ago'
-  return 'RECIPE · unverified — recipe derived from the repo’s config and file list ' + when + ' (engine ' + row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB); nobody has booted this exact recipe yet. The price is confirmed before anything is rented; the pod guard terminates a pod that never answers.'
+  return 'RECIPE · unverified — recipe derived from the repo’s config and file list ' + when + ' (engine ' + row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB); nobody has booted this exact recipe yet. The price is confirmed before anything is rented; a pod that never answers is terminated automatically.'
 }
 
 export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions & { fetchRepo?: (id: string, options: HfHubOptions) => Promise<HfRepoOutcome> } = {}): Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> {

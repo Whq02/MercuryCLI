@@ -125,7 +125,7 @@ async function hashFile(path: string, signal: AbortSignal): Promise<{ sha256: st
 }
 function pinnedMismatch(file: BankFile, hashed: { sha256: string; git: string; size: number }): string | undefined {
   if (file.size !== undefined && hashed.size !== file.size) return 'size differs from the pinned manifest'
-  if (file.sha256 && hashed.sha256 !== file.sha256) return 'SHA256 differs from the pinned manifest'
+  if (file.sha256 && hashed.sha256 !== file.sha256) return 'hash differs from the pinned manifest'
   if (file.git && hashed.git !== file.git) return 'content differs from the pinned manifest'
   return undefined
 }
@@ -153,7 +153,7 @@ export async function verifyBank(recipe: HostRecipe, folder: string, signal: Abo
     const hashed = await hashFile(target, signal)
     const mismatch = pinnedMismatch(file, hashed)
     if (mismatch) throw new Error(file.path + ' · ' + mismatch)
-    if (hashed.sha256 !== sums.get(file.path)) throw new Error(file.path + ' · SHA256 differs from SHA256SUMS')
+    if (hashed.sha256 !== sums.get(file.path)) throw new Error(file.path + ' · hash differs from SHA256SUMS')
     bytes += hashed.size
   }
   const receipt: BankReceipt = { sha256: sha256(sumsText), bytes, files: files.length, check: pinned ? 'manifest' : 'download', at: new Date().toISOString() }

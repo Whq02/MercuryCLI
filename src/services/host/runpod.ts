@@ -45,7 +45,7 @@ export class RunpodClient {
   private clusterFailure: string | undefined
   constructor(private key: string, private base = 'https://api.runpod.io/v2') {
     const url = new URL(base)
-    if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API or a loopback fixture only.')
+    if (url.username || url.password || url.search || url.hash || !(url.origin === 'https://api.runpod.io' || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Runpod uses its official API URL only.')
   }
   private async response(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<Response> {
     const create = method === 'POST' && ['/pods', '/network-volumes', '/global-volumes', '/clusters'].includes(path)

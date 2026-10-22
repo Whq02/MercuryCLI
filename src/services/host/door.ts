@@ -189,7 +189,7 @@ async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, s
       const result = await getFocusedSessionConnector().setModel(id)
       return result.state === 'refused'
         ? { ok: false, words: 'Model switch refused: ' + result.detail }
-        : { ok: true, model: id, registered: true, words: (result.state === 'queued' ? 'Model switch queued for this session: ' : 'This session’s model: ') + modelTitle(recipe) + ' · pod ' + record.id + ' · no new rental' }
+        : { ok: true, model: id, registered: true, words: (result.state === 'queued' ? 'Next turn will use: ' : 'This session’s model: ') + modelTitle(recipe) + ' · pod ' + record.id + ' · no new rental' }
     } catch {
       if (signal.aborted) return
       const choice = await ask({ step: 'door-retry', title: 'Server is not answering', found: 'The registered endpoint for pod ' + record.id + ' could not serve this model. It is still registered; no new rental was made.', willRun: 'Escape closes without changing the model.', rows: [{ value: 'retry', label: 'Retry this server' }, { value: 'back', label: 'Back to the model' }] })

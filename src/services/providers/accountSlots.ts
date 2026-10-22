@@ -700,7 +700,7 @@ function zaiSlots(reads: AccountSlotReads): AccountSlot[] {
       active: !envKey,
       envPinned: false,
       signedIn: true,
-      ...(envKey ? { stateNote: 'shadowed — the env pin wins' } : {}),
+      ...(envKey ? { stateNote: 'shadowed — the environment variable wins' } : {}),
       removal: { route: 'zai-stored-key' },
     })
   }
@@ -753,7 +753,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       signedIn: usableMinted,
       ...(minted.expiredMessage
         ? { stateNote: `${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
-        : envKey ? { stateNote: 'shadowed — the env pin wins' }
+        : envKey ? { stateNote: 'shadowed — the environment variable wins' }
           : failure('oauth') ? { stateNote: failure('oauth')! } : {}),
       removal: { route: 'openrouter-oauth-key' },
     })
@@ -770,7 +770,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       envPinned: false,
       signedIn: true,
       ...(envKey
-        ? { stateNote: 'shadowed — the env pin wins' }
+        ? { stateNote: 'shadowed — the environment variable wins' }
         : usableMinted
           ? { stateNote: 'shadowed — the OAuth-minted key wins' }
           : failure('stored') ? { stateNote: failure('stored')! } : {}),
@@ -813,7 +813,7 @@ function keyLaneSlots(args: {
       active: !args.envKey,
       envPinned: false,
       signedIn: true,
-      ...(args.envKey ? { stateNote: 'shadowed — the env pin wins' } : {}),
+      ...(args.envKey ? { stateNote: 'shadowed — the environment variable wins' } : {}),
       removal: args.storedRemoval,
     })
   }
@@ -826,7 +826,7 @@ export function looksLikeProofFixtureKey(value: string | undefined | null): bool
 
 function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefined {
   const notes: string[] = []
-  if (shadowed) notes.push('shadowed — an env pin wins')
+  if (shadowed) notes.push('shadowed — an environment variable wins')
   if (looksLikeProofFixtureKey(storedKey)) notes.push('a test key (zz-SECRE…), not a real Gemini API key — ⌫ removes it')
   return notes.length > 0 ? notes.join(' · ') : undefined
 }
@@ -962,7 +962,7 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       ...(expiredUnrefreshable
         ? { stateNote: 'access token expired with no refresh route — /logins moonshot signs in again' }
         : envKey
-          ? { stateNote: 'shadowed — the env pin wins' }
+          ? { stateNote: 'shadowed — the environment variable wins' }
           : {}),
       removal: { route: 'moonshot-oauth' },
     })
@@ -979,7 +979,7 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       envPinned: false,
       signedIn: true,
       ...(envKey
-        ? { stateNote: 'shadowed — the env pin wins' }
+        ? { stateNote: 'shadowed — the environment variable wins' }
         : oauth
           ? { stateNote: 'shadowed — the Kimi sign-in wins' }
           : {}),
@@ -1220,7 +1220,7 @@ function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       ...(expiredUnrefreshable
         ? { stateNote: 'access token expired with no refresh route — /logins reconnects Hugging Face' }
         : envKey
-          ? { stateNote: 'shadowed — the env pin wins' }
+          ? { stateNote: 'shadowed — the environment variable wins' }
           : {}),
       removal: { route: 'huggingface-oauth' },
     })
@@ -1238,7 +1238,7 @@ function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       envPinned: false,
       signedIn: true,
       ...(envKey
-        ? { stateNote: 'shadowed — the env pin wins' }
+        ? { stateNote: 'shadowed — the environment variable wins' }
         : oauth
           ? { stateNote: 'shadowed — the OAuth sign-in wins' }
           : {}),
@@ -1526,7 +1526,7 @@ function routeSlotRemoval(
       return { note: removal.note, mutated: false }
     case 'env':
       return {
-        note: `${removal.envVar} is the shell's env pin — unset it in your shell to remove; Mercury never edits your environment`,
+        note: `${removal.envVar} is set in your shell — unset it in your shell to remove; Mercury never edits your environment`,
         mutated: false,
       }
     case 'anthropic-oauth': {

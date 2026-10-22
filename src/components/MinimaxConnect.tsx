@@ -9,7 +9,7 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-const MINIMAX_CONNECT_BILLING_LINE = 'A pay-as-you-go API key (Account Management → API Keys) or an M Plan Subscription Key (the plan console); the text models only — the video, speech and music lines never ride this road.'
+const MINIMAX_CONNECT_BILLING_LINE = 'A pay-as-you-go API key (Account Management → API Keys) or an M Plan Subscription Key (the plan console); text models only — video, speech and music models are not used here.'
 const MINIMAX_CONNECT_STORE_LINE = 'Checked on the model list first (a refused key is never stored); stored auth-scoped (mode 600), never logged. MINIMAX_API_KEY wins over the store.'
 
 export function MinimaxConnect({ onResult, onBack }: {

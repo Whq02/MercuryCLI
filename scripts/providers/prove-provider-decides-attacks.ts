@@ -85,7 +85,7 @@ const baseReads = (over: Partial<ProviderUsabilityReads>): ProviderUsabilityRead
 const dead = resolveProviderUsability(baseReads({ anthropicSignInExpired: () => true }))
 const deadWords = delegationDispatchBlocker('anthropic', dead)
 check('a dead Anthropic sign-in refuses delegated dispatch', deadWords !== null && deadWords.includes('cannot take delegated work'), deadWords)
-check('the dead sign-in refusal names the lanes with usage and never reroutes silently', deadWords !== null && deadWords.includes('never silently rerouted') && deadWords.includes('Lanes with usage right now'), deadWords)
+check('the dead sign-in refusal names the providers with usage and never reroutes silently', deadWords !== null && deadWords.includes('never silently rerouted') && deadWords.includes('Providers with usage right now'), deadWords)
 for (const family of ['openai', 'openrouter', 'gemini', 'huggingface'] as const) {
   check(`${family}: a dead Anthropic sign-in refuses nothing on another lane`, delegationDispatchBlocker(family, dead) === null)
 }
