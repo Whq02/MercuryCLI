@@ -77,7 +77,7 @@ try {
   const screen = async (text: string) => {
     if (text === 'Where should the model run?') {
       assert.ok(await waitFor(() => m!.screen().includes('Which model?'), 15000), m!.screen())
-      await choose('Other roads →')
+      await choose('More options →')
     }
     assert.ok(await waitFor(() => m!.screen().includes(text), 15000), text + '\n' + m!.screen() + '\n' + daemonLog)
   }

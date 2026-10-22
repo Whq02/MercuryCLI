@@ -144,7 +144,7 @@ try {
   await choose('Pods I’m paying for'); await until('Live account list'); await until('Vast.ai paid machines could not be read')
   check('Unreadable paid list is named, not presented as a complete zero', mounted!.screen().includes('count incomplete'))
   await close(); denyVastPods = false
-  open(); await until('Which model?'); await choose('Other roads'); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?')
+  open(); await until('Which model?'); await choose('More options'); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?')
   check('Other roads offers the same three vendors', ['Runpod', 'Vast.ai', 'Lambda'].every(label => mounted!.screen().includes(label)))
   await choose('Lambda'); await until('Optional spending budget'); mounted!.push(KEY.enter); await until('live Lambda stock')
   check('Where-first Lambda stock is never labelled Runpod or Secure Cloud', !mounted!.screen().includes('Secure Cloud') && !mounted!.screen().includes('live Runpod stock'))

@@ -16,6 +16,7 @@ const frames = option('--frames')
 const only = option('--only')
 if (frames) mkdirSync(frames, { recursive: true })
 const f = await llmhostFixture()
+process.env.HOME = f.home
 const rp = await runpodFixture()
 const vast = await vastFixture()
 const lambda = await lambdaFixture()
@@ -94,6 +95,8 @@ try {
     for (const [columns, rows] of [[80, 18], [80, 24], [120, 30]]) for (const model of models) {
       await open(modelDoorRoad(road, model), columns, rows); await step('door-model'); await capture(model + '-details')
       mounted!.push(KEY.down)
+      check(columns + ' ' + model + ' offers Bank before connecting a vendor', await waitFor(() => selected().includes('Bank ·'), 3000))
+      mounted!.push(KEY.down)
       check(columns + ' ' + model + ' has a visible selected vendor', await waitFor(() => selected().includes('Connect Runpod'), 3000))
       await capture(model + '-selected')
       let details = mounted!.screen()
@@ -163,12 +166,13 @@ try {
       if (!vendorKey('vast')) {
         await open(modelDoorRoad(road, 'Qwen3.8-27B'), columns); await step('door-model'); await choose('Connect Vast.ai'); await step('vast-key'); mounted!.push(vast.key); mounted!.push(KEY.enter); await step('door-model'); await close()
       }
-      await open(road, columns); await step('door-models'); await choose('Other roads'); await step('where'); await choose('Fast-load')
-      await until(() => plan?.step === 'runpod-key' || plan?.step === 'fast-load', 'fast-load account')
-      if (plan!.step === 'runpod-key') { await step('runpod-key'); mounted!.push(rp.key); mounted!.push(KEY.enter) }
-      await step('fast-load'); await capture('fast-load-after-vendor')
-      check('fast-load after connecting another vendor still uses Runpod disks', plan!.found.includes('Runpod disk') && !plan!.found.includes('Vast') && rp.requests.some((request: any) => request.path.includes('network-volumes')))
-      check('opening fast-load creates no disk', rp.state.volumeCreates === 0)
+      saveVendorKey('runpod', rp.key)
+      await open(road, columns); await step('door-models'); await choose('More options'); await step('where'); await choose('Bank · your weights')
+      await until(() => plan?.step === 'door-bank-folder' || plan?.step === 'door-bank', 'bank folder or table')
+      if (plan!.step === 'door-bank-folder') { await step('door-bank-folder'); mounted!.push(KEY.enter) }
+      await step('door-bank'); await capture('bank-after-vendor')
+      check('Bank after connecting another vendor still reads Runpod disks', plan!.rows?.[0]?.label.includes('VOLUME') && !plan!.found.includes('Vast') && rp.requests.some((request: any) => request.path.includes('network-volumes')))
+      check('opening Bank creates no disk', rp.state.volumeCreates === 0)
       await close()
     }
   }

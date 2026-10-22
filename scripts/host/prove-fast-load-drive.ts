@@ -51,7 +51,7 @@ try {
   const { fastLoadRecipes, fastLoadState, mirrorToVolume, volumeDeleteDoor } = await import('../../src/services/host/fastLoad.ts')
   const bankHome = join(f.home, 'mercury-model-bank')
   const { sizeWords } = await import('../../src/services/host/bank.ts')
-  const { weightManifest, weightCheckScript, keptWeightsPath } = await import('../../src/services/host/keptWeights.ts')
+  const { weightManifest, weightCheckScript, keptWeightsPath, keptDownloadMinutes } = await import('../../src/services/host/keptWeights.ts')
   writeStoredRunpodApiKey(rp.key)
   const api = new RunpodClient(rp.key, rp.baseUrl)
   const signal = new AbortController().signal
@@ -75,7 +75,7 @@ try {
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15000), 'screen reaches ' + needle + '\n' + m.screen())
   const heading = async (needle: string) => {
-    if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
+    if (needle.startsWith('Where should the model run')) { await until('Which model?'); await choose('More options →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(needle), 15000), 'active screen reaches ' + needle + '\n' + m.screen())
   }
   const select = async (needle: string) => {
@@ -100,7 +100,7 @@ try {
   }
   await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await capture('01-bank')
   await select('Qwen3.8-27B'); m.push('m'); await heading('How?'); await capture('02-per-model-how')
-  check('per-model choice offers network, global and explicit SSH stub', m.screen().includes('network volume') && m.screen().includes('global volume (beta)') && m.screen().includes('mercury-host road'))
+  check('per-model choice offers network, global and explicit SSH stub', m.screen().includes('network volume') && m.screen().includes('global volume (beta)') && m.screen().includes('mercury host'))
   await choose('network volume'); await heading('Where should'); await until('EU-NL-1')
   check('data centres come from catalogue and exclude non-standard-only storage', rp.requests.some((r: any) => r.path.endsWith('/catalog/datacenters')) && !m.screen().includes('HPS-ONLY'))
   await choose('EU-NL-1'); await heading('When should'); await choose('Prepare now'); await heading('Confirm weights disk')
@@ -119,7 +119,7 @@ try {
   await volumes.reconcileVolumes(api, signal)
   check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
-  await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await focus('Qwen3.8-27B'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
+  await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await select('Qwen3.8-27B'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Rent from which vendor?'); await choose('Runpod'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
   check('rental confirm gives per-step short estimate and monthly disk charge', m.screen().includes('weights kept ~0') && m.screen().includes('loads ~3 min') && m.screen().includes('$5.60/month'))
   await choose('Confirm $2.49/hr'); assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), 'kept model reaches ready')
@@ -278,18 +278,18 @@ try {
     if (q.step === 'fast-load-how') return 'network'
     if (q.step === 'fast-load-where') return 'EU-NL-1'
     if (q.step === 'fast-load-when') return 'now'
-    if (q.step === 'fast-load-confirm') { check('prepare-now confirm states the stall and deadline bound before any disk or pod exists', q.willRun.includes('A stalled download (under 1 GB in 10 min) or one past 41 min also terminates the pod and keeps the partial disk') && rp.state.creates === stallBefore.creates); return 'confirm' }
+    if (q.step === 'fast-load-confirm') { check('prepare-now confirm states the stall and deadline bound before any disk or pod exists', q.willRun.includes('A stalled download (under 1 GB in 10 min) or one past ' + keptDownloadMinutes(nemotron) + ' min also terminates the pod and keeps the partial disk') && rp.state.creates === stallBefore.creates); return 'confirm' }
     throw new Error('Unexpected stall step ' + q.step)
   }, () => {}, signal, options)
   await Promise.all(jobs)
   ssh.state.stallDownload = 0
   const stalled = volumes.keptVolumes().find(row => row.model === nemotron.model && row.state !== 'gone')!
   const stallPodId = 'fixture-pod-' + rp.state.creates
-  check('a stalled download marks the kept disk failed with its partial bytes and the stall words', stalled?.state === 'failed' && stalled.partialBytes === 11.2e9 && stalled.error === 'Download stalled at 11.20 GB of 65.76 GB (under 1 GB in 10 min)')
+  check('a stalled download marks the kept disk failed with its partial bytes and the stall words', stalled?.state === 'failed' && stalled.partialBytes === 11.2e9 && stalled.error === 'Download stalled at 11.20 GB of ' + (nemotron.weightsGb * 1e9 / 1e9).toFixed(2) + ' GB (under 1 GB in 10 min)')
   const deleteAt = rp.requests.findIndex((r: any) => r.method === 'DELETE' && r.path === '/v2/pods/' + stallPodId)
   check('the stalled temporary pod is terminated and the live list is read back before it counts as gone', rp.state.creates === stallBefore.creates + 1 && deleteAt >= 0 && rp.requests.slice(deleteAt + 1).some((r: any) => r.method === 'GET' && r.path === '/v2/pods') && !rp.state.pods.has(stallPodId) && !readHostRecord(stallPodId) && ssh.state.weightFetches === stallBefore.fetches)
   const notices = readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8')).words as string)
-  check('the stall notice names the stall, the verified termination and the half-filled disk price', notices.some(words => words.includes('preparation stopped: Download stalled at 11.20 GB of 65.76 GB') && words.includes('temporary pod ' + stallPodId + ' terminated') && words.includes('with 11.20 GB downloaded') && words.includes('$8.40/month for its 120 GB')))
+  check('the stall notice names the stall, the verified termination and the half-filled disk price', notices.some(words => words.includes('preparation stopped: Download stalled at 11.20 GB of ' + (nemotron.weightsGb * 1e9 / 1e9).toFixed(2) + ' GB') && words.includes('temporary pod ' + stallPodId + ' terminated') && words.includes('with 11.20 GB downloaded') && words.includes('$8.40/month for its 120 GB')))
   check('catalogue and paid list show the failed partial disk and its monthly price', fastLoadState(nemotron).startsWith('failed · ' + stalled.id) && fastLoadState(nemotron).includes('$8.40/month for its 120 GB') && volumes.volumeLabel(rp.state.volumes.get(stalled.id)).includes('failed · 11.20 GB downloaded'))
   check('a finished preparation leaves a notice naming the kept disk and the terminated pod', notices.some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')))
   await volumes.deleteKeptVolume(api, stalled.id)

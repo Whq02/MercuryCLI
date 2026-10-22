@@ -55,7 +55,7 @@ try {
   const flat = () => m.screen().replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
   const until = async (text: string) => assert.ok(await waitFor(() => flat().includes(text), 20000), 'screen reaches ' + text + '\n' + m.screen())
   const heading = async (text: string) => {
-    if (text.startsWith('Where should the model run')) { await until('Which model?'); await choose('Other roads →') }
+    if (text.startsWith('Where should the model run')) { await until('Which model?'); await choose('More options →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(text), 20000), 'heading reaches ' + text + '\n' + m.screen())
   }
   const capture = (name: string, cols = 140, rows = 44) => {

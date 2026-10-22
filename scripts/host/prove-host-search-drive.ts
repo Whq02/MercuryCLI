@@ -90,16 +90,22 @@ try {
 
   open(); await mount(120)
   await heading('Which model?')
-  const plain = screen()
-  const visibleNames = names.filter(name => plain.includes(name))
+  const pages = [screen()]
   const first = selected()
-  check('without a query the list opens on the verified recipes (the list pages: the first screen holds the first rows, every row named is a recipe)', visibleNames.length >= 8 && names.some(name => first.includes(name)))
-  for (let n = 0; n < 80 && !screen().includes('Other roads'); n++) { mounted!.push(KEY.down); await waitFor(() => true, 10) }
-  assert.ok(await waitFor(() => screen().includes('Other roads'), 5000), 'the list pages down to the ALSO rows\n' + screen())
-  const tail = screen()
-  for (let n = 0; n < 120 && selected() !== first; n++) { mounted!.push(KEY.up); await waitFor(() => true, 10) }
-  assert.ok(await waitFor(() => selected() === first, 5000), 'the list pages back to its first row\n' + screen())
-  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && tail.includes('Bank · your weights') && tail.includes('Pods I’m paying for') && tail.includes('My computers') && tail.includes('Refresh stock and prices') && tail.includes('Other roads') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
+  for (let index = 0; index < names.length + 4; index++) {
+    const before = selected()
+    mounted!.push(KEY.down)
+    assert.ok(await waitFor(() => selected() !== before, 3000), 'every model and utility row is reachable\n' + screen())
+    pages.push(screen())
+  }
+  for (let index = 0; index < names.length + 4; index++) {
+    const before = selected()
+    mounted!.push(KEY.up)
+    assert.ok(await waitFor(() => selected() !== before, 3000), 'return to the suggested model\n' + screen())
+  }
+  assert.equal(selected(), first)
+  const plain = pages.join('\n')
+  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Pods I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
   check('each verified row carries its stamp word, and the cursor starts on the cheapest model in stock (running → your box → in stock cheapest → no stock; the stamp breaks ties)', plain.includes(' · measured') && plain.includes(' · documented') && selected().includes('in stock') && selected().includes('$'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
   hf.state.delayMs = 300
@@ -137,7 +143,13 @@ try {
   check('a new popup fetches afresh', hf.state.searches === 2)
   mounted!.push(KEY.esc)
   await gone('HUGGING FACE'); await until('GLM-5.3-Flash')
-  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && screen().includes(HF_SEARCH_PLACEHOLDER) && screen().includes('GLM-5.3-Flash') && screen().includes('Beam 1.0 501B-A23B') && !screen().includes('VERIFIED RECIPES') && hf.state.searches === 2)
+  const cleared = screen()
+  for (let index = 0; index < names.length && !screen().includes('Pods I’m paying for'); index++) {
+    const before = selected()
+    mounted!.push(KEY.down)
+    assert.ok(await waitFor(() => selected() !== before, 3000), 'cleared search restores the utility rows\n' + screen())
+  }
+  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && cleared.includes(HF_SEARCH_PLACEHOLDER) && screen().includes('Pods I’m paying for') && hf.state.searches === 2)
   type('deepseek'); await until(hfHeading)
   check('the same query in the same popup never refetches', hf.state.searches === 2)
   await choose('mercury-bounties/deepseek-coder-v4-bounty')

@@ -36,7 +36,7 @@ try {
     throw new Error('choice absent: ' + text)
   }
   const until = async (text: string) => {
-    if (text.startsWith('Where should the model run')) { await untilPlain('Which model?'); await choose('Other roads →') }
+    if (text.startsWith('Where should the model run')) { await untilPlain('Which model?'); await choose('More options →') }
     await untilPlain(text)
   }
   const capture = (name: string) => {

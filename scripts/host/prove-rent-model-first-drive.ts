@@ -61,7 +61,7 @@ try {
   const m = mounted
   const until = async (needle: string) => assert.ok(await waitFor(() => m.screen().includes(needle), 15_000), 'screen reaches ' + needle + '\n' + m.screen())
   const heading = async (needle: string) => {
-    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('Other roads →') }
+    if (needle === 'Where should the model run?') { await until('Which model?'); await choose('More options →') }
     assert.ok(await waitFor(() => m.lines().slice(0, 10).join(' ').includes(needle), 15_000), 'active question reaches ' + needle + '\n' + m.screen())
   }
   const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
@@ -108,10 +108,14 @@ try {
   const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(modelLabel(name))))
   check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(modelLabel(name))).length === 1))
   check('model rows show cheapest in-stock price or no stock now', m.screen().includes(modelLabel('Nemotron 3.5 Super VL 120B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('Qwen3.8-27B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('GLM-5.3-Flash') + 'no stock · watch →'))
-  const stockedAt = modelLines.flatMap((line, index) => line.includes('no stock') ? [] : [index])
-  const emptyAt = modelLines.flatMap((line, index) => line.includes('no stock') ? [index] : [])
-  check('models in stock sort above the no-stock-now rows, cheapest first', stockedAt.length > 0 && emptyAt.length > 0 && Math.max(...stockedAt) < Math.min(...emptyAt))
-  check('cursor starts on the cheapest model that has stock', selected().includes('Nemotron 3.5 Super VL 120B') && selected().includes('$2.49/hr'))
+  const stamps = ['measured', 'documented', 'community']
+  const ranks = modelLines.map(line => stamps.findIndex(stamp => line.includes(' · ' + stamp)))
+  check('every model row carries one of the stamp words', ranks.every(rank => rank >= 0))
+  check('stocked models sort before no-stock models and by price, whatever their stamp (the stamp only breaks ties)', (() => {
+    const prices = modelLines.map(line => line.includes('no stock') ? Infinity : Number(/\$([\d.]+)\/hr/.exec(line)![1]))
+    return prices.every((price, index) => !index || price >= prices[index - 1]!)
+  })())
+  check('cursor starts on the cheapest model in stock', selected().includes('in stock') && selected().includes('$2.49/hr'))
   check('a pre-chosen cursor says it starts on a suggestion, never that nothing is pre-chosen', m.screen().includes('↑↓ then ↵ · the cursor starts on a suggestion') && !m.screen().includes('nothing is pre-chosen'))
 
   rp.state.customGpus = [
@@ -120,7 +124,7 @@ try {
   ]
   await choose('Refresh stock and prices')
   await until('$5.29/hr')
-  check('when prices differ, cursor moves to the cheapest in-stock model (a one-GPU H200 row: gpt-oss-120b or Qwen3.8-27B at $5.29/hr)', /gpt-oss-120b|Qwen3\.8-27B/.test(selected()) && selected().includes('$5.29/hr'))
+  check('refresh keeps the design order: the cheapest model in stock leads, whatever its stamp', selected().includes('in stock') && selected().includes('$5.29/hr') && m.screen().includes('$8.99/hr'))
   rp.state.customGpus = null
   await choose('Refresh stock and prices')
   await until('$2.49/hr')
@@ -343,7 +347,7 @@ try {
 
   if (bundlePath) {
     const bundleText = readFileSync(resolve(bundlePath), 'utf8')
-    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', 'one catalogue read every ', 'the cursor starts on a suggestion', ' may exist: Runpod gave no clear answer to the create'].every(part => bundleText.includes(part)))
+    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', 'one catalogue read', ' per provider (', 'the cursor starts on a suggestion', ' may exist: ', ' gave no clear answer to the create'].every(part => bundleText.includes(part)))
   }
 
   await Promise.all(images)
