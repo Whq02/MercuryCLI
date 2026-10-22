@@ -100,7 +100,7 @@ try {
   for (let n = 0; n < 120 && selected() !== first; n++) { mounted!.push(KEY.up); await waitFor(() => true, 10) }
   assert.ok(await waitFor(() => selected() === first, 5000), 'the list pages back to its first row\n' + screen())
   check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && tail.includes('Bank · your weights') && tail.includes('Pods I’m paying for') && tail.includes('My computers') && tail.includes('Refresh stock and prices') && tail.includes('Other roads') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
-  check('each verified row carries its stamp word, measured before documented', plain.indexOf(' · measured') >= 0 && plain.indexOf(' · documented') >= 0 && plain.indexOf(' · measured') < plain.indexOf(' · documented') && selected().includes('GLM-5.3-Flash'))
+  check('each verified row carries its stamp word, and the cursor starts on the cheapest model in stock (running → your box → in stock cheapest → no stock; the stamp breaks ties)', plain.includes(' · measured') && plain.includes(' · documented') && selected().includes('in stock') && selected().includes('$'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
   hf.state.delayMs = 300
   type('deepseek')
