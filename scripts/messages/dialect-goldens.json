@@ -1,5 +1,5 @@
 {
-  "base": "71641f1bdcef83a22b5ab0a03cff54f004655af8",
+  "base": "b9f415f48a8e3c67334db2e3a4aa2ef140d5d92a",
   "bodies": {
     "anthropic-conversation": {
       "system": "You are the dialect fixture.",
@@ -277,8 +277,10 @@
             },
             "required": [
               "file_path"
-            ]
-          }
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -293,8 +295,10 @@
             },
             "required": [
               "command"
-            ]
-          }
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
         }
       ],
       "tool_choice": "auto",
@@ -874,8 +878,10 @@
             },
             "required": [
               "file_path"
-            ]
-          }
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -890,8 +896,10 @@
             },
             "required": [
               "command"
-            ]
-          }
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
         }
       ],
       "tool_choice": "auto",
