@@ -31,12 +31,13 @@ const idSchema = z.number().int().positive()
 const offerSchema = z.object({
   id: idSchema, gpu_name: z.string(), gpu_ram: z.number().positive(), num_gpus: z.number().int().positive(), dph_total: z.number().positive(),
   verification: z.string(), reliability2: z.number().nullable().optional(), reliability: z.number().nullable().optional(), direct_port_count: z.number(),
-  rentable: z.boolean(), rented: z.boolean(), cuda_max_good: z.number(), disk_space: z.number(), geolocation: z.string().nullable().optional(),
+  rentable: z.boolean(), rented: z.boolean(), cuda_max_good: z.number(), disk_space: z.number(), geolocation: z.string().nullable().optional(), datacenter: z.boolean().nullable().optional(),
 })
 const instanceSchema = z.object({
   id: idSchema, label: z.string().nullable().optional(), actual_status: z.string().nullable().optional(), dph_total: z.number().nonnegative(), start_date: z.number().nonnegative().nullable().optional(),
   public_ipaddr: z.string().nullable().optional(), ports: z.unknown().optional(),
 })
+const instanceListSchema = z.object({ success: z.literal(true), instances: z.array(instanceSchema), instances_found: z.number().int().nonnegative(), total_instances: z.number().int().nonnegative(), next_token: z.string().min(1).nullable() })
 const keyListSchema = z.array(z.object({ key: z.string(), deleted_at: z.string().nullable().optional() }))
 const success = z.object({ success: z.literal(true) })
 const fingerprint = (offer: HostOffer): string => JSON.stringify(offer)
@@ -52,7 +53,7 @@ export class VastClient implements HostVendor {
   private note = ''
   private placements = new WeakMap<HostOffer, { id: number; fingerprint: string }>()
   constructor(key: string, base = 'https://console.vast.ai/api/v0', private timing: VendorTiming = {}) {
-    this.api = new VendorApi(this.label, key, base, 'https://console.vast.ai/api/v0', [400, 401, 403, 404, 410, 429], timing)
+    this.api = new VendorApi(this.label, key, base, ['https://console.vast.ai/api/v0', 'https://console.vast.ai/api/v1'], [400, 401, 403, 404, 410, 429], timing)
   }
   rateLimitPolicy(): string { return this.api.policy() ?? 'Vast.ai limits requests per endpoint and identity; search backs off five seconds on HTTP 429 within its read deadline. Creates are never retried.' }
   shapes(): readonly HostOffer[] { return this.lastShapes }
@@ -62,7 +63,7 @@ export class VastClient implements HostVendor {
     const bounded = signal ? AbortSignal.any([signal, deadline]) : deadline
     for (;;) {
       try {
-        return (await this.api.request('/bundles/', z.object({ offers: z.array(offerSchema) }), 'POST', body, bounded)).offers
+        return (await this.api.request('/api/v0/bundles/', z.object({ offers: z.array(offerSchema) }), 'POST', body, bounded)).offers
       } catch (error) {
         if (!(error instanceof HostVendorHttpError) || error.status !== 429 || bounded.aborted) throw error
         await delay(5000, undefined, { signal: bounded })
@@ -95,7 +96,7 @@ export class VastClient implements HostVendor {
         }
         for (const recipe of rows) {
           if (!recipeFits(recipe, gpuId, gigabytes(hardware.gpu_ram), hardware.num_gpus)) continue
-          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH' }
+          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'marketplace host' : 'hosting type unknown' }
           this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
           offers.push(offer)
         }
@@ -127,20 +128,40 @@ export class VastClient implements HostVendor {
     return { id: String(row.id), name: this.api.redact(row.label ?? String(row.id)), status, cost: row.dph_total, createdAt, startedAt: createdAt || null, ssh: { direct } }
   }
   async pods(signal?: AbortSignal): Promise<HostPod[]> {
-    const page = await this.api.request('/instances/', z.object({ instances: z.array(instanceSchema), instances_found: z.number().optional(), total_instances: z.number().optional(), next_token: z.string().nullable().optional() }), 'GET', undefined, signal)
-    if (page.next_token || [page.instances_found, page.total_instances].some(count => count !== undefined && count > page.instances.length)) throw new Error('Vast.ai returned an incomplete instance list; check the console before renting or declaring termination complete.')
-    return page.instances.map(row => this.pod(row))
+    const pods: HostPod[] = []
+    const ids = new Set<number>()
+    const tokens = new Set<string>()
+    const query = new URLSearchParams({ limit: '25', order_by: JSON.stringify([{ col: 'id', dir: 'asc' }]) })
+    let total = 0
+    const incomplete = () => new Error('Vast.ai returned an incomplete instance list; check the console before renting or declaring termination complete.')
+    for (;;) {
+      const page = await this.api.request('/api/v1/instances/?' + query, instanceListSchema, 'GET', undefined, signal)
+      if (page.instances_found !== page.instances.length) throw incomplete()
+      total = Math.max(total, page.total_instances)
+      for (const row of page.instances) {
+        if (ids.has(row.id)) throw incomplete()
+        ids.add(row.id)
+        pods.push(this.pod(row))
+      }
+      if (!page.next_token) {
+        if (pods.length !== total) throw incomplete()
+        return pods
+      }
+      if (!page.instances.length || tokens.has(page.next_token)) throw incomplete()
+      tokens.add(page.next_token)
+      query.set('after_token', page.next_token)
+    }
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
-    const { instances } = await this.api.request('/instances/' + id + '/', z.object({ instances: instanceSchema }), 'GET', undefined, signal)
+    const { instances } = await this.api.request('/api/v0/instances/' + id + '/', z.object({ instances: instanceSchema }), 'GET', undefined, signal)
     if (String(instances.id) !== id) throw new Error('Vast.ai returned a different instance ID.')
     return this.pod(instances)
   }
   private async registerKey(publicKey: string): Promise<void> {
     const material = keyMaterial(publicKey)
     const listed = async (): Promise<boolean> => {
-      try { return (await this.api.request('/ssh/', keyListSchema)).some(row => !row.deleted_at && keyMaterial(row.key) === material) } catch (error) {
+      try { return (await this.api.request('/api/v0/ssh/', keyListSchema)).some(row => !row.deleted_at && keyMaterial(row.key) === material) } catch (error) {
         if (error instanceof HostVendorHttpError && error.status === 404) return false
         throw error
       }
@@ -148,7 +169,7 @@ export class VastClient implements HostVendor {
     await this.api.serial(async () => {
       if (await listed()) return
       try {
-        const created = await this.api.request('/ssh/', z.object({ success: z.literal(true), key: z.object({ public_key: z.string() }) }), 'POST', { ssh_key: publicKey.trim() })
+        const created = await this.api.request('/api/v0/ssh/', z.object({ success: z.literal(true), key: z.object({ public_key: z.string() }) }), 'POST', { ssh_key: publicKey.trim() })
         if (keyMaterial(created.key.public_key) !== material) throw new Error('Vast.ai answered with a different public key.')
       } catch (error) {
         if (await listed().catch(() => false)) return
@@ -164,7 +185,7 @@ export class VastClient implements HostVendor {
     await this.registerKey(publicKey)
     let contract: number
     try {
-      contract = (await this.api.request('/asks/' + placement.id + '/', z.object({ success: z.literal(true), new_contract: idSchema }), 'PUT', {
+      contract = (await this.api.request('/api/v0/asks/' + placement.id + '/', z.object({ success: z.literal(true), new_contract: idSchema }), 'PUT', {
         image: offer.recipe.image, disk: offer.recipe.diskGb, label: name, runtype: 'ssh_direct', cancel_unavail: true, onstart: ONSTART,
         env: { HF_HOME: '/workspace/huggingface' },
       }, undefined, true)).new_contract
@@ -179,12 +200,12 @@ export class VastClient implements HostVendor {
   }
   async stop(id: string): Promise<HostPod> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
-    await this.api.request('/instances/' + id + '/', success, 'PUT', { state: 'stopped' })
+    await this.api.request('/api/v0/instances/' + id + '/', success, 'PUT', { state: 'stopped' })
     return this.get(id)
   }
   async terminate(id: string, readOnly?: HostReadOnly): Promise<void> {
     if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
-    await this.api.request('/instances/' + id + '/', success, 'DELETE')
+    await this.api.request('/api/v0/instances/' + id + '/', success, 'DELETE')
     const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
     let last = ''
     for (;;) {
@@ -198,7 +219,7 @@ export class VastClient implements HostVendor {
       if (!/^[1-9][0-9]*$/.test(id)) throw new Error('invalid instance ID')
       const deadline = AbortSignal.timeout(10000)
       const signal = jobSignal ? AbortSignal.any([jobSignal, deadline]) : deadline
-      const result = await this.api.request('/instances/request_logs/' + id + '/', z.object({ success: z.literal(true), result_url: z.string() }), 'PUT', { tail: '12' }, signal)
+      const result = await this.api.request('/api/v0/instances/request_logs/' + id + '/', z.object({ success: z.literal(true), result_url: z.string() }), 'PUT', { tail: '12' }, signal)
       const url = new URL(result.result_url)
       const fixture = new URL(this.api.base)
       const allowed = !url.username && !url.password && !url.hash && (url.protocol === 'https:' && url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/vast.ai/instance_logs/') || fixture.protocol === 'http:' && url.origin === fixture.origin && url.pathname.startsWith('/fixture-logs/'))

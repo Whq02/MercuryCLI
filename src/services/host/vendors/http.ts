@@ -57,14 +57,16 @@ export class VendorApi {
   private readonly account: string
   private readonly gate: RateGate | undefined
   private observedPolicy: string | undefined
-  constructor(readonly label: string, private key: string, base: string, official: string, private refusals: readonly number[], private timing: VendorTiming, paced = false) {
+  private readonly allowedPaths: readonly string[]
+  constructor(readonly label: string, private key: string, base: string, official: string | readonly string[], private refusals: readonly number[], private timing: VendorTiming, paced = false) {
     let url: URL
     try { url = new URL(base) } catch { throw new Error(label + ' needs a valid API URL.') }
-    const allowed = new URL(official)
-    if (url.username || url.password || url.search || url.hash || url.pathname.replace(/\/$/, '') !== allowed.pathname || !(url.origin === allowed.origin || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error(label + ' uses its official API or a loopback fixture only.')
+    const allowed = (typeof official === 'string' ? [official] : official).map(value => new URL(value))
+    this.allowedPaths = allowed.map(value => value.pathname)
+    if (url.username || url.password || url.search || url.hash || !allowed.some(value => url.pathname.replace(/\/$/, '') === value.pathname && (url.origin === value.origin || url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error(label + ' uses its official API or a loopback fixture only.')
     if (!key.trim()) throw new Error(label + ' needs an API key.')
     this.base = base.replace(/\/$/, '')
-    this.account = JSON.stringify([this.base, key])
+    this.account = JSON.stringify([url.origin + allowed[0]!.pathname, key])
     let gate = gates.get(this.account)
     if (paced && !gate) { gate = new RateGate(); gates.set(this.account, gate) }
     this.gate = paced ? gate : undefined
@@ -115,10 +117,12 @@ export class VendorApi {
     let sending = false
     try {
       await this.gate?.take(paid, signal)
-      const fresh = method !== 'GET' && path !== '/bundles/'
+      const url = path.startsWith('/api/') ? new URL(new URL(this.base).origin + path) : new URL(this.base + path)
+      if (url.origin !== new URL(this.base).origin || url.username || url.password || url.hash || !this.allowedPaths.some(prefix => url.pathname.startsWith(prefix + '/'))) throw new Error('unexpected API path')
+      const fresh = method !== 'GET' && !url.pathname.endsWith('/bundles/')
       const timeout = AbortSignal.timeout(this.timing.requestTimeoutMs ?? 30000)
       sending = true
-      const response = await fetch(this.base + path, {
+      const response = await fetch(url, {
         method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json', ...(fresh ? { Connection: 'close' } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(fresh ? { keepalive: false } : {}), redirect: 'error',
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
@@ -142,7 +146,10 @@ export class VendorApi {
         detail = this.redact(detail).replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 240)
         code = this.redact(code).replace(/[^\w./-]+/g, '').slice(0, 80)
         if (paid && !this.refusals.includes(response.status)) throw this.ambiguous(response.status)
-        const message = this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (paid ? ' · ' + this.label + ' refused it; nothing was rented.' : ''))
+        const retired = this.label === 'Vast.ai' && response.status === 410 && /\b(?:deprecated|retired)\b/i.test(detail)
+        const message = retired
+          ? this.redact('Vast.ai retired this route (' + (detail || path.split('?')[0]) + '); Mercury needs an update — nothing was rented' + (paid ? '.' : ' by this request. Check existing instances in the Vast.ai console.'))
+          : this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' returned HTTP ' + response.status + (detail ? ' · ' + detail : '') + (paid ? ' · ' + this.label + ' refused it; nothing was rented.' : ''))
         if (paid) throw new HostCreateError(message, 'refused', undefined, response.status, code || undefined)
         throw new HostVendorHttpError(message, response.status, retryAfterSeconds(response.headers.get('retry-after')))
       }

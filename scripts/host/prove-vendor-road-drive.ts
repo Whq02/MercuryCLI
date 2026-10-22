@@ -25,7 +25,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const request = new Request(input, init)
   const url = new URL(request.url)
   const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', '') } as Record<string, string>)[url.origin]
-  if (url.origin === 'https://console.vast.ai' && (denyVastStock && url.pathname === '/api/v0/bundles/' || denyVastPods && url.pathname === '/api/v0/instances/')) return Response.json({ error: 'fixture list unavailable' }, { status: 503 })
+  if (url.origin === 'https://console.vast.ai' && (denyVastStock && url.pathname === '/api/v0/bundles/' || denyVastPods && url.pathname === '/api/v1/instances/')) return Response.json({ error: 'fixture list unavailable' }, { status: 503 })
   if (base) return nativeFetch(new Request(base + url.pathname + url.search, request))
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('Vendor road proof only permits loopback fixtures') }
   return nativeFetch(request)
@@ -95,6 +95,7 @@ try {
   for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
     await until('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
+    if (vendor === 'vast') check('Vast offer rows display their hosting type beside the region', /region unknown · (datacenter|marketplace host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
     await choose('Rent · ' + label); await until('Confirm the hourly price')
     await capture('80-' + vendor + '-confirmation')
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')

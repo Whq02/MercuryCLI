@@ -177,7 +177,7 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
   for (;;) {
     const saved = readTunePreferences(title)
     if (saved) {
-      const preferred = offers.find(row => row.recipe.id === saved.quality && row.dataCenter === offer.dataCenter) ?? offers.find(row => row.recipe.id === saved.quality)
+      const preferred = (offer.recipe.id === saved.quality ? offer : undefined) ?? offers.find(row => row.recipe.id === saved.quality && row.dataCenter === offer.dataCenter && row.hostingType === offer.hostingType) ?? offers.find(row => row.recipe.id === saved.quality)
       if (!preferred) { emit({ title: 'Tune', words: 'Saved quality has no stock. Choose another quality in Tune; no pod created.' }) }
       else offer = preferred
     }
@@ -187,7 +187,7 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
     const recipe = offer.recipe
     const context = prefs.contextPerConversation
     const decor = decorate ? await decorate(offer) : {}
-    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || recipe.verified.by + ' · ' + recipe.verification + ' · ' + (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.') + ' · Tune: ' + tuneSummary(prefs, recipe), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
+    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || recipe.verified.by + ' · ' + recipe.verification + ' · ' + (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.') + ' · Tune: ' + tuneSummary(prefs, recipe), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
     if (signal.aborted) return
     if (confirm === 'tune') { await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, signal }, ask, emit); continue }
     if (confirm !== 'rent') return

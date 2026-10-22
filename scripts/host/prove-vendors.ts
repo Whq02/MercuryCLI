@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { VastClient, VAST_KEY_NOTICE, VAST_STORAGE_NOTICE, VAST_GPU_NAMES } from '../../src/services/host/vendors/vast.ts'
 import { LambdaClient, LAMBDA_KEY_NOTICE, LAMBDA_STORAGE_NOTICE, LAMBDA_USER_DATA, lambdaGpu } from '../../src/services/host/vendors/lambda.ts'
-import { HostCreateError, keyMaterial } from '../../src/services/host/vendors/http.ts'
+import { HostCreateError, HostVendorHttpError, VendorApi, keyMaterial } from '../../src/services/host/vendors/http.ts'
+import { z } from 'zod/v4'
 import { runpodVendor, type HostVendor } from '../../src/services/host/vendors/vendor.ts'
 import { RunpodClient } from '../../src/services/host/runpod.ts'
 import { HOST_RECIPES, recipeFits } from '../../src/services/host/recipes.ts'
@@ -66,7 +67,16 @@ try {
     for (const Client of [VastClient, LambdaClient]) for (const base of ['https://example.com/api/v1', 'http://localhost/api/v1', 'https://cloud.lambda.ai/api/v1?key=bad', 'https://user:pass@cloud.lambda.ai/api/v1']) assert.throws(() => new Client('fixture', base))
     check('vendor credentials cannot be sent to arbitrary origins or URL credentials', true)
 
+    check('Vast reads the current instance-list shape on v1 without moving the v0 routes', (await v.pods()).length === 0 && vast.requests.at(-1)!.path === '/api/v1/instances/')
     const offers = await v.offers(signal())
+    check('Vast tags each hosting type from the datacenter boolean without filtering out marketplace hosts', offers.some(row => row.gpuId === 'NVIDIA H200' && row.hostingType === 'datacenter') && offers.some(row => row.gpuId === 'NVIDIA RTX PRO 6000 Blackwell' && row.hostingType === 'marketplace host') && vast.requests.filter(row => row.path.endsWith('/bundles/')).every(row => !('datacenter' in row.body)))
+    const legacy = new VendorApi('Vast.ai', vast.key, vast.baseUrl, 'https://console.vast.ai/api/v0', [410], {})
+    const retired = await expectFailure(() => legacy.request('/instances/', z.unknown()), /Vast\.ai retired this route \(\/api\/v0\/instances\/ is deprecated\. Use \/api\/v1\/instances\/ instead\.\); Mercury needs an update — nothing was rented by this request/)
+    check('a deliberately retired route names the update and preserves HTTP 410 without claiming existing rentals ended', retired instanceof HostVendorHttpError && retired.status === 410 && retired.message.includes('Check existing instances') && vast.state.creates === 0)
+    const v1 = new VastClient(vast.key, vast.baseUrl.replace('/api/v0', '/api/v1'))
+    check('either official version base selects the route’s explicit version', (await v1.pods()).length === 0 && (await v1.offers(signal())).length > 0 && vast.requests.at(-1)!.path === '/api/v0/bundles/')
+    for (const base of ['https://console.vast.ai/api/v2', 'https://console.vast.ai/api/v1/other', 'http://console.vast.ai/api/v1', 'https://console.vast.ai.evil.invalid/api/v1', 'https://console.vast.ai/api/v1?key=bad', 'https://user:pass@console.vast.ai/api/v1']) assert.throws(() => new VastClient('fixture', base))
+    check('both Vast versions keep the exact origin and API-base allow-list', true)
     await expectFailure(() => v.create(offers[0]!, 'not-a-public-key', 'bad-key'), /OpenSSH public key/)
     check('Vast validates SSH key before any rent request', vast.state.creates === 0)
     const b200 = offers.find(row => row.recipe.id === 'glm53-flash-b200-community')!
@@ -102,7 +112,7 @@ try {
     vast.state.messageOnlyError = false
     check('Vast plain-text 429 and top-level message error bodies preserve detail and redact key', !plainErr.message.includes(vast.key) && !msgErr.message.includes(vast.key))
     await v.terminate(p.id)
-    check('Vast termination is verified with a list read', vast.state.deletes === 2 && !vast.state.pods.size && vast.requests.at(-1)!.path === '/api/v0/instances/')
+    check('Vast termination is verified with a current v1 list read', vast.state.deletes === 2 && !vast.state.pods.size && vast.requests.at(-1)!.path === '/api/v1/instances/')
     check('Vast watch chooses a fitting recipe at the exact price ceiling', (await v.watchOffer(b200.recipe, b200.price))?.recipe.id === b200.recipe.id && await v.watchOffer(b200.recipe, b200.price - 0.0001) === undefined)
     vast.state.noStock = true
     check('Vast no-stock clears stale shapes', (await v.offers(signal())).length === 0 && v.shapes().length === 0)
@@ -175,6 +185,33 @@ try {
     check('Lambda Retry-After delays the next request and strips the key', lambda.requests[rateStart + 1]!.at - lambda.requests[rateStart]!.at >= 1980 && !rateError.message.includes(lambda.key))
   } finally { await Promise.all([vast.close(), lambda.close(), runpod.close()]); resetRecipes() }
 
+  const pages = await vastFixture()
+  try {
+    const client = new VastClient(pages.key, pages.baseUrl, { readyTimeoutMs: 50, pollMs: 1 })
+    for (let id = 1; id <= 60; id++) pages.state.pods.set(id, { id, label: 'paged-' + id, actual_status: 'running', start_date: 1792490400, dph_total: 2, public_ipaddr: '127.0.0.1' })
+    const pods = await client.pods()
+    check('Vast reads every 25-row page in ID order with opaque after_token cursors and no column truncation', pods.length === 60 && pods[0]!.id === '1' && pods.at(-1)!.id === '60' && pages.requests.length === 3 && pages.requests.every(row => row.path === '/api/v1/instances/' && row.query.limit === '25' && row.query.order_by === '[{"col":"id","dir":"asc"}]' && !row.query.select_cols) && !pages.requests[0]!.query.after_token && pages.requests.slice(1).every(row => row.query.after_token))
+    const before = pages.requests.length
+    pages.state.holdTerminate = true
+    await expectFailure(() => client.terminate('60'), /termination is not verified/)
+    check('an instance on the third page prevents a false termination verdict after one DELETE', pages.state.deletes === 1 && pages.state.pods.has(60) && pages.requests.slice(before).filter(row => row.method === 'GET').length >= 3)
+    pages.state.holdTerminate = false
+    await client.terminate('60')
+    check('termination completes only after every current page proves absence', pages.state.deletes === 2 && !pages.state.pods.has(60) && pages.requests.at(-1)!.query.after_token)
+    const first = pages.state.pods.get(1)
+    for (const reply of [
+      { success: true, instances: [first], instances_found: 1, total_instances: 59, next_token: null },
+      { success: true, instances: [first], instances_found: 2, total_instances: 1, next_token: null },
+      { success: true, instances: [first], instances_found: 1, total_instances: 59, next_token: Buffer.from(JSON.stringify({ values: { id: 1 } })).toString('base64') },
+    ]) {
+      pages.state.listResponse = reply
+      await expectFailure(() => client.pods(), /incomplete instance list/)
+      check('Vast rejects incomplete totals, page counts and repeated pages rather than returning a partial list', true)
+    }
+    pages.state.listResponse = { success: false, instances: [], instances_found: 0, total_instances: 0, next_token: null }
+    await expectFailure(() => client.pods(), /unreadable response/)
+    check('a failed v1 envelope is not mistaken for an empty account', true)
+  } finally { await pages.close() }
   override()
   const backoff = await vastFixture()
   try {
