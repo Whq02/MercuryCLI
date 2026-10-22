@@ -63,6 +63,7 @@ function schemaStampOptions(): string[] {
   )
 }
 
+let liveMenuLabel = ''
 async function liveWhereRows(): Promise<string[]> {
   let rows: string[] = []
   const road = createHostRoad({
@@ -73,7 +74,7 @@ async function liveWhereRows(): Promise<string[]> {
   })
   await road(
     async plan => {
-      if (plan.step === 'door-models') return 'other'
+      if (plan.step === 'door-models') { liveMenuLabel = normQuotes(plan.rows?.find(row => row.value === 'other')?.label ?? ''); return 'other' }
       if (plan.step === 'where') {
         rows = (plan.rows ?? []).map(row => normQuotes(row.label))
         return null
@@ -125,7 +126,7 @@ function validateLlmHostDoc(
     /derived on the spot from a Hugging Face repository's file list and `config\.json`/.test(stampByKind.get('unverified') ?? '') &&
     /nobody has booted this exact recipe yet/.test(stampByKind.get('unverified') ?? '')
 
-  const otherBlock = /`Other roads →` menu \(([\s\S]*?)\)\. Each/.exec(doc)?.[1] ?? ''
+  const otherBlock = /`More options →` menu \(([\s\S]*?)\)\. Each/.exec(doc)?.[1] ?? ''
   const docOtherRoads = [...otherBlock.matchAll(/`([^`]+)`/g)].map(m => m[1]!.replace(/\s+/g, ' '))
   const otherRoadsMatch =
     JSON.stringify(docOtherRoads) === JSON.stringify(expectedWhereRows) &&
@@ -265,8 +266,9 @@ section('§1 stamp vocabulary & meanings match hostRecipeSchema')
 check('the documented stamp vocabulary equals hostRecipeSchema verified.by in rank order', res.stampsMatch, `${res.detail.docStamps} vs ${res.detail.expectedStamps}`)
 check('each of the four stamps (measured, documented, community, unverified) states its meaning from the code', res.stampMeaningsMatch)
 
-section('§2 Other roads → entries equal the live where-step rows')
-check('the Other roads → menu list in docs/LLM-HOST.md equals the where-step rows in order and drops Fast-load (keep weights near the GPU)', res.otherRoadsMatch, `${res.detail.docOtherRoads} vs ${res.detail.expectedWhereRows}`)
+section('§2 More options → entries equal the live where-step rows')
+check('every mention of the menu in docs/LLM-HOST.md uses the label the Which-model screen paints (' + liveMenuLabel + ') and the retired Other roads → name is gone', liveMenuLabel.length > 0 && (docText.match(/`More options →`/g) ?? []).length >= 7 && docText.split('`' + liveMenuLabel + '`').length - 1 === (docText.match(/`More options →`/g) ?? []).length && !docText.includes('Other roads'))
+check('the More options → menu list in docs/LLM-HOST.md equals the where-step rows in order and drops Fast-load (keep weights near the GPU)', res.otherRoadsMatch, `${res.detail.docOtherRoads} vs ${res.detail.expectedWhereRows}`)
 
 section('§3 Bank keys & table columns equal BANK_KEYS and fastLoad.ts')
 check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d and their labels)', res.bankKeysMatch, `${res.detail.bankKeyMatches} vs ${res.detail.expectedBankKeys}`)
@@ -290,7 +292,7 @@ check(
   !validateLlmHostDoc(docText.replace('- **`unverified`:**', '- **`draft`:**'), indexText, expectedStamps, expectedWhereRows).stampsMatch,
 )
 check(
-  'poison control: restoring Fast-load (keep weights near the GPU) in Other roads → fails otherRoadsMatch',
+  'poison control: restoring Fast-load (keep weights near the GPU) in More options → fails otherRoadsMatch',
   !validateLlmHostDoc(docText.replace('`Bank · your weights`', '`Fast-load (keep weights near the GPU)`'), indexText, expectedStamps, expectedWhereRows).otherRoadsMatch,
 )
 check(
