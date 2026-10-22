@@ -5,12 +5,14 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import type { CompatLivenessReading } from './compatChatClient.js'
+import { compatModelEndpoint, resolveCompatApiKey } from './compatAccounts.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
   models: string[]
   contextWindows: Record<string, number>
   efforts?: Record<string, string[]>
+  capabilities?: Record<string, { images?: boolean; tools?: boolean; reasoning?: boolean }>
   dialect?: CompatDialect
 }
 
@@ -26,6 +28,41 @@ const llamacppSlotHolders = new Map<string, Map<string, { slot: number; crewmate
 const LLAMACPP_SLOT_HOLDERS_KEPT = 64
 const LLAMACPP_SLOT_PROBE_MS = 5_000
 
+
+type CompatImageReading = { supported: boolean; source: 'projector' | 'model' }
+const serverImages = new Map<string, { projector?: boolean; models: NonNullable<CompatServerReading['capabilities']> }>()
+
+function rememberProjector(endpoint: CompatEndpointSettings & { baseUrl: string }, body: Record<string, any> | undefined): boolean | undefined {
+  const key = compatServerBase(endpoint.baseUrl)
+  const vision = body?.modalities?.vision
+  const projector = typeof vision === 'boolean' ? vision : undefined
+  serverImages.set(key, { models: {}, ...(projector !== undefined ? { projector } : {}) })
+  return projector
+}
+
+export function compatModelImageReading(model: string): CompatImageReading | undefined {
+  const resolved = compatModelEndpoint(model)
+  if (!resolved) return undefined
+  const reading = serverImages.get(compatServerBase(resolved.endpoint.baseUrl))
+  if (resolved.endpoint.dialect === 'llamacpp' && reading?.projector !== undefined) return { supported: reading.projector, source: 'projector' }
+  const supported = reading?.models[resolved.wireId]?.images
+  return supported === undefined ? undefined : { supported, source: 'model' }
+}
+
+export async function refreshCompatModelImageReading(model: string, signal?: AbortSignal): Promise<void> {
+  const resolved = compatModelEndpoint(model)
+  if (resolved?.endpoint.dialect !== 'llamacpp') return
+  invalidateLlamacppTotalSlots(resolved.endpoint)
+  await resolveLlamacppTotalSlots(resolved.endpoint, { key: resolveCompatApiKey(process.env, resolved.endpoint.name)?.key, signal })
+}
+
+export function compatImageRefusalWords(model: string, error?: string): string | null {
+  const reading = compatModelImageReading(model)
+  if ((reading?.source === 'projector' && !reading.supported) || (compatModelEndpoint(model)?.endpoint.dialect === 'llamacpp' && /mmproj|vision projector/i.test(error ?? ''))) {
+    return `this server runs ${model} without its vision projector — rent it again with the recipe that carries one (/llmhost), or start the server with --mmproj`
+  }
+  return reading?.supported === false ? `this model receives text only on this server: ${model} — /model picks one that receives images` : null
+}
 function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): string {
   return `${endpoint.name ?? 'default'}:${compatServerBase(endpoint.baseUrl)}`
 }
@@ -75,6 +112,7 @@ export function assignLlamacppSlot(
 }
 
 export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
+  try { serverImages.delete(compatServerBase(endpoint.baseUrl)) } catch {}
   try { llamacppSlotsCache.delete(llamacppEndpointKey(endpoint)) } catch {}
 }
 
@@ -107,11 +145,13 @@ export async function resolveLlamacppTotalSlots(
         signal,
         redirect: 'error',
       } as RequestInit)
+      rememberProjector(endpoint, undefined)
       if (!response.ok) {
         await response.body?.cancel()
         return undefined
       }
       const body = record(await readJson(response))
+      rememberProjector(endpoint, body)
       const totalSlots = windowTokens(body?.total_slots)
       if (totalSlots !== undefined) llamacppSlotsCache.set(cacheKey, totalSlots)
       return totalSlots
@@ -291,10 +331,13 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     const models = [...new Set(rows.map(row => record(row)!.id.trim() as string))]
     const contextWindows: Record<string, number> = Object.create(null)
     const efforts: Record<string, string[]> = Object.create(null)
+    const capabilities: NonNullable<CompatServerReading['capabilities']> = Object.create(null)
     for (const value of rows) {
       const row = record(value)!
       const tokens = windowTokens(row.max_model_len) ?? windowTokens(row.context_length)
       if (tokens) contextWindows[row.id.trim()] = tokens
+      const modalities = record(row.architecture)?.input_modalities ?? row.input_modalities
+      if (Array.isArray(modalities) && modalities.length > 0 && modalities.every(value => typeof value === 'string')) capabilities[row.id.trim()] = { images: modalities.includes('image') }
     }
     const [sglang, llama, ollama] = await Promise.all([
       opts.detect || endpoint.dialect === 'sglang' ? optional('/get_model_info') : undefined,
@@ -312,6 +355,8 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       if (tokens) for (const id of models) if (models.length === 1 || id === sglang?.model_path || id === sglang?.served_model_name) contextWindows[id] = tokens
     }
     if (dialect === 'llamacpp') {
+      const vision = rememberProjector(endpoint, llama)
+      if (models.length === 1 && vision !== undefined) capabilities[models[0]!] = { ...capabilities[models[0]!], images: vision }
       const slots = windowTokens(llama?.total_slots)
       if (slots !== undefined) llamacppSlotsCache.set(llamacppEndpointKey(endpoint), slots)
       if (models.length === 1) {
@@ -334,7 +379,8 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       }
     }
     if (signal.aborted) throw new Error('Server discovery cancelled or timed out.')
-    return { models, contextWindows, efforts, ...(detected ? { dialect: detected } : {}) }
+    serverImages.set(base, { ...(dialect === 'llamacpp' ? serverImages.get(base) : {}), models: capabilities })
+    return { models, contextWindows, efforts, capabilities, ...(detected ? { dialect: detected } : {}) }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     throw new CompatProbeError(opts.key ? detail.split(opts.key).join('[redacted]') : detail, error instanceof CompatProbeError ? error.status : undefined)

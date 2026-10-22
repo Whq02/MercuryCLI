@@ -104,6 +104,7 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
       const parts = /-00001-of-(\d+)\.gguf$/.exec(first)
       if (!parts || !existsSync(first)) throw new Error('The bank folder must contain the selected GGUF quant and all its shards.')
       for (let part = 1; part <= Number(parts[1]); part++) if (!existsSync(first.replace('-00001-of-', '-' + String(part).padStart(5, '0') + '-of-'))) throw new Error('A GGUF shard is missing from the bank folder.')
+      if (recipe.mmproj && (!existsSync(join(local, recipe.mmproj)) || statSync(join(local, recipe.mmproj)).size === 0)) throw new Error('The bank folder is missing the vision projector: ' + recipe.mmproj)
     } else {
       const config = JSON.parse(readFileSync(join(local, 'config.json'), 'utf8')) as { _name_or_path?: string }
       if (config._name_or_path?.includes('/') && config._name_or_path !== recipe.model) throw new Error('The bank config names another model: ' + config._name_or_path)
@@ -124,9 +125,9 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
     ? ['--nnodes', String(cluster.nodes), '--node-rank', String(cluster.rank), '--master-addr', cluster.head, ...(cluster.rank > 0 ? ['--headless'] : [])]
     : ['--nnodes', String(cluster.nodes), '--node-rank', String(cluster.rank), '--dist-init-addr', cluster.head + ':20000'] : []
   const engine = (recipe.engine === 'llamacpp'
-    ? [prebuilt ? 'llama-server' : '/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', (keptWeights ?? dir + '/weights') + '/' + recipe.weightFile, '--alias', recipe.model + ':' + posix.dirname(recipe.weightFile!), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
+    ? [prebuilt ? 'llama-server' : '/workspace/mercury-host/llama.cpp/build/bin/llama-server', '--model', (keptWeights ?? dir + '/weights') + '/' + recipe.weightFile, ...(recipe.mmproj ? ['--mmproj', (keptWeights ?? dir + '/weights') + '/' + recipe.mmproj] : []), '--alias', recipe.model + ':' + posix.dirname(recipe.weightFile!), ...recipe.flags, '--host', '127.0.0.1', '--port', '30000']
     : [...(recipe.engine === 'vllm' ? ['vllm', 'serve', model] : ['sglang', 'serve', '--model-path', model]), ...(localWeights ? ['--served-model-name', recipe.model] : []), ...recipe.flags, ...distributed, '--host', '127.0.0.1', '--port', '30000']).map(quote).join(' ')
-  const download = keptWeights ? "echo 'MERCURY_STEP weights kept · verified · download skipped'" : bank ? 'true' : recipe.engine === 'llamacpp' ? (prebuilt ? 'hf download ' : '/workspace/mercury-host/hf/bin/hf download ') + quote(recipe.model) + ' --include ' + quote(recipe.include!) + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model) + (localWeights ? ' --local-dir ' + quote(dir + '/weights') : '')
+  const download = keptWeights ? "echo 'MERCURY_STEP weights kept · verified · download skipped'" : bank ? 'true' : recipe.engine === 'llamacpp' ? (prebuilt ? 'hf download ' : '/workspace/mercury-host/hf/bin/hf download ') + quote(recipe.model) + ' --include ' + [recipe.include!, ...(recipe.mmproj ? [recipe.mmproj] : [])].map(quote).join(' ') + ' --local-dir ' + quote(dir + '/weights') : 'hf download ' + quote(recipe.model) + (localWeights ? ' --local-dir ' + quote(dir + '/weights') : '')
   const guardedDownload = bank || keptWeights ? download : 'python3 -c ' + quote(hostDownloadScript(download, dir + '/weights', recipe))
   const install = prebuilt ? undefined : recipe.install?.replace(' && cmake ', " && echo 'MERCURY_STEP building llama.cpp' && cmake ")
   const imagePath = pod ? 'if test -r /proc/1/environ; then image_path="$(tr \'\\0\' \'\\n\' < /proc/1/environ | sed -n \'s/^PATH=//p\')"; if test -n "$image_path"; then export PATH="$image_path:$PATH"; fi; fi\n' : ''

@@ -217,7 +217,7 @@ export function foldRowWords(status: FoldStatusV1, nowMs: number): { head: strin
       : status.stage === null
         ? null
         : `${FOLD_STAGE_WORDS[status.stage]}${status.attempt > 1 ? ` · retry ${status.attempt}` : ''}`
-  const tokens = status.exit === undefined && status.stage === 'summarising' && status.summaryTokens > 0 ? `↓ ${formatTokens(status.summaryTokens)} tokens` : null
+  const tokens = status.exit === undefined && status.stage === 'summarising' ? status.summaryTokens > 0 ? `↓ ${formatTokens(status.summaryTokens)} tokens` : 'waiting for the first token' : null
   const bar = foldBarText(foldBarCells(status))
   const elapsed = formatDuration(foldElapsedMs(status, nowMs), { mostSignificantOnly: true })
   const line = [head, stage, tokens, bar, elapsed].filter((part): part is string => part !== null).join(' · ')

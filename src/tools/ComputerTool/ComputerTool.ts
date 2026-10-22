@@ -4,9 +4,11 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolEffect, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
+import { compatImageRefusalWords, compatModelImageReading, refreshCompatModelImageReading } from '../../services/providers/openaicompat/compatProbe.js'
 import { getEngineModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
 import { sleep } from '../../utils/sleep.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -170,6 +172,7 @@ const baseSchema = lazySchema(() =>
 export type Input = z.infer<ReturnType<typeof baseSchema>> & { steps?: Input[] }
 type SchemaType = z.ZodType<Input>
 const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
+const modelInputSchema = lazySchema(() => baseSchema().extend({ steps: z.array(baseSchema()).optional().describe('Sequence actions; no nesting') }))
 
 export type Output = {
   action: Input['action']
@@ -774,9 +777,16 @@ function imageRefusalText(model: string, route: string | null, error: string): s
   return `the model on the ${where} route refused the image: ${error} — ${model} cannot drive the screen until the route carries images; switch to a model that receives images (/model)`
 }
 
-async function routeRefusal(model: string): Promise<string | null> {
+async function routeRefusal(model: string, signal?: AbortSignal): Promise<string | null> {
   const verdict = classifyModelRoute(model)
   const route = verdict.kind === 'route' ? verdict.route : null
+  if (route === 'openai-compat') {
+    await refreshCompatModelImageReading(model, signal)
+    const reading = compatModelImageReading(model)
+    if (reading?.supported === true) return null
+    const serverRefusal = compatImageRefusalWords(model, imageRefusedFor(normalizeModelStringForAPI(model)) ?? undefined)
+    if (serverRefusal !== null) return `the Computer tool needs a model that receives images; ${serverRefusal}`
+  }
   if (!modelReceivesImageBlocks(model)) return textOnlyRefusal(model, route)
   if (route === 'openai') {
     const { imagesSupportedForModel } = await import('../../services/providers/openai/openaiCallModel.js')
@@ -849,6 +859,9 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
   get inputSchema(): SchemaType {
     return inputSchema()
   },
+  get inputJSONSchema() {
+    return zodToJsonSchema(modelInputSchema()) as never
+  },
   isEnabled() {
     return computerToolEnabled()
   },
@@ -871,7 +884,7 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
     const posture = desktopPostureRefusal(context)
     if (posture !== null && context.agentId) return refuse(posture)
     const model = context?.options?.engineModel ?? getEngineModel()
-    const route = await routeRefusal(model)
+    const route = await routeRefusal(model, context.abortController?.signal)
     if (route !== null) return refuse(route)
     const resolution = resolveDesktopDriver()
     if (resolution.state === 'unavailable') {

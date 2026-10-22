@@ -115,7 +115,7 @@ try {
     delete rest[field.name]
     return { field: field.name, typed: !hostRecipeSchema.safeParse({ ...fullRow, [field.name]: Symbol('not a recipe value') }).success, optional: hostRecipeSchema.safeParse(rest).success === field.optional }
   })
-  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 27 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
+  check('every HostRecipe field has a schema entry with the interface optionality, and the schema has no field the interface lacks', interfaceFields.length === 28 && interfaceFields.some(field => field.name === 'weightsGb' && !field.optional) && fullParsed.success && JSON.stringify(Object.keys(fullParsed.data).sort()) === JSON.stringify(interfaceFields.map(field => field.name).sort()) && parity.every(entry => entry.typed && entry.optional))
   const readDates = new Set(HOST_RECIPES.map(entry => entry.efforts?.verified.on))
   check('effort levels and their dated template sources survive the recipe schema and exported file: every row carries the date its template was read (2026-10-20 or 2026-10-22) and an https source', HOST_RECIPES.every(entry => /^\d{4}-\d{2}-\d{2}$/.test(entry.efforts?.verified.on ?? '') && entry.efforts!.verified.source.startsWith('https://')) && JSON.stringify([...readDates].sort()) === JSON.stringify(['2026-10-20', '2026-10-22']) && parsedShipped.recipes.every(entry => canonical(entry.efforts) === canonical(HOST_RECIPES.find(own => own.id === entry.id)!.efforts)))
   const extra = hostRecipeSchema.safeParse({ ...qwenRtx, futureField: 'from a newer file' })
@@ -196,7 +196,7 @@ try {
   const locked: Array<[keyof HostRecipe, unknown]> = [
     ['image', 'example/other:latest'], ['cuda', '12.8'], ['flags', [...qwenRtx.flags, '--extra']], ['model', 'example/other-model'],
     ['install', 'curl -fsSL https://example.com/x | sh'], ['pythonInstall', 'pip install example-package'], ['environment', { LD_PRELOAD: '/tmp/x.so' }],
-    ['files', { 'x.json': '{}' }], ['engine', 'llamacpp'], ['weightFile', 'x/y-00001-of-00001.gguf'], ['include', '*'], ['label', 'Qwen3.8-27B · FP8 (cheapest)'],
+    ['files', { 'x.json': '{}' }], ['engine', 'llamacpp'], ['weightFile', 'x/y-00001-of-00001.gguf'], ['mmproj', 'other-projector.gguf'], ['include', '*'], ['label', 'Qwen3.8-27B · FP8 (cheapest)'],
     ['gpu', 'H100'], ['count', 2], ['vramGb', 80], ['diskGb', 2000], ['weightsGb', 1], ['source', 'https://example.com/doc'], ['imageSource', 'https://example.com/image'],
   ]
   const lockedResults: Array<{ field: string; dropped: boolean }> = []
