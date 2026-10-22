@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { clearAuthScope, getAuthConfigHomeDir, getAuthScope, setAuthScope } from '../../utils/envUtils.js'
 import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { readHostCredential, removeHostCredential, writeHostCredential } from '../providers/providerSecrets.js'
+import { configuredProviderKeyCommand } from '../providers/providerKeyCommand.js'
 
 export type HostHuggingfaceCredential = { home: string; source: 'stored' } | { home: string; source: 'captured'; id: string; job: string }
 type CredentialRecord = { id: string; huggingfaceCredential?: HostHuggingfaceCredential }
@@ -29,7 +30,7 @@ export function captureHostHuggingfaceCredential(record: CredentialRecord): Host
   const credential = reference ? hostHuggingfaceCredential(record) : resolveHuggingfaceApiKey()
   if (!credential) return
   const home = reference?.home ?? getAuthConfigHomeDir()
-  if (!reference && 'source' in credential && credential.source !== 'env') return { home, source: 'stored' }
+  if (!reference && 'source' in credential && credential.source !== 'env' && !(credential.source === 'stored' && configuredProviderKeyCommand('huggingface'))) return { home, source: 'stored' }
   const id = randomUUID()
   writeHostCredential(home, id, credential.key)
   return { home, source: 'captured', id, job: record.id }

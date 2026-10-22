@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-watch: src/utils/envUtils.ts src/services/providers/huggingface/huggingfaceAccounts.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/input-core/command-queue.ts src/utils/messages/noticeRows.ts
 # gate-watch: src/services/host/** src/commands/llmhost/** src/services/llmHost/** src/components/LlmHostDialog.tsx
 # gate-watch: src/services/providers/providerSecrets.ts src/services/providers/openaicompat/** docs/LLM-HOST.md
@@ -27,6 +28,7 @@ bun "$ROOT/scripts/host/prove-boundary-worker.ts"
 bun "$ROOT/scripts/host/prove-boundary-manifest.ts"
 bun "$ROOT/scripts/host/prove-boundary-credentials.ts"
 bun "$ROOT/scripts/host/prove-boundary-watch-recipes.ts"
+bun "$ROOT/scripts/host/prove-boundary-notices.ts"
 bun "$ROOT/scripts/host/prove-host-cleanup.ts"
 bun "$ROOT/scripts/host/prove-host-words-truth.ts"
 bun "$ROOT/scripts/host/prove-pod-image-path.ts"

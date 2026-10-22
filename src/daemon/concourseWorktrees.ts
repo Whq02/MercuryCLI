@@ -132,6 +132,15 @@ export async function ensureWorkerWorktree(
   dir?: string,
   opts?: { branchName?: string },
 ): Promise<WorktreeEnsureResult> {
+  const prepared = async (result: Extract<WorktreeEnsureResult, { ok: true }>): Promise<WorktreeEnsureResult> => {
+    try {
+      const { prepareWorktreeFiles } = await import('../utils/worktree.js')
+      await prepareWorktreeFiles(workspaceId, result.path, workspaceId, true)
+      return result
+    } catch (error) {
+      return { ok: false, code: 'worktree-create-failed', error: 'The worktree files could not be prepared: ' + String(error) }
+    }
+  }
   if (workspaceKindOf(workspaceId) === 'plain-folder') {
     const refusal = gitInitRefusal(workspaceId)
     if (refusal !== null) {
@@ -171,12 +180,12 @@ export async function ensureWorkerWorktree(
       const onBranch = head.ok && head.stdout.trim() !== 'HEAD' ? head.stdout.trim() : undefined
       const branchMatches = opts?.branchName === undefined || onBranch === opts.branchName
       if (belongsHere && branchMatches) {
-        return {
+        return prepared({
           ok: true,
           path: candidate,
           created: false,
           ...(onBranch !== undefined ? { branchName: onBranch } : {}),
-        }
+        })
       }
       continue
     }
@@ -232,11 +241,11 @@ export async function ensureWorkerWorktree(
       git(workspaceId, 'rev-parse', '--verify', '--quiet', `refs/heads/${name}`).ok
     const name = ladder.find(candidate => !branchTaken(candidate)) ?? `${opts.branchName}-${Date.now().toString(36)}`
     const add = await gitAsync(workspaceId, 'worktree', 'add', '-b', name, path, base)
-    if (add.ok) return { ok: true, path, created: true, branchName: name, base }
+    if (add.ok) return prepared({ ok: true, path, created: true, branchName: name, base })
     await gitAsync(workspaceId, 'worktree', 'prune')
     const retryName = /already exists/i.test(add.stderr) ? `${opts.branchName}-${Date.now().toString(36)}` : name
     const retry = await gitAsync(workspaceId, 'worktree', 'add', '-b', retryName, path, base)
-    if (retry.ok) return { ok: true, path, created: true, branchName: retryName, base }
+    if (retry.ok) return prepared({ ok: true, path, created: true, branchName: retryName, base })
     return {
       ok: false,
       code: 'worktree-create-failed',
@@ -251,7 +260,7 @@ export async function ensureWorkerWorktree(
       return { ok: false, code: 'worktree-create-failed', error: `git worktree add failed: ${retry.stderr || add.stderr}` }
     }
   }
-  return { ok: true, path, created: true }
+  return prepared({ ok: true, path, created: true })
 }
 
 export const FORK_BASE_COMMIT_SUBJECT = 'mercury: base commit — forking unlocked'

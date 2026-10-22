@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { constants } from 'node:fs'
 import { copyFile, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -271,7 +272,7 @@ async function createOrResumeWorktreeNow(
 }
 
 
-async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string): Promise<string[]> {
+async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, preserveExisting = false): Promise<string[]> {
   let patternText: string
   try {
     patternText = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
@@ -331,9 +332,10 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string):
     try {
       const target = join(worktreePath, relativePath)
       await mkdir(dirname(target), { recursive: true })
-      await copyFile(join(repoRoot, relativePath), target)
+      await copyFile(join(repoRoot, relativePath), target, preserveExisting ? constants.COPYFILE_EXCL : 0)
       copied.push(relativePath)
     } catch (error) {
+      if (preserveExisting && (error as NodeJS.ErrnoException).code === 'EEXIST') continue
       logForDebugging(`worktreeinclude copy failed for ${relativePath}: ${String(error)}`, {
         level: 'warn' as never,
       })
@@ -437,17 +439,29 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false): Promise<void> {
   try {
     const relativeSettingsPath = getRelativeSettingsFilePathForSource('localSettings')
     const target = join(worktreePath, relativeSettingsPath)
     await mkdir(dirname(target), { recursive: true })
-    await copyFile(join(repoRoot, relativeSettingsPath), target)
+    await copyFile(join(repoRoot, relativeSettingsPath), target, preserveExisting ? constants.COPYFILE_EXCL : 0)
   } catch (error) {
-    if ((error as { code?: string }).code !== 'ENOENT') {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && !(preserveExisting && code === 'EEXIST')) {
+      if (preserveExisting) throw new Error('The worktree local settings could not be copied: ' + String(error))
       logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' as never })
     }
   }
+  const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
+  const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
+  const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
+  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
+  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
+  await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
+}
+
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
+  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom)
 
   try {
     let hooksPath: string | null = null
@@ -474,14 +488,6 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
   } catch (error) {
     logForDebugging(`worktree hooks-path setup failed: ${String(error)}`)
   }
-
-  const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
-  const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
-  const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
-  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
-  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
-
-  await copyWorktreeIncludeFiles(repoRoot, worktreePath)
 
   return runWorktreePrepareCommand(worktreePath)
 }
