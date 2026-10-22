@@ -111,7 +111,7 @@ export class RunpodClient {
       const page = z.object({ pods: z.array(podSchema), pagination: z.object({ hasNextPage: z.boolean(), nextCursor: z.string().nullable() }).optional() }).parse(await response.json())
       pods.push(...page.pods)
       cursor = page.pagination?.hasNextPage ? page.pagination.nextCursor ?? undefined : undefined
-      if (cursor && seen.has(cursor)) throw new Error('Runpod repeated its pod-list cursor. The paid-pods list is incomplete.')
+      if (page.pagination?.hasNextPage && !cursor || cursor && seen.has(cursor)) throw new Error('Runpod returned an invalid pod-list cursor. The paid-pods list is incomplete.')
       if (cursor) seen.add(cursor)
     } while (cursor)
     return pods
