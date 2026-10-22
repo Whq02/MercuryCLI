@@ -44,9 +44,9 @@ const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProject
 const { compareProofAssertions } = await import('../../src/services/vulcan/engine/proofDrift.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 
-const godot = process.env.GODOT_BIN ?? (await resolveGodotExecutable({ census: [] })).resolved
+const godotReadiness = await (await import('./proofGodot.ts')).resolveProofGodot()
+const godot = godotReadiness.resolved
 const request = (suites: string[], tree: unknown = 'HEAD') => ({
   suites, tree: parseEngineTreeSpec(tree), native: false, capture: false, priority: 'lane-gate',
   budgetMs: null, displayShared: false, keepTree: false, label: null,
@@ -257,7 +257,7 @@ const multiline = compareProofAssertions('tests/probe.test.ts', 'expect(\n value
 check('a weakened multiline expectation is named', multiline.some(row => row.kind === 'assertion-weakened' && row.line === 1), multiline)
 
 if (!godot) {
-  console.log('SKIP: no Godot executable; live instance and compile-gate checks were not run')
+  console.log(`[SKIP] live instance and compile-gate checks: ${godotReadiness.reason}`)
 } else {
   console.log(`Godot: ${execFileSync(godot, ['--version'], { encoding: 'utf8' }).trim()}`)
   const driftRoot = project('drift')

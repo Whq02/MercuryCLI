@@ -14,7 +14,6 @@ const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
 const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
 const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 
@@ -173,10 +172,10 @@ try {
 }
 check('every proof-owned fake engine is gone', liveEngines().length === 0)
 
-const executable = process.env.GODOT_BIN ? { resolved: process.env.GODOT_BIN } : await resolveGodotExecutable({ census: [] })
+const executable = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!executable.resolved) {
-  console.log('SKIP real engine scene tree: no Godot executable is available')
-  evidence.push({ label: 'real engine', value: 'SKIP: no Godot executable' })
+  console.log(`[SKIP] real engine scene tree: ${executable.reason}`)
+  evidence.push({ label: 'real engine', value: `SKIP: ${executable.reason}` })
 } else {
   const real = project('real')
   const realService = EngineJobService.for(real, { workers: 1, executable: executable.resolved })

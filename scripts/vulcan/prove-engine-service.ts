@@ -22,7 +22,6 @@ const serviceMod = await import(join(ROOT, 'src/services/vulcan/engine/service.t
 const opsMod = await import(join(ROOT, 'src/services/vulcan/engine/ops.ts'))
 const pathsMod = await import(join(ROOT, 'src/services/vulcan/engine/paths.ts'))
 const censusMod = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const healthMod = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const groupMod = await import(join(ROOT, 'src/utils/processGroup.ts'))
 const coresMod = await import(join(ROOT, 'src/utils/availableCores.ts'))
 
@@ -159,10 +158,9 @@ section('4. tree specs, the user directory per platform, the tree kill and the c
 }
 
 section('5. the live legs — the real engine on the fixture project')
-const godotEnv = process.env.GODOT_BIN
-const receipt = godotEnv ? { resolved: godotEnv } : await healthMod.resolveGodotExecutable({ census: [] })
+const receipt = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!receipt.resolved) {
-  console.log('  SKIP — no godot binary on PATH (set GODOT_BIN=…); the live legs need Godot 4')
+  console.log(`[SKIP] live engine service: ${receipt.reason}`)
 } else {
   const godot: string = receipt.resolved
   const scratch = mkdtempSync(join(tmpdir(), 'engine-service-'))

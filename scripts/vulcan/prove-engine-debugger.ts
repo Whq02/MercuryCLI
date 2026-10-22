@@ -23,7 +23,6 @@ const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/f
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
 const { godotEngineCli, parseGodotCliArgs } = await import('../../src/cli/godotEngineCli.js')
 const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
@@ -106,10 +105,10 @@ async function portIsFree(port: number): Promise<boolean> {
   finally { if (server.listening) await new Promise<void>(resolve => server.close(() => resolve())) }
 }
 check('refused connections release their listener', await portIsFree(wrongVersion.transport.port))
-const executable = process.env.GODOT_BIN ? { resolved: process.env.GODOT_BIN } : await resolveGodotExecutable({ census: [] })
+const executable = await (await import('./proofGodot.ts')).resolveProofGodot()
 if (!executable.resolved) {
-  console.log('SKIP real engine debugger profiles: no Godot executable is available')
-  evidence.push({ label: 'real engine', value: 'SKIP: no Godot executable' })
+  console.log(`[SKIP] real engine debugger profiles: ${executable.reason}`)
+  evidence.push({ label: 'real engine', value: `SKIP: ${executable.reason}` })
 } else {
   const project = join(scratch, 'game')
   cpSync(join(import.meta.dir, 'fixtures/engine-service'), project, { recursive: true })
