@@ -13,7 +13,7 @@ import { assignLlamacppSlot, invalidateLlamacppTotalSlots, readSelfHostedLivenes
 import { readCompatPrefillSpeed } from './compatPrefill.js'
 import { buildHostedExtras, buildMoonshotExtras } from './compatWire.js'
 import { compatModelEfforts } from './compatEffort.js'
-import { cachedCompatCatalogue } from './compatCatalogue.js'
+import { cachedCompatCatalogue, refreshCompatCatalogues } from './compatCatalogue.js'
 import { compatToolSupportRefusal } from './compatRefusals.js'
 import { isKimiK3WireModel } from './kimiReplay.js'
 import {
@@ -63,6 +63,7 @@ export function compatSlotLiveProofState(): { at: number; model: string } | null
 }
 
 export async function* compatCallModel(params: CallModelParams): CallModelStream {
+  if (params.signal.aborted) return
   let resolved: ReturnType<typeof compatModelEndpoint>
   try { resolved = compatModelEndpoint(params.options.model) } catch (error) {
     yield createAssistantAPIErrorMessage({ content: String(error instanceof Error ? error.message : error), error: 'invalid_request' })
@@ -78,6 +79,8 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     return
   }
   const { endpoint, wireId } = resolved
+  await refreshCompatCatalogues({ name: endpoint.name, signal: params.signal })
+  if (params.signal.aborted) return
   const dialect = endpoint.dialect ?? 'chat-completions'
   const preservedReasoning = dialect === 'vllm' || dialect === 'sglang' || dialect === 'llamacpp' || ['kimi-k3', 'moonshotai/kimi-k3'].includes(wireId.toLowerCase())
   let observation: ReturnType<typeof captureSignInRequest>
