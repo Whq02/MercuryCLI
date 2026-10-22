@@ -1067,6 +1067,7 @@ export async function* runAgent(
       ...(launchedAt !== undefined ? { launchedAt } : {}),
       model: resolvedAgentModel,
       thinkingConfig: thinkingOverride.thinkingConfig,
+      ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
       ...(effortOverride !== undefined && { effortOverride }),
       ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}),
       ...(instructionCapture
