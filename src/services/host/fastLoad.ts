@@ -7,6 +7,7 @@ import type { HostRecipe } from './recipes.js'
 import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
 import { ensureHostKey, type HostRunner } from './ssh.js'
 import { activeHostBanks, bankJobModel, queueHostBank, queueHostSetup, requireHostJobOwner } from './jobs.js'
+import { hostJobReadOnly } from './retry.js'
 import { hostRecords, removeHostRecord, type HostRecord } from './store.js'
 import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bankedHostRecipes, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
@@ -40,14 +41,16 @@ export const volumeFitsOffer = (offer: HostOffer): boolean => {
   const volume = keptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
   return !volume || volume.kind === 'global' || !offer.dataCenter || volume.dataCenter === offer.dataCenter
 }
-export async function volumeDeleteDoor(api: RunpodClient, id: string, ask: Ask, signal: AbortSignal): Promise<LlmHostResult> {
+export async function volumeDeleteDoor(api: RunpodClient, id: string, ask: Ask, signal: AbortSignal, emit?: Emit, timeoutMs = 4 * 60_000): Promise<LlmHostResult> {
   await reconcileVolumes(api, signal)
   const record = readKeptVolume(id)
   if (!record) return { ok: true, words: 'Created outside Mercury · read-only. Manage this disk in Runpod.' }
   if (record.state === 'gone') return { ok: true, words: 'The disk is gone. The next rental downloads the weights again.' }
   const choice = await ask({ step: 'volume-delete', title: 'Delete weights disk?', found: id + ' · ' + volumePrice(record), willRun: 'The weights are gone after deletion; the next rental downloads them again.', rows: [{ value: 'delete', label: 'Confirm Delete weights disk' }, { value: 'cancel', label: 'Cancel' }] })
   if (choice !== 'delete' || signal.aborted) return cancelled()
-  try { await deleteKeptVolume(api, id) } catch (error) { return { ok: false, words: error instanceof Error ? error.message : String(error) } }
+  const confirming = hostJobReadOnly({ label: 'Runpod', pauseMs: 1000, timeoutMs, signal, mark: words => emit?.({ title: 'Delete weights disk', words: id + ' · ' + words }) })
+  emit?.({ title: 'Delete weights disk', words: id + ' · deleting · waiting for Runpod to drop it from the volume list' })
+  try { await deleteKeptVolume(api, id, confirming) } catch (error) { return { ok: false, words: error instanceof Error ? error.message : String(error) } }
   return { ok: true, words: 'Weights disk deleted · next rental downloads the weights again.' }
 }
 export function keptDiskForPod(pod: HostPod, record?: HostRecord): string | undefined {
@@ -94,7 +97,7 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
       if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, recipe, existing, offer, options, signal, true)
       return
     }
-    if (action === 'delete') { const result = await volumeDeleteDoor(api, existing.id, ask, signal); emit({ title: FAST_LOAD_DOOR, words: result.words }) }
+    if (action === 'delete') { const result = await volumeDeleteDoor(api, existing.id, ask, signal, emit); emit({ title: FAST_LOAD_DOOR, words: result.words }) }
     if (!action) return cancelled()
     return
   }
@@ -180,7 +183,7 @@ export async function bankAction(recipe: HostRecipe, action: BankActionKind, fol
   if (action === 'drop') {
     const volume = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
     if (!volume) { emit({ title: modelTitle(recipe), words: 'No fast-load volume for this model · the bank stays as it is' }); return }
-    const result = await volumeDeleteDoor(client, volume.id, ask, signal)
+    const result = await volumeDeleteDoor(client, volume.id, ask, signal, emit)
     emit({ title: modelTitle(recipe), words: result.words + ' · the bank on your drive is untouched' })
     return
   }

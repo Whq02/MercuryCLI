@@ -9,6 +9,7 @@ import type { HostRecipe } from './recipes.js'
 import { hostRecipeSchema } from './recipesFile.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { createRefusal, RunpodHttpError, type HostPod, type RunpodClient, type HostVolume } from './runpod.js'
+import type { HostReadOnly } from './retry.js'
 
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
@@ -86,7 +87,7 @@ export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, ki
   if (!(await acquirePidLock(lock, owner, { liveness: 'assume-alive' })).held) throw new Error('Another fast-load creation is in progress for this model. Refresh the catalogue; do not create another disk.')
   try { return await createKeptVolumeLocked(api, recipe, kind, dataCenter, signal) } finally { noteLockRelease('fast-load creation', await releasePidLock(lock, owner)) }
 }
-export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<void> {
+export async function deleteKeptVolume(api: RunpodClient, id: string, readOnly?: HostReadOnly): Promise<void> {
   const record = readKeptVolume(id)
   if (!record || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
   try { await api.deleteVolume(record.kind, id) } catch (error) {
@@ -96,7 +97,9 @@ export async function deleteKeptVolume(api: RunpodClient, id: string): Promise<v
     }
     if (!(error instanceof RunpodHttpError && error.status === 404)) throw new Error('Runpod gave no clear answer to deleting ' + id + '; it may still exist and bill ' + keptDiskPrice(record) + '. Refresh Pods I’m paying for before trying again. ' + String(error))
   }
-  if ((await api.volumes()).some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
+  let listed: HostVolume[]
+  try { listed = await (readOnly ? readOnly('volume listing', signal => api.volumes(signal)) : api.volumes()) } catch (error) { throw new Error('Deletion of ' + id + ' was sent, but Runpod did not confirm the disk is gone: ' + (error instanceof Error ? error.message : String(error)) + ' · it may still bill ' + keptDiskPrice(record) + ' · refresh Pods I’m paying for before trying again.') }
+  if (listed.some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }
 export function fastLoadEstimate(recipe: HostRecipe, volume?: KeptVolume): string {
