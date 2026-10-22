@@ -30,6 +30,15 @@ export function pixelOnScreen(map: ScreenMap, pixel: { x: number; y: number }): 
   return pixel.x >= 0 && pixel.y >= 0 && pixel.x < map.imageWidth && pixel.y < map.imageHeight
 }
 
+export function boundsOfPixels(map: ScreenMap, region: { x: number; y: number; width: number; height: number }) {
+  return {
+    x: map.originX + region.x * map.pointWidth / map.imageWidth,
+    y: map.originY + region.y * map.pointHeight / map.imageHeight,
+    width: region.width * map.pointWidth / map.imageWidth,
+    height: region.height * map.pointHeight / map.imageHeight,
+  }
+}
+
 export function screenMapOfCapture(
   toolUseId: string,
   capture: Pick<DesktopCapture, 'display' | 'displayId' | 'originX' | 'originY' | 'capturedAt'>,

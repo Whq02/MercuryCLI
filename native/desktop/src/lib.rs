@@ -300,6 +300,7 @@ pub fn displays() -> DisplaysAnswer {
 
 pub struct CaptureTask {
     display: DisplayRecord,
+    region: Option<BoundsRecord>,
 }
 
 pub struct CaptureOutput {
@@ -314,13 +315,21 @@ impl Task for CaptureTask {
     type JsValue = CaptureAnswer;
 
     fn compute(&mut self) -> Result<CaptureOutput> {
-        let (width, height, rgba) = imp::capture(&self.display).map_err(reason)?;
+        #[cfg(target_os = "macos")]
+        let captured = match &self.region {
+            Some(bounds) => imp::capture_region(&self.display, bounds),
+            None => imp::capture(&self.display),
+        };
+        #[cfg(not(target_os = "macos"))]
+        let captured = imp::capture(&self.display);
+        let (width, height, rgba) = captured.map_err(reason)?;
         let png = png::encode_rgba(width, height, &rgba).map_err(reason)?;
         Ok(CaptureOutput { png, width, height, captured_at: now_ms() })
     }
 
     fn resolve(&mut self, _env: Env, output: CaptureOutput) -> Result<CaptureAnswer> {
-        let scale = if self.display.width > 0.0 { output.width as f64 / self.display.width } else { self.display.scale };
+        let point_width = self.region.as_ref().map_or(self.display.width, |r| r.width);
+        let scale = if point_width > 0.0 { output.width as f64 / point_width } else { self.display.scale };
         Ok(CaptureAnswer {
             png: Buffer::from(output.png),
             width: output.width,
@@ -328,8 +337,8 @@ impl Task for CaptureTask {
             scale,
             display: self.display.index,
             display_id: self.display.id.clone(),
-            origin_x: self.display.origin_x,
-            origin_y: self.display.origin_y,
+            origin_x: self.region.as_ref().map_or(self.display.origin_x, |r| r.x),
+            origin_y: self.region.as_ref().map_or(self.display.origin_y, |r| r.y),
             captured_at: output.captured_at,
         })
     }
@@ -344,7 +353,19 @@ pub fn capture(display: u32) -> Result<AsyncTask<CaptureTask>> {
         .into_iter()
         .find(|d| d.index == display)
         .ok_or_else(|| reason(format!("no display {display}")))?;
-    Ok(AsyncTask::new(CaptureTask { display: record }))
+    Ok(AsyncTask::new(CaptureTask { display: record, region: None }))
+}
+
+#[cfg(target_os = "macos")]
+#[napi(ts_return_type = "Promise<CaptureAnswer>")]
+pub fn capture_region(display: u32, bounds: BoundsRecord) -> Result<AsyncTask<CaptureTask>> {
+    CANCEL.store(false, Ordering::SeqCst);
+    screen_preflight().map_err(reason)?;
+    let record = display_list().map_err(reason)?.into_iter().find(|d| d.index == display).ok_or_else(|| reason(format!("no display {display}")))?;
+    if ![bounds.x, bounds.y, bounds.width, bounds.height].iter().all(|n| n.is_finite()) || bounds.width <= 0.0 || bounds.height <= 0.0 || bounds.x < record.origin_x || bounds.y < record.origin_y || bounds.x + bounds.width > record.origin_x + record.width || bounds.y + bounds.height > record.origin_y + record.height {
+        return Err(reason("capture region is outside the display".to_string()));
+    }
+    Ok(AsyncTask::new(CaptureTask { display: record, region: Some(bounds) }))
 }
 
 #[napi]
@@ -361,6 +382,27 @@ pub fn own_terminal_application(identity: Option<String>, tty: Option<String>, f
     #[cfg(not(target_os = "macos"))]
     let _ = (identity, tty, front);
     imp::own_terminal_application()
+}
+
+#[napi(object)]
+pub struct TextRange {
+    pub location: f64,
+    pub length: f64,
+}
+
+#[napi(object)]
+pub struct FocusedText {
+    pub text: String,
+    pub role: String,
+    pub title: Option<String>,
+    pub visible_range: Option<TextRange>,
+}
+
+#[cfg(target_os = "macos")]
+#[napi]
+pub fn focused_text(pid: u32) -> Result<Option<FocusedText>> {
+    input_preflight().map_err(reason)?;
+    imp::focused_text(pid as i32).map_err(reason)
 }
 
 #[napi]

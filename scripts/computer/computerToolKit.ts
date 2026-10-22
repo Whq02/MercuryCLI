@@ -102,7 +102,7 @@ export async function withScreenshot(
   tool: { call: (...args: never[]) => Promise<unknown>; mapToolResultToToolResultBlockParam: (output: never, id: string) => unknown },
   base: ToolUseContext,
   toolUseId: string,
-  input: Record<string, unknown> = { action: 'screenshot' },
+  input: Record<string, unknown> = { action: 'screenshot', full: true },
 ): Promise<ScreenshotInContext> {
   const parent = toolUseTurn(toolUseId, 'Computer', input)
   const answer = (await tool.call(input as never, base as never, allowEverything, parent as never)) as { data: Record<string, unknown> }

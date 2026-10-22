@@ -28,6 +28,7 @@ import {
   type DesktopPermissions,
   type DesktopPoint,
   type DesktopSessionKind,
+  type DesktopFocusedText,
   type DesktopTree,
   type DesktopTreeElement,
   type DesktopTreeLimits,
@@ -162,11 +163,15 @@ class NativeDesktopDriver implements DesktopDriver {
   private grantsRequested = false
   private readonly webRequests = new Map<string, number>()
 
+  readonly captureRegion?: DesktopDriver['captureRegion']
+
   constructor(
     private readonly addon: DesktopAddon,
     private readonly facts: DesktopDriverFacts,
     private readonly addonPath: string,
-  ) {}
+  ) {
+    if (addon.captureRegion) this.captureRegion = (display, bounds, signal) => this.capture(display, signal, bounds)
+  }
 
   describe(): DesktopDriverFacts {
     return { ...this.facts }
@@ -279,7 +284,7 @@ class NativeDesktopDriver implements DesktopDriver {
     }
   }
 
-  async capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>> {
+  async capture(display: number, signal: AbortSignal, region?: DesktopBounds): Promise<DesktopAnswer<DesktopCapture>> {
     const closed = this.closedRefusal<DesktopCapture>()
     if (closed !== null) return closed
     if (signal.aborted) return desktopAbortedAnswer()
@@ -290,7 +295,7 @@ class NativeDesktopDriver implements DesktopDriver {
     if (refusal !== null) return this.refuseAndRequestGrants(refusal)
     let raw: DesktopAddonCapture
     try {
-      raw = await this.withCancel(signal, () => this.addon.capture(display))
+      raw = await this.withCancel(signal, () => region ? this.addon.captureRegion!(display, region) : this.addon.capture(display))
     } catch (error) {
       return fail(classifyThrown(error))
     }
@@ -391,6 +396,32 @@ class NativeDesktopDriver implements DesktopDriver {
     if (stillOwned !== undefined && !stillOwned()) return { ok: true, value: null }
     if (raw?.identity === terminal.identity && raw.tty === terminal.tty && typeof raw.windowId === 'string' && raw.windowId !== '') terminal = application(raw, terminal.identity)
     return { ok: true, value: terminal }
+  }
+
+  async focusedText(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
+    const closed = this.closedRefusal<DesktopFocusedText | null>()
+    if (closed) return closed
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (process.platform !== 'darwin' || !this.addon.focusedText) return fail({ kind: 'unavailable', note: `terminal text needs the desktop pack's focusedText export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+    if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id` })
+    const permissions = this.readPermissions()
+    if (!permissions.ok) return fail(permissions.error)
+    const refusal = inputRefusal(permissions.value)
+    if (refusal) return this.refuseAndRequestGrants(refusal)
+    try {
+      const value = await new Promise<DesktopFocusedText | null>((resolve, reject) => {
+        const child = execFile(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(require(process.argv[1]).focusedText(Number(process.argv[2]))))', this.addonPath, String(app.pid)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+          signal.removeEventListener('abort', onAbort)
+          if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+          if (error) return reject(new Error(`the focused terminal text could not be read: ${error.message}`))
+          try { resolve(JSON.parse(stdout)) } catch { reject(new Error('the focused text query returned an unreadable record')) }
+        })
+        const onAbort = () => { child.kill('SIGKILL') }
+        signal.addEventListener('abort', onAbort, { once: true })
+      })
+      if (value !== null && (typeof value.text !== 'string' || value.role !== 'AXTextArea')) return fail(contractDefect('focused text', 'invalid value or role'))
+      return { ok: true, value }
+    } catch (error) { return fail(classifyThrown(error)) }
   }
 
   async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
