@@ -187,10 +187,11 @@ console.log('[6] no background updater: the request log stays empty across a ful
     res.statusCode = 404
     res.end()
   })
-  await new Promise<void>(r => server.listen(34312, '127.0.0.1', () => r()))
+  await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+  const archiveUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}/x.zip`
   records.updateSources(current => ({
     ...current,
-    'remote-arch': { kind: 'archive', where: 'http://127.0.0.1:34312/x.zip', ref: null, addedAt: new Date().toISOString(), checkedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(), commit: null, lastError: null },
+    'remote-arch': { kind: 'archive', where: archiveUrl, ref: null, addedAt: new Date().toISOString(), checkedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(), commit: null, lastError: null },
   }))
   const result = await boot.reloadExtensions({ cwd })
   void result

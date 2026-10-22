@@ -180,18 +180,19 @@ console.log('[5] a wanted proposal is shown, never fetched')
     res.statusCode = 404
     res.end()
   })
-  await new Promise<void>(r => server.listen(34311, '127.0.0.1', () => r()))
+  await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+  const proposalSource = `http://127.0.0.1:${(server.address() as { port: number }).port}/crew.git`
   mkdirSync(join(cwd, '.mercury'), { recursive: true })
-  writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { wanted: [{ name: 'proposed-tools', source: 'http://127.0.0.1:34311/crew.git' }] } }, null, 2))
+  writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { wanted: [{ name: 'proposed-tools', source: proposalSource }] } }, null, 2))
   const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
   settingsChangeDetector.notifyChange()
   const roster = rosterMod.computeRoster({ cwd })
   const proposal = roster.entries.find(e => e.name === 'proposed-tools')
-  check('the proposal paints ◇ found with its source', proposal !== undefined && proposal.home === 'proposal' && proposal.proposal?.source === 'http://127.0.0.1:34311/crew.git' && rosterMod.trustStateOf(proposal) === 'found')
+  check('the proposal paints ◇ found with its source', proposal !== undefined && proposal.home === 'proposal' && proposal.proposal?.source === proposalSource && rosterMod.trustStateOf(proposal) === 'found')
   await swap()
   check('NOTHING was fetched across roster + reload (request log empty)', requestLog.length === 0, requestLog.join(' | '))
   check('a committed enabled switch for an unapproved extension is ignored', (() => {
-    writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'proposed-tools@crew': true }, wanted: [{ name: 'proposed-tools', source: 'http://127.0.0.1:34311/crew.git' }] } }, null, 2))
+    writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'proposed-tools@crew': true }, wanted: [{ name: 'proposed-tools', source: proposalSource }] } }, null, 2))
     settingsChangeDetector.notifyChange()
     const again = rosterMod.computeRoster({ cwd }).entries.find(e => e.name === 'proposed-tools')
     return again !== undefined && rosterMod.trustStateOf(again) === 'found'

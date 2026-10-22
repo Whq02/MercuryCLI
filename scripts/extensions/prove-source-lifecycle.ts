@@ -40,9 +40,9 @@ const quiet = { out: () => {}, err: () => {}, interactive: false }
 const requestLog: string[] = []
 const archives = new Map<string, Buffer>()
 let server: Server | null = null
-const PORT = 34310
+let PORT = 0
 function serve(): Promise<void> {
-  return new Promise(resolveStart => {
+  return new Promise((resolveStart, reject) => {
     server = createServer((req, res) => {
       requestLog.push(`${req.method} ${req.url}`)
       const body = archives.get(req.url ?? '')
@@ -55,7 +55,11 @@ function serve(): Promise<void> {
       res.setHeader('content-type', 'application/octet-stream')
       res.end(body)
     })
-    server.listen(PORT, '127.0.0.1', () => resolveStart())
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      PORT = (server!.address() as { port: number }).port
+      resolveStart()
+    })
   })
 }
 await serve()
