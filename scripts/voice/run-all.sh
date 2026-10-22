@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: .github/workflows/private-release.yml scripts/release/package.mjs scripts/release/payloadContract.mjs src/components/PromptInput/PromptInput.tsx src/input-core/pending-input.ts src/services/privateChannel/releaseTarget.ts src/substrate/flagRegistry.ts src/utils/config.ts src/utils/config/schema.ts src/utils/healthReport.ts src/utils/model/computedDefault.ts src/utils/settings/validation.ts
+# gate-watch: .github/workflows/private-release.yml .github/workflows/whisper-pack-probe.yml scripts/release/package.mjs scripts/release/payloadContract.mjs src/components/PromptInput/PromptInput.tsx src/input-core/pending-input.ts src/services/privateChannel/releaseTarget.ts src/substrate/flagRegistry.ts src/utils/config.ts src/utils/config/schema.ts src/utils/healthReport.ts src/utils/model/computedDefault.ts src/utils/settings/validation.ts
 # gate-watch: src/services/voice/** src/commands/voice/** scripts/vendor/build-voice.ts native/voice/** native/whisper/** scripts/vendor/build-whisper.ts scripts/vendor/fetch-whisper-models.ts vendor/whisper-models.lock.json build.ts
 # gate-watch: docs/VOICE.md
 set -uo pipefail
