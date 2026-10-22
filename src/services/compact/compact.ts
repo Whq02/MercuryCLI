@@ -1040,10 +1040,6 @@ function newFoldLadder(budgetTokens?: number): FoldLadder {
   return { noSummaryRetries: 0, ...(budgetTokens !== undefined ? { budgetTokens } : {}) }
 }
 
-function withSummariserThinkingOff<C extends ToolUseContext>(context: C): C {
-  return { ...context, options: { ...context.options, thinkingConfig: { type: 'disabled' } } }
-}
-
 export function summaryAnswerFault(response: AssistantMessage): string | null {
   if (response.isApiErrorMessage === true) {
     const details = typeof response.errorDetails === 'string' ? response.errorDetails : ''
@@ -1142,8 +1138,7 @@ async function summarizeTextInParts(
 ): Promise<string | null> {
   const summaries: string[] = []
   for (const chunk of splitTextForFold(text, chunkChars)) {
-    const summaryContext = ladder.noSummaryRetries > 0 ? withSummariserThinkingOff(context) : context
-    const response = await runSummarization([createUserMessage({ content: chunk })], cacheSafeParams, createUserMessage({ content: promptText }), summaryContext, ladder.noSummaryRetries > 0)
+    const response = await runSummarization([createUserMessage({ content: chunk })], cacheSafeParams, createUserMessage({ content: promptText }), context, ladder.noSummaryRetries > 0)
     if (!summaryRefused(response) && summaryAnswerFault(response) === null) {
       summaries.push(validateSummary(response, false))
       continue
@@ -1227,27 +1222,25 @@ async function summarizeWithPtlRetry(
   let messages = initialMessages
   let before = estimateContextTokens(messages)
   const bound = groupMessagesByApiRound(messages).length + PTL_RETRY_LIMIT
-  let summaryContext = ladder.noSummaryRetries > 0 ? withSummariserThinkingOff(context) : context
   let fault: string | null = null
   let lastGap: number | undefined
   for (let attempt = 0; attempt <= bound; attempt++) {
     if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
-    const response = await runSummarization(messages, cacheSafeParams, promptMessage, summaryContext, ladder.noSummaryRetries > 0)
+    const response = await runSummarization(messages, cacheSafeParams, promptMessage, context, ladder.noSummaryRetries > 0)
     let folded: Message[] | null
     if (summaryRefused(response)) {
       fault = null
       lastGap = overflowGapOf(response)
       if (attempt === bound) break
-      folded = await foldHeadIntoCapsule(messages, lastGap, cacheSafeParams, promptText, summaryContext, ladder)
+      folded = await foldHeadIntoCapsule(messages, lastGap, cacheSafeParams, promptText, context, ladder)
     } else {
       fault = summaryAnswerFault(response)
       if (fault === null) return response
       if (ladder.noSummaryRetries >= NO_SUMMARY_RETRY_LIMIT || attempt === bound) break
       ladder.noSummaryRetries++
-      logForDebugging(`compact: ${fault} — retrying on half the input with thinking off (retry ${ladder.noSummaryRetries} of ${NO_SUMMARY_RETRY_LIMIT})`, { level: 'warn' })
-      summaryContext = withSummariserThinkingOff(context)
-      folded = await foldHeadIntoCapsule(messages, undefined, cacheSafeParams, promptText, summaryContext, ladder)
+      logForDebugging(`compact: ${fault} — retrying on half the input with thinking and effort unchanged (retry ${ladder.noSummaryRetries} of ${NO_SUMMARY_RETRY_LIMIT})`, { level: 'warn' })
+      folded = await foldHeadIntoCapsule(messages, undefined, cacheSafeParams, promptText, context, ladder)
     }
     if (folded === null) break
     const after = estimateContextTokens(folded)
