@@ -14,7 +14,7 @@ An agent reads and edits files, runs shell commands, steps through tests and deb
 - **Desktop computer use, Whisper voice, Saturn scheduling and editor bridges:** controls desktop applications (`Computer`), transcribes push-to-talk voice dictation on-device with Whisper (`/voice`), schedules recurring or one-shot sessions with Saturn (`/saturn`), and connects to VS Code over the Agent Client Protocol (`mercury acp`) alongside Unity, Blender, Godot and Aseprite.
 - **Video generation (`Video`):** send prompts and project reference files to a configured MiniMax generator ([docs/VIDEO.md](docs/VIDEO.md)) and save the generated MP4 and optional 1-second PNG preview frame in your project.
 
-I use Mercury to build Mercury, running multiple sessions and models across long tasks. Keeping track of that work is the hard part: what is still running, what changed, and what needs a decision. Each session writes its own handoff note when it finishes, and the next session reads that note once at startup alongside my pinned rules, stopping context poisoning between sessions.
+Mercury is used to build Mercury, running multiple sessions and models across long tasks. Keeping track of that work is the hard part: what is still running, what changed, and what needs a decision. Each session writes its own handoff note when it finishes, and the next session reads that note once at startup alongside my pinned rules, stopping context poisoning between sessions.
 
 ![One prompt to the coordinator on the session board launches two sessions, each in its own worktree; one asks before editing, and both finish with their changes ready to review](docs/media/session-board.gif)
 
