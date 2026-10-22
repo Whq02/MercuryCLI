@@ -12,7 +12,7 @@ export const VideoProviderSettingsSchema = z.record(
 export type VideoProviderSettings = z.infer<typeof VideoProviderSettingsSchema>
 export type VideoProviderConfig = VideoProviderSettings[string]
 export type VideoRole = 'first_frame' | 'last_frame' | 'reference_image' | 'reference_video' | 'reference_audio'
-export type VideoAspect = 'adaptive' | '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
+type VideoAspect = 'adaptive' | '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
 
 export interface VideoInput {
   prompt: string

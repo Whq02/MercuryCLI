@@ -111,7 +111,7 @@ function editorNamed(variable: EditorVariable, value: string, executable: string
   return variable === 'default' ? editorDisplayName(basename(executable)) : `${variable}=${shownEditorValue(value)}`
 }
 
-export const EDITOR_HANDOVER_FAULT_FLAG = 'MERCURY_EDITOR_HANDOVER_FAULT'
+const EDITOR_HANDOVER_FAULT_FLAG = 'MERCURY_EDITOR_HANDOVER_FAULT'
 
 function simulateConsoleFaultAfterHandback(): void {
   const shape = flagEnv(EDITOR_HANDOVER_FAULT_FLAG)?.trim()

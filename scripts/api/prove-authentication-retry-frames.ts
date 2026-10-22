@@ -45,9 +45,9 @@ for (const [cols, rows] of sizes) {
     writeFileSync(join(root, `${cols}x${rows}-record.json`), JSON.stringify(record, null, 2) + '\n')
     const paneStart = Math.max(0, (lines.find(line => line.includes('╭')) ?? '').indexOf('╭'))
     const words = (grid ? lines.map(line => line.slice(paneStart)).join('\n') : text).replace(/[│┃]/g, ' ').replace(/\s+/g, ' ')
-    const ok = result.code === 0 && words.includes('Anthropic sign-in expired') && words.includes('/logins anthropic') && words.includes('fixture@example.invalid') && !words.includes('Retrying in') && requests.length === 1 && refreshes.length === 1
+    const ok = result.code === 0 && words.includes('Anthropic sign-in expired') && words.includes('/logins anthropic') && !words.includes('fixture@example.invalid') && !words.includes('Retrying in') && requests.length === 1 && refreshes.length === 1
     if (!ok) failures++
-    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${cols}x${rows}: one refresh, one attributed blocker, no wait; requests=${requests.length} refreshes=${refreshes.length} capture=${result.code}; ${join(root, `${cols}x${rows}.txt`)}`)
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${cols}x${rows}: one refresh, one address-free blocker, no wait; requests=${requests.length} refreshes=${refreshes.length} capture=${result.code}; ${join(root, `${cols}x${rows}.txt`)}`)
   } finally {
     process.env.MERCURY_CONFIG_DIR = world.home
     process.env.MERCURY_CREDENTIAL_STORE = 'file'

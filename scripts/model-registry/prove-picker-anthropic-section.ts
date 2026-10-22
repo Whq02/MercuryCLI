@@ -390,7 +390,7 @@ section('§6 the chrome lines that wrap are paid for: a queued switch, a narrow 
     console.log(`  [record] ${band.label}: ${lines.length} lines · bottom border on row ${bottom} · widest ${widest} · band ${band.columns}x${band.rows}`)
     check(`[${band.label}] the frame fits the band: at most ${band.rows} rows, no line wider than ${band.columns}`, lines.length <= band.rows && widest <= band.columns, `${lines.length} lines · widest ${widest}`)
     check(`[${band.label}] the bottom border is the last row and sits inside the band`, bottom >= 0 && bottom === lines.length - 1 && bottom < band.rows, `bottom ${bottom} of ${lines.length}`)
-    check(`[${band.label}] the footer keeps its exit word right above the border`, /esc (?:or click outside )?closes/.test(lines[bottom - 1] ?? ''), lines[bottom - 1] ?? '')
+    check(`[${band.label}] the two-row footer keeps its exit hint above the page hint and border`, /esc (?:or click outside )?closes/.test(lines[bottom - 2] ?? '') && (lines[bottom - 1] ?? '').includes('pgup/pgdn page'), lines.slice(bottom - 2, bottom).join('\n'))
     check(`[${band.label}] the current row is on screen`, rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0)
     if (band.pendingNext !== undefined) {
       const nextName = band.pendingNext === LONG_NEXT ? LONG_NEXT : renderModelName(band.pendingNext)

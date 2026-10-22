@@ -1424,4 +1424,4 @@ export function buildWardDenial(
   )
 }
 
-export const WARD_BEFORE_ASK_SENTENCE = 'A ward refuses before any permission ask, so no ask arose — not in this mode, not in any.'
+const WARD_BEFORE_ASK_SENTENCE = 'A ward refuses before any permission ask, so no ask arose — not in this mode, not in any.'

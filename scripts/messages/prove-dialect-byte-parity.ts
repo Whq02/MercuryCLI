@@ -1,11 +1,31 @@
 import { strict as assert } from 'node:assert'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { join, resolve } from 'node:path'
 import { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, FIXTURE_TOOLS, STRUCTURED_OUTPUT_ASK, canonicalJson } from './dialectFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const recording = process.argv[2] === '--record'
-const root = resolve(recording ? process.argv[3]! : new URL('../..', import.meta.url).pathname)
+const checkout = new URL('../..', import.meta.url).pathname
+assert.ok(!recording || (process.argv[3] && process.argv[4]), 'record with --record <archived-source/base> <committed-revision>')
+const root = resolve(recording ? process.argv[3]! : checkout)
+const git = (...args: string[]): string => execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim()
+let revision: string | undefined
+if (recording) {
+  assert.equal(root.endsWith('/base'), true, 'recording requires an archived source tree named base')
+  revision = git('rev-parse', '--verify', `${process.argv[4]}^{commit}`)
+  assert.match(revision, /^[a-f0-9]{40}$/)
+  const entries = git('ls-tree', '-r', revision, '--', 'src', 'package.json', 'tsconfig.json').split('\n')
+  assert.ok(entries.some(entry => entry.includes('\tsrc/')), 'the revision contains the provider source tree')
+  for (const entry of entries) {
+    const match = /^\d+ blob ([a-f0-9]{40})\t(.+)$/.exec(entry)
+    if (!match) continue
+    const bytes = readFileSync(join(root, match[2]!))
+    const hash = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
+    assert.equal(hash, match[1], `archived source differs from ${revision}: ${match[2]}`)
+  }
+}
 const source = async (path: string) => import(`${root}/src/${path}.ts`)
 const { enableConfigs } = await source('utils/config')
 enableConfigs()
@@ -43,16 +63,15 @@ for (const [name, messages] of [['conversation', DIALECT_CONVERSATION], ['two-mo
 }
 const path = new URL('./dialect-goldens.json', import.meta.url)
 if (recording) {
-  assert.equal(root.endsWith('/base'), true, 'recording requires the archived original source tree')
-  writeFileSync(path, JSON.stringify({ base: '71641f1bdcef83a22b5ab0a03cff54f004655af8', bodies }, null, 2) + '\n')
-  console.log('RECORDED: ten complete request bodies from the archived original source tree')
+  writeFileSync(path, JSON.stringify({ base: revision, bodies }, null, 2) + '\n')
+  console.log(`RECORDED: ten complete request bodies from verified archive ${revision}`)
 } else {
   const golden = JSON.parse(readFileSync(path, 'utf8'))
-  assert.equal(golden.base, '71641f1bdcef83a22b5ab0a03cff54f004655af8')
+  assert.match(golden.base, /^[a-f0-9]{40}$/, 'the recording names its source revision')
   assert.deepEqual(Object.keys(bodies).sort(), Object.keys(golden.bodies).sort())
   for (const [name, body] of Object.entries(bodies)) {
     assert.equal(canonicalJson(body), canonicalJson(golden.bodies[name]), `${name}: canonical wire bytes changed`)
     assert.equal(JSON.stringify(body), JSON.stringify(golden.bodies[name]), `${name}: serialized wire bytes changed`)
-    console.log(`PASS: ${name} request bytes are identical to the original base`)
+    console.log(`PASS: ${name} request bytes are identical to recorded revision ${golden.base}`)
   }
 }

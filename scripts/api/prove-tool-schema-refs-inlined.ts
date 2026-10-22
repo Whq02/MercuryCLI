@@ -204,10 +204,10 @@ section('refusals · what the walker must never do with a schema it does not tru
     } catch {
       continue
     }
-    if (JSON.stringify(wire) === JSON.stringify(zodToJsonSchema(tool.inputSchema as never))) identical++
+    if (JSON.stringify(wire) === JSON.stringify(flat(zodToJsonSchema(tool.inputSchema as never) as Schema))) identical++
     else differed.push(tool.name)
   }
-  check(`the control over the prefix bytes: every built-in tool's wire schema is byte-identical to its converter's output, the fold tip's bytes (${identical} tools), none differ`, identical > 20 && differed.length === 0, differed.join(', '))
+  check(`the control over the prefix bytes: every built-in tool's wire schema is byte-identical to its converted and reference-inlined schema (${identical} tools), none differ`, identical > 20 && differed.length === 0, differed.join(', '))
 }
 
 console.log('\n' + '='.repeat(60))

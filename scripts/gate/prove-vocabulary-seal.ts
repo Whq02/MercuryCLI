@@ -137,10 +137,10 @@ const RETIRED_SETTINGS_ROOTS = [
   'instructionExcludes', 'includeGitInstructions', 'instructionProfile', 'plansDirectory', 'showClearContextOnStrategyAccept', 'autoMemoryEnabled',
   'autoMemoryDirectory', 'memoryUpkeepEnabled', 'loopGuardStopEnabled', 'includeMercuryCoAuthor', 'allowManagedPermissionRulesOnly',
   'skipSovereignConsentPrompt', 'availableModels', 'modelOverrides', 'effortLevel', 'supercodeEffort', 'sessionDefaultsKey', 'alwaysThinkingEnabled',
-  'enableAllProjectMcpServers', 'enabledMcpjsonServers', 'disabledMcpjsonServers', 'allowedMcpServers', 'deniedMcpServers', 'allowManagedMcpServersOnly',
+  'enableAllProjectMcpServers', J('enabledMcp', 'jsonServers'), J('disabledMcp', 'jsonServers'), 'allowedMcpServers', 'deniedMcpServers', 'allowManagedMcpServersOnly',
   'disableAllHooks', 'allowManagedHooksOnly', 'allowedHttpHookUrls', 'httpHookAllowedEnvVars', 'strictExtensionOnlyCustomization', 'spinnerTipsEnabled',
   'spinnerTipsOverride', 'spinnerVerbs', 'progressReporting', 'filesBox', 'modelPickerCentred', 'syntaxHighlightingDisabled', 'prefersReducedMotion',
-  'backgroundKey', 'sessionsBar', 'firstRunCards', 'compactWayBack', 'promptSuggestionEnabled', 'defaultShell', 'shellEngine', 'shellEngineSessions',
+  'backgroundKey', J('sessions', 'Bar'), 'firstRunCards', 'compactWayBack', 'promptSuggestionEnabled', 'defaultShell', 'shellEngine', 'shellEngineSessions',
   'openrouterRouting', 'channelsEnabled', 'localServer',
 ]
 const RETIRED_SETTINGS_GENERIC_ROOTS = ['env', 'attribution', 'permissions', 'sandbox', 'model', 'agent', 'hooks', 'language', 'worktree']
@@ -154,7 +154,7 @@ const RETIRED_SETTINGS_MODULES = [
 ]
 const RETIRED_POLICY_PLACES = [J('com.anthropic.', 'claudecode'), J('Policies\\\\', 'ClaudeCode')]
 const SETTINGS_LEAF_KEPT = new Set(['model', 'agent', 'hooks', 'sandbox', 'worktree', 'language', 'env', 'attribution', 'permissions'])
-const SETTINGS_LEAF_NAMES = new Set(['backgroundKey', 'sessionsBar', 'firstRunCards'])
+const SETTINGS_LEAF_NAMES = new Set(['backgroundKey', J('sessions', 'Bar'), 'firstRunCards'])
 const asRoot = (key: string): RegExp => new RegExp(
   '(?:[sS]ettings\\w*(?:\\([^)]*\\))?\\??\\.' + key + '(?![\\w$])|(?:writeFileSync\\([^;]*JSON\\.stringify\\(|updateSettingsForSource\\([^,]+,\\s*|safeParse\\(|parse\\()\\s*\\{\\s*' + key + '\\s*:|SettingsJson\\[["\']' + key + '["\']\\])',
 )
@@ -463,10 +463,10 @@ function main(): void {
       ['src/x.ts', "const id = `agent:${agentId}`; const row = `model:${modelId}`; env: subprocessEnv()"],
       ['src/x.ts', "import { localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'"],
       ['src/x.ts', "updateSettingsForSource('userSettings', { guardrails: { allow: rules }, events: { hooks }, extensions: { exclusive: true }, local: { server: { keepAlive: '30m' } } })"],
-      ['src/x.ts', "const centred = settings.view?.modelPicker?.centred ?? settings.view?.sessionsBar; const m = getInitialSettings().engine?.model"],
-      ['scripts/settings/settings-schema.json', '        "sessionsBar": {'],
+      ['src/x.ts', "const centred = settings.view?.modelPicker?.centred ?? settings.view?." + J('sessions', 'Bar') + "; const m = getInitialSettings().engine?.model"],
+      ['scripts/settings/settings-schema.json', '        "' + J('sessions', 'Bar') + '": {'],
       ['scripts/settings/settings-schema.json', '        "backgroundKey": {'],
-      ['docs/x.md', 'Set `guardrails.allow`, `events.hooks.PreToolUse`, `view.sessionsBar`, `engine.model` and `local.server.keepAlive` in settings.json.'],
+      ['docs/x.md', 'Set `guardrails.allow`, `events.hooks.' + J('Pre', 'ToolUse') + '`, `view.' + J('sessions', 'Bar') + '`, `engine.model` and `local.server.keepAlive` in settings.json.'],
       ['docs/x.md', 'The `/model` picker and the `agent` definitions, with `permissions` in the plain sense.'],
       ['src/x.ts', "process.env.MERCURY_SHELL_ENGINE ?? process.env.MERCURY_REDUCED_MOTION"],
     ]
@@ -510,7 +510,7 @@ function main(): void {
       ['ide-visual-bell', 'a ' + J('visual', ' bell') + ' on completion'],
       ['verb-extensions', 'run `mercury ' + J('extensions', ' validate') + '`'],
       ['helper-steward', 'mercury ' + J('ste', 'ward') + ' run'],
-      ['agent-type-general', "subagent_type: '" + J('mercury-', 'general') + "'"],
+      ['agent-type-general', J('sub', 'agent_type') + ": '" + J('mercury-', 'general') + "'"],
       ['agent-type-general-purpose', "agentType: '" + J('general', '-purpose') + "'"],
       ['agent-type-verifier', 'the ' + J('mercury-', 'verifier') + ' agent'],
       ['push-tool', J('Push', 'NotificationTool')],

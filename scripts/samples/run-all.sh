@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: src/commands/memory/memoryPage.ts
 # gate-watch: src/services/samples/** src/services/eval/** src/tools/EvalTool/** docs/SAMPLES.md src/components/samples/** src/components/tasks/useFocusedWork.ts src/services/engine-connector/seatWire.ts
 # gate-watch: scripts/lib/* src/Tool.ts src/cli/run.ts src/daemon/sessionSeat.ts
 # gate-watch: src/ink/stringWidth.ts scripts/eval/lib.ts

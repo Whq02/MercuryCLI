@@ -48,7 +48,7 @@ const keyLimit = getAssistantMessageFromError(refusal(403, 'Key limit exceeded',
 check('a key quota wall keeps its wait and never borrows another account', typeof keyLimit.providerWaitEndsAtMs === 'number' && !JSON.stringify(keyLimit).includes('fixture@example.invalid'))
 for (const error of [refusal(401), refusal(403, 'OAuth token has been revoked')]) {
   const gateway = getAssistantMessageFromError(error, 'fixture-gateway-model')
-  check(`the gateway ${error.status} names the active account consistently`, JSON.stringify(gateway).includes('fixture@example.invalid'))
+  check(`the gateway ${error.status} names the family and remedy without an address`, JSON.stringify(gateway).includes('gateway sign-in expired') && JSON.stringify(gateway).includes('reconnect (/logins') && !JSON.stringify(gateway).includes('@'))
 }
 
 let requests = 0

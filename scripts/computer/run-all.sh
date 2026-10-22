@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: native/desktop/src/lib.rs src/services/providers/local/schemaTyping.ts src/services/providers/openai/openaiWire.ts src/tools/FileReadTool/imageProcessor.ts src/utils/cockpit/typingActivity.ts src/utils/messages/toolSchemaDialect.ts
 # gate-watch: src/tools/ComputerTool/** src/services/desktop/** src/components/permissions/ComputerPermissionRequest/** src/components/PromptInput/PromptInputFooterLeftSide* src/utils/readiness* src/substrate/flagRegistry*
 # gate-watch: src/utils/sessionStorage/writer* src/services/providers/anthropic/media* src/services/providers/anthropic/streamCore* src/services/providers/openai/responsesBridge* src/services/providers/openai/openaiCallModel*
 # gate-watch: src/services/providers/zai/zaiCodec* src/utils/model/capabilities* src/tools/AgentTool/agentToolUtils* src/entrypoints/mcp* src/tools.ts scripts/computer/**

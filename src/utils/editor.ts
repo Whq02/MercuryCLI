@@ -88,7 +88,7 @@ export const getExternalEditor = memoize((): string | undefined => {
 
 export type EditorVariable = 'VISUAL' | 'EDITOR' | 'default'
 
-export function editorVariable(): EditorVariable {
+function editorVariable(): EditorVariable {
   if (process.env.VISUAL?.trim()) return 'VISUAL'
   if (process.env.EDITOR?.trim()) return 'EDITOR'
   return 'default'
@@ -96,7 +96,7 @@ export function editorVariable(): EditorVariable {
 
 const NON_EDITOR_NAMES = new Set(['true', 'false', ':', 'cat', 'echo', 'printf', 'rem', 'exit'])
 
-export type EditorRefusal = {
+type EditorRefusal = {
   ok: false
   reason: 'no-op' | 'missing'
   variable: EditorVariable

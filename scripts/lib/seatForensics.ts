@@ -81,14 +81,14 @@ export function seatState(pid: number): string {
   return `the seat ${pid} (${comm.join(' ') || '?'}) waits in ${wchan} · State: ${stat} · RSS: ${rss} kB · elapsed ${etime}`
 }
 
-export function seatChildren(pid: number): string[] {
+function seatChildren(pid: number): string[] {
   return ran('ps', ['-eo', 'pid,ppid,stat,args'])
     .split('\n')
     .filter(l => l.trim().split(/\s+/)[1] === String(pid))
     .map(l => l.trim().slice(0, 160))
 }
 
-export function seatSockets(pid: number): string[] {
+function seatSockets(pid: number): string[] {
   if (process.platform === 'linux') {
     return ran('ss', ['-tanp'])
       .split('\n')
@@ -104,13 +104,13 @@ export function seatSockets(pid: number): string[] {
     .slice(0, 8)
 }
 
-export function seatThreads(pid: number): string[] {
+function seatThreads(pid: number): string[] {
   if (process.platform === 'linux') return threadTable(pid)
   const rows = ran('ps', ['-M', '-p', String(pid)]).split('\n').slice(1).map(l => l.trim().replace(/\s+/g, ' ').slice(0, 120)).filter(l => l !== '')
   return rows.slice(0, 16)
 }
 
-export function logTail(path: string | undefined, keep = 25): string {
+function logTail(path: string | undefined, keep = 25): string {
   if (path === undefined) return '(no seat log was asked for: launch with --log-file)'
   if (!existsSync(path)) return `(no seat log at ${path})`
   const lines = readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '')

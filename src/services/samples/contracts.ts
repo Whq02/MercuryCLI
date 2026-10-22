@@ -61,7 +61,7 @@ export const SAMPLE_VERDICT_STATUSES = ['approved', 'changes-needed', 'warning',
 export type SampleVerdictStatus = (typeof SAMPLE_VERDICT_STATUSES)[number]
 
 export const SAMPLE_TONES = ['default', 'ok', 'warn', 'danger', 'accent'] as const
-export type SampleTone = (typeof SAMPLE_TONES)[number]
+type SampleTone = (typeof SAMPLE_TONES)[number]
 
 export const SAMPLE_CELL_TONES = ['default', 'ok', 'warn', 'danger', 'mono', 'accent'] as const
 export type SampleCellTone = (typeof SAMPLE_CELL_TONES)[number]

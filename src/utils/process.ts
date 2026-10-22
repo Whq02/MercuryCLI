@@ -49,11 +49,11 @@ export function markConsoleReturned(): void {
   consoleReturnedAt = Date.now()
 }
 
-export function consoleLentOrJustReturned(now: number = Date.now()): boolean {
+function consoleLentOrJustReturned(now: number = Date.now()): boolean {
   return consoleLentDepth > 0 || (consoleReturnedAt > 0 && now - consoleReturnedAt < CONSOLE_HANDBACK_GRACE_MS)
 }
 
-export type StdinRecovery = (code: string, syscall: string) => void
+type StdinRecovery = (code: string, syscall: string) => void
 let stdinRecovery: StdinRecovery | null = null
 
 export function setStdinRecovery(recovery: StdinRecovery | null): void {

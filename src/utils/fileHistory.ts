@@ -78,7 +78,7 @@ function isSessionRunnerProcess(): boolean {
 }
 
 export const FILE_CHECKPOINT_SOURCES = ['interactive', 'seat', 'initialize', 'setting', 'headless'] as const
-export type FileCheckpointSource = (typeof FILE_CHECKPOINT_SOURCES)[number]
+type FileCheckpointSource = (typeof FILE_CHECKPOINT_SOURCES)[number]
 
 let fileCheckpointsRequested = false
 

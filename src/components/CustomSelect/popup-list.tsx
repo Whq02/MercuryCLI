@@ -66,8 +66,7 @@ export function PopupListViewport({ above, below, rows, children }: {
     const next = Math.ceil(bodyRef.current?.layoutNode?.getComputedHeight() ?? 0)
     setMeasured(current => current === next ? current : next)
   }, [])
-  React.useLayoutEffect(measure)
-  React.useEffect(() => ink?.subscribeFrame(measure), [ink, measure])
+  React.useLayoutEffect(() => ink?.subscribeFrame(measure), [ink, measure])
   const height = Math.max(1, measured || rows)
   return (
     <Box flexShrink={0}>
@@ -107,8 +106,7 @@ export function usePopupScrollWindow(ref: React.RefObject<ScrollBoxHandle | null
     const next = { top: body.getScrollTop(), total: body.getFreshScrollHeight(), rows: body.getViewportHeight() }
     setView(current => current.top === next.top && current.total === next.total && current.rows === next.rows ? current : next)
   }, [ref])
-  React.useLayoutEffect(measure)
-  React.useEffect(() => ink?.subscribeFrame(measure), [ink, measure])
+  React.useLayoutEffect(() => ink?.subscribeFrame(measure), [ink, measure])
   return view
 }
 

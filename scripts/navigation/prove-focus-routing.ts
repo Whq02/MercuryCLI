@@ -95,7 +95,7 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   check('LogSelector rename rides TextInput (pre-existing)', logsel.includes('<TextInput value={renameValue}'))
 
   const sharedList = read('src/components/mercury-ui/useInteractiveList.ts')
-  check('the shared list registers as an overlay', sharedList.includes("useRegisterOverlay('list', active)"))
+  check('the shared list registers as an overlay', sharedList.includes("useRegisterOverlay('list', active, { ownsPageKeys: true })"))
   check('the shared list: esc guarded by isTopOverlayNow (one layer)', sharedList.includes('isTopOverlayNow(overlayToken)'))
   check('the shared list consumes exactly when acting (3-arg form)', sharedList.includes('useInput(\n    (input, key, event) => {') && (sharedList.match(/stopImmediatePropagation\(\)/g) ?? []).length >= 3)
   check('the shared list: ↵ stays behind the event-identity open gate', sharedList.includes('const pastBuffer = useOpenEventGate()'))

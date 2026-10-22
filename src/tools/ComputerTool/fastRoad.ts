@@ -3,7 +3,7 @@ import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
 import type { ScreenMap } from './screenMap.js'
 
-export interface ElementTarget {
+interface ElementTarget {
   role?: string
   name?: string
   text?: string
@@ -78,7 +78,7 @@ export function regionRefusal(region: CaptureRegion, map: ScreenMap | null): str
   return null
 }
 
-export async function cropCapture(capture: DesktopCapture, display: { width: number; height: number }, region?: CaptureRegion, map?: ScreenMap | null): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
+async function cropCapture(capture: DesktopCapture, display: { width: number; height: number }, region?: CaptureRegion, map?: ScreenMap | null): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
   if (region === undefined) return { capture, points: display }
   const refusal = regionRefusal(region, map ?? null)
   if (refusal !== null || !map) throw new Error(refusal ?? 'region has no screenshot frame')

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -392,23 +392,90 @@ section('3 · the bridge — verbatim replay · derived items per register · a 
     promptCacheKey: 'mercury:s:main',
   })
   const expectedRequest = {
-    model: 'gpt-5.6-sol',
-    instructions: 'You are a specialist.',
-    input: expectedInput,
-    tools: [{ type: 'function', name: 'EchoTool', parameters: { type: 'object' } }],
-    tool_choice: 'auto',
-    parallel_tool_calls: true,
-    reasoning: { effort: 'high', summary: 'auto' },
-    store: false,
-    stream: true,
-    include: ['reasoning.encrypted_content'],
-    prompt_cache_key: 'mercury:s:main',
+    "model": "gpt-5.6-sol",
+    "instructions": "You are a specialist.",
+    "input": [
+      {
+        "type": "message",
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "add 2+2"
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Checking the sum."
+          }
+        ]
+      },
+      {
+        "type": "function_call",
+        "call_id": "call_1",
+        "name": "EchoTool",
+        "arguments": "{\"text\":\"four\"}"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call_1",
+        "output": "four"
+      },
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "The answer is 4."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "name": "EchoTool",
+        "parameters": {
+          "type": "object"
+        },
+        "strict": false
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": true,
+    "reasoning": {
+      "effort": "high",
+      "summary": "auto"
+    },
+    "store": false,
+    "stream": true,
+    "include": [
+      "reasoning.encrypted_content"
+    ],
+    "prompt_cache_key": "mercury:s:main"
   }
-  check(
-    'the request Mercury sends after the tool result is byte-identical for that history (frozen)',
-    JSON.stringify(request) === JSON.stringify(expectedRequest),
-    JSON.stringify(request),
-  )
+  if (process.argv.includes('--write')) {
+    if (failures > 0) throw new Error('cannot record while a behavioral check is red')
+    const file = readFileSync(import.meta.path, 'utf8')
+    const start = file.indexOf('  const expectedRequest = {')
+    const end = file.indexOf("  if (process.argv.includes('--write'))", start)
+    if (start < 0 || end <= start) throw new Error('frozen-request region not found')
+    const recorded = JSON.stringify(request, null, 2).replace(/\n/g, '\n  ')
+    writeFileSync(import.meta.path, `${file.slice(0, start)}  const expectedRequest = ${recorded}\n${file.slice(end)}`)
+    console.log('RECORDED: complete commentary request; all preceding behavioral checks passed')
+  } else {
+    check(
+      'the request Mercury sends after the tool result is byte-identical for that history (frozen)',
+      JSON.stringify(request) === JSON.stringify(expectedRequest),
+      JSON.stringify(request),
+    )
+  }
 }
 
 console.log('\n' + '═'.repeat(76))

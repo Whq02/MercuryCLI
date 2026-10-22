@@ -31,7 +31,7 @@ function section(t: string): void {
 }
 
 type Hit = { method: string; url: string; authorization: string }
-function fixture(mode: 'live' | 'expired'): Promise<{ url: string; hits: Hit[]; close: () => Promise<void> }> {
+function fixture(mode: 'live' | 'expired' | 'served'): Promise<{ url: string; hits: Hit[]; close: () => Promise<void> }> {
   const hits: Hit[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? ''
@@ -55,6 +55,20 @@ function fixture(mode: 'live' | 'expired'): Promise<{ url: string; hits: Hit[]; 
         return
       }
       if (req.method === 'POST' && url.startsWith('/v1/messages')) {
+        if (mode === 'served') {
+          const model = JSON.parse(Buffer.concat(body).toString()).model
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          const events = [
+            { type: 'message_start', message: { id: 'msg_fixture', type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } } },
+            { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+            { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'fixture model answered' } },
+            { type: 'content_block_stop', index: 0 },
+            { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 4 } },
+            { type: 'message_stop' },
+          ]
+          res.end(events.map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''))
+          return
+        }
         res.writeHead(404, { 'content-type': 'application/json', 'request-id': 'req_fixture_404' })
         res.end(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: `model: ${BAD_MODEL}` } }))
         return
@@ -96,9 +110,9 @@ function scratchHome(tag: string, expiresAt: number): { home: string; cwd: strin
   return { home, cwd }
 }
 
-async function runProduct(tag: string, expiresAt: number, api: string): Promise<{ stdout: string; stderr: string; status: number | null; home: string }> {
+async function runProduct(tag: string, expiresAt: number, api: string, model = BAD_MODEL): Promise<{ stdout: string; stderr: string; status: number | null; home: string; cwd: string }> {
   const { home, cwd } = scratchHome(tag, expiresAt)
-  const child = spawn(NODE, [DIST, '--model', BAD_MODEL, 'run', 'hi'], {
+  const child = spawn(NODE, [DIST, '--model', model, 'run', '--ephemeral', 'hi'], {
     cwd,
     env: {
       HOME: home,
@@ -123,12 +137,12 @@ async function runProduct(tag: string, expiresAt: number, api: string): Promise<
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   const status = await new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   clearTimeout(killer)
-  return { stdout, stderr, status, home }
+  return { stdout, stderr, status, home, cwd }
 }
 
 const lines = (text: string): string[] => text.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim() !== '')
 
-section(`§1 a stored Anthropic sign-in that is live, an unknown model id: one line, exit 1, the line names the model id and says not offered, and carries no address`)
+section('§1 an uncached sign-in at an overridden endpoint: the wire answers, one line, exit 1, no address')
 {
   const api = await fixture('live')
   const run = await runProduct('live', Date.now() + 3_600_000, api.url)
@@ -136,13 +150,24 @@ section(`§1 a stored Anthropic sign-in that is live, an unknown model id: one l
   const errLines = lines(run.stderr)
   const line = errLines[0] ?? ''
   check('exit 1', run.status === 1, `status ${run.status} · stdout ${run.stdout.slice(0, 200)} · stderr ${run.stderr.slice(0, 400)}`)
-  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' ⏎ ').slice(0, 600)}`)
-  check(`the line names the model id and says "not offered" (the live catalogue's words)`, line.includes(BAD_MODEL) && line.includes('not offered'), line)
-  check('the line names the catalogue it was read from and what it offers', line.includes('Claude subscription live catalogue') && OFFERED.every(id => line.includes(id)), line)
+  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
+  check('the wire refusal names the requested model and the endpoint answer', line.includes(BAD_MODEL) && line.includes('404') && !line.includes('not offered'), line)
   check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
-  check('the live catalogue was read (GET /v1/models) and the request never went to the wire (no POST /v1/messages)', api.hits.some(h => h.method === 'GET' && h.url.startsWith('/v1/models')) && !api.hits.some(h => h.method === 'POST' && h.url.startsWith('/v1/messages')), JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
+  check('no catalogue probe preceded the wire request', api.hits.every(h => !h.url.startsWith('/v1/models')) && api.hits.some(h => h.method === 'POST' && h.url.startsWith('/v1/messages')), JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
   check('no request carried the address either', api.hits.every(h => !h.url.includes('@')), JSON.stringify(api.hits.map(h => h.url)))
   rmSync(run.home, { recursive: true, force: true })
+  rmSync(run.cwd, { recursive: true, force: true })
+}
+
+section('§1b a fixture-only model at an overridden endpoint reaches the wire without discovery')
+{
+  const api = await fixture('served')
+  const run = await runProduct('served', Date.now() + 3_600_000, api.url, 'claude-fixture-medic')
+  await api.close()
+  check('the fixture model answers with exit 0', run.status === 0 && run.stdout.includes('fixture model answered'), `${run.status}: ${run.stdout} ${run.stderr}`)
+  check('exactly one inference request and no catalogue request', api.hits.length === 1 && api.hits[0]?.method === 'POST' && api.hits[0]?.url.startsWith('/v1/messages') === true, JSON.stringify(api.hits.map(h => `${h.method} ${h.url}`)))
+  rmSync(run.home, { recursive: true, force: true })
+  rmSync(run.cwd, { recursive: true, force: true })
 }
 
 section(`§2 the same sign-in with its token expired and the refresh refused: one line, exit 1, the line names the door (/logins anthropic), never the address`)
@@ -153,11 +178,12 @@ section(`§2 the same sign-in with its token expired and the refresh refused: on
   const errLines = lines(run.stderr)
   const line = errLines[0] ?? ''
   check('exit 1', run.status === 1, `status ${run.status} · stderr ${run.stderr.slice(0, 400)}`)
-  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' ⏎ ').slice(0, 600)}`)
+  check('stdout empty, stderr exactly one line', run.stdout.trim() === '' && errLines.length === 1, `stdout ${JSON.stringify(run.stdout.slice(0, 200))} · stderr lines ${errLines.length}: ${errLines.join(' |').slice(0, 600)}`)
   check('the line names the family and the door', line.includes('Anthropic') && line.includes('/logins anthropic'), line)
   check('the line carries no address, no @', !line.includes('@') && !line.includes(EMAIL), line)
   check('the line is not the model-not-offered sentence (the catalogue could not be read on an expired token — the door is the honest cause)', !line.includes('not offered'), line)
   rmSync(run.home, { recursive: true, force: true })
+  rmSync(run.cwd, { recursive: true, force: true })
 }
 
 section('§3 the error composer with a stored account record: the sign-in wall row never carries the address, whatever the identity setting says')
@@ -185,7 +211,48 @@ section('§3 the error composer with a stored account record: the sign-in wall r
   const expired = rowFor(401, 'OAuth token has expired')
   check('the revoked-sign-in row names the family and the door and carries no address', revoked.includes('Anthropic sign-in expired') && revoked.includes('/logins anthropic') && !revoked.includes('@'), revoked.slice(0, 300))
   check('the expired-sign-in row carries no address', expired.includes('Anthropic sign-in expired') && !expired.includes('@'), expired.slice(0, 300))
-  rmSync(home, { recursive: true, force: true })
+  const { anthropicCatalogueRefusal } = await import('../../src/services/providers/catalogueAdmission.ts')
+  const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+  delete process.env.ANTHROPIC_BASE_URL
+  delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
+  catalogue.__resetAnthropicCatalogueForTest()
+  const originalFetch = globalThis.fetch
+  let requests = 0
+  const fetchCatalogue = (async () => {
+    requests++
+    return new Response(JSON.stringify({ data: OFFERED.map(id => ({ id })), has_more: false }), { status: 200 })
+  }) as typeof fetch
+  globalThis.fetch = fetchCatalogue
+  try {
+    check('an uncached first-party door admits without discovery', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0, `${requests} request(s)`)
+    await catalogue.refreshAnthropicCatalogue({ door: 'subscription', fetchImpl: fetchCatalogue })
+    requests = 0
+    const rows: unknown[] = []
+    for await (const row of routedCallModel({
+      messages: [createUserMessage({ content: 'hi' })], systemPrompt: asSystemPrompt(['fixture']),
+      thinkingConfig: { type: 'disabled' }, tools: [], signal: AbortSignal.timeout(5_000),
+      options: { model: BAD_MODEL, querySource: 'sdk', agents: [], isNonInteractiveSession: true, mcpTools: [] } as never,
+    })) rows.push(row)
+    const refusal = JSON.stringify(rows)
+    check('a cached active catalogue refuses one unknown-model turn without a request or an address', rows.length === 1 && refusal.includes('not offered') && refusal.includes('Claude subscription live catalogue') && OFFERED.every(id => refusal.includes(id)) && !refusal.includes('@') && requests === 0, refusal)
+    check('a listed model remains admitted without discovery', await anthropicCatalogueRefusal(OFFERED[0]!) === null && requests === 0)
+    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
+    await catalogue.refreshAnthropicCatalogue({ door: 'subscription', fetchImpl: fetchCatalogue })
+    requests = 0
+    check('an override bypasses even a populated catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
+    delete process.env.ANTHROPIC_BASE_URL
+    writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-other-account', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
+    const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
+    clearOAuthTokenCache()
+    check('another credential cannot borrow the previous catalogue', await anthropicCatalogueRefusal(BAD_MODEL) === null && requests === 0)
+  } finally {
+    globalThis.fetch = originalFetch
+    catalogue.__resetAnthropicCatalogueForTest()
+    rmSync(home, { recursive: true, force: true })
+  }
 }
 
 section("§4 every provider's error composer, read: no composed error line interpolates an address, an account id, an organisation id or a key")

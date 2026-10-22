@@ -3,7 +3,7 @@ import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleHtmlSource, type Samp
 import { normalizeSampleDoc, renderSampleDoc } from './renderDoc.js'
 import { createOrAppendSample, sampleUrl, writeFallbackPage } from './store.js'
 
-export interface SampleSpec {
+interface SampleSpec {
   name: string
   title?: string
   html: string

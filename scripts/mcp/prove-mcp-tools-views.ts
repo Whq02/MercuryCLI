@@ -53,15 +53,16 @@ const connector = new Proxy(
 )
 setFocusedSessionConnector(connector as never)
 
-function frameOf(lines: string[]): { rows: number; lastRow: string; body: string[] } | null {
+function frameOf(lines: string[]): { rows: number; lastRow: string; footer: string[]; body: string[] } | null {
   const at = lines.findIndex(line => line.includes('Mercury · mcp'))
   if (at < 1) return null
   const col = lines[at - 1]!.indexOf('╭')
   if (col < 0) return null
   const bottom = lines.findIndex((line, row) => row > at && line[col] === '╰')
   if (bottom < 0) return null
-  return { rows: bottom - at + 2, lastRow: lines[bottom - 1] ?? '', body: lines.slice(at, bottom) }
+  return { rows: bottom - at + 2, lastRow: lines[bottom - 1] ?? '', footer: lines.slice(bottom - 2, bottom), body: lines.slice(at, bottom) }
 }
+const listFooter = (frame: ReturnType<typeof frameOf>): boolean => frame !== null && frame.footer[0]!.includes('esc back to servers') && frame.footer[1]!.includes('pgup/pgdn page')
 
 async function mounted(): Promise<Awaited<ReturnType<typeof mountOffscreen>>> {
   const m = await mountOffscreen(
@@ -93,13 +94,13 @@ for (const detail of [OLDER_DAEMON, Array.from({ length: 20 }, (_, i) => `Failur
   const frame = frameOf(lines)
   const plain = m.screen().replace(/[│\s]+/g, ' ')
   check("the reason replaces the list — never 'This server exposes no tools.'", reasonShown && plain.includes(detail === OLDER_DAEMON ? 'This Mercury background process is too old to list tools.' : 'Failure detail 1:') && !plain.includes('This server exposes no tools.'), m.screen())
-  check('the reason view stays inside the 12-row grant with its way back on the last row', frame !== null && frame.rows === FRAME.rows && frame.lastRow.includes('esc back to servers'), m.screen())
+  check('the reason view stays inside the 12-row grant with its way back and page hint in the two-row footer', frame !== null && frame.rows === FRAME.rows && listFooter(frame), m.screen())
   if (detail === OLDER_DAEMON) {
     check('an old daemon gives the user the supported update and restart road', plain.includes('Update Mercury. Run /restart, then open /mcp again.') && !plain.includes('protocol 15'))
   } else {
     check('a reason longer than the grant is marked ↓, never pushed past the frame', frame !== null && frame.body.some(line => /↓ \d+ more/.test(line)), m.screen())
     const scrolled = await press(m, KEY.down, '↑ 1 more')
-    check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && frameOf(m.lines())?.lastRow.includes('esc back to servers') === true, m.screen())
+    check('↓ scrolls the reason and marks what scrolled off ↑', scrolled && listFooter(frameOf(m.lines())), m.screen())
   }
   const back = await press(m, KEY.esc, '1 servers · this session')
   check('esc steps back to the server list (the popup stays open)', back && m.screen().includes('esc or click outside closes'), m.screen())
@@ -126,7 +127,7 @@ section('§2 the marks of a bounded answer reach the screen: omitted tools, a he
   const screen = m.screen()
   check('the count names every tool the session has, and how many crossed the bound', listed && screen.includes('300 tools · this session · 3 shown, the rest past the 512 KB read'), screen)
   check("a held tool says so on the status line (the model cannot call it until the next compaction or /clear)", screen.includes('held · joins the tool list at the next compaction or /clear'), screen)
-  check('the list stays inside the grant with its way back on the last row', frameOf(m.lines())?.rows === FRAME.rows && frameOf(m.lines())?.lastRow.includes('esc back to servers') === true, screen)
+  check('the list stays inside the grant with its way back and page hint in the two-row footer', frameOf(m.lines())?.rows === FRAME.rows && listFooter(frameOf(m.lines())), screen)
   const opened = await press(m, KEY.enter, 'mcp__runpod__late_joiner · held')
   check('the detail names the tool as the model calls it, and its loading', opened, m.screen())
   const ended = await press(m, '\x1b[F', '(the description is cut at 8,192 characters)')

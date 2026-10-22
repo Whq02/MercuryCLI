@@ -5,7 +5,7 @@ import { VideoProviderSettingsSchema, type VideoProviderConfig, type VideoProvid
 
 export const VIDEO_SETUP = 'Video has no provider configured. First, /logins minimax stores an Open Platform pay-as-you-go API key. Then add videoProvider.<name> = { kind: "minimax" } to settings.'
 
-export function configuredVideoProviders(): VideoProviderSettings {
+function configuredVideoProviders(): VideoProviderSettings {
   const stored = getInitialSettings().videoProvider ?? (isConfigReadingAllowed() ? getGlobalConfig().videoProvider : undefined)
   return stored === undefined ? {} : VideoProviderSettingsSchema.parse(stored)
 }

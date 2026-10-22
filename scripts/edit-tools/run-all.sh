@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: src/utils/messages/toolSchemaDialect.ts
 # gate-watch: scripts/edit-tools/fixtures/**
 # gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/** src/tools/FileWriteTool/**
 # gate-watch: src/services/changeTransaction/** src/services/ide/** src/services/resources/**

@@ -281,13 +281,15 @@ try {
     if (lines[at]![col] !== '│' || lines[at - 1]![col] !== '╭') return { rows: -1, hintInside: false }
     const bottom = lines.findIndex((line, row) => row > at && line[col] === '╰')
     if (bottom === -1) return { rows: -1, hintInside: false }
-    return { rows: bottom - at + 2, hintInside: /esc (back to|or click)/.test(lines[bottom - 1] ?? '') }
+    const last = lines[bottom - 1] ?? ''
+    const exitRow = last.includes('esc back to tools') ? last : lines[bottom - 2] ?? ''
+    return { rows: bottom - at + 2, hintInside: last.includes('pgup/pgdn page') && /esc (back to|or click)/.test(exitRow) }
   }
   const heights = [step1Servers, step2Unfolded, step3ToolList, step4ToolDetail, step4ToolDetailEnd, step5BackToList, step6LongDetailTop, step7LongDetailEnd, step8BackToList, step6FilteredList, step7BackToServers].map(screen => popupFrameOf(screen))
   const [, , , , , , longTopFrame, longEndFrame] = heights
 
-  check('the server view opens at 12 rows; opening tools grows the same popup to 26 and no return shrinks it', heights.slice(0, 2).every(h => h.rows === 12) && heights.slice(2).every(h => h.rows === 26), JSON.stringify(heights.map(h => h.rows)))
-  check('every view keeps its way back on its last row inside its frame', heights.every(h => h.hintInside), JSON.stringify(heights))
+  check('the server view opens at 13 rows including its page guide; tools grow the same popup to 26 and no return shrinks it', heights.slice(0, 2).every(h => h.rows === 13) && heights.slice(2).every(h => h.rows === 26), JSON.stringify(heights.map(h => h.rows)))
+  check('every view keeps its way back and page guide together inside its footer', heights.every(h => h.hintInside), JSON.stringify(heights))
   check('the grown detail shows the complete short schema without scrolling; End preserves all its fields', ['placement', 'regionCode', 'gpuCountPerPod'].every(field => step4ToolDetail.includes(field) && step4ToolDetailEnd.includes(field)) && !step4ToolDetail.includes('↓ 2 more'), step4ToolDetail)
   check('a description far past the grant clamps the same way: the hint stays inside the frame, the rest is marked ↓', longTopFrame!.hintInside && step6LongDetailTop.includes('Report on every pod') && /↓ \d+ more/.test(step6LongDetailTop) && !step6LongDetailTop.includes('metric29'), step6LongDetailTop)
   check('End scrolls the long detail to its last field with the hint still inside the frame, the scrolled-off part marked ↑', longEndFrame!.hintInside && step7LongDetailEnd.includes('metric29') && /↑ \d+ more/.test(step7LongDetailEnd) && !step7LongDetailEnd.includes('Report on every pod'), step7LongDetailEnd)
