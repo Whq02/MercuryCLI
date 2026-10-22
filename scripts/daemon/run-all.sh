@@ -16,6 +16,8 @@
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
 # gate-watch: src/services/providers/openaicompat/compatAccounts.ts src/services/providers/openaicompat/compatCatalogue.ts src/services/providers/openaicompat/compatAdapter.ts src/services/providers/providerDiscovery.ts src/services/concourse/workerModels.ts src/services/switchboard/bootBirthFacts.ts src/utils/auth.ts
 # gate-watch: src/services/switchboard/sessionReceipts.ts src/utils/sessionStorage/paths.ts src/commands/restart/* src/tasks/LocalShellTask/*
+# gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/provider-compat/fixtures/engineRules.mjs
+# gate-watch: src/services/providers/providerSecrets.ts src/utils/settings/settingsCache.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

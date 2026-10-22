@@ -12,6 +12,8 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/factories.ts src/utils/task/framework.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WorkflowTool/agentHooks.ts src/tools/WorkflowTool/workflowPrompt.ts src/tools.ts
 # gate-watch: src/tools/AgentTool/constants.ts src/tools/InspectTool/InspectTool.ts src/tools/FileReadTool/readTarget.ts docs/CREW.md
+# gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/provider-compat/fixtures/engineRules.mjs
+# gate-watch: src/state/AppStateStore.ts src/utils/settings/settingsCache.ts src/tools/AgentTool/resumeAgent.ts src/tasks.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
