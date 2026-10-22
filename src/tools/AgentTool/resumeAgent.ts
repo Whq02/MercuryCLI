@@ -262,6 +262,7 @@ export async function resumeAgentBackground(args: {
     ...(launchedAt !== undefined ? { launchedAt } : {}),
     ...(restoredModel ? { model: restoredModel } : {}),
     ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
+    ...(meta?.thinkingConfig ? { thinkingConfig: meta.thinkingConfig } : {}),
     ...(instructionProfileOverride
       ? { instructionProfile: instructionProfileOverride }
       : {}),
@@ -316,6 +317,7 @@ export async function resumeAgentBackground(args: {
           ...(launchName ? { name: launchName } : {}),
           ...(launchedAt !== undefined ? { launchedAt } : {}),
           effortOverride: restoredEffort,
+          thinkingConfigOverride: meta?.thinkingConfig,
           ...(instructionProfileOverride
             ? { instructionProfileOverride }
             : {}),
