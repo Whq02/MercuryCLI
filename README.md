@@ -18,7 +18,7 @@ Mercury is used to build Mercury, running multiple sessions and models across lo
 
 ![One prompt to the coordinator on the session board launches two sessions, each in its own worktree; one asks before editing, and both finish with their changes ready to review](docs/media/session-board.gif)
 
-Mercury is source-available. See [Licence](#licence) for the production-use terms.
+Mercury is source-available under the Business Source License 1.1, and the SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/) are licensed under the Apache License 2.0. See [Licence](#licence) for the production-use terms.
 
 ## Install
 
@@ -946,13 +946,19 @@ Keep them out of public issues. See [SECURITY.md](SECURITY.md).
 
 ## Licence
 
+The Mercury CLI is licensed under the Business Source License 1.1 (`BUSL-1.1`)
+with the Mercury Community Production Grant in [LICENSE.md](LICENSE.md). The
+TypeScript and Python SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/)
+(`mercury-cli-sdk` on npm and PyPI) are licensed separately under the Apache
+License 2.0 (`Apache-2.0`), each by the LICENSE file it carries
+([sdk/LICENSE](sdk/LICENSE) and [sdk-py/LICENSE](sdk-py/LICENSE)), and are not
+part of the Licensed Work.
+
 Mercury is source-available under the Business Source License 1.1, with the
 Mercury Community Production Grant. The licence is in
 [LICENSE.md](LICENSE.md), with its companion
 [production terms](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and
 [trademark policy](TRADEMARKS.md). The licence text controls; this is a summary.
-The SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/) are licensed separately under
-the Apache License 2.0, each by the LICENSE file it carries.
 
 You may read, copy, modify and fork the source. Individuals and organisations
 below both community thresholds can use Mercury in production for free to

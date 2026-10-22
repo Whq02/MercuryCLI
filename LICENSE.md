@@ -4,6 +4,8 @@ Copyright © 2026 Waleed Al Qusous, trading as Mercury CLI. All rights reserved 
 
 SPDX license identifier for the underlying standard license: `BUSL-1.1`
 
+This file covers the Mercury CLI under the Business Source License 1.1 (`BUSL-1.1`), with the Mercury Community Production Grant set out in the section of that name below and its companion terms in `MERCURY-COMMUNITY-PRODUCTION-TERMS.md`. The TypeScript and Python SDKs in `sdk/` and `sdk-py/` (`mercury-cli-sdk` on npm and PyPI) are licensed separately under the Apache License 2.0 (`Apache-2.0`) by their own `sdk/LICENSE` and `sdk-py/LICENSE` files, and are not covered by this file.
+
 ## Non-binding plain-English summary
 
 This summary is only a guide. The operative terms below control.
