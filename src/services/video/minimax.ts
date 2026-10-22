@@ -2,9 +2,9 @@ import { metadataRefusal, metadataSafeAddresses } from '../../tools/WebFetchTool
 import { resolveMinimaxApiKey } from '../providers/minimax/minimaxAccounts.js'
 import type { VideoJob, VideoProvider, VideoStatus } from './types.js'
 
-export const MINIMAX_VIDEO_BASE = 'https://api.minimax.io'
+const MINIMAX_VIDEO_BASE = 'https://api.minimax.io'
 export const MINIMAX_VIDEO_MODEL = 'MiniMax-H3'
-export const VIDEO_POLL_INTERVAL_MS = 10_000
+const VIDEO_POLL_INTERVAL_MS = 10_000
 
 function loopback(url: URL): boolean {
   return ['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname)

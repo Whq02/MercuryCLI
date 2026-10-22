@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
-export function walkPayloadFiles(dir: string, base = ''): string[] {
+function walkPayloadFiles(dir: string, base = ''): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)

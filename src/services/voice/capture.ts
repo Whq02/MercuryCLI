@@ -23,7 +23,7 @@ function recorderInstallHint(platform: string = process.platform): string {
   return 'apt install ffmpeg, or your package manager'
 }
 
-export const NO_BACKEND_RECEIPT_RELEASE =
+const NO_BACKEND_RECEIPT_RELEASE =
   'no microphone backend — this install carries no voice pack; put ffmpeg or sox on PATH'
 
 export function noBackendReceipt(checkoutRoot: string | null = voiceCheckoutRoot(), platform: string = process.platform): string {

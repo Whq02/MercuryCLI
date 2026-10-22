@@ -8,8 +8,8 @@ export function localTranscribeDeadlineMs(audioMs: number): number {
   return 120_000 + Math.max(0, Math.round(audioMs))
 }
 
-export type LocalAbsentReason = 'pack' | 'pin' | 'cpu' | 'model' | 'load'
-export type LocalTranscriberRead =
+type LocalAbsentReason = 'pack' | 'pin' | 'cpu' | 'model' | 'load'
+type LocalTranscriberRead =
   | {
       state: 'ok'
       label: string
@@ -19,7 +19,7 @@ export type LocalTranscriberRead =
     }
   | { state: 'absent'; reason: LocalAbsentReason; note: string; short: string; download?: WhisperModelRow }
 
-export interface TranscriberChoice {
+interface TranscriberChoice {
   kind: 'local'
   label: string
   model: string
@@ -29,11 +29,11 @@ export type TranscriberResolution =
   | { state: 'ok'; choice: TranscriberChoice; local: Extract<LocalTranscriberRead, { state: 'ok' }> }
   | { state: 'none'; note: string; local: Extract<LocalTranscriberRead, { state: 'absent' }> }
 
-export function noTranscriberReceipt(local: LocalTranscriberRead): string {
+function noTranscriberReceipt(local: LocalTranscriberRead): string {
   return local.state === 'absent' ? `on-device transcriber: ${local.note}` : local.label
 }
 
-export function pickTranscriber(local: LocalTranscriberRead): TranscriberResolution {
+function pickTranscriber(local: LocalTranscriberRead): TranscriberResolution {
   return local.state === 'ok'
     ? { state: 'ok', choice: { kind: 'local', label: local.label, model: local.model }, local }
     : { state: 'none', note: noTranscriberReceipt(local), local }
@@ -67,12 +67,12 @@ export function resolveTranscriber(): TranscriberResolution {
   return pickTranscriber(localTranscriberRead())
 }
 
-export interface TranscribeOptions {
+interface TranscribeOptions {
   choice: TranscriberChoice
   deadlineMs?: number
 }
 
-export interface Transcript {
+interface Transcript {
   text: string
   kind: 'local'
   family: null

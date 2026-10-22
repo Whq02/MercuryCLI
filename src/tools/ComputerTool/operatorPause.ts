@@ -2,8 +2,8 @@ import type { DesktopDriver } from '../../services/desktop/driver.js'
 import { isTypingActive, TYPING_HOLD_MS } from '../../utils/cockpit/typingActivity.js'
 import { sleep } from '../../utils/sleep.js'
 
-export const OPERATOR_QUIET_MS = TYPING_HOLD_MS
-export const OPERATOR_PAUSE_CAP_MS = 3000
+const OPERATOR_QUIET_MS = TYPING_HOLD_MS
+const OPERATOR_PAUSE_CAP_MS = 3000
 export const OPERATOR_TYPING_REFUSAL = 'the operator is typing — nothing done; try again in a moment'
 
 export async function operatorIsTyping(driver: DesktopDriver): Promise<boolean> {
