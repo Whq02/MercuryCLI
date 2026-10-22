@@ -66,7 +66,7 @@ const seed = (vendor: 'runpod' | 'vast' | 'lambda') => {
   if (vendor === 'lambda') lambda.state.pods.set(id, { id, name, status: 'active', ip: '127.0.0.1', first_healthy: '2026-10-20T09:00:00Z', instance_type: lambda.state.types[0], reads: 2 })
   return { id, name }
 }
-const listPath = { runpod: '/v2/pods', vast: '/api/v0/instances/', lambda: '/api/v1/instances' }
+const listPath = { runpod: '/v2/pods', vast: '/api/v1/instances/', lambda: '/api/v1/instances' }
 try {
   for (const [vendor, fixture] of [['runpod', rp], ['vast', vast], ['lambda', lambda]] as const) {
     saveVendorKey(vendor, fixture.key)

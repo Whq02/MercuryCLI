@@ -197,7 +197,7 @@ try {
       const steps = readSteps.length
       await readOnly(10000, client.label)('pod', signal => client.get(rented.id, signal))
       check(client.label + ' retries network errors', readSteps.slice(steps).some(step => step.includes('network error')))
-      const listing = new URL(fixture.baseUrl).pathname + '/instances' + (vendor === 'vast' ? '/' : '')
+      const listing = vendor === 'vast' ? '/api/v1/instances/' : '/api/v1/instances'
       fixture.state.failNext = { route: 'GET ' + listing, status: 503, times: 2, retryAfter: '0' }
       const stepsBefore = readSteps.length
       await terminateVerified(client, rented.id, readOnly(10000, client.label), client.label)

@@ -3,17 +3,18 @@ import { createServer } from 'node:http'
 export async function vastFixture() {
   const key = 'fixture-vast-key'
   const requests = []
-  const state = { failNext: null, retryAfter: undefined, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false, plainTextError: false, messageOnlyError: false, provisioningRead: false }
+  const state = { failNext: null, retryAfter: undefined, noStock: false, stockLoss: false, ambiguousCreate: false, rateLimited: false, creates: 0, deletes: 0, stops: 0, pods: new Map(), customOffers: null, createStatus: 0, holdTerminate: false, badRead: false, logUrl: null, keys: [], keyCreates: 0, ambiguousKey: false, mismatchKey: false, noDirect: false, plainTextError: false, messageOnlyError: false, provisioningRead: false, listResponse: null }
   const server = createServer(async (req, res) => {
     let raw = ''
     for await (const chunk of req) raw += chunk
     const body = raw ? JSON.parse(raw) : undefined
     const url = new URL(req.url, 'http://127.0.0.1')
-    requests.push({ path: url.pathname, method: req.method, body, at: Date.now(), socket: req.socket.remotePort, connection: req.headers.connection, authorization: req.headers.authorization })
+    requests.push({ path: url.pathname, query: Object.fromEntries(url.searchParams), method: req.method, body, at: Date.now(), socket: req.socket.remotePort, connection: req.headers.connection, authorization: req.headers.authorization })
     const json = (value, status = 200) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)) }
     const fail = (status, msg) => json({ success: false, error: 'invalid_args', msg: msg + ' ' + key }, status)
     if (url.pathname.startsWith('/fixture-logs/')) { res.writeHead(200); res.end('booted\n' + key + '\nready\n'); return }
     if (req.headers.authorization !== 'Bearer ' + key) { fail(401, 'Invalid user key'); return }
+    if (url.pathname === '/api/v0/instances/' && req.method === 'GET') { res.writeHead(410, { 'content-type': 'text/plain' }); res.end('/api/v0/instances/ is deprecated. Use /api/v1/instances/ instead.'); return }
     const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + url.pathname)
     if (failure) {
       failure.times--
@@ -28,10 +29,10 @@ export async function vastFixture() {
     if (create) state.creates++
     if (state.rateLimited) { if (state.rateLimited === 'once') state.rateLimited = false; fail(429, 'API requests too frequent endpoint threshold=4.5'); return }
     if (url.pathname === '/api/v0/bundles/' && req.method === 'POST') {
-      const common = { verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000 }
+      const common = { datacenter: true, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000 }
       const offers = state.customOffers ?? [
-        { ...common, id: 101, gpu_name: 'H200', gpu_ram: 141 * 1024, num_gpus: 1, dph_total: 2.1 },
-        { ...common, id: 102, gpu_name: 'RTX_PRO_6000', gpu_ram: 96 * 1024, num_gpus: 1, dph_total: 1.2 },
+        { ...common, id: 101, gpu_name: 'H200', gpu_ram: 141 * 1024, num_gpus: 1, dph_total: 2.1, datacenter: true },
+        { ...common, id: 102, gpu_name: 'RTX_PRO_6000', gpu_ram: 96 * 1024, num_gpus: 1, dph_total: 1.2, datacenter: false },
         { ...common, id: 103, gpu_name: 'B200', gpu_ram: 192 * 1024, num_gpus: 4, dph_total: 9.25 },
         { ...common, id: 104, gpu_name: 'B300', gpu_ram: 288 * 1024, num_gpus: 1, dph_total: 5.5 },
         { ...common, id: 105, gpu_name: 'GB300', gpu_ram: 288 * 1024, num_gpus: 4, dph_total: 20 },
@@ -61,7 +62,19 @@ export async function vastFixture() {
       json({ success: true, new_contract: id }); return
     }
     const shown = pod => ({ ...pod, ...(state.provisioningRead ? { actual_status: 'loading', start_date: null } : {}), ports: state.noDirect ? {} : { '22/tcp': [{ HostIp: '0.0.0.0', HostPort: '2222' }] } })
-    if (url.pathname === '/api/v0/instances/' && req.method === 'GET') { json({ instances_found: state.pods.size, instances: [...state.pods.values()].map(shown) }); return }
+    if (url.pathname === '/api/v1/instances/' && req.method === 'GET') {
+      const token = url.searchParams.get('after_token')
+      let after = 0
+      try { if (token) after = JSON.parse(Buffer.from(token, 'base64').toString()).values.id } catch { fail(400, 'Invalid after_token'); return }
+      if (!Number.isInteger(after) || after < 0) { fail(400, 'Invalid after_token'); return }
+      const all = [...state.pods.values()].sort((a, b) => a.id - b.id)
+      const limit = Math.min(25, Number(url.searchParams.get('limit')) || 25)
+      const remaining = all.filter(pod => pod.id > after)
+      const instances = remaining.slice(0, limit).map(shown)
+      const next_token = remaining.length > instances.length ? Buffer.from(JSON.stringify({ values: { id: instances.at(-1).id } })).toString('base64') : null
+      const label_counts = all.reduce((counts, pod) => { const label = pod.label ?? ''; counts[label] = (counts[label] ?? 0) + 1; return counts }, {})
+      json(state.listResponse ?? { success: true, instances_found: instances.length, total_instances: all.length, label_counts, next_token, instances }); return
+    }
     const log = /^\/api\/v0\/instances\/request_logs\/(\d+)\/$/.exec(url.pathname)
     if (log && req.method === 'PUT') { json({ success: true, result_url: state.logUrl ?? origin + '/fixture-logs/' + log[1] }); return }
     const match = /^\/api\/v0\/instances\/(\d+)\/$/.exec(url.pathname)
