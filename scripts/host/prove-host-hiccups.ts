@@ -130,6 +130,47 @@ try {
   ssh.state.failEngine = false
   check('worker cleanup retries its listing and confirms without another terminate', !readHostRecord(failedCleanup.id) && rp.state.deletes === cleanupDeletes + 1 && notices().some(words => words.includes('worker-cleanup') || words.includes(failedCleanup.id) && words.includes('terminated and verified absent')))
 
+  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { LLM_HOST_WORDS } = await import('../../src/commands/llmhost/words.ts')
+  const manual = async (id: string, action: 'stop' | 'terminate', readyTimeoutMs: number, arm: () => void) => {
+    const events: string[] = []
+    const steps: string[] = []
+    let controls = 0
+    const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh!.runner, pauseMs: 5, readyTimeoutMs, sessionId: 'hiccups-session' })
+    const result = await road(async q => {
+      if (q.step === 'door-models') return 'other'
+      if (q.step === 'where') return 'pod:' + id
+      if (q.step === 'pod-controls') return ++controls === 1 ? action : 'close'
+      if (q.step === 'pod-confirm') { arm(); return action }
+      if (q.step === 'terminate-weights') return 'keep'
+      throw new Error('Unexpected manual-control step ' + q.step)
+    }, event => { events.push(event.words); if (event.host?.step) steps.push(event.host.step) }, new AbortController().signal)
+    return { result, events, steps }
+  }
+  for (const action of ['terminate', 'stop'] as const) {
+    const manualPod = await api.create(offer, 'ssh-ed25519 fixture', 'manual-' + action)
+    await run(queue(manualPod))
+    const deletes = rp.state.deletes
+    const stops = rp.state.stops
+    const { result, events, steps } = await manual(manualPod.id, action, 5000, () => { rp.state.failNext = { route: action === 'stop' ? 'GET /v2/pods/' + manualPod.id : 'GET /v2/pods', status: 503, times: 2 } })
+    const waiting = action === 'terminate' ? 'terminating · waiting for Runpod to drop it from the account list' : 'stopping · waiting for Runpod to report it stopped'
+    check('manual ' + action + ' shows the wait on the pod row and retries two listing 503s with words, then confirms', steps.some(step => step === waiting) && steps.filter(step => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(step)).length === 2 && rp.state.failNext.times === 0 && (action === 'terminate'
+      ? result.ok && result.words === LLM_HOST_WORDS.terminatedPod && rp.state.deletes === deletes + 1 && !rp.state.pods.has(manualPod.id) && !readHostRecord(manualPod.id)
+      : result.ok && rp.state.stops === stops + 1 && rp.state.pods.get(manualPod.id)?.status === 'EXITED' && readHostRecord(manualPod.id)?.status === 'EXITED' && !events.some(words => words.includes('compute may still bill'))))
+    rp.state.failNext = null
+    closeHostTunnel(manualPod.id)
+  }
+  const unconfirmedPod = await api.create(offer, 'ssh-ed25519 fixture', 'manual-unconfirmed')
+  await run(queue(unconfirmedPod))
+  const unconfirmedDeletes = rp.state.deletes
+  let listingsBefore = 0
+  const unconfirmed = await manual(unconfirmedPod.id, 'terminate', 350, () => { listingsBefore = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length; rp.state.failNext = { route: 'GET /v2/pods', status: 503, times: 1000 } })
+  const listings = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - listingsBefore
+  const unconfirmedWords = unconfirmedPod.id + ' · termination sent; Runpod did not confirm (HTTP 503 ×' + listings + ') — check Pods I’m paying for · it may still bill; Terminate again once Runpod answers'
+  check('manual terminate whose listing never answers says the termination was sent, counts the failed reads, says it may still bill, sends no second DELETE and keeps the pod on the controls', !unconfirmed.result.ok && unconfirmed.events.includes(unconfirmedWords) && rp.state.deletes === unconfirmedDeletes + 1 && listings > 1 && readHostRecord(unconfirmedPod.id) !== undefined && !unconfirmed.events.some(words => words.includes('Set-up stopped')))
+  rp.state.failNext = null
+  closeHostTunnel(unconfirmedPod.id)
+
   const keptOffer = offers.find(row => pinnedWeightManifest(row.recipe))!
   assert.ok(keptOffer, 'a shipped offered recipe has a pinned weights manifest')
   const { writeKeptVolume } = await import('../../src/services/host/volumes.ts')

@@ -14,6 +14,7 @@ import { cents, type RunpodClient, type HostOffer, type HostPod } from './runpod
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
 import { activeHostWatches as activeWatches, hostJobRunning, hostLogTail, queueHostSetup, queueHostWatch, requireHostJobOwner, stopHostSetup, watchModel, watchRateWords } from './jobs.js'
+import { hostJobReadOnly, HostTerminationUnconfirmed } from './retry.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { BANK_DOOR, bankAction, bankDoor, ensureBankFolder, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
@@ -138,8 +139,17 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         const weightsChoice = action === 'terminate' ? await terminateVolumeChoice(volumeId, question, signal) : 'keep'
         if (!weightsChoice) continue
         if (record) { await stopHostSetup(pod.id); record = readHostRecord(pod.id) }
+        const progress = (step: string): void => emit({ title: words.manage, words: pod!.id + ' · ' + step, host: { id: pod!.id, price: pod!.cost, startedAt: pod!.startedAt ?? pod!.createdAt, status: pod!.status, step } })
+        const confirming = hostJobReadOnly({ label: api.label, pauseMs, timeoutMs: 4 * 60_000, signal, mark: progress })
+        const plain = (error: unknown): string => { const text = error instanceof Error ? error.message : String(error); return key ? text.split(key).join('[redacted]') : text }
         if (action === 'terminate') {
-          await terminateHostResource(api, pod)
+          progress('terminating · waiting for ' + api.label + ' to drop it from the account list')
+          try { await terminateHostResource(api, pod, confirming) } catch (error) {
+            const detail = pod.id + ' · ' + plain(error) + (error instanceof HostTerminationUnconfirmed ? ' · it may still bill; Terminate again once ' + api.label + ' answers' : ' · it may still bill · /llmhost → Pods I’m paying for → Terminate again')
+            emit({ title: words.manage, words: detail })
+            saved = { ok: false, words: detail }
+            continue
+          }
           closeHostTunnel(pod.id)
           const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
           const { removeLlmHostProvider } = await import('../llmHost/index.js')
@@ -157,10 +167,18 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           emit({ title: words.manage, words: words.terminatedPod, host: { id: pod.id, price: 0, startedAt: pod.createdAt, status: 'TERMINATED' } })
           return { ...(saved ?? { ok: true }), words: words.terminatedPod }
         }
-        await api.stop(pod.id)
-        const deadline = Date.now() + 120_000
-        while (Date.now() < deadline) { pod = await api.get(pod.id); if (pod.status === 'EXITED') break; await delay(pauseMs) }
-        if (pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.')
+        progress('stopping · waiting for ' + api.label + ' to report it stopped')
+        try {
+          await api.stop(pod.id)
+          const deadline = Date.now() + 120_000
+          while (Date.now() < deadline) { pod = await confirming('pod', readSignal => api!.get(pod!.id, readSignal)); if (pod.status === 'EXITED') break; await delay(pauseMs, undefined, { signal }) }
+          if (pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.')
+        } catch (error) {
+          const detail = pod.id + ' · ' + plain(error) + ' · compute may still bill · /llmhost → Pods I’m paying for → Stop again or Terminate'
+          emit({ title: words.manage, words: detail })
+          saved = { ok: false, words: detail }
+          continue
+        }
         closeHostTunnel(pod.id)
         if (record) { record.status = pod.status; writeHostRecord(record) }
       }
