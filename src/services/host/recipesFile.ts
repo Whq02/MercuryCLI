@@ -178,7 +178,29 @@ interface HostRecipesOptions {
   onDrop?: (index: number, reason: string) => void
 }
 
+const sessionRecipes = new Map<string, HostRecipe>()
+
+export function rememberSessionHostRecipe(recipe: HostRecipe): HostRecipe {
+  const row = hostRecipeSchema.parse(recipe)
+  sessionRecipes.set(row.id, row)
+  return row
+}
+
+export function sessionHostRecipes(): HostRecipe[] {
+  return [...sessionRecipes.values()]
+}
+
+export function forgetSessionHostRecipes(): void {
+  sessionRecipes.clear()
+}
+
 export function currentHostRecipes(options: HostRecipesOptions = {}): HostRecipe[] {
+  const loaded = loadedHostRecipes(options)
+  const session = sessionHostRecipes().filter(row => !loaded.some(own => own.id === row.id))
+  return session.length ? [...loaded, ...session] : loaded
+}
+
+function loadedHostRecipes(options: HostRecipesOptions): HostRecipe[] {
   const localPath = flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim()
   if (localPath) {
     try {
