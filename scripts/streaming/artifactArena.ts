@@ -203,6 +203,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
       env: {
         ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
         HOME: home,
+        TMPDIR: tmpdir(),
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
