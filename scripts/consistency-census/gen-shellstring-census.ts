@@ -97,6 +97,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test',
   },
   {
+    test: f => f === 'scripts/bash/prove-windows-batch-invocation.ts',
+    cls: 'test-fixture',
+    why: 'drives Shell.exec at a PATH-found .cmd on purpose — whether the Windows system shell runs a batch by its bare name with every argument byte intact is the subject under test',
+  },
+  {
     test: f => f.startsWith('scripts/ide/'),
     cls: 'platform-owner',
     why: 'IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile',
