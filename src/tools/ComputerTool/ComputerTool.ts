@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolEffect, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
@@ -170,6 +171,7 @@ const baseSchema = lazySchema(() =>
 export type Input = z.infer<ReturnType<typeof baseSchema>> & { steps?: Input[] }
 type SchemaType = z.ZodType<Input>
 const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
+const modelInputSchema = lazySchema(() => baseSchema().extend({ steps: z.array(baseSchema()).optional().describe('Sequence actions; no nesting') }))
 
 export type Output = {
   action: Input['action']
@@ -848,6 +850,9 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
   shouldDefer: true,
   get inputSchema(): SchemaType {
     return inputSchema()
+  },
+  get inputJSONSchema() {
+    return zodToJsonSchema(modelInputSchema()) as never
   },
   isEnabled() {
     return computerToolEnabled()
