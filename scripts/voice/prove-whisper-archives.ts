@@ -51,6 +51,7 @@ try {
       assert.equal(decision.env.CMAKE_C_COMPILER, 'clang-cl')
       assert.equal(decision.env.CMAKE_CXX_COMPILER, 'clang-cl')
       assert.equal(decision.env.CMAKE_CXX_COMPILER_TARGET, 'aarch64-pc-windows-msvc')
+      assert.ok(String(decision.env.CXXFLAGS ?? '').split(/\s+/).includes('/EHsc'), 'clang-cl compiles whisper.cpp with exceptions on (/EHsc): gguf.cpp uses try')
     }
     console.log(`${target}: absent, present, corrupt, missing licence and toolchain decision verified`)
   }

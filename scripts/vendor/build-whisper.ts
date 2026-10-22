@@ -249,6 +249,7 @@ function toolchainEnv(): Record<string, string> {
     CMAKE_C_COMPILER: 'clang-cl', CMAKE_CXX_COMPILER: 'clang-cl',
     CMAKE_C_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
     CMAKE_CXX_COMPILER_TARGET: 'aarch64-pc-windows-msvc',
+    CXXFLAGS: [process.env.CXXFLAGS, '/EHsc'].filter(Boolean).join(' '),
     WHISPER_DONT_GENERATE_BINDINGS: '1',
   }
 }
