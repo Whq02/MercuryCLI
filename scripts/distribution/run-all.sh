@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: sdk/package.json sdk-py/pyproject.toml
 # gate-watch: scripts/distribution/**
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json
 # gate-watch: docs/AUTOMATION.md scripts/sdk/generate.ts src/cli/headless/runnerAsks.ts src/runner/wire/methods.ts

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/cockpit/ctxForecast.ts
 # gate-watch: src/services/compact/** src/run-core/turn-machine.ts src/services/run/requestGauge.ts src/services/run/contextCalibration.ts src/services/run/contextEpochs.ts
 # gate-watch: src/tools/CheckpointTool/** src/tools/RewindTool/**

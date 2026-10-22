@@ -505,7 +505,7 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
         const sample = hit.unwatched[0]!
         const who = (selectImpact(manifest, [sample]).perPath[sample] ?? []).filter(c => c !== suite && !c.startsWith('('))
         const scope = hit.files.length > 1 ? ` (${hit.unwatched.length} of ${hit.files.length} files outside the watch, e.g. ${sample})` : ''
-        row.misses.push(`${hit.via} reads ${key}${scope} — the gate wakes ${who.length > 0 ? who.join(', ') : 'nothing'} for ${sample}, not ${suite}`)
+        row.misses.push(`${hit.via} reads ${key}${scope} — the gate wakes ${who.length > 0 ? who.join(', ') : 'nothing'} for ${sample}, not ${suite}; add "# gate-watch: ${key}" to the header of ${runner}`)
       }
     }
     for (const text of row.misses) misses.push({ suite, law: 2, text })
@@ -584,17 +584,17 @@ function selfTest(): boolean {
   const want = [
     '1 alpha scripts/alpha/run-all.sh: gate-watch src/gone/** matches no tracked path',
     '1 gamma scripts/gamma/run-all.sh:4: a gate-watch line below the header block is never read',
-    '2 alpha scripts/alpha/helper.ts reads src/gamma/g.ts — the gate wakes nothing for src/gamma/g.ts, not alpha',
-    '2 alpha scripts/alpha/prove-a.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not alpha',
-    '2 alpha scripts/alpha/prove-a.ts reads src/beta/b.ts — the gate wakes beta, beta-2, beta-3 for src/beta/b.ts, not alpha',
-    '2 alpha scripts/alpha/prove-a.ts reads src/beta/data.json — the gate wakes beta, beta-2, beta-3 for src/beta/data.json, not alpha',
-    '2 beta scripts/beta/prove-e.ts reads src/keys/** (3 of 3 files outside the watch, e.g. src/keys/one.ts) — the gate wakes delta for src/keys/one.ts, not beta',
-    '2 beta-2 scripts/beta/prove-b.ts reads src/keys/one.ts — the gate wakes delta for src/keys/one.ts, not beta-2',
-    '2 beta-3 scripts/beta-3/run-all.sh reads scripts/beta/prove-c.ts — the gate wakes beta, beta-2 for scripts/beta/prove-c.ts, not beta-3',
-    '2 delta scripts/delta/prove-d.sh reads src/keys/two.ts — the gate wakes nothing for src/keys/two.ts, not delta',
+    '2 alpha scripts/alpha/helper.ts reads src/gamma/g.ts — the gate wakes nothing for src/gamma/g.ts, not alpha; add "# gate-watch: src/gamma/g.ts" to the header of scripts/alpha/run-all.sh',
+    '2 alpha scripts/alpha/prove-a.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not alpha; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/alpha/run-all.sh',
+    '2 alpha scripts/alpha/prove-a.ts reads src/beta/b.ts — the gate wakes beta, beta-2, beta-3 for src/beta/b.ts, not alpha; add "# gate-watch: src/beta/b.ts" to the header of scripts/alpha/run-all.sh',
+    '2 alpha scripts/alpha/prove-a.ts reads src/beta/data.json — the gate wakes beta, beta-2, beta-3 for src/beta/data.json, not alpha; add "# gate-watch: src/beta/data.json" to the header of scripts/alpha/run-all.sh',
+    '2 beta scripts/beta/prove-e.ts reads src/keys/** (3 of 3 files outside the watch, e.g. src/keys/one.ts) — the gate wakes delta for src/keys/one.ts, not beta; add "# gate-watch: src/keys/**" to the header of scripts/beta/run-all.sh',
+    '2 beta-2 scripts/beta/prove-b.ts reads src/keys/one.ts — the gate wakes delta for src/keys/one.ts, not beta-2; add "# gate-watch: src/keys/one.ts" to the header of scripts/beta-2/run-all.sh',
+    '2 beta-3 scripts/beta-3/run-all.sh reads scripts/beta/prove-c.ts — the gate wakes beta, beta-2 for scripts/beta/prove-c.ts, not beta-3; add "# gate-watch: scripts/beta/prove-c.ts" to the header of scripts/beta-3/run-all.sh',
+    '2 delta scripts/delta/prove-d.sh reads src/keys/two.ts — the gate wakes nothing for src/keys/two.ts, not delta; add "# gate-watch: src/keys/two.ts" to the header of scripts/delta/run-all.sh',
     '2 gamma registered as a whole-tree reader (a stale registration) but no proof it runs reads the whole tree',
     '2 listed scripts/listed/prove-l.ts reads the whole tree (.); the suite is not registered as a whole-tree reader',
-    '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole',
+    '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/whole/run-all.sh',
   ]
   const seen = got.misses.map(m => `${m.law} ${m.suite} ${m.text}`).sort()
   const wholeOk = got.suites.find(s => s.suite === 'whole')?.whole === 'walks src for the fixture'
