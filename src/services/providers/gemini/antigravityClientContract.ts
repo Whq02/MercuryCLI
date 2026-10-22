@@ -15,9 +15,9 @@ export const ANTIGRAVITY_OAUTH_SCOPE = [
   'https://www.googleapis.com/auth/cclog',
   'https://www.googleapis.com/auth/experimentsandconfigs',
 ].join(' ')
-export const ANTIGRAVITY_CLIENT_CONTRACT_VERSION = '2.24.0'
+export const ANTIGRAVITY_CLIENT_CONTRACT_VERSION = '2.25.0'
 export const ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST = '963137146'
-export const ANTIGRAVITY_CLIENT_CONTRACT_AS_OF = '2026-10-21'
+export const ANTIGRAVITY_CLIENT_CONTRACT_AS_OF = '2026-10-22'
 export const ANTIGRAVITY_CLIENT_OS = 'darwin'
 export const ANTIGRAVITY_CLIENT_ARCH = 'arm64'
 export const ANTIGRAVITY_MANIFEST_DEFAULT_BASE = 'https://antigravity-hub-auto-updater-974169037036.us-central1.run.app'
