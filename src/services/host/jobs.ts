@@ -12,6 +12,7 @@ import { hostDirectory, hostRecords, patchHostRecord, readHostRecord, writeHostR
 import { hostNotice } from './notices.js'
 import { currentHostRecipes } from './recipesFile.js'
 import { pinnedWeightManifest } from './keptWeights.js'
+import { captureHostHuggingfaceCredential } from './jobCredentials.js'
 import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
@@ -45,6 +46,7 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   const stored = readHostRecord(record.id)
   if (stored && hostRetuneLive(stored)) throw new Error('This pod is reloading its engine; resume setup once the reload ends. Nothing was queued.')
   const recipe = jobRecipe(record)
+  record = { ...record, huggingfaceCredential: captureHostHuggingfaceCredential(record) }
   let tune: HostRecord['tune']
   try {
     const preference = record.tune ?? (recipe ? readTunePreferences(recipe.label.split(' · ')[0]!) : undefined)
@@ -67,6 +69,7 @@ export function queueHostWatch(record: HostRecord): HostRecord {
   const pollIntervalMs = record.pollIntervalMs ?? watchPollIntervalMs
   const vendors = record.watchVendors?.length ? record.watchVendors : [record.vendor ?? 'runpod']
   const recipe = jobRecipe(record)
+  record = { ...record, huggingfaceCredential: captureHostHuggingfaceCredential(record) }
   const step = 'watching for stock ≤ $' + ceiling.toFixed(2) + '/hr' + (vendors.length > 1 ? ' across ' + vendors.length + ' providers' : '')
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
   const queued: HostRecord = { ...record, recipeRow: recipe, jobKind: 'watch', maxPrice: ceiling, pollIntervalMs, pollWindowMs: record.pollWindowMs ?? watchPollWindowMs, watchVendors: vendors, rateLimit: watchRateWords(pollIntervalMs, undefined, vendors), generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step, error: undefined, creating: undefined, log: join(logs, record.id + '.log'), steps: [{ step, at: now }] }
@@ -78,6 +81,7 @@ export function queueHostBank(record: HostRecord): HostRecord {
   if (busy) return busy
   if (active(record)) return readHostRecord(record.id) ?? record
   const recipe = jobRecipe(record)
+  record = { ...record, huggingfaceCredential: captureHostHuggingfaceCredential(record) }
   const now = Date.now()
   const step = record.bankTask === 'verify' ? 'verifying the bank' : 'queued · downloading from Hugging Face'
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })

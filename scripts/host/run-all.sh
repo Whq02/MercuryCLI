@@ -24,6 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 bun "$ROOT/scripts/host/prove-boundary-worker.ts"
 bun "$ROOT/scripts/host/prove-boundary-manifest.ts"
+bun "$ROOT/scripts/host/prove-boundary-credentials.ts"
 bun "$ROOT/scripts/host/prove-host-cleanup.ts"
 bun "$ROOT/scripts/host/prove-pod-image-path.ts"
 bun "$ROOT/scripts/host/prove-host-notice-before-turn.ts" --bundle "$ROOT/dist/mercury.mjs"

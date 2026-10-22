@@ -3,7 +3,7 @@ import { HostPreparationCleanupFailed, keptWeightsPath, prepareKeptWeights, term
 import { keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
-import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
+import { hostHuggingfaceCredential } from './jobCredentials.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vendorClient, vendorKey, vendorKeyNotice, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HostVendorHttpError } from './vendors/http.js'
@@ -73,9 +73,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
   }, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
   if (initial.jobKind === 'bank') {
     const verifying = initial.bankTask === 'verify'
-    const token = resolveHuggingfaceApiKey()
+    let token: { key: string } | undefined
     const scrub = (text: string): string => token ? clean(text).split(token.key).join('[redacted]') : clean(text)
     try {
+      if (!verifying) token = hostHuggingfaceCredential(initial)
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       if (!initial.bankFolder) throw new Error('The bank folder is not recorded; open /llmhost → Bank and try again.')
       const folder = initial.bankFolder
@@ -237,6 +238,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           workspace: afterPoll.workspace,
           sshKey: sshKey.path,
           watchedFrom: id,
+          huggingfaceCredential: afterPoll.huggingfaceCredential,
           volumeId: volume?.id,
           ...(hit === 'runpod' && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
         })
