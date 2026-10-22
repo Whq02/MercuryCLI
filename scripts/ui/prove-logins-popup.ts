@@ -131,7 +131,7 @@ const hint = 'esc or click outside closes'
 const listHint = '↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes'
 const listScreen = (name: string): boolean => name === 'menu' || name === 'short host' || /^(full|mixed) /.test(name)
 const hintOf = (name: string): string => (listScreen(name) ? listHint : hint)
-const compactHint = 'Mercury · logins · esc closes'
+const compactHint = 'Mercury · logins · pgup/pgdn page · esc closes'
 const geometryOf = (s: Scene) => settingsPopupGeometry({ width: 100, rows: 29 }, s.columns, s.rows, 0, { top: 0, rows: s.rows - (s.bottom ?? 0) })
 const COMPACT_BELOW_BODY_ROWS = 8
 const isCompact = (s: Scene): boolean => (geometryOf(s).rows ?? 0) - 7 < COMPACT_BELOW_BODY_ROWS

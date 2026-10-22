@@ -28,7 +28,7 @@ const slot = await import('../../src/components/SettingsPopupSlot.js')
 const store = await import('../../src/utils/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
 const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK, CONFIG_SEARCH_PLACEHOLDER } = await import('../../src/components/Settings/Config.js')
-const { SETTINGS_POPUP_COMPACT_HINT } = store
+const { SETTINGS_POPUP_COMPACT_PAGE_HINT } = store
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 
@@ -90,7 +90,7 @@ async function holdsStill(m: Mounted, polls: number, ms: number): Promise<boolea
 
 const context = { messages: [], options: {} } as never
 const label = (scene: Scene): string => `${scene.columns}×${scene.rows}, a ${scene.rows - scene.bottom}-row view`
-const COMPACT_HEADER = `${TITLE} · ${SETTINGS_POPUP_COMPACT_HINT}`
+const COMPACT_HEADER = `${TITLE} · ${SETTINGS_POPUP_COMPACT_PAGE_HINT}`
 const markerOf = (lines: string[]): string | undefined => lines.find(line => line.includes(COMPACT_HEADER))?.match(/(\d+ of \d+)\s*│?\s*$/)?.[1]
 
 for (const scene of SCENES) {

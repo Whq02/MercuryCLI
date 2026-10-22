@@ -8,6 +8,7 @@ export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: n
 export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8
 
 export const SETTINGS_POPUP_COMPACT_HINT = 'esc closes'
+export const SETTINGS_POPUP_COMPACT_PAGE_HINT = 'pgup/pgdn page · esc closes'
 
 const SETTINGS_POPUP_MOUSE_CLAUSE = ' or click outside closes'
 

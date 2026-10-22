@@ -8,7 +8,7 @@ import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.j
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { Message } from '../../types/message.js'
 import { PopupCompactContext } from '../../context/popupFormContext.js'
-import { SETTINGS_POPUP_COMPACT_HINT, closeSettingsPopup, settingsPopupHintText, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+import { SETTINGS_POPUP_COMPACT_HINT, SETTINGS_POPUP_COMPACT_PAGE_HINT, closeSettingsPopup, settingsPopupHintText, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
 import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
@@ -112,6 +112,7 @@ export function Settings({
   const compact = compactFrame.compact
   const folded = tight || compact
   const hintText = settingsPopupHintText(hint ?? request.hint, inner)
+  const compactHint = inner >= ('Mercury · ' + view + ' · ' + SETTINGS_POPUP_COMPACT_PAGE_HINT).length + 1 + String(marker ?? '').length + 1 ? SETTINGS_POPUP_COMPACT_PAGE_HINT : SETTINGS_POPUP_COMPACT_HINT
   const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), wrapText(hintText, Math.max(1, inner + 1), 'wrap').split('\n').length)
   const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - 1))
   return (
@@ -129,7 +130,7 @@ export function Settings({
     >
       <Box flexShrink={0} height={tight && geometry.rows! < 2 ? 0 : 1} overflow="hidden">
         <ProductLockup view={view} separator=" · " />
-        {compact ? <Text color={tok.textMuted}> · {SETTINGS_POPUP_COMPACT_HINT}</Text> : null}
+        {compact ? <Text color={tok.textMuted}> · {compactHint}</Text> : null}
         <Box flexGrow={1} />
         {compact && marker !== null && marker !== '' ? (
           <Box flexShrink={0} marginLeft={1}>
