@@ -219,7 +219,7 @@ export function hfRowLabel(model: HfModel, width = 0): string {
   const chat = hfModelChat(model)
   const head = model.id.padEnd(width)
   if (!chat.ok) return head + ' · ' + HF_NOT_CHAT_WORDS + ' (' + chat.reason + ') · ↓ ' + shortCount(model.downloads)
-  return [head, hfParamWords(model.params), hfFormatWords(model), '↓ ' + shortCount(model.downloads), model.license ?? 'licence unknown', ...(model.gated ? ['🔒 gated'] : []), ...(model.private ? ['🔒 private'] : []), 'unverified'].join(' · ')
+  return [head, hfParamWords(model.params), hfFormatWords(model), '↓ ' + shortCount(model.downloads), model.license ?? 'licence unknown', ...(model.gated ? ['gated'] : []), ...(model.private ? ['private'] : []), 'unverified'].join(' · ')
 }
 
 const smallestShape = (needGb: number): { gpu: string; vramGb: number; count: number } | undefined => HF_SHAPES.flatMap(shape => HF_COUNTS.map(count => ({ ...shape, count }))).filter(shape => shape.vramGb * shape.count >= needGb).sort((a, b) => a.vramGb * a.count - b.vramGb * b.count || a.count - b.count)[0]
