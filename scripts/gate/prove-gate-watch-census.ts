@@ -53,7 +53,6 @@ const WHOLE_TREE: Record<string, string> = {
   'ui-pure-3': 'prove-no-new-hex walks src (hex colours); prove-width-oracle-sot walks src (width oracles)',
   verify: 'prove-impact-manifest loads every runner under scripts and reads git ls-files; a whole-tree ratchet owed by every fold',
   'visual-contract': 'prove-focal-ramp walks src (focal ramps)',
-  voice: 'prove-voice-owners walks src (voice owners)',
 }
 
 const ENV_GATED = /\$\{[A-Z_]+:-0\}"?\s*=\s*"1"/

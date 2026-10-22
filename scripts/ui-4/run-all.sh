@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-watch: src/services/host/door.ts
 # gate-env: MERCURY_RENDER_CWD
 # gate-watch: scripts/ui/** scripts/ui-4/**
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*

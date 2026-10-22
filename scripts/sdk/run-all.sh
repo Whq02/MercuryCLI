@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: package.json scripts/release/launcherTemplates.mjs src/services/privateChannel/installLayout.ts tsconfig.json
 # gate-watch: sdk/** sdk-py/** src/rows/** src/cli/run.ts src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
 # gate-watch: src/runner/wire/** src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/utils/lazySchema.ts
 # gate-watch: src/main.tsx src/types/permissions.ts src/utils/effortLadder.ts

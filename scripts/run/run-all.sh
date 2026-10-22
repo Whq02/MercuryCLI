@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/services/run/**
 # gate-watch: src/utils/cockpit/contextUsageLive*
 # gate-watch: src/utils/cockpit/ctxForecast* src/utils/verification/verificationState*

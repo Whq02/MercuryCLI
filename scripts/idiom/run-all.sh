@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/utils/messages/toolSchemaDialect.ts
 # gate-watch: src/utils/sessionStorage/** src/utils/projectConfig* src/utils/json*
 # gate-watch: src/utils/envUtils* src/services/tools/toolExecution*
 # gate-watch: src/fabric/** scripts/lib/scratchSeat.ts
