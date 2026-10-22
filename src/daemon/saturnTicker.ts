@@ -340,7 +340,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         if (held === 'held') {
           report.held++
           heldNowCount++
-          rowSaturnTickReceipt(rec, by, 'schedule-held', heldLine(missReason, heldNowCount), {
+          rowSaturnTickReceipt(rec, by, 'schedule-held', `${heldLine(missReason, heldNowCount)} — ${resolved.reason}`, {
             reason: missReason,
             scheduleId: schedule.id,
             dueAt,

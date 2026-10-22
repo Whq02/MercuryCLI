@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { anthropicCredentialPresence } from '../services/providers/providerUsage.js'
 import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
+import { compatModelEndpoint, resolveCompatAccount } from '../services/providers/openaicompat/compatAccounts.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
@@ -25,11 +26,20 @@ export interface AnthropicOauthDetailV1 {
 
 export interface SaturnAccountReads {
   familyOf?: (modelKey: string) => string
-  presenceOf?: (family: string) => FamilyCredentialPresenceV1
+  presenceOf?: (family: string, modelKey?: string) => FamilyCredentialPresenceV1
   anthropicDetail?: () => AnthropicOauthDetailV1 | null
 }
 
-function productionPresenceOf(family: string): FamilyCredentialPresenceV1 {
+function productionPresenceOf(family: string, modelKey?: string): FamilyCredentialPresenceV1 {
+  if (family === 'openai-compat' && modelKey !== undefined) {
+    try {
+      const resolved = compatModelEndpoint(modelKey)
+      const account = resolved === undefined ? undefined : resolveCompatAccount(process.env, resolved.endpoint.name)
+      return account === undefined ? { credentialed: false, kind: 'none' } : { credentialed: true, kind: account.kind }
+    } catch {
+      return { credentialed: false, kind: 'none' }
+    }
+  }
   if (family === 'anthropic') {
     try {
       const presence = anthropicCredentialPresence()
@@ -111,13 +121,21 @@ export function deriveScheduleAccountForModel(
     return { ok: false, reason: `unknown-family: no provider family answers for '${modelKey}'` }
   }
   const presenceOf = reads.presenceOf ?? productionPresenceOf
-  const presence = presenceOf(family)
+  const presence = presenceOf(family, modelKey)
+  const scope = family === 'openai-compat' ? { modelKey } : {}
   if (!presence.credentialed || presence.kind === 'none') {
     if (family === 'local') return { ok: false, reason: localUnreachableRefusal(), code: 'unreachable' }
-    return { ok: false, reason: noCredentialRefusal(family) }
+    let door = family
+    if (family === 'openai-compat') {
+      try {
+        const endpoint = compatModelEndpoint(modelKey)?.endpoint
+        if (endpoint !== undefined) door = `compat/${endpoint.name}`
+      } catch {}
+    }
+    return { ok: false, reason: noCredentialRefusal(door) }
   }
   if (presence.kind === 'keyless') {
-    return { ok: true, account: { family, source: 'keyless' } }
+    return { ok: true, account: { family, source: 'keyless', ...scope } }
   }
   if (family === 'anthropic' && presence.kind === 'oauth') {
     const detail = (reads.anthropicDetail ?? productionAnthropicDetail)()
@@ -136,7 +154,7 @@ export function deriveScheduleAccountForModel(
       },
     }
   }
-  return { ok: true, account: { family, source: presence.kind === 'oauth' ? 'oauth' : 'api-key' } }
+  return { ok: true, account: { family, source: presence.kind === 'oauth' ? 'oauth' : 'api-key', ...scope } }
 }
 
 
@@ -173,17 +191,17 @@ export function scheduleAccountVerdict(args: {
 }
 
 export interface LiveFactsReads {
-  presenceOf?: (family: string) => FamilyCredentialPresenceV1
+  presenceOf?: (family: string, modelKey?: string) => FamilyCredentialPresenceV1
   strandedNow?: () => boolean
   anthropicDetail?: () => AnthropicOauthDetailV1 | null
   rateLimitedUntilOf?: (family: string) => number | undefined
 }
 
 export function readLiveAccountFacts(
-  account: Pick<ScheduleAccountV1, 'family' | 'source'>,
+  account: Pick<ScheduleAccountV1, 'family' | 'source' | 'modelKey'>,
   reads: LiveFactsReads = {},
 ): LiveAccountFactsV1 {
-  const presence = (reads.presenceOf ?? productionPresenceOf)(account.family)
+  const presence = (reads.presenceOf ?? productionPresenceOf)(account.family, account.modelKey)
   const stranded =
     account.family === 'anthropic' && account.source === 'oauth'
       ? (reads.strandedNow ??
@@ -225,7 +243,7 @@ export interface SessionFireReads extends LiveFactsReads {
 }
 
 export function liveFactsForSessionFire(
-  account: Pick<ScheduleAccountV1, 'family' | 'source'>,
+  account: Pick<ScheduleAccountV1, 'family' | 'source' | 'modelKey'>,
   sessionId: string | undefined,
   reads: SessionFireReads = {},
 ): LiveAccountFactsV1 {

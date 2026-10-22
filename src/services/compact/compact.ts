@@ -53,7 +53,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
-import { routedCallModel } from '../providers/callModelRouter.js'
+import { routedCallModel, settleAssistantTurn } from '../providers/callModelRouter.js'
 import { COLD_INGEST_MS_PER_1K_TOKENS, coldPrefixOf, firstByteBudgetMs, streamIdleTimeoutMsForRoute } from '../providers/streamIdleBudget.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
@@ -924,6 +924,7 @@ async function streamingFallbackAttempts(
       : [...afterBoundary, promptMessage]
 
     let captured: AssistantMessage | undefined
+    const settled: AssistantMessage[] = []
     bound.request()
     const stream = routedCallModel({
       messages: apiMessages,
@@ -964,6 +965,7 @@ async function streamingFallbackAttempts(
           }
         } else if (event.type === 'assistant') {
           captured = event
+          settled.push(event)
         }
       }
     } catch (err) {
@@ -988,7 +990,7 @@ async function streamingFallbackAttempts(
         throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
       }
     }
-    if (captured !== undefined) return captured
+    if (captured !== undefined) return captured.isApiErrorMessage ? captured : settleAssistantTurn(settled, false)
     if (attempt < attempts) {
       await sleep(getRetryDelay(attempt), bound.signal).catch(() => {
         if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
