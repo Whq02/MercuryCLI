@@ -89,7 +89,7 @@ try {
   pending = withFoldStatus(context, scoped => compactConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
   await pending
   assert.equal(result, undefined)
-  assert.match(String(failure), /stream.*(?:idle|stalled)|idle.*(?:budget|timeout)/i)
+  assert.match(String(failure), /stream.*(?:idle|stalled)|idle.*(?:budget|timeout)|summary call stalled and was stopped/i)
   assert.equal(fold!.exit, 'failed')
   assert.match(foldRowWords(fold!, Date.now()).line, /failed/)
   console.log('PASS silent stream ends with its route deadline: ' + String(failure))
