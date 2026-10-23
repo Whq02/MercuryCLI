@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
@@ -11,6 +11,7 @@ const width = process.argv.includes('--80') ? 80 : 120
 const height = width === 80 ? 24 : 44
 const f = await llmhostFixture()
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 let mounted: Mounted | undefined
 try {
   assert.ok(existsSync(f.root + '/src/services/host/keepSafe.ts'), 'Bank needs a keep-safe action with a verified second-drive copy')
@@ -22,6 +23,7 @@ try {
   const config = Buffer.from('{"model_type":"fixture"}')
   const tokenizer = Buffer.from('{"version":"fixture"}')
   const recipe = { ...HOST_RECIPES[0], id: 'keep-safe-fixture', label: 'Keep safe fixture', model: 'fixture/keep-safe', weightFile: 'weights.gguf', mmproj: undefined, weightsGb: (bytes.length + config.length + tokenizer.length) / 1e9, include: '', source: 'https://huggingface.co/fixture/keep-safe/tree/' + 'a'.repeat(40), weightManifest: undefined }
+  assert.deepEqual(bank.bankCandidates(), [join(f.home, 'mercury-model-bank'), join(f.home, 'models')], 'copy destinations stay inside the fixture home')
   const folder = bank.rememberBankFolder(join(f.home, 'mercury-model-bank'))
   const path = bank.bankModelFolder(folder, recipe)
   mkdirSync(path)
@@ -57,7 +59,7 @@ try {
     const { gridToPng } = await import('../ui/gridToPng.ts')
     await gridToPng(file, join(frames, 'keep-safe.png'))
   }
-  await choose('Copy to another drive'); await until('Copy to which drive?'); await choose('~/models'); await until('Confirm bank copy')
+  await choose('Copy to another drive'); await until('Copy to which drive?'); await choose(join('~', 'models')); await until('Confirm bank copy')
   const destination = bank.bankModelFolder(join(f.home, 'models'), recipe)
   assert.equal(existsSync(destination), false)
   await choose('Copy and verify'); await until('Keep safe finished')
@@ -82,7 +84,7 @@ try {
   assert.equal(safe.bankUploadPreference(recipe).bytesPerSecond, 25e6 / 8)
   assert.ok(safe.bankUploadEstimate({ ...recipe, weightsGb: 510 }).includes('45.3 hours'))
   const calls: { command: string; args: string[] }[] = []
-  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.deepEqual(readFileSync(list, 'utf8').trim().split('\n').sort(), ['config.json', 'tokenizer.json', 'weights.gguf']); assert.ok(args.includes(path + '/')) }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
+  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.deepEqual(readFileSync(list, 'utf8').trim().split('\n').sort(), ['config.json', 'tokenizer.json', 'weights.gguf']); assert.ok(args.includes(realpathSync(path) + '/')) }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
   assert.equal(await safe.uploadBankForRental(recipe, 'runpod', { host: '127.0.0.1' }, runner, new AbortController().signal), undefined)
   assert.equal(calls.length, 0)
   const remote = await safe.uploadBankForRental(recipe, 'vast', { host: '127.0.0.1', user: 'root' }, runner, new AbortController().signal)
