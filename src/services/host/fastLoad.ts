@@ -11,14 +11,16 @@ import { ensureHostKey, type HostRunner } from './ssh.js'
 import { activeHostBanks, bankJobModel, queueHostBank, queueHostSetup, requireHostJobOwner } from './jobs.js'
 import { hostJobReadOnly } from './retry.js'
 import { hostRecords, removeHostRecord, type HostRecord } from './store.js'
-import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
+import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, runpodKeptVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
+import type { VastClient } from './vendors/vast.js'
+import { VAST_VOLUME_DOOR, mirrorToVastVolume, reconcileVastVolumes, vastKeptVolumes, vastVolumeDeleteDoor, vastVolumeFor, vastVolumeState } from './vastVolumes.js'
 import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bankedHostRecipes, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
 
 export { BANK_DOOR }
 export const FAST_LOAD_DOOR = 'Fast-load volume'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
-interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; startJob?: (record: HostRecord) => void }
+interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void; vast?: () => VastClient | undefined }
 export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
 const cancelled = (): LlmHostResult => ({ ok: true, words: 'Bank closed. Existing weights disks keep billing until deleted.' })
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
@@ -31,8 +33,12 @@ export const fastLoadRecipes = (): HostRecipe[] => {
   return [...new Map(currentHostRecipes().map(row => [volumeModel(row), row])).values()]
 }
 export function fastLoadState(recipe: HostRecipe): string {
-  const row = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone') ?? keptVolumes().find(row => matchesVolume(row, recipe))
-  if (!row) return 'not kept'
+  const row = runpodKeptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone') ?? runpodKeptVolumes().find(row => matchesVolume(row, recipe))
+  const vast = vastKeptVolumes().some(row => matchesVolume(row, recipe)) ? ' · ' + vastVolumeState(recipe) : ''
+  if (!row) return 'not kept' + vast
+  return runpodFastLoadState(recipe, row) + vast
+}
+function runpodFastLoadState(recipe: HostRecipe, row: KeptVolume): string {
   if (row.state === 'gone') return 'not kept · ' + (row.error ?? 'disk gone')
   if (row.state === 'creating') return 'preparing · create answer unclear; disk may exist and bill'
   if (row.state === 'kept') return 'kept on ' + row.id + ' in ' + row.dataCenter + ' since ' + row.createdAt.slice(0, 10) + ' · ' + volumePrice(row) + (row.verifiedSums?.check ? ' · ' + row.verifiedSums.check + ' check passed' : '') + (row.verifiedSums?.sampleManifestSha256 ? '' : ' · next check is full ' + fullCheckMinutes(recipe.weightsGb))
@@ -40,7 +46,7 @@ export function fastLoadState(recipe: HostRecipe): string {
   return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.preparingPod ? ' · on pod ' + row.preparingPod : '')
 }
 export const volumeFitsOffer = (offer: HostOffer): boolean => {
-  const volume = keptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
+  const volume = runpodKeptVolumes().find(row => matchesVolume(row, offer.recipe) && row.state !== 'gone')
   return !volume || volume.kind === 'global' || !offer.dataCenter || volume.dataCenter === offer.dataCenter
 }
 export async function volumeDeleteDoor(api: RunpodClient, id: string, ask: Ask, signal: AbortSignal, emit?: Emit, timeoutMs = 4 * 60_000): Promise<LlmHostResult> {
@@ -88,17 +94,24 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
     throw new Error(detail + 'The weights disk still bills ' + volumePrice(volume) + '. ' + String(error))
   }
 }
-export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal, options: FastLoadOptions): Promise<LlmHostResult | undefined> {
+export async function mirrorToVolume(api: RunpodClient | undefined, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal, options: FastLoadOptions): Promise<LlmHostResult | undefined> {
   const manifest = pinnedWeightManifest(recipe)
   if (!manifest) {
     emit({ title: modelTitle(recipe), words: 'This recipe cannot be mirrored without a trusted file manifest: ' + weightManifestWords(recipe) + '. No volume or pod was created.' })
     return
   }
   const pinned: HostRecipe = recipe.weightManifest ? recipe : { ...recipe, weightManifest: manifest }
-  await reconcileVolumes(api, signal)
-  const existing = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
+  const vast = options.vast?.()
+  if (api) await reconcileVolumes(api, signal)
+  const existing = runpodKeptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
+  if (!api) {
+    if (!vast) return
+    return mirrorToVastVolume(vast, recipe, ask, emit, signal, options)
+  }
+  const vastRow = vast ? [{ value: 'vast', label: VAST_VOLUME_DOOR + ' · keep on one Vast.ai machine · per GB-month at the machine’s rate · ' + (vastVolumeFor(recipe) ? 'kept' : 'not kept') }] : []
   if (existing) {
-    const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod to check every file' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), { value: 'back', label: 'Back' }] })
+    const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod to check every file' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), ...vastRow, { value: 'back', label: 'Back' }] })
+    if (action === 'vast' && vast) return mirrorToVastVolume(vast, recipe, ask, emit, signal, options)
     if (action === 'verify') {
       const offer = fillOffer(await api.offers(signal), pinned, existing.kind, existing.dataCenter)
       if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No pod has stock in ' + existing.dataCenter + ' for the verification. No pod was created; the kept disk still bills.' }); return }
@@ -110,9 +123,10 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
     if (!action) return cancelled()
     return
   }
-  const how = await ask({ step: 'fast-load-how', title: recipe.label + ' · How?', found: recipe.weightsGb.toFixed(2) + ' GB of weights · not kept', willRun: 'Choose where to keep this model. No disk has been created.', rows: [{ value: 'network', label: 'Runpod network volume · one data centre · $0.07/GB/month' }, { value: 'global', label: 'Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS' }, { value: 'ssh', label: 'My own bank over SSH · mercury host' }, { value: 'back', label: 'Back' }] })
+  const how = await ask({ step: 'fast-load-how', title: recipe.label + ' · How?', found: recipe.weightsGb.toFixed(2) + ' GB of weights · ' + (vastVolumeFor(recipe) ? vastVolumeState(recipe) : 'not kept'), willRun: 'Choose where to keep this model. No disk has been created.', rows: [{ value: 'network', label: 'Runpod network volume · one data centre · $0.07/GB/month' }, { value: 'global', label: 'Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS' }, ...vastRow, { value: 'ssh', label: 'My own bank over SSH · mercury host' }, { value: 'back', label: 'Back' }] })
   if (!how) return cancelled()
   if (how === 'back') return
+  if (how === 'vast' && vast) return mirrorToVastVolume(vast, recipe, ask, emit, signal, options)
   if (how === 'ssh') { emit({ title: 'My own bank over SSH', words: 'Use mercury host for an SSH bank. Mirroring from the Bank creates a Runpod volume only; it does not create or copy an SSH bank.' }); return }
   if (how !== 'network' && how !== 'global') throw new Error('Choose a storage kind from the catalogue.')
   let dataCenter = 'any DC'
@@ -146,9 +160,10 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
 }
 function volumeCell(recipe: HostRecipe, banked: boolean): string {
   const volume = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
-  if (volume?.state === 'kept') return '✓ ' + volume.dataCenter + ' · boots ~' + bootMinutes(recipe, volume) + ' min'
-  if (volume?.state === 'preparing' || volume?.state === 'creating') return '… preparing in ' + volume.dataCenter
-  if (volume?.state === 'failed') return '✗ failed in ' + volume.dataCenter + ' · d to drop'
+  const where = volume ? (volume.kind === 'vast' ? 'Vast.ai machine ' + volume.machineId : volume.dataCenter) : ''
+  if (volume?.state === 'kept') return '✓ ' + where + ' · boots ~' + bootMinutes(recipe, volume) + ' min'
+  if (volume?.state === 'preparing' || volume?.state === 'creating') return '… preparing in ' + where
+  if (volume?.state === 'failed') return '✗ failed in ' + where + ' · d to drop'
   return banked ? pinnedWeightManifest(recipe) ? '— m to mirror' : '— cannot mirror · Enter says why' : '—'
 }
 const bankDrive = (folder: string): string => shortFolder(basename(folder) === 'mercury-model-bank' ? dirname(folder) : folder)
@@ -188,12 +203,15 @@ export async function bankAction(recipe: HostRecipe, action: BankActionKind, fol
     return
   }
   let client = options.api()
-  if (!client) { if (!await options.connect()) return; client = options.api() }
-  if (!client) return
+  const vast = options.vast?.()
+  if (!client && !vast) { if (!await options.connect()) return; client = options.api() }
+  if (!client && !vast) return
   if (action === 'drop') {
     const volume = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
     if (!volume) { emit({ title: modelTitle(recipe), words: 'No fast-load volume for this model · the bank stays as it is' }); return }
-    const result = await volumeDeleteDoor(client, volume.id, ask, signal, emit)
+    if (volume.kind === 'vast' && !vast) { emit({ title: modelTitle(recipe), words: 'Connect Vast.ai to delete its volume · the bank stays as it is' }); return }
+    if (volume.kind !== 'vast' && !client) { emit({ title: modelTitle(recipe), words: 'Connect Runpod to delete its disk · the bank stays as it is' }); return }
+    const result = volume.kind === 'vast' ? await vastVolumeDeleteDoor(vast!, volume.id, ask, signal, emit) : await volumeDeleteDoor(client!, volume.id, ask, signal, emit)
     emit({ title: modelTitle(recipe), words: result.words + ' · the bank on your drive is untouched' })
     return
   }
@@ -205,6 +223,8 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
   for (;;) {
     const api = options.api()
     if (api) try { await reconcileVolumes(api, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
+    const vastApi = options.vast?.()
+    if (vastApi) try { await reconcileVastVolumes(vastApi, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Vast.ai volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
     for (const record of hostRecords().filter(row => row.jobKind === 'bank' && (row.jobState === 'failed' || row.jobState === 'stopped'))) removeHostRecord(record.id)
     const jobs = activeHostBanks()
     const recipes = fastLoadRecipes()
@@ -225,7 +245,7 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const lastVerified = banked.map(recipe => states.get(recipe.id)!.verifiedAt ?? '').filter(Boolean).sort().at(-1)
     const kept = keptVolumes().filter(row => row.state === 'kept' && recipes.some(recipe => matchesVolume(row, recipe)))
     const keptGb = kept.reduce((sum, row) => sum + (recipes.find(recipe => matchesVolume(row, recipe))?.weightsGb ?? 0), 0)
-    const totals = 'Banked: ' + banked.length + ' of ' + recipes.length + ' models · ' + bytesWords(bankedBytes) + (lastVerified ? ' · last verified ' + lastVerified.slice(0, 10) : '') + (kept.length ? ' · fast-load volumes: ' + kept.length + ' kept (' + sizeWords(keptGb) + ', $' + kept.reduce((sum, row) => sum + row.price, 0).toFixed(2) + '/month' + (kept.length === 1 ? ', ' + kept[0]!.dataCenter : '') + ')' : ' · no fast-load volume')
+    const totals = 'Banked: ' + banked.length + ' of ' + recipes.length + ' models · ' + bytesWords(bankedBytes) + (lastVerified ? ' · last verified ' + lastVerified.slice(0, 10) : '') + (kept.length ? ' · fast-load volumes: ' + kept.length + ' kept (' + sizeWords(keptGb) + ', $' + kept.reduce((sum, row) => sum + row.price, 0).toFixed(2) + '/month' + (kept.length === 1 ? ', ' + (kept[0]!.kind === 'vast' ? 'Vast.ai machine ' + kept[0]!.machineId : kept[0]!.dataCenter) : '') + ')' : ' · no fast-load volume')
     const free = bankFree(folder)
     const choice = await ask({ step: 'door-bank', title: 'Bank', found: 'Your copy of the weights. Banked once from Hugging Face, hash-verified, kept on your drive; mirrored to a fast-load volume so a rental boots in minutes. The repo holds recipes, never weights.\n' + shortFolder(folder) + (free === undefined ? '' : ' · ' + bytesWords(free) + ' free') + ' · ' + totals, willRun: '', initial: rows[0]?.value, keys: BANK_KEYS, rows: [...rows, { value: 'refresh', label: '────────────────────\nRefresh · re-read the bank folder and the volumes' }, { value: 'back', label: 'Back · Escape closes' }] })
     if (!choice || signal.aborted) return { ok: true, words: 'Bank closed.' + (kept.length ? ' Kept weights disks keep billing until deleted.' : '') }

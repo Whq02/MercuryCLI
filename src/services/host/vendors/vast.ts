@@ -150,8 +150,9 @@ export class VastClient implements HostVendor {
     const offers: HostOffer[] = []
     for (const hardware of found) {
       if (hardware.verification !== 'verified' || !hardware.rentable || hardware.rented || hardware.direct_port_count < 1 || hardware.disk_space < containerGb || hardware.machine_id !== machineId) continue
-      const gpuId = gpuName(hardware.gpu_name) ?? hardware.gpu_name.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 48)
-      const offer: HostOffer = { recipe: { ...recipe, gpu: gpuId.replace(/^NVIDIA\s+/, ''), count: hardware.num_gpus, vramGb: Math.round(gigabytes(hardware.gpu_ram)), cuda: String(hardware.cuda_max_good), nodes: undefined, diskGb: containerGb }, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hostingType(hardware.datacenter), machineId }
+      const plainName = hardware.gpu_name.replaceAll('_', ' ').replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/^NVIDIA\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 48)
+      const gpuId = gpuName(hardware.gpu_name) ?? plainName
+      const offer: HostOffer = { recipe: { ...recipe, gpu: plainName, count: hardware.num_gpus, vramGb: Math.round(gigabytes(hardware.gpu_ram)), cuda: String(hardware.cuda_max_good), nodes: undefined, diskGb: containerGb }, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hostingType(hardware.datacenter), machineId }
       this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
       offers.push(offer)
     }

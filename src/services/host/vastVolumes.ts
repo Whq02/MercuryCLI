@@ -88,12 +88,11 @@ export async function deleteVastKeptVolume(api: VastClient, id: string, readOnly
   const record = readKeptVolume(id)
   if (!record || record.kind !== 'vast' || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
   try { await api.deleteVolume(Number(id), readOnly) } catch (error) {
-    const mounting = (await api.pods().catch(() => [])).filter(pod => readKeptVolumeInstance(pod.id) === id)
-    throw new Error('Vast.ai did not confirm the deletion of volume ' + id + (mounting.length ? ' while instance ' + mounting.map(pod => pod.id).join(', ') + ' still uses it; terminate that instance first' : '') + '. It may still bill ' + keptDiskPrice(record) + '; refresh Machines I’m paying for or check Storage in the Vast.ai console before trying again. ' + (error instanceof Error ? error.message : String(error)))
+    const using = (await api.volumes().catch((): VastVolume[] => [])).find(row => String(row.id) === id)?.instances ?? []
+    throw new Error('Vast.ai did not confirm the deletion of volume ' + id + (using.length ? ' while instance ' + using.join(', ') + ' still uses it; terminate that instance first' : '') + '. It may still bill ' + keptDiskPrice(record) + '; refresh Machines I’m paying for or check Storage in the Vast.ai console before trying again. ' + (error instanceof Error ? error.message : String(error)))
   }
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }
-const readKeptVolumeInstance = (podId: string): string | undefined => vastKeptVolumes().find(row => row.preparingPod === podId)?.id
 export async function vastVolumeDeleteDoor(api: VastClient, id: string, ask: Ask, signal: AbortSignal, emit?: Emit, timeoutMs = 4 * 60_000): Promise<LlmHostResult> {
   await reconcileVastVolumes(api, signal)
   const record = readKeptVolume(id)

@@ -5,6 +5,7 @@ import { heavyWeights, hostShortStorageWords, hostSpendSoFar } from './costs.js'
 import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
 import { vendorStamp } from './vendors/vendor.js'
 import { bankRowWords, bankState, bootsFromVolume, weightsLine } from './bank.js'
+import { vastBootsFromVolume } from './vastVolumes.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
 import { LLM_HOST_SEARCH_MIN_CHARS, hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
@@ -336,7 +337,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const connected = offers !== undefined || vendors.length > 0
       const choice = await ask({ step: 'door-model', title, found: facts, willRun: '', initial: live.length ? 'running:0' : undefined, keys: BANK_KEYS, rows: [
         ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · pod ' + record.id + ' · switch now · nothing to pay' })),
-        ...rentals.map((row, i) => ({ value: 'rent:' + i, label: 'Rent · ' + (row.vendor?.label ?? 'Runpod') + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + ' · ' + (row.offer.dataCenter ?? (row.vendor ? 'region unknown' : 'data centre unknown')) + (row.offer.hostingType ? ' · ' + row.offer.hostingType : '') + ' · in stock · ' + vendorStamp((row.vendor?.vendor ?? 'runpod') as HostVendorId) + (row.vendor?.vendor === 'huggingface' ? ' · HF-managed · per hour · no SSH' : '') + ' · ' + (!row.vendor && bootsFromVolume(row.offer.recipe, row.offer.dataCenter) ? 'boots from your volume' : 'downloads the weights first') })),
+        ...rentals.map((row, i) => ({ value: 'rent:' + i, label: 'Rent · ' + (row.vendor?.label ?? 'Runpod') + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + ' · ' + (row.offer.dataCenter ?? (row.vendor ? 'region unknown' : 'data centre unknown')) + (row.offer.hostingType ? ' · ' + row.offer.hostingType : '') + ' · in stock · ' + vendorStamp((row.vendor?.vendor ?? 'runpod') as HostVendorId) + (row.vendor?.vendor === 'huggingface' ? ' · HF-managed · per hour · no SSH' : '') + (row.offer.machineId ? ' · machine ' + row.offer.machineId : '') + ' · ' + (!row.vendor && bootsFromVolume(row.offer.recipe, row.offer.dataCenter) ? 'boots from your volume' : row.vendor?.vendor === 'vast' && vastBootsFromVolume(row.offer.recipe, row.offer.machineId) ? 'boots from your Vast.ai volume on this machine' : 'downloads the weights first') })),
         ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (box.models && !box.models.includes(modelTitle(recipe)) ? ' · no local recipe for this model' : fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe).toLocaleString('en-US', { maximumFractionDigits: 1 })) })),
         { value: 'bank', label: bankRowWords(recipe, bank) },
         ...(connected ? [{ value: 'watch', label: (rentals.length ? 'Watch stock' : 'No stock · watch') + ' · across every provider above · tell me when the cheapest shape comes back' }] : []),
