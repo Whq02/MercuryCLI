@@ -173,12 +173,12 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check('the main stream folds the tool choice through the one owner', stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') && stream.includes('tool_choice: toolChoice,'))
   const roads: Array<[string, RegExp]> = [
     ['src/rows/turn.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
-    ['src/tools/AgentTool/runAgent.ts', /\{ thinkingConfig: \{ type: 'disabled' as const \} \}/],
+    ['src/tools/AgentTool/runAgent.ts', /thinkingConfig: thinkingConfigOverride \?\? parentOptions\.thinkingConfig \?\? sessionThinkingConfig\(\)/],
     ['src/tools/AgentTool/agentToolUtils.ts', /thinkingConfig: \{ type: 'disabled' \},/],
   ]
   for (const [rel, shape] of roads) {
     const text = src(rel)
-    check(`${rel}: the disabled road is a request CONFIG the main stream translates (never a wire thinking object)`, shape.test(text) && !/thinking:\s*\{\s*type:\s*'disabled'/.test(text))
+    check(`${rel}: the thinking road is a request CONFIG the main stream translates (never a wire thinking object; a crewmate carries its parent's or the session's config, never a disabled one of its own)`, shape.test(text) && !/thinking:\s*\{\s*type:\s*'disabled'/.test(text))
   }
 
   const betas: string[] = []

@@ -51,7 +51,7 @@ try {
   const fp8 = models.find(model => model.id === hf.repos.fp8.id)!
   const gated = models.find(model => model.id === hf.repos.gated.id)!
   const vision = models.find(model => model.id === hf.repos.vision.id)!
-  check('rows carry size · format · downloads · licence · gated', hfRowLabel(fp8) === fp8.id + ' · 284B · safetensors FP8 · ↓ 3.4M · MIT · unverified' && hfRowLabel(gguf) === gguf.id + ' · 284B · GGUF Q4_K_M · ↓ 412k · MIT · unverified' && hfRowLabel(gated) === gated.id + ' · 36B · safetensors BF16 · ↓ 1.2k · MIT · 🔒 gated · unverified')
+  check('rows carry size · format · downloads · licence · gated', hfRowLabel(fp8) === fp8.id + ' · 284B · safetensors FP8 · ↓ 3.4M · MIT · unverified' && hfRowLabel(gguf) === gguf.id + ' · 284B · GGUF Q4_K_M · ↓ 412k · MIT · unverified' && hfRowLabel(gated) === gated.id + ' · 36B · safetensors BF16 · ↓ 1.2k · MIT · gated · unverified')
   check('the vision repo is listed as not a chat model and cannot be picked', hfRowLabel(vision).includes(HF_NOT_CHAT_WORDS + ' (vision)') && !hfModelChat(vision).ok)
   check('the padded id keeps the columns aligned', hfRowLabel(gguf, 48).startsWith(gguf.id.padEnd(48) + ' · '))
 

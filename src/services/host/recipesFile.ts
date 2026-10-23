@@ -208,8 +208,12 @@ export function currentHostRecipes(options: HostRecipesOptions = {}): HostRecipe
   return session.length ? [...loaded, ...session] : loaded
 }
 
+export function privateHostRecipesPath(): string {
+  return join(hostDirectory(), 'private-recipes.json')
+}
+
 function loadedHostRecipes(options: HostRecipesOptions): HostRecipe[] {
-  const localPath = flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim()
+  const localPath = flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim() || (existsSync(privateHostRecipesPath()) ? privateHostRecipesPath() : '')
   if (localPath) {
     try {
       const resolved = resolve(localPath)

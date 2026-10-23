@@ -222,8 +222,8 @@ try {
       check('Vast rejects incomplete totals, page counts and repeated pages rather than returning a partial list', true)
     }
     pages.state.listResponse = { success: false, instances: [], instances_found: 0, total_instances: 0, next_token: null }
-    await expectFailure(() => client.pods(), /unreadable response/)
-    check('a failed v1 envelope is not mistaken for an empty account', true)
+    await expectFailure(() => client.pods(), /in a shape Mercury does not read \(an object with success, instances, instances_found, total_instances, next_token\); Mercury needs an update/)
+    check('a failed v1 envelope is not mistaken for an empty account, and the words name the shape Vast answered with', true)
   } finally { await pages.close() }
   override()
   const backoff = await vastFixture()

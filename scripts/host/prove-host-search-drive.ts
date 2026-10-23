@@ -117,7 +117,7 @@ try {
   check('the Hugging Face section says fetching while the request runs and the verified rows stand', screen().includes('DeepSeek-V4.1-Flash-1017') && hf.state.searches === 1)
   await until(hfHeading)
   const results = screen()
-  check('the Hugging Face section lists every fixture repo with size · format · downloads · licence · gated, stamped unverified', results.includes('deepseek-ai/DeepSeek-V4.1-Flash-1017') && results.includes('284B · safetensors FP8 · ↓ 3.4M · MIT · unverified') && results.includes('unsloth/' + ggufRow) && results.includes('284B · GGUF Q4_K_M · ↓ 412k · MIT · unverified') && results.includes('mercury-bounties/deepseek-coder-v4-bounty') && results.includes('🔒 gated') && results.includes('deepseek-ai/DeepSeek-OCR-2') && results.includes(HF_NOT_CHAT_WORDS))
+  check('the Hugging Face section lists every fixture repo with size · format · downloads · licence · gated, stamped unverified', results.includes('deepseek-ai/DeepSeek-V4.1-Flash-1017') && results.includes('284B · safetensors FP8 · ↓ 3.4M · MIT · unverified') && results.includes('unsloth/' + ggufRow) && results.includes('284B · GGUF Q4_K_M · ↓ 412k · MIT · unverified') && results.includes('mercury-bounties/deepseek-coder-v4-bounty') && results.includes('gated') && results.includes('deepseek-ai/DeepSeek-OCR-2') && results.includes(HF_NOT_CHAT_WORDS))
   check('the search fired once for the settled query, with the fields the rows need', hf.state.searches === 1 && hf.state.lastSearch?.query === 'deepseek' && hf.state.lastSearch!.params.includes('pipeline_tag=text-generation') && hf.state.lastSearch!.params.includes('sort=downloads'))
   check('the hint says what esc does while a query stands', screen().includes('esc clears the search'))
   await capture('120-search')
