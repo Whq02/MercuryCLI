@@ -83,12 +83,34 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
   return { gpus, docker: output.includes('DOCKER_ENGINE_PRESENT') }
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
+const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: /i
+export const engineCauseGrep = 'GGML_ASSERT|terminate called|what\\(\\):|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
+const stackFramePattern = /^(?:(?:\S+\([^()]*\))?\[0x[0-9a-f]+\]|#\d+\s+0x[0-9a-f]+\b.*|\[New LWP \d+\]|Thread \d+ \(Thread 0x[0-9a-f]+.*|\[Thread debugging using libthread_db enabled\]|Using host libthread_db library .*)$/
+const unknownLayoutPattern = /unknown model architecture|unsupported model architecture|missing tensor info mapping|wrong number of tensors|are not supported for now|unsupported architecture/i
+export function engineCauseCommand(engineLog: string): string {
+  const log = quote(engineLog)
+  return 'grep -i -m 1 -A 1 -E ' + quote(engineCauseGrep) + ' ' + log + ' 2>/dev/null | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_CAUSE /') + '; unused="$(grep -c ' + quote('unused tensor') + ' ' + log + ' 2>/dev/null)"; if test "${unused:-0}" -gt 0 2>/dev/null; then printf ' + quote('MERCURY_UNUSED_TENSORS %s %s\\n') + ' "$unused" "$(grep -m 1 -o ' + quote('unused tensor [^ ]*') + ' ' + log + ' | cut -d" " -f3)"; fi'
+}
+export function engineDeathWords(text: string, recipe: Pick<HostRecipe, 'engine'>): string {
+  const lines = text.split('\n').map(line => line.trim())
+  const marked = lines.filter(line => line.startsWith('MERCURY_ENGINE_CAUSE ')).map(line => line.slice('MERCURY_ENGINE_CAUSE '.length).trim())
+  let cause = marked[0] || lines.find(line => line && !line.startsWith('MERCURY_') && engineCausePattern.test(line))
+  const next = marked[0] ? marked[1] : cause ? lines[lines.indexOf(cause) + 1]?.trim() : undefined
+  if (cause && next && /^what\(\):/.test(next)) cause += ' · ' + next.replace(/^what\(\):\s*/, '')
+  const unusedMark = /^MERCURY_UNUSED_TENSORS (\d+)(?: (\S+))?$/m.exec(text)
+  const unusedLines = lines.filter(line => /unused tensor/.test(line))
+  const unused = unusedMark ? { count: Number(unusedMark[1]), example: unusedMark[2] } : unusedLines.length ? { count: unusedLines.length, example: /unused tensor (\S+)/.exec(unusedLines[0]!)?.[1] } : undefined
+  const tail = lines.filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:' && !stackFramePattern.test(line) && !/unused tensor/.test(line)).slice(-8).join(' · ')
+  const oom = /out of memory|OutOfMemoryError|\bOOM\b/i.test(text)
+  return 'the engine died loading the weights: ' + (cause || tail || 'the engine process exited')
+    + (unused ? ' · the engine set aside ' + unused.count + ' tensor' + (unused.count === 1 ? '' : 's') + ' it does not use' + (unused.example ? ' (e.g. ' + unused.example + ')' : '') : '')
+    + (cause && unknownLayoutPattern.test(cause) ? ' · the engine does not know this file’s layout; it needs a newer ' + (recipe.engine === 'llamacpp' ? 'llama.cpp' : recipe.engine ?? 'engine') + ' than the engine image carries' : '')
+    + (oom ? ' · the shape was too small for this quality; choose a larger GPU shape' : '')
+}
 function engineFailure(text: string, recipe: HostRecipe, exited = false): Error | undefined {
   if (/MERCURY_(STALL|PARTIAL) /.test(text)) return new Error(downloadFailure(text, recipe).words)
-  const oom = /out of memory|OutOfMemoryError|\bOOM\b/i.test(text)
-  if (!exited && !oom && !/failed to load (?:model|weights)|error loading model|CUDA error|CUDA_ERROR_/i.test(text)) return
-  const tail = text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:').slice(-8).join(' · ')
-  return new Error('the engine died loading the weights: ' + (tail || 'the engine process exited') + (oom ? ' · the shape was too small for this quality; choose a larger GPU shape' : ''))
+  if (!exited && !text.split('\n').some(line => !line.startsWith('MERCURY_') && engineCausePattern.test(line)) && !/^MERCURY_ENGINE_CAUSE /m.test(text)) return
+  return new Error(engineDeathWords(text, recipe))
 }
 export async function startHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, docker: boolean, pod: boolean, bank?: string, keptWeights?: string, cluster?: { nodes: number; rank: number; head: string; address: string }): Promise<void> {
   if (!pod && !docker && !recipe.pythonInstall) throw new Error('This recipe requires its preview Docker image. Install Docker with NVIDIA GPU access, or choose another recipe.')
@@ -152,7 +174,7 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
   const dir = '/workspace/mercury-host/' + recipe.id
   const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
   while (!signal.aborted && Date.now() - started < timeoutMs) {
-    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; fi'], signal)
+    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'], signal)
     const rows = log.trimEnd().split('\n')
     let overlap = Math.min(previous.length, rows.length)
     while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
