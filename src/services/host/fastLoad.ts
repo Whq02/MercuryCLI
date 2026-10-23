@@ -22,7 +22,7 @@ const FAST_LOAD_DOOR = 'Fast-load volume'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
 interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void; vast?: () => VastClient | undefined }
-export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
+interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
 const cancelled = (): LlmHostResult => ({ ok: true, words: 'Bank closed. Existing weights disks keep billing until deleted.' })
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const pad = (text: string, width: number): string => text.length >= width ? text + ' ' : text.padEnd(width)
@@ -71,7 +71,7 @@ export async function terminateVolumeChoice(id: string | undefined, ask: Ask, si
   const choice = await ask({ step: 'terminate-weights', title: 'Keep the weights disk or delete it?', found: volume.id + ' · ' + volumePrice(volume), willRun: 'Keep: disk bills without a pod. Delete: weights are gone; the next rental downloads them again.', rows: [{ value: 'keep', label: 'Keep the weights disk (' + volumePrice(volume) + ')' }, { value: 'delete', label: 'Delete the weights disk too' }, { value: 'cancel', label: 'Cancel termination' }] })
   return !signal.aborted && (choice === 'keep' || choice === 'delete') ? choice : null
 }
-export function fillOffer(offers: HostOffer[], recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string): HostOffer | undefined {
+function fillOffer(offers: HostOffer[], recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string): HostOffer | undefined {
   const cheapest = offers.filter(row => (row.recipe.nodes ?? 1) === 1 && (kind === 'global' || !row.dataCenter || row.dataCenter === dataCenter)).sort((a, b) => a.price - b.price || Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || a.recipe.id.localeCompare(b.recipe.id))[0]
   return cheapest && { ...cheapest, recipe: { ...recipe, gpu: cheapest.recipe.gpu, count: cheapest.recipe.count, vramGb: cheapest.recipe.vramGb, cuda: cheapest.recipe.cuda, nodes: undefined } }
 }

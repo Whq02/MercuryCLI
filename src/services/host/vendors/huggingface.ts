@@ -31,7 +31,7 @@ function hfEndpointRecipeReason(recipe: HostRecipe): string | undefined {
   return undefined
 }
 
-export class HostHuggingfaceSignInRequired extends HostVendorHttpError {
+class HostHuggingfaceSignInRequired extends HostVendorHttpError {
   readonly state = 'sign-in-required' as const
   readonly vendor = 'huggingface' as const
   constructor() { super('Hugging Face: sign in again with /logins huggingface', 401) }

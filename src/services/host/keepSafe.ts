@@ -28,7 +28,7 @@ export function rememberBankUpload(recipe: HostRecipe, preference: UploadPrefere
   publishAtomicSync(preferencesPath(), JSON.stringify(rows) + '\n', { mode: 0o600 })
 }
 const minutes = (seconds: number): string => seconds < 60 ? 'under a minute' : seconds < 3600 ? '~' + Math.ceil(seconds / 60) + ' min' : '~' + (seconds / 3600).toFixed(1) + ' hours'
-export function bankCopyEstimate(bytes: number): string {
+function bankCopyEstimate(bytes: number): string {
   const fast = minutes(bytes * 3 / 500e6), slow = minutes(bytes * 3 / 100e6)
   return (fast === slow ? fast : fast + '–' + slow) + ' including full checks, assuming 100–500 MB/s on both drives'
 }
