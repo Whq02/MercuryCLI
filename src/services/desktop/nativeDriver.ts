@@ -410,7 +410,7 @@ class NativeDesktopDriver implements DesktopDriver {
     if (refusal) return this.refuseAndRequestGrants(refusal)
     try {
       const value = await new Promise<DesktopFocusedText | null>((resolve, reject) => {
-        const child = execFile(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(require(process.argv[1]).focusedText(Number(process.argv[2]))))', this.addonPath, String(app.pid)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+        const child = execFile(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(require(process.argv[1]).focusedText(Number(process.argv[2]))))', this.addonPath, String(app.pid)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
           signal.removeEventListener('abort', onAbort)
           if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
           if (error) return reject(new Error(`the focused terminal text could not be read: ${error.message}`))
