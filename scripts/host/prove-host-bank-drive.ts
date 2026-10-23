@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash, randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { bankDownloadWords } from './bankDownloadFixture.ts'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
@@ -18,6 +18,9 @@ if (frames) mkdirSync(frames, { recursive: true })
 const f = await llmhostFixture()
 f.state.dialect = 'sglang'; f.state.window = 131072
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
+const normalPath = (path: string): string => path.replaceAll('\\', '/')
+const shortBankFolder = join('~', 'mercury-model-bank')
 const rp = await runpodFixture()
 const vast = await vastFixture()
 const lambda = await lambdaFixture()
@@ -75,18 +78,14 @@ try {
   const bank = await import('../../src/services/host/bank.ts')
   const volumes = await import('../../src/services/host/volumes.ts')
   const recipes = currentHostRecipes()
-  assert.ok(bank.bankCandidates().length > 0 && bank.bankCandidates().every(path => path.startsWith(f.home + '/')) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home: ' + bank.bankCandidates().join(', '))
+  assert.ok(bank.bankCandidates().length > 0 && bank.bankCandidates().every(path => normalPath(path).startsWith(normalPath(f.home) + '/')) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home: ' + bank.bankCandidates().join(', '))
   check('the fixture recipes replace the shipped list and carry pinned manifests', recipes.length === 2 && recipes.every(recipe => bank.bankFiles(recipe, '/none').pinned))
   const hfToken = hf.key
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const downloads: { model: string; revision?: string; include: string[]; localDir: string; token?: string }[] = []
-  const shellWords = (text: string): string[] => { const parsed = spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
   const runner = { ...ssh.runner, run: async (command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>) => {
-    if (command === '/bin/sh' && args[1]?.includes(' download ')) {
-      const syntax = spawnSync('bash', ['-n', '-c', args[1]!], { encoding: 'utf8' })
-      assert.equal(syntax.status, 0, syntax.stderr)
-      const line = args[1]!.split('\n').find(row => row.includes(' download '))!
-      const words = shellWords(line)
+    const words = bankDownloadWords(command, args)
+    if (words) {
       const at = (flag: string) => words.indexOf(flag)
       const include = at('--include') < 0 ? [] : words.slice(at('--include') + 1, at('--local-dir'))
       const download = { model: words[2]!, revision: at('--revision') < 0 ? undefined : words[at('--revision') + 1], include, localDir: words[at('--local-dir') + 1]!, token: env?.HF_TOKEN }
@@ -159,7 +158,7 @@ try {
 
   await mount(120)
   await openBank(); await heading('Where should the bank live?')
-  check('with no bank folder on this computer the Bank asks for one, suggesting ~/mercury-model-bank', screen().includes('No bank folder was found') && screen().includes('~/mercury-model-bank'))
+  check('with no bank folder on this computer the Bank asks for one, suggesting ' + shortBankFolder, screen().includes('No bank folder was found') && screen().includes(shortBankFolder))
   mounted!.push(KEY.enter); await heading('Bank')
   check('the named folder is created and remembered in bank.json', bank.bankFolder() === bankFolder && JSON.parse(readFileSync(join(f.home, 'host', 'bank.json'), 'utf8')).folder === bankFolder)
   check('the Bank table has the header, one row per model, both unbanked, and the totals', screen().includes('MODEL') && screen().includes('BANKED') && screen().includes('VERIFIED') && screen().includes('VOLUME') && row('Tiny-A').includes('— b to bank') && row('Tiny-B').includes('— b to bank') && screen().includes('Banked: 0 of 2 models'))
@@ -199,18 +198,18 @@ try {
   open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await until('WEIGHTS')
   const unbanked = screen().replace(/[│\s]+/g, ' ')
   check('the model screen WEIGHTS line reads not banked and no fast-load volume with the download estimate', unbanked.includes('WEIGHTS') && unbanked.includes('8.2 KB from Hugging Face · not banked · no fast-load volume — first boot downloads (~') && /first boot downloads \(~\d+ min\)/.test(unbanked))
-  check('the Bank row offers b with the folder and size, and nobody is connected so no Rent or watch row', unbanked.includes('Bank · b bank the weights to ~/mercury-model-bank (8.2 KB, hash-verified)') && !unbanked.includes('Rent ·') && !unbanked.includes('Watch stock'))
+  check('the Bank row offers b with the folder and size, and nobody is connected so no Rent or watch row', unbanked.includes('Bank · b bank the weights to ' + shortBankFolder + ' (8.2 KB, hash-verified)') && !unbanked.includes('Rent ·') && !unbanked.includes('Watch stock'))
   await capture('120-model-unbanked')
   writeStoredHuggingfaceApiKey(hfToken)
   await press('Bank · b bank', 'b'); await heading('Bank Tiny-B')
   check('b asks a confirm that names the source, the folder, the token use and the pinned manifest before any download', screen().includes('https://huggingface.co/fixture/tiny-b') && screen().includes('Hugging Face token is used when a repo is gated') && screen().includes('against the pinned manifest') && downloads.length === 0)
-  await choose('Bank it'); await until('Banking the weights to ~/mercury-model-bank')
+  await choose('Bank it'); await until('Banking the weights to ' + shortBankFolder)
   await Promise.all(jobs)
   check('the bank job downloads with hf download, the pinned revision and file list, the local dir and the stored token in the environment, never on the command line', downloads.length === 1 && downloads[0]!.model === 'fixture/tiny-b' && downloads[0]!.revision === manifests[1]!.revision && downloads[0]!.include.join() === 'model.bin' && downloads[0]!.localDir === bank.bankModelFolder(bankFolder, tinyB) && downloads[0]!.token === hfToken)
-  check('the download is sealed with SHA256SUMS, verified against the pinned manifest and announced', readFileSync(join(bank.bankModelFolder(bankFolder, tinyB), 'SHA256SUMS'), 'utf8') === sha256(hub['fixture/tiny-b']!['model.bin']!) + '  model.bin\n' && bank.bankState(tinyB).banked && bank.bankState(tinyB).check === 'manifest' && notices().some(words => words.includes('Tiny-B · banked on ~/mercury-model-bank · 8.2 KB in 1 files · verified against the pinned manifest')))
+  check('the download is sealed with SHA256SUMS, verified against the pinned manifest and announced', readFileSync(join(bank.bankModelFolder(bankFolder, tinyB), 'SHA256SUMS'), 'utf8') === sha256(hub['fixture/tiny-b']!['model.bin']!) + '  model.bin\n' && bank.bankState(tinyB).banked && bank.bankState(tinyB).check === 'manifest' && notices().some(words => words.includes('Tiny-B · banked on ' + shortBankFolder + ' · 8.2 KB in 1 files · verified against the pinned manifest')))
   await close(); open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await until('WEIGHTS')
   const banked = screen().replace(/[│\s]+/g, ' ')
-  check('the banked WEIGHTS line distinguishes rented downloads and the key rail offers bank again', banked.includes('banked ✓ on ~/mercury-model-bank (verified ' + new Date().toISOString().slice(0, 10) + ')') && banked.includes('a rented machine downloads from Hugging Face (~') && banked.includes('your bank serves your own computers and a mirror') && banked.includes('b bank again') && !banked.includes('first boot downloads') && banked.includes('Bank · weights banked ✓ on ~/mercury-model-bank · v verify again · m mirror to a fast-load volume'))
+  check('the banked WEIGHTS line distinguishes rented downloads and the key rail offers bank again', banked.includes('banked ✓ on ' + shortBankFolder + ' (verified ' + new Date().toISOString().slice(0, 10) + ')') && banked.includes('a rented machine downloads from Hugging Face (~') && banked.includes('your bank serves your own computers and a mirror') && banked.includes('b bank again') && !banked.includes('first boot downloads') && banked.includes('Bank · weights banked ✓ on ' + shortBankFolder + ' · v verify again · m mirror to a fast-load volume'))
   await capture('120-model-banked')
   for (const [vendor, label, fixture] of [['runpod', 'Runpod', rp], ['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
     await choose('Connect ' + label); await heading(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)

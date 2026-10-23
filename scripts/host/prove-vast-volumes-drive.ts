@@ -7,6 +7,7 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 const home = join(process.env.MERCURY_CONFIG_DIR, 'home')
 mkdirSync(home, { recursive: true })
 process.env.HOME = home
+if (process.platform === 'win32') process.env.USERPROFILE = home
 let checks = 0
 let dump = (): string => ''
 const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + dump()); checks++; console.log('PASS ' + name) }
@@ -51,6 +52,7 @@ const { vastFixture } = await import('./vastFixture.mjs')
 const f = await llmhostFixture()
 f.state.dialect = 'sglang'; f.state.window = 131072
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 const vast = await vastFixture()
 const rp = await runpodFixture()
 const nativeFetch = globalThis.fetch
@@ -82,6 +84,7 @@ try {
   const live = currentHostRecipes().find(row => row.id === 'deepseek41-uncensored-b200')!
   check('the owner’s private row loads with no manifest, 510.3 GB and the 4× B200 shape', Boolean(live) && live.weightManifest === undefined && live.weightsGb === 510.3)
   const driveBank = join(f.home, 'mercury-model-bank')
+  assert.deepEqual(bank.bankCandidates(), [driveBank, join(f.home, 'models')], 'bank discovery stays inside the fixture home')
   ownerFolder(bank.bankModelFolder(driveBank, live))
   const notices = (): string[] => { const dir = join(f.home, 'host', 'notices'); try { return readdirSync(dir).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(dir, name), 'utf8')).words as string) } catch { return [] } }
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
