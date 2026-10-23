@@ -4,6 +4,7 @@ import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, rememberSessionHostRecipe } from './recipesFile.js'
+import { checkGgufAgainstEngine, type GgufEngineCheck } from './ggufHeader.js'
 
 export const HF_SEARCH_PLACEHOLDER = 'model name — e.g. deepseek, qwen, glm'
 export const HF_SEARCH_LIMIT = 20
@@ -42,8 +43,12 @@ interface HfFile { path: string; size: number; sha256?: string; git?: string }
 export type HfSearchOutcome = { state: 'ready'; models: HfModel[] } | { state: 'offline'; words: string }
 type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown>; revision?: string } | { ok: false; words: string }
 type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
-export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number }
+export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number; engineCheck?: string }
 interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
+export type HfEngineCheck = (base: string, repo: string, revision: string, weightFile: string, options: { token?: string; signal?: AbortSignal }) => Promise<GgufEngineCheck>
+const VLLM_QUANT_METHODS = new Set(['awq', 'auto_awq', 'awq_marlin', 'gptq', 'auto_gptq', 'gptq_marlin', 'fp8', 'fbgemm_fp8', 'fp_quant', 'modelopt', 'modelopt_fp4', 'modelopt_mxfp8', 'modelopt_mixed', 'compressed-tensors', 'experts_int8', 'quark', 'moe_wna16', 'torchao', 'inc', 'mxfp4', 'gpt_oss_mxfp4', 'deepseek_v4_fp8', 'mxfp8', 'humming', 'bitsandbytes', 'gguf'])
+const EXL_FORMATS: Readonly<Record<string, string>> = { exl2: 'EXL2', exl3: 'EXL3' }
+export const HF_LOOK_FOR_WORDS = 'look for a GGUF, FP8, AWQ or GPTQ copy'
 
 const modelSchema = z.object({
   id: z.string().min(1),
@@ -228,6 +233,16 @@ const slug = (id: string): string => id.toLowerCase().replace(/[^a-z0-9._-]+/g, 
 const today = (): string => new Date().toISOString().slice(0, 10)
 const commonPrefix = (paths: readonly string[]): string => paths.reduce((prefix, path) => { let at = 0; while (at < prefix.length && at < path.length && prefix[at] === path[at]) at++; return prefix.slice(0, at) })
 
+export function unloadableQuantisation(model: HfModel, config: Record<string, unknown> = {}, files: readonly HfFile[] = []): string | undefined {
+  const quantization = (config.quantization_config ?? model.config.quantization_config) as { quant_method?: unknown } | undefined
+  const method = typeof quantization?.quant_method === 'string' ? quantization.quant_method.trim().toLowerCase() : undefined
+  const library = (model.library ?? '').toLowerCase()
+  const exl = (method && EXL_FORMATS[method]) ?? (library === 'exllamav3' || model.tags.includes('exl3') || files.some(file => file.path === 'exl3_k_map.json') ? 'EXL3' : library === 'exllamav2' || model.tags.includes('exl2') ? 'EXL2' : undefined)
+  if (exl) return 'this file is an ' + exl + ' quantisation; none of Mercury’s engines (vLLM, SGLang, llama.cpp) run it — ' + HF_LOOK_FOR_WORDS
+  if (method && !VLLM_QUANT_METHODS.has(method)) return 'this file is a ' + method.toUpperCase() + ' quantisation, which vLLM does not load — ' + HF_LOOK_FOR_WORDS
+  return undefined
+}
+
 function withWeightManifest(recipe: HostRecipe, files: readonly HfFile[], revision?: string): HostRecipe {
   const candidate = { model: recipe.model, include: recipe.include ?? '', revision, files }
   const manifest = hostWeightManifestSchema.safeParse(candidate)
@@ -266,6 +281,8 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
     const trusted = hostRecipeSchema.parse(withWeightManifest(recipe, gguf.files, revision))
     return { ok: true, recipe: trusted, engine: 'llama.cpp', format, weightsGb: trusted.weightsGb }
   }
+  const unloadable = unloadableQuantisation(model, config, files)
+  if (unloadable) return { ok: false, reason: unloadable }
   const fileBytes = safetensors.reduce((sum, file) => sum + file.size, 0)
   const dtypeBytes = Object.entries(model.dtypes).reduce((sum, [dtype, count]) => sum + count * (DTYPE_BYTES[dtype] ?? 2), 0)
   const bytes = dtypeBytes > 0 ? dtypeBytes : fileBytes
@@ -302,10 +319,10 @@ export function derivedRecipeWords(recipe: HostRecipe, now = Date.now()): string
   if (!row) return undefined
   const minutes = Math.floor((now - row.derivedAt) / 60_000)
   const when = minutes < 1 ? 'a moment ago' : minutes + ' min ago'
-  return 'RECIPE · unverified — recipe derived from the repo’s config and file list ' + when + ' (engine ' + row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB); nobody has booted this exact recipe yet. The price is confirmed before anything is rented; a pod that never answers is terminated automatically.'
+  return 'RECIPE · unverified — recipe derived from the repo’s config and file list ' + when + ' (engine ' + row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB); nobody has booted this exact recipe yet. ' + (row.engineCheck ? row.engineCheck + '. ' : '') + 'The price is confirmed before anything is rented; a pod that never answers is terminated automatically.'
 }
 
-export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions & { fetchRepo?: (id: string, options: HfHubOptions) => Promise<HfRepoOutcome> } = {}): Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> {
+export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions & { fetchRepo?: (id: string, options: HfHubOptions) => Promise<HfRepoOutcome>; checkEngine?: HfEngineCheck } = {}): Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> {
   const known = derived.get(model.id)
   if (known) return { ok: true, row: known }
   const chat = hfModelChat(model)
@@ -315,7 +332,17 @@ export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions
   if (!repo.ok) return { ok: false, words: model.id + ' · ' + repo.words }
   const derivation = deriveHostRecipe(model, repo.files, repo.config, repo.revision)
   if (!derivation.ok) return { ok: false, words: model.id + ' · ' + derivation.reason }
-  const row: DerivedHfRecipe = { repo: model.id, recipe: rememberSessionHostRecipe(derivation.recipe), engine: derivation.engine, format: derivation.format, weightsGb: derivation.weightsGb, derivedAt: Date.now() }
+  let recipe = derivation.recipe
+  let engineCheck: string | undefined
+  if (recipe.engine === 'llamacpp' && recipe.weightFile) {
+    const check = options.checkEngine ? await options.checkEngine(options.base ?? HF_HUB, model.id, repo.revision ?? 'main', recipe.weightFile, { token: options.token, signal: options.signal })
+      : darkInProof(options) ? { state: 'unread' as const, words: 'engine check skipped · ' + HF_PROOF_WORDS }
+      : await checkGgufAgainstEngine(options.base ?? HF_HUB, model.id, repo.revision ?? 'main', recipe.weightFile, { token: options.token, signal: options.signal })
+    if (check.state === 'unknown') return { ok: false, words: model.id + ' · ' + check.words }
+    engineCheck = check.words
+    recipe = { ...recipe, verification: recipe.verification + ' · ' + (check.state === 'known' ? 'header checked against the engine' : 'header unread') }
+  }
+  const row: DerivedHfRecipe = { repo: model.id, recipe: rememberSessionHostRecipe(recipe), engine: derivation.engine, format: derivation.format, weightsGb: derivation.weightsGb, derivedAt: Date.now(), ...(engineCheck ? { engineCheck } : {}) }
   derived.set(model.id, row)
   return { ok: true, row }
 }
