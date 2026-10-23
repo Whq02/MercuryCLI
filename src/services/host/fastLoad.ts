@@ -150,10 +150,10 @@ function bankCell(state: BankState, job: HostRecord | undefined, width: number):
 }
 export type BankActionKind = 'bank' | 'verify' | 'mirror' | 'drop'
 export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v', value: 'verify', label: 'verify' }, { key: 'm', value: 'mirror', label: 'mirror to volume' }, { key: 'd', value: 'drop', label: 'drop from volume' }] as const
-export async function ensureBankFolder(ask: Ask): Promise<string | undefined> {
+export async function ensureBankFolder(ask: Ask, change = false): Promise<string | undefined> {
   const folder = bankFolder()
-  if (folder) return folder
-  const named = await ask({ step: 'door-bank-folder', title: 'Where should the bank live?', found: 'No bank folder was found on this computer (looked for ' + bankCandidateWords() + ').', willRun: 'Name a folder on this computer; it is created if missing and remembered.', initial: bankCandidates()[0] })
+  if (folder && !change) return folder
+  const named = await ask({ step: 'door-bank-folder', title: 'Where should the bank live?', found: (folder ? 'Current bank: ' + shortFolder(folder) + '. Choose ' : 'No bank folder was found on this computer. Choose ') + bankCandidateWords() + ', or another folder.', willRun: 'The folder is created if missing and remembered. Existing weights stay in their current folder.', initial: shortFolder(folder ?? bankCandidates()[0]!) })
   if (named === null) return
   return rememberBankFolder(named)
 }
@@ -190,7 +190,7 @@ export async function bankAction(recipe: HostRecipe, action: BankActionKind, fol
   return mirrorToVolume(client, recipe, ask, emit, signal, options)
 }
 export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, options: BankDoorOptions): Promise<LlmHostResult> {
-  const folder = await ensureBankFolder(ask)
+  let folder = await ensureBankFolder(ask)
   if (!folder) return { ok: true, words: 'Bank closed. No folder was chosen.' }
   for (;;) {
     const api = options.api()
@@ -217,8 +217,9 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const keptGb = kept.reduce((sum, row) => sum + (recipes.find(recipe => matchesVolume(row, recipe))?.weightsGb ?? 0), 0)
     const totals = 'Banked: ' + banked.length + ' of ' + recipes.length + ' models · ' + bytesWords(bankedBytes) + (lastVerified ? ' · last verified ' + lastVerified.slice(0, 10) : '') + (kept.length ? ' · fast-load volumes: ' + kept.length + ' kept (' + sizeWords(keptGb) + ', $' + kept.reduce((sum, row) => sum + row.price, 0).toFixed(2) + '/month' + (kept.length === 1 ? ', ' + kept[0]!.dataCenter : '') + ')' : ' · no fast-load volume')
     const free = bankFree(folder)
-    const choice = await ask({ step: 'door-bank', title: 'Bank', found: 'Your copy of the weights. Banked once from Hugging Face, hash-verified, kept on your drive; mirrored to a fast-load volume so a rental boots in minutes. The repo holds recipes, never weights.\n' + shortFolder(folder) + (free === undefined ? '' : ' · ' + bytesWords(free) + ' free') + ' · ' + totals, willRun: '', initial: rows[0]?.value, keys: BANK_KEYS, rows: [...rows, { value: 'refresh', label: '────────────────────\nRefresh · re-read the bank folder and the volumes' }, { value: 'back', label: 'Back · Escape closes' }] })
+    const choice = await ask({ step: 'door-bank', title: 'Bank', found: 'Your copy of the weights. Banked once from Hugging Face, hash-verified, kept on your drive; mirrored to a fast-load volume so a rental boots in minutes. The repo holds recipes, never weights.\n' + shortFolder(folder) + (free === undefined ? '' : ' · ' + bytesWords(free) + ' free') + ' · ' + totals, willRun: '', initial: rows[0]?.value, keys: BANK_KEYS, rows: [...rows, { value: 'change-folder', label: 'Change folder' }, { value: 'refresh', label: '────────────────────\nRefresh · re-read the bank folder and the volumes' }, { value: 'back', label: 'Back · Escape closes' }] })
     if (!choice || signal.aborted) return { ok: true, words: 'Bank closed.' + (kept.length ? ' Kept weights disks keep billing until deleted.' : '') }
+    if (choice === 'change-folder') { folder = await ensureBankFolder(ask, true) ?? folder; continue }
     if (choice === 'refresh') continue
     if (choice === 'back') return { ok: true, words: 'Bank closed.' + (kept.length ? ' Kept weights disks keep billing until deleted.' : '') }
     const [action, target] = choice.includes(':') ? [choice.slice(0, choice.indexOf(':')), choice.slice(choice.indexOf(':') + 1)] : ['open', choice]

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, statfsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { isAbsolute, join, posix, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, posix, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
@@ -45,7 +45,7 @@ export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
   if (!folder) return []
   return Object.entries(readBankRegistry().models).flatMap(([model, entry]) => {
     const recipe = entry.recipeRow
-    return recipe && model === volumeModel(recipe) && entry.path === bankModelFolder(folder, recipe) && isDirectory(entry.path) ? [recipe] : []
+    return recipe && model === volumeModel(recipe) && dirname(resolve(entry.path)) === resolve(folder) && isDirectory(entry.path) ? [recipe] : []
   })
 }
 export function bankCandidates(): string[] {
@@ -71,6 +71,31 @@ export function rememberBankFolder(path: string): string {
 }
 export const shortFolder = (folder: string): string => folder === homeDirectory() || folder.startsWith(homeDirectory() + sep) ? '~' + folder.slice(homeDirectory().length) : folder
 export const bankModelFolder = (folder: string, recipe: HostRecipe): string => join(folder, recipe.model.replaceAll('/', '--'))
+export function bankModelPath(folder: string, recipe: HostRecipe): string {
+  const canonical = bankModelFolder(folder, recipe)
+  if (isDirectory(canonical)) return canonical
+  const entry = readBankRegistry().models[volumeModel(recipe)]
+  if (entry && dirname(resolve(entry.path)) === resolve(folder) && isDirectory(entry.path)) return entry.path
+  let children: string[]
+  try { children = readdirSync(folder).sort() } catch { return canonical }
+  const matching = children.map(name => join(folder, name)).filter(path => {
+    try {
+      if (!lstatSync(path).isDirectory()) return false
+      const sums = parseBankSums(readFileSync(join(path, 'SHA256SUMS'), 'utf8'))
+      const { files, pinned } = bankFiles(recipe, path)
+      if (!files.length || files.some(file => !sums.has(file.path) || fileSize(join(path, file.path)) === undefined || file.size !== undefined && fileSize(join(path, file.path)) !== file.size)) return false
+      if (pinned && files.some(file => file.sha256)) return files.every(file => !file.sha256 || sums.get(file.path) === file.sha256)
+      for (const name of ['manifest.json', 'config.json']) {
+        try {
+          const manifest = JSON.parse(readFileSync(join(path, name), 'utf8')) as { model?: string; repo_id?: string; _name_or_path?: string }
+          if ([manifest.model, manifest.repo_id, manifest._name_or_path].includes(recipe.model)) return true
+        } catch {}
+      }
+      return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(recipe.model.split('/').at(-1)! + '-') && sums.has(recipe.weightFile))
+    } catch { return false }
+  })
+  return matching.length === 1 ? matching[0]! : canonical
+}
 export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]; pinned: boolean } {
   const manifest = pinnedWeightManifest(recipe)
   if (manifest) return { files: manifest.files.map(file => ({ path: file.path, size: file.size, sha256: file.sha256, git: file.git })), pinned: true }
@@ -88,7 +113,7 @@ export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]
 }
 export function bankState(recipe: HostRecipe, folder = bankFolder()): BankState {
   if (!folder) return { banked: false, sealed: false, pinned: false, files: 0, missing: 0, bytes: 0 }
-  const path = bankModelFolder(folder, recipe)
+  const path = bankModelPath(folder, recipe)
   const { files, pinned } = bankFiles(recipe, path)
   let bytes = 0
   let missing = 0
@@ -137,7 +162,7 @@ export function recordBankFailure(recipe: HostRecipe, path: string, error: strin
   patchBankedModel(recipe, { path, bytes: previous?.bytes ?? 0, error, failedAt: new Date().toISOString() })
 }
 export async function verifyBank(recipe: HostRecipe, folder: string, signal: AbortSignal, progress: (text: string) => void = () => {}): Promise<BankReceipt> {
-  const path = bankModelFolder(folder, recipe)
+  const path = bankModelPath(folder, recipe)
   const { files, pinned } = bankFiles(recipe, path)
   if (!files.length) throw new Error('This recipe names no weight files to verify.')
   if (!existsSync(join(path, 'SHA256SUMS'))) throw new Error('No SHA256SUMS in ' + path + ' · b banks the weights and seals one.')
@@ -161,7 +186,7 @@ export async function verifyBank(recipe: HostRecipe, folder: string, signal: Abo
   return receipt
 }
 export async function sealBank(recipe: HostRecipe, folder: string, signal: AbortSignal, progress: (text: string) => void = () => {}): Promise<BankReceipt> {
-  const path = bankModelFolder(folder, recipe)
+  const path = bankModelPath(folder, recipe)
   const { files, pinned } = bankFiles(recipe, path)
   if (!files.length) throw new Error('This recipe names no weight files to seal.')
   const rows = new Map<string, string>()

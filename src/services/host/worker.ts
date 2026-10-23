@@ -3,7 +3,7 @@ import { HostPreparationCleanupFailed, keptWeightsPath, prepareKeptWeights, term
 import { keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
-import { hostHuggingfaceCredential } from './jobCredentials.js'
+import { hostHuggingfaceDispatchCredential } from './jobCredentials.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { vendorClient, vendorKey, vendorKeyNotice, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HostVendorHttpError } from './vendors/http.js'
@@ -39,8 +39,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const timeout = options.timeoutMs ?? hostSetupTimeout(hostRecipeOfRecord(initial))
   const vendor = initial.vendor ?? 'runpod'
   let keyRefusal: string | undefined
-  const huggingfaceKey = (): string | undefined => { try { return hostHuggingfaceCredential(initial)?.key } catch (error) { keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
-  const key = vendor === 'huggingface' ? huggingfaceKey() : vendorKey(vendor)
+  const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
+  let key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
   const clean = (text: string): string => key ? text.split(key).join('[redacted]') : text
   const mark = (step: string): void => {
     const record = readHostRecord(id)
@@ -79,7 +79,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let token: { key: string } | undefined
     const scrub = (text: string): string => token ? clean(text).split(token.key).join('[redacted]') : clean(text)
     try {
-      if (!verifying) token = hostHuggingfaceCredential(initial)
+      if (!verifying) token = await hostHuggingfaceDispatchCredential(initial)
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       if (!initial.bankFolder) throw new Error('The bank folder is not recorded; open /llmhost → Bank and try again.')
       const folder = initial.bankFolder
@@ -119,7 +119,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       const vendors: HostVendorId[] = initial.watchVendors?.length ? initial.watchVendors : [vendor]
       const clients = new Map<HostVendorId, HostVendor>()
-      for (const name of vendors) { const vendorApiKey = name === 'huggingface' ? huggingfaceKey() : vendorKey(name); if (vendorApiKey) clients.set(name, vendorClient(name === vendor ? initial : name, { key: vendorApiKey })) }
+      for (const name of vendors) { const vendorApiKey = name === 'huggingface' ? await huggingfaceKey() : vendorKey(name); if (vendorApiKey) clients.set(name, vendorClient(name === vendor ? initial : name, { key: vendorApiKey })) }
       if (!clients.size) throw new Error('The saved ' + vendors.map(vendorLabel).join(', ') + ' key is unavailable.')
       const runpod = clients.get('runpod') && runpodOnly(clients.get('runpod')!, 'Fast-load weights disks')
       let sshKey: Awaited<ReturnType<typeof ensureHostKey>> | undefined
@@ -342,7 +342,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         case 'action': return 'repoint'
         case 'address': return endpointBase!
         case 'dialect': return recipe.engine ?? 'sglang'
-        case 'key': if (api.capabilities.managed) return key; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
+        case 'key': if (api.capabilities.managed) { key = await huggingfaceKey(); return key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
         case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
         case 'name':
           if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
@@ -385,7 +385,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
         const observed = readHostRecord(id)
         if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
         let response: Response
-        try { response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed ? { headers: { Authorization: 'Bearer ' + key } } : {}), redirect: 'error' }) } catch (error) {
+        try {
+          if (api.capabilities.managed) key = await huggingfaceKey()
+          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed ? { headers: { Authorization: 'Bearer ' + key } } : {}), redirect: 'error' })
+        } catch (error) {
           const current = readHostRecord(id)
           if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
           await reconnect(clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200))

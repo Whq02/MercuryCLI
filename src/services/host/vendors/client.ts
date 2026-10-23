@@ -6,13 +6,13 @@ import { VastClient, VAST_STORAGE_NOTICE, VAST_KEY_NOTICE } from './vast.js'
 import { LambdaClient, LAMBDA_STORAGE_NOTICE, LAMBDA_KEY_NOTICE } from './lambda.js'
 import { HuggingfaceClient, HF_ENDPOINTS_STORAGE_NOTICE, HF_ENDPOINTS_KEY_NOTICE } from './huggingface.js'
 import { resolveHuggingfaceApiKey } from '../../providers/huggingface/huggingfaceAccounts.js'
-import { hostHuggingfaceCredential } from '../jobCredentials.js'
+import { hostHuggingfaceCredential, hostHuggingfaceDispatchCredential } from '../jobCredentials.js'
 
 export type HostVendorId = HostVendor['vendor']
 export const HOST_VENDORS: readonly HostVendorId[] = ['runpod', 'vast', 'lambda', 'huggingface']
 export const vendorLabel = (vendor: HostVendorId): string => HOST_VENDOR_INFO[vendor].label
 export const vendorKey = (vendor: HostVendorId): string | undefined => vendor === 'huggingface' ? resolveHuggingfaceApiKey()?.key : ({ runpod: readStoredRunpodApiKey, vast: readStoredVastApiKey, lambda: readStoredLambdaApiKey })[vendor]()
-export const saveVendorKey = (vendor: HostVendorId, key: string): void => {
+export const saveVendorKey = (vendor: HostVendorId, key: string | null): void => {
   if (vendor === 'huggingface') throw new Error('Hugging Face uses the existing /logins huggingface sign-in.')
   ;({ runpod: writeStoredRunpodApiKey, vast: writeStoredVastApiKey, lambda: writeStoredLambdaApiKey })[vendor](key)
 }
@@ -30,7 +30,10 @@ export function vendorClient(record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 
   const base = options.apiBaseUrl ?? (typeof record === 'string' ? undefined : record.apiBaseUrl)
   if (vendor === 'vast') return new VastClient(key, base)
   if (vendor === 'lambda') return new LambdaClient(key, base)
-  if (vendor === 'huggingface') return new HuggingfaceClient(key, base)
+  if (vendor === 'huggingface') {
+    const saved = typeof record === 'string' ? vendorKey(vendor) : recordKey(record, vendor)
+    return new HuggingfaceClient(key, base, {}, !options.key || options.key === saved ? refresh => hostHuggingfaceDispatchCredential(typeof record === 'string' ? undefined : record, refresh) : undefined)
+  }
   const raw = new RunpodClient(key, base)
   const client = runpodVendor(raw)
   runpodClients.set(client, raw)

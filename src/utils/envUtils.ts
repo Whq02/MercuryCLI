@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { chmodSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -40,6 +41,8 @@ export function rawConfigHomePinSpelling(): string | null {
 
 
 let authScope: string | undefined
+const scopedAuthHome = new AsyncLocalStorage<string>()
+export function withAuthScope<T>(dir: string, work: () => T): T { return scopedAuthHome.run(dir, work) }
 
 export function setAuthScope(dir: string): void {
   authScope = dir
@@ -54,7 +57,7 @@ export function getAuthScope(): string | undefined {
 }
 
 export function getAuthConfigHomeDir(): string {
-  return authScope ?? getMercuryHome()
+  return scopedAuthHome.getStore() ?? authScope ?? getMercuryHome()
 }
 
 export function ensurePrivateConfigHome(): void {

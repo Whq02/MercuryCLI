@@ -338,11 +338,13 @@ export async function pollHuggingfaceDeviceToken(
   }
 }
 
-let refreshInFlight: Promise<HuggingfaceStoredTokens | undefined> | null = null
+const refreshInFlight = new Map<string, Promise<HuggingfaceStoredTokens | undefined>>()
 
 export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<HuggingfaceStoredTokens | undefined> {
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async (): Promise<HuggingfaceStoredTokens | undefined> => {
+  const home = getAuthConfigHomeDir()
+  const pending = refreshInFlight.get(home)
+  if (pending) return pending
+  const refreshing = Promise.resolve().then(async (): Promise<HuggingfaceStoredTokens | undefined> => {
     try {
       const env = io?.env ?? process.env
       const stored = huggingfaceStoredTokens()
@@ -368,10 +370,11 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
       if (result.status === 400 || result.status === 401) writeHuggingfaceTokens(null)
       return undefined
     } finally {
-      refreshInFlight = null
+      refreshInFlight.delete(home)
     }
-  })()
-  return refreshInFlight
+  })
+  refreshInFlight.set(home, refreshing)
+  return refreshing
 }
 
 
@@ -506,5 +509,5 @@ export function huggingfaceAuthPathForDisplay(): string {
 }
 
 export function __resetHuggingfaceAccountsForTest(): void {
-  refreshInFlight = null
+  refreshInFlight.clear()
 }
