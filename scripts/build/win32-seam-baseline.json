@@ -10,6 +10,7 @@
  "src/services/host/boxBank.ts :: split-slash": 1,
  "src/services/host/door.ts :: split-slash": 1,
  "src/services/host/hfRecipes.ts :: split-slash": 3,
+ "src/services/host/keepSafe.ts :: split-slash": 1,
  "src/services/host/recipesFile.ts :: split-slash": 1,
  "src/services/host/vendors/huggingface.ts :: split-slash": 1,
  "src/services/mcp/client.ts :: split-slash": 1,

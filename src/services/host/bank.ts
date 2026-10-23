@@ -92,7 +92,7 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
           if ([manifest.model, manifest.repo_id, manifest._name_or_path].includes(recipe.model)) return true
         } catch {}
       }
-      return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(recipe.model.split('/').at(-1)! + '-') && sums.has(recipe.weightFile))
+      return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(posix.basename(recipe.model) + '-') && sums.has(recipe.weightFile))
     } catch { return false }
   })
   return matching.length === 1 ? matching[0]! : canonical
