@@ -12,7 +12,7 @@ export type HostVendorId = HostVendor['vendor']
 export const HOST_VENDORS: readonly HostVendorId[] = ['runpod', 'vast', 'lambda', 'huggingface']
 export const vendorLabel = (vendor: HostVendorId): string => HOST_VENDOR_INFO[vendor].label
 export const vendorKey = (vendor: HostVendorId): string | undefined => vendor === 'huggingface' ? resolveHuggingfaceApiKey()?.key : ({ runpod: readStoredRunpodApiKey, vast: readStoredVastApiKey, lambda: readStoredLambdaApiKey })[vendor]()
-export const saveVendorKey = (vendor: HostVendorId, key: string): void => {
+export const saveVendorKey = (vendor: HostVendorId, key: string | null): void => {
   if (vendor === 'huggingface') throw new Error('Hugging Face uses the existing /logins huggingface sign-in.')
   ;({ runpod: writeStoredRunpodApiKey, vast: writeStoredVastApiKey, lambda: writeStoredLambdaApiKey })[vendor](key)
 }
