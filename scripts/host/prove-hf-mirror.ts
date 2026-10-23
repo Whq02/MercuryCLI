@@ -112,7 +112,9 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     assert.equal(volumeChild.status, 0, volumeChild.stderr)
     check('a volume-only copy retains its recipe and manifest in a fresh session after the fill job is gone', JSON.stringify(JSON.parse(volumeChild.stdout.trim().split('\n').at(-1)!)) === JSON.stringify(manifest))
     const notices: string[] = []
-    await mirrorToVolume(api, { ...recipe, weightManifest: undefined }, async () => { throw new Error('an untrusted recipe cannot reach a paid confirmation') }, event => notices.push(event.words), new AbortController().signal, options)
+    const untrusted = { ...recipe, id: 'untrusted-hf-mirror', model: 'Fixture/NoTrustedManifest', weightManifest: undefined }
+    assert.throws(() => weightManifest(untrusted), 'the refusal fixture has no embedded, shipped, banked or kept-volume manifest')
+    await mirrorToVolume(api, untrusted, async () => { throw new Error('an untrusted recipe cannot reach a paid confirmation') }, event => notices.push(event.words), new AbortController().signal, options)
     check('a recipe without trusted hashes gets plain words and stays open without creating anything', notices.some(words => words.includes('cannot be mirrored') && words.includes('trusted')) && rp.state.volumeCreates === 1 && rp.state.creates === 1)
     console.log('HF MIRROR GREEN — ' + checks + ' checks; loopback fixtures, fresh worker and actual hash verification; no billable calls')
   } finally { ssh?.close(); await hf.close(); await rp.close(); f.close(); globalThis.fetch = originalFetch }
