@@ -6,6 +6,8 @@ export class HostCreateError extends Error {
   constructor(message: string, readonly outcome: 'refused' | 'ambiguous', readonly instanceId?: string, readonly status?: number, readonly code?: string) { super(message) }
 }
 
+export class HostVendorShapeError extends Error {}
+const shapeWords = (body: unknown): string => Array.isArray(body) ? 'an array of ' + body.length + (body.length && body[0] && typeof body[0] === 'object' ? ' with ' + Object.keys(body[0] as object).slice(0, 6).join(', ') : '') : body && typeof body === 'object' ? 'an object with ' + Object.keys(body as object).slice(0, 8).join(', ') : typeof body
 export class HostVendorHttpError extends Error {
   constructor(message: string, readonly status: number, readonly retryAfterSeconds?: number) { super(message) }
 }
@@ -153,11 +155,13 @@ export class VendorApi {
         if (paid) throw new HostCreateError(message, 'refused', undefined, response.status, code || undefined)
         throw new HostVendorHttpError(message, response.status, retryAfterSeconds(response.headers.get('retry-after')))
       }
-      const parsed = schema.safeParse(await response.json())
-      if (!parsed.success) throw new Error('unreadable response')
+      const answer: unknown = await response.json()
+      const parsed = schema.safeParse(answer)
+      if (!parsed.success && paid) throw this.ambiguous()
+      if (!parsed.success) throw new HostVendorShapeError(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' answered HTTP ' + response.status + ' in a shape Mercury does not read (' + shapeWords(answer) + '); Mercury needs an update — nothing was changed by this read. Check the ' + this.label + ' console.'))
       return parsed.data
     } catch (error) {
-      if (error instanceof HostCreateError || error instanceof HostVendorHttpError) throw error
+      if (error instanceof HostCreateError || error instanceof HostVendorHttpError || error instanceof HostVendorShapeError) throw error
       if (paid && sending) throw this.ambiguous()
       if (paid) throw new HostCreateError(this.label + ' request was not sent; nothing was rented.', 'refused')
       if (signal?.aborted) throw signal.reason

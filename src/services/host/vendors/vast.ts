@@ -38,7 +38,9 @@ const instanceSchema = z.object({
   public_ipaddr: z.string().nullable().optional(), ports: z.unknown().optional(),
 })
 const instanceListSchema = z.object({ success: z.literal(true), instances: z.array(instanceSchema), instances_found: z.number().int().nonnegative(), total_instances: z.number().int().nonnegative(), next_token: z.string().min(1).nullable() })
-const keyListSchema = z.array(z.object({ key: z.string(), deleted_at: z.string().nullable().optional() }))
+const keyRowSchema = z.object({ key: z.string().optional(), public_key: z.string().optional(), deleted_at: z.string().nullable().optional() })
+const keyRows = z.array(keyRowSchema)
+const keyListSchema = z.union([keyRows, z.object({ ssh_keys: keyRows }), z.object({ keys: keyRows }), z.object({ data: keyRows })]).transform(value => (Array.isArray(value) ? value : 'ssh_keys' in value ? value.ssh_keys : 'keys' in value ? value.keys : value.data).flatMap(row => { const key = row.key ?? row.public_key; return key ? [{ key, deleted_at: row.deleted_at }] : [] }))
 const success = z.object({ success: z.literal(true) })
 const fingerprint = (offer: HostOffer): string => JSON.stringify(offer)
 const sortOffers = (a: HostOffer, b: HostOffer): number => Number(a.recipe.verified.by === 'unverified') - Number(b.recipe.verified.by === 'unverified') || a.price - b.price || a.recipe.id.localeCompare(b.recipe.id)
