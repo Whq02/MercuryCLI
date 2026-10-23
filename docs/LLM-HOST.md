@@ -214,6 +214,68 @@ Local banking (`b`) and verification (`v`) run on your computer at `$0.00`.
 Runpod fast-load volumes (`m`) bill monthly whether or not a pod is running
 until you delete them with `d` or under **Pods I'm paying for**.
 
+### Keep the weights on a Vast.ai machine (`Vast.ai volume`)
+
+Vast.ai sells **local volumes only**: a volume is created on one physical
+machine, only an instance on that same machine can mount it, it cannot be
+resized or moved, and it bills per GB-month at that machine's rate for its
+whole size whether or not an instance is running (nothing bills while the
+machine is offline). Mercury therefore keeps a model's weights **on one
+Vast.ai machine**: a rental of that model on that machine boots from the
+volume; a rental on any other machine downloads the weights as before.
+
+With Vast.ai connected, `m` on a banked model row offers
+`Vast.ai volume · keep on one Vast.ai machine · per GB-month at the machine's rate`
+beside the Runpod volumes (when Runpod is not connected, `m` opens the Vast.ai
+choice directly). The steps:
+
+1. **Which Vast.ai machine keeps the weights?** lists the machines that sell
+   volume space for the model's size (the manifest's bytes plus room for the
+   engine's compiled kernels, e.g. `556 GB volume` for a 510 GB model), the
+   machines with stock for the model's shape first, each with its hosting tag,
+   the rental price on it and the volume's rate:
+   `machine <id> · datacenter · NL · 4× B200 in stock at $9.31/hr · volume $0.20/GB-month → $111.20/month for 556 GB`
+   or `no 4× B200 stock right now` when the machine sells space but has no
+   GPU shape for the model today.
+2. **When should the weights be prepared?** `Prepare now` rents the cheapest
+   instance **on that machine** with room (any GPU shape; it only downloads),
+   downloads the files from Hugging Face onto the volume mounted at
+   `/workspace/mercury-weights`, verifies every file against the pinned or
+   bank-built manifest, then terminates the temporary instance and checks the
+   instance list to confirm it is gone. `At the next rental on that machine`
+   creates the volume now and fills it the next time you rent that model
+   there. Nothing is uploaded from your drive.
+3. **Confirm Vast.ai volume** names the machine, the size, the billing
+   (`$111.20/month for its 556 GB ($0.20/GB-month, the machine's rate), with or without an instance`)
+   and, for Prepare now, the temporary instance and its hourly price
+   (`a temporary 1× RTX PRO 6000 instance at $1.35/hr on that machine`). Nothing
+   is created before this confirmation.
+
+Once kept, the model's Bank row reads
+`weights kept on Vast.ai machine <id> (<n> GB, <billing>) · a rental on that machine boots in ~<m> min · other machines download`,
+its `WEIGHTS` line adds `Vast.ai volume ✓ machine <id>`, and the Vast.ai offer
+on that machine reads `machine <id> · boots from your Vast.ai volume on its machine`
+while offers on other machines still say `downloads the weights first`. Renting
+that offer attaches the volume at creation, checks the kept files in a few
+seconds (the sampled check described above) and skips the download; the
+rental confirmation names the volume's monthly amount beside the hourly price.
+The launch command also points the engine's compiled-kernel caches at the
+volume (SGLang's cache directory and its DeepGEMM cache, DeepGEMM's own JIT
+cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM), so a second boot on
+that machine skips the kernel tuning as well as the download; the first boot
+on the volume still tunes once.
+
+A kept Vast.ai volume appears under **Pods I'm paying for** as
+`Vast.ai volume <id> · Vast.ai machine <id> · <hosting tag> · <billing> · weights`
+with the current stock on that machine (`4× B200 in stock on that machine at $…/hr`
+or `no stock on that machine right now · w watch it`, where `w` arms a stock
+watch that prefers that machine). `d` deletes it after confirmation and checks
+the volume list to confirm it is gone; Vast.ai refuses to delete a volume while
+an instance still uses it, and Mercury reports that refusal with the volume
+still billing. Terminating a rental that uses the volume asks whether to keep
+or delete it. A Vast.ai volume never attaches to a Runpod pod and a Runpod
+disk never attaches to a Vast.ai instance.
+
 ## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)
 
 1. **Connect a GPU provider.** Paste a Runpod, Vast.ai or Lambda API key into
@@ -346,9 +408,10 @@ time and estimated compute spend so far.
 - **Logs and Resume setup:** inspect the vendor log tail or restart a paused
   setup job.
 
-Multi-node clusters, fast-load weights volumes and in-place `Tune` reloads are
-supported on Runpod only; choosing them for Vast.ai or Lambda explains that
-limit without sending a request.
+Multi-node clusters and in-place `Tune` reloads are supported on Runpod only;
+kept weights volumes exist on Runpod (one data centre or any) and on Vast.ai
+(one machine); choosing a Runpod-only feature for Vast.ai or Lambda explains
+that limit without sending a request.
 
 ## Run a model on your own computer: `My computers` and `mercury host`
 
