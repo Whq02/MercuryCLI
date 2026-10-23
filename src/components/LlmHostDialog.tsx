@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Text, useInput, wrapText } from '../ink.js'
+import { useRegisterOverlay } from '../context/overlayContext.js'
 import TextInput from './TextInput.js'
 import { HuggingfaceConnect } from './HuggingfaceConnect.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -28,6 +29,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   onClose?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  useRegisterOverlay('select', true, { ownsPageKeys: true })
   const pastOpenEvent = useOpenEventGate()
   const [question, setQuestion] = useState<LlmHostQuestion | null>(null)
   const [history, setHistory] = useState<LlmHostEvent[]>([])
