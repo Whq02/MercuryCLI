@@ -163,7 +163,7 @@ try {
   mounted!.push(KEY.enter); await heading('Bank')
   check('the named folder is created and remembered in bank.json', bank.bankFolder() === bankFolder && JSON.parse(readFileSync(join(f.home, 'host', 'bank.json'), 'utf8')).folder === bankFolder)
   check('the Bank table has the header, one row per model, both unbanked, and the totals', screen().includes('MODEL') && screen().includes('BANKED') && screen().includes('VERIFIED') && screen().includes('VOLUME') && row('Tiny-A').includes('— b to bank') && row('Tiny-B').includes('— b to bank') && screen().includes('Banked: 0 of 2 models'))
-  check('the hint names the four keys', screen().includes('b bank') && screen().includes('v verify') && screen().includes('m mirror to volume') && screen().includes('d drop from volume'))
+  check('the hint names the five keys on one line at 120 columns', screen().includes('b bank · v verify · m mirror · d drop · k keep safe · esc closes'))
   await capture('120-bank-empty')
   await close()
   const folderA = bank.bankModelFolder(bankFolder, tinyA)

@@ -271,7 +271,7 @@ check('every mention of the menu in docs/LLM-HOST.md uses the label the Which-mo
 check('the More options → menu list in docs/LLM-HOST.md equals the where-step rows in order and drops Fast-load (keep weights near the GPU)', res.otherRoadsMatch, `${res.detail.docOtherRoads} vs ${res.detail.expectedWhereRows}`)
 
 section('§3 Bank keys & table columns equal BANK_KEYS and fastLoad.ts')
-check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d and their labels)', res.bankKeysMatch, `${res.detail.bankKeyMatches} vs ${res.detail.expectedBankKeys}`)
+check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d, k and their labels)', res.bankKeysMatch, `${res.detail.bankKeyMatches} vs ${res.detail.expectedBankKeys}`)
 check('the Bank section names Bank · your weights, the five table columns (MODEL, SIZE, BANKED, VERIFIED, VOLUME), bank.json and SHA256SUMS', res.bankScreenMatches)
 
 section('§4 GPU vendors and their live-rental / API-only stamps equal HOST_VENDORS')
@@ -297,7 +297,7 @@ check(
 )
 check(
   'poison control: changing a Bank key label fails bankKeysMatch',
-  !validateLlmHostDoc(docText.replace('- **`m` (`mirror to volume`):**', '- **`m` (`upload to volume`):**'), indexText, expectedStamps, expectedWhereRows).bankKeysMatch,
+  !validateLlmHostDoc(docText.replace('- **`m` (`mirror`):**', '- **`m` (`upload`):**'), indexText, expectedStamps, expectedWhereRows).bankKeysMatch,
 )
 check(
   'poison control: omitting a vendor from the Rent heading fails vendorsMatch',

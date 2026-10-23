@@ -188,7 +188,7 @@ Runpod volume.
   file in the model's folder, checks file sizes, `SHA256SUMS` digests and any
   manifest SHA-256 or git blob hashes, updates the `VERIFIED` date, and posts a
   chat notice naming the file if a byte differs.
-- **`m` (`mirror to volume`):** opens Runpod fast-load volume setup for a
+- **`m` (`mirror`):** opens Runpod fast-load volume setup for a
   shipped recipe with a weight manifest. Choose
   `Runpod network volume · one data centre · $0.07/GB/month` (`$0.07/GB/month`
   up to 1,000 GB, `$0.05/GB/month` above 1,000 GB, attached to pods in that
@@ -206,9 +206,13 @@ Runpod volume.
   checks file sizes, modification times, the first and last 64 MB, and eight
   seeded 1 MB samples per large file against `SAMPLES.json` in a few seconds
   and skips downloading weights again.
-- **`d` (`drop from volume`):** deletes the model's Runpod fast-load volume
+- **`d` (`drop`):** deletes the model's Runpod fast-load volume
   after confirmation (`Delete weights disk?`) while leaving the local bank on
   your drive untouched.
+- **`k` (`keep safe`):** on a banked model, copies the bank to another drive
+  this computer can see and checks every file, mirrors it to a Runpod volume,
+  or saves a first-boot upload of your bank for Vast.ai and Lambda rentals at a
+  measured upload speed; each choice shows its time estimate first.
 
 Local banking (`b`) and verification (`v`) run on your computer at `$0.00`.
 Runpod fast-load volumes (`m`) bill monthly whether or not a pod is running

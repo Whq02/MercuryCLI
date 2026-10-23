@@ -150,7 +150,7 @@ function bankCell(state: BankState, job: HostRecord | undefined, width: number):
   return pad('— b to bank', width)
 }
 export type BankActionKind = 'bank' | 'verify' | 'mirror' | 'drop' | 'keep-safe'
-export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v', value: 'verify', label: 'verify' }, { key: 'm', value: 'mirror', label: 'mirror to volume' }, { key: 'd', value: 'drop', label: 'drop from volume' }, { key: 'k', value: 'keep-safe', label: 'keep safe' }] as const
+export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v', value: 'verify', label: 'verify' }, { key: 'm', value: 'mirror', label: 'mirror' }, { key: 'd', value: 'drop', label: 'drop' }, { key: 'k', value: 'keep-safe', label: 'keep safe' }] as const
 export async function ensureBankFolder(ask: Ask, change = false): Promise<string | undefined> {
   const folder = bankFolder()
   if (folder && !change) return folder
@@ -228,7 +228,7 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const recipe = recipes.find(row => row.id === target)
     if (!recipe) continue
     const state = states.get(recipe.id)!
-    if (action === 'open') { emit({ title: modelTitle(recipe), words: (state.banked ? 'banked ✓ on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) + ' against the ' + (state.check === 'manifest' ? 'pinned manifest' : 'download') : '') + (state.error ? ' · ' + state.error : '') + ' · ' + fastLoadState(recipe) + ' · keys: b bank · v verify · m mirror · d drop' }); continue }
+    if (action === 'open') { emit({ title: modelTitle(recipe), words: (state.banked ? 'banked ✓ on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) + ' against the ' + (state.check === 'manifest' ? 'pinned manifest' : 'download') : '') + (state.error ? ' · ' + state.error : '') + ' · ' + fastLoadState(recipe) + ' · keys: b bank · v verify · m mirror · d drop · k keep safe' }); continue }
     if (!BANK_KEYS.some(row => row.value === action)) continue
     const result = await bankAction(recipe, action as BankActionKind, folder, ask, emit, signal, options)
     if (result) return result
