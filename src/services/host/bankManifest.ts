@@ -91,7 +91,7 @@ function build(recipe: HostRecipe, path: string, sumsText: string, files: Folder
   const revision = receipts[0] ?? sourceRevision(recipe)
   if (!revision) return { reason: 'no Hugging Face revision is recorded for the bank · b bank again records one' }
   const parsed = hostWeightManifestSchema.safeParse({ model: recipe.model, include: recipe.include ?? '', revision, files: rows })
-  if (!parsed.success) return { reason: 'the bank has a file name Mercury cannot pin: ' + (rows[Number(parsed.error.issues[0]?.path[1] ?? -1)]?.path ?? parsed.error.issues[0]?.message ?? 'unknown') }
+  if (!parsed.success) return { reason: 'the bank has a file name that cannot be mirrored: ' + (rows[Number(parsed.error.issues[0]?.path[1] ?? -1)]?.path ?? parsed.error.issues[0]?.message ?? 'unknown') }
   return { manifest: parsed.data }
 }
 export function bankManifest(recipe: HostRecipe, path: string): BankManifest {
