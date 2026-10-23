@@ -21,7 +21,7 @@ interface EngineTableFile { generatedBy: string; llamacpp: string; source: strin
 const shaArgument = (): string => { const at = process.argv.indexOf('--sha'); return at >= 0 && process.argv[at + 1] ? process.argv[at + 1]! : LLAMACPP_ENGINE_SHA }
 const sourceUrl = (sha: string): string => 'https://raw.githubusercontent.com/ggml-org/llama.cpp/' + sha + '/src/llama-arch.cpp'
 
-export function engineTableFromSource(source: string, sha: string): EngineTableFile {
+function engineTableFromSource(source: string, sha: string): EngineTableFile {
   const architectures = [...source.matchAll(/\{\s*LLM_ARCH_([A-Z0-9_]+),\s*"([^"]+)"\s*\}/g)].filter(match => match[1] !== 'UNKNOWN').map(match => match[2]!)
   const tensors = [...source.matchAll(/\{\s*LLM_TENSOR_[A-Z0-9_]+,\s*"([^"]+)"\s*\}/g)].map(match => match[1]!.replaceAll('%d', 'N'))
   if (architectures.length < 50 || tensors.length < 100) throw new Error('llama-arch.cpp at ' + sha + ' yielded ' + architectures.length + ' architectures and ' + tensors.length + ' tensor names; the source shape changed')

@@ -84,10 +84,10 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
 const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: /i
-export const engineCauseGrep = 'GGML_ASSERT|terminate called|what\\(\\):|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
+const engineCauseGrep = 'GGML_ASSERT|terminate called|what\\(\\):|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
 const stackFramePattern = /^(?:(?:\S+\([^()]*\))?\[0x[0-9a-f]+\]|#\d+\s+0x[0-9a-f]+\b.*|\[New LWP \d+\]|Thread \d+ \(Thread 0x[0-9a-f]+.*|\[Thread debugging using libthread_db enabled\]|Using host libthread_db library .*)$/
 const unknownLayoutPattern = /unknown model architecture|unsupported model architecture|missing tensor info mapping|wrong number of tensors|are not supported for now|unsupported architecture/i
-export function engineCauseCommand(engineLog: string): string {
+function engineCauseCommand(engineLog: string): string {
   const log = quote(engineLog)
   return 'grep -i -m 1 -A 1 -E ' + quote(engineCauseGrep) + ' ' + log + ' 2>/dev/null | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_CAUSE /') + '; unused="$(grep -c ' + quote('unused tensor') + ' ' + log + ' 2>/dev/null)"; if test "${unused:-0}" -gt 0 2>/dev/null; then printf ' + quote('MERCURY_UNUSED_TENSORS %s %s\\n') + ' "$unused" "$(grep -m 1 -o ' + quote('unused tensor [^ ]*') + ' ' + log + ' | cut -d" " -f3)"; fi'
 }

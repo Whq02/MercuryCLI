@@ -22,6 +22,7 @@
 # gate-watch: scripts/host/prove-host-bank-drive.ts scripts/host/prove-llmhost-qc-drive.ts
 # gate-watch: scripts/host/prove-host-wheel-drive.ts src/components/ScrollKeybindingHandler.tsx src/context/overlayContext.tsx src/context/overlayStack.ts src/ink/**
 # gate-watch: scripts/host/measure-recipe.ts scripts/host/prove-measure-recipe.ts scripts/host/prove-frontier-roster.ts src/services/providers/zai/zaiCodec.ts src/utils/envUtils.ts
+# gate-watch: scripts/lib/hermetic.ts vendor/** vendor/node.lock.json
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -81,4 +82,9 @@ bun "$ROOT/scripts/host/prove-vast-volumes-drive.ts"
 bun "$ROOT/scripts/host/prove-vast-volumes.ts"
 bun "$ROOT/scripts/host/prove-vendor-drift-signals.ts"
 bun "$ROOT/scripts/host/prove-vendor-drift.ts"
+bun "$ROOT/scripts/host/prove-engine-death-words.ts"
+bun "$ROOT/scripts/host/prove-hf-engine-check.ts"
+bun "$ROOT/scripts/host/prove-host-model-trust-drive.ts"
+bun "$ROOT/scripts/host/prove-host-upload-confirm-drive.ts"
+bun "$ROOT/scripts/host/prove-host-volume-read-drive.ts"
 exec bun "$ROOT/scripts/host/prove-host-job-drive.ts" --bundle "$ROOT/dist/mercury.mjs"

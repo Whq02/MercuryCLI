@@ -46,7 +46,7 @@ type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown
 type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
 export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number; engineCheck?: string }
 interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
-export type HfEngineCheck = (base: string, repo: string, revision: string, weightFile: string, options: { token?: string; signal?: AbortSignal }) => Promise<GgufEngineCheck>
+type HfEngineCheck = (base: string, repo: string, revision: string, weightFile: string, options: { token?: string; signal?: AbortSignal }) => Promise<GgufEngineCheck>
 const VLLM_QUANT_METHODS = new Set(['awq', 'auto_awq', 'awq_marlin', 'gptq', 'auto_gptq', 'gptq_marlin', 'fp8', 'fbgemm_fp8', 'fp_quant', 'modelopt', 'modelopt_fp4', 'modelopt_mxfp8', 'modelopt_mixed', 'compressed-tensors', 'experts_int8', 'quark', 'moe_wna16', 'torchao', 'inc', 'mxfp4', 'gpt_oss_mxfp4', 'deepseek_v4_fp8', 'mxfp8', 'humming', 'bitsandbytes', 'gguf'])
 const EXL_FORMATS: Readonly<Record<string, string>> = { exl2: 'EXL2', exl3: 'EXL3' }
 export const HF_LOOK_FOR_WORDS = 'look for a GGUF, FP8, AWQ or GPTQ copy'

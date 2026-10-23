@@ -1,14 +1,14 @@
 import engineTable from '../../../assets/host/llamacpp-engine.json' with { type: 'json' }
 
-export interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, string | number | boolean>; tensors: string[]; headerBytes: number }
-export interface EngineTable { llamacpp: string; architectures: string[]; tensors: string[] }
-export type GgufParse = { state: 'ok'; header: GgufHeader } | { state: 'more' } | { state: 'bad'; reason: string }
-export type GgufHeaderRead = { ok: true; header: GgufHeader; bytes: number } | { ok: false; status?: number; words: string; bad?: boolean }
+interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, string | number | boolean>; tensors: string[]; headerBytes: number }
+interface EngineTable { llamacpp: string; architectures: string[]; tensors: string[] }
+type GgufParse = { state: 'ok'; header: GgufHeader } | { state: 'more' } | { state: 'bad'; reason: string }
+type GgufHeaderRead = { ok: true; header: GgufHeader; bytes: number } | { ok: false; status?: number; words: string; bad?: boolean }
 export type GgufEngineCheck = { state: 'known' | 'unknown' | 'unread'; words: string }
-export interface GgufReadOptions { token?: string; signal?: AbortSignal; timeoutMs?: number; fetch?: typeof fetch; firstChunk?: number; headerCap?: number }
+interface GgufReadOptions { token?: string; signal?: AbortSignal; timeoutMs?: number; fetch?: typeof fetch; firstChunk?: number; headerCap?: number }
 
 export const LLAMACPP_ENGINE_TABLE: EngineTable = engineTable
-export const GGUF_HEADER_CAP = 64 * 1024 * 1024
+const GGUF_HEADER_CAP = 64 * 1024 * 1024
 const FIRST_CHUNK = 256 * 1024
 const READ_TIMEOUT_MS = 20_000
 const SCALAR_SIZE: Readonly<Record<number, number>> = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 }
