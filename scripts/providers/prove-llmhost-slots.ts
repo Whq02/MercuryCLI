@@ -329,8 +329,8 @@ try {
     return out
   }
 
-  function expectedSlotFor(conversationKey: string, totalSlots: number): number {
-    return createHash('sha256').update(conversationKey).digest().readUInt32BE(0) % totalSlots
+  function preferredSlotFor(sessionOwner: string, totalSlots: number): number {
+    return createHash('sha256').update(sessionOwner).digest().readUInt32BE(0) % totalSlots
   }
 
   const llamaId = `compat/llmhost/${model}`
@@ -349,8 +349,6 @@ try {
 
   state.mode = 'tools'
   const firstUserA = createUserMessage({ content: 'conversation A turn 0' })
-  const convAKey = `${String(processOwnerForLane(null))}|${firstUserA.uuid}|${llamaId}`
-  const expectedSlotA = expectedSlotFor(convAKey, 4)
   const messagesA: any[] = [firstUserA]
   const seenSlotsA: unknown[] = []
   const seenCachePromptsA: unknown[] = []
@@ -371,10 +369,11 @@ try {
       messagesA.push(createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `fixture-call-${turn}`, content: 'ok' }] }))
     }
   }
+  const mainSlot = seenSlotsA[0] as number
   check(
-    'same conversation carries the same deterministic id_slot across all 3 turns',
-    seenSlotsA.every(slot => slot === expectedSlotA),
-    `seen=${JSON.stringify(seenSlotsA)} expected=${expectedSlotA}`,
+    'same conversation keeps one registry-assigned id_slot across all 3 turns',
+    Number.isInteger(mainSlot) && mainSlot >= 0 && mainSlot < 4 && seenSlotsA.every(slot => slot === mainSlot),
+    `seen=${JSON.stringify(seenSlotsA)} main=${mainSlot}`,
   )
   check(
     'same conversation sends cache_prompt: true on every turn',
@@ -388,47 +387,53 @@ try {
   )
 
   state.mode = 'reply'
-  const crewSlots: number[] = []
-  let crewCachePrompt = true
-  for (let i = 0; i < 8; i++) {
-    const userB = createUserMessage({ content: `other conversation ${i}` })
-    const replies = await runTurn(llamaId, [userB], { agentId: `agent-${i}` })
-    assert.ok(replies.every(row => !row.isApiErrorMessage))
-    const body = captures.at(-1)!.body
-    if (typeof body.id_slot === 'number') crewSlots.push(body.id_slot)
-    if (body.cache_prompt !== true) crewCachePrompt = false
-  }
-  check(
-    'crewmate conversations each take a free slot of their own first, and none ever takes the main conversation\'s slot',
-    crewSlots.length === 8 &&
-      crewCachePrompt &&
-      new Set(crewSlots.slice(0, 3)).size === 3 &&
-      crewSlots.every(slot => slot >= 0 && slot < 4 && slot !== expectedSlotA),
-    `main=${expectedSlotA} crew=${JSON.stringify(crewSlots)}`,
-  )
   let collider: { user: any; agentId: string } | undefined
   for (let i = 0; i < 256 && collider === undefined; i++) {
-    const user = createUserMessage({ content: `crewmate hashing onto the main slot ${i}` })
+    const user = createUserMessage({ content: `crewmate preferring the main slot ${i}` })
     const agentId = `agent-collide-${i}`
-    if (expectedSlotFor(`${String(processOwnerForLane(agentId))}|${user.uuid}|${llamaId}`, 4) === expectedSlotA) collider = { user, agentId }
+    if (preferredSlotFor(String(processOwnerForLane(agentId)), 4) === mainSlot) collider = { user, agentId }
   }
   const colliderReplies = collider === undefined ? [] : await runTurn(llamaId, [collider.user], { agentId: collider.agentId })
   const colliderSlot = captures.at(-1)!.body.id_slot
   check(
-    'a crewmate whose conversation hashes onto its parent\'s slot is given another slot',
+    'a new crewmate whose registry owner prefers its parent\'s slot takes a free slot instead',
     collider !== undefined &&
-      colliderReplies.every(row => !row.isApiErrorMessage) &&
-      typeof colliderSlot === 'number' &&
-      colliderSlot !== expectedSlotA &&
-      colliderSlot < 4,
-    `main=${expectedSlotA} collider=${colliderSlot}`,
+      colliderReplies.length > 0 && colliderReplies.every(row => !row.isApiErrorMessage) &&
+      Number.isInteger(colliderSlot) &&
+      colliderSlot >= 0 && colliderSlot !== mainSlot &&
+      colliderSlot < 4 && captures.at(-1)!.body.cache_prompt === true,
+    `main=${mainSlot} collider=${colliderSlot}`,
+  )
+  const crewSlots: number[] = []
+  let crewCachePrompt = true
+  let balancedOverflow = true
+  const occupants = new Map<number, number>([[mainSlot, 1], [colliderSlot, 1]])
+  for (let i = 0; i < 8; i++) {
+    const userB = createUserMessage({ content: `other conversation ${i}` })
+    const replies = await runTurn(llamaId, [userB], { agentId: `agent-${i}` })
+    assert.ok(replies.length > 0 && replies.every(row => !row.isApiErrorMessage))
+    const body = captures.at(-1)!.body
+    if (typeof body.id_slot === 'number') {
+      crewSlots.push(body.id_slot)
+      if (i >= 2 && occupants.get(body.id_slot) !== Math.min(...occupants.values())) balancedOverflow = false
+      occupants.set(body.id_slot, (occupants.get(body.id_slot) ?? 0) + 1)
+    }
+    if (body.cache_prompt !== true) crewCachePrompt = false
+  }
+  check(
+    'crewmates fill free slots without taking the main slot; once all four are held, overflow balances within the existing capacity',
+    crewSlots.length === 8 &&
+      crewCachePrompt && balancedOverflow &&
+      new Set([mainSlot, colliderSlot, ...crewSlots.slice(0, 2)]).size === 4 &&
+      crewSlots.every(slot => Number.isInteger(slot) && slot >= 0 && slot < 4),
+    `main=${mainSlot} collider=${colliderSlot} crew=${JSON.stringify(crewSlots)}`,
   )
   messagesA.push(createUserMessage({ content: 'the main conversation after its crewmates' }))
   const againA = await runTurn(llamaId, messagesA)
   check(
     'the main conversation keeps its slot after nine crewmates came and went',
-    againA.every(row => !row.isApiErrorMessage) && captures.at(-1)!.body.id_slot === expectedSlotA,
-    `main=${expectedSlotA} seen=${captures.at(-1)!.body.id_slot}`,
+    againA.every(row => !row.isApiErrorMessage) && captures.at(-1)!.body.id_slot === mainSlot,
+    `main=${mainSlot} seen=${captures.at(-1)!.body.id_slot}`,
   )
   check(
     'GET /props stayed cached across the other conversations on the same endpoint',
@@ -438,31 +443,25 @@ try {
 
   state.totalSlots = 7
   state.mode = '5xx-once'
+  const before5xx = captures.length
   const userAfter5xx = createUserMessage({ content: 'after 5xx reload' })
   const repliesAfter5xx = await runTurn(llamaId, [userAfter5xx], { agentId: 'agent-5xx' })
   const retryBody = captures.at(-1)!.body
-  let wideUser: any
-  let wideSlot = -1
-  for (let i = 0; i < 256 && wideUser === undefined; i++) {
-    const user = createUserMessage({ content: `a conversation for the grown slot table ${i}` })
-    const slot = expectedSlotFor(`${String(processOwnerForLane('agent-wide'))}|${user.uuid}|${llamaId}`, 7)
-    if (slot >= 4) {
-      wideUser = user
-      wideSlot = slot
-    }
-  }
-  const wideReplies = await runTurn(llamaId, [wideUser], { agentId: 'agent-wide' })
+  const retryCaptures = captures.slice(before5xx)
+  const wideReplies = await runTurn(llamaId, [createUserMessage({ content: 'a conversation for the grown slot table' })], { agentId: 'agent-wide' })
   const wideBody = captures.at(-1)!.body
   check(
     'a 5xx response invalidates the cached slot count, re-reads GET /props, and the new total_slots is applied',
     repliesAfter5xx.some(row => !row.isApiErrorMessage) &&
       state.propsRequests === 2 &&
-      typeof retryBody.id_slot === 'number' &&
+      retryCaptures.length === 2 &&
+      Number.isInteger(retryBody.id_slot) && retryBody.id_slot >= 0 &&
       retryBody.id_slot < 7 &&
+      retryBody.id_slot === retryCaptures[0]!.body.id_slot &&
       retryBody.cache_prompt === true &&
       wideReplies.every(row => !row.isApiErrorMessage) &&
-      wideBody.id_slot === wideSlot,
-    `propsRequests=${state.propsRequests} retry=${retryBody.id_slot} wide=${wideBody.id_slot} expected=${wideSlot}`,
+      Number.isInteger(wideBody.id_slot) && wideBody.id_slot >= 4 && wideBody.id_slot < 7,
+    `propsRequests=${state.propsRequests} requests=${retryCaptures.length} retry=${retryBody.id_slot} wide=${wideBody.id_slot}`,
   )
 
   state.propsAvailable = false
@@ -471,10 +470,10 @@ try {
   const repliesNoProps = await runTurn(llamaId, [userNoProps], { agentId: 'agent-no-props' })
   const noPropsBody = captures.at(-1)!.body
   check(
-    '/props unavailable sends neither id_slot nor cache_prompt',
+    '/props unavailable sends no id_slot and keeps cache_prompt on',
     repliesNoProps.some(row => !row.isApiErrorMessage) &&
       noPropsBody.id_slot === undefined &&
-      noPropsBody.cache_prompt === undefined,
+      noPropsBody.cache_prompt === true,
     `id_slot=${noPropsBody.id_slot} cache_prompt=${noPropsBody.cache_prompt}`,
   )
   state.propsAvailable = true
@@ -871,11 +870,16 @@ try {
     ],
   ])
   check(
-    'a stream cut while only tool arguments were painting keeps the clean retry: the request goes again and the call settles once, no error row',
-    paintCut.calls === 2 &&
-      paintCut.assistants.every(row => !row.isApiErrorMessage) &&
-      settledOrder(paintCut.assistants) === 'tool_use' &&
-      paintCut.assistants[0]?.message.content[0]?.input?.text === 'full',
+    'a stream cut after a tool fragment is terminal: one request, one error row naming the cut, no completed call',
+    paintCut.calls === 1 &&
+      toolStartsFor(paintCut.events, 'call-p').length === 1 &&
+      paintedFor(paintCut.events, 'call-p') === '{"text":"par' &&
+      toolStartsFor(paintCut.events, 'call-p2').length === 0 &&
+      paintCut.assistants.length === 1 &&
+      paintCut.assistants[0]?.isApiErrorMessage === true &&
+      paintCut.assistants[0]?.errorDetails === 'idle-timeout' &&
+      errorText(paintCut.assistants).includes('the stream went quiet mid-arguments') &&
+      settledOrder(paintCut.assistants) === '',
     `calls=${paintCut.calls} settled=${settledOrder(paintCut.assistants)} errors=${paintCut.assistants.filter(row => row.isApiErrorMessage).length}`,
   )
 
