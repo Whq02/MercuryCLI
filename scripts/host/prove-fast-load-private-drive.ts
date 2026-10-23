@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash, randomBytes } from 'node:crypto'
-import { closeSync, ftruncateSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -126,3 +126,113 @@ check('a flipped byte in a sealed file fails the verification against SHA256SUMS
 writeFileSync(join(tinyFolder, 'model-00001-of-00001.safetensors'), tinyShard)
 check('bankManifest reads a folder on its own, so the Bank’s folder scan can weigh a candidate folder without the registry', bankManifest(tiny, tinyFolder).manifest?.files.length === 3 && bankManifest(tiny, join(home, 'nowhere')).reason === 'not banked · b banks the weights')
 console.log('FAST-LOAD PRIVATE PART 1 GREEN — ' + checks + ' checks; the manifest road from the owner’s bank folder shape')
+
+const { KEY, mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
+const { llmhostFixture } = await import('../providers/lib/llmhostFixture.ts')
+const { runpodFixture, fakeSshRunner, liveCatalogue } = await import('./runpodFixture.mjs')
+const f = await llmhostFixture()
+f.state.dialect = 'sglang'; f.state.window = 131072
+process.env.HOME = f.home
+const rp = await runpodFixture()
+const nativeFetch = globalThis.fetch
+const escaped: string[] = []
+globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
+  const request = new Request(input, init)
+  const url = new URL(request.url)
+  if (url.origin === 'https://api.runpod.io') return nativeFetch(new Request(rp.baseUrl.replace('/v2', '') + url.pathname + url.search, request))
+  if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('This proof only permits loopback fixtures') }
+  return nativeFetch(request)
+}, nativeFetch)
+let mounted: Awaited<ReturnType<typeof mountOffscreen>> | undefined
+let ssh: ReturnType<typeof fakeSshRunner> | undefined
+try {
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.ts')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
+  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { hostRunner } = await import('../../src/services/host/ssh.ts')
+  const { runHostJob } = await import('../../src/services/host/worker.ts')
+  const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
+  assert.ok(hostDirectory().startsWith(f.home), 'the host directory follows the fixture home')
+  mkdirSync(hostDirectory(), { recursive: true })
+  writeFileSync(join(hostDirectory(), 'private-recipes.json'), JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [...shipped.recipes, privateRow('deepseek41-uncensored-b200', 'B200', 180), privateRow('deepseek41-uncensored-b300', 'B300', 288), privateRow('deepseek41-uncensored-gb300', 'GB300', 288)] }))
+  const liveRows = currentHostRecipes()
+  check('the drive’s private file is the owner’s shape: every shipped row plus his three private rows', liveRows.length === shipped.recipes.length + 3 && liveRows.some(row => row.id === 'qwen38-27b-rtx-pro-6000'))
+  const live = liveRows.find(row => row.id === 'deepseek41-uncensored-b200')!
+  const driveBank = join(f.home, 'mercury-model-bank')
+  const driveFolder = bank.bankModelFolder(driveBank, live)
+  ownerFolder(driveFolder)
+  const notices = (): string[] => { const dir = join(f.home, 'host', 'notices'); try { return readdirSync(dir).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(dir, name), 'utf8')).words as string) } catch { return [] } }
+  ssh = fakeSshRunner(f.baseUrl, hostRunner)
+  const jobs: Promise<void>[] = []
+  const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, pauseMs: 10, readyTimeoutMs: 2000, sessionId: 'fast-load-private-proof', startJob: record => { jobs.push(runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 10, timeoutMs: 4000, keepAlive: false })) } })
+  const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
+  mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
+  const screen = () => mounted!.screen()
+  const flat = () => screen().replace(/[│\s]+/g, ' ')
+  const until = async (needle: string) => assert.ok(await waitFor(() => screen().includes(needle), 20000), 'screen reaches ' + needle + '\n' + screen())
+  const heading = async (needle: string) => assert.ok(await waitFor(() => mounted!.lines().slice(0, 4).join(' ').includes(needle), 20000), 'question reaches ' + needle + '\n' + screen())
+  const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
+  const select = async (needle: string) => {
+    let key = KEY.down
+    for (let n = 0; n < 80; n++) {
+      const before = selected()
+      if (before.includes(needle)) return
+      mounted!.push(key)
+      if (!await waitFor(() => selected() !== before, 1500)) { assert.ok(key === KEY.down, 'selection reaches ' + needle + '\n' + screen()); key = KEY.up }
+    }
+    throw new Error('Choice not found: ' + needle)
+  }
+  const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
+  const press = async (needle: string, key: string) => { await select(needle); mounted!.push(key) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const row = (title: string) => mounted!.lines().find(line => line.includes(title)) ?? ''
+  const noKeys = (name: string) => check(name + ' renders without errors or keys', !screen().includes('RENDER ERROR') && !screen().includes(rp.key))
+  const openModel = async () => { open(); await heading('Which model?'); await choose('DeepSeek-V4.1-Flash UNCENSORED'); await heading('DeepSeek-V4.1-Flash UNCENSORED'); await until('WEIGHTS') }
+  await openModel()
+  check('the private row’s Bank row offers m to mirror instead of “mirroring unavailable: no trusted file manifest”', flat().includes('Bank · weights banked ✓ on ~/mercury-model-bank · v verify again · m mirror to a fast-load volume ($0.07/GB·month)') && !flat().includes('mirroring unavailable') && flat().includes('510 GB from Hugging Face · banked ✓ on ~/mercury-model-bank'))
+  noKeys('the private model screen')
+  await choose('Connect Runpod'); await heading('Runpod API key'); mounted!.push(rp.key); await until('********'); mounted!.push(KEY.enter)
+  await until('No stock · watch')
+  check('with no B200 in stock the model screen offers no rental and names the watch; nothing was created', !flat().includes('Rent · ') && rp.state.creates === 0 && rp.state.volumeCreates === 0)
+  await press('Bank · weights banked', 'm'); await heading('How?')
+  check('m opens the mirror road for the private row with the volume kinds', screen().includes('network volume') && screen().includes('global volume'))
+  await choose('network volume'); await heading('Where should'); await until('EU-NL-1'); await choose('EU-NL-1'); await heading('When should')
+  check('the When screen says the fill pod is the cheapest in stock with room, any GPU shape', flat().includes('Prepare now rents the cheapest pod in stock with room for the weights (any GPU shape; it only downloads)'))
+  await choose('Prepare now'); await heading('Confirm weights disk')
+  check('the confirm names the 650 GB disk, $45.50/month, and the fill pod: a temporary 1× RTX PRO 6000 pod at $2.49/hr, the cheapest in stock, not the 4× B200 shape; nothing created yet', flat().includes('650 GB disk · EU-NL-1') && flat().includes('$45.50/month') && flat().includes('a temporary 1× RTX PRO 6000 pod at $2.49/hr (the cheapest in stock in EU-NL-1 with room for the weights; filling a disk needs no particular GPU)') && !flat().includes('B200 pod') && flat().includes('Confirm $45.50/month + temporary pod 1× RTX PRO 6000 $2.49/hr') && rp.state.volumeCreates === 0 && rp.state.creates === 0)
+  await choose('Confirm $'); await until('preparing')
+  assert.ok(await waitFor(() => volumes.keptVolumes().some(volume => volume.state === 'kept'), 20000), 'the fill pod verifies the weights on the volume\n' + screen())
+  await Promise.all(jobs.splice(0))
+  const kept = volumes.keptVolumes().find(volume => volume.model === MODEL)!
+  const fillBody = rp.state.createBodies[0]
+  check('the fill pod was a single RTX PRO 6000 in EU-NL-1 with the new disk mounted at /workspace, created once, then terminated and read back absent', rp.state.volumeCreates === 1 && rp.state.creates === 1 && fillBody.gpu.id === 'NVIDIA RTX PRO 6000 Blackwell Server Edition' && fillBody.gpu.count === 1 && fillBody.dataCenterIds[0] === 'EU-NL-1' && fillBody.mounts.network[0].volumeId === kept.id && !fillBody.mounts.persistent && rp.state.deletes === 1 && rp.state.pods.size === 0)
+  const liveManifest = keptWeights.pinnedWeightManifest(live)!
+  check('the disk’s row pins the bank-built manifest, and the pod verified exactly those files and bytes against it', kept.state === 'kept' && kept.dataCenter === 'EU-NL-1' && kept.size === 650 && kept.recipeRow?.weightManifest?.revision === REVISION && kept.recipeRow.weightManifest.files.length === liveManifest.files.length && kept.verifiedSums?.files === liveManifest.files.length && kept.verifiedSums.bytes === liveManifest.files.reduce((n, file) => n + file.size, 0) && kept.verifiedSums.check === 'full' && ssh.state.weightFetches === 1 && ssh.state.fullChecks === 1)
+  check('the fill pod’s own record carried the fill shape and the pinned manifest, not the 4× B200 shape', notices().some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')) && rp.requests.some((request: any) => request.method === 'POST' && request.path === '/v2/pods' && request.body.gpu.count === 1))
+  await close(); await openModel(); await until('weights kept on')
+  check('after the mirror the Bank row reads the kept words', flat().includes('Bank · weights banked ✓ on ~/mercury-model-bank · weights kept on ' + kept.id + ' · a Runpod rental boots in ~' + bank.bootMinutes(live, kept) + ' min · Vast.ai and Lambda still download') && /fast-load volume ✓ EU-NL-1 — boots in ~\d+ min/.test(flat()))
+  noKeys('the model screen after the mirror')
+  await close()
+  open(); await heading('Which model?'); await choose('More options'); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await select('DeepSeek-V4.1-Flash UNCENSORE'); await until('✓ EU-NL-1')
+  check('the Bank screen shows the private row banked with its volume and boot estimate', row('DeepSeek-V4.1-Flash UNCENSORE').includes('✓ ~') && /✓ EU-NL-1 · boots ~\d+ min/.test(row('DeepSeek-V4.1-Flash UNCENSORE')) && flat().includes('fast-load volumes: 1 kept'))
+  await close()
+  rmSync(driveBank, { recursive: true, force: true })
+  rp.state.customGpus = liveCatalogue.gpus.map((gpu: any) => gpu.id === 'NVIDIA B200' ? { ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', name: 'EU-NL-1', availability: 'HIGH' }] } : gpu)
+  await openModel(); await until('Rent · Runpod 4× B200')
+  check('with the bank drive unplugged and B200 back in stock, the rental row boots from the volume and the Bank row says not banked', row('Rent · Runpod 4× B200').includes('$31.96/hr') && flat().includes('boots from your volume') && flat().includes('510 GB from Hugging Face · not banked · fast-load volume ✓ EU-NL-1 — boots in ~') && flat().includes('Bank · b bank the weights to a folder you name (510 GB, hash-verified)') && keptWeights.resolvedWeightManifest(live)?.source === 'volume')
+  await choose('Rent · Runpod 4× B200'); await heading('Confirm the hourly price')
+  check('the rental confirm is the recipe’s own shape with the disk attached', flat().includes('4× B200') && flat().includes('$31.96/hr') && rp.state.creates === 1)
+  await choose('Confirm $31.96/hr')
+  assert.ok(await waitFor(() => hostRecords().some(record => record.jobKind === 'setup' && !record.prepareWeightsOnly && record.jobState === 'ready'), 30000), 'the rental reaches ready\n' + screen())
+  await Promise.all(jobs.splice(0))
+  const rental = hostRecords().find(record => record.jobKind === 'setup' && !record.prepareWeightsOnly)!
+  const rentBody = rp.state.createBodies[1]
+  check('the rental is a 4× B200 pod in EU-NL-1 with the kept disk attached; the pod passed a sampled check against the pinned manifest and skipped the download', rentBody.gpu.id === 'NVIDIA B200' && rentBody.gpu.count === 4 && rentBody.dataCenterIds[0] === 'EU-NL-1' && rentBody.mounts.network[0].volumeId === kept.id && rental.volumeId === kept.id && rental.recipeRow?.weightManifest?.revision === REVISION && ssh.state.weightFetches === 1 && ssh.state.sampledChecks === 1 && (readHostRecord(rental.id)?.weightsCheck ?? '').includes('sampled check passed') && ssh.commands.some(command => command.command === 'ssh' && String(command.args.at(-1)).includes('weights kept · verified · download skipped')))
+  check('no request left the loopback fixtures', escaped.length === 0)
+  console.log('FAST-LOAD PRIVATE DRIVE GREEN — ' + checks + ' checks; the owner’s road end to end on the fixtures: private row with no manifest → m → network volume → EU-NL-1 → Prepare now → 1× RTX PRO 6000 fill pod at $2.49/hr → kept → a 4× B200 rental attaches the disk and skips the download; zero billable calls')
+} finally { mounted?.unmount(); ssh?.close(); await rp.close(); f.close(); globalThis.fetch = nativeFetch }
