@@ -17,7 +17,8 @@ import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
-import { bankDownloadScript, bankModelFolder, bytesWords, folderBytes, recordBankFailure, sealBank, shortFolder, verifyBank } from './bank.js'
+import { bankDownloadScript, bankModelPath, bytesWords, folderBytes, recordBankFailure, sealBank, shortFolder, verifyBank } from './bank.js'
+import { bankUploadBudget, uploadBankForRental } from './keepSafe.js'
 import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
@@ -36,7 +37,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const signal = options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal
   const runner = options.runner ?? hostRunner
   const pause = options.pauseMs ?? 5000
-  const timeout = options.timeoutMs ?? hostSetupTimeout(hostRecipeOfRecord(initial))
+  const timeout = options.timeoutMs ?? (hostSetupTimeout(hostRecipeOfRecord(initial)) + (initial.vendor === 'vast' || initial.vendor === 'lambda' ? bankUploadBudget(hostRecipeOfRecord(initial)) : 0))
   const vendor = initial.vendor ?? 'runpod'
   let keyRefusal: string | undefined
   const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
@@ -83,7 +84,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       if (!initial.bankFolder) throw new Error('The bank folder is not recorded; open /llmhost → Bank and try again.')
       const folder = initial.bankFolder
-      const path = bankModelFolder(folder, recipe)
+      const path = bankModelPath(folder, recipe)
       if (verifying) {
         const receipt = await verifyBank(recipe, folder, signal, mark)
         mark('verified')
@@ -105,7 +106,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (current && current.generation === generation && current.jobState !== 'stopped') {
         const detail = scrub(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 400)
         const words = initial.name + ' · ' + (verifying ? 'verification failed: ' + detail + ' · b banks the weights again' : 'banking failed: ' + detail + ' · what was downloaded stays in the folder; b resumes') + ' · /llmhost → Bank'
-        if (recipe && initial.bankFolder) recordBankFailure(recipe, bankModelFolder(initial.bankFolder, recipe), detail)
+        if (recipe && initial.bankFolder) recordBankFailure(recipe, bankModelPath(initial.bankFolder, recipe), detail)
         log(words)
         hostNotice(current, 'failed', words)
         removeHostRecord(id)
@@ -318,6 +319,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       keptWeights = await prepareKeptWeights(initial, recipe, runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark, cleanupRead)
       if (initial.prepareWeightsOnly) return
     }
+    if (!keptWeights) keptWeights = await uploadBankForRental(recipe, vendor, target, runner, signal, mark)
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
     const vm = vendor === 'lambda'
     const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false

@@ -19,6 +19,8 @@ import { getFocusedSessionConnector } from '../engine-connector/focusedConnector
 import { getSessionId } from '../../bootstrap/state.js'
 import { BANK_DOOR, bankAction, bankDoor, ensureBankFolder, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
 import { deleteKeptVolume, fastLoadEstimate, rentalVolume, reconcileVolumes, volumeLabel, volumePrice } from './volumes.js'
+import { VastClient, createVastRental } from './vendors/vast.js'
+import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
 
 type HostOptions = { apiBaseUrl?: string; vendorApiBaseUrls?: Partial<Record<HostVendorId, string>>; runner?: HostRunner; pauseMs?: number; readyTimeoutMs?: number; startJob?: (record: HostRecord) => void; sessionId?: string; rental?: { client: HostVendor; offer: HostOffer } }
 type VendorPod = HostPod & { vendor: HostVendorId }
@@ -438,7 +440,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           const client = api
           offer = await confirmTunedRental(offer, offers, budget, question, emit, signal, async row => {
             if (client.capabilities.managed) return { willRun: vendorKeyNotice(vendor) + '. Billing starts now. If initial setup fails, Mercury deletes the endpoint and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · API only — not yet booted', vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this HF endpoint' }
-            if (vendor !== 'runpod') return { willRun: hostSetupEstimate(row.recipe) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this pod' }
+            if (vendor !== 'runpod') return { willRun: (bankUploadPreference(row.recipe) ? 'Uploads your bank to the rented machine · ' + bankUploadEstimate(row.recipe) + '. This machine bills throughout the upload.' : hostSetupEstimate(row.recipe)) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this pod' }
             const kept = await rentalVolume(runpodOnly(client, 'Fast-load weights disks'), row.recipe, signal)
             return {
               titleSuffix: kept?.state === 'kept' ? ' · weights kept' : ' · cold rental',
@@ -457,7 +459,12 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           pendingName = 'mercury-' + randomUUID().slice(0, 12)
           emit({ title: api.capabilities.managed ? 'Creating the HF endpoint' : words.creating, words: pendingName + ' · ' + price(offer.price) + (api.capabilities.managed ? '' : ' + storage') + ' · closing does not cancel billing' })
           try {
-            pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', pendingName, volume)
+            const vast = api instanceof VastClient ? api : undefined
+            if (vast) {
+              const rented = await createVastRental(vast, offer, sshKey?.publicKey ?? '', pendingName, question, emit, signal)
+              if (!rented) { pendingName = ''; return stopped() }
+              pod = rented.pod; offer = rented.offer; recipe = offer.recipe
+            } else pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', pendingName, volume)
           } catch (error) {
             const refusal = hostCreateRefusal(offer.recipe, error)
             if (!refusal) throw error

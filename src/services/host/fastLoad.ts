@@ -8,6 +8,7 @@ import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from '
 import { ensureHostKey, type HostRunner } from './ssh.js'
 import { activeHostBanks, bankJobModel, queueHostBank, queueHostSetup, requireHostJobOwner } from './jobs.js'
 import { hostJobReadOnly } from './retry.js'
+import { keepSafeDoor } from './keepSafe.js'
 import { hostRecords, removeHostRecord, type HostRecord } from './store.js'
 import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, networkMonthly, readKeptVolume, reconcileVolumes, volumeModel, volumePrice, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bankedHostRecipes, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
@@ -148,8 +149,8 @@ function bankCell(state: BankState, job: HostRecord | undefined, width: number):
   if (state.files > 0 && state.missing < state.files) return pad(fit('… ' + (state.files - state.missing) + '/' + state.files + ' files · b resumes', width - 1), width)
   return pad('— b to bank', width)
 }
-export type BankActionKind = 'bank' | 'verify' | 'mirror' | 'drop'
-export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v', value: 'verify', label: 'verify' }, { key: 'm', value: 'mirror', label: 'mirror to volume' }, { key: 'd', value: 'drop', label: 'drop from volume' }] as const
+export type BankActionKind = 'bank' | 'verify' | 'mirror' | 'drop' | 'keep-safe'
+export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v', value: 'verify', label: 'verify' }, { key: 'm', value: 'mirror', label: 'mirror to volume' }, { key: 'd', value: 'drop', label: 'drop from volume' }, { key: 'k', value: 'keep-safe', label: 'keep safe' }] as const
 export async function ensureBankFolder(ask: Ask, change = false): Promise<string | undefined> {
   const folder = bankFolder()
   if (folder && !change) return folder
@@ -159,6 +160,7 @@ export async function ensureBankFolder(ask: Ask, change = false): Promise<string
 }
 export async function bankAction(recipe: HostRecipe, action: BankActionKind, folder: string, ask: Ask, emit: Emit, signal: AbortSignal, options: BankDoorOptions): Promise<LlmHostResult | undefined> {
   const state = bankState(recipe, folder)
+  if (action === 'keep-safe') return keepSafeDoor(recipe, folder, ask, emit, signal, () => bankAction(recipe, 'mirror', folder, ask, emit, signal, options))
   const job = activeHostBanks().find(row => bankJobModel(row) === volumeModel(recipe))
   if (action === 'bank' || action === 'verify') {
     if (job) { emit({ title: modelTitle(recipe), words: 'Already ' + (job.bankTask === 'verify' ? 'verifying' : 'banking') + ' · ' + job.step }); return }
