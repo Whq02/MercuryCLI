@@ -105,7 +105,7 @@ console.log('Q3 the one close path')
   check('a newborn closed reads as released; a mid-turn close as draining', closeBody.includes("startsWith('released') ? 'released'") && closeBody.includes("parked.outcome === 'draining' ? 'draining'"))
   const clearAt = hop.indexOf('export async function clearFocusedSession(')
   const clearBody = hop.slice(clearAt)
-  check('/clear births FIRST (the slot swaps whole, riding the seat-swap hint), then parks the OLD session by id — never a release', clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') !== -1 && clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') < clearBody.indexOf('parkSessionById(oldSessionId)') && clearBody.includes("action: 'park', sessionId, by: `operator:${process.pid}`") && !clearBody.includes("op: 'sessionRelease'") && !clearBody.includes("action: 'stop'") && !clearBody.includes('closeFocusedChat('))
+  check('/clear births FIRST (the slot swaps whole, riding the seat-swap hint), then parks the OLD session by id — never a release', clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId, ...(movedAlready ? { fallbackNote:') !== -1 && clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId, ...(movedAlready ? { fallbackNote:') < clearBody.indexOf('parkSessionById(oldSessionId)') && clearBody.includes("action: 'park', sessionId, by: `operator:${process.pid}`") && !clearBody.includes("op: 'sessionRelease'") && !clearBody.includes("action: 'stop'") && !clearBody.includes('closeFocusedChat('))
 }
 
 console.log('Q4 the quit parks all — the screen and the daemon')
