@@ -115,15 +115,19 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       return client
     }
     const vastClient = (): VastClient | undefined => { if (!vendorKey('vast')) return; const client = clientFor('vast'); return client instanceof VastClient ? client : undefined }
-    const bankOptionsFor = () => ({ runner, sessionId, apiBaseUrl: baseFor('runpod'), vastApiBaseUrl: baseFor('vast'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, vast: vastClient, connect: () => connect('runpod') })
+    const bankOptionsFor = () => ({ runner, sessionId, apiBaseUrl: baseFor('runpod'), vastApiBaseUrl: baseFor('vast'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, vast: vastClient, connect: () => connect('runpod'), refreshVolumes: async () => {
+      if (vendorKey('runpod')) await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => undefined)
+      const vast = vastClient()
+      if (vast) await readVendor('vast', () => reconcileVastVolumes(vast, signal), 'volumes').catch(() => undefined)
+    } })
     const vastVolumeRows = async (): Promise<{ value: string; label: string }[]> => {
       const client = vastClient()
       if (!client) return []
-      try { await reconcileVastVolumes(client, signal) } catch (error) { emit({ title: words.paid, words: 'Vast.ai volume list unavailable; volumes are not shown and may still bill. ' + String(error) }); return [] }
+      try { await readVendor('vast', () => reconcileVastVolumes(client, signal), 'volumes') } catch { return [] }
       const rows: { value: string; label: string }[] = []
       for (const row of vastKeptVolumes().filter(row => row.state !== 'gone')) {
         let stock = ''
-        if (row.recipeRow && row.machineId) try { const offer = (await client.recipeOffers([row.recipeRow], signal)).find(item => item.machineId === row.machineId); stock = offer ? ' · ' + shape(offer.recipe) + ' in stock on that machine at ' + price(offer.price) : ' · no stock on that machine right now · w watch it' } catch { stock = ' · stock on that machine unread' }
+        if (row.recipeRow && row.machineId) try { const offer = (await readVendor('vast', () => client.recipeOffers([row.recipeRow!], signal), 'stock')).find(item => item.machineId === row.machineId); stock = offer ? ' · ' + shape(offer.recipe) + ' in stock on that machine at ' + price(offer.price) : ' · no stock on that machine right now · w watch it' } catch { stock = ' · stock on that machine unread' }
         rows.push({ value: 'vastvolume:' + row.id, label: vastVolumeLabel(row) + stock })
       }
       return rows
