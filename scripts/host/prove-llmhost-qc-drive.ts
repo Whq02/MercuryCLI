@@ -9,6 +9,7 @@ import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
 import { hfFixture, fixtureRepos } from './hfFixture.mjs'
+import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
 import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
 
@@ -30,6 +31,7 @@ const data = Buffer.from('fixture weights for the integrated popup journey\n')
 fixtureRepos.gguf.files = [{ path: 'tiny-Q4_K_M.gguf', size: data.length, git: createHash('sha1').update('blob ' + data.length + '\0').update(data).digest('hex') }]
 fixtureRepos.gguf.gguf.context_length = 131072
 const hf = await hfFixture()
+const endpoints = await hfEndpointsFixture()
 process.env.MERCURY_HOST_HF_API_BASE = hf.baseUrl
 const shipped = JSON.parse(readFileSync(join(import.meta.dir, '../../assets/host/recipes.json'), 'utf8'))
 const shape = shipped.recipes.find((row: any) => row.id === 'gpt-oss-120b-h100')
@@ -92,7 +94,7 @@ try {
   } }
   const jobs: Promise<void>[] = []
   let question: LlmHostQuestion | undefined
-  const implementation = createHostRoad({ apiBaseUrl: rp.baseUrl, runner, sessionId: 'qc-fixture', pauseMs: 10, readyTimeoutMs: 2000, startJob: record => { jobs.push(runHostJob(record.id, record.generation!, { runner, pauseMs: 10, timeoutMs: 4000, keepAlive: false })) } })
+  const implementation = createHostRoad({ apiBaseUrl: rp.baseUrl, vendorApiBaseUrls: { huggingface: endpoints.baseUrl }, runner, sessionId: 'qc-fixture', pauseMs: 10, readyTimeoutMs: 2000, startJob: record => { jobs.push(runHostJob(record.id, record.generation!, { runner, pauseMs: 10, timeoutMs: 4000, keepAlive: false })) } })
   const road: LlmHostRoad = (ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, emit, signal)
   let width = 120, height = 40
   const screen = () => mounted?.screen() ?? ''
@@ -126,6 +128,30 @@ try {
   const open = async () => { question = undefined; popup.openSettingsPopup(llmHostPopupRequest(road)); await step('door-models') }
   const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'Escape closes\n' + screen()) }
   const mount = async (columns: number, rows: number) => { width = columns; height = rows; mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height) }
+  for (const columns of [120, 80]) {
+    secrets.writeStoredHuggingfaceApiKey('fixture-rejected-' + columns)
+    await mount(columns, columns === 120 ? 40 : 24)
+    await open()
+    const summary = 'Hugging Face: could not be read (HTTP 401)'
+    check('one short HF notice at ' + columns, (normal().match(/Hugging Face: could not be read \(HTTP 401\)/g) ?? []).length === 1 && !normal().includes('GET /whoami-v2'))
+    const requests = endpoints.requests.length
+    await capture(columns + '-rejected-signin')
+    await choose('vendor-error:huggingface'); await step('door-vendor-error')
+    check('the full HF error is behind its row', question!.found.includes('HTTP 401') && !question!.found.includes('fixture-rejected-'))
+    await choose('back'); await step('door-models')
+    await choose('DeepSeek Tiny'); await step('door-model')
+    check('the rejected vendor row asks for sign-in rather than a retry', question!.rows!.some(row => row.label === 'Hugging Face · sign in again'))
+    await close(); await open()
+    check('the next open makes zero further HF requests', endpoints.requests.length === requests)
+    await choose('bank'); await step('door-bank')
+    check('the Bank has one short HF notice', question!.found.includes(summary) && (normal().match(/Hugging Face: could not be read \(HTTP 401\)/g) ?? []).length === 1)
+    await close()
+    secrets.writeStoredHuggingfaceApiKey(endpoints.key)
+    await open()
+    check('changing the saved credential resumes HF reads', endpoints.requests.length > requests && !question!.found.includes(summary))
+    await close(); mounted!.unmount(); mounted = undefined
+  }
+  secrets.writeStoredHuggingfaceApiKey(null)
   for (const [columns, rows] of [[120, 40], [80, 24]]) {
     await mount(columns!, rows!)
     await open()
@@ -205,4 +231,4 @@ try {
   check('no request left the fixture servers', escaped.length === 0)
   assert.equal(downloads.length, 1)
   console.log('LLMHOST QC DRIVE GREEN — ' + checks + ' checks; 120x40 and 80x24, live dialog and loopback fixtures; HF mirror limitation captured explicitly')
-} finally { mounted?.unmount(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); f.close(); globalThis.fetch = nativeFetch }
+} finally { mounted?.unmount(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); await endpoints.close(); f.close(); globalThis.fetch = nativeFetch }
