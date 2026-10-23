@@ -174,7 +174,7 @@ try {
 
   open()
   await heading('Where should the model run?'); await choose('fixture-pod-1')
-  await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
+  await heading('Machine controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
   await close()
 
   rp.state.stockAfterReads = 0
@@ -184,7 +184,7 @@ try {
   await heading('Confirm the hourly price')
   const readsAtWatch2 = rp.state.catalogReads
   await choose('Watch for stock and rent at this price or less ($8.99/hr)')
-  await heading('Pod controls')
+  await heading('Machine controls')
   assert.ok(await waitFor(() => rp.state.catalogReads >= readsAtWatch2 + 2, 10_000), 'watch job polls while waiting')
   const waiting = hostRecords().find(row => row.jobKind === 'watch')!
   check('after a read, the watch record states the account’s quota from Runpod’s RateLimit-Policy header', await waitFor(() => readHostRecord(waiting.id)?.rateLimit === 'one catalogue read every 0.025 s (2400 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day', 5000))
@@ -199,13 +199,13 @@ try {
 
   open()
   await heading('Where should the model run?')
-  await choose('Pods I’m paying for')
-  await heading('Pods I’m paying for')
+  await choose('Machines I’m paying for')
+  await heading('Machines I’m paying for')
   await until('WATCHING ≤ $8.99/hr · Cancel')
   capture('02-watch-row')
-  check('Pods I’m paying for shows the active watch as a row with Cancel while it waits', m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL') && m.screen().includes('WATCHING ≤ $8.99/hr · Cancel'))
+  check('Machines I’m paying for shows the active watch as a row with Cancel while it waits', m.screen().includes('GLM-5.3-Flash · UD-Q4_K_XL') && m.screen().includes('WATCHING ≤ $8.99/hr · Cancel'))
   await choose('Cancel')
-  await until('Stock watch cancelled · no pod was created.')
+  await until('Stock watch cancelled · no machine was created.')
   const readsAtCancel = rp.state.catalogReads
   await delay(200)
   check('Cancel on the watch row stops the polling and fixture read count stops rising', rp.state.catalogReads === readsAtCancel && hostRecords().filter(r => r.jobKind === 'watch').length === 0 && rp.state.creates === 1)
@@ -250,13 +250,13 @@ try {
   const postsBeforeAmbiguous = posts()
   await choose('Confirm $2.49/hr')
   const ambiguousName = await waitFor(() => rp.state.createBodies.length === 2, 10_000) ? rp.state.createBodies.at(-1).name : ''
-  await until(ambiguousName + ' may exist; check Pods I’m paying for before retrying')
-  check('a create Runpod answered with a 5xx says the pod may exist and points at Pods I’m paying for, never that no pod was created', !m.screen().includes('no pod was created') && !m.screen().includes('Choose a GPU shape') && posts() === postsBeforeAmbiguous + 1)
+  await until(ambiguousName + ' may exist; check Machines I’m paying for before retrying')
+  check('a create Runpod answered with a 5xx says the pod may exist and points at Machines I’m paying for, never that no pod was created', !m.screen().includes('no pod was created') && !m.screen().includes('Choose a GPU shape') && posts() === postsBeforeAmbiguous + 1)
   await close()
   const ambiguousPod = [...rp.state.pods.values()].find((pod: any) => pod.name === ambiguousName)
   open()
   await heading('Where should the model run?'); await choose(ambiguousPod.id)
-  await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
+  await heading('Machine controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
   check('the pod the ambiguous create made is in the live Pods list and can be terminated', !rp.state.pods.has(ambiguousPod.id) && posts() === postsBeforeAmbiguous + 1)
   await close()
 
@@ -281,7 +281,7 @@ try {
   const lostName = rp.state.createBodies.at(-1).name
   const lostRecord = readHostRecord(losing.id)
   await delay(300)
-  check('a create whose answer is lost stops the watch with words that the pod may exist, and it never rents twice', lostRecord?.jobState === 'failed' && lostRecord.creating === lostName && String(lostRecord.error).startsWith(lostName + ' may exist: Runpod gave no clear answer to the create') && String(lostRecord.error).includes('/llmhost → Pods I’m paying for') && posts() === postsBeforeLost + 1)
+  check('a create whose answer is lost stops the watch with words that the pod may exist, and it never rents twice', lostRecord?.jobState === 'failed' && lostRecord.creating === lostName && String(lostRecord.error).startsWith(lostName + ' may exist: Runpod gave no clear answer to the create') && String(lostRecord.error).includes('/llmhost → Machines I’m paying for') && posts() === postsBeforeLost + 1)
   check('the may-exist words reach the renting session', notices().some(row => row.includes(lostName + ' may exist: Runpod gave no clear answer to the create')))
   const lostPod = [...rp.state.pods.values()].find((pod: any) => pod.name === lostName)
   await terminate(lostPod.id)
@@ -314,7 +314,7 @@ try {
   patchHostRecord(gone.id, { jobState: 'running' })
   patchHostRecord(inflight.id, { jobState: 'running', creating: 'mercury-sweep-inflight' })
   await sweepHostJobs({ alive: row => !row.id.startsWith('watch-sweep-') })
-  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped · no pod was created · /llmhost → the model → Watch stock to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' && notices().some(row => row.includes('GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped · no pod was created · /llmhost → the model → Watch stock to watch again')) && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
+  check('a watch whose process ended is reported ended in watch words: no pod, or the pod it was creating may exist', readHostRecord(gone.id)?.error === 'stock watch stopped · no machine was created · /llmhost → the model → Watch stock to watch again' && readHostRecord(inflight.id)?.error === 'mercury-sweep-inflight may exist: the stock watch stopped while creating it · /llmhost → Machines I’m paying for' && notices().some(row => row.includes('GLM-5.3-Flash · UD-Q4_K_XL · stock watch stopped · no machine was created · /llmhost → the model → Watch stock to watch again')) && !notices().some(row => row.includes('watch-sweep') || row.includes('setup stalled at watching')))
   removeHostRecord(gone.id); removeHostRecord(inflight.id)
 
   stockNow()

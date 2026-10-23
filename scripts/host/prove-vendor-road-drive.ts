@@ -104,7 +104,7 @@ try {
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')
     check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now.'))
     check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH public key') && confirmation.includes('/workspace') && confirmation.includes('setup fails'))
-    await choose('Confirm $'); await until('Pod controls')
+    await choose('Confirm $'); await until('Machine controls')
     check(label + ' queues and reaches ready', await waitFor(() => hostRecords().some(record => record.vendor === vendor && record.jobState === 'ready'), 30000))
     const record = hostRecords().find(record => record.vendor === vendor)!
     check(label + ' registers its model', Boolean(record.provider) && configuredCompatEndpoints().some(endpoint => endpoint.name === record.provider) && namedCompatModelOptions().some(row => row.value === 'compat/' + record.provider + '/' + f.model))
@@ -116,15 +116,15 @@ try {
       check('Lambda offers no Stop', !mounted!.screen().includes('Stop ·'))
       check('Lambda waits for cloud-init and launches the recipe in Docker as ubuntu', record.target?.user === 'ubuntu' && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('cloud-init status --wait')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
     } else check('Vast uses direct root SSH', record.target?.user === 'root' && record.target?.port === 2222)
-    await choose('Logs ·'); await until('Pod controls')
+    await choose('Logs ·'); await until('Machine controls')
     if (vendor === 'vast') {
       check('Vast log tail uses its own vendor client', await waitFor(() => vast.requests.some((row: any) => row.path.includes('/request_logs/')), 5000))
       await choose('Stop ·'); await until('Confirm stop'); await choose('Confirm stop'); await until('Stopped · compute ended')
       check('Vast Stop retains the instance and verifies stopped state', vast.state.stops === 1 && vast.state.pods.size === 1 && readHostRecord(record.id)?.status === 'EXITED')
     }
-    await close(); open(); await until('Which model?'); await choose('Pods I’m paying for'); await until(record.id)
-    check('Paid pods names ' + label, mounted!.screen().includes(label))
-    await choose(record.id); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Pod terminated')
+    await close(); open(); await until('Which model?'); await choose('Machines I’m paying for'); await until(record.id)
+    check('Paid machines use the vendor’s own noun for ' + label, mounted!.screen().includes(label + ' instance ' + record.id))
+    await choose(record.id); await until('Machine controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
     check(label + ' termination uses the right client and verifies absence', fixture.state.deletes === 1 && fixture.state.pods.size === 0 && !readHostRecord(record.id))
     await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   }
@@ -142,7 +142,7 @@ try {
   await capture('80-hf-confirmation')
   const hfConfirm = mounted!.screen().replace(/[│\s]+/g, ' ')
   check('HF confirms managed billing without SSH or disk claims', hf.state.creates === 0 && hfConfirm.includes('HF-managed') && hfConfirm.includes('no SSH') && hfConfirm.includes('downloads the weights first'))
-  await choose('Confirm $'); await until('Pod controls')
+  await choose('Confirm $'); await until('Machine controls')
   check('HF popup rental reaches READY on its real managed worker', await waitFor(() => hostRecords().some(row => row.vendor === 'huggingface' && row.jobState === 'ready'), 15000))
   const hfRecord = hostRecords().find(row => row.vendor === 'huggingface')!
   check('HF setup never invokes SSH and registers a compat provider', ssh!.commands.length === sshBefore && configuredCompatEndpoints().some(row => row.name === hfRecord.provider && row.baseUrl === hf.origin + '/v1'))
@@ -169,12 +169,12 @@ try {
   await close(); mounted!.unmount(); await mount(120)
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('Rent · Runpod'); await capture('120-connected-three-vendors')
   await close(); denyVastStock = true
-  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai stock could not be read')
+  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai: could not be read')
   check('Unreadable Vast stock keeps the other rental rows', ['Rent · Runpod', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await close(); denyVastStock = false; denyVastPods = true
-  open(); await until('Which model?'); await until('Vast.ai paid machines could not be read')
-  await choose('Pods I’m paying for'); await until('Live account list'); await until('Vast.ai paid machines could not be read')
-  check('Unreadable paid list is named, not presented as a complete zero', mounted!.screen().includes('count incomplete'))
+  open(); await until('Which model?'); await until('Vast.ai: could not be read')
+  await choose('Machines I’m paying for'); await until('Live account list'); await until('Vast.ai: unread')
+  check('Unreadable paid list is named, not presented as a complete zero', mounted!.screen().includes('Vast.ai: unread'))
   await close(); denyVastPods = false
   open(); await until('Which model?'); await choose('More options'); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?')
   check('Other roads offers the same four vendors', ['Runpod', 'Vast.ai', 'Lambda', 'Hugging Face'].every(label => mounted!.screen().includes(label)))

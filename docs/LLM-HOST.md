@@ -22,7 +22,7 @@ Every recipe carries one of four verification stamps:
 On **Which model?**, shipped models sort first by where they can run right now:
 
 1. Already running on one of your pods
-   (`running on your pod <id> · $<price>/hr · <N> conversations × <tokens> — switch →`).
+   (`running on your machine <id> · $<price>/hr · <N> conversations × <tokens> — switch →`).
 2. Fits one of your computers (`fits <computer> (<N> GB) — start here →`).
 3. In stock on a connected GPU provider
    (`<Provider> <shape> · $<price>/hr · in stock`), ordered by lowest hourly
@@ -35,7 +35,7 @@ Within the same availability tier, rows sort by lowest hourly price, then by
 verification stamp (`measured` → `documented` → `community` → `unverified`),
 and then alphabetically by model name.
 
-Below the model list, **Which model?** includes **Pods I'm paying for**, **My
+Below the model list, **Which model?** includes **Machines I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
 `More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face)`, `A box I can reach by SSH`,
 `A server that's already running`, `One of my computers`, and
@@ -120,7 +120,7 @@ line (or the `RECIPE · unverified — …` line) and five sections:
   (`fast-load volume ✓ <DC> — boots in ~<N> min` or
   `no fast-load volume — first boot downloads (~<M> min)`).
 - **WHERE:**
-  - `Already running · pod <id> · switch now · nothing to pay` for running pods
+  - `Already running · machine <id> · switch now · nothing to pay` for running pods
     you can switch to immediately.
   - In-stock rental rows across every connected provider, sorted cheapest
     first:
@@ -212,7 +212,7 @@ Runpod volume.
 
 Local banking (`b`) and verification (`v`) run on your computer at `$0.00`.
 Runpod fast-load volumes (`m`) bill monthly whether or not a pod is running
-until you delete them with `d` or under **Pods I'm paying for**.
+until you delete them with `d` or under **Machines I'm paying for**.
 
 ## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)
 
@@ -273,7 +273,7 @@ Vast.ai and Lambda) once every 5 seconds (12 catalogue reads per minute each)
 for up to 12 hours. As soon as a fitting shape appears at or below your
 ceiling, the first provider with stock rents it (or the cheapest shape when
 several providers answer in the same round) and starts setup. Active watches
-are listed under **Pods I'm paying for** with `$0.00 billed while watching` and
+are listed under **Machines I'm paying for** with `$0.00 billed while watching` and
 a **Cancel** action.
 
 ### Vendor hiccups and rental failure cleanup
@@ -288,7 +288,7 @@ the vendor answers again it records
 `<Vendor> <operation> read recovered · continuing`. If the vendor still does
 not answer after 4 minutes, setup pauses without terminating the pod and posts
 `<Vendor> did not answer <operation> reads for 4 min (HTTP 503 ×<N>)` followed
-by `setup paused · Resume retries · /llmhost → Pods I'm paying for`.
+by `setup paused · Resume retries · /llmhost → Machines I'm paying for`.
 
 When a standalone pod rental hits a confirmed setup failure instead of a
 transient read hiccup, Mercury terminates the instance through the vendor API,
@@ -299,7 +299,7 @@ whether anything still bills:
 - **Engine death while loading weights:** if the engine process exits or logs
   `out of memory` (`OOM`), `failed to load model` or `CUDA error`, setup stops
   immediately and reports
-  `the engine died loading the weights: <log tail> · pod terminated and verified absent · nothing more bills`
+  `the engine died loading the weights: <log tail> · machine terminated and verified absent · nothing more bills`
   (and on an `OOM`, adds
   `the shape was too small for this quality; choose a larger GPU shape`).
 - **Weight download stall or timeout:** a remote watchdog monitors disk and
@@ -307,25 +307,25 @@ whether anything still bills:
   If less than 1 GB arrives over 10 minutes (`under 1 GB in 10 min`) or the
   download passes its deadline (`30 + ceil(weightsGb / 6)` minutes), Mercury
   terminates the pod and reports
-  `Download stalled at <X> GB of <Y> GB (under 1 GB in 10 min) · pod terminated and verified absent · nothing more bills`
+  `Download stalled at <X> GB of <Y> GB (under 1 GB in 10 min) · machine terminated and verified absent · nothing more bills`
   (or, when a Runpod fast-load volume was attached, names the kept volume and
   its monthly charge).
 - **SSH key refusal:** if a `RUNNING` pod rejects SSH login with
   `Permission denied (publickey)` three times in a row, Mercury terminates the
   pod and reports
-  `the pod did not accept Mercury's SSH key · <vendor key notice> · pod terminated and verified absent · nothing more bills`.
+  `the pod did not accept Mercury's SSH key · <vendor key notice> · machine terminated and verified absent · nothing more bills`.
 - **Pod missing from the vendor:** if the vendor returns `HTTP 404` during
   setup, Mercury checks the vendor's instance list without sending a redundant
   terminate call and reports
-  `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Pods I'm paying for shows it`.
+  `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Machines I'm paying for shows it`.
 
 If the vendor's instance list cannot be read to confirm deletion, Mercury never
 claims the pod is gone; it posts
-`termination sent; <Vendor> did not confirm (<reason>) — check Pods I'm paying for`.
+`termination sent; <Vendor> did not confirm (<reason>) — check Machines I'm paying for`.
 
 ### Manage or stop paying for a rental
 
-Reopen `/llmhost` and select **Pods I'm paying for** to check running pods,
+Reopen `/llmhost` and select **Machines I'm paying for** to check running pods,
 clusters, Runpod volumes and active stock watches across all connected vendors.
 Each row lists the vendor, current setup step or status, hourly rate, elapsed
 time and estimated compute spend so far.

@@ -179,7 +179,7 @@ export async function retryHostEndpoint(name: string): Promise<string> {
 async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, signal: AbortSignal): Promise<LlmHostResult | undefined> {
   for (;;) {
     const endpoint = configuredCompatEndpoints().find(row => row.name === record.provider)
-    if (!endpoint) return { ok: false, words: 'This pod’s endpoint is no longer registered. Open Pods I’m paying for to resume setup.' }
+    if (!endpoint) return { ok: false, words: 'This machine’s endpoint is no longer registered. Open Machines I’m paying for to resume setup.' }
     try {
       const reading = await inspectCompatServer(endpoint, { key: resolveCompatApiKey(process.env, endpoint.name)?.key, signal })
       const model = reading.models.find(name => name === recipe.model || name === modelTitle(recipe)) ?? (reading.models.length === 1 ? reading.models[0] : undefined)
@@ -190,10 +190,10 @@ async function switchRunning(record: HostRecord, recipe: HostRecipe, ask: Ask, s
       const result = await getFocusedSessionConnector().setModel(id)
       return result.state === 'refused'
         ? { ok: false, words: 'Model switch refused: ' + result.detail }
-        : { ok: true, model: id, registered: true, words: (result.state === 'queued' ? 'Next turn will use: ' : 'This session’s model: ') + modelTitle(recipe) + ' · pod ' + record.id + ' · no new rental' }
+        : { ok: true, model: id, registered: true, words: (result.state === 'queued' ? 'Next turn will use: ' : 'This session’s model: ') + modelTitle(recipe) + ' · machine ' + record.id + ' · no new rental' }
     } catch {
       if (signal.aborted) return
-      const choice = await ask({ step: 'door-retry', title: 'Server is not answering', found: 'The registered endpoint for pod ' + record.id + ' could not serve this model. It is still registered; no new rental was made.', willRun: 'Escape closes without changing the model.', rows: [{ value: 'retry', label: 'Retry this server' }, { value: 'back', label: 'Back to the model' }] })
+      const choice = await ask({ step: 'door-retry', title: 'Server is not answering', found: 'The registered endpoint for machine ' + record.id + ' could not serve this model. It is still registered; no new rental was made.', willRun: 'Escape closes without changing the model.', rows: [{ value: 'retry', label: 'Retry this server' }, { value: 'back', label: 'Back to the model' }] })
       if (choice !== 'retry') return
     }
   }
@@ -209,7 +209,7 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
     if (selecting && plan.step === 'models') return modelTitle(recipe!)
     if (selecting && chosenOffer && plan.step === 'offers') {
       const selected = plan.rows?.find(row => row.label.startsWith(chosenOffer!.recipe.label + ' · ' + shape(chosenOffer!.recipe) + ' · ' + hourly(chosenOffer!.price) + (heavyWeights(chosenOffer!.recipe) ? ' · ' + hostShortStorageWords(chosenOffer!.recipe) : '') + ' · ' + (vendor?.label ?? 'Secure Cloud') + (chosenOffer!.dataCenter ? ' · ' + chosenOffer!.dataCenter : '') + (chosenOffer!.hostingType ? ' · ' + chosenOffer!.hostingType : '')))
-      if (!selected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
+      if (!selected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no machine was created.')
       return selected.value
     }
     if (plan.step === 'rent-confirm' && chosenOffer && selecting) {
@@ -219,7 +219,7 @@ async function enterRoad(deps: ModelDoorDeps, ask: Ask, emit: Emit, signal: Abor
         return deps.confirmRental(plan)
       }
       const expected = chosenOffer.recipe.label + ' · ' + shape(chosenOffer.recipe) + ' · ' + hourly(chosenOffer.price) + (chosenOffer.dataCenter ? ' · ' + chosenOffer.dataCenter : '') + (chosenOffer.hostingType ? ' · ' + chosenOffer.hostingType : '')
-      if (plan.found !== expected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
+      if (plan.found !== expected) throw new Error('That offer changed. Open the model again for fresh stock and prices; no machine was created.')
       const picked = chosenOffer
       selecting = false
       chosenOffer = undefined
@@ -273,7 +273,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const runningRecipe = live && recipes.find(recipe => recipe.id === live.recipe)
       const stamp = stampRank(variants)
       const derived = variants.every(recipe => recipe.verified.by === 'unverified' && recipe.id.startsWith('hf-'))
-      const where = (live && runningRecipe ? 'running on your pod ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
+      const where = (live && runningRecipe ? 'running on your machine ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
         : own ? 'fits ' + boxName(own) + ' (' + own.memoryGb + ' GB) — start here →'
         : cheapest ? cheapestVendor + ' ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
         : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →') + (derived ? '' : ' · ' + stampWord(stamp))
@@ -286,7 +286,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const spend = hostSpendSoFar(paid)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
-      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + ' ($' + spend.toFixed(2) + ' so far; ' + (incomplete ? 'listed machines only; ' : '') + 'compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
+      const also = [{ value: 'pods', label: '────────────────────\nMachines I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + ' ($' + spend.toFixed(2) + ' so far; ' + (incomplete ? 'listed machines only; ' : '') + 'compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
       for (;;) {
         const live = search.lookup(query)
         const models = live?.state === 'ready' ? live.models : []
@@ -338,7 +338,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       }), 'CONVERSATIONS × CONTEXT', ...(deps.budgetLines ?? budgetLines)(recipe, recipe.vramGb * recipe.count), 'THINKING', (deps.thinkingWords ?? thinkingWords)(recipe) + ' (change any time with /effort)', 'WEIGHTS', weightsLine(recipe, bank), 'WHERE'].join('\n')
       const connected = offers !== undefined || vendors.length > 0
       const choice = await ask({ step: 'door-model', title, found: facts, willRun: '', initial: live.length ? 'running:0' : undefined, keys: BANK_KEYS, rows: [
-        ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · pod ' + record.id + ' · switch now · nothing to pay' })),
+        ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · machine ' + record.id + ' · switch now · nothing to pay' })),
         ...rentals.map((row, i) => ({ value: 'rent:' + i, label: 'Rent · ' + (row.vendor?.label ?? 'Runpod') + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + ' · ' + (row.offer.dataCenter ?? (row.vendor ? 'region unknown' : 'data centre unknown')) + (row.offer.hostingType ? ' · ' + row.offer.hostingType : '') + ' · in stock · ' + vendorStamp((row.vendor?.vendor ?? 'runpod') as HostVendorId) + (row.vendor?.vendor === 'huggingface' ? ' · HF-managed · per hour · no SSH' : '') + ' · ' + (!row.vendor && bootsFromVolume(row.offer.recipe, row.offer.dataCenter) ? 'boots from your volume' : 'downloads the weights first') })),
         ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (box.models && !box.models.includes(modelTitle(recipe)) ? ' · no local recipe for this model' : fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe).toLocaleString('en-US', { maximumFractionDigits: 1 })) })),
         { value: 'bank', label: bankRowWords(recipe, bank) },

@@ -8,25 +8,25 @@ export const LLM_HOST_WORDS = {
   rent: 'Rent a GPU (' + Object.values(HOST_VENDOR_INFO).map(info => info.label).join(', ') + ')',
   ssh: 'A box I can reach by SSH',
   existing: 'A server that’s already running',
-  paid: 'Pods I’m paying for',
+  paid: 'Machines I’m paying for',
   offers: 'Choose a model · live Runpod stock',
   shapes: 'Choose a GPU shape · live Runpod stock',
   budget: 'Optional spending budget in USD',
   budgetHelp: 'Runpod does not expose account credit here. Enter a budget for an hours estimate, or leave blank.',
   rentalConfirm: 'Confirm the hourly price',
   watchConfirm: 'Watch for stock and rent at this price or less',
-  creating: 'Creating the pod',
+  creating: 'Creating the machine',
   publicKey: 'Preparing the SSH key',
   engine: 'Downloading weights and starting the engine',
   health: 'Waiting for /health and /v1/models',
   tunnel: 'Opening the private SSH tunnel',
-  manage: 'Pod controls',
+  manage: 'Machine controls',
   stopPod: 'Stop · keep the disk (storage still bills)',
-  terminatePod: 'Terminate · delete the pod and its disk',
+  terminatePod: 'Terminate · delete the machine and its disk',
   keepPod: 'Keep running and close',
   closePod: 'Close · keep the stopped disk',
   stoppedDisk: 'Stopped · compute ended; disk storage still bills until Terminate.',
-  terminatedPod: 'Pod terminated · its volume disk is deleted.',
+  terminatedPod: 'Machine terminated · its disk is deleted.',
   noStock: 'No documented shape has stock right now. Choose a model to watch for stock, or refresh.',
   sshHost: 'SSH host or config alias',
   sshUser: 'SSH user (blank uses SSH config)',
@@ -121,8 +121,11 @@ export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: str
   return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
 }
 
-export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string }, record?: { step?: string; startedAt: string; provider?: string }, now = Date.now()): string {
-  if (pod.status === 'EXITED') return `${pod.name} · ${pod.id} · stopped · storage still bills`
+export const hostMachineName = (vendor: keyof typeof HOST_VENDOR_INFO, id: string): string => (vendor === 'huggingface' ? 'HF endpoint' : HOST_VENDOR_INFO[vendor].label + (vendor === 'runpod' ? ' pod' : ' instance')) + ' ' + id
+
+export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string; vendor?: keyof typeof HOST_VENDOR_INFO }, record?: { step?: string; startedAt: string; provider?: string }, now = Date.now()): string {
+  const identity = hostMachineName(pod.vendor ?? 'runpod', pod.id) + ' · ' + pod.name
+  if (pod.status === 'EXITED') return `${identity} · stopped · storage still bills`
   const started = Date.parse(record?.startedAt ?? pod.startedAt ?? pod.createdAt)
   const hours = Number.isFinite(started) ? Math.max(0, now - started) / 3600_000 : undefined
   const cost = hours === undefined ? 'elapsed time and cost unknown' : `${Math.floor(hours * 60)} min · $${(pod.cost * hours).toFixed(2)} so far (estimate; storage extra)`
@@ -131,7 +134,7 @@ export function hostPaidPodWords(pod: { id: string; name: string; status: string
     const endpoint = record?.provider ? configuredCompatEndpoints().find(row => row.name === record.provider) : undefined
     if (endpoint && pod.status === 'RUNNING' && record?.step === 'ready') cache = compatPrefixCacheWords(endpoint, now)
   } catch {}
-  return `${pod.name} · ${pod.id} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}${cache ? ' · ' + cache : ''}`
+  return `${identity} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}${cache ? ' · ' + cache : ''}`
 }
 
 export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {

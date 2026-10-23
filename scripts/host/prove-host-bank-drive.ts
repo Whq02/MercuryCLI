@@ -192,7 +192,8 @@ try {
   await choose('Refresh'); await heading('Bank'); await until('✗ ')
   check('the failed verification shows in the VERIFIED column while the files stay banked', row('Tiny-A').includes('✗ ' + new Date().toISOString().slice(0, 10)) && row('Tiny-A').includes('✓ ~ '))
   writeFileSync(shard, original)
-  await press('Tiny-A', 'v'); await until('Verifying the bank'); await Promise.all(jobs)
+  const queuedBeforeRestore = jobs.length
+  await press('Tiny-A', 'v'); assert.ok(await waitFor(() => jobs.length > queuedBeforeRestore, 5000), 'restored-byte verification is queued'); await Promise.all(jobs)
   check('restoring the byte verifies again', bank.bankState(tinyA).verifiedAt !== undefined)
   await close()
   open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await until('WEIGHTS')
@@ -254,7 +255,7 @@ try {
   await choose('No stock · watch'); await heading('Confirm the hourly price')
   const watchConfirm = screen().replace(/[│\s]+/g, ' ')
   check('the watch confirm names every provider, the per-provider read rate and the first-hit rule, and rents nothing', watchConfirm.includes('across Runpod, Vast.ai, Lambda, Hugging Face') && watchConfirm.includes('one catalogue read per provider (4)') && watchConfirm.includes('The first provider with stock at or under the ceiling rents it') && rp.state.creates === 1 && vast.state.creates === 0 && lambda.state.creates === 0)
-  await choose('Watch for stock and rent at this price or less'); await heading('Pod controls')
+  await choose('Watch for stock and rent at this price or less'); await heading('Machine controls')
   assert.ok(await waitFor(() => hostRecords().some(record => record.jobKind === 'watch' && record.jobState === 'running'), 10000), 'the watch job runs')
   const watch = hostRecords().find(record => record.jobKind === 'watch')!
   check('the watch record covers the four providers and polls them without renting', watch.watchVendors?.join() === 'runpod,vast,lambda,huggingface' && (await waitFor(() => vast.requests.filter((request: any) => request.path === '/api/v0/bundles/').length >= 2 && lambda.requests.filter((request: any) => request.path === '/api/v1/instance-types').length >= 2 && rp.state.catalogReads >= 2 && hf.requests.filter((request: any) => request.path === '/v2/provider/fixture-owner').length >= 2, 10000)) && vast.state.creates === 0 && hf.state.creates === 0)

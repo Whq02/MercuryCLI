@@ -112,7 +112,7 @@ try {
     check('stored preferences match the created rental', readTunePreferences(model)?.conversations === conversations)
     check('ready pod controls expose Tune without closing and reopening', await waitFor(() => mounted!.screen().includes('Tune · quality'), 4000))
     await capture('controls'); await close()
-    popup.openSettingsPopup(llmHostPopupRequest(observed)); await step('door-models'); await choose('Pods I’m paying for'); await step('paid-pods'); await choose(record.id); await step('pod-controls')
+    popup.openSettingsPopup(llmHostPopupRequest(observed)); await step('door-models'); await choose('Machines I’m paying for'); await step('paid-pods'); await choose(record.id); await step('pod-controls')
     await choose('Tune ·'); await step('tune-quality'); await choose('Balanced'); await step('tune-context'); await choose('4 × 128k'); await step('tune-thinking'); await choose('max'); await step('tune-confirm'); await capture('reload-confirm'); await choose('Confirm · reload'); await step('pod-controls')
     check('a door-rented pod retunes in place without a second rental', rp.state.creates === queued.length && readHostRecord(record.id)?.tune?.conversations === 4 && readHostRecord(record.id)?.tune?.effort === 'max')
     await close(); closeHostTunnel(record.id)
