@@ -7,7 +7,7 @@ const shards = (folder, stem, count, bytesEach) => Array.from({ length: count },
 const safetensorShards = (count, bytesEach) => Array.from({ length: count }, (_, index) => ({ path: 'model-' + String(index + 1).padStart(5, '0') + '-of-' + String(count).padStart(5, '0') + '.safetensors', size: bytesEach }))
 const small = (...paths) => paths.map(path => ({ path, size: 4096 }))
 
-export const HF_FIXTURE_TOKEN = 'fixture-hf-token-not-a-real-token'
+const HF_FIXTURE_TOKEN = 'fixture-hf-token-not-a-real-token'
 
 export const fixtureRepos = {
   gguf: {

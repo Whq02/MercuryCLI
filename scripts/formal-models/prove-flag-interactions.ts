@@ -112,6 +112,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_PROMPT_LAYERS: ['', 'replace', 'whole'],
   MERCURY_PROMPT_REPLACE_FILE: ['', '/tmp/sweep-prompt-slot.txt'],
   MERCURY_BARE: ['', '1'],
+  MERCURY_HOST_RECIPES_FILE: ['', join(ROOT, 'assets/host/recipes.json')],
+  MERCURY_HOST_WEIGHTS_FILE: ['', join(ROOT, 'assets/host/weights.json')],
 }
 
 const CLUSTERS: Record<string, string[]> = {

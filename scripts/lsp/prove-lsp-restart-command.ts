@@ -48,7 +48,7 @@ const servers = new Map<string, FakeServer>([
   [ts.name, ts],
   [pyright.name, pyright],
 ])
-const fakeManager = { getAllServers: () => servers, getServerForFile: () => undefined }
+const fakeManager = { getAllServers: () => servers, getServerForFile: () => undefined, getServersForFile: () => [] }
 const world = {
   manager: fakeManager as typeof fakeManager | undefined,
   status: { status: 'success' } as { status: string; error?: Error },

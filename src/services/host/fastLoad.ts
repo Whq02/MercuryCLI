@@ -13,11 +13,11 @@ import { createKeptVolume, deleteKeptVolume, fullCheckMinutes, keptDiskPrice, ke
 import { BANK_DOOR, bankCandidateWords, bankCandidates, bankFolder, bankFree, bankState, bankedHostRecipes, bootMinutes, bytesWords, rememberBankFolder, shortFolder, sizeWords, type BankState } from './bank.js'
 
 export { BANK_DOOR }
-export const FAST_LOAD_DOOR = 'Fast-load volume'
+const FAST_LOAD_DOOR = 'Fast-load volume'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
 interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; startJob?: (record: HostRecord) => void }
-export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
+interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
 const cancelled = (): LlmHostResult => ({ ok: true, words: 'Bank closed. Existing weights disks keep billing until deleted.' })
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const pad = (text: string, width: number): string => text.length >= width ? text + ' ' : text.padEnd(width)

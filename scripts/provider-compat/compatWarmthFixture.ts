@@ -4,7 +4,7 @@ import { z } from 'zod/v4'
 
 export const root = resolve(process.env.WARMTH_PROOF_ROOT ?? new URL('../..', import.meta.url).pathname)
 export const dialects = ['chat-completions', 'responses', 'llamacpp', 'vllm', 'sglang', 'ollama', 'lmstudio'] as const
-export type Capture = { path: string; body: any; cached: number; prefill: number; total: number; costMs: number }
+type Capture = { path: string; body: any; cached: number; prefill: number; total: number; costMs: number }
 
 export async function prepare() {
   if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')

@@ -11,7 +11,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? `\n${detail}` : ''}`)
 }
 
-export interface SentenceHit {
+interface SentenceHit {
   file: string
   line: number
   rule: string
@@ -154,7 +154,7 @@ const SKIP_CONSTS = new Set([
 
 const SKIP_CALLS = new Set(['logForDebugging', 'logError', 'noteLockRelease'])
 
-export const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: string }> = [
+const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: string }> = [
   {
     file: 'src/services/host/vendors/client.ts',
     text: 'Mercury’s SSH key is added to this pod only, never to your Runpod account.',
@@ -202,7 +202,7 @@ export const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: str
   },
 ]
 
-export const MECHANISM_WORDS: ReadonlyArray<[string, RegExp]> = [
+const MECHANISM_WORDS: ReadonlyArray<[string, RegExp]> = [
   ['injected', /\binjected\b/i],
   ['replay', /\breplay(s|ed|ing)?\b/i],
   ['carried', /\bcarried\b/i],
@@ -266,7 +266,7 @@ function insideSkippedContext(node: ts.Node): boolean {
   return false
 }
 
-export function extractSentencesFromSource(file: string, sourceText: string): Array<{ file: string; line: number; text: string }> {
+function extractSentencesFromSource(file: string, sourceText: string): Array<{ file: string; line: number; text: string }> {
   const sf = ts.createSourceFile(
     file,
     sourceText,
@@ -297,7 +297,7 @@ export function extractSentencesFromSource(file: string, sourceText: string): Ar
   return out
 }
 
-export function scanSentences(rows: ReadonlyArray<{ file: string; line: number; text: string }>): SentenceHit[] {
+function scanSentences(rows: ReadonlyArray<{ file: string; line: number; text: string }>): SentenceHit[] {
   const hits: SentenceHit[] = []
   for (const row of rows) {
     if (ALLOW_LIST.some(allowed => allowed.file === row.file && row.text.includes(allowed.text))) continue

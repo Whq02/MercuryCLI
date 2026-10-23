@@ -14,7 +14,7 @@ const PROMPT_MAX = 51000
 const TURNS = 20
 const tools: CompatTool[] = [{ type: 'function', function: { name: 'measurement_echo', description: 'Return an opaque receipt for the requested measurement turn. Call exactly once, then repeat the receipt in your final answer.', parameters: { type: 'object', properties: { turn: { type: 'integer' }, nonce: { type: 'string' } }, required: ['turn', 'nonce'], additionalProperties: false } } }]
 
-export interface RecipeMeasurement {
+interface RecipeMeasurement {
   ok: boolean
   recipe: string
   model: string

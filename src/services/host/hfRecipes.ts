@@ -38,12 +38,12 @@ export interface HfModel {
   ggufContext?: number
   config: Record<string, unknown>
 }
-export interface HfFile { path: string; size: number; sha256?: string; git?: string }
+interface HfFile { path: string; size: number; sha256?: string; git?: string }
 export type HfSearchOutcome = { state: 'ready'; models: HfModel[] } | { state: 'offline'; words: string }
-export type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown>; revision?: string } | { ok: false; words: string }
-export type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
+type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown>; revision?: string } | { ok: false; words: string }
+type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
 export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number }
-export interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
+interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
 
 const modelSchema = z.object({
   id: z.string().min(1),
@@ -155,7 +155,7 @@ export async function fetchHuggingFaceRepo(id: string, options: HfHubOptions = {
 }
 
 const shortCount = (count: number): string => count >= 1e6 ? (count / 1e6).toFixed(count >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : count >= 1e3 ? (count / 1e3).toFixed(count >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(count)
-export const hfParamWords = (params?: number): string => params === undefined ? 'size unknown' : params >= 1e12 ? (params / 1e12).toFixed(1).replace(/\.0$/, '') + 'T' : params >= 1e9 ? Math.round(params / 1e9) + 'B' : params >= 1e6 ? Math.round(params / 1e6) + 'M' : String(params)
+const hfParamWords = (params?: number): string => params === undefined ? 'size unknown' : params >= 1e12 ? (params / 1e12).toFixed(1).replace(/\.0$/, '') + 'T' : params >= 1e9 ? Math.round(params / 1e9) + 'B' : params >= 1e6 ? Math.round(params / 1e6) + 'M' : String(params)
 const quantOf = (path: string): string | undefined => {
   const stem = path.replace(/-\d{5}-of-\d{5}\.gguf$/i, '').replace(/\.gguf$/i, '')
   const folder = stem.includes('/') ? stem.slice(0, stem.lastIndexOf('/')).split('/').pop()! : ''
@@ -203,7 +203,7 @@ const notChatReason = (model: HfModel): string | undefined => {
   return undefined
 }
 export const hfModelChat = (model: HfModel): { ok: true } | { ok: false; reason: string } => { const reason = notChatReason(model); return reason ? { ok: false, reason } : { ok: true } }
-export function hfFormatWords(model: HfModel): string {
+function hfFormatWords(model: HfModel): string {
   if (model.files.some(isGgufWeight) || model.library === 'gguf') {
     const quant = chooseGgufQuant(model.files.map(path => ({ path, size: 0 })).filter(file => isGgufWeight(file.path)))
     return 'GGUF' + (quant ? ' ' + quant.quant : '')
@@ -291,7 +291,7 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
 export function derivedHfRecipe(repo: string): DerivedHfRecipe | undefined {
   return derived.get(repo)
 }
-export function derivedHfRecipeOf(recipe: HostRecipe): DerivedHfRecipe | undefined {
+function derivedHfRecipeOf(recipe: HostRecipe): DerivedHfRecipe | undefined {
   return derived.get(recipe.model)?.recipe.id === recipe.id ? derived.get(recipe.model) : undefined
 }
 export function forgetDerivedHfRecipes(): void {
