@@ -32,8 +32,9 @@ try {
   const unverified = { ...base, id: 'saved-search-deepseek', label: foundName + ' · EXL3', model: foundName, gpu: 'H100', count: 1, vramGb: 80, verified: { by: 'unverified', on: '2026-10-22', source: 'https://huggingface.co/' + foundName, note: "derived from the repo's config and file list; nobody has booted this recipe" }, verification: 'unverified · derived from the repo · vLLM (EXL3) · not booted' }
   const measured = { ...privateRow, id: 'measured-deepseek', label: 'DeepSeek measured', model: 'fixture/measured-deepseek', verified: { ...privateRow.verified, by: 'measured' } }
   const inStock = { ...privateRow, id: 'documented-in-stock', label: 'DeepSeek documented stock', model: 'fixture/documented-stock', gpu: 'H100', count: 1, vramGb: 80 }
+  const privateUnverified = { ...privateRow, id: 'private-unverified', label: 'DeepSeek private experiment', verified: { ...privateRow.verified, by: 'unverified' } }
   const recipeFile = join(f.home, 'recipes.json')
-  writeFileSync(recipeFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [unverified, privateRow, measured, inStock] }))
+  writeFileSync(recipeFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [unverified, privateRow, measured, inStock, privateUnverified] }))
   process.env.MERCURY_HOST_RECIPES_FILE = recipeFile
   rp.state.customGpus = [{ ...liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA H100 80GB HBM3'), availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
   const React = await import('react')
@@ -81,18 +82,13 @@ try {
     }
     await step('door-models')
     const values = question!.rows!.map(row => row.value)
-    assert.deepEqual(values.slice(0, 4), [measured.label, inStock.label, privateName, foundName], 'verification tier precedes stock, which only sorts within a tier')
-    assert.ok(question!.rows![3]!.label.includes('in stock'))
+    assert.deepEqual(values.slice(0, 5), [measured.label, inStock.label, privateName, privateUnverified.label, foundName], 'verification tier precedes stock; a private unverified row also precedes search-derived stock')
+    assert.ok(question!.rows![4]!.label.includes('in stock'))
     assert.ok(question!.rows![2]!.label.includes('no stock'))
     assert.equal(question!.initial, measured.label)
     await select(foundName)
-    if (!!process.argv.includes('--labels')) assert.ok(flat().includes('found on Hugging Face · not booted by Mercury · EXL3'), 'saved search-derived rows name their source and keep the format after the warning\n' + screen())
+    assert.ok(flat().includes('found on Hugging Face · not booted by Mercury · EXL3'), 'saved search-derived rows name their source and keep the format after the warning\n' + screen())
     await capture('saved-search')
-    if (!process.argv.includes('--labels')) {
-      mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)); mounted.unmount(); mounted = undefined
-      console.log('PASS order at ' + width + ': measured and private rows precede stocked unverified rows; stock sorts within the documented tier')
-      continue
-    }
     mounted!.push('deepseek')
     assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000))
     const rows = question!.rows!
