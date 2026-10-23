@@ -3,6 +3,7 @@
 # gate-watch: scripts/formal-models/**
 # gate-watch: src/services/interview/** scripts/interview/prove-resume-bounds.ts
 # gate-watch: src/substrate/flagRegistry.ts scripts/orphans/**
+# gate-watch: assets/host/recipes.json assets/host/weights.json
 # gate-watch: scripts/engine-durability/harness.ts src/context/surfaceRoute.ts
 # gate-watch: src/services/changeTransaction/changeSetContracts.ts
 # gate-watch: src/services/run/contextSelection.ts src/services/run/requestContextPlan.ts
