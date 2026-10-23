@@ -7,6 +7,23 @@ import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from 
 import { HostCreateError, HostVendorHttpError, VendorApi, isOpenSshKey, keyMaterial, retryAfterSeconds, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
+import type { LlmHostRoad } from '../../llmHost/index.js'
+
+export class VastOfferGone extends HostCreateError {
+  constructor(readonly replacement?: HostOffer, detail = '') {
+    super('Vast.ai refused it; nothing was rented. That machine is no longer available. ' + (replacement ? 'Another machine is available at $' + replacement.price.toFixed(2) + '/hr; confirm before renting.' : detail || 'No other machine for this recipe is available.'), 'refused', undefined, 410, 'no_such_ask')
+  }
+}
+export async function createVastRental(api: VastClient, offer: HostOffer, publicKey: string, name: string, ask: Parameters<LlmHostRoad>[0], emit: Parameters<LlmHostRoad>[1], signal: AbortSignal): Promise<{ pod: HostPod; offer: HostOffer } | undefined> {
+  try { return { pod: await api.create(offer, publicKey, name), offer } } catch (error) {
+    if (!(error instanceof VastOfferGone)) throw error
+    const next = error.replacement
+    if (!next) { emit({ title: 'Vast.ai stock', words: error.message }); return }
+    const choice = await ask({ step: 'vast-replacement', title: 'That machine is no longer available', found: 'Nothing was rented. Another ' + next.recipe.count + '× ' + next.recipe.gpu + ' for ' + next.recipe.label + ' is available at $' + next.price.toFixed(2) + '/hr (previously $' + offer.price.toFixed(2) + '/hr).', willRun: VAST_STORAGE_NOTICE + ' Billing starts only if you confirm this new price.', rows: [{ value: 'rent', label: 'Confirm $' + next.price.toFixed(2) + '/hr · rent this machine' }, { value: 'cancel', label: 'Cancel' }] })
+    if (choice !== 'rent' || signal.aborted) return
+    return { pod: await api.create(next, publicKey, name, undefined, false), offer: next }
+  }
+}
 export const VAST_STORAGE_NOTICE = '/workspace uses the instance container disk. Stop retains data and storage billing, and a restart waits until the host’s GPUs are free; terminate deletes the disk and its data. No separate volume is created.'
 export const VAST_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your Vast.ai account keys, which Vast.ai installs on your instances. Remove it at https://cloud.vast.ai/manage-keys/ when you stop renting through Mercury.'
 export const VAST_GPU_NAMES: Readonly<Record<string, string>> = {
@@ -179,7 +196,7 @@ export class VastClient implements HostVendor {
       }
     })
   }
-  async create(offer: HostOffer, publicKey: string, name: string): Promise<HostPod> {
+  async create(offer: HostOffer, publicKey: string, name: string, _volume?: Parameters<HostVendor['create']>[3], findReplacement = true): Promise<HostPod> {
     const placement = this.placements.get(offer)
     if (!placement || placement.fingerprint !== fingerprint(offer)) throw new Error('Choose an unchanged offer returned by this Vast.ai client before renting.')
     if (!isOpenSshKey(publicKey)) throw new Error('Vast.ai needs one OpenSSH public key.')
@@ -192,6 +209,11 @@ export class VastClient implements HostVendor {
         env: { HF_HOME: '/workspace/huggingface' },
       }, undefined, true)).new_contract
     } catch (error) {
+      if (findReplacement && error instanceof HostCreateError && error.outcome === 'refused' && error.status === 410 && (error.code === 'no_such_ask' || error.message.includes('no_such_ask'))) {
+        let replacement: HostOffer | undefined
+        try { replacement = (await this.search([offer.recipe])).offers.find(row => this.placements.get(row)?.id !== placement.id) } catch { throw new VastOfferGone(undefined, 'Replacement stock could not be read; refresh stock before trying again.') }
+        throw new VastOfferGone(replacement)
+      }
       if (error instanceof HostCreateError && error.outcome === 'ambiguous') this.api.remember(name)
       throw error
     }
