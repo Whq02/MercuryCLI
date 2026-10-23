@@ -90,7 +90,8 @@ function build(recipe: HostRecipe, path: string, sumsText: string, files: Folder
   if (receipts.length > 1) return { reason: 'the bank’s files came from more than one Hugging Face revision (' + receipts.map(hash => hash.slice(0, 7)).join(', ') + ') · b bank again downloads one revision' }
   const revision = receipts[0] ?? sourceRevision(recipe)
   if (!revision) return { reason: 'no Hugging Face revision is recorded for the bank · b bank again records one' }
-  const parsed = hostWeightManifestSchema.safeParse({ model: recipe.model, include: recipe.include ?? '', revision, files: rows })
+  const candidate = { model: recipe.model, include: recipe.include ?? '', revision, files: rows }
+  const parsed = hostWeightManifestSchema.safeParse(candidate)
   if (!parsed.success) return { reason: 'the bank has a file name that cannot be mirrored: ' + (rows[Number(parsed.error.issues[0]?.path[1] ?? -1)]?.path ?? parsed.error.issues[0]?.message ?? 'unknown') }
   return { manifest: parsed.data }
 }
