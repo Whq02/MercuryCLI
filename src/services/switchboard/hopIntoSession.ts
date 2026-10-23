@@ -278,7 +278,10 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
   const { bornSession } = await import('./bornSession.js')
   const born = await bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })
   if (!born.ok) {
-    return { ok: false, reason: `a fresh session could not start, so this one stands — ${born.reason}` }
+    const again = model !== undefined && born.reason.startsWith('model refused (')
+      ? await bornSession({ workspaceDir, model: null, vacatingSessionId: oldSessionId, fallbackNote: `the model this chat ran on (${model}) is no longer reachable — this fresh chat starts on the default model instead; /model picks another` })
+      : undefined
+    if (again === undefined || !again.ok) return { ok: false, reason: `a fresh session could not start, so this one stands — ${born.reason}` }
   }
   await parkSessionById(oldSessionId)
   const { markSessionCleared } = await import('../../utils/sessionStorage/clearedSessions.js')

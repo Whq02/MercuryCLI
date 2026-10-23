@@ -44,7 +44,7 @@ export function loginsActionFor(family: string, compatEndpoint?: string): string
       const { compatKeyEnvName } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
       return `the endpoint '${compatEndpoint}' needs a key: /logins compat/${compatEndpoint} (or set ${compatKeyEnvName(compatEndpoint)})`
     }
-    return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)'
+    return 'ask the operator to start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model'
   }
   if (family === 'local') return 'ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL'
   return 'ask the operator to run /logins'
