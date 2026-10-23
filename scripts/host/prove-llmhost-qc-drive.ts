@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { bankDownloadWords } from './bankDownloadFixture.ts'
 import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs'
@@ -20,6 +20,7 @@ const frames = option('--frames')
 if (frames) mkdirSync(frames, { recursive: true })
 const f = await llmhostFixture()
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 f.state.dialect = 'sglang'
 f.state.window = 131072
 const rp = await runpodFixture()
@@ -78,12 +79,8 @@ try {
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const downloads: string[] = []
   const runner = { ...ssh.runner, run: async (command: string, args: string[], signal: AbortSignal, timeout?: number) => {
-    if (command === '/bin/sh' && args[1]?.includes(' download ')) {
-      assert.equal(spawnSync('bash', ['-n', '-c', args[1]], { encoding: 'utf8' }).status, 0)
-      const line = args[1].split('\n').find(row => row.includes(' download '))!
-      const parsed = spawnSync('python3', ['-c', 'import json,shlex,sys; print(json.dumps(shlex.split(sys.argv[1])))', line], { encoding: 'utf8' })
-      assert.equal(parsed.status, 0)
-      const argv: string[] = JSON.parse(parsed.stdout)
+    const argv = bankDownloadWords(command, args)
+    if (argv) {
       const folder = argv[argv.indexOf('--local-dir') + 1]!
       const recipe = currentHostRecipes().find(row => row.model === argv[2])!
       for (const file of bank.bankFiles(recipe, folder).files) { mkdirSync(dirname(join(folder, file.path)), { recursive: true }); writeFileSync(join(folder, file.path), data) }
