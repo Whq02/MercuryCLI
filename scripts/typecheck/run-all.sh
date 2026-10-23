@@ -26,9 +26,9 @@ cur=$(mktemp) || { rm -f "$raw"; printf 'typecheck: cannot create temporary fing
 trap 'rm -f "$raw" "$cur"; suite_home_cleanup' EXIT
 if [ "$WARM" -eq 1 ]; then
   mkdir -p "$(dirname "$BUILDINFO")"
-  "$TSC" --noEmit -p "$CFG" --incremental --tsBuildInfoFile "$BUILDINFO" > "$raw" 2>&1
+  NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096" "$TSC" --noEmit -p "$CFG" --incremental --tsBuildInfoFile "$BUILDINFO" > "$raw" 2>&1
 else
-  "$TSC" --noEmit -p "$CFG" > "$raw" 2>&1
+  NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096" "$TSC" --noEmit -p "$CFG" > "$raw" 2>&1
 fi
 rc=$?   # 0 clean · 2 diagnostics present (tsc 6.0.3 reports
 MAXOK=2
