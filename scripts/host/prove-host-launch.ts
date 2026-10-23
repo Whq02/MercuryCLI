@@ -53,7 +53,7 @@ try {
   assert.ok(readFileSync(join(remoteDir, 'engine.sh'), 'utf8').includes('export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc'))
   for (const [id, cap, expected] of [['glm53-flash-gguf-b300', '10.3', '103'], ['nemotron35-super-gguf-rtx-pro-6000', '12.0', '120']] as const) {
     const gguf = HOST_RECIPES.find(row => row.id === id)!
-    assert.ok(gguf.install?.includes('PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc') && gguf.install.includes('-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc') && gguf.install.includes('3bb63cbcbfb62056c84fe9e521b0f3d756d29c32'))
+    assert.ok(gguf.install?.includes('PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc') && gguf.install.includes('-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc') && gguf.install.includes('184f6536024668e8908ab8c86033d56708e62b40'))
     assert.ok(gguf.flags.join(' ').includes('--ctx-size 524288 --parallel 4 --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0'))
     writeCommand('nvidia-smi', `#!/bin/bash\necho "${cap}"\n`)
     const arch = await runner.run('ssh', ['127.0.0.1', 'printf %s "$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)"'])

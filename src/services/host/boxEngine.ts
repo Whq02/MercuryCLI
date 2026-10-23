@@ -5,6 +5,7 @@ import { fitsBox, boxFitWords, type BoxRecipe } from './boxRecipes.js'
 import { sealDownloadedBank, verifyBoxBank } from './boxBank.js'
 import { boxServiceFiles, boxServiceRunning, controlBoxService, installBoxService, readBoxService, writeBoxService, type BoxServiceRecord } from './boxService.js'
 import { hostRunner, type HostRunner } from './ssh.js'
+import { LLAMACPP_ENGINE_SHA } from './recipes.js'
 
 interface BoxStartOptions { runner?: HostRunner; signal?: AbortSignal; timeoutMs?: number; pauseMs?: number; port?: number; bank: boolean; destination: string; confirmed: boolean; onStep?: (words: string) => void }
 export function boxEngineScript(box: HostBox, recipe: BoxRecipe, executable: string, destination: string, port: number, loadModel = true): string {
@@ -39,7 +40,7 @@ async function engineBinary(box: HostBox, recipe: BoxRecipe, runner: HostRunner,
   if (box.os === 'windows') throw new Error('Install llama-server on this Windows computer, then discover it again.')
   const source = boxJoin(box, dir, 'llama.cpp')
   step('building llama.cpp from source (~10 min; up to 60 min on a slow machine)')
-  const script = 'command -v git >/dev/null; command -v cmake >/dev/null; mkdir -p ' + shQuote(dir) + '; if ! test -d ' + shQuote(source) + '; then git clone https://github.com/ggml-org/llama.cpp ' + shQuote(source) + '; fi; git -C ' + shQuote(source) + ' checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32; cmake -S ' + shQuote(source) + ' -B ' + shQuote(source + '/build') + ' -DBUILD_SHARED_LIBS=OFF ' + (box.unifiedMemory ? '-DGGML_METAL=ON' : box.gpus.some(gpu => /NVIDIA/i.test(gpu.name)) ? '-DGGML_CUDA=ON' : '') + '; cmake --build ' + shQuote(source + '/build') + ' --config Release --parallel --target llama-server'
+  const script = 'command -v git >/dev/null; command -v cmake >/dev/null; mkdir -p ' + shQuote(dir) + '; if ! test -d ' + shQuote(source) + '; then git clone https://github.com/ggml-org/llama.cpp ' + shQuote(source) + '; fi; git -C ' + shQuote(source) + ' checkout ' + LLAMACPP_ENGINE_SHA + '; cmake -S ' + shQuote(source) + ' -B ' + shQuote(source + '/build') + ' -DBUILD_SHARED_LIBS=OFF ' + (box.unifiedMemory ? '-DGGML_METAL=ON' : box.gpus.some(gpu => /NVIDIA/i.test(gpu.name)) ? '-DGGML_CUDA=ON' : '') + '; cmake --build ' + shQuote(source + '/build') + ' --config Release --parallel --target llama-server'
   await runBoxScript(box, script, runner, signal, 60 * 60_000)
   return source + '/build/bin/llama-server'
 }

@@ -6,7 +6,7 @@ on:
       upstream_sha:
         description: llama.cpp commit (full SHA)
         required: true
-        default: 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32
+        default: 184f6536024668e8908ab8c86033d56708e62b40
       arches:
         description: CUDA architectures (semicolon-separated, including 100, 103 and 120)
         required: true
@@ -32,7 +32,7 @@ jobs:
       - name: Validate image inputs
         id: image
         env:
-          UPSTREAM_SHA: ${{ inputs.upstream_sha || '3bb63cbcbfb62056c84fe9e521b0f3d756d29c32' }}
+          UPSTREAM_SHA: ${{ inputs.upstream_sha || '184f6536024668e8908ab8c86033d56708e62b40' }}
           ARCHES: ${{ inputs.arches || '100;103;120' }}
         shell: bash
         run: |
