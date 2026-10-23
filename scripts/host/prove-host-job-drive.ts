@@ -123,7 +123,7 @@ try {
   const service = reconcileRecord(join(f.home, 'host'), 'host-' + id)!
   check('setup lives in the project Service owner, not the popup process', service.spec.lifecycle === 'project' && service.pid !== process.pid && service.pid !== daemon!.pid)
   check('worker advances and tails the engine log while popup is closed', await waitFor(() => readHostRecord(id)?.step?.startsWith('downloading weights') ?? false, 15000))
-  open(); await screen('Where should the model run?'); await choose(id); await screen('Pod controls'); await screen('downloading weights'); await screen('so far')
+  open(); await screen('Where should the model run?'); await choose(id); await screen('Machine controls'); await screen('downloading weights'); await screen('so far')
   await capture('01-mid-job')
   check('reopening shows live progress without restarting', readHostRecord(id)!.generation === generation && readHostRecord(id)!.jobState === 'running')
   m.push('\x1b[<0;1;44M\x1b[<0;1;44m')
@@ -136,7 +136,7 @@ try {
   config.hold = false; config.log += 'MERCURY_STEP starting engine\n'; save()
   check('closed popup job reaches ready on the built worker', await waitFor(() => readHostRecord(id)?.jobState === 'ready', 25000))
   const ready = readHostRecord(id)!
-  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights ') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights', 'starting engine', 'ready'])
+  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights on the machine ·') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights on the machine', 'starting engine', 'ready'])
   check('durable step sequence and local log survive runner ownership changes', readFileSync(ready.log!, 'utf8').includes('fixture weights are downloading'))
   const settings = JSON.parse(readFileSync(join(f.home, 'settings.json'), 'utf8'))
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
@@ -152,7 +152,7 @@ try {
   await choose('Stop ·'); await screen('Confirm stop'); check('Stop has a separate confirmation', rp.state.stops === 0)
   await choose('Confirm stop'); check('Stop releases compute but retains the pod disk', await waitFor(() => rp.state.stops === 1 && !m!.screen().includes('Confirm stop') && m!.screen().includes('Stopped · compute ended'), 15000) && rp.state.pods.has(id))
   await choose('Terminate'); await screen('Confirm terminate'); check('Terminate has a separate confirmation', rp.state.deletes === 0)
-  await choose('Confirm terminate'); await screen('Pod terminated'); m.push(KEY.esc)
+  await choose('Confirm terminate'); await screen('Machine terminated'); m.push(KEY.esc)
   assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'the terminated pod window closes before the next rental opens')
   check('terminated pod is verified absent', !readHostRecord(id) && !rp.state.pods.has(id))
   const stalled = { ...ready, id: 'fixture-stalled', name: 'fixture-stalled', jobState: 'running' as const, generation: 'stall-generation', step: 'building llama.cpp', advancedAt: Date.now() - 250, error: undefined }
@@ -173,7 +173,7 @@ try {
     writeHostRecord({ ...ready, id: name, name, jobKind: 'watch' as const, jobState: 'running' as const, generation: name + '-generation', step: 'watching for stock', advancedAt: Date.now() - 250, error: undefined, watchVendors: [...watchVendors], provider: undefined })
     await sweepHostJobs({ stallMs: 100, alive: () => true }); deliverHostNotices('rental-session')
     const words = getCommandQueue().map(row => String(row.value)).find(text => text.includes(name + ' · stock watch has not read')) ?? ''
-    check('a stalled watch names the stock it stopped reading (' + watchVendors.length + ' provider' + (watchVendors.length === 1 ? '' : 's') + ')', words.includes(watchVendors.length === 1 ? 'has not read Vast.ai’s stock since' : 'has not read any provider’s stock since') && words.includes('/llmhost → Pods I’m paying for → Cancel'))
+    check('a stalled watch names the stock it stopped reading (' + watchVendors.length + ' provider' + (watchVendors.length === 1 ? '' : 's') + ')', words.includes(watchVendors.length === 1 ? 'has not read Vast.ai’s stock since' : 'has not read any provider’s stock since') && words.includes('/llmhost → Machines I’m paying for → Cancel'))
     removeHostRecord(name)
   }
   config.failLaunch = true; save()
@@ -190,7 +190,7 @@ try {
   open(); await screen('Where should the model run?'); await choose('Rent a GPU'); await screen('Optional spending budget'); m.push(KEY.enter); await screen('live Runpod stock'); await choose('UD-Q3_K_XL'); await screen('Choose a GPU shape'); await choose('UD-Q3_K_XL'); await screen('Confirm the hourly price'); await choose('Confirm $2.49/hr')
   check('a fresh explicitly confirmed rental reaches ready after the failed pod was deleted', await waitFor(() => hostRecords().some(row => row.id !== failedId && row.jobState === 'ready'), 25000) && rp.state.creates === 3)
   workers.add(hostRecords().find(row => row.id !== failedId && row.jobState === 'ready')!.id)
-  await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Pod terminated'); m.push(KEY.esc)
+  await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Machine terminated'); m.push(KEY.esc)
   check('the pod window closes before the watch leg', await waitFor(() => !popup.isSettingsPopupOpen(), 5000))
   const watchRoad = createHostRoad({ apiBaseUrl: rp.baseUrl, sessionId: 'rental-session', pauseMs: 200 })
   rp.state.noStock = true
@@ -218,7 +218,7 @@ try {
   const { taskNoticeBlock } = await import('../../src/utils/messages/noticeRows.ts')
   const { isHeldNotice } = await import('../../src/input-core/command-queue.ts')
   check('the rented notice reaches the renting session on the settled-task road', getCommandQueue().some(row => isHeldNotice(row) && taskNoticeBlock(String(row.value))?.lines.join('\n') === 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'))
-  open(); await screen('Where should the model run?'); await choose(rented.id); await screen('Pod controls'); await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Pod terminated')
+  open(); await screen('Where should the model run?'); await choose(rented.id); await screen('Machine controls'); await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Machine terminated')
   rp.state.stockAfterReads = 0
   const calls = readFileSync(join(f.home, 'ssh-fixture-calls.jsonl'), 'utf8')
   check('detached image workers send no source-build command', !calls.includes('cmake') && !calls.includes('git clone') && calls.includes('MERCURY_PREBUILT_ENGINE') && calls.includes('llama-server'))

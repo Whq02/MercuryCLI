@@ -117,7 +117,7 @@ try {
     const deletes = rp.state.deletes
     const work = terminateVerified(api, doomed.id, readOnly(exhaust ? 350 : 5000))
     if (exhaust) {
-      await assert.rejects(work, error => error instanceof HostTerminationUnconfirmed && error.message === 'termination sent; Runpod did not confirm (HTTP 503 ×' + (rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - before) + ') — check Pods I’m paying for')
+      await assert.rejects(work, error => error instanceof HostTerminationUnconfirmed && error.message === 'termination sent; Runpod did not confirm (HTTP 503 ×' + (rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - before) + ') — check Machines I’m paying for')
     } else await work
     check(exhaust ? 'unanswered termination listing reports the exact count, not a false billing verdict' : 'termination confirms after two failed listings', rp.state.deletes === deletes + 1 && !rp.state.pods.has(doomed.id))
   }
@@ -166,7 +166,7 @@ try {
   let listingsBefore = 0
   const unconfirmed = await manual(unconfirmedPod.id, 'terminate', 350, () => { listingsBefore = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length; rp.state.failNext = { route: 'GET /v2/pods', status: 503, times: 1000 } })
   const listings = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - listingsBefore
-  const unconfirmedWords = unconfirmedPod.id + ' · termination sent; Runpod did not confirm (HTTP 503 ×' + listings + ') — check Pods I’m paying for · it may still bill; Terminate again once Runpod answers'
+  const unconfirmedWords = unconfirmedPod.id + ' · termination sent; Runpod did not confirm (HTTP 503 ×' + listings + ') — check Machines I’m paying for · it may still bill; Terminate again once Runpod answers'
   check('manual terminate whose listing never answers says the termination was sent, counts the failed reads, says it may still bill, sends no second DELETE and keeps the pod on the controls', !unconfirmed.result.ok && unconfirmed.events.includes(unconfirmedWords) && rp.state.deletes === unconfirmedDeletes + 1 && listings > 1 && readHostRecord(unconfirmedPod.id) !== undefined && !unconfirmed.events.some(words => words.includes('Set-up stopped')))
   rp.state.failNext = null
   closeHostTunnel(unconfirmedPod.id)

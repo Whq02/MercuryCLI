@@ -40,7 +40,7 @@ function jobRecipe(record: HostRecord): HostRecord['recipeRow'] {
 
 export async function requireHostJobOwner(): Promise<void> {
   const daemon = await readDaemonState()
-  if (!daemon || !isProcessAlive(daemon.pid)) throw new Error('Background setup is not running. Reopen Mercury before renting a pod; no pod was created.')
+  if (!daemon || !isProcessAlive(daemon.pid)) throw new Error('Background setup is not running. Reopen Mercury before renting a machine; no machine was created.')
 }
 export function queueHostSetup(record: HostRecord): HostRecord {
   if (active(record)) return readHostRecord(record.id) ?? record
@@ -129,7 +129,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
         }
       } catch (error) {
         patchHostRecord(record.id, { jobState: 'failed', error: String(error) })
-        hostNotice(record, 'failed', bank ? bankWords('could not start · ' + String(error)) : record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no pod was created' : ' · setup could not start at ' + record.step + ': ' + String(error) + ' · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+        hostNotice(record, 'failed', bank ? bankWords('could not start · ' + String(error)) : record.name + (watch ? ' · stock watch could not start · ' + String(error) + ' · no machine was created' : ' · setup could not start at ' + record.step + ': ' + String(error) + ' · ' + bills(record) + ' · /llmhost → Machines I’m paying for → Resume or Terminate'))
       }
       continue
     }
@@ -148,15 +148,15 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
     if (watch && ['running', 'starting'].includes(record.jobState) && !alive) {
       const current = readHostRecord(record.id)
       if (!current || current.generation !== record.generation || !['running', 'starting'].includes(current.jobState ?? '') || hostRecords().some(row => row.watchedFrom === record.id)) continue
-      const words = current.creating ? current.creating + ' may exist: the stock watch stopped while creating it · /llmhost → Pods I’m paying for' : 'stock watch stopped · no pod was created · /llmhost → the model → Watch stock to watch again'
+      const words = current.creating ? current.creating + ' may exist: the stock watch stopped while creating it · /llmhost → Machines I’m paying for' : 'stock watch stopped · no machine was created · /llmhost → the model → Watch stock to watch again'
       patchHostRecord(record.id, { jobState: 'failed', error: words })
       hostNotice(current, 'failed', current.name + ' · ' + words)
       continue
     }
     if (['running', 'starting'].includes(record.jobState) && (!alive || Date.now() - (record.advancedAt ?? 0) >= (options.stallMs ?? 600_000)) || record.jobState === 'ready' && !alive) {
       const dropped = record.jobState === 'ready'
-      if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: dropped ? 'The tunnel to the pod closed.' : 'Setup stopped before finishing.' })
-      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read ' + ((record.watchVendors?.length ?? 0) > 1 ? 'any provider’s stock' : HOST_VENDOR_INFO[record.watchVendors?.[0] ?? record.vendor ?? 'runpod'].label + '’s stock') + ' since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Pods I’m paying for → Cancel' : dropped ? ' · the tunnel to the ' + (record.cluster ? 'cluster' : 'pod') + ' closed · ' + bills(record) + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill' : ' · setup stalled at ' + record.step + ' · /llmhost → Pods I’m paying for → Resume or Terminate'))
+      if (!alive) patchHostRecord(record.id, { jobState: 'failed', error: dropped ? 'The tunnel to the machine closed.' : 'Setup stopped before finishing.' })
+      hostNotice(record, 'stalled', record.name + (watch ? ' · stock watch has not read ' + ((record.watchVendors?.length ?? 0) > 1 ? 'any provider’s stock' : HOST_VENDOR_INFO[record.watchVendors?.[0] ?? record.vendor ?? 'runpod'].label + '’s stock') + ' since ' + new Date(record.advancedAt ?? 0).toISOString() + ' · /llmhost → Machines I’m paying for → Cancel' : dropped ? ' · the tunnel to the ' + (record.cluster ? 'cluster' : 'pod') + ' closed · ' + bills(record) + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill' : ' · setup stalled at ' + record.step + ' · /llmhost → Machines I’m paying for → Resume or Terminate'))
     }
   }
 }

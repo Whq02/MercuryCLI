@@ -29,7 +29,7 @@ export function hostReadFailureWords(error: unknown): string | undefined {
 export class HostTerminationUnconfirmed extends Error {
   constructor(label: string, error: unknown) {
     const failure = typeof error === 'object' && error ? failures.get(error) : undefined
-    super('termination sent; ' + label + ' did not confirm (' + (failure ? counted(failure) : httpError(error) ? 'HTTP ' + httpError(error)!.status : 'listing unavailable') + ') — check Pods I’m paying for', { cause: error })
+    super('termination sent; ' + label + ' did not confirm (' + (failure ? counted(failure) : httpError(error) ? 'HTTP ' + httpError(error)!.status : 'listing unavailable') + ') — check Machines I’m paying for', { cause: error })
   }
 }
 export function hostJobReadOnly(options: HostReadRetryOptions): HostReadOnly {

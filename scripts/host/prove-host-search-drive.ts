@@ -105,14 +105,14 @@ try {
   }
   assert.equal(selected(), first)
   const plain = pages.join('\n')
-  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Pods I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
+  check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Machines I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
   check('each verified row carries its stamp word, and the cursor starts on the cheapest model in stock (running → your box → in stock cheapest → no stock; the stamp breaks ties)', plain.includes(' · measured') && plain.includes(' · documented') && selected().includes('in stock') && selected().includes('$'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
   hf.state.delayMs = 300
   type('deepseek')
   assert.ok(await waitFor(() => !screen().includes('GLM-5.3-Flash') && screen().includes('DeepSeek-V4.1-Flash-1017'), 400), 'the verified rows narrow at once\n' + screen())
   const narrowed = screen()
-  check('typing narrows the verified rows client-side at once and names the section', narrowed.includes('VERIFIED RECIPES') && narrowed.includes('DeepSeek-V4-Pro-0813') && !narrowed.includes('Qwen3.8-27B') && !narrowed.includes('Pods I’m paying for') && narrowed.includes('/ deepseek'))
+  check('typing narrows the verified rows client-side at once and names the section', narrowed.includes('VERIFIED RECIPES') && narrowed.includes('DeepSeek-V4-Pro-0813') && !narrowed.includes('Qwen3.8-27B') && !narrowed.includes('Machines I’m paying for') && narrowed.includes('/ deepseek'))
   await until('HUGGING FACE · fetching…', 3000)
   check('the Hugging Face section says fetching while the request runs and the verified rows stand', screen().includes('DeepSeek-V4.1-Flash-1017') && hf.state.searches === 1)
   await until(hfHeading)
@@ -144,12 +144,12 @@ try {
   mounted!.push(KEY.esc)
   await gone('HUGGING FACE'); await until('GLM-5.3-Flash')
   const cleared = screen()
-  for (let index = 0; index < names.length && !screen().includes('Pods I’m paying for'); index++) {
+  for (let index = 0; index < names.length && !screen().includes('Machines I’m paying for'); index++) {
     const before = selected()
     mounted!.push(KEY.down)
     assert.ok(await waitFor(() => selected() !== before, 3000), 'cleared search restores the utility rows\n' + screen())
   }
-  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && cleared.includes(HF_SEARCH_PLACEHOLDER) && screen().includes('Pods I’m paying for') && hf.state.searches === 2)
+  check('esc with a query clears it: the full verified list and the placeholder return, nothing closes', popup.isSettingsPopupOpen() && cleared.includes(HF_SEARCH_PLACEHOLDER) && screen().includes('Machines I’m paying for') && hf.state.searches === 2)
   type('deepseek'); await until(hfHeading)
   check('the same query in the same popup never refetches', hf.state.searches === 2)
   await choose('mercury-bounties/deepseek-coder-v4-bounty')

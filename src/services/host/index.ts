@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { createBoxRoad } from './boxRoad.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { hostPaidPodWords, hostSetupEstimate, LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { HOST_VENDORS, vendorClient, vendorKey, vendorLabel, saveVendorKey, vendorStorage, vendorKeyNotice, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HOST_VENDOR_INFO, type HostVendor } from './vendors/vendor.js'
+import { manageVendorKey } from './vendorKeys.js'
 import { formatHostOfferLabel, hostRecipeVerificationWord, type HostRecipe } from './recipes.js'
 import { currentHostRecipes } from './recipesFile.js'
 import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
@@ -22,16 +23,19 @@ import { deleteKeptVolume, fastLoadEstimate, rentalVolume, reconcileVolumes, vol
 import { VastClient, createVastRental } from './vendors/vast.js'
 import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
 
+type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; operation: string } }
+const vendorReadSessions = new Map<string, Map<string, VendorReadState>>()
+const decoratedQuestions = new WeakSet<object>()
 type HostOptions = { apiBaseUrl?: string; vendorApiBaseUrls?: Partial<Record<HostVendorId, string>>; runner?: HostRunner; pauseMs?: number; readyTimeoutMs?: number; startJob?: (record: HostRecord) => void; sessionId?: string; rental?: { client: HostVendor; offer: HostOffer } }
 type VendorPod = HostPod & { vendor: HostVendorId }
 const paidValue = (pod: VendorPod): string => pod.vendor === 'runpod' ? pod.id : pod.vendor + ':' + pod.id
-const paidWords = (pod: VendorPod): string => vendorLabel(pod.vendor) + ' · ' + (pod.vendor === 'huggingface' ? pod.name + ' · HF endpoint · ' + (pod.status === 'PROVISIONING' ? 'starting · ' + Math.max(0, Math.floor((Date.now() - Date.parse(pod.createdAt)) / 60_000)) + ' min' : pod.status) + ' · ' + price(pod.cost) : pod.family ? hostResourceLabel(pod) + ' · ' + pod.id + ' · ' + pod.status + ' · ' + price(pod.cost) : hostPaidPodWords(pod, readHostRecord(pod.id)))
+const paidWords = (pod: VendorPod): string => pod.vendor === 'huggingface' ? 'HF endpoint ' + pod.id + ' · ' + pod.name + ' · ' + (pod.status === 'PROVISIONING' ? 'starting · ' + Math.max(0, Math.floor((Date.now() - Date.parse(pod.createdAt)) / 60_000)) + ' min' : pod.status) + ' · ' + price(pod.cost) : pod.family ? 'Runpod cluster ' + pod.id + ' · ' + hostResourceLabel(pod) + ' · ' + pod.status + ' · ' + price(pod.cost) : hostPaidPodWords(pod, readHostRecord(pod.id))
 const price = (amount: number): string => '$' + amount.toFixed(2) + '/hr'
 const shape = hostShape
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const verifiedRank = (recipe: HostRecipe): number => ['measured', 'documented', 'community', 'unverified'].indexOf(hostRecipeVerificationWord(recipe))
-const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · ' + (vendor === 'huggingface' ? 'HF endpoint · ' + (pod.status === 'EXITED' ? 'Paused · no compute bills' : 'running · ' + price(pod.cost) + ' until Pause or Terminate') + ' · /llmhost → Pods I’m paying for' : pod.family ? 'cluster still billable · /llmhost → Pods I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : 'pod still running · /llmhost → Pods I’m paying for → ' + (vendor === 'lambda' ? 'Terminate (Lambda has no Stop)' : 'Stop or Terminate'))
+const keepWords = (pod: HostPod, vendor: HostVendorId): string => pod.id + ' · ' + (vendor === 'huggingface' ? 'HF endpoint · ' + (pod.status === 'EXITED' ? 'Paused · no compute bills' : 'running · ' + price(pod.cost) + ' until Pause or Terminate') + ' · /llmhost → Machines I’m paying for' : pod.family ? 'cluster still billable · /llmhost → Machines I’m paying for → Terminate' : pod.status === 'EXITED' ? words.stoppedDisk : 'machine still running · /llmhost → Machines I’m paying for → ' + (vendor === 'lambda' ? 'Terminate (Lambda has no Stop)' : 'Stop or Terminate'))
 
 async function forgetEndedPods(live: readonly HostPod[]): Promise<string[]> {
   const { configuredCompatEndpoints } = await import('../providers/openaicompat/compatAccounts.js')
@@ -69,6 +73,38 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     let api: HostVendor | undefined = options.rental?.client
     let selectedRental = options.rental?.offer
     const baseFor = (id: HostVendorId): string | undefined => options.vendorApiBaseUrls?.[id] ?? (id === 'runpod' ? options.apiBaseUrl : undefined)
+    const states = vendorReadSessions.get(sessionId) ?? new Map<string, VendorReadState>()
+    vendorReadSessions.set(sessionId, states)
+    const stateFor = (id: HostVendorId): VendorReadState => {
+      const identity = id + ':' + (baseFor(id) ?? '')
+      const credential = createHash('sha256').update(vendorKey(id) ?? '').digest('hex')
+      let state = states.get(identity)
+      if (!state || state.credential !== credential) { state = { credential, tail: Promise.resolve() }; states.set(identity, state) }
+      return state
+    }
+    const failedRead = (id: HostVendorId, error: unknown, operation = 'machines'): void => {
+      const secret = vendorKey(id)
+      const text = error instanceof Error ? error.message : String(error)
+      const detail = secret ? text.split(secret).join('[redacted]') : text
+      const status = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : Number(/HTTP\s+(\d{3})/.exec(detail)?.[1])
+      const parked = status === 401 || status === 403
+      stateFor(id).failure = { detail, parked, operation, summary: vendorLabel(id) + ': could not be read' + (status ? ' (HTTP ' + status + ')' : '') + (parked ? id === 'huggingface' ? ' · sign in again with /logins huggingface' : ' · replace the key to reconnect' : ' · select the row for details') + (operation === 'volumes' ? ' · weights disks unread; storage may still bill' : '') }
+    }
+    const readVendor = <T,>(id: HostVendorId, read: () => Promise<T>, operation = 'machines'): Promise<T> => {
+      const state = stateFor(id)
+      const turn = state.tail.then(async () => {
+        signal.throwIfAborted()
+        if (state.failure?.parked) throw new Error(state.failure.detail)
+        const previous = state.failure
+        try {
+          const result = await read()
+          if (state.failure === previous && previous?.operation === operation) state.failure = undefined
+          return result
+        } catch (error) { if (!signal.aborted) failedRead(id, error, operation); throw error }
+      })
+      state.tail = turn.then(() => {}, () => {})
+      return turn
+    }
     const clients = new Map<HostVendorId, HostVendor>()
     if (api) clients.set(vendor, api)
     const clientFor = (id: HostVendorId): HostVendor => {
@@ -80,8 +116,23 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     let record: HostRecord | undefined
     let saved: LlmHostResult | undefined
     let pendingName = ''
-    const stopped = (): LlmHostResult => ({ ok: false, words: pod ? keepWords(pod, vendor) : pendingName ? pendingName + ' · creation may still be running. /llmhost → Pods I’m paying for; no retry was sent.' : words.stopped })
-    const question: Parameters<LlmHostRoad>[0] = plan => lifetimeSignal.aborted ? Promise.resolve(null) : ask(plan)
+    const stopped = (): LlmHostResult => ({ ok: false, words: pod ? keepWords(pod, vendor) : pendingName ? pendingName + ' · creation may still be running. /llmhost → Machines I’m paying for; no retry was sent.' : words.stopped })
+    const question: Parameters<LlmHostRoad>[0] = async plan => {
+      if (decoratedQuestions.has(plan)) return ask(plan)
+      while (!lifetimeSignal.aborted) {
+        const failures = HOST_VENDORS.flatMap(id => { const failure = stateFor(id).failure; return failure ? [{ id, ...failure }] : [] })
+        const next = { ...plan, found: [...failures.map(row => row.summary), plan.found].filter(Boolean).join('\n'), ...(plan.rows ? { rows: [...plan.rows, ...failures.map(row => ({ value: 'vendor-error:' + row.id, label: vendorLabel(row.id) + (row.parked ? ' · sign in again' : ' · read error · details →') }))] } : {}) }
+        decoratedQuestions.add(next)
+        const choice = await ask(next)
+        if (!choice?.startsWith('vendor-error:')) return choice
+        const failure = failures.find(row => row.id === choice.slice(13))
+        if (!failure) continue
+        const detail = { step: 'door-vendor-error', title: vendorLabel(failure.id), found: failure.detail, willRun: failure.summary, rows: [{ value: 'back', label: 'Back' }] }
+        decoratedQuestions.add(detail)
+        if (await ask(detail) !== 'back') return null
+      }
+      return null
+    }
     const connect = async (id: HostVendorId): Promise<boolean> => {
       if (id === 'huggingface') {
         if (!vendorKey(id)) {
@@ -92,7 +143,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         const savedKey = vendorKey(id)
         if (!savedKey) { emit({ title: 'Hugging Face', words: 'No Hugging Face sign-in is saved. Connect with /logins huggingface, then return to /llmhost.' }); return false }
         const client = vendorClient(id, { apiBaseUrl: baseFor(id) })
-        try { await client.pods(signal) } catch (error) { emit({ title: 'Hugging Face', words: String(error).split(savedKey).join('[redacted]') }); return false }
+        try { await readVendor(id, () => client.pods(signal)) } catch { return false }
         clients.set(id, client)
         if (id === vendor) { key = savedKey; api = client }
         return true
@@ -112,11 +163,17 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       listsComplete = true
       listErrors = []
       const rows = await Promise.all(HOST_VENDORS.filter(id => vendorKey(id)).map(async id => {
-        try { return (await listHostResources(clientFor(id), signal, detail => { listsComplete = false; listErrors.push(vendorLabel(id) + ' · ' + detail); emit({ title: vendorLabel(id), words: detail }) })).map(row => ({ ...row, vendor: id })) }
-        catch (error) { listsComplete = false; listErrors.push(vendorLabel(id) + ' paid machines could not be read; count incomplete.'); emit({ title: vendorLabel(id), words: 'Paid machines could not be read; the other vendors are still shown. ' + String(error) }); return [] }
+        try { return (await readVendor(id, () => listHostResources(clientFor(id), signal, detail => { listsComplete = false; listErrors.push(vendorLabel(id)); failedRead(id, detail) }))).map(row => ({ ...row, vendor: id })) }
+        catch { listsComplete = false; listErrors.push(vendorLabel(id)); return [] }
       }))
       return rows.flat()
     }
+    const paidCount = (pods: readonly VendorPod[]): string => String(pods.length) + (listsComplete ? '' : '+? · ' + [...new Set(listErrors)].map(label => label + ' unread').join(' · '))
+    const paidSummary = (pods: readonly VendorPod[]): string => HOST_VENDORS.filter(id => vendorKey(id)).map(id => {
+      const label = vendorLabel(id)
+      const count = pods.filter(row => row.vendor === id).length
+      return label + ': ' + (listErrors.includes(label) ? 'unread' : count ? count + (id === 'huggingface' ? ' endpoints' : id === 'runpod' ? ' pods' : ' instances') : id === 'vast' || id === 'lambda' ? 'no instances' : id === 'huggingface' ? 'no endpoints' : 'none')
+    }).join(' · ') || 'No vendors connected; connect a vendor to read its account.'
     const mark = (): void => {
       if (!pod) return
       emit({ title: words.manage, words: [record?.weightsCheck, record?.step, record?.error, record ? hostLogTail(record) : ''].filter(Boolean).join(' · ') || keepWords(pod, vendor), host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(api?.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.step === 'building llama.cpp' ? record.step + ' ' + Math.floor((Date.now() - (record.advancedAt ?? Date.now())) / 60_000) + ' min' : record?.step } })
@@ -168,7 +225,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (action === 'terminate') {
           progress('terminating · waiting for ' + api.label + ' to drop it from the account list')
           try { await terminateHostResource(api, pod, confirming) } catch (error) {
-            const detail = pod.id + ' · ' + plain(error) + (error instanceof HostTerminationUnconfirmed ? ' · it may still bill; Terminate again once ' + api.label + ' answers' : ' · it may still bill · /llmhost → Pods I’m paying for → Terminate again')
+            const detail = pod.id + ' · ' + plain(error) + (error instanceof HostTerminationUnconfirmed ? ' · it may still bill; Terminate again once ' + api.label + ' answers' : ' · it may still bill · /llmhost → Machines I’m paying for → Terminate again')
             emit({ title: words.manage, words: detail })
             saved = { ok: false, words: detail }
             continue
@@ -182,7 +239,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           removeHostRecord(pod.id)
           if (weightsChoice === 'delete' && volumeId) {
             try { await deleteKeptVolume(runpodOnly(api, 'Fast-load weights disks'), volumeId) } catch (error) {
-              const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Pods I’m paying for → Delete. ' + String(error)
+              const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error)
               emit({ title: words.manage, words: detail, host: { id: pod.id, price: 0, startedAt: pod.createdAt, status: 'TERMINATED' } })
               return { ok: false, words: detail }
             }
@@ -198,7 +255,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           while (Date.now() < deadline) { pod = await confirming('pod', readSignal => api!.get(pod!.id, readSignal)); if (pod.status === 'EXITED') break; await delay(pauseMs, undefined, { signal }) }
           if (pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.')
         } catch (error) {
-          const detail = pod.id + ' · ' + plain(error) + ' · compute may still bill · /llmhost → Pods I’m paying for → Stop again or Terminate'
+          const detail = pod.id + ' · ' + plain(error) + ' · compute may still bill · /llmhost → Machines I’m paying for → Stop again or Terminate'
           emit({ title: words.manage, words: detail })
           saved = { ok: false, words: detail }
           continue
@@ -209,7 +266,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     }
     const adoptRented = async (rented: HostRecord): Promise<LlmHostResult> => {
       vendor = rented.vendor ?? 'runpod'
-      if (!vendorKey(vendor)) return { ok: true, words: rented.id + ' · rented by the stock watch on ' + vendorLabel(vendor) + ' · /llmhost → Pods I’m paying for' }
+      if (!vendorKey(vendor)) return { ok: true, words: rented.id + ' · rented by the stock watch on ' + vendorLabel(vendor) + ' · /llmhost → Machines I’m paying for' }
       key = vendorKey(vendor); api = clientFor(vendor)
       pod = await getHostResource(api, rented.id, signal); record = rented
       return finish()
@@ -224,7 +281,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       }
       const creating = readHostRecord(watchId)?.creating
       removeHostRecord(watchId)
-      const ended = creating ? 'Stock watch cancelled while creating ' + creating + ' · that pod may exist: /llmhost → Pods I’m paying for' : 'Stock watch cancelled · no pod was created.'
+      const ended = creating ? 'Stock watch cancelled while creating ' + creating + ' · that machine may exist: /llmhost → Machines I’m paying for' : 'Stock watch cancelled · no machine was created.'
       emit({ title: words.paid, words: ended })
       return { ok: !creating, words: ended }
     }
@@ -233,7 +290,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         const rented = hostRecords().find(row => row.watchedFrom === watchId)
         if (rented) return adoptRented(rented)
         const watch = readHostRecord(watchId)
-        if (!watch || watch.jobState === 'stopped' || watch.jobState === 'failed') return { ok: watch?.jobState !== 'failed', words: watch?.error ?? 'Stock watch ended · no pod was created.' }
+        if (!watch || watch.jobState === 'stopped' || watch.jobState === 'failed') return { ok: watch?.jobState !== 'failed', words: watch?.error ?? 'Stock watch ended · no machine was created.' }
         const markWatch = (current: HostRecord): void => emit({ title: words.manage, words: current.step ?? 'watching for stock ≤ ' + price(current.maxPrice ?? current.price), host: { id: current.id, price: current.maxPrice ?? current.price, startedAt: current.startedAt, status: 'WATCHING', step: current.step } })
         markWatch(watch)
         const refresh = setInterval(() => {
@@ -248,7 +305,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         } finally { clearInterval(refresh) }
         const rentedAfter = hostRecords().find(row => row.watchedFrom === watchId)
         if (rentedAfter) return adoptRented(rentedAfter)
-        if (!action || action === 'close') return { ok: true, words: watch.id + ' · watching for stock ≤ ' + price(watch.maxPrice ?? watch.price) + ' · /llmhost → Pods I’m paying for → Cancel' }
+        if (!action || action === 'close') return { ok: true, words: watch.id + ' · watching for stock ≤ ' + price(watch.maxPrice ?? watch.price) + ' · /llmhost → Machines I’m paying for → Cancel' }
         if (action === 'cancel') return cancelWatch(watchId)
       }
     }
@@ -299,15 +356,17 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       const sameModel = (a: string, b: string): boolean => a.replace(/[^a-z0-9]/gi, '').toLowerCase() === b.replace(/[^a-z0-9]/gi, '').toLowerCase()
       if (!isHostDoorReentry(ask)) return await runModelDoor(question, emit, signal, {
         initialModel: initialDoorModel(ask),
-        offers: () => vendorKey('runpod') ? clientFor('runpod').offers(signal) : Promise.resolve(undefined),
+        managedReadErrors: true,
+        offers: () => vendorKey('runpod') ? readVendor('runpod', () => clientFor('runpod').offers(signal), 'stock') : Promise.resolve(undefined),
         pods: async () => {
           const pods = await paidPods()
           if (listsComplete && hostRecords().every(row => vendorKey(row.vendor ?? 'runpod'))) for (const line of await forgetEndedPods(pods)) emit({ title: words.paid, words: line })
           return pods
         },
         podErrors: () => listErrors,
-        get vendors() { return HOST_VENDORS.filter(id => id !== 'runpod' && vendorKey(id)).map(clientFor) },
+        get vendors() { return HOST_VENDORS.filter(id => id !== 'runpod' && vendorKey(id)).map(id => { const client = clientFor(id); return new Proxy(client, { get(target, property) { if (property === 'offers') return (abort: AbortSignal) => readVendor(id, () => target.offers(abort), 'stock'); const value = Reflect.get(target, property); return typeof value === 'function' ? value.bind(target) : value } }) }) },
         connectVendor: connect,
+        manageKey: id => manageVendorKey(id, question, emit, signal, { apiBaseUrl: baseFor(id), changed: () => { clients.delete(id); if (id === vendor) { key = vendorKey(id); api = undefined } } }),
         confirmRental: question,
         rentVendor: (client, offer, rentAsk, rentEmit, rentSignal) => rentDoorVendor(createHostRoad({ ...options, rental: { client: clientFor(client.vendor as HostVendorId), offer } }), client, offer, rentAsk, rentEmit, rentSignal),
         records: hostRecords,
@@ -333,9 +392,9 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (listsComplete && hostRecords().every(row => vendorKey(row.vendor ?? 'runpod'))) for (const line of await forgetEndedPods(pods)) emit({ title: words.paid, words: line })
       let volumes: Awaited<ReturnType<RunpodClient['volumes']>> = []
       let volumeListError = ''
-      if (vendorKey('runpod')) try { volumes = await reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal) } catch (error) { volumeListError = ' + volumes unread'; emit({ title: words.paid, words: 'Volume list unavailable; billed count is incomplete. ' + String(error) }) }
+      if (vendorKey('runpod')) try { volumes = await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes') } catch { volumeListError = ' + volumes unread' }
       const watches = activeWatches()
-      const door = await question({ step: 'where', title: words.where, found: 'Choose where the model runs. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + (pods.length + watches.length + volumes.length) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
+      const door = await question({ step: 'where', title: words.where, found: 'Choose where the model runs. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + paidCount(pods) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
       if (!door) return stopped()
       if (door === 'existing') return runLlmHost(ask, emit, signal)
       if (door === 'boxes') return createBoxRoad(runner)(ask, emit, signal)
@@ -357,9 +416,9 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         if (door === 'pods' || door.startsWith('pod:') || door.startsWith('watch:')) {
           if (door.startsWith('watch:')) return cancelWatch(door.slice(6))
           pods = await paidPods()
-          volumes = vendorKey('runpod') ? await reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal).catch(error => { emit({ title: words.paid, words: 'Volume list unavailable; weights disks are not shown and may still bill. ' + String(error) }); return [] }) : []
+          volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => []) : []
           const liveWatches = activeWatches()
-          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: 'Live account list, including pods created outside Mercury, volumes and stock watches. Disks bill without a pod; external volumes are read-only.', willRun: listErrors.join(' · '), rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
+          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including machines created outside Mercury, volumes and stock watches. Disks bill without a machine; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
           if (!id) return stopped()
           if (id.startsWith('volume:')) return volumeDeleteDoor(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), id.slice(7), question, signal)
           if (id.startsWith('watch:')) { api = clientFor('runpod'); return cancelWatch(id.slice(6)) }
@@ -421,7 +480,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           }
           if (selectedRental) {
             offer = modelOffers.find(row => row.recipe.id === selectedRental!.recipe.id && row.gpuId === selectedRental!.gpuId && row.dataCenter === selectedRental!.dataCenter && row.hostingType === selectedRental!.hostingType && row.price === selectedRental!.price)
-            if (!offer) throw new Error('That offer changed. Open the model again for fresh stock and prices; no pod was created.')
+            if (!offer) throw new Error('That offer changed. Open the model again for fresh stock and prices; no machine was created.')
             selectedRental = undefined
           } else if (modelOffers.length === 1 && !forceShapeList) {
             offer = modelOffers[0]!
@@ -440,7 +499,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           const client = api
           offer = await confirmTunedRental(offer, offers, budget, question, emit, signal, async row => {
             if (client.capabilities.managed) return { willRun: vendorKeyNotice(vendor) + '. Billing starts now. If initial setup fails, Mercury deletes the endpoint and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · API only — not yet booted', vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this HF endpoint' }
-            if (vendor !== 'runpod') return { willRun: (bankUploadPreference(row.recipe) ? 'Uploads your bank to the rented machine · ' + bankUploadEstimate(row.recipe) + '. This machine bills throughout the upload.' : hostSetupEstimate(row.recipe)) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this pod' }
+            if (vendor !== 'runpod') return { willRun: (bankUploadPreference(row.recipe) ? 'Uploads your bank to the rented machine · ' + bankUploadEstimate(row.recipe) + '. This machine bills throughout the upload.' : hostSetupEstimate(row.recipe)) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this instance' }
             const kept = await rentalVolume(runpodOnly(client, 'Fast-load weights disks'), row.recipe, signal)
             return {
               titleSuffix: kept?.state === 'kept' ? ' · weights kept' : ' · cold rental',
@@ -515,7 +574,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     } catch (error) {
       const detail = key ? String(error).split(key).join('[redacted]') : String(error)
       if (pod) { saved = { ok: false, words: detail }; mark(); emit({ title: words.manage, words: detail }); if (!lifetimeSignal.aborted) return finish() }
-      return { ok: false, words: (signal.aborted ? stopped().words : pod ? detail + ' · ' + keepWords(pod, vendor) : pendingName ? pendingName + ' may exist; check Pods I’m paying for before retrying · ' + detail : detail) }
+      return { ok: false, words: (signal.aborted ? stopped().words : pod ? detail + ' · ' + keepWords(pod, vendor) : pendingName ? pendingName + ' may exist; check Machines I’m paying for before retrying · ' + detail : detail) }
     }
   }
 }

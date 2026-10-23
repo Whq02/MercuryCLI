@@ -54,7 +54,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   }
   const log = (text: string): void => {
     if (initial.log && text) appendFileSync(initial.log, clean(text) + '\n', { mode: 0o600 })
-    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim())
+    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim().replace(/^downloading weights(?= ·|$)/, 'downloading weights on the machine'))
   }
   let offset = 0
   let logBusy = false
@@ -211,7 +211,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         } catch (error) {
           const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
-            const words = podName + ' may exist: ' + vendorLabel(hit) + ' gave no clear answer to the create · /llmhost → Pods I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
+            const words = podName + ' may exist: ' + vendorLabel(hit) + ' gave no clear answer to the create · /llmhost → Machines I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
             log(words)
             const failed = patchHostRecord(id, { jobState: 'failed', error: words, step: words })
             if (failed) hostNotice(failed, 'failed', failed.name + ' · ' + words)
@@ -265,7 +265,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const current = readHostRecord(id)
       if (current && current.generation === generation && current.jobState !== 'stopped') {
         const detail = clean(String(error))
-        const words = created ? created.id + ' was created but could not be recorded · ' + detail + ' · /llmhost → Pods I’m paying for' : 'stock watch stopped · ' + detail + (detail.includes('no pod was created') ? '' : ' · no pod was created')
+        const words = created ? created.id + ' was created but could not be recorded · ' + detail + ' · /llmhost → Machines I’m paying for' : 'stock watch stopped · ' + detail + (detail.includes('no pod was created') ? '' : ' · no pod was created')
         const failedRecord = patchHostRecord(id, { jobState: 'failed', error: words })!
         log(words)
         hostNotice(failedRecord, 'failed', failedRecord.name + ' · ' + words)
@@ -428,7 +428,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         const endedVolume = initial.volumeId && readKeptVolume(initial.volumeId)
         if (endedVolume && endedVolume.preparingPod === id) writeKeptVolume({ ...endedVolume, preparingPod: undefined })
         const ended = missing
-          ? 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Pods I’m paying for shows it' + (disk ? ' · ' + next : '')
+          ? 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Machines I’m paying for shows it' + (disk ? ' · ' + next : '')
           : detail + ' · ' + resource + ' terminated and verified absent' + (initial.cluster ? ' (Runpod no longer lists it)' : '') + ' · ' + (disk || 'nothing more bills') + ' · ' + next
         log(ended)
         hostNotice(initial, 'failed', initial.name + ' · ' + ended)
@@ -437,7 +437,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         closeHostTunnel(id)
         return
       } catch (cleanup) {
-        const words = detail + ' · ' + (cleanup instanceof HostTerminationUnconfirmed ? plain(cleanup) : 'Mercury could not verify ' + resource + ' termination: ' + plain(cleanup) + ' · check your account; ' + resource + ' ' + id + ' may still bill') + (disk ? ' · ' + disk : '') + ' · /llmhost → Pods I’m paying for → Terminate'
+        const words = detail + ' · ' + (cleanup instanceof HostTerminationUnconfirmed ? plain(cleanup) : 'Mercury could not verify ' + resource + ' termination: ' + plain(cleanup) + ' · check your account; ' + resource + ' ' + id + ' may still bill') + (disk ? ' · ' + disk : '') + ' · /llmhost → Machines I’m paying for → Terminate'
         log(words)
         patchHostRecord(id, { jobState: 'failed', error: words, step: words })
         hostNotice(initial, 'failed', initial.name + ' · ' + words)
@@ -457,9 +457,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (error instanceof HostClusterEnded) {
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
-      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Pods I’m paying for')
-      else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Pods I’m paying for → Resume to reconnect, Terminate to stop the bill')
-      else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Pods I’m paying for → Resume or Terminate')
+      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
+      else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
+      else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
     }
     closeHostTunnel(id)
   } finally { clearInterval(timer) }

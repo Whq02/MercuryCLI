@@ -60,7 +60,7 @@ export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal
   if (rows.length > 1) throw new Error('Multiple weights disks for this model; open /llmhost → Bank before renting.')
   const volume = rows[0]
   if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh /llmhost → Bank before renting. No retry was sent.')
-  if (volume?.state === 'preparing' && volume.preparingPod && (await api.pods(signal)).some(pod => pod.id === volume.preparingPod)) throw new Error('Pod ' + volume.preparingPod + ' is still filling weights disk ' + volume.id + '; rent when the Bank shows it kept, or terminate that pod in Pods I’m paying for. No pod was created.')
+  if (volume?.state === 'preparing' && volume.preparingPod && (await api.pods(signal)).some(pod => pod.id === volume.preparingPod)) throw new Error('Pod ' + volume.preparingPod + ' is still filling weights disk ' + volume.id + '; rent when the Bank shows it kept, or terminate that pod in Machines I’m paying for. No pod was created.')
   return volume
 }
 async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
@@ -78,7 +78,7 @@ async function createKeptVolumeLocked(api: RunpodClient, recipe: HostRecipe, kin
     return created
   } catch (error) {
     if (createRefusal(error)) { removeRecord(record.id); throw new Error('Runpod refused the weights disk. ' + String(error)) }
-    throw new Error(record.name + ' may exist and bill: Runpod gave no clear create answer. Refresh the Bank or Pods I’m paying for before retrying. ' + String(error))
+    throw new Error(record.name + ' may exist and bill: Runpod gave no clear create answer. Refresh the Bank or Machines I’m paying for before retrying. ' + String(error))
   }
 }
 export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string, signal: AbortSignal): Promise<KeptVolume> {
@@ -95,10 +95,10 @@ export async function deleteKeptVolume(api: RunpodClient, id: string, readOnly?:
       const mounting = (await api.pods().catch((): HostPod[] => [])).filter(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))
       throw new Error('Runpod refused to delete ' + id + (mounting.length ? ' while ' + mounting.map(pod => pod.id + ' (' + pod.status + ')').join(', ') + (mounting.length > 1 ? ' still mount it; terminate those pods first' : ' still mounts it; terminate that pod first') + (record.kind === 'global' ? ' (a stopped pod still counts).' : '.') : '.') + ' Nothing was deleted; the disk still bills ' + keptDiskPrice(record) + '. ' + (error as Error).message)
     }
-    if (!(error instanceof RunpodHttpError && error.status === 404)) throw new Error('Runpod gave no clear answer to deleting ' + id + '; it may still exist and bill ' + keptDiskPrice(record) + '. Refresh Pods I’m paying for before trying again. ' + String(error))
+    if (!(error instanceof RunpodHttpError && error.status === 404)) throw new Error('Runpod gave no clear answer to deleting ' + id + '; it may still exist and bill ' + keptDiskPrice(record) + '. Refresh Machines I’m paying for before trying again. ' + String(error))
   }
   let listed: HostVolume[]
-  try { listed = await (readOnly ? readOnly('volume listing', signal => api.volumes(signal)) : api.volumes()) } catch (error) { throw new Error('Deletion of ' + id + ' was sent, but Runpod did not confirm the disk is gone: ' + (error instanceof Error ? error.message : String(error)) + ' · it may still bill ' + keptDiskPrice(record) + ' · refresh Pods I’m paying for before trying again.') }
+  try { listed = await (readOnly ? readOnly('volume listing', signal => api.volumes(signal)) : api.volumes()) } catch (error) { throw new Error('Deletion of ' + id + ' was sent, but Runpod did not confirm the disk is gone: ' + (error instanceof Error ? error.message : String(error)) + ' · it may still bill ' + keptDiskPrice(record) + ' · refresh Machines I’m paying for before trying again.') }
   if (listed.some(row => row.id === id)) throw new Error('Runpod still lists the disk; deletion is not yet verified and storage may still bill.')
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })
 }

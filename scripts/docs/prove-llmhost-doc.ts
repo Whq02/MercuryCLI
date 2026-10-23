@@ -64,6 +64,7 @@ function schemaStampOptions(): string[] {
 }
 
 let liveMenuLabel = ''
+let livePaidLabel = ''
 async function liveWhereRows(): Promise<string[]> {
   let rows: string[] = []
   const road = createHostRoad({
@@ -74,7 +75,7 @@ async function liveWhereRows(): Promise<string[]> {
   })
   await road(
     async plan => {
-      if (plan.step === 'door-models') { liveMenuLabel = normQuotes(plan.rows?.find(row => row.value === 'other')?.label ?? ''); return 'other' }
+      if (plan.step === 'door-models') { liveMenuLabel = normQuotes(plan.rows?.find(row => row.value === 'other')?.label ?? ''); livePaidLabel = normQuotes(plan.rows?.find(row => row.value === 'pods')?.label.split('\n').at(-1)?.split(' · ')[0] ?? ''); return 'other' }
       if (plan.step === 'where') {
         rows = (plan.rows ?? []).map(row => normQuotes(row.label))
         return null
@@ -269,6 +270,7 @@ check('each of the four stamps (measured, documented, community, unverified) sta
 section('§2 More options → entries equal the live where-step rows')
 check('every mention of the menu in docs/LLM-HOST.md uses the label the Which-model screen paints (' + liveMenuLabel + ') and the retired Other roads → name is gone', liveMenuLabel.length > 0 && (docText.match(/`More options →`/g) ?? []).length >= 7 && docText.split('`' + liveMenuLabel + '`').length - 1 === (docText.match(/`More options →`/g) ?? []).length && !docText.includes('Other roads'))
 check('the More options → menu list in docs/LLM-HOST.md equals the where-step rows in order and drops Fast-load (keep weights near the GPU)', res.otherRoadsMatch, `${res.detail.docOtherRoads} vs ${res.detail.expectedWhereRows}`)
+check('the paid-machine screen label is read from the live model menu and documented', livePaidLabel === "Machines I'm paying for" && normQuotes(docText).includes('**' + livePaidLabel + '**'))
 
 section('§3 Bank keys & table columns equal BANK_KEYS and fastLoad.ts')
 check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d, k and their labels)', res.bankKeysMatch, `${res.detail.bankKeyMatches} vs ${res.detail.expectedBankKeys}`)

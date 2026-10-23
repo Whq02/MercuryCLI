@@ -128,13 +128,13 @@ try {
   check('warm worker uses samples, records the method and shows it on the pod row', ssh.state.sampledChecks === 1 && readHostRecord('fixture-pod-2')?.weightsCheck === 'weights kept · sampled check passed' && volumes.readKeptVolume(kept.id)?.verifiedSums?.check === 'sampled')
   check('warm verification preserves the original filling pod and records the checker separately', volumes.readKeptVolume(kept.id)?.filledBy === 'fixture-pod-1' && volumes.readKeptVolume(kept.id)?.checkedBy === 'fixture-pod-2')
   check('engine runs from verified kept path', ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid') && r.args.at(-1).includes(keptWeightsPath(qwen))))
-  await heading('Pod controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await heading('Keep the weights disk'); await capture('06-terminate-weights')
+  await heading('Machine controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await heading('Keep the weights disk'); await capture('06-terminate-weights')
   check('terminate does not delete pod or disk before keep-or-delete answer', rp.state.deletes === 1 && rp.state.volumeDeletes === 0)
-  await choose('Keep the weights disk'); await until('Pod terminated'); check('keep terminates the pod while retaining the billed disk', rp.state.pods.size === 0 && rp.state.volumes.has(kept.id)); await close()
-  open(); await until('Which model?'); await focus('Pods I’m paying for'); check('first-screen paid count includes a volume with no pod', m.screen().includes('Pods I’m paying for · 1')); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?')
+  await choose('Keep the weights disk'); await until('Machine terminated'); check('keep terminates the pod while retaining the billed disk', rp.state.pods.size === 0 && rp.state.volumes.has(kept.id)); await close()
+  open(); await until('Which model?'); await focus('Machines I’m paying for'); check('first-screen machine count excludes a volume with no machine but discloses its storage bill', m.screen().includes('Machines I’m paying for · 0') && m.screen().includes('weights disks bill monthly')); await choose('Machines I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?')
   check('Delete warns that the next rental downloads again before removal', m.screen().includes('next rental downloads') && rp.state.volumeDeletes === 0)
   await choose('Cancel'); await close(); check('cancelled Delete leaves the disk intact', rp.state.volumes.has(kept.id))
-  open(); await until('Which model?'); await choose('Pods I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?'); await choose('Confirm Delete'); await until('Weights disk deleted'); await close()
+  open(); await until('Which model?'); await choose('Machines I’m paying for'); await until(kept.id); await choose(kept.id); await heading('Delete weights disk?'); await choose('Confirm Delete'); await until('Weights disk deleted'); await close()
   check('confirmed Delete removes and verifies the live disk', !rp.state.volumes.has(kept.id) && rp.state.volumeDeletes === 1 && volumes.readKeptVolume(kept.id)?.state === 'gone')
   const nemotron = table.find(row => row.id === 'nemotron35-super-gguf-rtx-pro-6000')!
   let nextConfirm: any
@@ -224,7 +224,7 @@ try {
     throw new Error('Unexpected shared-volume step ' + q.step)
   }, () => {}, signal)
   check('lost local pod record still asks about the owned disk using live mounts', liveMountAsked)
-  check('disk delete refusal reports pod gone and surviving billed disk, never pod still running', !failedDelete.ok && failedDelete.words.includes('Pod terminated') && failedDelete.words.includes('may still bill') && !rp.state.pods.has(sharedPod.id) && rp.state.volumes.has(shared.id))
+  check('disk delete refusal reports pod gone and surviving billed disk, never machine still running', !failedDelete.ok && failedDelete.words.includes('Machine terminated') && failedDelete.words.includes('may still bill') && !rp.state.pods.has(sharedPod.id) && rp.state.volumes.has(shared.id))
   const deletesBeforeMounted = rp.state.volumeDeletes
   const mountedDelete = await volumeDeleteDoor(api, shared.id, async q => q.step === 'volume-delete' ? 'delete' : null, signal)
   check('Delete on a disk a pod still mounts names that pod, says terminate it first and that nothing was deleted', !mountedDelete.ok && mountedDelete.words.startsWith('Runpod refused to delete ' + shared.id + ' while ' + otherPod.id + ' (') && mountedDelete.words.includes('still mounts it; terminate that pod first (a stopped pod still counts).') && mountedDelete.words.includes('Nothing was deleted; the disk still bills ~$') && rp.state.volumes.has(shared.id) && rp.state.volumeDeletes === deletesBeforeMounted && volumes.readKeptVolume(shared.id)?.state !== 'gone')
@@ -245,7 +245,7 @@ try {
   const unconfirmedDisk = await volumes.createKeptVolume(api, qwen, 'global', 'any DC', signal)
   const unconfirmedDelete = await volumeDeleteDoor(api, unconfirmedDisk.id, async q => { if (q.step !== 'volume-delete') return null; rp.state.failNext = { route: 'GET /v2/network-volumes', status: 503, times: 1000 }; return 'delete' }, signal, () => {}, 300)
   rp.state.failNext = null
-  check('a delete whose listing never answers says the deletion was sent but not confirmed, that the disk may still bill, and keeps its record', !unconfirmedDelete.ok && unconfirmedDelete.words.startsWith('Deletion of ' + unconfirmedDisk.id + ' was sent, but Runpod did not confirm the disk is gone: ') && unconfirmedDelete.words.includes('it may still bill') && unconfirmedDelete.words.includes('refresh Pods I’m paying for') && volumes.readKeptVolume(unconfirmedDisk.id)?.state !== 'gone' && !rp.state.volumes.has(unconfirmedDisk.id))
+  check('a delete whose listing never answers says the deletion was sent but not confirmed, that the disk may still bill, and keeps its record', !unconfirmedDelete.ok && unconfirmedDelete.words.startsWith('Deletion of ' + unconfirmedDisk.id + ' was sent, but Runpod did not confirm the disk is gone: ') && unconfirmedDelete.words.includes('it may still bill') && unconfirmedDelete.words.includes('refresh Machines I’m paying for') && volumes.readKeptVolume(unconfirmedDisk.id)?.state !== 'gone' && !rp.state.volumes.has(unconfirmedDisk.id))
   await volumes.deleteKeptVolume(api, unconfirmedDisk.id)
   const beforeStub = { disks: rp.state.volumeCreates, pods: rp.state.creates, commands: ssh.commands.length }
   await mirrorToVolume(api, fastLoadRecipes().find(row => row.model === qwen.model)!, async q => {
@@ -408,8 +408,8 @@ try {
   const plainPod = await api.create(failOffer, sshKey.publicKey, 'fixture-plain')
   const paidWords: string[] = []
   let paidRows: string[] = []
-  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') paidRows = (q.rows ?? []).map(row => row.value); return null }, update => { paidWords.push(update.words) }, signal)
-  check('an unreadable volume list still lists billed pods for Stop or Terminate and says disks are not shown', paidRows.includes(plainPod.id) && paidWords.some(words => words.includes('Volume list unavailable; weights disks are not shown and may still bill')))
+  await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'pods'; if (q.step === 'paid-pods') { paidRows = (q.rows ?? []).map(row => row.value); paidWords.push(q.found); return 'vendor-error:runpod' } if (q.step === 'door-vendor-error') paidWords.push(q.found); return null }, update => { paidWords.push(update.words) }, signal)
+  check('an unreadable volume list still lists billed machines and exposes the disk billing warning with error details behind its row', paidRows.includes(plainPod.id) && paidRows.includes('vendor-error:runpod') && paidWords.some(words => words.includes('weights disks unread; storage may still bill')) && paidWords.some(words => words.includes('503')))
   let reachedRentConfirm = false
   await road(async q => { if (q.step === 'door-models') return 'other'; if (q.step === 'where') return 'rent'; if (q.step === 'rental-vendor') return 'runpod'; if (q.step === 'budget') return ''; if (q.step === 'models') return 'Qwen3.8-27B'; if (q.step === 'offers') return '0'; if (q.step === 'rent-confirm') reachedRentConfirm = true; return null }, () => {}, signal)
   check('renting a model without a weights disk needs no volume read, so a volume outage does not block it', reachedRentConfirm)

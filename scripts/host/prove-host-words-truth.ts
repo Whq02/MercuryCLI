@@ -9,9 +9,9 @@ pinSourceRef()
 const root = join(import.meta.dir, '../..')
 const SURFACES = ['src/services/host', 'src/services/llmHost/index.ts', 'src/commands/llmhost', 'src/commands/host/index.ts', 'src/services/providers/openaicompat/compatRefusals.ts', 'src/services/providers/openaicompat/compatToolSchemas.ts', 'src/components/LlmHostDialog.tsx']
 const HOUSE_WORDS = /\b(doors?|roads?|seats?|folds?|lanes?|ladders?|owners?|laws?|pins?|provers?)\b/i
-const SCREENS = ['Pods I’m paying for', 'Bank', 'Rent a GPU', 'the model', 'A server that’s already running', 'A box I can reach by SSH', 'One of my computers']
+const SCREENS = ['Machines I’m paying for', 'Bank', 'Rent a GPU', 'the model', 'A server that’s already running', 'A box I can reach by SSH', 'One of my computers']
 const RETIRED_SCREENS = [/→ Fast-load\b/, /\b(open|refresh|reopen)(ing)? Fast-load\b/i, /\bFast-load (closed|shows|does not|screen)\b/]
-const NEXT_STEPS = ['/llmhost', 'Pods I’m paying for', 'Bank', 'Resume', 'Terminate', 'Cancel', 'Refresh', 'try again', 'rent again', 'check your account', 'console', 'b banks', 'b resumes', 'Connect']
+const NEXT_STEPS = ['/llmhost', 'Machines I’m paying for', 'Bank', 'Resume', 'Terminate', 'Cancel', 'Refresh', 'try again', 'rent again', 'check your account', 'console', 'b banks', 'b resumes', 'Connect']
 const FAILURE_KINDS = new Set(['failed', 'stalled'])
 let checks = 0
 const failures: string[] = []

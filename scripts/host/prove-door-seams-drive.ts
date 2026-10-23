@@ -28,7 +28,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const request = new Request(input, init)
   const url = new URL(request.url)
   const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', '') } as Record<string, string>)[url.origin]
-  if (denyVastPods && url.origin === 'https://console.vast.ai' && url.pathname === '/api/v0/instances/') return Response.json({ error: 'fixture list unavailable' }, { status: 503 })
+  if (denyVastPods && url.origin === 'https://console.vast.ai' && url.pathname === '/api/v1/instances/') return Response.json({ error: 'fixture list unavailable' }, { status: 503 })
   if (base) return nativeFetch(new Request(base + url.pathname + url.search, request))
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('Seam proof only permits loopback fixtures') }
   return nativeFetch(request)
@@ -102,9 +102,9 @@ try {
       let details = mounted!.screen()
       for (;;) {
         const marker = /Details (\d+)–(\d+) of (\d+)/.exec(mounted!.screen())
-        if (!marker || marker[2] === marker[3]) break
+        if (marker ? marker[2] === marker[3] : !mounted!.screen().includes('pgup/pgdn details')) break
         const before = mounted!.screen()
-        mounted!.push('\x1b[6~'); await until(() => mounted!.screen() !== before, 'details page')
+        mounted!.push('\x1b[6~'); if (!await waitFor(() => mounted!.screen() !== before, 1500)) break
         details += '\n' + mounted!.screen()
         check(columns + ' ' + model + ' pages facts without losing the selected vendor', selected().includes('Connect Runpod'))
       }
@@ -154,8 +154,8 @@ try {
     denyVastPods = true
     await open(road, 80); await step('door-models'); await capture('partial-list')
     check('a failed vendor list cannot delete either vendor record', readHostRecord('missing-runpod') && readHostRecord('missing-vast'))
-    check('partial lists are visibly incomplete', mounted!.screen().replace(/[│\s]+/g, ' ').includes('count incomplete'))
-    await choose('Pods I’m paying for'); await step('paid-pods'); await capture('partial-paid'); await close()
+    check('partial lists are visibly incomplete', plan!.rows!.find(row => row.value === 'pods')!.label.includes('+? · Vast.ai unread'))
+    await choose('Machines I’m paying for'); await step('paid-pods'); await capture('partial-paid'); await close()
     denyVastPods = false
     await open(road); await step('door-models')
     check('complete lists remove genuinely ended records and their model entries', !readHostRecord('missing-runpod') && !readHostRecord('missing-vast') && !configuredCompatEndpoints().some(row => row.name.startsWith('missing-')))

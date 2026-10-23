@@ -17,7 +17,9 @@ const { gridToPng } = await import('../ui/gridToPng.ts')
 const at = process.argv.indexOf('--frames')
 const frames = at < 0 ? undefined : process.argv[at + 1]
 let mounted: Mounted | undefined
-const words = 'Pod terminated · its volume disk is deleted.'
+const { LLM_HOST_WORDS } = await import('../../src/commands/llmhost/words.ts')
+const words = LLM_HOST_WORDS.terminatedPod
+assert.equal(words, 'Machine terminated · its disk is deleted.')
 function Scene() {
   const [line, setLine] = React.useState('')
   const [hint, setHint] = React.useState<string | null>(null)
@@ -27,7 +29,7 @@ function Scene() {
     React.createElement(Text, {}, hint)))
 }
 const road: NonNullable<Parameters<typeof LlmHostDialog>[0]['road']> = async (_ask, emit) => {
-  emit({ title: 'Pod controls', words, host: { id: 'ended-pod', price: 0, startedAt: new Date().toISOString(), status: 'TERMINATED' } })
+  emit({ title: 'Machine controls', words, host: { id: 'ended-pod', price: 0, startedAt: new Date().toISOString(), status: 'TERMINATED' } })
   return { ok: true, words }
 }
 try {

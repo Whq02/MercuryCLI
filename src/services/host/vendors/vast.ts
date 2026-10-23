@@ -115,7 +115,7 @@ export class VastClient implements HostVendor {
         }
         for (const recipe of rows) {
           if (!recipeFits(recipe, gpuId, gigabytes(hardware.gpu_ram), hardware.num_gpus)) continue
-          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'community host' : 'hosting type unknown' }
+          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'community host' : 'host' }
           this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
           offers.push(offer)
         }
@@ -194,7 +194,7 @@ export class VastClient implements HostVendor {
         if (await listed().catch(() => false)) return
         throw new Error(this.api.redact('Vast.ai did not confirm Mercury’s SSH key on the account; no rent was sent. ' + (error instanceof Error ? error.message : String(error)) + ' Check SSH keys at https://cloud.vast.ai/manage-keys/.'))
       }
-    })
+    }).catch(error => { throw new HostCreateError(this.api.redact('no instance was created — the SSH key step failed: ' + (error instanceof Error ? error.message : String(error))), 'refused') })
   }
   async create(offer: HostOffer, publicKey: string, name: string, _volume?: Parameters<HostVendor['create']>[3], findReplacement = true): Promise<HostPod> {
     const placement = this.placements.get(offer)

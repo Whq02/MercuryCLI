@@ -131,7 +131,7 @@ try {
         const notice = words[0]!
         if (kind === 'vanished') {
           check(name + ' does not send termination for an already absent pod', terminations.length === 0 && fixture.state.deletes === deleted)
-          check(name + ' says the vendor no longer lists it and where to check billing', notice.includes('the vendor no longer lists pod ' + id) && notice.includes('nothing to terminate') && notice.includes('if it still bills, Pods I’m paying for shows it'))
+          check(name + ' says the vendor no longer lists it and where to check billing', notice.includes('the vendor no longer lists pod ' + id) && notice.includes('nothing to terminate') && notice.includes('if it still bills, Machines I’m paying for shows it'))
         } else {
           check(name + ' sends one terminate and states verified absence', terminations.length === 1 && fixture.state.deletes === deleted + 1 && notice.includes('pod terminated and verified absent') && notice.includes('nothing more bills'))
           if (kind === 'key' || kind === 'key-reset') {
@@ -140,7 +140,7 @@ try {
             check(name + ' names the key road and next step', notice.includes('the pod did not accept Mercury') && notice.includes(vendor === 'vast' ? 'https://cloud.vast.ai/manage-keys/' : vendor === 'lambda' ? 'Lambda account keys' : 'added to this pod only') && notice.includes('/llmhost'))
           } else if (kind === 'stall') {
             check(name + ' reports the watchdog verdict', notice.includes('Download stalled') && notice.includes('under 1 GB in 10 min'))
-            check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights.*GB of .*GB.*stalled/.test(row.step)))
+            check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights on the machine.*GB of .*GB.*stalled/.test(row.step)))
             check(name + ' executes the window, not a fabricated verdict', (await download)?.code === 75)
           } else {
             check(name + ' reports the engine fatal line without a timeout', notice.includes('the engine died loading the weights') && notice.includes(fatal) && !notice.includes('Engine not ready') && health <= 1)

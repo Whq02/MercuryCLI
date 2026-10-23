@@ -130,9 +130,9 @@ try {
         m.push(KEY.enter)
       }
       try {
-        await until('Which model?'); await choose('Pods I’m paying for'); await until(podId); await choose(podId); await until('Pod controls'); await choose('Terminate'); await until('Confirm terminate')
+        await until('Which model?'); await choose('Machines I’m paying for'); await until(podId); await choose(podId); await until('Machine controls'); await choose('Terminate'); await until('Confirm terminate')
         await saveFrame(m, cols, 'terminate-confirm')
-        await choose('Confirm terminate'); await until('Pod terminated'); await saveFrame(m, cols, 'terminated')
+        await choose('Confirm terminate'); await until('Machine terminated'); await saveFrame(m, cols, 'terminated')
         const settings = getSettingsForSource('userSettings')!
         check(cols + ': Terminate deletes the recorded provider and only its model capabilities', !configuredCompatEndpoints().some(row => row.name === 'managed') && !settings.models?.['compat/managed/' + f.model] && Boolean(settings.models?.['compat/manual/' + f.model]))
         check(cols + ': a hand registration with no pod record stays', configuredCompatEndpoints().some(row => row.name === 'manual'))

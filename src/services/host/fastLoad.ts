@@ -84,7 +84,7 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
     options.startJob?.(record)
     return record
   } catch (error) {
-    const detail = created ? created + ' exists and may still bill; Pods I’m paying for → Terminate. ' : createRefusal(error) ? 'Runpod refused the preparation pod. ' : name + ' may exist and bill; inspect Pods I’m paying for before retrying. '
+    const detail = created ? created + ' exists and may still bill; Machines I’m paying for → Terminate. ' : createRefusal(error) ? 'Runpod refused the preparation pod. ' : name + ' may exist and bill; inspect Machines I’m paying for before retrying. '
     writeKeptVolume({ ...volume, state: 'failed', preparingPod: created, error: detail + String(error) })
     throw new Error(detail + 'The weights disk still bills ' + volumePrice(volume) + '. ' + String(error))
   }
@@ -139,7 +139,7 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
   const volume = await createKeptVolume(api, pinned, how, dataCenter, signal)
   if (offer) {
     try { await prepareVolume(api, pinned, volume, offer, options, signal) } catch (error) {
-      throw new Error('Weights disk ' + volume.id + ' exists and bills ' + amount + '. Pods I’m paying for → Delete. ' + String(error))
+      throw new Error('Weights disk ' + volume.id + ' exists and bills ' + amount + '. Machines I’m paying for → Delete. ' + String(error))
     }
   }
   emit({ title: FAST_LOAD_DOOR, words: volume.id + ' · preparing' + (offer ? ' · temporary pod terminates after verification' : ' at the next rental') + ' · ' + amount })
