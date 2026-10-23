@@ -15,14 +15,14 @@ export class VastOfferGone extends HostCreateError {
     super('Vast.ai refused it; nothing was rented. That machine is no longer available. ' + (replacement ? 'Another machine is available at $' + replacement.price.toFixed(2) + '/hr; confirm before renting.' : detail || 'No other machine for this recipe is available.'), 'refused', undefined, 410, 'no_such_ask')
   }
 }
-export async function createVastRental(api: VastClient, offer: HostOffer, publicKey: string, name: string, ask: Parameters<LlmHostRoad>[0], emit: Parameters<LlmHostRoad>[1], signal: AbortSignal): Promise<{ pod: HostPod; offer: HostOffer } | undefined> {
-  try { return { pod: await api.create(offer, publicKey, name), offer } } catch (error) {
+export async function createVastRental(api: VastClient, offer: HostOffer, publicKey: string, name: string, ask: Parameters<LlmHostRoad>[0], emit: Parameters<LlmHostRoad>[1], signal: AbortSignal, volume?: Parameters<HostVendor['create']>[3]): Promise<{ pod: HostPod; offer: HostOffer } | undefined> {
+  try { return { pod: await api.create(offer, publicKey, name, volume), offer } } catch (error) {
     if (!(error instanceof VastOfferGone)) throw error
     const next = error.replacement
     if (!next) { emit({ title: 'Vast.ai stock', words: error.message }); return }
     const choice = await ask({ step: 'vast-replacement', title: 'That machine is no longer available', found: 'Nothing was rented. Another ' + next.recipe.count + '× ' + next.recipe.gpu + ' for ' + next.recipe.label + ' is available at $' + next.price.toFixed(2) + '/hr (previously $' + offer.price.toFixed(2) + '/hr).', willRun: VAST_STORAGE_NOTICE + ' Billing starts only if you confirm this new price.', rows: [{ value: 'rent', label: 'Confirm $' + next.price.toFixed(2) + '/hr · rent this machine' }, { value: 'cancel', label: 'Cancel' }] })
     if (choice !== 'rent' || signal.aborted) return
-    return { pod: await api.create(next, publicKey, name, undefined, false), offer: next }
+    return { pod: await api.create(next, publicKey, name, volume, false), offer: next }
   }
 }
 export const VAST_STORAGE_NOTICE = '/workspace uses the instance container disk. Stop retains data and storage billing, and a restart waits until the host’s GPUs are free; terminate deletes the disk and its data. No separate volume is created.'

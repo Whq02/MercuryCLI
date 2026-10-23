@@ -272,7 +272,7 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
         if (error instanceof HostTerminationUnconfirmed) throw error
         const disk = readKeptVolume(volume.id) ?? volume
         const plain = (value: unknown): string => (value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
-        const words = (failure ? plain(failure) : 'Weights preparation finished') + ' · Mercury could not verify ' + unit + ' termination: ' + plain(error) + ' · check your account; ' + unit + ' ' + record.id + ' may still bill · ' + diskWord + ' ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Pods I’m paying for → Terminate'
+        const words = (failure ? plain(failure) : 'Weights preparation finished') + ' · Mercury could not verify ' + unit + ' termination: ' + plain(error) + ' · check your account; ' + unit + ' ' + record.id + ' may still bill · ' + diskWord + ' ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Machines I’m paying for → Terminate'
         patchHostRecord(record.id, { jobState: 'failed', error: words, prepareWeightsOnly: true })
         hostNotice(record, 'failed', recipe.label + ' · ' + words)
         throw new HostPreparationCleanupFailed(words)

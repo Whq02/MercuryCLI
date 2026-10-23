@@ -437,7 +437,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => []) : []
           vastVolumes = vastClient() ? await vastVolumeRows() : []
           const liveWatches = activeWatches()
-          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including machines created outside Mercury, volumes and stock watches. Disks bill without a machine; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...vastVolumes, ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
+          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including machines created outside Mercury, volumes and stock watches. Disks bill without a machine; external volumes are read-only.' + (vastVolumes.length ? ' A Vast.ai volume bills per GB-month on its one machine; d deletes it (verified), w watches stock on that machine.' : ''), willRun: '', keys: vastVolumes.length ? [{ key: 'd', value: 'delete', label: 'delete' }, { key: 'w', value: 'watch', label: 'watch stock' }] : undefined, rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...vastVolumes, ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
           if (!id) return stopped()
           if (id.startsWith('volume:') || id.startsWith('delete:volume:')) return volumeDeleteDoor(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), id.slice(id.indexOf('volume:') + 7), question, signal)
           if (id.startsWith('vastvolume:') || id.startsWith('delete:vastvolume:')) { const client = vastClient(); if (!client) return stopped(); return vastVolumeDeleteDoor(client, id.slice(id.indexOf('vastvolume:') + 11), question, signal, emit) }
@@ -555,7 +555,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           try {
             const vast = api instanceof VastClient ? api : undefined
             if (vast) {
-              const rented = await createVastRental(vast, offer, sshKey?.publicKey ?? '', pendingName, question, emit, signal)
+              const rented = await createVastRental(vast, offer, sshKey?.publicKey ?? '', pendingName, question, emit, signal, volume)
               if (!rented) { pendingName = ''; return stopped() }
               pod = rented.pod; offer = rented.offer; recipe = offer.recipe
             } else pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', pendingName, volume)
