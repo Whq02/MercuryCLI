@@ -165,6 +165,12 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       }))
       return rows.flat()
     }
+    const paidCount = (pods: readonly VendorPod[]): string => String(pods.length) + (listsComplete ? '' : '+? · ' + [...new Set(listErrors)].map(label => label + ' unread').join(' · '))
+    const paidSummary = (pods: readonly VendorPod[]): string => HOST_VENDORS.filter(id => vendorKey(id)).map(id => {
+      const label = vendorLabel(id)
+      const count = pods.filter(row => row.vendor === id).length
+      return label + ': ' + (listErrors.includes(label) ? 'unread' : count ? count + (id === 'huggingface' ? ' endpoints' : id === 'runpod' ? ' pods' : ' instances') : id === 'vast' || id === 'lambda' ? 'no instances' : id === 'huggingface' ? 'no endpoints' : 'none')
+    }).join(' · ') || 'No vendors connected; connect a vendor to read its account.'
     const mark = (): void => {
       if (!pod) return
       emit({ title: words.manage, words: [record?.weightsCheck, record?.step, record?.error, record ? hostLogTail(record) : ''].filter(Boolean).join(' · ') || keepWords(pod, vendor), host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(api?.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.step === 'building llama.cpp' ? record.step + ' ' + Math.floor((Date.now() - (record.advancedAt ?? Date.now())) / 60_000) + ' min' : record?.step } })
@@ -384,7 +390,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       let volumeListError = ''
       if (vendorKey('runpod')) try { volumes = await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes') } catch { volumeListError = ' + volumes unread' }
       const watches = activeWatches()
-      const door = await question({ step: 'where', title: words.where, found: 'Choose where the model runs. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + (pods.length + watches.length + volumes.length) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
+      const door = await question({ step: 'where', title: words.where, found: 'Choose where the model runs. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + paidCount(pods) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
       if (!door) return stopped()
       if (door === 'existing') return runLlmHost(ask, emit, signal)
       if (door === 'boxes') return createBoxRoad(runner)(ask, emit, signal)
@@ -408,7 +414,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           pods = await paidPods()
           volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => []) : []
           const liveWatches = activeWatches()
-          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: 'Live account list, including pods created outside Mercury, volumes and stock watches. Disks bill without a pod; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
+          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including pods created outside Mercury, volumes and stock watches. Disks bill without a pod; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
           if (!id) return stopped()
           if (id.startsWith('volume:')) return volumeDeleteDoor(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), id.slice(7), question, signal)
           if (id.startsWith('watch:')) { api = clientFor('runpod'); return cancelWatch(id.slice(6)) }

@@ -280,11 +280,13 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       return { name, variants, where, derived, stamp, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
     }).sort((a, b) => a.rank - b.rank || a.price - b.price || a.stamp - b.stamp || a.name.localeCompare(b.name))
     if (!title) {
-      const paid = pods ?? records.filter(row => row.jobKind !== 'watch').map(row => ({ cost: row.price, startedAt: row.startedAt, createdAt: row.startedAt, status: row.status }))
+      const paid = pods ?? []
+      const incomplete = pods === undefined || Boolean(podError)
+      const unread = deps.podErrors?.().map(label => label + ' unread').join(' · ') || 'live list unread'
       const spend = hostSpendSoFar(paid)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
-      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + (paid.length + keptVolumes().filter(row => row.state !== 'gone').length + records.filter(row => row.jobKind === 'watch').length) + ' ($' + spend.toFixed(2) + ' so far; compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' + (podError ? ' · last known' : '') }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
+      const also = [{ value: 'pods', label: '────────────────────\nPods I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + ' ($' + spend.toFixed(2) + ' so far; ' + (incomplete ? 'listed machines only; ' : '') + 'compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
       for (;;) {
         const live = search.lookup(query)
         const models = live?.state === 'ready' ? live.models : []
