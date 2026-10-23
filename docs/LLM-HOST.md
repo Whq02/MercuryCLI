@@ -75,6 +75,29 @@ screen keeps your query.
   from `1`, `2`, `4` or `8` GPUs across `H100` (80 GB), `H200` (141 GB), `B200`
   (180 GB) and `B300` (288 GB). Repositories requiring more than `8× B300` are
   refused with `needs more than 8× B300 (<N> GB) · no single-machine recipe`.
+- **The engine check before anything is rented:** for a GGUF repository,
+  Mercury reads the file's header off Hugging Face before the row is offered —
+  only the header, by range requests (a few megabytes of a file that may be
+  hundreds of gigabytes; every shard's header when the file is split) — and
+  compares its architecture and its tensor names with what the prebuilt
+  `llama.cpp` engine knows (`assets/host/llamacpp-engine.json`, generated from
+  the pinned `llama.cpp` source). A file the engine cannot load is refused on
+  the list, before any rent or watch, with
+  `engine cannot load this file: <why> · a newer llama.cpp is needed` (for
+  example `its architecture "glm5next" is not known to llama.cpp <sha>`, or
+  `3 tensor families are unknown to llama.cpp <sha> (e.g. blk.N.…)`); a file
+  that is not a GGUF at all is refused as `engine cannot load this file: the file does not start with GGUF`.
+  A known file carries `header checked against the engine` on its row and
+  `header read · architecture <arch> · <N> tensors in <M> families, all known to llama.cpp <sha>`
+  on the model screen. When the header cannot be read (a gated file answers
+  HTTP 403, or Hugging Face does not answer), the row is still offered with
+  `header unread` and `engine check skipped · <why>`; nothing is refused on a
+  guess. For a safetensors repository, Mercury reads the quantisation method
+  from `config.json`: an `EXL2` or `EXL3` file (ExLlama's formats) is refused
+  with
+  `this file is an EXL3 quantisation; none of Mercury's engines (vLLM, SGLang, llama.cpp) run it — look for a GGUF, FP8, AWQ or GPTQ copy`,
+  and a method vLLM does not load with
+  `this file is a <METHOD> quantisation, which vLLM does not load — look for a GGUF, FP8, AWQ or GPTQ copy`.
 - **What `unverified` commits you to:** the derived recipe stays in session
   memory (and on the pod record if you rent or watch it) without altering
   `assets/host/recipes.json`. The model screen opens with
@@ -254,8 +277,9 @@ until you delete them with `d` or under **Machines I'm paying for**.
    load), the recipe's verification status, and the vendor's storage and SSH-key
    terms. The two shipped `llama.cpp` GGUF recipes (`GLM-5.3-Flash` and
    `Nemotron 3.5 Super VL 120B`) use a prebuilt CUDA 13 `llama.cpp` container
-   image and skip source compilation when the image's `llama-server` binary is
-   present.
+   image, built at the `llama.cpp` commit the recipes pin (the commit the engine
+   check's table is generated from), and skip source compilation when the
+   image's `llama-server` binary is present.
 5. **Background preparation and ready notice.** A detached background worker
    creates or registers the SSH key, provisions the pod or cluster, downloads
    the weights, starts the engine on remote loopback, opens a local SSH tunnel,
@@ -301,9 +325,18 @@ reads the vendor's instance list to confirm it is gone, removes any registered
 whether anything still bills:
 
 - **Engine death while loading weights:** if the engine process exits or logs
-  `out of memory` (`OOM`), `failed to load model` or `CUDA error`, setup stops
-  immediately and reports
-  `the engine died loading the weights: <log tail> · machine terminated and verified absent · nothing more bills`
+  `out of memory` (`OOM`), `failed to load model`, `error loading model`,
+  `GGML_ASSERT`, `terminate called` or `CUDA error`, setup stops immediately
+  and reports
+  `the engine died loading the weights: <the engine's own first error line> · machine terminated and verified absent · nothing more bills`.
+  The cause line is read from the whole engine log, not from its last lines, so
+  a crash's stack trace never stands in for it; when no error line was logged,
+  the engine's last plain line (such as `Aborted (core dumped)`) is named. When
+  the engine reported tensors it does not use, the notice adds
+  `the engine set aside <N> tensors it does not use (e.g. blk.45.nextn.eh_proj.weight)`;
+  when the engine's own line says the architecture is unknown or unsupported,
+  it adds
+  `the engine does not know this file's layout; it needs a newer llama.cpp than the engine image carries`
   (and on an `OOM`, adds
   `the shape was too small for this quality; choose a larger GPU shape`).
 - **Weight download stall or timeout:** a remote watchdog monitors disk and
