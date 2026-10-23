@@ -20,7 +20,6 @@ const { createHostRoad } = await import('../../src/services/host/index.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { hostRecipeSchema } = await import('../../src/services/host/recipesFile.ts')
 const { HOST_VENDORS, vendorLabel } = await import('../../src/services/host/vendors/client.ts')
-const { vendorStamp } = await import('../../src/services/host/vendors/vendor.ts')
 const { compatImageRefusalWords } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
 const { compatEngineRefusalText, compatToolSupportRefusal } = await import('../../src/services/providers/openaicompat/compatRefusals.ts')
 const { compatToolSchemaRefusal } = await import('../../src/services/providers/openaicompat/compatToolSchemas.ts')
@@ -97,7 +96,7 @@ interface ValidationResult {
   otherRoadsMatch: boolean
   bankKeysMatch: boolean
   vendorsMatch: boolean
-  vendorStampsMatch: boolean
+  vendorRowsUnstamped: boolean
   searchFactsMatch: boolean
   modelScreenMatches: boolean
   bankScreenMatches: boolean
@@ -145,11 +144,7 @@ function validateLlmHostDoc(
   const docVendors = rentHeading.split(/,\s*|\s+and\s+/).map(s => s.trim()).filter(Boolean)
   const vendorsMatch = JSON.stringify(docVendors) === JSON.stringify(expectedVendorLabels)
 
-  const vendorStampsMatch = HOST_VENDORS.every(id => {
-    const label = vendorLabel(id)
-    const stamp = normQuotes(vendorStamp(id))
-    return doc.includes(label) && doc.includes(`\`${stamp}\``)
-  })
+  const vendorRowsUnstamped = !/API only — not yet booted|verified on a live rental|<provider stamp>/.test(doc)
 
   const modelCount = new Set(HOST_RECIPES.map(row => row.model)).size
   const recipeCount = HOST_RECIPES.length
@@ -267,7 +262,7 @@ function validateLlmHostDoc(
     otherRoadsMatch,
     bankKeysMatch,
     vendorsMatch,
-    vendorStampsMatch,
+    vendorRowsUnstamped,
     searchFactsMatch,
     modelScreenMatches,
     bankScreenMatches,
@@ -308,9 +303,9 @@ section('§3 Bank keys & table columns equal BANK_KEYS and fastLoad.ts')
 check('the documented Bank shortcut keys equal BANK_KEYS (b, v, m, d, k and their labels)', res.bankKeysMatch, `${res.detail.bankKeyMatches} vs ${res.detail.expectedBankKeys}`)
 check('the Bank section names Bank · your weights, the five table columns (MODEL, SIZE, BANKED, VERIFIED, VOLUME), bank.json and SHA256SUMS', res.bankScreenMatches)
 
-section('§4 GPU vendors and their live-rental / API-only stamps equal HOST_VENDORS')
-check('the Rent section names HOST_VENDORS in order (Runpod, Vast.ai, Lambda, Hugging Face)', res.vendorsMatch, `${res.detail.docVendors} vs ${res.detail.expectedVendorLabels}`)
-check('every vendor stamp from vendorStamp(id) is documented verbatim', res.vendorStampsMatch)
+section('§4 GPU vendors match HOST_VENDORS without developer-verification labels')
+check('the Rent section names HOST_VENDORS in order', res.vendorsMatch, `${res.detail.docVendors} vs ${res.detail.expectedVendorLabels}`)
+check('the guide does not advertise developer rental history on provider rows', res.vendorRowsUnstamped)
 
 section('§5 Hugging Face search, model screen, cross-provider stock watch, failure cleanup, vendor hiccups, vision projectors and engine refusals')
 check('Hugging Face search parameters, section headings, gated/non-chat/offline notices and 32-model / 78-recipe counts match the code', res.searchFactsMatch)
@@ -348,6 +343,10 @@ check(
 check(
   'poison control: omitting a vendor from the Rent heading fails vendorsMatch',
   !validateLlmHostDoc(docText.replace(/^## Rent a GPU \([^)]+\)$/m, '## Rent a GPU (Runpod and Vast.ai)'), indexText, expectedStamps, expectedWhereRows).vendorsMatch,
+)
+check(
+  'poison control: adding a developer-verification label fails vendorRowsUnstamped',
+  !validateLlmHostDoc(`${docText}\nAPI only — not yet booted`, indexText, expectedStamps, expectedWhereRows).vendorRowsUnstamped,
 )
 check(
   'poison control: claiming stock watches are Runpod-only fails watchAndRunpodOnlyMatch',

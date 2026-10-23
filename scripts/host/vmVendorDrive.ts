@@ -27,7 +27,7 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     const registry = await import(f.root + '/src/services/host/vendors/client.ts')
     check('registered vendor', registry.HOST_VENDORS.includes(vendor))
     const info = await import(f.root + '/src/services/host/vendors/vendor.ts')
-    check('not a live measurement', info.vendorStamp(vendor) === 'API only — not yet booted' && !info.HOST_VENDOR_INFO[vendor].booted)
+    check('the vendor carries no boot stamp', !('booted' in info.HOST_VENDOR_INFO[vendor]) && !('vendorStamp' in info))
     const module = await import(f.root + '/src/services/host/vendors/' + vendor + '.ts')
     const Client = module[{ hyperstack: 'HyperstackClient', verda: 'VerdaClient', digitalocean: 'DigitalOceanClient' }[vendor]!]
     const api = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 80, pollMs: 2, requestTimeoutMs: 1000 })
@@ -166,7 +166,7 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     check('connect states unpublished new-account quotas', mounted.screen().includes('quotas are not published'))
     mounted.push(fixture.key); await until('********'); mounted.push(KEY.enter)
     await until('Rent · ' + label); await capture('offer')
-    check('offer retains API-only stamp', mounted.screen().includes('API only — not yet booted'))
+    check('the offer row carries no boot stamp', !mounted.screen().includes('not yet booted') && !mounted.screen().includes('verified on a live rental'))
     const before = fixture.state.creates
     await choose('Rent · ' + label); await until('Confirm the hourly price'); await capture('confirm')
     const screen = mounted.screen().replace(/[│\s]+/g, ' ')

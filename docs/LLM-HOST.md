@@ -162,9 +162,8 @@ line (or the `RECIPE · unverified — …` line) and five sections:
     you can switch to immediately.
   - In-stock rental rows across every connected provider, sorted cheapest
     first:
-    `Rent · <Provider> <shape> · $<price>/hr · <data centre or region> · in stock · <provider stamp> · <boot source>`.
-    Runpod rows carry `verified on a live rental 2026-10-21`; the other providers
-    carry `API only — not yet booted`. Each row ends with
+    `Rent · <Provider> <shape> · $<price>/hr · <data centre or region> · in stock · <boot source>`.
+    Each row ends with
     `boots from your volume` when a kept Runpod fast-load volume matches that
     data centre (or is global), `boots from your Vast.ai volume on its machine`
     for the matching Vast.ai machine, or `downloads the weights first` otherwise.
@@ -333,9 +332,7 @@ disk never attaches to a Vast.ai instance.
    (an HF endpoint runs the model on hardware Hugging Face sells and hands back
    an address, with no SSH). Mercury verifies a key against the provider's
    instance list and saves it in the credential store (`0600`), never in a
-   settings file or URL. On the model screen, Runpod rental rows carry
-   `verified on a live rental 2026-10-21`; all other provider
-   rows carry `API only — not yet booted`. Connected API-key vendors have
+   settings file or URL. Connected API-key vendors have
    **Replace key / Remove key** controls on the model screen. A replacement is
    checked before the saved key changes; removal does not stop rentals or bills.
    Hugging Face uses **Sign out with /logins huggingface**. Device-code sign-in

@@ -599,7 +599,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             return { recipe: row.recipe, vendor, managed, offer: row, volume, volumeReason, remembered: remembered?.kind === 'private-repo' ? remembered.repo : undefined }
           }
           const sourceDecor = (row: HostOffer, source: WeightsSource, context: WeightsSourceContext): { titleSuffix?: string; willRun: string; lines?: string[]; confirmLabel: string } => {
-            if (context.managed) return { willRun: vendorKeyNotice(vendor) + '. Billing starts now. If initial setup fails, Mercury deletes the endpoint and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · API only — not yet booted', vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this HF endpoint' }
+            if (context.managed) return { willRun: vendorKeyNotice(vendor) + '. Billing starts now. If initial setup fails, Mercury deletes the endpoint and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this HF endpoint' }
             const kept = source.kind === 'volume' ? context.volume : undefined
             const privateRepo = source.kind === 'private-repo' ? source : undefined
             const privateWords = privateRepo ? 'Downloads from your private repository ' + privateRepo.repo + ' on the machine with your Hugging Face sign-in' + (privateRepo.bytes ? ' · ' + sizeWords(privateRepo.bytes / 1e9) + ' in ' + privateRepo.files + (privateRepo.files === 1 ? ' file' : ' files') : '') + ' · ' + hostSetupEstimate({ ...row.recipe, weightsGb: privateRepo.bytes ? privateRepo.bytes / 1e9 : row.recipe.weightsGb }) : ''

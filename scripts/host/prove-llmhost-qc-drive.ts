@@ -178,7 +178,7 @@ try {
     check('HF recipe and all provider prices reach the model screen', question!.found.includes('RECIPE · unverified') && question!.rows!.filter(row => row.label.startsWith('Rent · ')).length >= 3)
     const rentals = question!.rows!.filter(row => row.label.startsWith('Rent · '))
     const prices = rentals.map(row => Number(/\$([\d.]+)\/hr/.exec(row.label)![1]))
-    check('providers are cheapest first, stamped, and name the download', prices.every((price, index) => !index || price >= prices[index - 1]!) && rentals.every(row => row.label.includes('downloads the weights first') && (row.label.includes('Runpod') ? row.label.includes('verified on a live rental 2026-10-21') : row.label.includes('API only — not yet booted'))))
+    check('providers are cheapest first, unstamped, and name the download', prices.every((price, index) => !index || price >= prices[index - 1]!) && rentals.every(row => row.label.includes('downloads the weights first') && !row.label.includes('booted') && !row.label.includes('verified on')))
     check('there is one stock watch across providers', question!.rows!.filter(row => row.value === 'watch').length === 1)
     mounted!.push('b')
     const bankStep = width === 120 ? 'door-bank-confirm' : 'door-bank-again'

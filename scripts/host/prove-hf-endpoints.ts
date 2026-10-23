@@ -31,7 +31,6 @@ try {
   const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-  const { vendorStamp } = await import('../../src/services/host/vendors/vendor.ts')
   const signal = new AbortController().signal
   const api = new HuggingfaceClient(hf.key, hf.baseUrl, { pollMs: 5, readyTimeoutMs: 40 })
   const offers = await api.offers(signal)
@@ -40,7 +39,7 @@ try {
   check('live 8x H200 price is forty dollars, not per-GPU', offers.some(row => row.recipe.count === 8 && row.recipe.gpu === 'H200' && row.price === 40))
   check('510 GB B200 recipe is not fabricated on HF hardware', !offers.some(row => row.recipe.id.startsWith('deepseek41-')))
   check('local-file and multi-node recipes are not offered', offers.every(row => !row.recipe.files && (row.recipe.nodes ?? 1) === 1))
-  check('HF disclosure is managed and unstamped', api.capabilities.managed && api.offersNote().includes('HF-managed · per hour · no SSH') && vendorStamp('huggingface') === 'API only — not yet booted')
+  check('HF disclosure is managed and unstamped', api.capabilities.managed && api.offersNote().includes('HF-managed · per hour · no SSH') && !api.offersNote().includes('booted'))
   const selectedRecipe = { ...offers.find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!.recipe, flags: ['--fixture-selected-row'], image: 'fixture/selected-image' }
   const watched = await api.watchOffer(selectedRecipe, 3, signal)
   check('stock watch retains the saved same-id recipe instead of current catalogue defaults', watched?.recipe.flags.includes('--fixture-selected-row') && watched.recipe.image === selectedRecipe.image)
@@ -77,13 +76,17 @@ try {
   for (const row of await api.pods()) await api.terminate(row.id)
   hf.state.neverReady = true
   const stuck = await api.create(offer, '', 'hf-never-ready')
+  const deletesBeforeSetup = hf.state.deletes
   const queued = queueHostSetup({ id: stuck.id, name: stuck.name, vendor: 'huggingface', recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: stuck.createdAt, status: stuck.status, apiBaseUrl: hf.baseUrl, sessionId: 'hf-never-ready' })
   await runHostJob(queued.id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
   const guarded = readHostRecord(queued.id)!
-  check('never-running endpoint is deleted by the setup guard: ' + guarded.error, guarded.status === 'TERMINATED' && guarded.error?.includes('verified absent') && !hf.state.pods.has('hf-never-ready'))
+  check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
+  check('paused endpoint keeps its billing and recovery choices', guarded.error?.includes('bills $') && guarded.error.includes('Resume retries the setup, Terminate stops the bill'))
   const notices = readdirSync(join(f.home, 'host/notices')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === 'hf-never-ready')
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
   hf.state.neverReady = false
+  await api.terminate(stuck.id)
+  removeHostRecord(stuck.id)
   const marks: string[] = []
   hf.state.failNext = { route: 'GET /v2/endpoint/fixture-owner', status: 429, times: 1, retryAfter: 0.03 }
   const read = hostJobReadOnly({ label: api.label, pauseMs: 1, timeoutMs: 1000, signal, mark: words => marks.push(words) })

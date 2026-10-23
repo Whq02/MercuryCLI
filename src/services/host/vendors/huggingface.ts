@@ -64,7 +64,7 @@ export class HuggingfaceClient implements HostVendor {
   }
   rateLimitPolicy(): string { return this.api.policy() ?? 'HF does not publish a fixed endpoint API quota here. Reads honor Retry-After; creates are never retried.' }
   shapes(): readonly HostOffer[] { return this.lastShapes }
-  offersNote(): string { return 'HF-managed · per hour · no SSH · personal namespace · live catalogue and quota, placement not guaranteed · API only — not yet booted' }
+  offersNote(): string { return 'HF-managed · per hour · no SSH · personal namespace · live catalogue and quota, placement not guaranteed' }
   private async account(signal?: AbortSignal): Promise<string> {
     const credential = await this.credential?.(false)
     if (this.credential && !credential) throw new HostHuggingfaceSignInRequired()
