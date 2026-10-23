@@ -4,6 +4,7 @@ import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/d
 import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { getErrnoCode } from '../../utils/errors.js'
+import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 
 const PROVIDER_SECRETS_VERSION = 1
 const FILE_NAME = '.provider-secrets.json'
@@ -88,6 +89,7 @@ function probeSecrets(path: string): SecretsProbe {
 
 function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   const dir = getAuthConfigHomeDir()
+  refuseProofWriteIntoAccountStore(dir, 'the provider secrets store')
   mkdirSync(dir, { recursive: true })
   const path = secretsPath()
   const probe = probeSecrets(path)
@@ -436,6 +438,7 @@ function hostCredentialPath(home: string, id: string): string {
 }
 
 export function writeHostCredential(home: string, id: string, key: string): void {
+  refuseProofWriteIntoAccountStore(home, 'a host credential')
   mkdirSync(join(home, '.host-credentials'), { recursive: true, mode: 0o700 })
   durableAtomicPublishSync(hostCredentialPath(home, id), JSON.stringify({ key }) + '\n', { mode: 0o600 })
 }
@@ -464,6 +467,7 @@ export function publishAuthScopedJson(
   mutate: (file: Record<string, unknown>) => Record<string, unknown>,
 ): void {
   const dir = getAuthConfigHomeDir()
+  refuseProofWriteIntoAccountStore(dir, `the auth file ${fileName}`)
   mkdirSync(dir, { recursive: true })
   const path = join(dir, fileName)
   let existing: Record<string, unknown> = { version: 1 }

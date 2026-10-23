@@ -986,6 +986,9 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   const SECRET = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
   guardLoginDriverWrite('the credential-secrecy driver sweep')
   t.check('the sweep runs only in a scratch home (the guard reads the pinned home as scratch)', !configHomeIsReal())
+  const { homeIsAccountStore, proofProcessName } = await import('../../src/utils/proofHomeGuard.js')
+  t.check("the product reads the pinned home the same way: not the account's own store (the wall and the guard agree)", !homeIsAccountStore(process.env['MERCURY_CONFIG_DIR']!))
+  t.check('this process is a proof to the product (the credential writers would refuse a write into the account store even if the pin were lost)', proofProcessName() === 'prove-face-logins.ts', String(proofProcessName()))
   const json = (status: number, body: Record<string, unknown>): Response =>
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 

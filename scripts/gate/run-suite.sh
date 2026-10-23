@@ -26,6 +26,8 @@ export BROWSER="${BROWSER:-/usr/bin/true}"
 
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
 
+export MERCURY_PROOF="${MERCURY_PROOF:-1}"
+
 . "$repo_root/scripts/lib/process-ledger.sh"
 export MERCURY_PROCESS_LEDGER_DIR="$MERCURY_SUITE_TMPDIR/process-ledger"
 mkdir -p "$MERCURY_PROCESS_LEDGER_DIR"
