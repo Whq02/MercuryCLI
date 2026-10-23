@@ -98,7 +98,7 @@ export class VastClient implements HostVendor {
         }
         for (const recipe of rows) {
           if (!recipeFits(recipe, gpuId, gigabytes(hardware.gpu_ram), hardware.num_gpus)) continue
-          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'community host' : 'hosting type unknown' }
+          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'community host' : 'host' }
           this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
           offers.push(offer)
         }
