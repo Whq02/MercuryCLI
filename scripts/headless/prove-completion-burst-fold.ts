@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -91,7 +91,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const operatorWords = world.operatorWordsAfterCompletions === true
   const shape =
     holdSeconds > 0
-      ? `while the launch turn runs a ${holdSeconds} s foreground command${secondHoldSeconds > 0 ? ` and then a ${secondHoldSeconds} s one` : ''}`
+      ? `while a foreground command waits for all recorded background outcomes${secondHoldSeconds > 0 ? ` and then runs a ${secondHoldSeconds} s command` : ''}`
       : finalDelayMs > 0
         ? `while the launch turn's last model answer is still ${finalDelayMs / 1000} s away${operatorWords ? ', and the operator types two lines in a row after they land' : ''}`
         : 'on an idle main thread'
@@ -99,6 +99,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const runHome = realpathSync(mkdtempSync(join(tmpdir(), 'burst-home-')))
   const cwd = join(runHome, 'work')
   const stamps = join(cwd, 'stamps')
+  const outcomeWaiter = join(cwd, 'wait-background.cjs')
   const fixture: ScriptedFixture = await startScriptedFixture(
     req => {
       if (req.ask.includes(NOTIFICATION)) return [{ type: 'text', text: NOTED }]
@@ -107,7 +108,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
       if (req.step === 0) {
         return sleepsSeconds.slice(0, count).map((s, i): WireBlock => ({ type: 'tool_use', name: 'Bash', input: { command: `sleep ${s}; echo burst-done-${i + 1}; touch ${stamps}/done-${i + 1}`, run_in_background: true, description: `burst command ${i + 1}` } }))
       }
-      if (req.step === 1 && holdSeconds > 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${holdSeconds}`, description: 'hold the turn' } }]
+      if (req.step === 1 && holdSeconds > 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `${JSON.stringify(NODE)} ${JSON.stringify(outcomeWaiter)}`, description: 'wait for recorded background outcomes' } }]
       if (req.step === 2 && secondHoldSeconds > 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${secondHoldSeconds}`, description: 'hold the turn again' } }]
       return [{ type: 'text', text: LAUNCHED }]
     },
@@ -115,6 +116,26 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   )
   seedScratchHome(runHome, cwd)
   mkdirSync(stamps, { recursive: true })
+  writeFileSync(outcomeWaiter, `const fs = require('node:fs');
+const path = require('node:path');
+const root = ${JSON.stringify(join(runHome, 'projects'))};
+const deadline = Date.now() + 45000;
+function check() {
+  const tasks = new Set();
+  try {
+    for (const name of fs.readdirSync(root, { recursive: true })) {
+      if (!name.endsWith('.task-outcomes.json')) continue;
+      for (const row of JSON.parse(fs.readFileSync(path.join(root, name), 'utf8')).envelopes ?? []) {
+        if (row.state === 'succeeded' && row.exitCode === 0 && /^burst command [0-9]+$/.test(row.description ?? '')) tasks.add(row.taskId);
+      }
+    }
+  } catch {}
+  if (tasks.size === ${count}) { console.log('background outcomes recorded'); return; }
+  if (Date.now() >= deadline) { console.error('background outcomes not recorded'); process.exitCode = 1; return; }
+  setTimeout(check, 20);
+}
+check();
+`)
   const port = Number(new URL(fixture.base).port)
   const runner = boot(cwd, childEnv(runHome, port))
   const t0 = Date.now()
@@ -161,6 +182,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   tally.check(`${label} L2 every completion reached the model: ${count} notification block${count === 1 ? '' : 's'} in all`, blocksPer.reduce((a, b) => a + b, 0) === count, `blocks per carrying request ${JSON.stringify(blocksPer)}`)
   tally.check(`${label} L3 one request carries every notification, not ${count}`, carrying.length === 1 && blocksPer[0] === count, `carrying requests ${carrying.length} · blocks ${JSON.stringify(blocksPer)}`)
   if (holdSeconds > 0) {
+    tally.check(`${label} the foreground hold ends only after every product task outcome is recorded`, fixture.requests.some(request => request.results.some(result => result.text.includes('background outcomes recorded'))))
     tally.check(`${label} L4 the wire's turn rows agree: ONE turn — the completions rode the live turn at its next tool boundary, no fold turn was needed`, turnsStarted === 1 && results === 1, `turns started ${turnsStarted} · outcomes ${results}`)
   } else if (operatorWords) {
     tally.check(`${label} L4 the wire's turn rows agree: ${1 + 1} turns — the launch and ONE turn for the operator's two lines; the completions rode that turn, no fold turn of their own and no turn of the second line's own`, turnsStarted === 2 && results === 2, `turns started ${turnsStarted} · outcomes ${results}`)
