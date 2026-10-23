@@ -105,9 +105,15 @@ try {
   capture('01-model-list')
 
   const modelLabel = (name: string) => name.padEnd(Math.max(...distinctModels.map(name => name.length))) + ' · '
-  const modelLines = m.lines().filter(line => distinctModels.some(name => line.includes(modelLabel(name))))
-  check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => m.lines().filter(line => line.includes(modelLabel(name))).length === 1))
-  check('model rows show cheapest in-stock price or no stock now', m.screen().includes(modelLabel('Nemotron 3.5 Super VL 120B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('Qwen3.8-27B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && m.screen().includes(modelLabel('GLM-5.3-Flash') + 'no stock · watch →'))
+  const openingLine = selected()
+  const plain = (line: string) => line.replace(/^\s*│\s*›?\s*/, '').replace(/\s*[↑↓]?\s*│?\s*$/, '')
+  const pages = [m.screen()]
+  for (let n = 0, last = selected(); n < distinctModels.length + 8; n++) { m.push(KEY.down); if (!await waitFor(() => selected() !== last, 3000)) break; last = selected(); pages.push(m.screen()) }
+  for (let n = 0; n < distinctModels.length + 8 && selected() !== openingLine; n++) { const before = selected(); m.push(KEY.up); assert.ok(await waitFor(() => selected() !== before, 3000), 'the cursor returns to the opening row\n' + m.screen()) }
+  const listText = pages.join('\n')
+  const modelLines = [...new Set(pages.flatMap(page => page.split('\n')).filter(line => distinctModels.some(name => line.includes(modelLabel(name)))).map(plain))]
+  check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => modelLines.filter(line => line.includes(modelLabel(name))).length === 1) && selected() === openingLine)
+  check('model rows show cheapest in-stock price or no stock now', listText.includes(modelLabel('Nemotron 3.5 Super VL 120B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && listText.includes(modelLabel('Qwen3.8-27B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && listText.includes(modelLabel('GLM-5.3-Flash') + 'no stock on Runpod · watch →'))
   const stamps = ['measured', 'documented', 'community']
   const ranks = modelLines.map(line => stamps.findIndex(stamp => line.includes(' · ' + stamp)))
   check('every model row carries one of the stamp words', ranks.every(rank => rank >= 0))

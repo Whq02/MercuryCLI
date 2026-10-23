@@ -62,12 +62,13 @@ console.log('============================================================')
 console.log(' zero network — boot never fetches; no source without an act')
 console.log('============================================================')
 
-console.log('[1] a fresh home: empty roster, nothing added, no request')
+console.log('[1] a fresh home: three bundled extensions, no added source or request')
 {
   const roster = rosterMod.computeRoster({ cwd })
-  check('the roster reads empty', roster.entries.length === 0 && roster.problems.length === 0)
+  check('only the three Craft bundles are present', JSON.stringify(roster.entries.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'photocraft']) && roster.entries.every(e => e.home === 'bundled') && roster.problems.length === 0)
   check('no source exists', sourcesMod.listSources().length === 0)
-  check('reading created no records file', !existsSync(paths.getSourcesFile()) && !existsSync(paths.getInstalledFile()))
+  check('only bundled approval records were created', !existsSync(paths.getSourcesFile()) && Object.values(records.installedOrEmpty()).every(r => r.label === 'mercury'))
+  check('no application runtime exists at boot', roster.entries.every(e => !existsSync(join(paths.getExtensionDataDir(e.id), 'runtime'))))
   check('no request left the process', netHits.length === 0, netHits.join(' · '))
   check('no git/ssh spawned', shimHits() === '', shimHits())
 }
@@ -159,6 +160,18 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
   check('the binary exits 0', code === 0, `exit ${code}`)
   const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as { extensions: Array<{ id: string; trust: string }> }
   check('the roster answers from disk (the installed row is on)', parsed.extensions.some(e => e.id === 'kitchen-sink@fixture-source' && e.trust === 'on'), JSON.stringify(parsed.extensions))
+  const { Client, StdioClientTransport } = await import('../../src/services/mcp/sdk.ts')
+  for (const entry of rosterMod.computeRoster({ cwd }).entries.filter(e => e.home === 'bundled')) {
+    const client = new Client({ name: 'craft-zero-network', version: '1.0.0' })
+    await client.connect(new StdioClientTransport({ command: 'node', args: [join(entry.root!, 'server', 'bridge.mjs')], env: { ...env, MERCURY_EXTENSION_DATA: paths.getExtensionDataDir(entry.id) } as Record<string, string>, stderr: 'pipe' }))
+    try {
+      const tools = await client.listTools()
+      check(`${entry.name}: discovery exposes status/install/connect only`, JSON.stringify(tools.tools.map(t => t.name)) === JSON.stringify(['craft_status', 'craft_install', 'craft_connect']))
+      const status = await client.callTool({ name: 'craft_status', arguments: {} })
+      check(`${entry.name}: status remains absent without an install`, !status.isError && JSON.stringify(status).includes('absent'))
+    } finally { await client.close() }
+    check(`${entry.name}: discovery wrote no application runtime`, !existsSync(join(paths.getExtensionDataDir(entry.id), 'runtime')))
+  }
   const net = existsSync(netlog) ? readFileSync(netlog, 'utf8').trim() : ''
   check('the boot made no outbound connection and no request (request log EMPTY)', net === '', net)
   check('the boot spawned no git/ssh', shimHits() === '', shimHits())

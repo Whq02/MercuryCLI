@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getAllLspServers } from './config.js'
+import type { LSPStopResult } from './LSPClient.js'
 import { noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
 import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
@@ -17,9 +18,11 @@ type LspRevalidationReport = {
   failed: string[]
 }
 
+export type LSPShutdownResult = Array<{ serverName: string; stop: LSPStopResult | undefined }>
+
 export type LSPServerManager = {
   initialize(): Promise<void>
-  shutdown(): Promise<void>
+  shutdown(): Promise<LSPShutdownResult>
   getServerForFile(path: string): LSPServerInstance | undefined
   getServersForFile(path: string): LSPServerInstance[]
   ensureServerStarted(path: string): Promise<LSPServerInstance | undefined>
@@ -115,22 +118,27 @@ export function createLSPServerManager(): LSPServerManager {
     }
   }
 
-  async function shutdown(): Promise<void> {
+  async function shutdown(): Promise<LSPShutdownResult> {
     const targets = [...servers.values()].filter(server => server.state !== 'stopped')
     const settled = await Promise.allSettled(targets.map(server => server.stop()))
     servers.clear()
     extensionIndex.clear()
     tracking.clear()
     const failures: string[] = []
+    const stops: LSPShutdownResult = []
     settled.forEach((result, index) => {
+      const server = targets[index] as LSPServerInstance
       if (result.status === 'rejected') {
-        const server = targets[index] as LSPServerInstance
         failures.push(`${server.name}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`)
+      } else {
+        stops.push({ serverName: server.name, stop: result.value })
+        if (result.value?.survivors.length) failures.push(`${server.name}: processes still running: ${result.value.survivors.join(', ')}`)
       }
     })
     if (failures.length > 0) {
       throw new Error(`${failures.length} LSP server(s) failed to stop: ${failures.join('; ')}`)
     }
+    return stops
   }
 
   function getServersForFile(path: string): LSPServerInstance[] {

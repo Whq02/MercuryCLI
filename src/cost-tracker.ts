@@ -365,3 +365,4 @@ import {
   getTotalOutputTokens,
   getTotalWebSearchRequests,
 } from './bootstrap/state.js'
+export { readUsageHistory, type UsageHistoryReport, type UsageTotals } from './utils/usageHistory.js'

@@ -55,12 +55,19 @@ console.log('============================================================')
 console.log(' bundled extensions — pre-installed, same manifest (built artifact)')
 console.log('============================================================')
 
-console.log('[6] the shipped roster is EMPTY on a fresh home')
+console.log('[6] the three Craft extensions ship without application binaries')
 {
   const bare = run(['extensions', 'list', '--json'])
   check('list --json exits 0', bare.code === 0, bare.stderr.slice(0, 200))
-  const parsed = JSON.parse(bare.stdout.slice(bare.stdout.indexOf('{'))) as { extensions: Array<{ from: string }> }
-  check('no bundled row without the fixture input', !parsed.extensions.some(e => e.from === 'mercury'), JSON.stringify(parsed.extensions))
+  const parsed = JSON.parse(bare.stdout.slice(bare.stdout.indexOf('{'))) as { extensions: Array<{ name: string; from: string; health: { outcome: string } | null; path: string }> }
+  const bundled = parsed.extensions.filter(e => e.from === 'mercury')
+  check('exactly FilmCraft, PhotoCraft and LightCraft are bundled', JSON.stringify(bundled.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'photocraft']))
+  for (const entry of bundled) {
+    const manifest = JSON.parse(readFileSync(join(entry.path, 'mercury-extension.json'), 'utf8'))
+    check(`${entry.name}: one server and one skill directory`, Object.keys(manifest.contributes.servers).length === 1 && manifest.contributes.skills.length === 1)
+    check(`${entry.name}: loads without an installed app`, entry.health?.outcome === 'loads')
+    check(`${entry.name}: no application was installed at discovery`, !existsSync(join(home, 'extensions', 'data', `${entry.name}@mercury`, 'runtime')))
+  }
 }
 
 console.log('[1] the fixture bundled extension: <name>@mercury, approved, on')

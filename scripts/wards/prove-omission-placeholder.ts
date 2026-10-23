@@ -14,10 +14,13 @@ const RULE = 'no-omission-placeholder'
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
-  const { mkdtempSync } = await import('node:fs')
+  const { mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wards-omission-home-'))
+  const proofHome = mkdtempSync(join(tmpdir(), 'wards-omission-home-'))
+  process.env.MERCURY_CONFIG_DIR = proofHome
+  delete process.env.MERCURY_HOME
+  process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
   const { BUILTIN_WARDS, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
   type WardRule = (typeof BUILTIN_WARDS)[number]
   const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')

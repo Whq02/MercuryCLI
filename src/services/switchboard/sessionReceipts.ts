@@ -9,11 +9,13 @@ import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
+import type { SystemSeatReceiptMessage } from '../../types/message.js'
+import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 
 export interface SessionReceiptEntry {
   readonly at: string
   readonly by: string
-  readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind'
+  readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind' | 'clear-origin' | 'clear-model'
   readonly summary: string
   readonly details?: Readonly<Record<string, unknown>>
 }
@@ -26,6 +28,28 @@ export function inheritBuildNotices(home: string, sessionId: string, previousSes
     appendSessionReceipt(home, sessionId, { at: row.at, by: 'clear-lineage', kind: 'build-behind', summary: 'Build notice already shown before /clear (' + tree + ')', details: { installedTree: tree, inheritedFrom: previousSessionId } })
     inherited.add(tree)
   }
+}
+
+export function carryClearModel(home: string, sessionId: string, previousSessionId: string, previousModel: string): void {
+  appendSessionReceipt(home, sessionId, { at: new Date().toISOString(), by: 'clear-lineage', kind: 'clear-origin', summary: previousModel, details: { previousSessionId } })
+}
+
+export function readClearModelReceipt(home: string, sessionId: string): SystemSeatReceiptMessage | null | undefined {
+  const entries = readSessionReceipts(home, sessionId)
+  const settled = entries.find(row => row.kind === 'clear-model')
+  if (settled !== undefined) return (settled.details?.message as SystemSeatReceiptMessage | undefined) ?? null
+  return entries.some(row => row.kind === 'clear-origin') ? undefined : null
+}
+
+export function settleClearModel(home: string, sessionId: string, effectiveModel: string): SystemSeatReceiptMessage | null {
+  const settled = readClearModelReceipt(home, sessionId)
+  if (settled !== undefined) return settled
+  const previous = readSessionReceipts(home, sessionId).find(row => row.kind === 'clear-origin')!.summary
+  const message = previous !== effectiveModel
+    ? createSeatReceiptMessage(`the model this chat ran on (${previous}) is no longer reachable — this fresh chat starts on the default model instead; /model picks another`, 'warning')
+    : null
+  appendSessionReceipt(home, sessionId, { at: new Date().toISOString(), by: 'runner', kind: 'clear-model', summary: message?.content ?? '', details: { effectiveModel, ...(message !== null ? { message } : {}) } })
+  return message
 }
 
 function receiptsPathOf(home: string, sessionId: string): string {

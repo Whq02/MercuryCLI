@@ -79,5 +79,66 @@ check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', d
 const added = desert.slice(37)
 check('20 to 30 new desert thinking verbs are landed after Sand-slicked', added.length >= 20 && added.length <= 30, `added=${added.length}`)
 
+const APPROVED_PHRASES: readonly string[] = [
+  'Parsing the dunes',
+  'Hashing the oasis',
+  'Compiling the mirage',
+  'Encrypting the caravan',
+  'Traversing the sandstorm',
+  'Optimizing the pyramid',
+  'Debugging the sphinx',
+  'Reversing the hieroglyphs',
+  'Fuzzing the nomad',
+  'Injecting the scarab',
+  'Exploiting the tomb',
+  'Overflowing the Nile',
+  'Obfuscating the pharaoh',
+  'Tracing the trade routes',
+  'Cracking the amulet',
+  'Pwning the mummy',
+  'Overclocking the sandglass',
+  'Jailbreaking the labyrinth',
+  'Ciphering the scrolls',
+  'Shellcoding the djinn',
+  'Bit-shifting the sundial',
+  'Polymorphing the serpent',
+  'Disassembling the ankh',
+  'Hex-editing the sarcophagus',
+]
+const phrases = extractList(src, 'MERCURY_DESERT_PHRASES')
+console.log('\nMERCURY_DESERT_PHRASES — the approved lines, their hygiene and their place in the pool')
+check('MERCURY_DESERT_PHRASES holds exactly the 24 approved phrases, in order, verbatim', phrases.length === 24 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), phrases.join(' | '))
+check('no phrase carries trailing punctuation, an exclamation mark or an emoji', phrases.every(p => !/[.!?,;:…]$/.test(p) && !p.includes('!') && !/\p{Extended_Pictographic}/u.test(p)))
+{
+  const norm = (v: string): string => v.toLowerCase().replace(/[\s-]/g, '')
+  const everyOther = new Set([...desert, ...others].map(norm))
+  const dupes = phrases.filter((p, i) => everyOther.has(norm(p)) || phrases.findIndex(q => norm(q) === norm(p)) !== i)
+  check('no phrase duplicates another entry in any list (hyphen and space insensitive)', dupes.length === 0, dupes.join(' | '))
+}
+check('the desert branch of the pool spreads the verbs and the phrases together', src.includes('[...MERCURY_DESERT_VERBS, ...MERCURY_DESERT_PHRASES]'))
+check('the existing cadence laws still read the verbs alone (the phrase list is its own array)', !desert.some(v => v.includes(' ')) && !desert.some(v => phrases.includes(v)), `desert=${desert.length}`)
+{
+  ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
+  const { sampleSpinnerVerb } = await import('../../src/constants/spinnerVerbs.ts')
+  const phraseSet = new Set(phrases)
+  const desertSet = new Set(desert)
+  const quicksilver = new Set([...qsMain, ...qsCode, ...qsFlow])
+  const draw = (n: number): string[] => Array.from({ length: n }, () => sampleSpinnerVerb())
+  delete process.env.MERCURY_HIP
+  delete process.env.MERCURY_DESERT_VERBS
+  const mixed = draw(400)
+  check('the default pool (desert + quicksilver) draws the phrases and nothing outside the three sets', mixed.some(v => phraseSet.has(v)) && mixed.every(v => phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v)), mixed.filter(v => !(phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v))).join(' | '))
+  process.env.MERCURY_HIP = '0'
+  const desertOnly = draw(400)
+  check('quicksilver off: every draw is a desert verb or a desert phrase, and the phrases do appear', desertOnly.some(v => phraseSet.has(v)) && desertOnly.every(v => phraseSet.has(v) || desertSet.has(v)), desertOnly.filter(v => !(phraseSet.has(v) || desertSet.has(v))).join(' | '))
+  process.env.MERCURY_HIP = '1'
+  check('quicksilver only: no phrase and no desert verb is drawn', draw(300).every(v => quicksilver.has(v)))
+  delete process.env.MERCURY_HIP
+  process.env.MERCURY_DESERT_VERBS = '0'
+  const stockSet = new Set(stock)
+  check('MERCURY_DESERT_VERBS=0 drops the phrases with the desert verbs: every draw is stock or quicksilver', draw(300).every(v => stockSet.has(v) || quicksilver.has(v)))
+  delete process.env.MERCURY_DESERT_VERBS
+}
+
 console.log(failures === 0 ? '\n✅ prove-desert-verbs-cadence: ALL GREEN' : `\n❌ prove-desert-verbs-cadence: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

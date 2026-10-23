@@ -20,6 +20,7 @@ import {
   type McpToolsV1,
   type SessionRewindMode,
   type SessionRewindOutcomeV1,
+  type SessionFileRestoreRequest,
 } from './protocol.js'
 import {
   controlSockPath,
@@ -215,6 +216,7 @@ export interface ControlServerDeps {
     userMessageId: string
     dryRun?: boolean
   }) => Promise<SessionRewindOutcomeV1>
+  sessionFileRestore?: (req: SessionFileRestoreRequest & { sessionId: string; by: string }) => Promise<SessionRewindOutcomeV1>
 }
 
 export interface ControlServerHandle {
@@ -1076,6 +1078,21 @@ async function routeControlRequest(
       return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }
 
+    case 'sessionFileRestore': {
+      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+      if (!deps.sessionFileRestore) return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not support single-file restore or undo' })
+      if (typeof raw.sessionId !== 'string' || !raw.sessionId || typeof raw.by !== 'string' || !raw.by || typeof raw.userMessageId !== 'string' || !raw.userMessageId ||
+          (raw.action !== 'restore' && raw.action !== 'undo') || (raw.action === 'restore' && (typeof raw.filePath !== 'string' || !raw.filePath))) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionFileRestore requires a session, checkpoint and restore file or undo action' })
+      }
+      const request: SessionFileRestoreRequest = {
+        userMessageId: raw.userMessageId,
+        ...(raw.action === 'restore' ? { action: 'restore', filePath: raw.filePath as string } : { action: 'undo' }),
+        ...(raw.dryRun === true ? { dryRun: true } : {}),
+      }
+      const receipt = await deps.sessionFileRestore({ ...request, sessionId: raw.sessionId, by: raw.by })
+      return answer(sock, { ok: true, op: 'sessionFileRestore', ...receipt })
+    }
     case 'sessionRewind': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.sessionRewind) {

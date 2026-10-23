@@ -2,7 +2,7 @@
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 16
+export const MERCURY_DAEMON_PROTO = 17
 
 export const MIN_PROTO = 1
 
@@ -28,6 +28,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/leave': 14,
   'sessionControl/mcp-action': 15,
   'sessionControl/mcp-tools': 16,
+  sessionFileRestore: 17,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -38,7 +39,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:60b21d41276f833275859c20be79a48a0ee7f0f0888e053a3ad340292bbeef35'
+export const DAEMON_PROTO_SHAPE = 'sha256:9ff2f801385f052dc5054615c57696b0c7a5aea6f39118121bcdf18df44b1abc'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -86,6 +87,7 @@ export type DaemonOp =
   | 'sessionRewind'
   | 'signIns'
   | 'processSweep'
+  | 'sessionFileRestore'
 
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 
@@ -100,6 +102,11 @@ export interface DispatchBody {
 
 
 export type SessionRewindMode = 'code' | 'conversation' | 'both'
+
+export type SessionFileRestoreRequest = { userMessageId: string; dryRun?: boolean } & (
+  | { action: 'restore'; filePath: string }
+  | { action: 'undo' }
+)
 
 export type RewindRefusalKind =
   | 'turn-active'
@@ -323,6 +330,7 @@ export type DaemonRequest =
       userMessageId: string
       dryRun?: boolean
     }
+  | ({ op: 'sessionFileRestore'; proto: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
   | {
       op: 'signIns'
       proto: number
@@ -465,6 +473,7 @@ export type DaemonReply =
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
   | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: McpToolsV1 }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
+  | ({ ok: true; op: 'sessionFileRestore' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
   | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)

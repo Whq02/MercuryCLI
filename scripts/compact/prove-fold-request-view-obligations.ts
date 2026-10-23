@@ -108,7 +108,7 @@ try {
   const paid = api.messageRequests().length
   try { await fold(session, WINDOW_32K_THRESHOLD) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
   check('the whole-catalogue view (42,506 fixed tokens, the drive\'s count) refuses before any summary request', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && api.messageRequests().length === paid, refusal.slice(0, 160))
-  check('the refusal says WHY in words: the fixed material, its tokens, the window\'s ceiling, and what to do', refusal.includes("the fold's fixed material (") && /\(\d{5,} tokens:/.test(refusal) && refusal.includes(`exceeds the window's ceiling (${WINDOW_32K_THRESHOLD} tokens`) && refusal.includes('no summary was requested') && refusal.includes('/clear'), refusal)
+  check('the refusal says WHY in words: the fixed material, its tokens, the window\'s ceiling, and what to do', refusal.includes("the fixed material (") && /\(\d{5,} tokens:/.test(refusal) && refusal.includes(`exceeds the window's ceiling (${WINDOW_32K_THRESHOLD} tokens`) && refusal.includes('no summary was requested') && refusal.includes('/clear'), refusal)
 
   const same = stretch(9, 'tools')
   bind(same, 11_835)
@@ -125,7 +125,7 @@ console.log('§3 the failed fold carries its reason to the status row and the ro
   const failed = foldStatusExit(status, 'failed', 1_002, refusal)
   check('the exit stamp keeps the refusal as the reason (its first line)', failed.exit === 'failed' && failed.reason === refusal.split('\n')[0], String(failed.reason).slice(0, 120))
   const words = foldRowWords(failed, 1_002)
-  check('the status row reads the exit word and the clause that says why', words.stage !== null && words.stage.startsWith("failed — the fold's fixed material (") && words.stage.includes(`exceeds the window's ceiling (${WINDOW_32K_THRESHOLD} tokens, the fold threshold)`) && !words.stage.includes('/clear'), words.stage ?? 'null')
+  check('the status row reads the exit word and the clause that says why', words.stage !== null && words.stage.startsWith("failed — the fixed material (") && words.stage.includes(`exceeds the window's ceiling (${WINDOW_32K_THRESHOLD} tokens)`) && !words.stage.includes('/clear'), words.stage ?? 'null')
   const row = compactionRow({ session_id: 'fixture' } as never, failed)
   check('the compaction row carries exit failed AND the reason, and the vocabulary admits it', row.state === 'ended' && row.exit === 'failed' && row.reason === failed.reason && CompactionRowSchema().safeParse({ ...row, seq: 1, timestamp: new Date().toISOString() }).success, JSON.stringify(row).slice(0, 200))
   const back = decodeFoldStatus(JSON.parse(JSON.stringify(failed)))

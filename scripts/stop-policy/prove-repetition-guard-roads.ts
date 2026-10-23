@@ -130,7 +130,7 @@ if (import.meta.main) {
   const execution = src('src/services/tools/toolExecution.ts')
   check('unavailable calls are observed after their error result; known calls after the transaction settles', execution.includes('yield unavailable') && execution.includes('recordToolCall(') && execution.includes('await body') && execution.indexOf('recordToolCall(') > execution.indexOf('yield unavailable') && execution.lastIndexOf('recordToolCall(') > execution.indexOf('await body'))
   const guard = src('src/services/tools/loopGuard.ts')
-  check('successful cycles remain behind the key while headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes('getIsNonInteractiveSession() && state.failureRun >= HEADLESS_FAILED_CALL_LIMIT'))
+  check('successful cycles remain behind the key while crewmates and headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes('getIsNonInteractiveSession() || parseOwnerKey(owner).lane !== MAIN_LANE') && guard.includes('state.failureRun >= FAILED_CALL_LIMIT'))
   const schema = src('src/rows/vocabulary.ts')
   check('the row vocabulary carries no repetition-breaker word and does carry the loop-stopped terminal', !schema.includes('repetition') && schema.includes("'loop_stopped'"))
   const agent = src('src/tools/AgentTool/agentToolUtils.ts')
@@ -138,7 +138,7 @@ if (import.meta.main) {
   const scriptsNamed = offenders(join(REPO, 'scripts'), BREAKER_NAMES)
   check('no proof pins the breaker', scriptsNamed.length === 0, scriptsNamed.slice(0, 12).join(' · '))
   const durability = src('docs/DURABILITY.md').replace(/\s+/g, ' ')
-  check('the durability page distinguishes loop reminders from tool-specific failure guards and names the optional cycle stop', durability.includes('The loop guard does not refuse individual calls for repeating. In interactive sessions it only reminds by default') && durability.includes('the language service refuses an unchanged failing call after three attempts') && durability.includes('eight consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
+  check('the durability page distinguishes loop reminders from tool-specific failure guards and names the optional cycle stop', durability.includes('The loop guard does not refuse individual calls for repeating. In foreground sessions it only reminds by default') && durability.includes('the language service refuses an unchanged failing call after three attempts') && durability.includes('Crewmates and headless runs end after three consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
 
   section('§2 DEFAULT ROAD on the built product: twenty identical reads of an unchanged file are reminded, never refused, and run to the model’s own end')
   {

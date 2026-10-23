@@ -19,7 +19,9 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 const scratch = realpathSync(mkdtempSync(path.join(tmpdir(), 'lsp-fanout-')))
-process.env.MERCURY_CONFIG_DIR ??= path.join(scratch, 'home')
+process.env.MERCURY_CONFIG_DIR = path.join(scratch, 'home')
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 process.env.MERCURY_CHANGESET_DIR = path.join(scratch, 'changesets')
 delete process.env.MERCURY_LSP
 process.chdir(scratch)

@@ -83,6 +83,13 @@ function alreadyFinishedOutput(shell: FinishedShell): Output {
   }
 }
 
+function childStopRefusal(context: ToolUseContext, task: unknown): string | null {
+  if (context.agentId === undefined) return null
+  return isLocalShellTask(task) && task.agentId === context.agentId
+    ? null
+    : 'A crewmate can stop only its own background command.'
+}
+
 export const TaskStopTool = buildTool({
   name: TASK_STOP_TOOL_NAME,
   aliases: [KILL_SHELL_ALIAS],
@@ -109,6 +116,8 @@ export const TaskStopTool = buildTool({
       return { result: false, message: 'Either task_id or shell_id is required.', errorCode: 1 }
     }
     const task = context.getAppState().tasks?.[taskId]
+    const refused = childStopRefusal(context, task)
+    if (refused !== null) return { result: false, message: refused, errorCode: 4 }
     if (!task) {
       const finished = await finishedTaskOnDisk(taskId)
       if (finished?.kind === 'shell') return { result: true }
@@ -128,6 +137,8 @@ export const TaskStopTool = buildTool({
     const taskId = targetIdOf(input, context)
     if (!taskId) throw new Error('Either task_id or shell_id is required.')
     const task = context.getAppState().tasks?.[taskId]
+    const refused = childStopRefusal(context, task)
+    if (refused !== null) throw new Error(refused)
     if (!task) {
       const finished = await finishedTaskOnDisk(taskId)
       if (finished?.kind === 'shell') return { data: alreadyFinishedOutput(finished.shell) }

@@ -82,6 +82,10 @@ export const LLM_HOST_WORDS = {
   stoppedSaved: 'stopped · provider saved · esc closes',
 } as const
 
+export const hostHuggingfaceScopeWords = (knownScope: boolean): string => knownScope
+  ? 'Hugging Face: this sign-in lacks Inference Endpoints management (HTTP 403) · sign in again with /logins huggingface.'
+  : 'Hugging Face: sign in again with /logins huggingface to grant Inference Endpoints management (HTTP 403).'
+
 export const LLM_HOST_SEARCH_MIN_CHARS = 3
 export const LLM_HOST_SEARCH_SETTLE_MS = 450
 
@@ -121,7 +125,32 @@ export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: str
   return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
 }
 
+export const hostNoStockWords = (vendors: readonly string[]): string => 'no stock on ' + (vendors.length ? vendors.join(', ') : 'the connected vendors') + ' · watch →'
+
+export const hostRunningCountWords = (running: number): string => running ? ' · ' + running + ' running' : ''
+
+export const hostVendorKeysWords = (vendors: readonly { label: string; connected: boolean; fault?: 'key' | 'read' }[]): string =>
+  'Vendor keys · ' + vendors.map(row => row.label + (row.fault === 'key' ? ' ✗ replace the key to reconnect' : row.fault === 'read' ? ' ✗ could not be read' : row.connected ? ' ✓' : '')).join(' · ') + ' — replace or remove →'
+
 export const hostMachineName = (vendor: keyof typeof HOST_VENDOR_INFO, id: string): string => (vendor === 'huggingface' ? 'HF endpoint' : HOST_VENDOR_INFO[vendor].label + (vendor === 'runpod' ? ' pod' : ' instance')) + ' ' + id
+
+export interface HostEngineDeathFacts { at: number; line: string; oom: boolean; contextTokens?: number; budgetTokens?: number; poolTokens?: number }
+
+export const hostTokensWords = (n: number): string => n >= 1048576 ? (n % 1048576 === 0 ? String(n / 1048576) : (n / 1048576).toFixed(1).replace(/\.0$/, '')) + 'M' : Math.max(1, Math.round(n / 1024)) + 'k'
+
+export function hostEngineOomWords(facts: Pick<HostEngineDeathFacts, 'contextTokens' | 'budgetTokens'>): string {
+  const at = facts.contextTokens ? ' at ' + hostTokensWords(facts.contextTokens) + ' tokens of context' : ' after setup'
+  const budget = facts.budgetTokens ? ' · the recipe’s budget was ' + hostTokensWords(facts.budgetTokens) : ''
+  return 'the engine ran out of GPU memory' + at + budget + ' · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits'
+}
+
+export function hostEngineDeadChatWords(record: { id: string; vendor?: keyof typeof HOST_VENDOR_INFO; price: number; engineDeath: HostEngineDeathFacts }): string {
+  const death = record.engineDeath
+  const what = death.oom
+    ? 'the engine ran out of GPU memory' + (death.contextTokens ? ' at ' + hostTokensWords(death.contextTokens) + ' tokens of context' : '') + (death.budgetTokens ? ' (the recipe’s budget was ' + hostTokensWords(death.budgetTokens) + ')' : '') + ': ' + death.line
+    : 'the engine died after setup: ' + death.line
+  return hostMachineName(record.vendor ?? 'runpod', record.id) + ' · ' + what + ' · the machine stays up and bills $' + record.price.toFixed(2) + '/hr · Resume in /llmhost restarts the engine' + (death.oom ? '; a shorter conversation or the Tune screen’s smaller context fits' : '')
+}
 
 export function hostPaidPodWords(pod: { id: string; name: string; status: string; cost: number; startedAt?: string | null; createdAt: string; vendor?: keyof typeof HOST_VENDOR_INFO }, record?: { step?: string; startedAt: string; provider?: string }, now = Date.now()): string {
   const identity = hostMachineName(pod.vendor ?? 'runpod', pod.id) + ' · ' + pod.name

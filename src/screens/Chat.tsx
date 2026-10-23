@@ -1878,7 +1878,7 @@ export function Chat({
   });
 
   const onRestore = useCallback(
-    async (message: UserMessage, mode: 'both' | 'conversation' | 'code'): Promise<RewindReceiptV1> => {
+    async (message: UserMessage | undefined, mode: 'both' | 'conversation' | 'code', files?: { filePath?: string; undo?: boolean; userMessageId?: string }): Promise<RewindReceiptV1> => {
       const connector = getFocusedSessionConnector();
       if (connector.turnActive()) {
         connector.interrupt();
@@ -1887,8 +1887,12 @@ export function Chat({
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-      const receipt = await connector.rewind({ userMessageId: message.uuid, mode });
+      if (message === undefined && files?.userMessageId === undefined) return { outcome: 'refused', mode, refusal: 'not-found', detail: 'no restore point was selected' };
+      const receipt = files === undefined && message !== undefined
+        ? await connector.rewind({ userMessageId: message.uuid, mode })
+        : await connector.rewind({ userMessageId: files?.userMessageId ?? message!.uuid, mode: 'code', ...files });
       if (receipt.outcome === 'applied' && receipt.conversation !== undefined) {
+        if (message === undefined) return receipt;
         const resubmit = textForResubmit(message);
         if (resubmit) {
           setInputValue(resubmit.text);

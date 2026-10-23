@@ -328,8 +328,66 @@ async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Prom
   return result
 }
 
-async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
-  return cleanupAgedDirectoryTree(join(getMercuryHome(), 'file-history'), true)
+export const FILE_HISTORY_MAX_BYTES = 500 * 1024 * 1024
+
+type HistoryDirectory = { path: string; bytes: number; modified: number }
+
+async function fileHistoryDirectories(): Promise<HistoryDirectory[]> {
+  const fs = getFsImplementation()
+  const root = join(getMercuryHome(), 'file-history')
+  let entries: Awaited<ReturnType<typeof fs.readdir>>
+  try {
+    entries = await fs.readdir(root)
+  } catch (error) {
+    if (isENOENT(error)) return []
+    throw error
+  }
+  const directories: HistoryDirectory[] = []
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const path = join(root, entry.name)
+    try {
+      let bytes = 0
+      let modified = (await fs.stat(path)).mtimeMs
+      for (const blob of await fs.readdir(path)) {
+        if (!blob.isFile()) continue
+        const facts = await fs.stat(join(path, blob.name))
+        bytes += facts.size
+        modified = Math.max(modified, facts.mtimeMs)
+      }
+      directories.push({ path, bytes, modified })
+    } catch (error) {
+      if (!isENOENT(error)) throw error
+    }
+  }
+  return directories.sort((a, b) => a.modified - b.modified || a.path.localeCompare(b.path))
+}
+
+export async function fileHistoryStorage(): Promise<{ bytes: number; limit: number; sessions: number }> {
+  const directories = await fileHistoryDirectories()
+  return { bytes: directories.reduce((sum, dir) => sum + dir.bytes, 0), limit: FILE_HISTORY_MAX_BYTES, sessions: directories.length }
+}
+
+export async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
+  const result = await cleanupAgedDirectoryTree(join(getMercuryHome(), 'file-history'), true)
+  const fs = getFsImplementation()
+  try {
+    const directories = await fileHistoryDirectories()
+    let bytes = directories.reduce((sum, dir) => sum + dir.bytes, 0)
+    for (const dir of directories) {
+      if (bytes <= FILE_HISTORY_MAX_BYTES) break
+      try {
+        await fs.rm(dir.path, { recursive: true, force: true })
+        bytes -= dir.bytes
+        result.messages++
+      } catch {
+        result.errors++
+      }
+    }
+  } catch {
+    result.errors++
+  }
+  return result
 }
 
 async function cleanupOldSessionEnvDirs(): Promise<CleanupResult> {

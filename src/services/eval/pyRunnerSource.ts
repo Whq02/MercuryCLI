@@ -166,6 +166,7 @@ def _take_line(raw):
             w["ok"] = bool(msg.get("ok"))
             w["value"] = msg.get("value")
             w["error"] = msg.get("error")
+            w["errorKind"] = msg.get("errorKind", "error")
             w["event"].set()
     elif t == "bye":
         _QUEUE.put(msg)
@@ -216,7 +217,9 @@ def _bridge(kind, payload):
     finally:
         _BRIDGE_WAITS.pop(bid, None)
     if not wait.get("ok"):
-        raise RuntimeError(str(wait.get("error") or "bridge call failed"))
+        error = RuntimeError(str(wait.get("error") or "bridge call failed"))
+        error.kind = wait.get("errorKind", "error")
+        raise error
     return wait.get("value")
 
 
@@ -312,19 +315,34 @@ def completion(prompt, system=None, model=None, tier=None, schema=None):
     })
 
 
-def parallel(thunks, width=None):
+def parallel(thunks, width=None, settled=False):
     from concurrent.futures import ThreadPoolExecutor
 
     thunks = list(thunks)
     if not thunks:
+        if settled:
+            parallel.results = []
         return []
     w = int(width or _bridge("width", {}) or 2)
     w = max(1, min(w, len(thunks)))
+
+    def settle(thunk):
+        try:
+            return {"ok": True, "value": thunk()}
+        except BaseException as e:
+            kind = "cancelled" if isinstance(e, KeyboardInterrupt) else "permission" if isinstance(e, PermissionError) else getattr(e, "kind", "error")
+            return {"ok": False, "error": {"kind": kind, "name": type(e).__name__, "message": _safe_str(e)}}
+
     with ThreadPoolExecutor(max_workers=w) as pool:
-        futures = [pool.submit(t) for t in thunks]
+        futures = [pool.submit(settle, t) if settled else pool.submit(t) for t in thunks]
         results = []
         for f in futures:  # input order preserved; lowest-index failure wins
             results.append(f.result())
+        if settled:
+            parallel.results = results
+            failed = [str(i) for i, result in enumerate(results) if not result["ok"]]
+            if failed:
+                print("Parallel failed indices (0-based): " + ", ".join(failed) + "; results remain in parallel.results.")
         return results
 
 

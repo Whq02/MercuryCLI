@@ -1,0 +1,39 @@
+{
+  "name": "lightcraft",
+  "version": "0.13.0",
+  "tag": "v0.13.0",
+  "repository": "https://github.com/storytold/lightcraft",
+  "license": "MIT OR Apache-2.0",
+  "licenseFiles": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "NOTICE"
+  ],
+  "platforms": {
+    "darwin-arm64": {
+      "target": "universal-apple-darwin",
+      "archive": "lightcraft-0.13.0-macos-universal.dmg",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/lightcraft-0.13.0-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/SHA256SUMS.txt",
+      "sha256": "9a1a9b5d8e9af96101d3299650d014d094c51d8ea8fe5e39bae83fa5a9189de0",
+      "bytes": 114324255
+    },
+    "win-x64": {
+      "target": "x86_64-pc-windows-msvc",
+      "archive": "lightcraft-0.13.0-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/lightcraft-0.13.0-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/SHA256SUMS.txt",
+      "sha256": "92f9d3c43ef2e7a493912518bf8c8691da0bb417768e00f599b2378e5c043c2c",
+      "bytes": 110851899
+    },
+    "linux-x64": {
+      "target": "x86_64-unknown-linux-gnu",
+      "archive": "lightcraft-0.13.0-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/lightcraft-0.13.0-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/SHA256SUMS.txt",
+      "sha256": "873c795e641ea8c345e02e4895f6c2659015e531420f68352ca3421aa9b8edcd",
+      "bytes": 110150449
+    }
+  },
+  "notes": "Research draft only; no runtime consumer. Pin observed 2026-10-23. Digests copied from the tagged SHA256SUMS.txt and matched to GitHub asset metadata. macOS needs the separately pinned lightcraft-cli payload from the same release; Windows portable ZIP and Linux tarball carry the CLI. Preserve the complete upstream license/font notices. licenseFiles names required upstream notices; verify packaged locations and supplement missing NOTICE from the exact tagged source before implementation. Download only this URL or a byte-identical owner-created mirror; check size and SHA-256 before extraction, stage then atomic activate, record treeDigest, and offer no-network --check. Do not select latest at install time."
+}

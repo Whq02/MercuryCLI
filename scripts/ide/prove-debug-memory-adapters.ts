@@ -26,7 +26,10 @@ const guard = setTimeout(() => {
 }, 300_000)
 guard.unref?.()
 
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'debug-memory-adapters-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'debug-memory-adapters-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 delete process.env.MERCURY_DAP
 delete process.env.MERCURY_DAP_ADAPTERS
 const distDebugpy = join(ROOT, 'dist', 'vendor', 'debugpy')

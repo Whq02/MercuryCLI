@@ -1,6 +1,6 @@
 import { setHasUnknownModelCost } from '../bootstrap/state.js'
 import { operatorModelFacts } from './model/modelOverrides.js'
-import { deepseekDisplayPin } from '../services/providers/deepseek/deepseekPins.js'
+import { deepseekDisplayPin, deepseekRatePeriod } from '../services/providers/deepseek/deepseekPins.js'
 import { xaiModelFacts } from '../services/providers/xai/xaiCatalogue.js'
 import { metaDisplayPin } from '../services/providers/meta/metaPins.js'
 import { mistralDisplayPin } from '../services/providers/mistral/mistralPins.js'
@@ -108,6 +108,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
 type UsageLike = {
   input_tokens: number
   output_tokens: number
+  request_started_at_ms?: number
   cache_read_input_tokens?: number
   cache_creation_input_tokens?: number
   cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number } | null
@@ -264,10 +265,20 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   qwen: model => recorded(engineTier(qwenDisplayPin(model))),
 }
 
-export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {
+export function resolveModelPricing(model: string, opts?: { promptTokens?: number; startedAtMs?: number }): ResolvedModelPricing {
   const route = declaredRouteOf(model)
   const resolved = route === null ? undefined : PRICING_OWNERS[route](model, opts?.promptTokens)
-  const base = resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' as const }
+  let base: ResolvedModelPricing = resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' }
+  if (route === 'deepseek' && resolved !== undefined && opts?.startedAtMs !== undefined) {
+    const period = deepseekRatePeriod(opts.startedAtMs)
+    if (period === 'off-peak') {
+      base = { basis: resolved.basis, costs: {
+        inputTokens: resolved.costs.inputTokens / 2, outputTokens: resolved.costs.outputTokens / 2,
+        promptCacheReadTokens: resolved.costs.promptCacheReadTokens / 2,
+        promptCacheWriteTokens: resolved.costs.promptCacheWriteTokens / 2, webSearchRequests: resolved.costs.webSearchRequests,
+      } }
+    } else if (period === 'holiday-unknown') base = { ...resolved, basis: 'family-estimate' }
+  }
   const prices = operatorModelFacts(model)?.prices
   if (!prices) return base
   return { costs: { ...base.costs, inputTokens: prices.input ?? base.costs.inputTokens, outputTokens: prices.output ?? base.costs.outputTokens,
@@ -279,7 +290,7 @@ export function modelPricingBasis(model: string): PricingBasis {
   return resolveModelPricing(model).basis
 }
 
-export function getModelCosts(model: string, opts?: { promptTokens?: number }): ModelCosts {
+export function getModelCosts(model: string, opts?: { promptTokens?: number; startedAtMs?: number }): ModelCosts {
   const resolved = resolveModelPricing(model, opts)
   if (resolved.basis !== 'recorded') setHasUnknownModelCost()
   return resolved.costs
@@ -288,7 +299,7 @@ export function getModelCosts(model: string, opts?: { promptTokens?: number }): 
 export function calculateUSDCost(resolvedModel: string, usage: UsageLike): number {
   const cacheCreation = usage.cache_creation_input_tokens ?? 0
   const promptTokens = usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + cacheCreation
-  const modelCosts = getModelCosts(resolvedModel, { promptTokens })
+  const modelCosts = getModelCosts(resolvedModel, { promptTokens, startedAtMs: usage.request_started_at_ms })
   const reported1h = usage.cache_creation?.ephemeral_1h_input_tokens
   const oneHour = reported1h !== undefined ? Math.min(reported1h, cacheCreation) : 0
   const fiveMinute = cacheCreation - oneHour

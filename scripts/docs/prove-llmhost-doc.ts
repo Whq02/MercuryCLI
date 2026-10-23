@@ -3,27 +3,30 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS } from '../../src/commands/llmhost/words.ts'
-import { BANK_DOOR } from '../../src/services/host/bank.ts'
-import { modelTitle } from '../../src/services/host/door.ts'
-import { keptStallWords } from '../../src/services/host/download.ts'
-import { BANK_KEYS } from '../../src/services/host/fastLoad.ts'
-import { HF_GATED_WORDS, HF_NOT_CHAT_WORDS, HF_OFFLINE_WORDS, HF_SEARCH_LIMIT, HF_SEARCH_PLACEHOLDER } from '../../src/services/host/hfRecipes.ts'
-import { createHostRoad } from '../../src/services/host/index.ts'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
-import { hostRecipeSchema } from '../../src/services/host/recipesFile.ts'
-import { HOST_VENDORS, vendorLabel } from '../../src/services/host/vendors/client.ts'
-import { vendorStamp } from '../../src/services/host/vendors/vendor.ts'
-import { compatImageRefusalWords } from '../../src/services/providers/openaicompat/compatProbe.ts'
-import { compatEngineRefusalText, compatToolSupportRefusal } from '../../src/services/providers/openaicompat/compatRefusals.ts'
-import { compatToolSchemaRefusal } from '../../src/services/providers/openaicompat/compatToolSchemas.ts'
-import { updateSettingsForSource } from '../../src/utils/settings/settings.ts'
-
-const ROOT = resolve(import.meta.dir, '..', '..')
 const scratchHome = mkdtempSync(join(tmpdir(), 'docs-llmhost-home-'))
-process.env.MERCURY_CONFIG_DIR ??= scratchHome
+process.env.MERCURY_CONFIG_DIR = scratchHome
+delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.on('exit', () => rmSync(scratchHome, { recursive: true, force: true }))
+
+const { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS } = await import('../../src/commands/llmhost/words.ts')
+const { BANK_DOOR } = await import('../../src/services/host/bank.ts')
+const { modelTitle } = await import('../../src/services/host/door.ts')
+const { keptStallWords } = await import('../../src/services/host/download.ts')
+const { BANK_KEYS } = await import('../../src/services/host/fastLoad.ts')
+const { HF_GATED_WORDS, HF_NOT_CHAT_WORDS, HF_OFFLINE_WORDS, HF_SEARCH_LIMIT, HF_SEARCH_PLACEHOLDER } = await import('../../src/services/host/hfRecipes.ts')
+const { hostIdleHoursWords } = await import('../../src/services/host/idle.ts')
+const { createHostRoad } = await import('../../src/services/host/index.ts')
+const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { hostRecipeSchema } = await import('../../src/services/host/recipesFile.ts')
+const { HOST_VENDORS, vendorLabel } = await import('../../src/services/host/vendors/client.ts')
+const { vendorStamp } = await import('../../src/services/host/vendors/vendor.ts')
+const { compatImageRefusalWords } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
+const { compatEngineRefusalText, compatToolSupportRefusal } = await import('../../src/services/providers/openaicompat/compatRefusals.ts')
+const { compatToolSchemaRefusal } = await import('../../src/services/providers/openaicompat/compatToolSchemas.ts')
+const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+
+const ROOT = resolve(import.meta.dir, '..', '..')
 
 const docPath = join(ROOT, 'docs', 'LLM-HOST.md')
 const indexPath = join(ROOT, 'docs', 'README.md')
@@ -198,12 +201,34 @@ function validateLlmHostDoc(
     doc.includes('`the engine died loading the weights:') &&
     doc.includes('`Download stalled') &&
     doc.includes(keptStallWords) &&
-    doc.includes("`the pod did not accept Mercury's SSH key") &&
+    doc.includes('`Engine not ready. The engine printed nothing new for') &&
+    doc.includes("`the machine never accepted Mercury's SSH key before the setup deadline") &&
     doc.includes('`the vendor no longer lists pod') &&
     doc.includes('`termination sent;') &&
     doc.includes('retrying in') &&
     doc.includes('did not answer') &&
-    doc.includes('`setup paused · Resume retries')
+    doc.includes('`setup paused · Resume retries') &&
+    flatDoc.includes('No setup check ever terminates a rented machine on its own') &&
+    doc.includes('stays up and bills $<rate>/hr while paused · Resume retries the setup, Terminate stops the bill · /llmhost → Machines I\'m paying for`') &&
+    flatDoc.includes('The only automatic terminate is the two-hour rule') &&
+    doc.includes('no model request reached it for ' + hostIdleHoursWords) &&
+    doc.includes('the setup pause went unanswered for ' + hostIdleHoursWords) &&
+    doc.includes('the engine died and the pause went unanswered for ' + hostIdleHoursWords) &&
+    doc.includes('the link dropped and the pause went unanswered for ' + hostIdleHoursWords) &&
+    doc.includes('`Mercury attached the SSH key to this instance and retried`') &&
+    flatDoc.includes('retries for up to four more minutes') &&
+    flatDoc.includes('five failed reconnects pause the rental without terminating it') &&
+    doc.includes('`Resume reconnects, Terminate stops the bill`') &&
+    doc.includes('`engine log unread`') &&
+    flatDoc.includes('The notice detail includes the last engine lines') &&
+    flatDoc.includes('an answering engine is reused without restarting it or downloading weights') &&
+    flatDoc.includes("name the rental and Mercury's reconnect count") &&
+    doc.includes('`link dropped <n> min ago · <k> reconnects`') &&
+    flatDoc.includes('stays selectable but follows unaffected machines') &&
+    flatDoc.includes('the keep-alive poll does not count') &&
+    !flatDoc.includes('three times in a row') &&
+    !flatDoc.includes('machine terminated and verified absent · nothing more bills') &&
+    !flatDoc.includes('Mercury terminates the pod')
 
   updateSettingsForSource('userSettings', () => ({
     compatProvider: {
@@ -291,7 +316,7 @@ section('§5 Hugging Face search, model screen, cross-provider stock watch, fail
 check('Hugging Face search parameters, section headings, gated/non-chat/offline notices and 32-model / 78-recipe counts match the code', res.searchFactsMatch)
 check('the model screen sections (RECIPE, QUALITY, CONVERSATIONS × CONTEXT, THINKING, WEIGHTS, WHERE), boot words and watch row match door.ts', res.modelScreenMatches)
 check('stock watches are documented across all connected providers and not listed as Runpod-only', res.watchAndRunpodOnlyMatch)
-check('the four setup failure cases (engine death, download stall, SSH key refusal, missing pod), unconfirmed termination and vendor hiccup retry words match worker.ts and retry.ts', res.failureAndHiccupWordsMatch)
+check('the setup pause causes (engine death, engine silence, download stall, SSH key refusal), the pause notice, the missing-pod road, the two-hour rule, unconfirmed termination and vendor hiccup retry words match worker.ts, ssh.ts, idle.ts and retry.ts, and no watchdog terminate claim remains', res.failureAndHiccupWordsMatch)
 check('shipped GGUF vision projectors (mmproj), image refusal words, engine refusal remedies and first-token progress match compatProbe.ts and compatRefusals.ts', res.projectorAndEngineRefusalsMatch)
 check('docs/README.md line for LLM-HOST.md names /llmhost, mercury host, Hugging Face search and the Bank', res.indexMatches, res.detail.indexLine)
 
@@ -303,6 +328,9 @@ check('the Bank guide names Change folder and content-based folder recognition',
 check('mirroring covers derived and private banks and any fitting fill shape', guide.includes('shipped, derived or private recipe') && guide.includes('download receipts') && guide.includes('any GPU shape') && !guide.includes('opens Runpod fast-load volume setup for a shipped recipe'))
 check('the guide names in-place key controls, the HF permission remedy and live-only machine counts', guide.includes('**Replace key / Remove key**') && guide.includes('https://huggingface.co/settings/tokens') && guide.includes('counts only live machines') && guide.includes('no instances') && guide.includes('unread'))
 check('the guide preserves effort on refusal and names the SGLang thinking switch', guide.includes('does not retry at default effort') && guide.includes('`chat_template_kwargs.thinking`') && !guide.includes('retries once without that field'))
+check('a failed disk read does not hide machines, names its cause and offers Retry', guide.includes('If only weights disks cannot be read, the machines remain listed') && guide.includes('weights disks unread; storage may still bill') && guide.includes('transient reads try up to three times') && guide.includes('failed request and cause and offers **Retry**'))
+
+check('the private recipe chooser documents the live menu row, path precedence, validation, replacement and persistence', expectedWhereRows.includes('Private recipes · none · choose a file →') && ['**Which private recipes file?**', 'Private recipes · <path> · <N> rows · replaces the shipped list', 'saved choice, `MERCURY_HOST_RECIPES_FILE` and `host/private-recipes.json`', 'zero valid rows', 'invalid row and field', '**Use this file**', '`host/recipes-file.json`', 'survives restarts', 'refreshes immediately with `private` tags'].every(text => guide.includes(text)))
 
 section('§7 poison controls — a drifted doc fails the proof')
 check(
@@ -319,7 +347,7 @@ check(
 )
 check(
   'poison control: omitting a vendor from the Rent heading fails vendorsMatch',
-  !validateLlmHostDoc(docText.replace('## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)', '## Rent a GPU (Runpod and Vast.ai)'), indexText, expectedStamps, expectedWhereRows).vendorsMatch,
+  !validateLlmHostDoc(docText.replace(/^## Rent a GPU \([^)]+\)$/m, '## Rent a GPU (Runpod and Vast.ai)'), indexText, expectedStamps, expectedWhereRows).vendorsMatch,
 )
 check(
   'poison control: claiming stock watches are Runpod-only fails watchAndRunpodOnlyMatch',

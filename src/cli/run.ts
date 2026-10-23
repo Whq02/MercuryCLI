@@ -35,10 +35,10 @@ import {
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { SessionId } from '../types/ids.js'
-import { loadConversationForResume } from '../utils/conversationRecovery.js'
+import { hasConversationTurn, loadConversationForResume } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
-import { flushSessionStorage, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
+import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
@@ -48,7 +48,7 @@ import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
-import { resolveHeadlessModel } from './headless/model.js'
+import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'
 import { refusedOutcome } from './headless/refusalEnvelope.js'
 import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
@@ -86,6 +86,7 @@ import { collectContextData } from '../commands/context/context-noninteractive.j
 import {
   handleRewindFiles,
   handleRewindSession,
+  handleFileRestoreSession,
   resolvePermissionModeTransition,
 } from './headless/controlHandlers.js'
 import {
@@ -271,8 +272,8 @@ import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } fro
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
-import { getTranscriptPath } from '../utils/sessionStorage/paths.js'
-import { appendSessionReceipt, readSessionReceipts } from '../services/switchboard/sessionReceipts.js'
+import { getTranscriptPath, isChainParticipant } from '../utils/sessionStorage/paths.js'
+import { appendSessionReceipt, readSessionReceipts, settleClearModel } from '../services/switchboard/sessionReceipts.js'
 import { wrapInSystemReminder } from '../utils/messages/text.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
@@ -486,16 +487,22 @@ export async function runHeadless(
     return
   }
   let bootModel: string | undefined
+  let bootModelRefusal: string | null = null
   if (options.userSpecifiedModel !== undefined) {
     try {
       bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
       setEngineModelOverride(bootModel)
     } catch (error) {
       const message = errorMessage(error)
-      if (options.outputFormat === 'rows') process.stdout.write(jsonStringify(refusedOutcome([message])) + '\n')
-      else process.stderr.write(`${message}\n`)
-      gracefulShutdownSync(1)
-      return
+      if (options.door !== 'wire') {
+        if (options.outputFormat === 'rows') process.stdout.write(jsonStringify(refusedOutcome([message])) + '\n')
+        else process.stderr.write(`${message}\n`)
+        gracefulShutdownSync(1)
+        return
+      }
+      bootModel = parseUserSpecifiedModel(options.userSpecifiedModel)
+      setEngineModelOverride(bootModel)
+      bootModelRefusal = bootModelRefusalLine(bootModel, message)
     }
   }
 
@@ -704,12 +711,32 @@ export async function runHeadless(
         setEngineModelOverride(bootModel)
       } catch (error) {
         if (recorded.toLowerCase().startsWith('compat/')) {
-          emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, wire ? 'text' : options.outputFormat)
-          gracefulShutdownSync(1)
-          return
+          if (wire) {
+            bootModel = parseUserSpecifiedModel(recorded)
+            setEngineModelOverride(bootModel)
+            bootModelRefusal = bootModelRefusalLine(bootModel, errorMessage(error))
+          } else {
+            emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, options.outputFormat)
+            gracefulShutdownSync(1)
+            return
+          }
+        } else {
+          enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
         }
-        enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
       }
+    }
+  }
+  if (bootModelRefusal !== null && !awaitingSessionClaim) {
+    const refusalRow = createSeatReceiptMessage(bootModelRefusal, 'warning')
+    const persist = !isSessionPersistenceDisabled() && hasConversationTurn(messages)
+    const onDisk = persist ? await getSessionMessages(getSessionId() as UUID) : null
+    const leaf = onDisk === null ? undefined : messages.findLast(m => isChainParticipant(m) && onDisk.has(m.uuid as UUID))
+    messages.push(refusalRow)
+    if (persist) {
+      adoptResumedSessionFile()
+      void recordTranscript([refusalRow], leaf?.uuid as UUID | undefined, messages)
+        .then(() => peekProject()?.flush())
+        .catch((error: unknown) => logError(toError(error)))
     }
   }
 
@@ -906,6 +933,18 @@ export async function runHeadless(
   let sessionInitialized = false
   let activeModel: string | undefined = bootModel
   saveSessionModel(activeModel ?? getEngineModel())
+  const settleClearBirth = (): void => {
+    try {
+      const row = settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), activeModel ?? getEngineModel())
+      if (row !== null && !messages.some(message => message.uuid === row.uuid)) {
+        messages.push(row)
+        void recordTranscript([row], undefined, messages).catch((error: unknown) => logError(toError(error)))
+      }
+    } catch (error) {
+      logError(toError(error))
+    }
+  }
+  if (isConcourseWorker && !awaitingSessionClaim) settleClearBirth()
   let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
   let initializeJsonSchema: Record<string, unknown> | undefined
   let lastAnswerSchemaKey: string | null = null
@@ -2041,6 +2080,7 @@ export async function runHeadless(
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       if (params.resume === true) await hydrateResumedRun()
       awaitingSessionClaim = false
+      settleClearBirth()
       void liveMcp.refresh()
       sessionFactsHoldSpent = false
       sessionFactsHold = null
@@ -2173,6 +2213,8 @@ export async function runHeadless(
         fileCheckpoints: {
           ...fileCheckpointsFact(),
           restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),
+          files: [...state.fileHistory.trackedFiles].sort(),
+          ...(state.fileHistory.rewindUndo === undefined ? {} : { undo: state.fileHistory.rewindUndo.messageId }),
         },
       }
       markScheduleSeatObserved()
@@ -2205,9 +2247,14 @@ export async function runHeadless(
       const outcome = await handleRewindSession(params, {
         messages,
         getAppState,
+        setAppState,
         drift: getReadFileCache(),
         turnActive: inFlightAbort !== null,
       })
+      return rewindOutcomeToWire(outcome) as Record<string, unknown>
+    },
+    'session/file_restore': async params => {
+      const outcome = await handleFileRestoreSession(params, { messages, getAppState, setAppState, drift: getReadFileCache(), turnActive: inFlightAbort !== null })
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
     'session/set_spawn_switch': (params, ref) => {

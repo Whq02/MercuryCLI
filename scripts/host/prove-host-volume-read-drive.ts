@@ -69,7 +69,8 @@ try {
     const before = reads()
     assert.ok(before > 0)
     await choose('bank'); await step('door-bank')
-    assert.equal(reads(), before, label + ' Bank must not re-read a credential already rejected by the machine list')
+    const afterBank = reads()
+    assert.equal(afterBank, before + 1, label + ' checks volumes independently of the rejected machine read, once')
     assert.equal(notices.length, 0, label + ' has one summary, not a second raw volume notice')
     assert.equal(flat().split(label + ': could not be read (HTTP 401)').length - 1, 1)
     assert.ok(!flat().includes('GET /'))
@@ -77,7 +78,7 @@ try {
     assert.ok(question!.found.includes('HTTP 401'))
     assert.ok(!question!.found.includes('fixture-rejected'))
     await close(); await open(); await choose('pods'); await step('paid-pods')
-    assert.equal(reads(), before, label + ' paid list must not re-read a parked credential')
+    assert.equal(reads(), afterBank, label + ' paid list must not retry either rejected operation until the credential changes')
     assert.ok(question!.found.includes(label + ': unread'))
     assert.equal(notices.length, 0)
     if (frames) {
@@ -94,7 +95,7 @@ try {
     assert.ok(reads() > before)
     assert.ok(!question!.found.includes('could not be read'))
     await close(); mounted.unmount(); mounted = undefined
-    console.log('PASS ' + label + ' at ' + width + ': one credential failure, Bank and paid volumes stay parked, HTTP detail preserved, changed key resumes reads')
+    console.log('PASS ' + label + ' at ' + width + ': machine and volume reads fail independently, each stays parked, HTTP detail preserved, changed key resumes reads')
   }
   assert.equal(escaped.length, 0)
   assert.equal(rp.state.creates + vast.state.creates + rp.state.volumeCreates + vast.state.volumeCreates, 0)

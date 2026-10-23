@@ -104,12 +104,12 @@ export function HuggingfaceConnect({
         </Text>
         {compact ? null : (
           <Text color={tokens.textSecondary}>
-            One Hub token reaches every open model on Inference Providers (monthly credits first, then pay-as-you-go at provider rates).
+            Sign-in grants Inference Providers and Inference Endpoints management.
           </Text>
         )}
         <Select
           options={[
-            { label: 'Sign in with Hugging Face — device code in your browser', value: 'device' },
+            { label: compact ? 'Sign in · Inference Providers + Endpoints management' : 'Sign in with Hugging Face — device code in your browser', value: 'device' },
             { label: 'Paste a token (Inference Providers permission; stored locally, mode 600)', value: 'token' },
           ]}
           onChange={value => setLeg(value as 'device' | 'token')}

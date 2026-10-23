@@ -58,7 +58,7 @@ const mistralSource = 'https://huggingface.co/mistralai/Mistral-Large-3-675B-Ins
 const mtp = ['--speculative-algorithm', 'EAGLE', '--speculative-num-steps', '5', '--speculative-eagle-topk', '1', '--speculative-num-draft-tokens', '6']
 const pythonInstall = 'python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang'
 export const LLAMACPP_ENGINE_SHA = '184f6536024668e8908ab8c86033d56708e62b40'
-const LLAMACPP_ENGINE_IMAGE = 'ghcr.io/whq02/mercury-llamacpp@sha256:f187c39c119011346722a5a9ae6ad216f1e748637f04213912e0bfd044952251'
+export const LLAMACPP_ENGINE_IMAGE = 'ghcr.io/whq02/mercury-llamacpp@sha256:f187c39c119011346722a5a9ae6ad216f1e748637f04213912e0bfd044952251'
 const llamaImageSource = 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1432523828?tag=cuda13-' + LLAMACPP_ENGINE_SHA.slice(0, 7)
 const llamaInstall = 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout ' + LLAMACPP_ENGINE_SHA + ' && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server'
 
@@ -117,12 +117,17 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
     pythonInstall,
     flags: ['--tp-size', String(hw.count), '--dsa-prefill-backend', 'trtllm', '--dsa-decode-backend', 'trtllm', '--kv-cache-dtype', 'fp8_e4m3', '--moe-runner-backend', 'flashinfer_trtllm', ...mtp, '--reasoning-parser', 'glm45', '--tool-call-parser', 'glm47'],
   })),
-  ...[{ gpu: 'B200', vramGb: 180 }, { gpu: 'B300', vramGb: 288 }, { gpu: 'GB300', vramGb: 288 }].map(hw => ({
+  ...[
+    { gpu: 'B200', vramGb: 180, fraction: '0.78', chunk: '2048', verification: 'verified · 1M context · prefill chunk 2048 and a 78% static share, set from the engine’s own memory plan read on 4× B200 on 2026-10-23: the stock 16384-token chunk scores the whole context densely and outgrew the 24.7 GB headroom near 150k tokens of context' },
+    { gpu: 'B300', vramGb: 288, fraction: '0.8', chunk: '4096', verification: 'verified · 1M context · prefill chunk 4096, computed from the 4× B200 reading of 2026-10-23 (the stock 16384-token chunk scores the whole context densely and outgrows the engine’s headroom past ~700k tokens); not measured on this card' },
+    { gpu: 'GB300', vramGb: 288, fraction: '0.8', chunk: '4096', verification: 'verified · 1M context · prefill chunk 4096, computed from the 4× B200 reading of 2026-10-23 (the stock 16384-token chunk scores the whole context densely and outgrows the engine’s headroom past ~700k tokens); not measured on this card' },
+  ].map(({ fraction, chunk, verification, ...hw }) => ({
     id: 'deepseek41-' + hw.gpu.toLowerCase(), label: 'DeepSeek-V4.1-Flash-1017', model: 'deepseek-ai/DeepSeek-V4.1-Flash-1017', weightsGb: 510.311045295, ...hw, count: 4, diskGb: 650,
-    image: 'lmsysorg/sglang:dev-dsv41', cuda: '13.0', source: dsSource, verification: 'verified',
-    verified: { by: 'documented' as const, note: 'verified', source: dsSource },
+    image: 'lmsysorg/sglang:dev-dsv41', cuda: '13.0', source: dsSource, context: 1048576, contextPerSlot: 1048576, verification,
+    verified: { by: 'documented' as const, on: '2026-10-23', note: 'verified', source: dsSource },
     efforts: { levels: ['low','high','max'], verified: { by: 'documented' as const, on: '2026-10-20', source: 'https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md', note: 'encoder maps low, high and max to 50, 75 and 100' } },
-    flags: ['--trust-remote-code', '--tp', '4', '--ep-size', '4', '--mem-fraction-static', '0.8', '--speculative-algorithm', 'DSPARK', '--speculative-dspark-block-size', '5', '--cuda-graph-max-bs-decode', '64', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
+    kvBytesPerToken: { bytes: 11624, maxContext: 1048576, cacheType: 'fp8_e4m3', verified: { by: 'measured' as const, on: '2026-10-23', source: dsSource, note: 'per card, from the engine’s own plan on 4× B200: max_total_num_tokens=1754112 out of the 18.99 GiB left of the 80% static share after 121.97 GiB of weights, i.e. 11,624 bytes per token, kept on every card (tensor parallel). The model keeps a 512-wide latent + 64 rope at fp8 for its 4 kv-source layers (3 of them 2:1 compressed), a 128-wide fp4 index key per index layer, a 128-position sliding window per layer, and the DSpark draft’s share.' } },
+    flags: ['--trust-remote-code', '--tp', '4', '--ep-size', '4', '--mem-fraction-static', fraction, '--chunked-prefill-size', chunk, '--speculative-algorithm', 'DSPARK', '--speculative-dspark-block-size', '5', '--cuda-graph-max-bs-decode', '64', '--reasoning-parser', 'auto', '--tool-call-parser', 'auto'],
   })),
   ...[{ gpu: 'H200', count: 8, vramGb: 141 }, { gpu: 'B200', count: 8, vramGb: 180 }, { gpu: 'B300', count: 8, vramGb: 288 }, { gpu: 'GB300', count: 4, vramGb: 288 }].map(hw => ({
     id: 'glm53-' + hw.gpu.toLowerCase(), label: 'GLM-5.3 · FP8', model: 'zai-org/GLM-5.3', ...hw, weightsGb: 755.663689302, context: 1048576, contextPerSlot: 1048576, diskGb: 950,

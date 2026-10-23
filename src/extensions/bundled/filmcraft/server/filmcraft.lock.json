@@ -1,0 +1,39 @@
+{
+  "name": "filmcraft",
+  "version": "0.12.0",
+  "tag": "v0.12.0",
+  "repository": "https://github.com/storytold/filmcraft",
+  "license": "MIT OR Apache-2.0",
+  "licenseFiles": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "NOTICE"
+  ],
+  "platforms": {
+    "darwin-arm64": {
+      "target": "universal-apple-darwin",
+      "archive": "filmcraft-0.12.0-macos-universal.dmg",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/filmcraft-0.12.0-macos-universal.dmg",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/SHA256SUMS.txt",
+      "sha256": "1ed0bec3be74766fa6c81d6289c6763d5696f93946e7d698162498143c72b87e",
+      "bytes": 73991251
+    },
+    "win-x64": {
+      "target": "x86_64-pc-windows-msvc",
+      "archive": "filmcraft-0.12.0-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/filmcraft-0.12.0-windows-x64-portable.zip",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/SHA256SUMS.txt",
+      "sha256": "6732c6151e532eaa548d8039740091db813730e7112fdf3ab2837a1cf0ad0c3a",
+      "bytes": 70839726
+    },
+    "linux-x64": {
+      "target": "x86_64-unknown-linux-gnu",
+      "archive": "filmcraft-0.12.0-linux-x86_64.tar.gz",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/filmcraft-0.12.0-linux-x86_64.tar.gz",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/SHA256SUMS.txt",
+      "sha256": "ddff0a2ec0d89e5e9e65644ed724b5b79959600b1602fd4ea6653b5a54bf88fd",
+      "bytes": 69907641
+    }
+  },
+  "notes": "Research draft only; no runtime consumer. Pin observed 2026-10-23. Digests copied from the tagged SHA256SUMS.txt and matched to GitHub asset metadata. macOS needs the separately pinned filmcraft-cli payload from the same release; Windows portable ZIP and Linux tarball carry the CLI. Preserve the complete upstream license/font notices. licenseFiles names required upstream notices; verify packaged locations and supplement missing NOTICE from the exact tagged source before implementation. Download only this URL or a byte-identical owner-created mirror; check size and SHA-256 before extraction, stage then atomic activate, record treeDigest, and offer no-network --check. Do not select latest at install time."
+}

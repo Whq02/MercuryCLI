@@ -14,6 +14,7 @@ const LIGHT_GRID = new RegExp(J('--', 'li', 'ght', '--'))
 const REMOVAL_ROW = /^design-system\/live\/grids\/[^\t]+\.grid\.json\tremoved with the family/
 
 const EXCUSED: Array<[string, string]> = [
+  ['src/extensions/bundled/lightcraft/skills/lightcraft/SKILL.md', 'LightCraft\'s own command vocabulary (its "light" develop section), not a Mercury appearance'],
   ['docs/releases/', 'published release pages are history'],
   ['src/constants/changelog.ts', 'past release notes stay as published'],
   ['scripts/engine-pass/contract-59a987410.json', "the recorded contract of the engine pass's base, a snapshot never rewritten"],

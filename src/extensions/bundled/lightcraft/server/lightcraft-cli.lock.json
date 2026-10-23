@@ -1,0 +1,22 @@
+{
+  "name": "lightcraft-cli",
+  "version": "0.13.0",
+  "tag": "v0.13.0",
+  "repository": "https://github.com/storytold/lightcraft",
+  "license": "MIT OR Apache-2.0",
+  "licenseFiles": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "platforms": {
+    "darwin-arm64": {
+      "target": "universal-apple-darwin",
+      "archive": "lightcraft-cli-0.13.0-macos-universal.zip",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/lightcraft-cli-0.13.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/lightcraft/releases/download/v0.13.0/SHA256SUMS.txt",
+      "sha256": "5c456eefc93558db123ed2203f60c7819fa8ed3607bf715404a71005f9342200",
+      "bytes": 109033607
+    }
+  },
+  "notes": "Research draft only; companion CLI for lightcraft on macOS. The desktop DMG is not enough for MCP. Digest verified against upstream SHA256SUMS.txt and the downloaded bytes. CLI --version, commands, MCP initialize/tools/list/command_list were exercised; not a GUI attachment proof. Preserve all shipped notices; this ZIP also has NOTICE."
+}

@@ -1,4 +1,5 @@
 import { getInitializationStatus, getLspServerManager, reinitializeLspServerManager, waitForInitialization } from '../../services/lsp/manager.js'
+import type { LSPStopResult } from '../../services/lsp/LSPClient.js'
 import type { LocalCommandCall } from '../../types/command.js'
 
 const USAGE = 'Usage: `/lsp status` lists the language servers of this workspace · `/lsp restart [<server>]` restarts one of them, or all of them.'
@@ -8,6 +9,11 @@ function notRunning(): string {
   if (status.status === 'failed') return `The language servers did not start in this session: ${status.error.message}`
   if (status.status === 'pending') return 'The language servers are still starting — ask again in a moment.'
   return 'The language servers are not running in this session.'
+}
+
+function stopWords(stop: LSPStopResult): string {
+  if (stop.outcome === 'killed') return `killed after ${(stop.elapsedMs / 1000).toFixed(1)} s`
+  return stop.exitCode === 0 ? 'exited cleanly' : stop.exitCode !== null ? `exited with code ${stop.exitCode}` : 'stopped'
 }
 
 export const call: LocalCommandCall = async args => {
@@ -24,10 +30,12 @@ export const call: LocalCommandCall = async args => {
   }
   if (manager === undefined || getInitializationStatus().status === 'not-started') return { type: 'text', value: notRunning() }
   if (target === '') {
-    reinitializeLspServerManager()
+    const stopped = await reinitializeLspServerManager()
     await waitForInitialization()
     const fresh = getLspServerManager()
     if (fresh === undefined) return { type: 'text', value: notRunning() }
+    const outcomes = stopped?.flatMap(({ serverName, stop }) => stop ? [`${serverName} ${stopWords(stop)}`] : []) ?? []
+    if (outcomes.length > 0) return { type: 'text', value: `Language services restarted — ${outcomes.join('; ')}. Servers start on the next request.` }
     const names = [...fresh.getAllServers().keys()]
     const roster = names.length === 0 ? NO_LSP_SERVERS_CONFIGURED : `${names.length} configured — ${names.join(', ')} — each starts on the first file it claims.`
     return { type: 'text', value: `Restarted the language servers of this workspace: ${roster}` }
@@ -38,7 +46,8 @@ export const call: LocalCommandCall = async args => {
     return { type: 'text', value: `No language server named \`${target}\` in this workspace — ${names.length === 0 ? 'none is configured.' : `the roster: ${names.join(', ')}.`}` }
   }
   try {
-    await server.restart()
+    const stopped = await server.restart()
+    if (stopped) return { type: 'text', value: `Restarted ${server.name} — ${stopWords(stopped)}; ${server.state}.` }
     return { type: 'text', value: `Restarted ${server.name} — ${server.state} (gen ${server.generation}, restarts ${server.restartCount}).` }
   } catch (err) {
     return { type: 'text', value: `${server.name} did not come back: ${err instanceof Error ? err.message : String(err)} — now ${server.state}; \`/lsp status\` shows the roster.` }

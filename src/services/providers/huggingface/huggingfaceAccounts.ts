@@ -19,7 +19,7 @@ const HF_WHOAMI_PATH = '/api/whoami-v2'
 const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
-export const HF_OAUTH_SCOPE = 'openid profile inference-api'
+export const HF_OAUTH_SCOPE = 'openid profile inference-api write-endpoints'
 const HF_CLIENT_NAME = 'Mercury'
 const DEVICE_DEFAULT_INTERVAL_SEC = 5
 const REFRESH_MARGIN_MS = 15 * 60 * 1000
@@ -53,6 +53,7 @@ export interface HuggingfaceStoredTokens {
   refreshToken?: string
   accessTokenExpiresAtMs?: number
   scope?: string
+  clientId?: string
 }
 
 export interface HuggingfaceIdentity {
@@ -66,7 +67,7 @@ interface HuggingfaceAuthFile {
   tokens?: HuggingfaceStoredTokens
   identity?: HuggingfaceIdentity
   tokenIdentity?: HuggingfaceIdentity & { keyTail: string }
-  registeredClient?: { clientId: string; hubBase: string; issuedAtMs: number }
+  registeredClient?: { clientId: string; hubBase: string; issuedAtMs: number; scope?: string }
   lastRefreshMs?: number
   [k: string]: unknown
 }
@@ -232,10 +233,14 @@ export async function registerHuggingfaceOauthClient(io?: HuggingfaceOauthIo): P
   }
   writeAuthFile(file => ({
     ...file,
+    ...(file.tokens && !file.tokens.clientId && file.registeredClient?.hubBase === huggingfaceHubBase(env)
+      ? { tokens: { ...file.tokens, clientId: file.registeredClient.clientId } }
+      : {}),
     registeredClient: {
       clientId,
       hubBase: huggingfaceHubBase(env),
       issuedAtMs: io?.now?.() ?? Date.now(),
+      scope: HF_OAUTH_SCOPE,
     },
   }))
   return clientId
@@ -246,7 +251,7 @@ export async function resolveHuggingfaceOauthClientId(io?: HuggingfaceOauthIo): 
   const pinned = huggingfaceOauthClientIdPin(env)
   if (pinned) return pinned
   const stored = huggingfaceRegisteredClientId(env)
-  if (stored) return stored
+  if (stored && readAuthFile()?.registeredClient?.scope === HF_OAUTH_SCOPE) return stored
   return registerHuggingfaceOauthClient(io)
 }
 
@@ -327,7 +332,7 @@ export async function pollHuggingfaceDeviceToken(
   }
   const { status, body } = posted
   const tokens = tokensFromBody(body, io)
-  if (status === 200 && tokens) return { state: 'authorized', tokens }
+  if (status === 200 && tokens) return { state: 'authorized', tokens: { ...tokens, clientId: start.clientId } }
   const error = typeof body.error === 'string' ? body.error : `http-${status}`
   if (error === 'authorization_pending') return { state: 'pending' }
   if (error === 'slow_down') return { state: 'slow-down' }
@@ -349,7 +354,7 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
       const env = io?.env ?? process.env
       const stored = huggingfaceStoredTokens()
       if (!stored?.refreshToken) return undefined
-      const clientId = huggingfaceOauthClientIdPin(env) ?? huggingfaceRegisteredClientId(env)
+      const clientId = stored.clientId ?? huggingfaceOauthClientIdPin(env) ?? huggingfaceRegisteredClientId(env)
       if (!clientId) return undefined
       let result: { status: number; body: Record<string, unknown> }
       try {
@@ -363,7 +368,7 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
       }
       const tokens = tokensFromBody(result.body, io)
       if (result.status === 200 && tokens) {
-        const next = { ...tokens, refreshToken: tokens.refreshToken ?? stored.refreshToken }
+        const next = { ...tokens, clientId, refreshToken: tokens.refreshToken ?? stored.refreshToken, scope: tokens.scope ?? stored.scope }
         writeHuggingfaceTokens(next, huggingfaceOauthIdentity())
         return next
       }

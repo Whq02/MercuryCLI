@@ -1,12 +1,15 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, ROOT, TURN_MS } from './crew-world.ts'
 
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'old-tool-name-rows-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'old-tool-name-rows-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+const { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, ROOT, TURN_MS } = await import('./crew-world.ts')
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const tally = makeTally('prove-old-tool-name-rows')

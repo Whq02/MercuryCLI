@@ -16,6 +16,11 @@ import { compatModelEfforts } from './compatEffort.js'
 import { cachedCompatCatalogue, refreshCompatCatalogues } from './compatCatalogue.js'
 import { compatToolSupportRefusal } from './compatRefusals.js'
 import { isKimiK3WireModel } from './kimiReplay.js'
+import { readHostRecord } from '../../host/store.js'
+import { hostLinkChatCause } from '../../host/reliability.js'
+import { NetworkOutageError } from '../../api/reconnectLadder.js'
+import { apiErrorDetailOf } from '../../../utils/messages/systemMessages.js'
+import { hostEngineDeadChatWords } from '../../../commands/llmhost/words.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
@@ -148,8 +153,36 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       return { ...buildHostedExtras({ ...args, dialect, vocabulary: compatModelEfforts(params.options.model), ...(idSlot !== undefined ? { idSlot } : {}) }), ...cache }
     },
   }
+  const deadEngineWords = (): string | undefined => {
+    if (!endpoint.hostPodId) return undefined
+    try {
+      const record = readHostRecord(endpoint.hostPodId)
+      return record?.engineDeath && record.jobState !== 'ready' ? hostEngineDeadChatWords({ id: record.id, vendor: record.vendor, price: record.price, engineDeath: record.engineDeath }) : undefined
+    } catch { return undefined }
+  }
+  const deadBefore = deadEngineWords()
+  if (deadBefore !== undefined) {
+    yield createAssistantAPIErrorMessage({ content: deadBefore, error: 'server_error', errorDetails: 'host-engine-dead' })
+    return
+  }
   const startedAt = performance.now()
   for await (const event of compatChatCallModel(profile, params)) {
+    if (event.type === 'system' && event.subtype === 'api_error' && (event.error as { networkOutage?: true }).networkOutage === true) {
+      const dead = deadEngineWords()
+      if (dead !== undefined) {
+        yield createAssistantAPIErrorMessage({ content: dead, error: 'server_error', errorDetails: 'host-engine-dead' })
+        return
+      }
+      if (endpoint.hostPodId && event.error instanceof NetworkOutageError) {
+        try {
+          const record = readHostRecord(endpoint.hostPodId)
+          if (record) {
+            event.error = new NetworkOutageError({ ...event.error.outage, cause: hostLinkChatCause({ ...record, vendor: record.vendor ?? 'runpod' }, event.error.outage.cause) }, event.error.cause)
+            event.errorDetail = apiErrorDetailOf(event.error)
+          }
+        } catch {}
+      }
+    }
     if (event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) noteCompatPrefixCache(endpoint, wireId, lastUsage)
     if (endpoint.name.startsWith('box-') && event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) {
       try {

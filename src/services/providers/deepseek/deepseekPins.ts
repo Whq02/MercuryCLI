@@ -69,3 +69,22 @@ export function deepseekDisplayName(id: string): string {
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
+
+export const DEEPSEEK_PRICING_SOURCE = 'https://api-docs.deepseek.com/quick_start/pricing/'
+export const DEEPSEEK_PRICING_OBSERVED_AT = '2026-10-23'
+
+const HOLIDAYS_2026: readonly [string, string][] = [
+  ['01-01', '01-03'], ['02-15', '02-23'], ['04-04', '04-06'],
+  ['05-01', '05-05'], ['06-19', '06-21'], ['09-25', '09-27'], ['10-01', '10-07'],
+]
+
+export function deepseekRatePeriod(startedAtMs: number): 'peak' | 'off-peak' | 'holiday-unknown' {
+  const date = new Date(startedAtMs)
+  if (!Number.isFinite(date.getTime())) return 'holiday-unknown'
+  const day = date.getUTCDay()
+  const hour = date.getUTCHours()
+  if (day === 0 || day === 6 || !((hour >= 1 && hour < 4) || (hour >= 6 && hour < 10))) return 'off-peak'
+  if (date.getUTCFullYear() !== 2026) return 'holiday-unknown'
+  const monthDay = date.toISOString().slice(5, 10)
+  return HOLIDAYS_2026.some(([start, end]) => monthDay >= start && monthDay <= end) ? 'off-peak' : 'peak'
+}

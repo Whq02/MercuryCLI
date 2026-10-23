@@ -53,6 +53,7 @@ interface BridgeAnswer {
   ok: boolean
   value?: unknown
   error?: string
+  errorKind?: 'permission' | 'cancelled' | 'error'
   code?: number | null
 }
 
@@ -132,11 +133,13 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     abortController: cellAbort,
   }
 
-  const makeWrappedCanUse = (budget: CellBudgetHooks): CanUseToolFn =>
+  const makeWrappedCanUse = (budget: CellBudgetHooks, refused: () => void): CanUseToolFn =>
     async (tool, input, ctx, message, id, force) => {
       budget.askBegin()
       try {
-        return await canUseTool(tool, input, ctx, message, id, force)
+        const decision = await canUseTool(tool, input, ctx, message, id, force)
+        if (decision.behavior !== 'allow') refused()
+        return decision
       } finally {
         budget.askEnd()
       }
@@ -152,7 +155,8 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     deps.onNested?.(assistant)
     let result: { text: string; isError: boolean } | null = null
     let shellRun: ShellRunFact | undefined
-    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget), nestedContext)) {
+    let permissionDenied = false
+    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), nestedContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
       const extracted = extractToolResult(message as UserMessage, toolUseId)
@@ -164,7 +168,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     }
     if (!result) return { ok: false, error: `the ${name} call produced no result` }
     if (shellRun !== undefined) return { ok: true, value: shellCallValue(shellRun, result.text), code: shellRun.code }
-    if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed` }
+    if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed`, errorKind: cellAbort.signal.aborted ? 'cancelled' : permissionDenied ? 'permission' : 'error' }
     return { ok: true, value: result.text }
   }
 

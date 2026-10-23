@@ -1,4 +1,5 @@
 import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
+import { withBundledAppInstallConsent } from './extensions/installConsent.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
@@ -268,7 +269,7 @@ export function assembleToolPool(
     tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked',
   )
   builtins.sort((a, b) => a.name.localeCompare(b.name))
-  const sortedMcp = [...mcp].sort((a, b) => a.name.localeCompare(b.name))
+  const sortedMcp = mcp.map(withBundledAppInstallConsent).sort((a, b) => a.name.localeCompare(b.name))
   const seen = new Set<string>()
   const pool: Tool[] = []
   for (const tool of [...builtins, ...sortedMcp]) {

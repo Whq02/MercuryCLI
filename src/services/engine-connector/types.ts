@@ -383,12 +383,16 @@ export type WorkspaceFactsV1 = {
 export type CheckpointFactsV1 = {
   capture: 'on' | 'off' | 'unknown'
   restorable: ReadonlySet<string>
+  files?: readonly string[]
+  undo?: string
 }
 
 export type RewindRequestV1 = {
   userMessageId: string
   mode: SessionRewindMode
   dryRun?: boolean
+  filePath?: string
+  undo?: boolean
 }
 
 export type RewindReceiptV1 = SessionRewindOutcomeV1

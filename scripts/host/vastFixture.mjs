@@ -24,6 +24,8 @@ export async function vastFixture() {
     const failure = [state.failNext].flat().find(row => row && row.times > 0 && row.route === req.method + ' ' + url.pathname)
     if (failure) {
       failure.times--
+      if (failure.status === 'timeout') return
+      if (failure.status === 'body-timeout') { res.writeHead(200, { 'content-type': 'application/json' }); res.write('{'); return }
       if (failure.status === 'disconnect') return req.socket.destroy()
       const retryAfter = failure.retryAfter ?? state.retryAfter
       if (retryAfter !== undefined) res.setHeader('Retry-After', String(retryAfter))
@@ -131,6 +133,14 @@ export async function vastFixture() {
     }
     const log = /^\/api\/v0\/instances\/request_logs\/(\d+)\/$/.exec(url.pathname)
     if (log && req.method === 'PUT') { json({ success: true, result_url: state.logUrl ?? origin + '/fixture-logs/' + log[1] }); return }
+    const attach = /^\/api\/v0\/instances\/(\d+)\/ssh\/$/.exec(url.pathname)
+    if (attach && req.method === 'POST') {
+      const pod = state.pods.get(Number(attach[1]))
+      if (!pod) { fail(404, 'Instance not found'); return }
+      if (Object.keys(body ?? {}).join(',') !== 'ssh_key' || !state.keys.some(row => row.key.trim() === body.ssh_key?.trim())) { fail(400, 'Expected the registered ssh_key'); return }
+      pod.attachedKey = body.ssh_key
+      json({ success: true, msg: 'SSH key attached successfully' }); return
+    }
     const match = /^\/api\/v0\/instances\/(\d+)\/$/.exec(url.pathname)
     const id = Number(match?.[1])
     const pod = state.pods.get(id)

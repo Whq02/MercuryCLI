@@ -102,7 +102,7 @@ the main ones:
 
 Mercury never stops or parks a runner for its memory use.
 
-The loop guard does not refuse individual calls for repeating. In interactive
+The loop guard does not refuse individual calls for repeating. In foreground
 sessions it only reminds by default. Tool-specific failure guards still
 apply: the language service refuses an unchanged failing call after three
 attempts, as [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md) describes.
@@ -132,15 +132,17 @@ a crewmate so ended reports a typed failure to its parent. A run of one identica
 successful call is advisory on both roads, and the key is read live from the
 settings files.
 
-In headless sessions, eight consecutive failed calls with the same tool,
-JSON-normalized input and first error line end the turn after the issued
-round settles. A successful call, another tool, changed input or a different
-first error line resets that count; changing detail below the first line
-does not. Failed bookkeeping calls count too. The output and debug log say
-`stopped: the tool call <name> failed the same way 8 times in a row: <error>`,
-the outcome's status is `loop_stopped`, and the run exits with status 1. This
-failure-only rule does not depend on the optional cycle-stop setting and
-counts no thinking time, elapsed time or tokens.
+A second consecutive failed call with the same tool and canonical JSON
+arguments gets a warning with the tool's error text and “change something
+before sending it again”. Errors and permission or hook refusals count;
+a success, another tool or any changed argument resets the count. Changed
+error text does not reset it, and failed bookkeeping calls count too.
+Crewmates and headless runs end after three consecutive failed calls, once
+the issued round settles, with `loop_stopped` naming the tool, repeated
+arguments and error. A crewmate's completion notice carries that cause;
+a headless run exits with status 1. Foreground sessions get reminders only.
+This failure-only rule does not depend on the optional cycle-stop setting
+and counts no thinking time, elapsed time or tokens.
 
 A reply that chants (repeating the same fifty-character stretch of prose ten times
 over within a short span, with code fences, lists, tables, headings, quotes and

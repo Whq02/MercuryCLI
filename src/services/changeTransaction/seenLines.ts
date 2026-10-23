@@ -14,8 +14,11 @@ export const SEEN_LINES_BOUNDS = {
 
 type SeenRange = { start: number; end: number }
 
+export type ColumnCut = { line: number; visibleChars: number }
+
 interface FileLedger {
   generation: string
+  cuts?: ColumnCut[]
   ranges: SeenRange[]
 }
 
@@ -120,17 +123,28 @@ export function recordSeenLines(
   generation: string,
   startLine: number,
   lineCount: number,
+  cuts: readonly ColumnCut[] = [],
 ): void {
   if (lineCount <= 0 || startLine < 1) return
   const files = ledgerFor(owner, path)
   let entry = files.get(path)
   if (!entry || entry.generation !== generation) {
-    entry = { generation, ranges: [] }
+    const cuts = columnCutsOf(owner, path, generation)
+    entry = { generation, ranges: [], cuts: [...cuts] }
   } else {
     files.delete(path)
   }
-  entry.ranges.push({ start: startLine, end: startLine + lineCount - 1 })
-  entry.ranges = coalesce(entry.ranges)
+  const endLine = startLine + lineCount - 1
+  const incomplete = new Map(cuts.map(cut => [cut.line, cut.visibleChars]))
+  const keptCuts = new Map((entry.cuts ?? []).map(cut => [cut.line, cut.visibleChars]))
+  for (const line of keptCuts.keys()) {
+    if (line >= startLine && line <= endLine && !incomplete.has(line)) keptCuts.delete(line)
+  }
+  for (const { line, visibleChars } of cuts) {
+    if (!entry.ranges.some(range => range.start <= line && range.end >= line)) keptCuts.set(line, Math.max(visibleChars, keptCuts.get(line) ?? 0))
+  }
+  entry.cuts = [...keptCuts].map(([line, visibleChars]) => ({ line, visibleChars }))
+  entry.ranges = coalesce([...entry.ranges, ...withoutCutLines([{ start: startLine, end: endLine }], cuts)])
   while (entry.ranges.length > SEEN_LINES_BOUNDS.rangeCap) {
     let smallest = 0
     for (let i = 1; i < entry.ranges.length; i++) {
@@ -148,6 +162,38 @@ export function recordSeenLines(
   }
 }
 
+function withoutCutLines(ranges: readonly SeenRange[], cuts: readonly ColumnCut[]): SeenRange[] {
+  let kept = [...ranges]
+  for (const { line } of cuts) kept = kept.flatMap(range => line < range.start || line > range.end ? [range] : [
+    ...(line > range.start ? [{ start: range.start, end: line - 1 }] : []),
+    ...(line < range.end ? [{ start: line + 1, end: range.end }] : []),
+  ])
+  return kept
+}
+
+export function retainColumnCuts(owner: OwnerKey, path: string, generation: string, cuts: readonly ColumnCut[]): void {
+  const files = ledgerFor(owner, path)
+  const entry = files.get(path)
+  files.set(path, { generation, ranges: withoutCutLines(entry?.generation === generation ? entry.ranges : [], cuts), cuts: [...cuts] })
+}
+
+export function columnCutsOf(owner: OwnerKey, path: string, generation: string | null): readonly ColumnCut[] {
+  const entry = store.peek(owner)?.files.get(path)
+  if (entry === undefined || generation === null) return []
+  const sameBytes = /^m\d+:/.test(entry.generation) && /^m\d+:/.test(generation) && entry.generation.slice(entry.generation.indexOf(':')) === generation.slice(generation.indexOf(':'))
+  return entry.generation === generation || sameBytes ? entry.cuts ?? [] : []
+}
+
+export function recordDisplayedLines(owner: OwnerKey, path: string, generation: string, start: number, content: string, maxChars: number): void {
+  const lines = content.split('\n')
+  const cuts = lines.flatMap((line, i) => line.length > maxChars ? [{ line: start + i, visibleChars: maxChars }] : [])
+  recordSeenLines(owner, path, generation, start, lines.length, cuts)
+}
+
+export function losslessReadCall(path: string, line: number): string {
+  return `Read(file_path: ${JSON.stringify(path)}, offset: ${line}, limit: 1, lossless: true)`
+}
+
 export function seenLinesOf(
   owner: OwnerKey,
   path: string,
@@ -158,7 +204,7 @@ export function seenLinesOf(
   const written = at === undefined ? [] : sessionWrittenRanges(owner, path, at)
   const own = entry !== undefined && entry.generation === at ? entry.ranges : []
   if (own.length === 0 && written.length === 0) return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
-  return { generation: at!, ranges: coalesce([...own, ...written]) }
+  return { generation: at!, ranges: withoutCutLines(coalesce([...own, ...written]), entry !== undefined && entry.generation === at ? entry.cuts ?? [] : []) }
 }
 
 function lineCountOfText(text: string): number {
@@ -326,7 +372,7 @@ export function moveSeenLines(owner: OwnerKey, fromPath: string, toPath: string,
   const entry = files.get(fromPath)
   if (!entry) return
   files.delete(fromPath)
-  files.set(toPath, { generation: newGeneration, ranges: entry.ranges })
+  files.set(toPath, { generation: newGeneration, ranges: entry.ranges, cuts: entry.cuts })
 }
 
 export function dropSeenLines(owner: OwnerKey, path: string): void {
@@ -348,7 +394,6 @@ function shownLinesOf(text: string): Map<number, string> {
     const match = NUMBERED_LINE.exec(line)
     if (match === null) continue
     const body = match[2]!
-    if (TRUNCATED_TAIL.test(body)) continue
     shown.set(Number(match[1]), body)
   }
   return shown
@@ -381,7 +426,15 @@ export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: Readon
     const state = linesOf(path)
     if (state === null || shown.size === 0) return
     for (const [line, body] of shown) {
-      if (line < 1 || line > state.lines.length || state.lines[line - 1] !== body) continue
+      if (line < 1 || line > state.lines.length) continue
+      if (TRUNCATED_TAIL.test(body)) {
+        const prefix = body.replace(TRUNCATED_TAIL, '')
+        if (state.lines[line - 1]!.startsWith(prefix) && state.lines[line - 1]!.length > prefix.length) {
+          recordSeenLines(owner, path, state.generation, line, 1, [{ line, visibleChars: prefix.length }])
+        }
+        continue
+      }
+      if (state.lines[line - 1] !== body) continue
       recordSeenLines(owner, path, state.generation, line, 1)
       summary.lines++
       touched.add(path)

@@ -2,7 +2,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { resetLspFailureLedger } from './failureLedger.js'
-import { createLSPServerManager, type LSPServerManager } from './LSPServerManager.js'
+import { createLSPServerManager, type LSPServerManager, type LSPShutdownResult } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
 
 
@@ -13,10 +13,11 @@ let initState: InitState = 'not-started'
 let initError: Error | undefined
 let initGeneration = 0
 let initPromise: Promise<void> | undefined
+let restartPromise: Promise<LSPShutdownResult | undefined> | undefined
 
 export function initializeLspServerManager(): void {
   if (isBareMode()) return
-  if (instance !== undefined && initState !== 'failed') return
+  if (initState === 'pending' || (instance !== undefined && initState !== 'failed')) return
   if (initState === 'failed') {
     instance = undefined
     initError = undefined
@@ -82,36 +83,55 @@ export function isLspToolMounted(): boolean {
   return instance.getAllServers().size > 0
 }
 
-export function reinitializeLspServerManager(): void {
-  if (initState === 'not-started') return
+export function reinitializeLspServerManager(): Promise<LSPShutdownResult | undefined> {
+  if (restartPromise !== undefined) return restartPromise
+  if (initState === 'not-started') return Promise.resolve(undefined)
   const old = instance
-  if (old !== undefined) {
-    old.shutdown().catch(err => {
-      logForDebugging(`LSP manager re-init: old instance shutdown failed: ${String(err)}`)
-    })
-  }
+  const initializing = initPromise
+  const generation = ++initGeneration
   instance = undefined
-  initState = 'not-started'
+  initState = 'pending'
   initError = undefined
   resetLspFailureLedger()
-  initializeLspServerManager()
+  restartPromise = (async () => {
+    await initializing
+    const stopped = await old?.shutdown()
+    if (generation !== initGeneration) return stopped
+    initState = 'not-started'
+    initializeLspServerManager()
+    await waitForInitialization()
+    return stopped
+  })().catch((err: unknown) => {
+    if (generation === initGeneration) {
+      initState = 'failed'
+      initError = err instanceof Error ? err : new Error(String(err))
+      logError(initError)
+      logForDebugging(`LSP manager restart failed: ${initError.message}`)
+    }
+    return undefined
+  }).finally(() => {
+    restartPromise = undefined
+  })
+  initPromise = restartPromise.then(() => {})
+  return restartPromise
 }
 
 export async function shutdownLspServerManager(): Promise<void> {
-  if (instance !== undefined) {
-    try {
-      await instance.shutdown()
-      logForDebugging('LSP manager shut down')
-    } catch (err) {
-      logError(err)
-      logForDebugging(`LSP manager shutdown failed: ${String(err)}`)
-    }
-  }
+  const old = instance
+  const initializing = initPromise
+  initGeneration++
   instance = undefined
   initState = 'not-started'
   initError = undefined
   initPromise = undefined
-  initGeneration++
+  try {
+    await initializing
+    await old?.shutdown()
+    logForDebugging('LSP manager shut down')
+  } catch (err) {
+    logError(err)
+    logForDebugging(`LSP manager shutdown failed: ${String(err)}`)
+  }
   resetLspFailureLedger()
 }
 

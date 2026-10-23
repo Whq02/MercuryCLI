@@ -879,6 +879,7 @@ async function* streamOneCompatAttempt(ctx: {
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { profile, request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
+  const requestStartedAtMs = Date.now()
 
   const partial: ApiMessage = {
     id: `${profile.lane}_${randomUUID()}`,
@@ -965,6 +966,7 @@ async function* streamOneCompatAttempt(ctx: {
           minted: [{ message: { ...partial, content: [{ type: 'text', text: ' '.repeat(streamedCharacters), citations: null }] } }],
         })
       : mapCompatUsageToAnthropic(usageSeen)
+    Object.assign(settledUsage, { request_started_at_ms: requestStartedAtMs })
     if (usageSeen !== undefined || estimate) {
       addToTotalSessionCost(
         usageSeen?.statedCostUSD ?? calculateUSDCost(modelId, settledUsage),

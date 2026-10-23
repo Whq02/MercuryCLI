@@ -60,6 +60,11 @@ for (const tool of tools) {
     model,
   }))
 }
+const crewPrompt = definitions.find(definition => definition.name === 'Crewmate')!.description
+assert.match(crewPrompt, /Implementation briefs carry the known target and acceptance criteria/)
+assert.match(crewPrompt, /Investigation briefs carry the unresolved question, evidence already checked, boundaries and required evidence in the answer/)
+assert.match(crewPrompt, /Keep ownership of the overall task; delegate reasoning inside a well-scoped question/)
+assert.ok(!crewPrompt.includes('Never hand the synthesis'))
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)

@@ -66,7 +66,7 @@ const EXIT_TABLE: Record<string, Exit> = {
     action: 'confirm:no',
     hints: [
       { file: 'src/components/Settings/Config.tsx', needles: ["esc or click outside closes'"] },
-      { file: 'src/components/Settings/Settings.tsx', needles: ['settingsPopupHintText(hint ?? request.hint, inner)', 'wrap="wrap">{hintText}</Text>'] },
+      { file: 'src/components/Settings/Settings.tsx', needles: ['settingsPopupHintText(hint ?? request.hint, inner)', 'wrap="truncate-end">{text}</Text>'] },
     ],
   },
   Confirmation: {

@@ -507,7 +507,9 @@
         "--ep-size",
         "4",
         "--mem-fraction-static",
-        "0.8",
+        "0.78",
+        "--chunked-prefill-size",
+        "2048",
         "--speculative-algorithm",
         "DSPARK",
         "--speculative-dspark-block-size",
@@ -521,9 +523,10 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
-      "verification": "verified",
+      "verification": "verified · 1M context · prefill chunk 2048 and a 78% static share, set from the engine’s own memory plan read on 4× B200 on 2026-10-23: the stock 16384-token chunk scores the whole context densely and outgrew the 24.7 GB headroom near 150k tokens of context",
       "verified": {
         "by": "documented",
+        "on": "2026-10-23",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
       },
@@ -538,6 +541,19 @@
           "on": "2026-10-20",
           "note": "encoder maps low, high and max to 50, 75 and 100",
           "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576,
+      "kvBytesPerToken": {
+        "bytes": 11624,
+        "maxContext": 1048576,
+        "cacheType": "fp8_e4m3",
+        "verified": {
+          "by": "measured",
+          "on": "2026-10-23",
+          "note": "per card, from the engine’s own plan on 4× B200: max_total_num_tokens=1754112 out of the 18.99 GiB left of the 80% static share after 121.97 GiB of weights, i.e. 11,624 bytes per token, kept on every card (tensor parallel). The model keeps a 512-wide latent + 64 rope at fp8 for its 4 kv-source layers (3 of them 2:1 compressed), a 128-wide fp4 index key per index layer, a 128-position sliding window per layer, and the DSpark draft’s share.",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
         }
       }
     },
@@ -560,6 +576,8 @@
         "4",
         "--mem-fraction-static",
         "0.8",
+        "--chunked-prefill-size",
+        "4096",
         "--speculative-algorithm",
         "DSPARK",
         "--speculative-dspark-block-size",
@@ -573,9 +591,10 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
-      "verification": "verified",
+      "verification": "verified · 1M context · prefill chunk 4096, computed from the 4× B200 reading of 2026-10-23 (the stock 16384-token chunk scores the whole context densely and outgrows the engine’s headroom past ~700k tokens); not measured on this card",
       "verified": {
         "by": "documented",
+        "on": "2026-10-23",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
       },
@@ -590,6 +609,19 @@
           "on": "2026-10-20",
           "note": "encoder maps low, high and max to 50, 75 and 100",
           "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576,
+      "kvBytesPerToken": {
+        "bytes": 11624,
+        "maxContext": 1048576,
+        "cacheType": "fp8_e4m3",
+        "verified": {
+          "by": "measured",
+          "on": "2026-10-23",
+          "note": "per card, from the engine’s own plan on 4× B200: max_total_num_tokens=1754112 out of the 18.99 GiB left of the 80% static share after 121.97 GiB of weights, i.e. 11,624 bytes per token, kept on every card (tensor parallel). The model keeps a 512-wide latent + 64 rope at fp8 for its 4 kv-source layers (3 of them 2:1 compressed), a 128-wide fp4 index key per index layer, a 128-position sliding window per layer, and the DSpark draft’s share.",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
         }
       }
     },
@@ -612,6 +644,8 @@
         "4",
         "--mem-fraction-static",
         "0.8",
+        "--chunked-prefill-size",
+        "4096",
         "--speculative-algorithm",
         "DSPARK",
         "--speculative-dspark-block-size",
@@ -625,9 +659,10 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1",
-      "verification": "verified",
+      "verification": "verified · 1M context · prefill chunk 4096, computed from the 4× B200 reading of 2026-10-23 (the stock 16384-token chunk scores the whole context densely and outgrows the engine’s headroom past ~700k tokens); not measured on this card",
       "verified": {
         "by": "documented",
+        "on": "2026-10-23",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
       },
@@ -642,6 +677,19 @@
           "on": "2026-10-20",
           "note": "encoder maps low, high and max to 50, 75 and 100",
           "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md"
+        }
+      },
+      "context": 1048576,
+      "contextPerSlot": 1048576,
+      "kvBytesPerToken": {
+        "bytes": 11624,
+        "maxContext": 1048576,
+        "cacheType": "fp8_e4m3",
+        "verified": {
+          "by": "measured",
+          "on": "2026-10-23",
+          "note": "per card, from the engine’s own plan on 4× B200: max_total_num_tokens=1754112 out of the 18.99 GiB left of the 80% static share after 121.97 GiB of weights, i.e. 11,624 bytes per token, kept on every card (tensor parallel). The model keeps a 512-wide latent + 64 rope at fp8 for its 4 kv-source layers (3 of them 2:1 compressed), a 128-wide fp4 index key per index layer, a 128-position sliding window per layer, and the DSpark draft’s share.",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4_1"
         }
       }
     },

@@ -1,10 +1,13 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'structured-delivery-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'structured-delivery-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 
 let failures = 0
 let checks = 0

@@ -2,11 +2,12 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'edit-local-span-home-'))
+delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_BARE = '1'
 for (const k of ['MERCURY_EDIT_HUNKS', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_EDIT_STALE_RECOVERY', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'NODE_ENV']) {
@@ -73,7 +74,6 @@ const LOCAL_MODEL = `local/${MODEL_ID}`
 const CLOUD_MODEL = 'claude-fable-5-1'
 const UNLISTED_LOCAL = 'local/nowhere:latest'
 const fixtures = mkdtempSync(join(tmpdir(), 'edit-local-span-fixture-'))
-const REFUSAL_TAIL = '% of the file — name the smallest unique span, or rewrite the file with Write'
 
 type Ctx = { readFileState: Map<string, unknown> }
 function makeContext(model: string): Ctx {
@@ -106,106 +106,39 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: tru
   }
 }
 const messageOf = (v: { ok: boolean; message?: string }): string => (v.ok ? '(passed)' : v.message ?? '')
-const menuFile = (): string => {
-  const rows = Array.from({ length: 108 }, (_, i) => `    <li class="menu-row" data-index="${i + 1}">Row ${i + 1} — a menu entry with its label and hint</li>`)
-  return `<!doctype html>\n<html>\n<body>\n  <ul id="menu">\n${rows.join('\n')}\n  </ul>\n</body>\n</html>\n`
+check('local fixture record is present', localRecordFor(LOCAL_MODEL) !== undefined)
+for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {
+  for (const count of [1, 20]) {
+    const file = join(fixtures, `${model === LOCAL_MODEL ? 'local' : 'hosted'}-${count}.txt`)
+    const content = Array.from({ length: count }, (_, i) => `line ${i}`).join('\n')
+    writeFileSync(file, content)
+    const ctx = makeContext(model)
+    primeRead(ctx, file)
+    const r = await edit({ file_path: file, old_string: content, new_string: content.replace('line 0', 'changed 0') }, ctx)
+    check(`${model}: ${count}-line exact replacement lands`, r.ok && readFileSync(file, 'utf8').startsWith('changed 0'), messageOf(r))
+  }
+  for (const gate of ['unread', 'stale', 'ambiguous']) {
+    const file = join(fixtures, `${model === LOCAL_MODEL ? 'local' : 'hosted'}-${gate}.txt`)
+    const content = 'repeat\nrepeat\ntail\n'
+    writeFileSync(file, content)
+    const ctx = makeContext(model)
+    if (gate !== 'unread') primeRead(ctx, file)
+    if (gate === 'stale') {
+      (ctx.readFileState.get(file) as { timestamp: number }).timestamp = 0
+      writeFileSync(file, content + 'new content\n')
+    }
+    const before = readFileSync(file, 'utf8')
+    const r = await edit({ file_path: file, old_string: gate === 'ambiguous' ? 'repeat' : 'tail', new_string: 'updated' }, ctx)
+    check(`${model}: ${gate} still refuses`, !r.ok, messageOf(r))
+    check(`${model}: ${gate} writes nothing`, readFileSync(file, 'utf8') === before)
+  }
 }
-const bytesOf = (s: string): number => Buffer.byteLength(s, 'utf8')
-
-section('the lane: the fixture model is a discovered local record; the cloud id is not')
-{
-  check('local record present', localRecordFor(LOCAL_MODEL) !== undefined)
-  check('no record for the cloud id or the unlisted local id', localRecordFor(CLOUD_MODEL) === undefined && localRecordFor(UNLISTED_LOCAL) === undefined)
-}
-
-section('1 · a local record: an old_string that is the whole 9.9 KB file is refused before any write, with the tool\'s words')
-{
-  const file = join(fixtures, 'csgo-menu.html')
-  const content = menuFile()
-  writeFileSync(file, content)
-  check(`the fixture file is about 9.9 KB (${bytesOf(content)} bytes)`, bytesOf(content) > 9_000 && bytesOf(content) < 11_000)
-  const ctx = makeContext(LOCAL_MODEL)
-  primeRead(ctx, file)
-  const whole = await edit({ file_path: file, old_string: content, new_string: content.replace('Row 7 —', 'Row 7 (renamed) —') }, ctx)
-  check('refused', !whole.ok, messageOf(whole))
-  check('with the words: "old_string is 100% of the file — name the smallest unique span, or rewrite the file with Write"', !whole.ok && whole.message === `old_string is 100${REFUSAL_TAIL}`, messageOf(whole))
-  check('nothing was written', readFileSync(file, 'utf8') === content)
-  writeFileSync(file, content)
-  const again = makeContext(LOCAL_MODEL)
-  primeRead(again, file)
-  const sixty = content.slice(0, Math.floor(content.length * 0.6))
-  const most = await edit({ file_path: file, old_string: sixty, new_string: sixty.replace('Row 7 —', 'Row 7 (renamed) —') }, again)
-  check('a 60% span is refused too, naming its share', !most.ok && most.message === `old_string is 60${REFUSAL_TAIL}`, messageOf(most))
-  check('still nothing written', readFileSync(file, 'utf8') === content)
-}
-
-section('2 · a local record: a 20% span passes and lands')
-{
-  const file = join(fixtures, 'menu-small-span.html')
-  const content = menuFile()
-  writeFileSync(file, content)
-  const ctx = makeContext(LOCAL_MODEL)
-  primeRead(ctx, file)
-  const lines = content.split('\n')
-  const span = lines.slice(10, 32).join('\n')
-  check(`the span is about a fifth of the file (${Math.round((100 * bytesOf(span)) / bytesOf(content))}%)`, bytesOf(span) * 4 < bytesOf(content) && bytesOf(span) * 6 > bytesOf(content))
-  const r = await edit({ file_path: file, old_string: span, new_string: span.replace('Row 20 —', 'Row 20 (renamed) —') }, ctx)
-  check('passes', r.ok, messageOf(r))
-  check('the edit landed', readFileSync(file, 'utf8').includes('Row 20 (renamed) —'))
-}
-
-section('3 · the boundary is "more than half" by bytes: exactly half passes, one byte over is refused')
-{
-  const file = join(fixtures, 'hundred.txt')
-  const content = 'a'.repeat(50) + '\n' + 'b'.repeat(49)
-  writeFileSync(file, content)
-  check('the file is 100 bytes', bytesOf(content) === 100)
-  const ctx = makeContext(LOCAL_MODEL)
-  primeRead(ctx, file)
-  const half = await validate({ file_path: file, old_string: 'a'.repeat(50), new_string: 'c'.repeat(50) }, ctx)
-  check('50 of 100 bytes passes', half.ok, messageOf(half))
-  const over = await validate({ file_path: file, old_string: 'a'.repeat(50) + '\n', new_string: 'c'.repeat(50) + '\n' }, ctx)
-  check('51 of 100 bytes is refused as 51%', !over.ok && over.message === `old_string is 51${REFUSAL_TAIL}`, messageOf(over))
-}
-
-section('4 · a cloud model: a whole-file old_string passes as today')
-{
-  const file = join(fixtures, 'menu-cloud.html')
-  const content = menuFile()
-  writeFileSync(file, content)
-  const ctx = makeContext(CLOUD_MODEL)
-  primeRead(ctx, file)
-  const r = await edit({ file_path: file, old_string: content, new_string: content.replace('Row 7 —', 'Row 7 (renamed) —') }, ctx)
-  check('passes and lands', r.ok && readFileSync(file, 'utf8').includes('Row 7 (renamed) —'), messageOf(r))
-}
-
-section('5 · the record decides: a local id no server lists keeps the guard off')
-{
-  const file = join(fixtures, 'menu-unlisted.html')
-  const content = menuFile()
-  writeFileSync(file, content)
-  const ctx = makeContext(UNLISTED_LOCAL)
-  primeRead(ctx, file)
-  const r = await validate({ file_path: file, old_string: content, new_string: content.replace('Row 7 —', 'Row 7 (renamed) —') }, ctx)
-  check('passes validation (no record, no guard)', r.ok, messageOf(r))
-}
-
-section('6 · the description: one sentence on the local lane, the cloud description unchanged')
-{
-  const promptFor = async (model: string): Promise<string> =>
-    (FileEditTool as { prompt: Function }).prompt({ tools: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [] })
-  const local = await promptFor(LOCAL_MODEL)
-  const cloud = await promptFor(CLOUD_MODEL)
-  const sentence = local.split('\n').find(line => line.includes('half the file'))
-  check('the local description carries one sentence about the half-the-file refusal', sentence !== undefined, local.slice(-300))
-  check('the sentence names the span and the Write road', sentence !== undefined && sentence.includes('smallest unique span') && sentence.includes('Write'), sentence ?? '')
-  check('the sentence says it is refused before any write', sentence !== undefined && /before any write/.test(sentence), sentence ?? '')
-  check('the cloud description carries no such sentence', !cloud.includes('half the file'))
-  check('the local description is the cloud description plus that one line', local.split('\n').filter(line => line !== sentence).join('\n') === cloud)
-}
-
+const promptFor = async (model: string): Promise<string> =>
+  (FileEditTool as { prompt: Function }).prompt({ tools: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [] })
+check('local and hosted descriptions are identical', await promptFor(LOCAL_MODEL) === await promptFor(CLOUD_MODEL))
 vllm.server.close()
 clearTimeout(guard)
+rmSync(fixtures, { recursive: true, force: true })
+rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)
-console.log(failures === 0 ? 'prove-edit-local-span-guard: ALL GREEN' : `prove-edit-local-span-guard: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

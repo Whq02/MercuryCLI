@@ -16,7 +16,7 @@ import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
 import { lspLedgerNow } from './failureLedger.js'
 import { startFailureCause } from './failureWords.js'
-import type { LSPClient } from './LSPClient.js'
+import type { LSPClient, LSPStopResult } from './LSPClient.js'
 import { currentLspAbortSignal, noteLspRequestFault } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
@@ -32,8 +32,8 @@ export type LSPServerInstance = {
   readonly restartCount: number
   readonly generation: number
   start(): Promise<void>
-  stop(): Promise<void>
-  restart(): Promise<void>
+  stop(): Promise<LSPStopResult | undefined>
+  restart(): Promise<LSPStopResult | undefined>
   isHealthy(): boolean
   sendRequest<T>(method: string, params: unknown): Promise<T>
   sendNotification(method: string, params: unknown): Promise<void>
@@ -334,9 +334,9 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     return inFlightStart
   }
 
-  let inFlightStop: Promise<void> | null = null
+  let inFlightStop: Promise<LSPStopResult | undefined> | null = null
 
-  async function stop(): Promise<void> {
+  async function stop(): Promise<LSPStopResult | undefined> {
     if (state === 'stopped') return
     if (state === 'stopping') return inFlightStop ?? undefined
     inFlightStop = runStop().finally(() => {
@@ -345,16 +345,15 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     return inFlightStop
   }
 
-  async function runStop(): Promise<void> {
+  async function runStop(): Promise<LSPStopResult | undefined> {
     clearIdleTimer()
     setState('stopping')
     try {
-      if (client !== null) {
-        await client.stop(
-          config.shutdownTimeout !== undefined ? { gracefulTimeoutMs: config.shutdownTimeout } : undefined,
-        )
-      }
+      const result = await client?.stop(
+        config.shutdownTimeout !== undefined ? { gracefulTimeoutMs: config.shutdownTimeout } : undefined,
+      )
       setState('stopped')
+      return result
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err))
       lastError = error
@@ -363,17 +362,20 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     }
   }
 
-  async function restart(): Promise<void> {
+  async function restart(): Promise<LSPStopResult | undefined> {
     initFailures = 0
     lastInitFailureAt = 0
+    let stopped: LSPStopResult | undefined
     try {
-      await stop()
+      stopped = await stop()
+      if (stopped?.survivors.length) throw new Error(`Processes still running: ${stopped.survivors.join(', ')}`)
     } catch (err) {
       throw new Error(`Failed to stop LSP server ${name} for restart: ${err instanceof Error ? err.message : String(err)}`)
     }
     restartCount++
     try {
       await start()
+      return stopped
     } catch (err) {
       throw new Error(
         `Failed to restart LSP server ${name} (restart ${restartCount}): ${

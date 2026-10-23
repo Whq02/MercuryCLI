@@ -96,7 +96,7 @@ ${usage.map(note => `- ${note}`).join('\n')}`)
   sections.push(`## Writing the prompt
 The briefing should read as one written for a capable colleague arriving cold: they have not followed the conversation, do not know what was already tried, and do not know why the task matters. State the objective and the reason for it, what has already been established or eliminated, and enough surrounding situation that the crewmate can exercise judgment instead of following a narrow instruction. Ask for a short answer explicitly when one is wanted. For a lookup, supply the exact command; for an investigation, supply the question itself — a fixed procedure becomes useless the moment its premise turns out wrong. Clipped, imperative prompts yield shallow generic work.
 
-Never hand the synthesis to the crewmate: prompts that defer the reasoning back to whatever the crewmate happens to discover are forbidden. A good prompt proves you already did the understanding — it carries file paths, line numbers, and the specific change wanted.`)
+Implementation briefs carry the known target and acceptance criteria. Investigation briefs carry the unresolved question, evidence already checked, boundaries and required evidence in the answer. Keep ownership of the overall task; delegate reasoning inside a well-scoped question.`)
 
   return sections.join('\n\n')
 }

@@ -900,9 +900,21 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .command('usage')
     .description("Print the usage figures the /usage screen shows, read the way the screen reads them (each signed-in provider's reader sampled once, as on open): the compact figures line as text, or the whole reading as JSON — per sign-in the windows with used and reset, the figures and credits the provider stated, each with its source and age, and the session spend per model")
     .option('--json', 'The whole reading as JSON')
+    .option('--history', 'Report local usage across sessions without contacting providers')
+    .option('--days <n>', 'With --history, include today and the preceding N-1 UTC days', value => {
+      if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) throw new InvalidArgumentError('Days must be a positive integer.')
+      return Number(value)
+    })
+    .option('--project', 'With --history, include only the current project')
     .action(async options => {
-      const { usageCli } = await import('./cli/handlers/usage.js')
-      await usageCli({ json: options.json === true })
+      if ((options.days !== undefined || options.project) && !options.history) failCli('--days and --project require --history.', 2)
+      if (options.history) {
+        const { usageHistoryCli } = await import('./cli/handlers/usageHistory.js')
+        usageHistoryCli({ json: options.json === true, days: options.days, project: options.project })
+      } else {
+        const { usageCli } = await import('./cli/handlers/usage.js')
+        await usageCli({ json: options.json === true })
+      }
       process.exit(0)
     })
 

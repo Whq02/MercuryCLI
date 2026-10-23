@@ -1,0 +1,17 @@
+{
+  "name": "photocraft",
+  "version": "0.1.0",
+  "description": "Edit the open PhotoCraft document through its command server.",
+  "contributes": {
+    "skills": ["./skills"],
+    "servers": {
+      "app": {
+        "command": "${MERCURY_NODE}",
+        "args": ["${MERCURY_EXTENSION_ROOT}/server/bridge.mjs"]
+      }
+    }
+  },
+  "needs": {
+    "network": ["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"]
+  }
+}

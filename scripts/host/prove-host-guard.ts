@@ -23,10 +23,15 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 const { runHostJob } = await import('../../src/services/host/worker.ts')
 const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
 const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-const { hostRunner } = await import('../../src/services/host/ssh.ts')
+const { hostRunner, ensureHostKey } = await import('../../src/services/host/ssh.ts')
+const sshKey = await ensureHostKey(hostRunner, new AbortController().signal)
+vast.state.keys.push({ id: 501, key: sshKey.publicKey })
 const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
+const { hostMachineName } = await import('../../src/commands/llmhost/words.ts')
+const pauseWords = (vendor: 'runpod' | 'vast' | 'lambda', id: string, price: number, notice: string): boolean =>
+  notice.includes('setup paused · ') && notice.includes(hostMachineName(vendor, id) + ' stays up and bills $' + price.toFixed(2) + '/hr while paused') && notice.includes('Resume retries the setup, Terminate stops the bill · /llmhost → Machines I’m paying for') && !notice.includes('terminated') && !notice.includes('nothing more bills')
 const recipe = HOST_RECIPES.find(row => row.id === 'nemotron35-super-gguf-rtx-pro-6000')!
 const vllm = HOST_RECIPES.find(row => row.engine === 'vllm')!
 const failures: string[] = []
@@ -74,7 +79,7 @@ try {
       const { id, name } = seed(vendor)
       const sessionId = name
       const chosen = kind === 'cuda' ? vllm : recipe
-      const record = queueHostSetup({ id, name, vendor, recipe: chosen.id, recipeRow: chosen, price: 2, startedAt: new Date().toISOString(), status: 'RUNNING', apiBaseUrl: fixture.baseUrl, sessionId })
+      const record = queueHostSetup({ id, name, vendor, recipe: chosen.id, recipeRow: chosen, price: 2, startedAt: new Date().toISOString(), status: 'RUNNING', apiBaseUrl: fixture.baseUrl, sessionId, sshKey: sshKey.path })
       const before = fixture.requests.length
       const deleted = fixture.state.deletes
       const config: { modelBaseUrl: string; hold: boolean; log: string; answers: { pattern: string; replies: { stdout?: string; stderr?: string; code?: number }[] }[] } = { modelBaseUrl: f.baseUrl, hold: true, log: '', answers: [] }
@@ -92,6 +97,7 @@ try {
       writeFileSync(join(folder, 'net-dev'), 'eth0: 0 0 0 0 0 0 0 0\n')
       writeFileSync(join(folder, 'frozen.py'), 'import time\ntime.sleep(5)\n')
       const runner: HostRunner = { tunnel() { throw new Error('A guarded failure never opens a tunnel') }, async run(command, args, abort, timeout) {
+        if (command === 'ssh-keygen') return hostRunner.run(command, args, abort, timeout)
         const remote = args.at(-1)!
         if (remote.includes('/health')) { health++; if (health > 2) throw new Error('guard did not end the engine wait promptly') }
         if (kind === 'stall' && remote.includes('nohup setsid')) {
@@ -118,32 +124,35 @@ try {
         }
         return hostRunner.run(process.execPath, [join(import.meta.dir, 'sshJobFixture.mjs'), ...args], abort, timeout)
       } }
-      await runHostJob(id, record.generation!, { runner, pauseMs: 40, timeoutMs: 12000, keepAlive: false })
+      const keyCase = kind === 'key' || kind === 'key-reset'
+      await runHostJob(id, record.generation!, { runner, pauseMs: 40, timeoutMs: keyCase ? (vendor === 'lambda' ? 8000 : 2500) : 12000, keepAlive: false })
       const result = readHostRecord(id)!
       const calls = fixture.requests.slice(before)
       const terminations = calls.filter((call: any) => call.method === 'DELETE' || call.path === '/api/v1/instance-operations/terminate')
-      const lastTermination = calls.findLastIndex((call: any) => call.method === 'DELETE' || call.path === '/api/v1/instance-operations/terminate')
       const words = notices(sessionId)
       try {
-        check(name + ' ends in a failed terminated record', result?.jobState === 'failed' && result.status === 'TERMINATED')
-        check(name + ' verifies against the vendor list after termination', calls.slice(lastTermination + 1).some((call: any) => call.method === 'GET' && call.path === listPath[vendor]))
         check(name + ' emits one plain final notice', words.length === 1 && !/<result>[^<]*\n/.test(words[0]!))
-        const notice = words[0]!
+        const notice = words[0] ?? ''
         if (kind === 'vanished') {
+          check(name + ' ends in a failed record marked terminated because the vendor no longer lists it', result?.jobState === 'failed' && result.status === 'TERMINATED')
+          check(name + ' verifies against the vendor list', calls.some((call: any) => call.method === 'GET' && call.path === listPath[vendor]))
           check(name + ' does not send termination for an already absent pod', terminations.length === 0 && fixture.state.deletes === deleted)
           check(name + ' says the vendor no longer lists it and where to check billing', notice.includes('the vendor no longer lists pod ' + id) && notice.includes('nothing to terminate') && notice.includes('if it still bills, Machines I’m paying for shows it'))
         } else {
-          check(name + ' sends one terminate and states verified absence', terminations.length === 1 && fixture.state.deletes === deleted + 1 && notice.includes('pod terminated and verified absent') && notice.includes('nothing more bills'))
-          if (kind === 'key' || kind === 'key-reset') {
+          check(name + ' ends paused with the machine up: no terminate sent, the vendor still lists it, the record paused and not TERMINATED', terminations.length === 0 && fixture.state.deletes === deleted && fixture.state.pods.has(vendor === 'vast' ? Number(id) : id) && result?.jobState === 'paused' && result.status !== 'TERMINATED')
+          check(name + ' posts one notice with the cause, the machine, the rate still billing and Resume or Terminate', pauseWords(vendor, id, 2, notice) && result.error !== undefined && pauseWords(vendor, id, 2, result.error) && result.step?.startsWith('paused at ') === true)
+          if (keyCase) {
             const sshCalls = readFileSync(join(f.home, 'ssh-fixture-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
-            check(name + ' counts consecutive publickey denials only', sshCalls.filter(args => /^(true|cloud-init status)/.test(args.at(-1))).length === (kind === 'key' ? 3 : 6))
-            check(name + ' names the key road and next step', notice.includes('the pod did not accept Mercury') && notice.includes(vendor === 'vast' ? 'https://cloud.vast.ai/manage-keys/' : vendor === 'lambda' ? 'Lambda account keys' : 'added to this pod only') && notice.includes('/llmhost'))
+            const attempts = sshCalls.filter(args => /^(true|cloud-init status)/.test(args.at(-1))).length
+            check(name + ' retries the refused key until the setup deadline (' + attempts + ' attempts) instead of counting strikes', attempts > 6 && result.steps?.some(row => row.step === 'waiting for SSH · the machine has not accepted the key yet · retrying until it does') === true)
+            if (vendor === 'vast') check(name + ' attaches the registered key once after the deadline, retries and names it in the pause', calls.filter((call: any) => call.method === 'POST' && call.path === '/api/v0/instances/' + id + '/ssh/' && call.body.ssh_key === sshKey.publicKey).length === 1 && notice.includes('Mercury attached the SSH key to this instance and retried') && notice.includes('the machine still refuses Mercury’s SSH key') && notice.includes('/llmhost'))
+            else check(name + ' names the deadline, the key notice and the next step', notice.includes('the machine never accepted Mercury’s SSH key before the setup deadline') && notice.includes(vendor === 'lambda' ? 'Lambda account keys' : 'added to this pod only') && notice.includes('/llmhost'))
           } else if (kind === 'stall') {
-            check(name + ' reports the watchdog verdict', notice.includes('Download stalled') && notice.includes('under 1 GB in 10 min'))
-            check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights on the machine.*GB of .*GB.*stalled/.test(row.step)))
+            check(name + ' reports the watchdog verdict as the cause', notice.includes('setup paused · Download stalled') && notice.includes('under 1 GB in 10 min'))
+            check(name + ' publishes partial bytes, total and stalled time before pausing', result.steps?.some(row => /downloading weights on the machine.*GB of .*GB.*stalled/.test(row.step)))
             check(name + ' executes the window, not a fabricated verdict', (await download)?.code === 75)
           } else {
-            check(name + ' reports the engine fatal line without a timeout', notice.includes('the engine died loading the weights') && notice.includes(fatal) && !notice.includes('Engine not ready') && health <= 1)
+            check(name + ' reports the engine fatal line without a timeout', notice.includes('setup paused · the engine died loading the weights') && notice.includes(fatal) && !notice.includes('Engine not ready') && health <= 1)
             if (kind === 'oom') check(name + ' names the too-small shape', notice.includes('shape was too small for this quality'))
           }
         }
@@ -151,8 +160,8 @@ try {
       } finally { removeHostRecord(id); fixture.state.pods.delete(vendor === 'vast' ? Number(id) : id); await download; rmSync(folder, { recursive: true, force: true }) }
     })
   }
-  for (const mode of ['rental', 'preparation', 'unverified'] as const) await trial('kept-stall/' + mode, async () => {
-    const prepareOnly = mode !== 'rental'
+  for (const mode of ['rental', 'preparation'] as const) await trial('kept-stall/' + mode, async () => {
+    const prepareOnly = mode === 'preparation'
     const { id, name } = seed('runpod')
     const folder = join(f.home, name); mkdirSync(folder)
     const manifest = { model: recipe.model, include: recipe.include ?? '', revision: 'e'.repeat(40), files: [{ path: 'weights.gguf', size: Math.round(recipe.weightsGb * 1e9), sha256: '0'.repeat(64) }] }
@@ -186,23 +195,17 @@ try {
       }
       return ''
     } }
-    rp.state.failDelete = mode === 'unverified'
     try {
       await runHostJob(id, record.generation!, { runner, pauseMs: 20, timeoutMs: 5000, keepAlive: false })
       const words = notices(name)
       const calls = rp.requests.slice(before)
+      const paused = readHostRecord(id)
       check(name + ' kept watchdog executes its window', exit === 75 && sawProgress)
-      check(name + ' sends only one terminate even when cleanup fails', calls.filter((row: any) => row.method === 'DELETE').length === 1)
-      if (mode === 'unverified') {
-        check(name + ' warns about both compute and storage with no false absence', words.length === 1 && words[0]!.includes('could not verify') && words[0]!.includes('check your account') && words[0]!.includes('$14.00/month') && !words[0]!.includes('nothing more bills') && readHostRecord(id)?.status !== 'TERMINATED')
-      } else {
-        check(name + ' kept pod is terminated exactly once and verified', rp.state.deletes === deleted + 1 && calls.some((row: any) => row.method === 'GET' && row.path === listPath.runpod))
-        check(name + ' kept failure has one notice with its bill and next step', words.length === 1 && words[0]!.includes('Download stalled') && words[0]!.includes('terminated') && words[0]!.includes('$14.00/month') && words[0]!.includes('/llmhost → Bank') && !words[0]!.includes('Fast-load') && !words[0]!.includes('nothing more bills'))
-        check(name + ' final record truth matches temporary or rental ownership', prepareOnly ? !readHostRecord(id) : readHostRecord(id)?.status === 'TERMINATED')
-        check(name + ' ended pod no longer owns disk preparation', !readKeptVolume(volumeId)?.preparingPod)
-      }
+      check(name + ' sends no terminate: the kept pod stays up and listed, the record paused', calls.filter((row: any) => row.method === 'DELETE').length === 0 && rp.state.deletes === deleted && rp.state.pods.has(id) && paused?.jobState === 'paused' && paused.status !== 'TERMINATED')
+      check(name + ' kept stall has one notice with the cause, the machine, both bills and Resume or Terminate', words.length === 1 && words[0]!.includes('setup paused · Download stalled') && pauseWords('runpod', id, 2, words[0]!) && words[0]!.includes('weights disk ' + volumeId + ' is kept with') && words[0]!.includes('$14.00/month') && !words[0]!.includes('Fast-load'))
+      check(name + ' record keeps its ownership for Resume', paused?.volumeId === volumeId && Boolean(paused.prepareWeightsOnly) === prepareOnly)
       check(name + ' disk remains failed with partial bytes', readKeptVolume(volumeId)?.state === 'failed' && readKeptVolume(volumeId)?.partialBytes !== undefined)
-    } finally { rp.state.failDelete = false; rp.state.pods.delete(id); removeHostRecord(id); delete process.env.MERCURY_HOST_WEIGHTS_FILE; rmSync(folder, { recursive: true, force: true }) }
+    } finally { rp.state.pods.delete(id); removeHostRecord(id); delete process.env.MERCURY_HOST_WEIGHTS_FILE; rmSync(folder, { recursive: true, force: true }) }
   })
   await trial('vanished-kept-disk', async () => {
     const { id, name } = seed('runpod')
@@ -216,17 +219,18 @@ try {
     check('a vanished pod never sends DELETE and never erases kept-disk billing', !rp.requests.slice(before).some((row: any) => row.method === 'DELETE') && words.length === 1 && words[0]!.includes('nothing to terminate') && words[0]!.includes('$14.00/month') && words[0]!.includes('/llmhost → Bank') && !words[0]!.includes('Fast-load') && readHostRecord(id)?.status === 'TERMINATED' && readKeptVolume(volumeId)?.state === 'kept')
     removeHostRecord(id)
   })
-  await trial('cleanup-unverified', async () => {
+  await trial('launch-failure', async () => {
     const { id, name } = seed('runpod')
     const record = queueHostSetup({ id, name, recipe: recipe.id, recipeRow: recipe, price: 2, startedAt: new Date().toISOString(), status: 'RUNNING', apiBaseUrl: rp.baseUrl, sessionId: name })
     rp.state.failDelete = true
+    const deleted = rp.state.deletes
     try {
-      await runHostJob(id, record.generation!, { runner: { tunnel() { throw new Error('No tunnel') }, async run() { throw new Error('Permission denied (publickey)') } }, pauseMs: 1, timeoutMs: 1000, keepAlive: false })
+      await runHostJob(id, record.generation!, { runner: { tunnel() { throw new Error('No tunnel') }, async run(_command, args) { const remote = args.at(-1)!; if (remote.includes('nohup setsid')) throw new Error('launch.log: fixture outer launch permission denied'); if (remote.includes('nvidia-smi')) return 'NVIDIA RTX PRO 6000 Blackwell, 98304\n'; return '' } }, pauseMs: 1, timeoutMs: 1000, keepAlive: false })
       const words = notices(name)
-      check('a failed terminate does not claim absence or no bills', words.length === 1 && words[0]!.includes('could not verify') && words[0]!.includes('check your account') && !words[0]!.includes('nothing more bills') && readHostRecord(id)?.status !== 'TERMINATED')
+      check('an engine launch failure pauses with the launch log line and sends no terminate, even one the vendor would refuse', words.length === 1 && words[0]!.includes('setup paused · launch.log:') && words[0]!.includes('fixture outer launch permission denied') && pauseWords('runpod', id, 2, words[0]!) && rp.state.deletes === deleted && rp.state.pods.has(id) && readHostRecord(id)?.jobState === 'paused')
     } finally { rp.state.failDelete = false; rp.state.pods.delete(id); removeHostRecord(id) }
   })
   check('guard proof makes no public network calls', escaped.length === 0)
   if (failures.length) throw new Error(failures.length + ' guard cases failed\n' + failures.join('\n'))
-  console.log('HOST GUARD GREEN · ' + checks + ' checks; three vendor fixtures, SSH process fixture, executed watchdog windows; zero billable calls')
+  console.log('HOST GUARD GREEN · ' + checks + ' checks; three vendor fixtures, SSH process fixture, executed watchdog windows; every trip pauses with the machine up, no terminate sent; zero billable calls')
 } finally { globalThis.fetch = nativeFetch; await rp.close(); await vast.close(); await lambda.close(); f.close() }

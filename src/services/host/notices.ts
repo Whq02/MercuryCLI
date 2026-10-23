@@ -12,7 +12,7 @@ export function hostNotice(record: HostRecord, kind: string, words: string): voi
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   const id = createHash('sha256').update([record.id, record.generation, kind].join(':')).digest('hex')
   const path = join(dir, id + '.json')
-  const status = kind === 'failed' ? 'failed' : kind === 'ended' || kind === 'expired' ? 'stopped' : 'completed'
+  const status = kind === 'failed' ? 'failed' : kind === 'ended' || kind === 'expired' || kind === 'paused' || kind === 'idle' ? 'stopped' : 'completed'
   const notice = '<task-notification>\n<task-id>host-' + id + '</task-id>\n<status>' + status + '</status>\n<summary>' + escapeXml(words.split('\n')[0] ?? words) + '</summary>\n<result>' + escapeXml(words) + '</result>\n</task-notification>'
   if (!existsSync(path)) publishAtomicSync(path, JSON.stringify({ id, sessionId: record.sessionId, words: notice }), { mode: 0o600 })
 }

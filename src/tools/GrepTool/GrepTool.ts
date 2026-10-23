@@ -559,7 +559,9 @@ export const GrepTool = buildTool({
             if (!generations.has(file)) generations.set(file, fileGeneration(file))
             const generation = generations.get(file)
             if (generation == null) continue
-            recordSeenLines(owner, file, generation, Number(m[2]), 1)
+            const number = Number(m[2])
+            const omitted = /^\[Omitted long (?:matching|context) line\]$/.test(line.slice(m[0].length))
+            recordSeenLines(owner, file, generation, number, 1, omitted ? [{ line: number, visibleChars: 0 }] : [])
           }
         } catch {
         }

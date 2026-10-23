@@ -100,8 +100,9 @@ try {
   const at = (needle: string): number => { const index = screen1.indexOf(needle); assert.ok(index >= 0, 'Screen 1 carries ' + needle); return index }
   check('running first, then cheapest stock, then no stock', at('running on your machine') < at('in stock') && at('in stock') < at('no stock'))
   check('cursor starts on the already-paid model', selected().includes('GLM-5.3-Flash'))
-  await walk('Machines I’m paying for'); const screenEnd = mounted!.screen(); await walk('GLM-5.3-Flash', KEY.up)
-  check('account and own-computer rows follow a rule (the list pages past the frontier rows; the cursor returns to the paid model)', screenEnd.includes('Machines I’m paying for · 1') && screenEnd.includes('so far') && screenEnd.includes('My computers · 0') && screenEnd.includes('────────────────') && selected().includes('GLM-5.3-Flash'))
+  const screenTop = mounted!.screen()
+  await walk('My computers'); const screenEnd = mounted!.screen(); await walk('GLM-5.3-Flash', KEY.up)
+  check('account rows sit above the recipes on the opening frame and the other roads follow the divider below (the cursor returns to the paid model)', screenTop.includes('Machines I’m paying for · 1 · 1 running') && screenTop.includes('so far') && screenTop.includes('Vendor keys · Runpod ✓') && screenEnd.includes('My computers · 0') && screenEnd.includes('────────────────') && selected().includes('GLM-5.3-Flash'))
   check('opening the door never creates a pod', rp.state.creates === 0 && queued.length === 0)
   await capture('120-screen-1')
   mounted!.push(KEY.enter); await heading('GLM-5.3-Flash'); await until('THINKING')
@@ -122,7 +123,7 @@ try {
   await choose('Already running'); await until('This session’s model:')
   check('already-running probes the server and switches through the focused session without a create', switches === 1 && sessionModel === 'compat/door-paid/' + f.model && rp.state.creates === 0)
   await close(); releaseFocusedSessionConnector()
-  open(); await heading('Which model?'); await choose('Machines I’m paying for'); await heading('Machines I’m paying for'); await choose('fixture-paid'); await heading('Machine controls')
+  open(); await heading('Which model?'); await walk('Machines I’m paying for', KEY.up); mounted!.push(KEY.enter); await heading('Machines I’m paying for'); await choose('fixture-paid'); await heading('Machine controls')
   check('paid-pods row reaches the existing stop and terminate controls', mounted!.screen().includes('Stop ·') && mounted!.screen().includes('Terminate'))
   await close()
   rp.state.customGpus = [{ ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]

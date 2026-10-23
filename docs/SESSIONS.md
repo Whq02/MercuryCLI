@@ -713,6 +713,16 @@ saved files allows conversation restore only; a point before the last
 "Create a branch session from here" and "Rerun from here on a new branch"
 leave this chat untouched.
 
+Choose a file's **Restore** row to restore only that file; other files and the
+conversation stay unchanged. The same hand-edit and missing-backup checks apply
+to the selected file. Before restoring files, Mercury saves their current bytes.
+**Undo the rewind** restores those bytes without changing the conversation;
+it is available until the next prompt and still refuses conflicting hand edits.
+
+Housekeeping limits `<config-home>/file-history` to 500 MB, removing the oldest
+session backups first, alongside the configured age retention. `/health` shows
+the current size and the limit in **State cleanup**. Pruned backups cannot be restored.
+
 ## `mercury --chat`
 
 Passing `--chat` opens only the home screen and the chat, without the Session

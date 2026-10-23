@@ -64,6 +64,7 @@ export async function handleRewindFiles(
 interface RewindSessionContext {
   messages: Message[]
   getAppState: () => AppState
+  setAppState?: (updater: (prev: AppState) => AppState) => void
   drift: RestoreDriftOracle
   turnActive: boolean
 }
@@ -118,6 +119,7 @@ export async function handleRewindSession(
         dryRun,
         ownerKey: `rewind:${uuid}`,
         drift: ctx.drift,
+        ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
       })
     } catch (error) {
       return refusedRewind(mode, 'restore-failed', `the restore threw before any file was written: ${errorMessage(error)}`)
@@ -148,6 +150,33 @@ export async function handleRewindSession(
   return receipt
 }
 
+
+export async function handleFileRestoreSession(request: ParamsOf<'session/file_restore'>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
+  if (ctx.turnActive) return refusedRewind('code', 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
+  if (!fileHistoryEnabled()) return refusedRewind('code', 'capture-off', 'file checkpoints are off for this session')
+  const state = ctx.getAppState().fileHistory
+  const undo = request.action === 'undo'
+  if (undo && state.rewindUndo?.messageId !== request.user_message_id) {
+    return refusedRewind('code', 'no-checkpoint', 'there is no rewind to undo before this prompt')
+  }
+  if (!undo && !ctx.messages.some(message => isOperatorTurn(message, request.user_message_id))) {
+    return refusedRewind('code', 'not-found', "that point is not in this session's conversation")
+  }
+  try {
+    const result = await fileHistoryRestore(state, request.user_message_id as UUID, {
+      dryRun: request.dry_run === true,
+      ownerKey: `rewind:${request.user_message_id}`,
+      drift: ctx.drift,
+      undo,
+      ...(request.action === 'restore' ? { filePath: request.file_path } : {}),
+      ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
+    })
+    if (!result.ok) return refusedRewind('code', result.kind, result.detail)
+    return { outcome: result.changed.length === 0 ? 'noop' : 'applied', mode: 'code', ...(result.dryRun ? { dryRun: true } : {}), code: { filesChanged: result.changed, insertions: result.insertions, deletions: result.deletions } }
+  } catch (error) {
+    return refusedRewind('code', 'restore-failed', `the restore failed: ${errorMessage(error)}`)
+  }
+}
 export function resolvePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,

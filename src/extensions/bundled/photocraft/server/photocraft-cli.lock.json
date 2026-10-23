@@ -1,0 +1,22 @@
+{
+  "name": "photocraft-cli",
+  "version": "0.14.0",
+  "tag": "v0.14.0",
+  "repository": "https://github.com/storytold/photocraft",
+  "license": "MIT OR Apache-2.0",
+  "licenseFiles": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "platforms": {
+    "darwin-arm64": {
+      "target": "universal-apple-darwin",
+      "archive": "photocraft-cli-0.14.0-macos-universal.zip",
+      "url": "https://github.com/storytold/photocraft/releases/download/v0.14.0/photocraft-cli-0.14.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/photocraft/releases/download/v0.14.0/SHA256SUMS.txt",
+      "sha256": "2ed3632ca7769ac4002943d311dcee12963d655317e1bff36e50d9421c6ed0b7",
+      "bytes": 70709771
+    }
+  },
+  "notes": "Research draft only; companion CLI for photocraft on macOS. The desktop DMG is not enough for MCP. Digest verified against upstream SHA256SUMS.txt and the downloaded bytes. CLI --version, commands, MCP initialize/tools/list/command_list were exercised; not a GUI attachment proof. Preserve all shipped notices; this ZIP does not include the repository NOTICE; carry it from the same tagged source before distribution."
+}

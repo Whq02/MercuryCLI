@@ -783,7 +783,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     else if (message.includes('ESRCH')) logMCPDebug(name, 'no such process — the stdio server terminated')
     else if (message.includes('spawn')) logMCPDebug(name, 'spawn failure — check the command and permissions')
     else logMCPDebug(name, message)
-    if ((type === 'http' || type === 'claudeai-proxy') && isMcpSessionExpiredError(error)) closeViaClient()
     if (remote) {
       if (message.includes('Maximum reconnection attempts')) {
         closeViaClient()
@@ -1302,7 +1301,14 @@ async function callToolOnce(
         })
       : () => {}
   let timer: NodeJS.Timeout | null = null
+  let couldHaveExecuted = false
+  const unknownOutcome = () => new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+    `MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.`,
+    'MCP tool call unknown outcome',
+  )
   try {
+    if (requestController.signal.aborted) return { content: undefined }
+    couldHaveExecuted = true
     const call = connected.client.callTool(
       {
         name: tool,
@@ -1327,6 +1333,7 @@ async function callToolOnce(
         )
       }),
     ])
+    couldHaveExecuted = false
     if ((result as { isError?: boolean }).isError) {
       const first = (result.content as Array<{ type?: string; text?: string }> | undefined)?.[0]
       const detail =
@@ -1352,10 +1359,7 @@ async function callToolOnce(
     clearInterval(stillRunning)
     if (watchdog.fired) {
       logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
-      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-        `MCP tool "${tool}" on server "${connected.name}" stalled: no result and no progress for ${formatLimit(idleLimitMs)} — the call was cancelled (MERCURY_MCP_CALL_IDLE_MINUTES tunes the limit, 0 disables)`,
-        'MCP tool call idle deadline',
-      )
+      throw unknownOutcome()
     }
     if (isAbortError(err) || (err as { name?: string } | null)?.name === 'AbortError') {
       return { content: undefined }
@@ -1364,26 +1368,17 @@ async function callToolOnce(
     if (status === 401 || err instanceof UnauthorizedError) {
       throw new McpAuthError(connected.name, `MCP server "${connected.name}" requires re-authorization`)
     }
-    const configType = connected.config.type
-    if (
-      isMcpSessionExpiredError(err) ||
-      ((isConnectionClosedError(err) || isStaleSocketFetchError(err)) &&
-        (configType === 'http' || configType === 'claudeai-proxy'))
-    ) {
+    if (isMcpSessionExpiredError(err) || (err instanceof SdkError && err.code === SdkErrorCode.NotConnected)) {
+      couldHaveExecuted = false
       await clearServerCache(connected.name, connected.config)
       throw new McpSessionExpiredError(connected.name)
     }
-    if (isConnectionClosedError(err)) {
-      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-        `MCP tool "${tool}" on server "${connected.name}" failed: the server closed the connection mid-call — /mcp shows its state; /mcp reconnect ${connected.name} starts it again`,
-        'MCP tool call connection closed',
-      )
+    if (isConnectionClosedError(err) || isStaleSocketFetchError(err)) {
+      await clearServerCache(connected.name, connected.config)
     }
-    if (err instanceof SdkError && err.code === SdkErrorCode.RequestTimeout) {
-      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-        `MCP tool "${tool}" on server "${connected.name}" failed: no answer within ${Math.round(timeoutMs / 1000)}s (MERCURY_MCP_TOOL_TIMEOUT_MS) — retry, or raise MERCURY_MCP_TOOL_TIMEOUT_MS for a slow tool`,
-        'MCP tool call request timeout',
-      )
+    if (couldHaveExecuted && !(err instanceof ProtocolError)) {
+      requestController.abort()
+      throw unknownOutcome()
     }
     throw err
   } finally {

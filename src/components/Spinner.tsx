@@ -122,18 +122,11 @@ export function SpinnerWithVerb({
     return () => clearInterval(timer)
   }, [])
 
-  const phaseMessage = !overrideMessage && !hasActiveTools && !still && ['requesting', 'thinking', 'responding'].includes(effectiveMode)
   let chosenVerb: string
   if (overrideMessage != null && overrideMessage !== '') {
     chosenVerb = overrideMessage
   } else if (hasActiveTools && activeToolLabel) {
     chosenVerb = activeToolLabel
-  } else if (phaseMessage) {
-    const live = liveCounterWords(
-      { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(effectiveMode), sentAtMs: null },
-      Date.now(),
-    )
-    chosenVerb = live.phase === 'reconnecting' ? live.promise ?? live.phase : live.phase === 'thinking' ? `${live.phase}${getEffortSuffix(engineModel, appEffort)}` : live.phase
   } else {
     chosenVerb = whimsyVerb
   }
@@ -196,10 +189,9 @@ export function SpinnerWithVerb({
       now,
     )
     const detail = liveCounterLine(liveWords, Math.max(0, columns - 5))
-    const head = phaseMessage ? '' : truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
+    const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }
-
   const row = (
     <SpinnerAnimationRow
       mode={effectiveMode}

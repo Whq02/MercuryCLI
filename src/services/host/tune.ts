@@ -78,30 +78,45 @@ interface TuneCandidate {
   offer?: HostOffer
 }
 
+function staticShare(recipe: HostRecipe): number | undefined {
+  if (recipe.engine === 'llamacpp') return undefined
+  const fraction = Number(flag(recipe, '--mem-fraction-static'))
+  return fraction > 0 && fraction < 1 ? fraction : undefined
+}
+
 export function tuneBudget(recipe: HostRecipe, gpuMemoryGb: number, count: number, offers: readonly HostOffer[] = []): { weightsGb?: number; kvBytesPerToken?: number; totalTokens?: number; words: string; candidates: TuneCandidate[] } {
   const defaults = defaultTune(recipe)
   const weightsGb = positive(recipe.weightsGb) ? recipe.weightsGb : undefined
   const kv = recipe.kvBytesPerToken
   const cacheMatches = recipe.engine !== 'llamacpp' || ['--cache-type-k', '--cache-type-v'].every(name => flag(recipe, name) === kv?.cacheType)
-  const known = weightsGb !== undefined && positive(kv?.bytes) && kv?.verified.by !== 'unverified' && cacheMatches && gpuMemoryGb > ENGINE_ALLOWANCE_GB && Number.isSafeInteger(count) && count > 0
+  const share = staticShare(recipe)
+  const allowanceGb = share !== undefined ? (1 - share) * gpuMemoryGb : ENGINE_ALLOWANCE_GB
+  const known = weightsGb !== undefined && positive(kv?.bytes) && kv?.verified.by !== 'unverified' && cacheMatches && gpuMemoryGb > allowanceGb && Number.isSafeInteger(count) && count > 0
   const stateGb = (conversations: number | null): number => (conversations ?? 1) * (kv?.conversationBytes ?? 0) / 1e9
   const measuredTotal = defaults.conversations && defaults.contextPerConversation ? defaults.conversations * defaults.contextPerConversation : undefined
-  const capacity = known ? Math.max(0, Math.floor(((gpuMemoryGb - ENGINE_ALLOWANCE_GB) * count - weightsGb! - stateGb(defaults.conversations)) * 1e9 / kv!.bytes)) : undefined
+  const capacity = !known ? undefined : share !== undefined
+    ? Math.max(0, Math.floor((share * gpuMemoryGb - weightsGb! / recipe.count - stateGb(defaults.conversations)) * 1e9 / kv!.bytes))
+    : Math.max(0, Math.floor(((gpuMemoryGb - ENGINE_ALLOWANCE_GB) * count - weightsGb! - stateGb(defaults.conversations)) * 1e9 / kv!.bytes))
   const memory = count + '× ' + recipe.gpu + ' · ' + gpuMemoryGb + ' GB/GPU'
   const words = !known ? memory + ' · ' + (weightsGb === undefined ? 'weights size unknown' : 'context memory unknown') + ' — Mercury cannot promise what fits'
+    : share !== undefined ? memory + ' · weights ' + gb(weightsGb!) + ' GB (' + gb(weightsGb! / recipe.count) + ' GB per card) · ' + gb(allowanceGb) + ' GB/GPU kept free for the engine’s prefill work (' + Math.round((1 - share) * 100) + '% of each card)'
     : memory + ' · weights ' + gb(weightsGb!) + ' GB · ' + ENGINE_ALLOWANCE_GB + ' GB/GPU engine allowance'
   const splits: Array<[number | null, number | null]> = known && recipe.engine === 'llamacpp'
     ? [[1, 1048576], [2, 524288], [4, 262144], [4, 131072], [8, 65536], [8, 131072], [4, 524288], [8, 1048576]] : [[defaults.conversations, defaults.contextPerConversation]]
   if (!splits.some(([n, ctx]) => n === defaults.conversations && ctx === defaults.contextPerConversation)) splits.push([defaults.conversations, defaults.contextPerConversation])
   const candidates = splits.filter(([, ctx]) => !known || ctx === null || ctx <= kv!.maxContext).map(([conversations, contextPerConversation]): TuneCandidate => {
-    const totalTokens = conversations && contextPerConversation ? conversations * contextPerConversation : undefined
-    const requiredGb = known && totalTokens ? weightsGb! + totalTokens * kv!.bytes / 1e9 + stateGb(conversations) + count * ENGINE_ALLOWANCE_GB : undefined
-    const needsCount = requiredGb !== undefined ? Math.max(recipe.count, Math.ceil((requiredGb - count * ENGINE_ALLOWANCE_GB) / (gpuMemoryGb - ENGINE_ALLOWANCE_GB))) : undefined
+    const totalTokens = contextPerConversation ? (conversations ?? 1) * contextPerConversation : undefined
+    const requiredGb = known && totalTokens ? share !== undefined
+      ? recipe.count * (weightsGb! / recipe.count + totalTokens * kv!.bytes / 1e9 + stateGb(conversations) + allowanceGb)
+      : weightsGb! + totalTokens * kv!.bytes / 1e9 + stateGb(conversations) + count * ENGINE_ALLOWANCE_GB : undefined
+    const needsCount = requiredGb === undefined ? undefined : share !== undefined
+      ? (requiredGb / recipe.count <= gpuMemoryGb ? recipe.count : Infinity)
+      : Math.max(recipe.count, Math.ceil((requiredGb - count * ENGINE_ALLOWANCE_GB) / (gpuMemoryGb - ENGINE_ALLOWANCE_GB)))
     const measured = known && recipe.verified.by === 'measured' && gpuMemoryGb >= recipe.vramGb && count >= recipe.count && conversations !== null && defaults.conversations !== null && conversations <= defaults.conversations && totalTokens !== undefined && measuredTotal !== undefined && totalTokens <= measuredTotal
     const fits = !known || measured || needsCount !== undefined && needsCount <= count
     const offer = offers.filter(row => row.recipe.id === recipe.id && row.recipe.count >= (needsCount ?? count)).sort((a, b) => a.price - b.price)[0]
     const split = (conversations ?? 'engine default') + ' × ' + (contextPerConversation ? tokens(contextPerConversation) : 'context unknown')
-    const verdict = !known ? 'recipe default only' + (!conversations || !contextPerConversation ? ' · limit not documented for this recipe' : '') : measured ? 'measured to fit' : fits ? 'should fit (estimate)' : 'needs ' + needsCount + '× ' + recipe.gpu + ' (estimate)'
+    const verdict = !known ? 'recipe default only' + (!conversations || !contextPerConversation ? ' · limit not documented for this recipe' : '') : measured ? 'measured to fit' : fits ? 'should fit (estimate)' : needsCount === Infinity ? 'over this shape’s budget (estimate)' : 'needs ' + needsCount + '× ' + recipe.gpu + ' (estimate)'
     const use = conversations === 4 && contextPerConversation === 131072 ? ' · lead + 3 crew (recommended)' : conversations === 1 ? ' · one long session' : ''
     return { conversations, contextPerConversation, totalTokens, requiredGb, needsCount, fits, measured, offer, label: split + ' — ' + verdict + (offer ? ' · ' + rate(offer.price) : '') + use }
   })
@@ -125,7 +140,7 @@ export function tunedRecipe(recipe: HostRecipe, prefs: HostTunePreferences): Hos
   return { ...recipe, flags, context: prefs.contextPerConversation, contextPerSlot: prefs.contextPerConversation }
 }
 
-export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
+export async function runTune(modelTitle: string, options: { recipes: readonly HostRecipe[]; offers?: readonly HostOffer[]; pod?: HostRecord; runner?: HostRunner; signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; engineGraceMs?: number }, ask: Ask, emit: Emit): Promise<HostTunePreferences | undefined> {
   if (options.pod?.vendor && options.pod.vendor !== 'runpod') { emit({ title: 'Tune', words: 'Tune reload is Runpod-only. Nothing was changed on this instance.' }); return }
   const recipes = options.recipes.filter(row => titleOf(row) === modelTitle)
   if (!recipes.length) throw new Error('No recipes for ' + modelTitle)
@@ -162,7 +177,7 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   const confirm = await question({ step: 'tune-confirm', title: 'Confirm tune · ' + modelTitle, found: budget.words, willRun: tuneSummary(prefs, recipe), rows: [{ value: 'confirm', label: inPlace ? 'Confirm · reload in place, no download or new pod' : pod ? 'Confirm · applies at the next rental · no download now' : 'Confirm · save for the next rental' }, { value: 'cancel', label: words.cancel }] })
   if (confirm !== 'confirm' || signal.aborted) return
   if (inPlace) {
-    const result = await retuneHostEngine(pod!, prefs, options.runner ?? hostRunner, { signal, pauseMs: options.pauseMs, timeoutMs: options.timeoutMs, emit })
+    const result = await retuneHostEngine(pod!, prefs, options.runner ?? hostRunner, { signal, pauseMs: options.pauseMs, timeoutMs: options.timeoutMs, engineGraceMs: options.engineGraceMs, emit })
     if (!result.ok) { emit({ title: 'Tune failed', words: result.words }); return }
   }
   saveTunePreferences(modelTitle, prefs)
@@ -170,7 +185,7 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   return prefs
 }
 
-interface RentalDecor { titleSuffix?: string; willRun?: string; lines?: string[]; confirmLabel?: string }
+interface RentalDecor { titleSuffix?: string; willRun?: string; lines?: string[]; confirmLabel?: string; rows?: { value: string; label: string }[]; choose?: (value: string) => Promise<void> }
 export async function confirmTunedRental(initial: HostOffer, offers: readonly HostOffer[], budget: number | undefined, ask: Ask, emit: Emit, signal: AbortSignal, decorate?: (offer: HostOffer) => Promise<RentalDecor>): Promise<HostOffer | undefined> {
   const title = titleOf(initial.recipe)
   let offer = initial
@@ -187,9 +202,10 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
     const recipe = offer.recipe
     const context = prefs.contextPerConversation
     const decor = decorate ? await decorate(offer) : {}
-    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || recipe.verified.by + ' · ' + recipe.verification + ' · ' + (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.'), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
+    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || recipe.verified.by + ' · ' + recipe.verification + ' · ' + (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.'), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(decor.rows ?? []), ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
     if (signal.aborted) return
     if (confirm === 'tune') { await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, signal }, ask, emit); continue }
+    if (confirm && decor.rows?.some(row => row.value === confirm)) { await decor.choose?.(confirm); if (signal.aborted) return; continue }
     if (confirm !== 'rent') return
     if (refusal) continue
     saveTunePreferences(title, prefs)
@@ -239,7 +255,7 @@ export async function reconcileHostTune(id: string, runner: HostRunner, signal: 
   return patchHostRecord(id, { retuning: undefined, tune, step: 'ready', error: undefined })
 }
 
-export async function retuneHostEngine(record: HostRecord, prefs: HostTunePreferences, runner: HostRunner, options: { signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; emit?: Emit } = {}): Promise<{ ok: boolean; words: string }> {
+export async function retuneHostEngine(record: HostRecord, prefs: HostTunePreferences, runner: HostRunner, options: { signal?: AbortSignal; pauseMs?: number; timeoutMs?: number; engineGraceMs?: number; emit?: Emit } = {}): Promise<{ ok: boolean; words: string }> {
   const signal = options.signal ?? new AbortController().signal
   if (record.vendor && record.vendor !== 'runpod') return { ok: false, words: 'Tune reload is Runpod-only. Nothing was changed on this instance.' }
   const busy = { ok: false, words: 'This pod is already reloading its engine; no change made.' }
@@ -274,7 +290,7 @@ export async function retuneHostEngine(record: HostRecord, prefs: HostTunePrefer
       throw error
     }
     changed = true
-    await waitHostEngine(target, next, runner, signal, pause, deadline)
+    await waitHostEngine(target, next, runner, signal, pause, deadline, undefined, options.engineGraceMs)
     const props = JSON.parse(await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/props'], signal)) as { default_generation_settings?: { n_ctx?: number }; total_slots?: number }
     if (props.default_generation_settings?.n_ctx !== prefs.contextPerConversation || props.total_slots !== prefs.conversations) throw new Error('The engine returned a different context or conversation count.')
     invalidateLlamacppTotalSlots(endpoint)
@@ -293,7 +309,7 @@ export async function retuneHostEngine(record: HostRecord, prefs: HostTunePrefer
       const recovery = new AbortController().signal
       try {
         try { await restartHostScript(target, recipe, runner, recovery, { restore: true, token }); restored = true } catch (failure) { if (!(failure instanceof HostTuneUnchanged)) throw failure; untouched = true }
-        await waitHostEngine(target, recipe, runner, recovery, pause, deadline)
+        await waitHostEngine(target, recipe, runner, recovery, pause, deadline, undefined, options.engineGraceMs)
         healthy = true
         invalidateLlamacppTotalSlots(endpoint)
         const reading = await inspectCompatServer(endpoint, { signal: recovery })

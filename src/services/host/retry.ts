@@ -32,6 +32,19 @@ export class HostTerminationUnconfirmed extends Error {
     super('termination sent; ' + label + ' did not confirm (' + (failure ? counted(failure) : httpError(error) ? 'HTTP ' + httpError(error)!.status : 'listing unavailable') + ') — check Machines I’m paying for', { cause: error })
   }
 }
+export async function hostScreenRead<T>(read: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    signal.throwIfAborted()
+    try { return await read() } catch (error) {
+      signal.throwIfAborted()
+      const http = httpError(error)
+      if (attempt >= 2 || (http ? http.status !== 429 && (http.status < 500 || http.status > 599) : !networkError(error))) throw error
+      const wait = Math.max(http?.status === 429 ? 5000 : 250 * 2 ** attempt, (http?.retryAfterSeconds ?? 0) * 1000)
+      await delay(wait, undefined, { signal })
+    }
+  }
+}
+
 export function hostJobReadOnly(options: HostReadRetryOptions): HostReadOnly {
   return async (operation, read) => {
     const started = Date.now()

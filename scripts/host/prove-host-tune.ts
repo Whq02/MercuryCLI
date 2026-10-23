@@ -41,6 +41,19 @@ const offer = { recipe: glm, gpuId: 'NVIDIA B300 SXM6 AC', price: 7.99, dataCent
 const bigger = { ...offer, recipe: { ...glm, count: 2 }, price: 18 }
 check('price comes from an actual fitting offer', tune.tuneBudget(glm, 288, 1, [offer, bigger]).candidates.find(row => row.conversations === 8 && row.contextPerConversation === 1048576)?.label.includes('$18.00/hr'))
 check('context is bounded by the model config, not a recipe default', budget.candidates.every(row => row.contextPerConversation! <= glm.kvBytesPerToken!.maxContext) && budget.candidates.some(row => row.contextPerConversation === 1048576))
+
+const ds = HOST_RECIPES.find(row => row.id === 'deepseek41-b200')!
+const dsBudget = tune.tuneBudget(ds, ds.vramGb, ds.count)
+const dsFraction = Number(ds.flags[ds.flags.indexOf('--mem-fraction-static') + 1])
+check('the DeepSeek-V4.1 B200 recipe sizes its prefill chunk and static share from the measured plan: chunk 2048, 78% static', ds.flags[ds.flags.indexOf('--chunked-prefill-size') + 1] === '2048' && dsFraction === 0.78 && ds.context === 1048576 && ds.contextPerSlot === 1048576)
+check('its per-token cost is the engine’s own measured cell and the measurement is dated and sourced', ds.kvBytesPerToken?.bytes === 11624 && ds.kvBytesPerToken.verified.by === 'measured' && ds.kvBytesPerToken.verified.on === '2026-10-23' && ds.kvBytesPerToken.verified.note?.includes('max_total_num_tokens=1754112') === true)
+check('the room line is the pool one card holds after its share of the weights, not four cards of flat allowance', dsBudget.totalTokens === Math.floor((dsFraction * 180 - ds.weightsGb / 4) * 1e9 / 11624) && dsBudget.totalTokens! >= 1048576)
+check('the budget words name the per-card weights and the share kept free for the engine’s prefill work', dsBudget.words === '4× B200 · 180 GB/GPU · weights 510.3 GB (127.6 GB per card) · 39.6 GB/GPU kept free for the engine’s prefill work (22% of each card)')
+check('the one candidate is the engine default at the full 1M context and it fits as an estimate', dsBudget.candidates.length === 1 && dsBudget.candidates[0]!.conversations === null && dsBudget.candidates[0]!.contextPerConversation === 1048576 && dsBudget.candidates[0]!.fits && dsBudget.candidates[0]!.label === 'engine default × 1M — should fit (estimate)')
+check('a card too small for the plan is told so, never a nonsense card count', tune.tuneBudget(ds, 141, 4).candidates[0]!.label === 'engine default × 1M — over this shape’s budget (estimate)' && tune.tuneBudget(ds, 141, 4).candidates[0]!.fits === false)
+check('the verification words carry the measured reason for the chunk and the share', ds.verification.includes('prefill chunk 2048 and a 78% static share, set from the engine’s own memory plan read on 4× B200 on 2026-10-23') && ds.verification.includes('outgrew the 24.7 GB headroom near 150k tokens of context'))
+check('the 288 GB cards keep the 80% share with a 4096 chunk and say the figure is computed, not measured there', ['deepseek41-b300', 'deepseek41-gb300'].every(id => { const row = HOST_RECIPES.find(entry => entry.id === id)!; return row.flags[row.flags.indexOf('--chunked-prefill-size') + 1] === '4096' && row.flags[row.flags.indexOf('--mem-fraction-static') + 1] === '0.8' && row.verification.includes('not measured on this card') && tune.tuneBudget(row, row.vramGb, row.count).candidates[0]!.fits }))
+check('the saved tune of a DeepSeek rental passes the budget check', tune.tunedRecipe(ds, tune.defaultTune(ds)).id === ds.id)
 const f = await llmhostFixture()
 const rp = await runpodFixture()
 let mounted: Mounted | undefined
@@ -128,13 +141,13 @@ try {
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, runner: ssh.runner, pauseMs: 5, readyTimeoutMs: 3000, startJob: record => { job = runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 10, timeoutMs: 3000, keepAlive: false }) } })
   const answers: Record<string, string> = { 'door-models': 'other', where: 'rent', 'rental-vendor': 'runpod', budget: '', models: modelTitle, offers: '0' }
   const rented = await road(async question => {
-    if (question.step === 'rent-confirm') { confirmWords = question.willRun; check('rent road exposes Tune', question.rows?.some(row => row.value === 'tune')); return 'rent' }
+    if (question.step === 'rent-confirm') { confirmWords = question.willRun + ' · ' + (question.rows?.find(row => row.value === 'tune')?.label ?? ''); check('rent road exposes Tune', question.rows?.some(row => row.value === 'tune')); return 'rent' }
     if (question.step === 'pod-controls') return 'close'
     return answers[question.step] ?? null
   }, emit, new AbortController().signal)
   assert.ok(rented.ok, rented.words)
   await job
-  check('rental confirms the saved four dials', confirmWords.includes('1 × 1M') && confirmWords.includes('4-bit') && confirmWords.includes('high'))
+  check('rental confirms the saved four dials on its Tune row', confirmWords.includes('Tune: 1 × 1M') && confirmWords.includes('4-bit') && confirmWords.includes('high'))
   const record = readHostRecord('fixture-pod-1')!
   check('rental background setup reaches ready', record.jobState === 'ready')
   check('rental carries the confirmed tuning snapshot', record.tune?.conversations === 1 && record.tune.contextPerConversation === 1048576)
@@ -149,7 +162,7 @@ try {
   const beforeCommands = ssh.commands.length
   const beforeCreates = rp.state.creates
   const next = { ...record.tune!, conversations: 8, contextPerConversation: 65536, effort: 'max' as const }
-  const done = await tune.retuneHostEngine(record, next, ssh.runner, { pauseMs: 1, timeoutMs: 500, emit })
+  const done = await tune.retuneHostEngine(record, next, ssh.runner, { pauseMs: 1, timeoutMs: 500, engineGraceMs: 200, emit })
   check('running pod retunes successfully', done.ok)
   check('retune never allocates a new pod', rp.state.creates === beforeCreates)
   check('retune executes a new detached engine launch', ssh.commands.slice(beforeCommands).some((row: any) => row.args.at(-1).includes('nohup setsid')))
@@ -163,13 +176,13 @@ try {
   check('chat explains the reload without promising a time', notices.some(text => text.includes('retuned:') && text.includes('reloading the engine; it answers again once the weights are loaded')) && !notices.some(text => text.includes('~3 min')))
   const savedPrefs = readFileSync(prefsPath, 'utf8')
   ssh.state.failRetune = true
-  const failed = await tune.retuneHostEngine(readHostRecord(record.id)!, { ...next, conversations: 1, contextPerConversation: 1048576 }, ssh.runner, { pauseMs: 1, timeoutMs: 60, emit })
+  const failed = await tune.retuneHostEngine(readHostRecord(record.id)!, { ...next, conversations: 1, contextPerConversation: 1048576 }, ssh.runner, { pauseMs: 1, timeoutMs: 60, engineGraceMs: 60, emit })
   check('failed reload reports old flags restored', !failed.ok && failed.words.includes('old flags restored') && failed.words.includes('previous engine healthy'))
   check('rollback restores old context and parallel', ssh.state.script.includes('--parallel 8') && ssh.state.script.includes('--ctx-size 524288'))
   check('rollback also avoids reinstalling or downloading', !/hf download|cmake|apt-get/.test(ssh.state.script))
   check('failure preserves preferences and applied record', readFileSync(prefsPath, 'utf8') === savedPrefs && readHostRecord(record.id)?.tune?.conversations === 8)
   ssh.state.failRestore = true
-  const dead = await tune.retuneHostEngine(readHostRecord(record.id)!, { ...next, conversations: 1, contextPerConversation: 1048576 }, ssh.runner, { pauseMs: 1, timeoutMs: 60 })
+  const dead = await tune.retuneHostEngine(readHostRecord(record.id)!, { ...next, conversations: 1, contextPerConversation: 1048576 }, ssh.runner, { pauseMs: 1, timeoutMs: 60, engineGraceMs: 60 })
   check('a dead server is never reported healthy', !dead.ok && dead.words.includes('server did not come back') && dead.words.includes('old flags restored'))
   ssh.state.failRetune = false; ssh.state.failRestore = false
   let sawTune = false
@@ -186,7 +199,7 @@ try {
   check('running pod controls expose Tune', sawTune)
   check('the running-pod entry point applies and saves its confirmed tune', readHostRecord(record.id)?.tune?.conversations === 1 && tune.readTunePreferences(modelTitle)?.effort === 'max' && rp.state.creates === beforeCreates)
   const cancel = new AbortController()
-  const interrupted = await tune.retuneHostEngine(readHostRecord(record.id)!, next, { ...ssh.runner, async run(command, args, signal, timeout) { const output = await ssh!.runner.run(command, args, signal, timeout); if (args.at(-1)?.includes('restore = False')) cancel.abort(); return output } }, { signal: cancel.signal, pauseMs: 1, timeoutMs: 500 })
+  const interrupted = await tune.retuneHostEngine(readHostRecord(record.id)!, next, { ...ssh.runner, async run(command, args, signal, timeout) { const output = await ssh!.runner.run(command, args, signal, timeout); if (args.at(-1)?.includes('restore = False')) cancel.abort(); return output } }, { signal: cancel.signal, pauseMs: 1, timeoutMs: 500, engineGraceMs: 200 })
   check('cancelling a reload still restores the old flags with a fresh recovery signal', !interrupted.ok && interrupted.words.includes('old flags restored') && ssh.state.script.includes('--parallel 1'))
   let invalidReachable = false
   await tune.confirmTunedRental({ ...offer, recipe: { ...glm, weightsGb: undefined } }, [{ ...offer, recipe: { ...glm, weightsGb: undefined } }], undefined, async question => { invalidReachable = Boolean(question.rows?.some(row => row.value === 'tune')) && !question.rows?.some(row => row.value === 'rent'); return 'cancel' }, emit, new AbortController().signal)

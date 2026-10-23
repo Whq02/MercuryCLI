@@ -1,3 +1,4 @@
+import { loginsActionFor } from '../../services/concourse/workerModels.js'
 import { modelRefusalBeforeAnyRequest } from '../../services/providers/callModelRouter.js'
 import { compatModelRefusal } from '../../services/providers/openaicompat/compatAccounts.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils/crew/engineDispatch.js'
@@ -16,4 +17,11 @@ export async function resolveHeadlessModel(requested: string): Promise<string> {
     : await modelRefusalBeforeAnyRequest(model)
   if (refusal) throw new Error(refusal)
   return model
+}
+
+export function bootModelRefusalLine(model: string, refusal: string): string {
+  const wayOn = model.toLowerCase().startsWith('compat/')
+    ? loginsActionFor('openai-compat').replace(/^ask the operator to /, '')
+    : 'pick another model with /model'
+  return `${refusal.trim().replace(/\.$/, '')} — ${wayOn}`
 }

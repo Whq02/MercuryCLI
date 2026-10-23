@@ -53,7 +53,7 @@ section('§1 — the daemon admit door: normalize, else refuse typed naming the 
   const spoken = await admit({ workspaceDir: scratch, effort: 'max effort' })
   check(
     "'max effort' passes the effort gate (whatever refuses next, it is not the ladder)",
-    spoken.ok === false && !/not on the shared ladder/.test(spoken.error ?? ''),
+    spoken.ok === false && !/not a valid level/.test(spoken.error ?? ''),
     JSON.stringify(spoken),
   )
 }

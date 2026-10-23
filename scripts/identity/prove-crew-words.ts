@@ -69,6 +69,7 @@ const ALLOW: Row[] = [
   { path: 'src/components/Settings/Config.tsx', fragment: 'set teammate mode to', why: 'the same row\'s receipt' },
   { path: 'src/utils/capability/declarations.ts', fragment: 'charter', why: 'the rows of the create, delete and brief tools leave with them' },
   { path: 'src/components/TrustDialog/TrustDialog.tsx', fragment: 'your own code, your team', why: "the trust question speaks of the people's team, not the crew" },
+  { path: 'src/extensions/bundled/', fragment: 'ArtCraft Team', why: 'the upstream apps\' own licence and NOTICE texts, carried verbatim; the generated bundle embeds them' },
 ]
 
 type Hit = { rel: string; line: number; text: string; allowed: Row | null }

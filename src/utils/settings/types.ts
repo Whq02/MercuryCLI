@@ -121,7 +121,7 @@ export const SettingsSchema = lazySchema(() => {
       journalOnEntryPage: z.boolean().optional().describe("The journal's last entry on the entry page the model reads at session start (default off); what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it"),
     }).passthrough().optional(),
     turns: z.object({
-      loopGuard: z.boolean().optional().describe('Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls'),
+      loopGuard: z.boolean().optional().describe('Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; crewmates and headless runs still end after three consecutive identical failing tool calls'),
     }).passthrough().optional(),
     environment: z.object({ values: EnvironmentVariablesSchema().optional() }).passthrough().optional(),
     credit: z.object({

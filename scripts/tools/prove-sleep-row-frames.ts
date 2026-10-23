@@ -1,10 +1,13 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
 
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'sleep-row-frames-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'sleep-row-frames-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

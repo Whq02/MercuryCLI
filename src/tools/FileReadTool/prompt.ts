@@ -42,7 +42,7 @@ export function renderPromptTemplate(
 Usage:
 - With no window parameters the read returns up to ${MAX_LINES_TO_READ} lines from the top of the file. A result that is not the whole file closes its numbered lines with \`[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]\` or \`[lines 2001-3000 of 3000 — the end of the file]\`; without that line it is the whole file
 - An optional line offset and limit narrow the window.
-- Individual lines are cut off past 2000 characters
+- Individual lines are cut off past 2000 characters; use \`lossless: true\` with \`offset\` + \`limit\` or \`ranges\` to show them completely within the same total budget. A clipped line does not authorise replacing its unseen text.
 - Every returned line carries a prefix — ${lineFormat} — with numbering starting at 1
 ${imageLine}${pdfLines}
 - Jupyter notebooks (.ipynb files) come back cell by cell with their outputs — code, text output, and visualizations together.

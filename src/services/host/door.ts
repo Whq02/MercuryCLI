@@ -2,23 +2,25 @@ import type { LlmHostResult, LlmHostRoad } from '../llmHost/index.js'
 import { keptVolumes } from './volumes.js'
 import { hostShape } from './cluster.js'
 import { heavyWeights, hostShortStorageWords, hostSpendSoFar } from './costs.js'
-import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
+import { HOST_VENDORS, vendorKey, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
 import { vendorStamp } from './vendors/vendor.js'
 import { vendorKeyRows } from './vendorKeys.js'
 import { bankRowWords, bankState, bootsFromVolume, weightsLine } from './bank.js'
 import { vastBootsFromVolume, vastVolumeFor } from './vastVolumes.js'
 import { bankUploadPreference } from './keepSafe.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
-import { LLM_HOST_SEARCH_MIN_CHARS, hostSetupEstimate } from '../../commands/llmhost/words.js'
+import { LLM_HOST_SEARCH_MIN_CHARS, hostNoStockWords, hostRunningCountWords, hostSetupEstimate, hostVendorKeysWords } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { configuredCompatEndpoints, resolveCompatApiKey, isCompatEndpointCredentialed } from '../providers/openaicompat/compatAccounts.js'
 import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
 import { cachedCompatCatalogue, refreshCompatCatalogues, rememberCompatCatalogue } from '../providers/openaicompat/compatCatalogue.js'
-import { currentHostRecipes } from './recipesFile.js'
+import { currentHostRecipes, currentPrivateHostRecipes } from './recipesFile.js'
+import { choosePrivateRecipesFile, privateRecipesRow, PRIVATE_RECIPES_ROW } from './privateRecipes.js'
 import { HF_OFFLINE_WORDS, HF_SEARCH_PLACEHOLDER, derivedRecipeWords, hfRecipeSourceWords, hfRowLabel, huggingFaceHubBase, huggingFaceToken, pickHuggingFaceModel, searchHuggingFace, type DerivedHfRecipe, type HfModel, type HfSearchOutcome } from './hfRecipes.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
 import { hostRecords, type HostRecord } from './store.js'
+import { hostLinkObservations, hostMachineTrouble } from './reliability.js'
 
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
@@ -40,6 +42,7 @@ interface ModelDoorDeps {
   pods: () => Promise<readonly HostPod[] | undefined>
   managedReadErrors?: boolean
   podErrors?: () => readonly string[]
+  vendorFaults?: () => readonly { vendor: HostVendorId; parked: boolean }[]
   records: () => readonly HostRecord[]
   road: LlmHostRoad
   connect?: () => Promise<boolean>
@@ -264,10 +267,14 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
     }))).flat()
     const allOffers = [...(offers ?? []), ...vendorOffers.map(row => row.offer)]
     const recipes = currentHostRecipes()
+    const privateFile = currentPrivateHostRecipes()
+    const privateIds = new Set(privateFile.recipes.map(row => row.id))
+    if (privateFile.errors.length) notice = [notice, ...privateFile.errors].filter(Boolean).join('\n')
     const records = deps.records()
     const endpoints = configuredCompatEndpoints()
     const running = records.filter(record => record.status === 'RUNNING' && record.provider && endpoints.some(endpoint => endpoint.name === record.provider) && (pods === undefined || pods.some(pod => pod.id === record.id && pod.status === 'RUNNING')))
     const runningFor = (model: string) => running.filter(record => recipes.some(recipe => recipe.id === record.recipe && modelTitle(recipe) === model))
+    const stockVendors = [...(offers === undefined ? [] : [vendorLabel('runpod')]), ...vendors.filter(row => !vendorErrors.has(row.vendor)).map(row => row.label)]
     const groups = [...new Set(recipes.map(modelTitle))].map(name => {
       const variants = recipes.filter(recipe => modelTitle(recipe) === name)
       const live = runningFor(name)[0]
@@ -280,9 +287,9 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const where = (live && runningRecipe ? 'running on your machine ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
         : own ? 'fits ' + boxName(own) + ' (' + own.memoryGb + ' GB) — start here →'
         : cheapest ? cheapestVendor + ' ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
-        : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →') + (derived ? '' : ' · ' + stampWord(stamp))
+        : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : hostNoStockWords(stockVendors)) + (derived ? '' : ' · ' + stampWord(stamp))
       const sourceWords = variants.every(recipe => Boolean(hfRecipeSourceWords(recipe))) ? hfRecipeSourceWords(variants[0]!) : undefined
-      return { name, variants, where, sourceWords, derived, stamp, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
+      return { name, variants, where: (variants.some(row => privateIds.has(row.id)) ? 'private · ' : '') + where, sourceWords, derived, stamp, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
     }).sort((a, b) => a.stamp - b.stamp || Number(Boolean(a.sourceWords)) - Number(Boolean(b.sourceWords)) || a.rank - b.rank || a.price - b.price || a.name.localeCompare(b.name))
     if (!title) {
       const paid = pods ?? []
@@ -291,14 +298,20 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const spend = hostSpendSoFar(paid)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
-      const also = [{ value: 'pods', label: '────────────────────\nMachines I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + ' ($' + spend.toFixed(2) + ' so far; ' + (incomplete ? 'listed machines only; ' : '') + 'compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' }, { value: 'boxes', label: 'My computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
+      const faults = new Map((deps.vendorFaults?.() ?? []).map(row => [row.vendor, row.parked]))
+      const keyVendors = HOST_VENDORS.filter(id => id !== 'huggingface').map(id => ({ label: vendorLabel(id), connected: Boolean(vendorKey(id)), ...(faults.has(id) ? { fault: faults.get(id) ? 'key' as const : 'read' as const } : {}) }))
+      const account = [
+        { value: 'pods', label: 'Machines I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + hostRunningCountWords(paid.filter(pod => pod.status === 'RUNNING').length) + ' ($' + spend.toFixed(2) + ' so far; ' + (incomplete ? 'listed machines only; ' : '') + 'compute estimate, storage extra' + (keptVolumes().some(row => row.state !== 'gone') ? '; weights disks bill monthly' : '') + ')' },
+        ...(deps.manageKey ? [{ value: 'keys', label: hostVendorKeysWords(keyVendors) }] : []),
+      ]
+      const also = [{ value: 'boxes', label: '────────────────────\nMy computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
       for (;;) {
         const live = search.lookup(query)
         const models = live?.state === 'ready' ? live.models : []
         const hfWidth = Math.max(0, ...models.map(model => model.id.length))
         const heading = 'HUGGING FACE · ' + models.length + ' result' + (models.length === 1 ? '' : 's') + ' · unverified · sorted by downloads'
         const note = live?.state === 'fetching' ? 'HUGGING FACE · fetching…' : live?.state === 'offline' ? 'HUGGING FACE · ' + live.words : live?.state === 'ready' && !models.length ? 'HUGGING FACE · no results for “' + query + '”' : undefined
-        const pending = ask({ step: 'door-models', title: 'Which model?', found: 'Where each model can run right now. Nothing is rented until you confirm the price.', willRun: [notice, ...deps.managedReadErrors ? [] : [offerError, podError, ...vendorErrors.values()]].filter(Boolean).join(' · '), initial: verified[0]?.name, search: { placeholder: HF_SEARCH_PLACEHOLDER, query, ...(note ? { note } : {}) }, rows: [...verified.map(group => ({ value: group.name, label: group.name.padEnd(nameWidth) + ' · ' + (group.sourceWords ? group.sourceWords + ' · ' : '') + group.where, section: 'VERIFIED RECIPES' })), ...models.map(model => ({ value: 'hf:' + model.id, label: hfRowLabel(model, hfWidth), section: heading })), ...also] })
+        const pending = ask({ step: 'door-models', title: 'Which model?', found: 'Where each model can run right now. Nothing is rented until you confirm the price.', willRun: [notice, ...deps.managedReadErrors ? [] : [offerError, podError, ...vendorErrors.values()]].filter(Boolean).join(' · '), initial: verified[0]?.name, search: { placeholder: HF_SEARCH_PLACEHOLDER, query, ...(note ? { note } : {}) }, rows: [...account, ...verified.map(group => ({ value: group.name, label: group.name.padEnd(nameWidth) + ' · ' + (group.sourceWords ? group.sourceWords + ' · ' : '') + group.where, section: 'VERIFIED RECIPES' })), ...models.map(model => ({ value: 'hf:' + model.id, label: hfRowLabel(model, hfWidth), section: heading })), ...also] })
         notice = ''
         const choice = live?.state === 'fetching' ? await Promise.race([pending, live.settled.then(() => undefined)]) : await pending
         if (choice === undefined) continue
@@ -307,6 +320,17 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
         if (choice === 'refresh') continue door
         if (choice === 'other') return enterRoad(deps, ask, emit, signal)
         if (choice === 'pods') return enterRoad(deps, ask, emit, signal, 'pods')
+        if (choice === 'keys' && deps.manageKey) {
+          const picked = await ask({ step: 'door-keys', title: 'Vendor keys', found: 'Saved keys for the rental vendors. Removing a key does not stop rented machines or their bills.', willRun: '', rows: [
+            ...vendorKeyRows(),
+            ...HOST_VENDORS.filter(id => id !== 'huggingface' && !vendorKey(id) && (id === 'runpod' ? deps.connect : deps.connectVendor)).map(id => ({ value: 'connect:' + id, label: 'Connect ' + vendorLabel(id) + ' →' })),
+            { value: 'back', label: 'Back to models · Escape closes' },
+          ] })
+          if (!picked || signal.aborted) return stopped()
+          if (picked.startsWith('key:')) { await deps.manageKey(picked.slice(4) as HostVendorId); continue door }
+          if (picked.startsWith('connect:')) { const id = picked.slice(8) as HostVendorId; await (id === 'runpod' ? deps.connect?.() : deps.connectVendor?.(id)); continue door }
+          continue
+        }
         if (choice === 'boxes') return enterRoad(deps, ask, emit, signal, 'ssh')
         if (choice === 'bank') return enterRoad(deps, ask, emit, signal, 'fast-load')
         if (choice.startsWith('hf:')) {
@@ -333,7 +357,10 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
     let recipe = variants.find(row => row.id === runningFor(title!)[0]?.recipe) ?? variants.find(row => allOffers.some(offer => offer.recipe.id === row.id)) ?? variants[0]!
     for (;;) {
       const modelOffers = offers?.filter(offer => modelTitle(offer.recipe) === title && qualityKey(offer.recipe) === qualityKey(recipe)).sort((a, b) => a.price - b.price) ?? []
-      const rentals = [...modelOffers.map(offer => ({ vendor: undefined as DoorVendor | undefined, offer })), ...vendorOffers.filter(row => modelTitle(row.offer.recipe) === title && qualityKey(row.offer.recipe) === qualityKey(recipe)).map(row => ({ vendor: row.vendor as DoorVendor | undefined, offer: row.offer }))].sort((a, b) => a.offer.price - b.offer.price)
+      const observations = hostLinkObservations()
+      const rentals = [...modelOffers.map(offer => ({ vendor: undefined as DoorVendor | undefined, offer })), ...vendorOffers.filter(row => modelTitle(row.offer.recipe) === title && qualityKey(row.offer.recipe) === qualityKey(recipe)).map(row => ({ vendor: row.vendor as DoorVendor | undefined, offer: row.offer }))]
+        .map(row => ({ ...row, trouble: hostMachineTrouble((row.vendor?.vendor ?? 'runpod') as HostVendorId, row.offer, observations) }))
+        .sort((a, b) => a.trouble.rank - b.trouble.rank || a.offer.price - b.offer.price)
       const live = runningFor(title)
       const quality = deps.qualityWords ?? qualityWords
       const bank = bankState(recipe)
@@ -344,7 +371,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const connected = offers !== undefined || vendors.length > 0
       const choice = await ask({ step: 'door-model', title, found: facts, willRun: '', initial: live.length ? 'running:0' : undefined, keys: BANK_KEYS.map(row => row.key === 'b' && bank.banked ? { ...row, label: 'bank again' } : row), rows: [
         ...live.map((record, i) => ({ value: 'running:' + i, label: 'Already running · machine ' + record.id + ' · switch now · nothing to pay' })),
-        ...rentals.map((row, i) => ({ value: 'rent:' + i, label: 'Rent · ' + (row.vendor?.label ?? 'Runpod') + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + ' · ' + (row.offer.dataCenter ?? (row.vendor ? 'region unknown' : 'data centre unknown')) + (row.offer.hostingType ? ' · ' + row.offer.hostingType : '') + ' · in stock · ' + vendorStamp((row.vendor?.vendor ?? 'runpod') as HostVendorId) + (row.vendor?.vendor === 'huggingface' ? ' · HF-managed · per hour · no SSH' : '') + (row.offer.machineId ? ' · machine ' + row.offer.machineId : '') + ' · ' + (!row.vendor && bootsFromVolume(row.offer.recipe, row.offer.dataCenter) ? 'boots from your volume' : row.vendor?.vendor === 'vast' && vastBootsFromVolume(row.offer.recipe, row.offer.machineId) ? 'boots from your Vast.ai volume on its machine' : row.vendor?.vendor === 'vast' && row.offer.machineId !== undefined && vastVolumeFor(row.offer.recipe)?.machineId === row.offer.machineId ? 'downloads onto your volume first' : (row.vendor?.vendor === 'vast' || row.vendor?.vendor === 'lambda') && bankUploadPreference(row.offer.recipe) ? 'uploads your bank first' : 'downloads the weights first') })),
+        ...rentals.map((row, i) => ({ value: 'rent:' + i, label: 'Rent · ' + (row.vendor?.label ?? 'Runpod') + ' ' + shape(row.offer.recipe) + ' · ' + hourly(row.offer.price) + ' · ' + (row.offer.dataCenter ?? (row.vendor ? 'region unknown' : 'data centre unknown')) + (row.offer.hostingType ? ' · ' + row.offer.hostingType : '') + ' · in stock · ' + vendorStamp((row.vendor?.vendor ?? 'runpod') as HostVendorId) + (row.vendor?.vendor === 'huggingface' ? ' · HF-managed · per hour · no SSH' : '') + (row.offer.machineId ? ' · machine ' + row.offer.machineId : '') + (row.trouble.words ? ' · ' + row.trouble.words : '') + ' · ' + (!row.vendor && bootsFromVolume(row.offer.recipe, row.offer.dataCenter) ? 'boots from your volume' : row.vendor?.vendor === 'vast' && vastBootsFromVolume(row.offer.recipe, row.offer.machineId) ? 'boots from your Vast.ai volume on its machine' : row.vendor?.vendor === 'vast' && row.offer.machineId !== undefined && vastVolumeFor(row.offer.recipe)?.machineId === row.offer.machineId ? 'downloads onto your volume first' : (row.vendor?.vendor === 'vast' || row.vendor?.vendor === 'lambda') && bankUploadPreference(row.offer.recipe) ? 'uploads your bank first' : 'downloads the weights first') })),
         ...boxes.map((box, i) => ({ value: 'box:' + i, label: boxName(box) + (box.models && !box.models.includes(modelTitle(recipe)) ? ' · no local recipe for this model' : fits(box, recipe) ? ' · fits (' + box.memoryGb + ' GB) — start here →' : ' · too small: ' + box.memoryGb + ' GB, needs ' + requiredMemory(recipe).toLocaleString('en-US', { maximumFractionDigits: 1 })) })),
         { value: 'bank', label: bankRowWords(recipe, bank) },
         ...(connected ? [{ value: 'watch', label: (rentals.length ? 'Watch stock' : 'No stock · watch') + ' · across every provider above · tell me when the cheapest shape comes back' }] : []),
@@ -353,9 +380,16 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
         ...vendors.filter(row => !(deps.managedReadErrors && vendorErrors.has(row.vendor)) && (vendorErrors.has(row.vendor) || !vendorOffers.some(item => item.vendor === row && modelTitle(item.offer.recipe) === title && qualityKey(item.offer.recipe) === qualityKey(recipe)))).map(row => ({ value: 'retry:' + row.vendor, label: vendorErrors.get(row.vendor) ?? row.label + ' · no stock for this quality · Refresh →' })),
         ...(deps.manageKey ? vendorKeyRows() : []),
         ...(variants.length > 1 ? [{ value: 'quality', label: 'Choose quality →' }] : []),
+        ...(privateIds.has(recipe.id) ? [privateRecipesRow(privateFile)] : []),
         { value: 'back', label: 'Back to models · Escape closes' },
       ] })
       if (!choice || signal.aborted) return stopped()
+      if (choice === PRIVATE_RECIPES_ROW) {
+        const loaded = await choosePrivateRecipesFile(ask, signal)
+        if (!loaded) return stopped()
+        notice = loaded; title = undefined
+        continue door
+      }
       if (choice === 'back') { title = undefined; break }
       if (choice.startsWith('key:') && deps.manageKey) { await deps.manageKey(choice.slice(4) as HostVendorId); break }
       if (choice === 'connect') { if (offerError || await deps.connect?.()) break; continue }

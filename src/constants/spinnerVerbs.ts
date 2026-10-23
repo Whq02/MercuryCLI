@@ -81,6 +81,33 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Track-studying',
 ]
 
+const MERCURY_DESERT_PHRASES: readonly string[] = [
+  'Parsing the dunes',
+  'Hashing the oasis',
+  'Compiling the mirage',
+  'Encrypting the caravan',
+  'Traversing the sandstorm',
+  'Optimizing the pyramid',
+  'Debugging the sphinx',
+  'Reversing the hieroglyphs',
+  'Fuzzing the nomad',
+  'Injecting the scarab',
+  'Exploiting the tomb',
+  'Overflowing the Nile',
+  'Obfuscating the pharaoh',
+  'Tracing the trade routes',
+  'Cracking the amulet',
+  'Pwning the mummy',
+  'Overclocking the sandglass',
+  'Jailbreaking the labyrinth',
+  'Ciphering the scrolls',
+  'Shellcoding the djinn',
+  'Bit-shifting the sundial',
+  'Polymorphing the serpent',
+  'Disassembling the ankh',
+  'Hex-editing the sarcophagus',
+]
+
 const STOCK_VERBS: readonly string[] = [
   'Thinking',
   'Working',
@@ -187,7 +214,7 @@ export function isQuicksilverLine(verb: string): boolean {
 
 function getSpinnerVerbs(): string[] {
   const desert: readonly string[] =
-    flagEnv('MERCURY_DESERT_VERBS') === '0' ? STOCK_VERBS : MERCURY_DESERT_VERBS
+    flagEnv('MERCURY_DESERT_VERBS') === '0' ? STOCK_VERBS : [...MERCURY_DESERT_VERBS, ...MERCURY_DESERT_PHRASES]
   const mode = quicksilverMode()
   const quicksilver = QUICKSILVER_SET
   let pool: string[]

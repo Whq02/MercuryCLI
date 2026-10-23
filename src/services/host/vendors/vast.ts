@@ -250,6 +250,11 @@ export class VastClient implements HostVendor {
     if (String(instances.id) !== id) throw new Error('Vast.ai returned a different instance ID.')
     return this.pod(instances)
   }
+  async attachSshKey(id: string, publicKey: string, signal?: AbortSignal): Promise<void> {
+    if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Vast.ai requires a numeric instance ID.')
+    if (!isOpenSshKey(publicKey)) throw new Error('Vast.ai needs one OpenSSH public key.')
+    await this.api.request('/api/v0/instances/' + id + '/ssh/', success, 'POST', { ssh_key: publicKey.trim() }, signal)
+  }
   private async registerKey(publicKey: string): Promise<void> {
     const material = keyMaterial(publicKey)
     const listed = async (): Promise<boolean> => {

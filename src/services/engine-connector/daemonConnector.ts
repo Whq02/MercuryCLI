@@ -4,6 +4,7 @@ import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { basename, dirname, join } from 'node:path'
 import type { Message, AssistantMessage } from '../../types/message.js'
+import { readClearModelReceipt } from '../switchboard/sessionReceipts.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { decodeDecisionReasonFromWire } from '../../utils/permissions/decisionReasonWire.js'
@@ -509,6 +510,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
   private effectiveLive: SessionLiveV1 = IDLE_LIVE
   private displayRows: Array<{ row: Message; anchor: number }> = []
+  private clearModelReceipt: Message | null | undefined
   private echoRows = new Map<string, Message>()
   private deliveredNotices = new Map<string, { row: Message; text: string; sentAtMs: number; seq: number }>()
   private sends: SeatSend[] = []
@@ -1433,6 +1435,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       while (d < this.displayRows.length) rows.push(this.displayRows[d++]!.row)
       this.painted = [...rows, ...echoes]
     }
+    if (this.clearModelReceipt === undefined) {
+      try { this.clearModelReceipt = readClearModelReceipt(this.record.home, this.record.sessionId) }
+      catch (error) { logForDebugging(`[engine-connector] clear receipt unreadable: ${error}`) }
+    }
+    if (this.clearModelReceipt != null && !this.rawRecords.some(row => row.uuid === this.clearModelReceipt!.uuid)) {
+      this.painted = [this.clearModelReceipt, ...this.painted]
+    }
     this.painted = placeDeliveredNotices(this.painted, this.deliveredNotices)
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
@@ -1441,11 +1450,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private refreshCheckpoints(): void {
     const fc = this.facts?.fileCheckpoints
-    const stamp = fc === undefined ? '' : `${fc.capture ? '1' : '0'}|${fc.restorable.join(',')}`
+    const stamp = fc === undefined ? '' : JSON.stringify([fc.capture, fc.restorable, fc.files, fc.undo])
     if (stamp === this.checkpointStamp) return
     this.checkpointStamp = stamp
     this.checkpointSnapshot =
-      fc === undefined ? UNKNOWN_CHECKPOINTS : { capture: fc.capture ? 'on' : 'off', restorable: new Set(fc.restorable) }
+      fc === undefined ? UNKNOWN_CHECKPOINTS : { capture: fc.capture ? 'on' : 'off', restorable: new Set(fc.restorable), ...(fc.files === undefined ? {} : { files: fc.files }), ...(fc.undo === undefined ? {} : { undo: fc.undo }) }
     emitAll(this.checkpointListeners, 'checkpoints')
   }
 
@@ -1462,7 +1471,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     try {
-      const reply = await this.chainRpc({
+      const reply = await this.chainRpc(req.undo === true || req.filePath !== undefined ? {
+        op: 'sessionFileRestore',
+        sessionId: this.record.sessionId,
+        by: 'operator',
+        userMessageId: req.userMessageId,
+        ...(req.undo === true ? { action: 'undo' } : { action: 'restore', filePath: req.filePath! }),
+        ...(req.dryRun === true ? { dryRun: true } : {}),
+      } : {
         op: 'sessionRewind',
         sessionId: this.record.sessionId,
         by: 'operator',
@@ -1555,7 +1571,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
     if (!modelMoved) emitAll(this.modelListeners, 'model')
-    if (this.reconcileSends()) this.paint()
+    if (this.reconcileSends() || this.clearModelReceipt === undefined) this.paint()
     this.refreshWork()
   }
 

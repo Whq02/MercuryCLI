@@ -49,12 +49,9 @@ section('§2 a tool call that dies mid-call names the server and the next step')
 {
   const clientSrc = read('src/services/mcp/client.ts')
   const callFn = clientSrc.slice(clientSrc.indexOf('async function callToolOnce('), clientSrc.indexOf('type UrlElicitation ='))
-  check('a connection closed mid-call is wrapped with the server and the reconnect verb', callFn.includes('if (isConnectionClosedError(err)) {') && callFn.includes('failed: the server closed the connection mid-call — /mcp shows its state; /mcp reconnect ${connected.name} starts it again'))
-  check("the SDK's request deadline is wrapped with the seconds, the knob and the next step", callFn.includes('err instanceof SdkError && err.code === SdkErrorCode.RequestTimeout') && callFn.includes('failed: no answer within ${Math.round(timeoutMs / 1000)}s (MERCURY_MCP_TOOL_TIMEOUT_MS) — retry, or raise MERCURY_MCP_TOOL_TIMEOUT_MS for a slow tool'))
-  const closedAt = callFn.indexOf('if (isConnectionClosedError(err)) {')
-  const expiredAt = callFn.indexOf('throw new McpSessionExpiredError(connected.name)')
-  const finalThrow = callFn.lastIndexOf('    throw err\n  } finally {')
-  check("the wraps sit after the http session-expired route and before the bare rethrow", expiredAt < closedAt && closedAt < finalThrow)
+  check('an uncertain call names the server, tool and inspection before retry', callFn.includes('MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.'))
+  check('only unsent or explicitly rejected requests can replay', callFn.includes('isMcpSessionExpiredError(err) || (err instanceof SdkError && err.code === SdkErrorCode.NotConnected)'))
+  check('lost responses and deadlines retain error status', callFn.includes('if (couldHaveExecuted && !(err instanceof ProtocolError))') && callFn.includes('throw unknownOutcome()'))
 }
 
 section('§3 every failed re-mark carries a reason')

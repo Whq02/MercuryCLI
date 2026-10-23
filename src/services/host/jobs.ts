@@ -14,6 +14,7 @@ import { currentHostRecipes } from './recipesFile.js'
 import { pinnedWeightManifest } from './keptWeights.js'
 import { captureHostHuggingfaceCredential } from './jobCredentials.js'
 import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
+import { HOST_IDLE_POLL_MS, sweepHostIdle } from './idle.js'
 import { HOST_VENDOR_INFO } from './vendors/vendor.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
@@ -57,7 +58,7 @@ export function queueHostSetup(record: HostRecord): HostRecord {
   record = { ...record, vendor: record.vendor ?? 'runpod', recipeRow: recipe, tune }
   const now = Date.now()
   const logs = join(hostDirectory(), 'logs'); mkdirSync(logs, { recursive: true, mode: 0o700 })
-  const queued: HostRecord = { ...record, jobKind: 'setup', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
+  const queued: HostRecord = { ...record, jobKind: 'setup', generation: randomUUID(), jobState: 'queued', jobStartedAt: now, advancedAt: now, step: 'waiting for SSH', error: undefined, engineDeath: undefined, log: join(logs, record.id + '.log'), steps: [{ step: 'waiting for SSH', at: now }] }
   writeHostRecord(queued)
   return queued
 }
@@ -166,18 +167,25 @@ export function startHostJobSweep(): () => void {
   let stopped = false
   const pods = join(hostDirectory(), 'pods')
   mkdirSync(pods, { recursive: true, mode: 0o700 })
+  const watched = new Map<string, { marker: string; at: number }>()
   const schedule = (ms: number): void => { if (stopped) return; if (timer) clearTimeout(timer); timer = setTimeout(() => { void tick() }, ms); timer.unref() }
   const tick = async (): Promise<void> => {
     if (stopped || busy) return
     busy = true
     let live = false
+    let idle = false
     try {
       const records = hostRecords()
       live = records.some(record => ['queued', 'starting', 'running'].includes(record.jobState ?? ''))
-      if (records.length > 0 && ownsControlPlaneSync()) await sweepHostJobs({ records })
+      idle = records.some(record => record.jobState === 'paused' || record.jobState === 'ready')
+      if (records.length > 0 && ownsControlPlaneSync()) {
+        await sweepHostJobs({ records })
+        await sweepHostIdle({ records, watched })
+      }
     } catch (error) { logForDebugging('Host job sweep: ' + String(error)) } finally { busy = false }
     if (live) schedule(1000)
     else if (!watcher) schedule(15_000)
+    else if (idle) schedule(HOST_IDLE_POLL_MS)
   }
   let watcher: ReturnType<typeof watch> | undefined
   try {

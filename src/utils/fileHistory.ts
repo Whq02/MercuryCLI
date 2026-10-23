@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { UUID } from 'node:crypto'
 import type { Stats } from 'node:fs'
-import { chmod, copyFile, link, mkdir, readFile, stat } from 'node:fs/promises'
+import { chmod, copyFile, link, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 
 import { structuredPatch } from 'diff'
@@ -40,6 +40,7 @@ export type FileHistoryState = {
   snapshots: FileHistorySnapshot[]
   trackedFiles: Set<string>
   snapshotSequence: number
+  rewindUndo?: FileHistorySnapshot & { restoredDigests: Record<string, string | null> }
 }
 
 type StateUpdater = (updater: (prev: FileHistoryState) => FileHistoryState) => void
@@ -225,6 +226,11 @@ export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: 
 
 
 export async function fileHistoryMakeSnapshot(updateState: StateUpdater, messageId: UUID): Promise<void> {
+  updateState(prev => {
+    if (prev.rewindUndo === undefined) return prev
+    const { rewindUndo: _undo, ...next } = prev
+    return next
+  })
   try {
     if (!fileHistoryEnabled()) return
     const state = captureState(updateState)
@@ -387,9 +393,11 @@ function listPaths(paths: string[]): string {
 export async function fileHistoryRestore(
   state: FileHistoryState,
   messageId: UUID,
-  opts: { dryRun: boolean; ownerKey: string; drift?: RestoreDriftOracle; signal?: AbortSignal },
+  opts: { dryRun: boolean; ownerKey: string; drift?: RestoreDriftOracle; signal?: AbortSignal; filePath?: string; undo?: boolean; updateState?: StateUpdater },
 ): Promise<FileHistoryRestoreResult> {
-  const snapshot = [...state.snapshots].reverse().find(candidate => candidate.messageId === messageId)
+  const snapshot = opts.undo
+    ? state.rewindUndo?.messageId === messageId ? state.rewindUndo : undefined
+    : [...state.snapshots].reverse().find(candidate => candidate.messageId === messageId)
   if (!snapshot) {
     return { ok: false, kind: 'no-checkpoint', paths: [], detail: 'no saved files at this point — the checkpoint store holds nothing for it' }
   }
@@ -399,7 +407,12 @@ export async function fileHistoryRestore(
   const missing: string[] = []
   let insertions = 0
   let deletions = 0
-  for (const key of state.trackedFiles) {
+  const selectedKey = opts.filePath === undefined ? undefined : toTrackingKey(opts.filePath)
+  if (selectedKey !== undefined && !state.trackedFiles.has(selectedKey)) {
+    return { ok: false, kind: 'no-checkpoint', paths: [selectedKey], detail: `${selectedKey} is not tracked at this checkpoint — nothing was restored` }
+  }
+  const keys = opts.undo ? Object.keys(snapshot.trackedFileBackups) : selectedKey === undefined ? state.trackedFiles : [selectedKey]
+  for (const key of keys) {
     const filePath = maybeExpandFilePath(key)
     const target = resolveTargetBackup(state, snapshot, key)
     if (!target) {
@@ -411,6 +424,10 @@ export async function fileHistoryRestore(
       current = await readBytesOrNull(filePath)
     } catch (err) {
       return { ok: false, kind: 'restore-failed', paths: [key], detail: `${key}: ${err instanceof Error ? err.message : String(err)} — nothing was restored` }
+    }
+    if (opts.undo && state.rewindUndo?.restoredDigests[key] !== (current === null ? null : sha256Hex(current))) {
+      drifted.push(key)
+      continue
     }
     let planned: Buffer | null = null
     let plannedMode = 0o644
@@ -475,6 +492,23 @@ export async function fileHistoryRestore(
   if (opts.dryRun || targets.length === 0) {
     return { ok: true, changed, insertions, deletions, dryRun: opts.dryRun }
   }
+  let undo: FileHistoryState['rewindUndo']
+  if (!opts.undo && opts.updateState !== undefined) {
+    undo = { messageId: randomUUID(), timestamp: new Date(), trackedFileBackups: {}, restoredDigests: {} }
+    await mkdir(backupDirectory(), { recursive: true })
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i]!
+      const name = target.kind === 'create' ? null : `${backupFileName(target.canonicalPath, 0)}-${undo.messageId}`
+      if (name !== null) {
+        await writeFile(backupPath(name), target.originalBytes, { flag: 'wx', mode: target.mode })
+        if (!(await readFile(backupPath(name))).equals(target.originalBytes)) {
+          return { ok: false, kind: 'restore-failed', paths: [changed[i]!], detail: 'the pre-rewind snapshot could not be verified — nothing was restored' }
+        }
+      }
+      undo.trackedFileBackups[changed[i]!] = { backupFileName: name, version: 0, backupTime: undo.timestamp, sourceSize: target.originalBytes.length }
+      undo.restoredDigests[changed[i]!] = target.kind === 'delete' ? null : target.plannedDigest
+    }
+  }
   const outcome = await runTextChangeSetCommit({
     ownerKey: opts.ownerKey,
     source: 'rewind',
@@ -497,6 +531,10 @@ export async function fileHistoryRestore(
         }
         opts.drift?.set?.(target.canonicalPath, { content: target.plannedBytes.toString('utf8'), timestamp, offset: undefined, limit: undefined })
       }
+      opts.updateState?.(prev => {
+        const { rewindUndo: _prior, ...next } = prev
+        return undo === undefined ? next : { ...next, rewindUndo: undo }
+      })
       return { ok: true, changed, insertions, deletions, dryRun: false }
     case 'stale':
       return {

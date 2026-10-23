@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync } from 'node:fs'
-import { HostPreparationCleanupFailed, keptWeightsPath, prepareKeptWeights, terminateVerified } from './keptWeights.js'
-import { keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
+import { HostPreparationCleanupFailed, keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
+import { gigabytes, keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { hostHuggingfaceDispatchCredential } from './jobCredentials.js'
@@ -11,47 +11,65 @@ import type { HostVendor } from './vendors/vendor.js'
 import { VAST_VOLUME_MOUNT, VastClient } from './vendors/vast.js'
 import { vastRentalVolume } from './vastVolumes.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
-import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
+import { hostMachineName, hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
-import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster, terminateHostResource } from './cluster.js'
+import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
 import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
-import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord } from './store.js'
+import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
+import type { HostRecipe } from './recipes.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { bankDownloadScript, bankModelPath, bytesWords, folderBytes, recordBankFailure, sealBank, shortFolder, verifyBank } from './bank.js'
-import { bankUploadBudget, uploadBankForRental } from './keepSafe.js'
+import { bankUploadBudget, bankUploadPreference, uploadBankForRental } from './keepSafe.js'
+import { downloadPrivateRepoForRental, type WeightsSource } from './weightsSource.js'
 import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
-import { engineDeathAfterReady, ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
+import { HostEngineDeath, engineDeathAfterReady, ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } from './retry.js'
+import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords } from './reliability.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
-class HostEngineDiedAfterReady extends Error {}
+class HostLinkLost extends Error {
+  constructor(message: string, readonly engineLog: string) { super(message) }
+}
+const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
 const localOs = (): 'darwin' | 'linux' | 'windows' => process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
+const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefined, vendor: HostVendorId): WeightsSource => {
+  if (record.volumeId) return { kind: 'volume', volumeId: record.volumeId }
+  const preference = recipe && (vendor === 'vast' || vendor === 'lambda') ? bankUploadPreference(recipe) : undefined
+  return preference ? { kind: 'bank', folder: preference.folder } : { kind: 'huggingface' }
+}
+function watchedSourceFor(source: WeightsSource | undefined, hit: HostVendorId, managed: boolean, volume: KeptVolume | undefined): { source?: WeightsSource; skip?: string } {
+  if (!source) return {}
+  if (source.kind === 'volume') return volume ? { source: { kind: 'volume', volumeId: volume.id } } : { skip: 'your kept volume is not on that machine' }
+  if (managed && source.kind !== 'huggingface') return { skip: vendorLabel(hit) + ' endpoints cannot use ' + (source.kind === 'bank' ? 'your bank' : 'a private repository') }
+  return { source }
+}
 
-export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
+export async function runHostJob(id: string, generation: string, options: { runner?: HostRunner; pauseMs?: number; timeoutMs?: number; engineGraceMs?: number; signal?: AbortSignal; keepAlive?: boolean } = {}): Promise<void> {
   const initial = readHostRecord(id)
   if (!initial || initial.generation !== generation || !['queued', 'starting'].includes(initial.jobState ?? '')) return
   const controller = new AbortController()
   const signal = options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal
   const runner = options.runner ?? hostRunner
   const pause = options.pauseMs ?? 5000
-  const timeout = options.timeoutMs ?? (hostSetupTimeout(hostRecipeOfRecord(initial)) + (initial.vendor === 'vast' || initial.vendor === 'lambda' ? bankUploadBudget(hostRecipeOfRecord(initial)) : 0))
+  const timeout = options.timeoutMs ?? (hostSetupTimeout(hostRecipeOfRecord(initial)) + (['vast', 'lambda', 'hyperstack', 'verda', 'digitalocean'].includes(initial.vendor ?? '') ? bankUploadBudget(hostRecipeOfRecord(initial)) : 0))
   const vendor = initial.vendor ?? 'runpod'
   let keyRefusal: string | undefined
   const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
   let key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
-  const clean = (text: string): string => key ? text.split(key).join('[redacted]') : text
+  const secrets: string[] = []
+  const clean = (text: string): string => [key, ...secrets].reduce<string>((out, secret) => secret ? out.split(secret).join('[redacted]') : out, text)
   const mark = (step: string): void => {
     const record = readHostRecord(id)
     if (!record || record.generation !== generation || record.jobState === 'stopped') controller.abort()
     signal.throwIfAborted()
     if (!record) return
-    if (record.step === step || record.jobState === 'ready' || record.jobState === 'failed') return
+    if (record.step === step || record.jobState === 'ready' || record.jobState === 'paused' || record.jobState === 'failed') return
     const at = Date.now()
     patchHostRecord(id, { step, advancedAt: at, steps: [...(record.steps ?? []), { step, at }] })
   }
@@ -69,7 +87,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const timer = setInterval(() => {
     const current = readHostRecord(id)
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
-    if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready' || current?.jobState === 'failed') return
+    if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready' || current?.jobState === 'paused' || current?.jobState === 'failed') return
     const checking = current?.volumeId && !current.weightsCheck
     if (!checking && !initial.cluster) return
     logBusy = true
@@ -170,7 +188,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
           const best = hits.sort((a, b) => a.offer.price - b.offer.price)[0]
           offer = best?.offer
           hit = best?.name ?? 'runpod'
-          if (offer && hit === 'runpod' && runpod) {
+          const wantsVolume = !current.weightsSource || current.weightsSource.kind === 'volume'
+          if (offer && hit === 'runpod' && runpod && wantsVolume) {
             stage = 'weights disk not ready'
             volume = await rentalVolume(runpod, offer.recipe, signal)
             stage = 'provider read failed'
@@ -181,7 +200,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
             }
           }
           const vast = clients.get('vast')
-          if (offer && hit === 'vast' && vast instanceof VastClient) {
+          if (offer && hit === 'vast' && vast instanceof VastClient && wantsVolume) {
             stage = 'Vast.ai volume not ready'
             const mount = await vastRentalVolume(vast, offer.recipe, offer, signal)
             volume = mount ? readKeptVolume(mount.id) : undefined
@@ -210,14 +229,23 @@ export async function runHostJob(id: string, generation: string, options: { runn
         }
         if (!offer) { await rest(pollMs); continue }
         const api = clients.get(hit)!
-        const podName = 'mercury-' + randomUUID().slice(0, 12)
         const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + (hit !== 'runpod' || clients.size > 1 ? ' · ' + vendorLabel(hit) : '')
+        const watched = watchedSourceFor(afterPoll.weightsSource, hit, Boolean(api.capabilities.managed), volume)
+        if (watched.skip) {
+          const step = 'stock at ' + vendorLabel(hit) + ' (' + shapeWords + ') but ' + watched.skip + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching'
+          log(step)
+          patchHostRecord(id, { step })
+          await rest(pollMs * 12)
+          continue
+        }
+        const mount = !afterPoll.weightsSource || watched.source?.kind === 'volume' ? volume : undefined
+        const podName = 'mercury-' + randomUUID().slice(0, 12)
         const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
         try {
           if (!api.capabilities.managed) sshKey ??= await ensureHostKey(runner, signal)
-          pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', podName, volume)
+          pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', podName, mount)
         } catch (error) {
           const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
@@ -243,6 +271,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           ...hostClusterRecord(pod),
           vendor: hit,
           id: pod.id,
+          machineId: hostMachineOf(hit, offer),
           name: pod.name,
           recipe: offer.recipe.id,
           recipeRow: offer.recipe,
@@ -255,7 +284,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
           sshKey: api.capabilities.managed ? undefined : sshKey?.path,
           watchedFrom: id,
           huggingfaceCredential: afterPoll.huggingfaceCredential,
-          volumeId: volume?.id,
+          volumeId: mount?.id,
+          ...(watched.source ? { weightsSource: watched.source } : {}),
           ...(hit === vendor && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
         })
         hostNotice(setupRecord, 'rented', rentedWords)
@@ -291,6 +321,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const api = vendorClient(initial, { key })
     let endpointBase: string | undefined
+    let loadedWeights: string | undefined
     if (api.capabilities.managed) {
       if (!api.managedEndpoint) throw new Error('The managed provider has no readiness reader.')
       while (!signal.aborted && Date.now() + pause < deadline) {
@@ -307,44 +338,89 @@ export async function runHostJob(id: string, generation: string, options: { runn
       clusterStarted = true
     } else {
     let last = 'SSH address not yet assigned'
-    let keyRefusals = 0
-    while (!signal.aborted && Date.now() < deadline) {
-      const pod = await readOnly('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); throw error })
-      const direct = pod.ssh?.direct
-      if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await readOnly('log', readSignal => api.logs(id, readSignal)))
-      if (direct && pod.status === 'RUNNING') {
-        const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
-        try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) {
-          last = String(error)
-          keyRefusals = /Permission denied \(publickey\)/i.test(last) ? keyRefusals + 1 : 0
-          if (keyRefusals >= 3) throw new Error('the pod did not accept Mercury’s SSH key · ' + vendorKeyNotice(vendor))
+    let sshDeadline = deadline
+    let sshRead = readOnly
+    let keyRefused = false
+    let keyAttached = false
+    for (;;) {
+      while (!signal.aborted && Date.now() < sshDeadline) {
+        const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) throw new Error(last); throw error })
+        const direct = pod.ssh?.direct
+        keyRefused = false
+        if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await sshRead('log', readSignal => api.logs(id, readSignal)))
+        if (direct && pod.status === 'RUNNING') {
+          const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
+          try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; break } catch (error) {
+            last = String(error)
+            const refused = /Permission denied \(publickey\)/i.test(last)
+            keyRefused = refused
+            mark(keyAttached ? 'waiting for SSH · key attached to the instance · retrying' : refused ? 'waiting for SSH · the machine has not accepted the key yet · retrying until it does' : 'waiting for SSH')
+            if (refused) last = keyAttached ? 'the machine still refuses Mercury’s SSH key' : 'the machine never accepted Mercury’s SSH key before the setup deadline · ' + vendorKeyNotice(vendor)
+          }
         }
-      } else keyRefusals = 0
-      await delay(pause, undefined, { signal })
+        await delay(Math.min(pause, Math.max(1, sshDeadline - Date.now())), undefined, { signal })
+      }
+      signal.throwIfAborted()
+      if (target) break
+      if (!(api instanceof VastClient) || !keyRefused || keyAttached) throw new Error((keyAttached ? 'Mercury attached the SSH key to this instance and retried · ' : '') + last)
+      const pod = await cleanupRead('pod', readSignal => api.get(id, readSignal))
+      if (pod.status !== 'RUNNING' || !pod.ssh?.direct) throw new Error(last)
+      try {
+        const keyPath = initial.sshKey ?? initial.target?.key
+        if (!keyPath) throw new Error('the rental has no saved SSH key file')
+        const publicKey = (await runner.run('ssh-keygen', ['-y', '-f', keyPath], signal)).trim()
+        secrets.push(publicKey)
+        await api.attachSshKey(id, publicKey, signal)
+      } catch (error) { throw new Error('Mercury could not attach the SSH key to this instance · ' + clean(error instanceof Error ? error.message : String(error))) }
+      keyAttached = true
+      log('Mercury attached the SSH key to this instance · retrying SSH')
+      sshDeadline = Date.now() + Math.min(timeout, 4 * 60_000)
+      sshRead = hostJobReadOnly({ label: api.label, pauseMs: pause, timeoutMs: timeout, deadline: sshDeadline, signal, mark })
     }
-    if (!target) throw new Error(last)
     patchHostRecord(id, { target, status: 'RUNNING' })
+    const answering = initial.linkLost && await runner.run('ssh', [...sshArguments(target), 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal).then(() => true).catch(() => false)
+    if (answering) {
+      loadedWeights = initial.loadedWeights
+      mark('engine still answering · reconnecting')
+    } else {
     let keptWeights: string | undefined
     let engineCache: string | undefined
-    if (initial.volumeId) {
-      const disk = readKeptVolume(initial.volumeId)
+    const source = initial.weightsSource ?? inferredWeightsSource(initial, recipe, vendor)
+    const vm = vendor === 'lambda' || api.capabilities.vm === true
+    const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
+    const stillLoaded = initial.loadedWeights && source.kind !== 'volume'
+      ? await runner.run('ssh', [...sshArguments(target), 'test -d ' + quote(initial.loadedWeights) + ' && echo MERCURY_WEIGHTS_PRESENT'], signal).then(out => out.includes('MERCURY_WEIGHTS_PRESENT')).catch(() => false)
+      : false
+    if (stillLoaded) {
+      keptWeights = initial.loadedWeights
+      mark('weights already on the machine · no download')
+    } else if (source.kind === 'volume') {
+      if (initial.volumeId !== source.volumeId) throw new Error('The chosen weights volume ' + source.volumeId + ' is not mounted on this machine; nothing was downloaded. Rent again from /llmhost.')
+      const disk = readKeptVolume(source.volumeId)
       keptWeights = await prepareKeptWeights(initial, recipe, disk?.kind === 'vast' ? api : runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark, cleanupRead)
       if (initial.prepareWeightsOnly) return
       if (disk?.kind === 'vast') engineCache = (disk.mountPath ?? VAST_VOLUME_MOUNT) + '/engine-cache'
+    } else if (source.kind === 'bank') {
+      keptWeights = await uploadBankForRental(recipe, vendor, target, runner, signal, mark, { folder: source.folder })
+      if (!keptWeights) throw new Error('The bank upload returned no folder on the machine; nothing was downloaded.')
+    } else if (source.kind === 'private-repo') {
+      const token = await huggingfaceKey()
+      if (!token) throw new Error(keyRefusal ?? 'The saved Hugging Face sign-in is unavailable, so ' + source.repo + ' cannot be read; nothing was downloaded. Connect with /logins huggingface and resume.')
+      secrets.push(token)
+      keptWeights = await downloadPrivateRepoForRental(source, recipe, token, target, runner, signal, mark, { docker, pod: !vm })
     }
-    if (!keptWeights) keptWeights = await uploadBankForRental(recipe, vendor, target, runner, signal, mark)
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
-    const vm = vendor === 'lambda'
-    const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
     await startHostEngine(target, recipe, runner, signal, docker, !vm, undefined, keptWeights, undefined, engineCache)
-    await waitHostEngine(target, recipe, runner, signal, pause, timeout, log)
+    await waitHostEngine(target, recipe, runner, signal, pause, timeout, log, options.engineGraceMs)
+    loadedWeights = keptWeights ?? (recipe.weightsGb || recipe.engine === 'llamacpp' ? '/workspace/mercury-host/' + recipe.id + '/weights' : undefined)
+    }
     }
     patchHostRecord(id, { target, status: 'RUNNING' })
     let port: number | undefined
     if (!api.capabilities.managed) {
       if (!target) throw new Error('The pod has no SSH address.')
       mark('starting engine')
-      port = await openHostTunnel(id, target, runner, signal)
+      port = await openHostTunnel(id, target, runner, signal, initial.linkLost ? initial.localPort : undefined)
       patchHostRecord(id, { localPort: port })
       mark('tunnel on 127.0.0.1:' + port)
       endpointBase = 'http://127.0.0.1:' + port + '/v1'
@@ -372,27 +448,31 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
     mark('ready')
-    const record = patchHostRecord(id, { jobState: 'ready' })!
+    const record = patchHostRecord(id, { jobState: 'ready', engineDeath: undefined, linkLost: undefined, ...(loadedWeights ? { loadedWeights } : {}) })!
     hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record))
     if (options.keepAlive !== false) {
       const reconnects = 5
       const reconnect = async (why: string): Promise<void> => {
         if (api.capabilities.managed || !target || port === undefined) throw new Error('The HF endpoint no longer answers: ' + why)
-        const death = await engineDeathAfterReady(target, recipe, runner, signal).catch(() => undefined)
-        if (death) throw new HostEngineDiedAfterReady(death.message)
+        let engineLog = 'engine log unread'
+        const death = await engineDeathAfterReady(target, recipe, runner, signal, text => {
+          const lines = clean(text).split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_')).slice(-8)
+          engineLog = lines.length ? 'Last engine lines:\n' + lines.join('\n') : 'engine log is empty'
+        }).catch(() => undefined)
+        if (death) throw death
         for (let attempt = 1; ; attempt++) {
-          const words = 'tunnel dropped · reconnecting · attempt ' + attempt + ' of ' + reconnects + ' · ' + why
+          const words = hostLinkAttemptWords(noteHostLink({ ...record, vendor }, { outcome: 'reconnecting', attempt, why }), reconnects)
           log(words)
           patchHostRecord(id, { step: words })
           try {
             await openHostTunnel(id, target, runner, signal, port)
             patchHostRecord(id, { step: 'ready' })
-            log('tunnel reconnected on 127.0.0.1:' + port)
+            log(hostLinkRecoveredWords(noteHostLink({ ...record, vendor }, { outcome: 'recovered', attempt }), port))
             return
           } catch (error) {
             signal.throwIfAborted()
             why = clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200)
-            if (attempt >= reconnects) throw new Error('The SSH tunnel dropped and ' + reconnects + ' reconnects failed: ' + why)
+            if (attempt >= reconnects) throw new HostLinkLost(hostLinkLossWords(noteHostLink({ ...record, vendor }, { outcome: 'lost', attempt, why })), engineLog)
             await delay(Math.min(60_000, pause * 2 ** attempt), undefined, { signal })
           }
         }
@@ -421,44 +501,68 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (error instanceof HostPreparationCleanupFailed) { closeHostTunnel(id); return }
     const failure = error
     const failedSetup = readHostRecord(id)
+    if (error instanceof HostEngineDeath && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
+      const machine = hostMachineName(vendor, id)
+      const words = clean(error.message) + ' · ' + machine + ' stays up and bills $' + initial.price.toFixed(2) + '/hr while paused · Resume restarts the engine from the weights already on the machine, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      log(words)
+      const at = error.facts.at
+      const step = 'paused · the engine died after setup'
+      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, engineDeath: error.facts, linkLost: undefined, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+      hostNotice(paused, 'paused', initial.name + ' · ' + words)
+      closeHostTunnel(id)
+      return
+    }
+    if (error instanceof HostLinkLost && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
+      const words = clean(error.message) + ' · the machine stays up and bills $' + initial.price.toFixed(2) + '/hr while paused · Resume reconnects, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      log(words)
+      const at = Date.now()
+      const step = 'paused · the link dropped after setup'
+      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, linkLost: true, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+      hostNotice(paused, 'paused', initial.name + ' · ' + words + '\n' + error.engineLog)
+      closeHostTunnel(id)
+      return
+    }
     if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && !(error instanceof HostTerminationUnconfirmed) && !hostReadFailureWords(error) && (!initial.cluster || clusterStarted && !signal.aborted) && failedSetup.jobState !== 'ready') {
       const resource = initial.cluster ? 'cluster' : 'pod'
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
       if (volume && volume.state !== 'kept' && volume.state !== 'failed' && volume.state !== 'gone') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: undefined })
       const plain = (value: unknown): string => clean(value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
       const detail = plain(error)
-      const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : initial.volumeId ? 'weights disk billing is not verified; check your account' : ''
-      const next = disk ? '/llmhost → Bank → d deletes the disk, or rent again' : '/llmhost to check the setup and rent again'
-      try {
-        const cleanupApi = vendorClient(initial, key ? { key } : {})
-        const missing = error instanceof HostPodMissing
-        if (initial.cluster) {
-          await terminateHostResource(runpodOnly(cleanupApi, 'Clusters'), { id, name: failedSetup.name, status: failedSetup.status, cost: failedSetup.price, createdAt: failedSetup.startedAt, family: initial.cluster }, cleanupRead)
-        } else if (missing) {
+      const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept' + (volume.partialBytes === undefined ? '' : ' with ' + gigabytes(volume.partialBytes) + ' downloaded') + ' and bills ' + keptDiskPrice(volume) : initial.volumeId ? 'weights disk billing is not verified; check your account' : ''
+      if (error instanceof HostPodMissing) {
+        const next = disk ? '/llmhost → Bank → d deletes the disk, or rent again' : '/llmhost to check the setup and rent again'
+        try {
+          const cleanupApi = vendorClient(initial, key ? { key } : {})
           let listed
           try { listed = await cleanupRead('pod listing', readSignal => cleanupApi.pods(readSignal)) } catch (listing) { throw new HostTerminationUnconfirmed(cleanupApi.label, listing) }
           if (listed.some(row => row.id === id && row.status !== 'TERMINATED')) throw new Error(cleanupApi.label + ' still lists the pod and it may still bill.')
-        } else await terminateVerified(cleanupApi, id, cleanupRead, cleanupApi.label)
-        if (failedSetup.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(failedSetup.provider) }
-        const endedVolume = initial.volumeId && readKeptVolume(initial.volumeId)
-        if (endedVolume && endedVolume.preparingPod === id) writeKeptVolume({ ...endedVolume, preparingPod: undefined })
-        const ended = missing
-          ? 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Machines I’m paying for shows it' + (disk ? ' · ' + next : '')
-          : detail + ' · ' + resource + ' terminated and verified absent' + (initial.cluster ? ' (Runpod no longer lists it)' : '') + ' · ' + (disk || 'nothing more bills') + ' · ' + next
-        log(ended)
-        hostNotice(initial, 'failed', initial.name + ' · ' + ended)
-        if (initial.prepareWeightsOnly || initial.cluster) removeHostRecord(id)
-        else patchHostRecord(id, { status: 'TERMINATED', jobState: 'failed', step: missing ? 'pod no longer listed' : 'setup failed · instance terminated', error: ended })
-        closeHostTunnel(id)
-        return
-      } catch (cleanup) {
-        const words = detail + ' · ' + (cleanup instanceof HostTerminationUnconfirmed ? plain(cleanup) : 'Mercury could not verify ' + resource + ' termination: ' + plain(cleanup) + ' · check your account; ' + resource + ' ' + id + ' may still bill') + (disk ? ' · ' + disk : '') + ' · /llmhost → Machines I’m paying for → Terminate'
-        log(words)
-        patchHostRecord(id, { jobState: 'failed', error: words, step: words })
-        hostNotice(initial, 'failed', initial.name + ' · ' + words)
+          if (failedSetup.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(failedSetup.provider) }
+          const endedVolume = initial.volumeId && readKeptVolume(initial.volumeId)
+          if (endedVolume && endedVolume.preparingPod === id) writeKeptVolume({ ...endedVolume, preparingPod: undefined })
+          const ended = 'the vendor no longer lists pod ' + id + ' · nothing to terminate · ' + (disk ? disk + ' · ' : '') + 'if it still bills, Machines I’m paying for shows it' + (disk ? ' · ' + next : '')
+          log(ended)
+          hostNotice(initial, 'failed', initial.name + ' · ' + ended)
+          if (initial.prepareWeightsOnly) removeHostRecord(id)
+          else patchHostRecord(id, { status: 'TERMINATED', jobState: 'failed', step: 'pod no longer listed', error: ended })
+        } catch (cleanup) {
+          const words = detail + ' · ' + (cleanup instanceof HostTerminationUnconfirmed ? plain(cleanup) : 'Mercury could not verify ' + resource + ' termination: ' + plain(cleanup) + ' · check your account; ' + resource + ' ' + id + ' may still bill') + (disk ? ' · ' + disk : '') + ' · /llmhost → Machines I’m paying for → Terminate'
+          log(words)
+          patchHostRecord(id, { jobState: 'failed', error: words, step: words })
+          hostNotice(initial, 'failed', initial.name + ' · ' + words)
+        }
         closeHostTunnel(id)
         return
       }
+      const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
+      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' is stopped · its disk still bills until Terminate' : machine + ' stays up and bills $' + initial.price.toFixed(2) + '/hr while paused'
+      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + ' · Resume retries the setup, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      log(words)
+      const at = Date.now()
+      const step = 'paused at ' + (failedSetup.step ?? 'setup').replace(/ · retrying until it does$/, '')
+      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+      hostNotice(paused, 'paused', initial.name + ' · ' + words)
+      closeHostTunnel(id)
+      return
     }
     const current = readHostRecord(id)
     if (current && current.generation === generation && current.jobState !== 'stopped') {
@@ -473,7 +577,6 @@ export async function runHostJob(id: string, generation: string, options: { runn
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
       } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
-      else if (error instanceof HostEngineDiedAfterReady) hostNotice(record, 'failed', record.name + ' · ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume restarts the engine, Terminate stops the bill')
       else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
       else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
     }

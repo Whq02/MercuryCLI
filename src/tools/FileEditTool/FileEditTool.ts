@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { fileGeneration, generationOfWrittenBytes, recordLinesWritten, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { columnCutsOf, retainColumnCuts, losslessReadCall, fileGeneration, generationOfWrittenBytes, recordLinesWritten, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -33,7 +33,6 @@ import { serializeIntentDigest } from '../../services/changeTransaction/repetiti
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
-import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
 import {
@@ -81,7 +80,7 @@ import {
 } from '../FileWriteTool/structuredTargets.js'
 import { FILE_EDIT_TOOL_NAME } from './constants.js'
 import { modifiedSinceReadMessage, otherLiveSessionsClause, UNREAD_EXISTING_FILE_NOTE } from './otherSession.js'
-import { getEditToolDescription, localSpanRefusalMessage } from './prompt.js'
+import { getEditToolDescription } from './prompt.js'
 import {
   inputSchema,
   outputSchema,
@@ -523,6 +522,27 @@ type ReadKnowledge =
   | { verdict: 'refused'; message: string; unread: boolean }
   | { verdict: 'carry'; gaps: LineRange[]; carry: Carry }
 
+function clippedReadRefusal(context: ToolUseContext, path: string, displayPath: string, content: string, touched: readonly LineRange[] | null, oldString?: string): string | null {
+  const cuts = columnCutsOf(ownerFromToolUseContext(context), path, fileGeneration(path))
+  if (cuts.length === 0 || touched === null) return null
+  const lines = content.split('\n')
+  for (const cut of cuts) {
+    if (!touched.some(range => range.start <= cut.line && range.end >= cut.line)) continue
+    if (oldString !== undefined && oldString !== '') {
+      const start = lines.slice(0, cut.line - 1).reduce((n, line) => n + line.length + 1, 0)
+      const hiddenStart = start + cut.visibleChars
+      const hiddenEnd = start + (lines[cut.line - 1]?.length ?? 0)
+      let overlaps = false
+      for (let at = content.indexOf(oldString); at >= 0; at = content.indexOf(oldString, at + oldString.length)) {
+        if (at < hiddenEnd && at + oldString.length > hiddenStart) { overlaps = true; break }
+      }
+      if (!overlaps) continue
+    }
+    return `Line ${cut.line} was clipped; ${losslessReadCall(displayPath, cut.line)} shows it before replacement.`
+  }
+  return null
+}
+
 const READ_NEED = 'a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands)'
 
 function readKnowledge(
@@ -534,8 +554,10 @@ function readKnowledge(
   touched: { start: number; end: number }[] | null,
   includeRead: boolean | 'content' = true,
   named?: { lines: LineRange[] | null; missing: string; hunks?: boolean },
-  carry?: { generation: string | null },
+  carry?: { generation: string | null; oldString?: string },
 ): ReadKnowledge {
+  const clipped = clippedReadRefusal(context, expandedPath, displayPath, currentContent, touched, carry?.oldString)
+  if (clipped !== null) return { verdict: 'refused', message: clipped, unread: false }
   const entry = context.readFileState.get(expandedPath)
   if (includeRead === true && entry !== undefined && readCoversRanges(entry, touched)) return { verdict: 'known' }
   const anchor = hasText(expectedAnchor) ? checkAnchor(expectedAnchor, currentContent, displayPath) : null
@@ -932,20 +954,6 @@ export const FileEditTool = buildTool({
       return { result: true as const }
     }
 
-    const turnModel = (context.options as { engineModel?: unknown } | undefined)?.engineModel
-    if (mode === 'exact' && typeof turnModel === 'string' && localRecordFor(turnModel) !== undefined) {
-      const fileBytes = Buffer.byteLength(currentContent, 'utf8')
-      const oldBytes = Buffer.byteLength(oldString, 'utf8')
-      if (fileBytes > 0 && oldBytes * 2 > fileBytes) {
-        return {
-          result: false as const,
-          behavior: 'ask' as const,
-          message: localSpanRefusalMessage(Math.round((100 * oldBytes) / fileBytes)),
-          errorCode: 15,
-        }
-      }
-    }
-
     if (expandedPath.toLowerCase().endsWith('.ipynb')) {
       return {
         result: false as const,
@@ -980,7 +988,7 @@ export const FileEditTool = buildTool({
                   ? "a hunk's line address does not parse"
                   : 'the old_string was not found in the current content',
             hunks: mode === 'hunks',
-          }, { generation: generationAtStat })
+          }, { generation: generationAtStat, ...(mode === 'exact' ? { oldString: located?.kind === 'found' ? located.actual : oldString } : {}) })
     const refusedUnread = knowledge !== null && knowledge.verdict === 'refused' && knowledge.unread
     if (located !== null && located.kind !== 'none' && !refusedUnread) {
       const notUnique = notUniqueRefusal(currentContent, oldString, input.replace_all === true, located)
@@ -1191,6 +1199,8 @@ export const FileEditTool = buildTool({
           : mode === 'hunks'
             ? linesOfHunks(input.hunks as EditHunkInput[] | undefined)
             : null
+      const clipped = clippedReadRefusal(context, expandedPath, input.file_path, freshContent, touched, mode === 'exact' ? findActualString(freshContent, input.old_string ?? '') ?? input.old_string : undefined)
+      if (clipped !== null) throw new Error(clipped)
       const entry = context.readFileState.get(expandedPath)
       const intact = entry !== undefined && readCoversRanges(entry, touched) && (
         (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp ||
@@ -1395,6 +1405,7 @@ export const FileEditTool = buildTool({
       ? preserveUntouchedLineEndings(rawBefore, updatedFile, lineEndings)
       : updatedFile)
     const owner = ownerFromToolUseContext(context)
+    const cutsBeforeWrite = columnCutsOf(owner, expandedPath, fileGeneration(expandedPath))
     const knownBeforeWrite = fileExists
       ? knowledgeBeforeWrite(context, expandedPath, input.file_path, freshContent, input.expected_anchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
       : []
@@ -1438,6 +1449,21 @@ export const FileEditTool = buildTool({
     const editedLines = built.editedLines
     const shownGeneration = editedLines.readBack === 'same' ? writtenGeneration : editedLines.readBack === 'differs' ? fileGeneration(expandedPath) : null
     if (shownGeneration !== null) recordCarry(owner, expandedPath, shownGeneration, built.windows)
+    if (writtenGeneration !== null && cutsBeforeWrite.length > 0) {
+      const oldLines = freshContent.split('\n')
+      const shiftedCuts = cutsBeforeWrite.map(cut => {
+        if (mode !== 'exact') return { ...cut, line: postLineAtOrAfter(cut.line, patch) }
+        const hiddenAt = oldLines.slice(0, cut.line - 1).reduce((n, line) => n + line.length + 1, 0) + cut.visibleChars
+        let delta = 0
+        if (reportedOldString !== '') for (let at = freshContent.indexOf(reportedOldString); at >= 0 && at + reportedOldString.length <= hiddenAt; at = freshContent.indexOf(reportedOldString, at + reportedOldString.length)) {
+          delta += reportedNewString.length - reportedOldString.length
+          if (!replaceAll) break
+        }
+        const prefix = updatedFile.slice(0, hiddenAt + delta).split('\n')
+        return { line: prefix.length, visibleChars: prefix[prefix.length - 1]!.length }
+      }).filter(cut => !built.windows.some(window => window.start <= cut.line && window.end >= cut.line))
+      retainColumnCuts(owner, expandedPath, writtenGeneration, shiftedCuts)
+    }
 
     const lspManager = getLspServerManager()
     if (lspManager) {

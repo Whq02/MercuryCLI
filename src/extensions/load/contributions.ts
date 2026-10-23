@@ -355,7 +355,8 @@ export function resolveContributions(
     const transport = ('type' in config && config.type ? config.type : 'stdio') as 'stdio' | 'http' | 'sse'
     const runtimeName = serverRuntimeName(name, key)
     if (transport === 'stdio') {
-      const command = substitute((config as { command: string }).command)
+      const declaredCommand = (config as { command: string }).command
+      const command = declaredCommand === '${MERCURY_NODE}' ? process.execPath : substitute(declaredCommand)
       const isPath = command.includes('/') || command.includes('\\')
       if (isPath ? !existsSync(command) : !probes.onPath(command)) {
         defects.push(`server ${key}: ${command} not on PATH`)

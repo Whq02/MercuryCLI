@@ -289,6 +289,18 @@ export const METHODS = {
     scope: 'session',
     deadlineMs: 30_000,
   }),
+  'session/file_restore': method({
+    name: 'session/file_restore',
+    from: 'host',
+    kind: 'request',
+    params: lazySchema(() => z.discriminatedUnion('action', [
+      z.object({ action: z.literal('restore'), user_message_id: z.string(), file_path: z.string().min(1), dry_run: z.boolean().optional() }),
+      z.object({ action: z.literal('undo'), user_message_id: z.string(), dry_run: z.boolean().optional() }),
+    ])),
+    result: record,
+    scope: 'session',
+    deadlineMs: 30_000,
+  }),
   'session/pause_gate': method({
     name: 'session/pause_gate',
     from: 'host',

@@ -86,6 +86,8 @@ process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = `${base}/token`
 process.env.MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE = base
 process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = base
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({ compatProvider: { llama: { baseUrl: `${base}/v1`, dialect: 'llamacpp', models: ['fixture'] } } }))
+const VERB = 'Debugging the sphinx'
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { verbs: { mode: 'replace', verbs: [VERB] } } }))
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
@@ -174,22 +176,65 @@ try {
   class Input extends EventEmitter { isTTY = true; isRaw = false; setEncoding() { return this }; setRawMode(v: boolean) { this.isRaw = v; return this }; ref() { return this }; unref() { return this }; read() { return null }; get readableLength() { return 0 } }
   snapshots.push({ tag: 'no tokens for 2 min · reconnecting (1 of 3)', facts: { ...freshFacts(), thinkingChars: 4800, replyChars: 1200, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: Date.now(), delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120000 } as Wait } })
   snapshots.push({ tag: 'reading 60k tokens of context', facts: { ...freshFacts(), wait: { kind: 'first-byte', model: 'fixture', cold: true, promptTokens: 60000, budgetMs: 140000, sinceMs: Date.now(), attempt: 1, prefillMs: 20000 } as Wait } })
-  for (const columns of [80, 120]) for (const compact of [false, true]) for (const sample of snapshots) {
+  type SpinnerProps = Parameters<typeof SpinnerWithVerb>[0]
+  const renderRow = async (columns: number, compact: boolean, f: Facts, over: Partial<SpinnerProps>): Promise<string> => {
     const stdout = new Output(columns)
     const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })
     instances.set(stdout as never, ink)
-    const f = sample.facts
-    ink.render(React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, React.createElement(SpinnerWithVerb, {
+    const row = React.createElement(SpinnerWithVerb, {
       mode: f.phase === 'writing' ? 'responding' : f.phase === 'thinking' ? 'thinking' : 'requesting', compact,
       loadingStartTimeRef: { current: f.sentAtMs! }, totalPausedMsRef: { current: 0 }, pauseStartTimeRef: { current: null }, responseLengthRef: { current: f.replyChars + f.thinkingChars }, liveTurnFactsRef: { current: f }, verbose: true, hasActiveTools: false, activeToolCount: 0,
-    })))
+      ...over,
+    })
+    ink.render(React.createElement(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined, children: row }))
     await pause(150)
     const frame = stripAnsi(ink.lastFrameText())
-    console.log(`FRAME ${columns} ${sample.tag}\n${frame}`)
-    const expected = sample.tag === 'waiting' ? 'waiting for the first token' : sample.tag
-    check(`spinner at ${columns}, compact=${compact}: ${expected}`, frame.includes(expected) && (!['thinking', 'writing'].includes(sample.tag) || frame.includes('tokens')) && (!sample.tag.startsWith('reading') || frame.includes('~20 s')), frame)
     ink.unmount()
     instances.delete(stdout as never)
+    return frame
+  }
+  const readRow = (frame: string, compact: boolean): { head: string; hud: string[]; hudText: string } => {
+    const lines = frame.split('\n')
+    const at = lines.findIndex(line => /[●✶]/.test(line))
+    const line = at < 0 ? '' : lines[at]!
+    const body = line.slice(line.search(/[●✶]/) + 1)
+    const cut = body.indexOf('…')
+    const head = (cut < 0 ? body : body.slice(0, cut)).trim()
+    const rest = cut < 0 ? '' : body.slice(cut + 1)
+    const hudText = compact
+      ? rest.replace(/^\s*·\s*/, '').trim()
+      : `${rest} ${at < 0 ? '' : lines[at + 1] ?? ''}`.trim().replace(/^\(/, '').replace(/\)$/, '')
+    return { head, hudText, hud: hudText === '' ? [] : hudText.split(' · ') }
+  }
+  const PHASE_WORDS = ['waiting', 'thinking', 'writing', 'reconnecting', 'reading']
+  for (const columns of [80, 120]) for (const compact of [false, true]) for (const sample of snapshots) {
+    const frame = await renderRow(columns, compact, sample.facts, {})
+    console.log(`FRAME ${columns} ${compact ? 'compact' : 'full'} ${sample.tag}\n${frame}`)
+    const { head, hud, hudText } = readRow(frame, compact)
+    const where = `${columns} cols, ${compact ? 'compact' : 'full'}, ${sample.tag}`
+    check(`${where}: the verb heads the row`, head === VERB, JSON.stringify({ head, frame }))
+    check(`${where}: no phase word in the head`, !PHASE_WORDS.some(word => head.toLowerCase().includes(word)), head)
+    const rowOk = sample.tag === 'waiting' ? hud.includes('waiting for the first token')
+      : sample.tag === 'thinking' ? hud.some(s => /^thinking( with .+ effort)?$/.test(s)) && hud.some(s => s.includes('tokens'))
+      : sample.tag === 'writing' ? hud.includes('writing') && hud.some(s => s.includes('tokens'))
+      : sample.tag.startsWith('reading') ? hud.includes('reading 60k tokens of context') && hud.includes('~20 s')
+      : hudText.includes('no tokens for 2 min · reconnecting (1 of 3)') && !hud.includes('reconnecting')
+    check(`${where}: the phase and the count stand on the row`, rowOk, hudText)
+  }
+  const writing = snapshots.find(s => s.tag === 'writing')!.facts
+  const controls: Array<{ tag: string; head: string; facts: Facts; over: Partial<SpinnerProps>; compacts: boolean[] }> = [
+    { tag: 'active tool', head: 'Reading fixture.ts', facts: writing, over: { mode: 'tool-use', hasActiveTools: true, activeToolCount: 1, activeToolLabel: 'Reading fixture.ts' }, compacts: [false, true] },
+    { tag: 'explicit override', head: 'compacting context', facts: writing, over: { overrideMessage: 'compacting context' }, compacts: [false, true] },
+    { tag: 'still override', head: 'compacting context', facts: freshFacts(), over: { overrideMessage: 'compacting context', still: true }, compacts: [false] },
+  ]
+  for (const control of controls) for (const compact of control.compacts) {
+    const frame = await renderRow(120, compact, control.facts, control.over)
+    console.log(`FRAME 120 ${compact ? 'compact' : 'full'} ${control.tag}\n${frame}`)
+    const { head, hud, hudText } = readRow(frame, compact)
+    const where = `120 cols, ${compact ? 'compact' : 'full'}, ${control.tag}`
+    check(`${where}: the ${control.tag} heads the row, not the verb`, head === control.head && !frame.includes(VERB), JSON.stringify({ head, frame }))
+    if (control.tag === 'still override') check(`${where}: a still row stands bare — no ellipsis, no HUD`, hudText === '' && !frame.includes('…'), frame)
+    else check(`${where}: the count stays on the row${compact ? '' : ' and the tool phase adds no word beside the tool label'}`, hud.some(s => s.includes('tokens')) && (compact || !hud.includes('working')), hudText)
   }
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
   process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '400'

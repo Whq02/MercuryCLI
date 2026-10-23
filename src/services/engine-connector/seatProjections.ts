@@ -69,6 +69,8 @@ export interface FileCheckpointFactsV1 {
   capture: boolean
   source?: 'interactive' | 'seat' | 'initialize' | 'setting' | 'headless'
   restorable: string[]
+  files?: string[]
+  undo?: string
 }
 
 export interface OpenaiCatalogueFactV1 {

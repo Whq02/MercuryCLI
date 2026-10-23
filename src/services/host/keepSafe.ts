@@ -98,12 +98,13 @@ export async function copyBankToFolder(recipe: HostRecipe, folder: string, desti
     return destination
   } finally { rmSync(partial, { recursive: true, force: true }) }
 }
-export async function uploadBankForRental(recipe: HostRecipe, vendor: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, progress: (words: string) => void = () => {}): Promise<string | undefined> {
-  if (vendor !== 'vast' && vendor !== 'lambda') return
+export async function uploadBankForRental(recipe: HostRecipe, vendor: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, progress: (words: string) => void = () => {}, chosen?: { folder: string }): Promise<string | undefined> {
+  if (!chosen && !['vast', 'lambda', 'hyperstack', 'verda', 'digitalocean'].includes(vendor)) return
   const preference = bankUploadPreference(recipe)
-  if (!preference) return
-  const source = await bankSource(recipe, preference.folder, signal)
-  await verifyBank(recipe, preference.folder, signal, progress)
+  if (!chosen && !preference) return
+  const folder = chosen?.folder ?? preference!.folder
+  const source = await bankSource(recipe, folder, signal)
+  await verifyBank(recipe, folder, signal, progress)
   const remote = '/workspace/mercury-host/' + recipe.id + '/bank-weights'
   const args = sshArguments(target)
   await runner.run('ssh', [...args, 'mkdir -p ' + shQuote(remote)], signal)
@@ -120,7 +121,7 @@ export async function uploadBankForRental(recipe: HostRecipe, vendor: string, ta
     const elapsed = Math.max(1, Date.now() - at)
     progress('verifying the uploaded bank on the rented machine')
     await runner.run('ssh', [...args, 'printf %s ' + shQuote(source.text) + ' > ' + shQuote(remote + '/SHA256SUMS') + ' && cd ' + shQuote(remote) + ' && sha256sum -c SHA256SUMS'], signal, Math.max(12 * 3600_000, bankUploadBudget(recipe)))
-    rememberBankUpload(recipe, { ...preference, bytesPerSecond: source.bytes * 1000 / elapsed, source: 'transfer', measuredAt: new Date().toISOString() })
+    rememberBankUpload(recipe, { ...preference, folder, bytesPerSecond: source.bytes * 1000 / elapsed, source: 'transfer', measuredAt: new Date().toISOString() })
     return remote
   } finally { clearInterval(timer); rmSync(temporary, { recursive: true, force: true }) }
 }

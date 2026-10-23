@@ -160,7 +160,7 @@ export interface CellBudgetHooks {
 export type BridgeServer = (
   frame: BridgeRequestFrame,
   budget: CellBudgetHooks,
-) => Promise<{ ok: boolean; value?: unknown; error?: string; code?: number | null }>
+) => Promise<{ ok: boolean; value?: unknown; error?: string; errorKind?: 'permission' | 'cancelled' | 'error'; code?: number | null }>
 
 export interface RunCellRequest {
   owner: string
@@ -490,7 +490,7 @@ export class EvalKernelManager {
                 else if (typeof result.code === 'number') row.code = result.code
               }
             }
-            entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error)
+            entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error, result.errorKind)
           })
           .catch(error => {
             entry.kernel.answerBridge(frame.bridgeId, false, undefined, String(error))

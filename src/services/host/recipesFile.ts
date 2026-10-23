@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { homedir } from 'node:os'
+import { isAbsolute, join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import shippedRecipesFile from '../../../assets/host/recipes.json' with { type: 'json' }
 import { publishAtomicSync } from '../../substrate/fileStore.js'
@@ -212,17 +213,76 @@ export function privateHostRecipesPath(): string {
   return join(hostDirectory(), 'private-recipes.json')
 }
 
-function loadedHostRecipes(options: HostRecipesOptions): HostRecipe[] {
-  const localPath = flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim() || (existsSync(privateHostRecipesPath()) ? privateHostRecipesPath() : '')
-  if (localPath) {
-    try {
-      const resolved = resolve(localPath)
-      const localDoc = parseHostRecipesDocument(JSON.parse(readFileSync(resolved, 'utf8')), resolved, options.onDrop)
-      if (localDoc) return localDoc.recipes
-    } catch (error) {
-      logForDebugging('Host recipes local override (' + localPath + ') failed: ' + String(error))
-    }
+const privateRecipesChoicePath = (): string => join(hostDirectory(), 'recipes-file.json')
+const privateRecipesChoiceSchema = z.object({ path: z.string().refine(isAbsolute).regex(printable) })
+export interface PrivateHostRecipes { path?: string; recipes: HostRecipe[]; errors: string[] }
+
+export function chosenPrivateHostRecipesPath(): string | undefined {
+  try { return privateRecipesChoiceSchema.parse(JSON.parse(readFileSync(privateRecipesChoicePath(), 'utf8'))).path }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') logForDebugging('Private recipes choice could not be read: ' + String(error)); return }
+}
+
+export function privateHostRecipesCandidates(): string[] {
+  const env = flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim()
+  const chosen = chosenPrivateHostRecipesPath()
+  return [...new Set([privateHostRecipesPath(), ...(env ? [resolve(env)] : []), ...(chosen ? [chosen] : [])])]
+}
+
+export function inspectPrivateHostRecipes(path: string, onDrop?: HostRecipesOptions['onDrop']): PrivateHostRecipes {
+  const result: PrivateHostRecipes = { path, recipes: [], errors: [] }
+  let text: string
+  try { text = readFileSync(path, 'utf8') }
+  catch (error) {
+    result.errors.push(((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'File not found: ' : 'Cannot read file: ') + path)
+    return result
   }
+  let raw: unknown
+  try { raw = JSON.parse(text) }
+  catch { result.errors.push('Invalid JSON: ' + path); return result }
+  const envelope = hostRecipesEnvelopeSchema.safeParse(raw)
+  if (!envelope.success) {
+    result.errors.push(...envelope.error.issues.map(issue => 'File · ' + (issue.path.join('.') || 'document') + ': ' + issue.message))
+    return result
+  }
+  const seen = new Set<string>()
+  for (const [index, entry] of envelope.data.recipes.entries()) {
+    const parsed = hostRecipeSchema.safeParse(entry)
+    const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id.replace(/[\p{Cc}\p{Cf}]/gu, '') : undefined
+    const reason = !parsed.success ? parsed.error.issues.map(issue => (issue.path.join('.') || 'recipe') + ': ' + issue.message).join('; ') : seen.has(parsed.data.id) ? 'id: duplicate ' + parsed.data.id : undefined
+    if (reason) {
+      result.errors.push('Row ' + (index + 1) + (id ? ' (' + id + ')' : '') + ' · ' + reason)
+      onDrop?.(index, reason)
+    } else if (parsed.success) { seen.add(parsed.data.id); result.recipes.push(parsed.data) }
+  }
+  result.recipes = sortUnverifiedLast(result.recipes)
+  if (!result.recipes.length) result.errors.unshift('No valid recipes in ' + path)
+  return result
+}
+
+export function currentPrivateHostRecipes(onDrop?: HostRecipesOptions['onDrop']): PrivateHostRecipes {
+  const path = chosenPrivateHostRecipesPath() ?? (flagEnv('MERCURY_HOST_RECIPES_FILE')?.trim() || (existsSync(privateHostRecipesPath()) ? privateHostRecipesPath() : ''))
+  return path ? inspectPrivateHostRecipes(resolve(path), onDrop) : { recipes: [], errors: [] }
+}
+
+export function validatePrivateHostRecipesPath(value: string): PrivateHostRecipes & { path: string } {
+  const named = value.trim()
+  const home = process.platform === 'win32' ? homedir() : process.env.HOME?.trim() || homedir()
+  const path = named.startsWith('~/') || named.startsWith('~\\') ? join(home, named.slice(2)) : named
+  if (!isAbsolute(path) || !printable.test(path)) throw new Error('Give an absolute file path on this computer.')
+  const inspected = inspectPrivateHostRecipes(resolve(path))
+  if (inspected.errors.length) throw new Error(inspected.errors.join('\n'))
+  return { ...inspected, path: resolve(path) }
+}
+
+export function rememberPrivateHostRecipesFile(path: string): PrivateHostRecipes & { path: string } {
+  const inspected = validatePrivateHostRecipesPath(path)
+  publishAtomicSync(privateRecipesChoicePath(), JSON.stringify({ path: inspected.path }) + '\n', { mode: 0o600 })
+  return inspected
+}
+
+function loadedHostRecipes(options: HostRecipesOptions): HostRecipe[] {
+  const local = currentPrivateHostRecipes(options.onDrop)
+  if (local.recipes.length) return local.recipes
   const compiledDoc: HostRecipesFile = { version: HOST_RECIPES_FILE_VERSION, publishedAt: HOST_RECIPES_PUBLISHED_AT, recipes: sortUnverifiedLast(HOST_RECIPES) }
   const shippedDoc = parseHostRecipesDocument(options.shipped ?? shippedRecipesFile, SHIPPED_HOST_RECIPES_PATH, options.onDrop)
   const baseDoc = shippedDoc && shippedDoc.version >= compiledDoc.version ? shippedDoc : compiledDoc

@@ -268,10 +268,11 @@ function describeFiles(files: string[]): string {
 
 const VISIBLE_ROWS = 7
 const CURRENT_PROMPT = Symbol('current-prompt')
+const UNDO_REWIND = Symbol('undo-rewind')
 
 let mountClaimed = false
 
-type PickEntry = UserMessage | typeof CURRENT_PROMPT
+type PickEntry = UserMessage | typeof CURRENT_PROMPT | typeof UNDO_REWIND
 
 export function MessageSelector({
   messages,
@@ -288,8 +289,9 @@ export function MessageSelector({
   messages: Message[]
   onPreRestore: () => void
   onRestore: (
-    message: UserMessage,
+    message: UserMessage | undefined,
     what: 'both' | 'conversation' | 'code',
+    files?: { filePath?: string; undo?: boolean; userMessageId?: string },
   ) => Promise<RewindReceiptV1>
   onSummarize: (
     message: UserMessage,
@@ -328,8 +330,8 @@ export function MessageSelector({
     [messages],
   )
   const entries: PickEntry[] = useMemo(
-    () => [...selectable, CURRENT_PROMPT],
-    [selectable],
+    () => [...selectable, ...(checkpoints.undo === undefined ? [] : [UNDO_REWIND as typeof UNDO_REWIND]), CURRENT_PROMPT],
+    [selectable, checkpoints.undo],
   )
 
   const preselectedIndex =
@@ -373,13 +375,13 @@ export function MessageSelector({
   const close = useCallback(() => onClose(), [onClose])
 
   const runRestore = useCallback(
-    async (what: 'both' | 'conversation' | 'code') => {
-      if (!chosen) return
+    async (what: 'both' | 'conversation' | 'code', files?: { filePath?: string; undo?: boolean; userMessageId?: string }) => {
+      if (!chosen && !files?.undo) return
       setRestoring(true)
       onPreRestore()
       let receipt: RewindReceiptV1
       try {
-        receipt = await onRestore(chosen, what)
+        receipt = await onRestore(chosen, what, files)
       } catch (error) {
         setRestoring(false)
         setErrorText(`Restore failed — ${String(error)}`)
@@ -426,6 +428,10 @@ export function MessageSelector({
         setIndex(entries.length - 1)
       },
       'messageSelector:select': () => {
+        if (entries[index] === UNDO_REWIND) {
+          void runRestore('code', { undo: true, userMessageId: checkpoints.undo! })
+          return
+        }
         if (index >= selectable.length) {
           close()
           return
@@ -520,7 +526,7 @@ export function MessageSelector({
   }
 
   if (phase === 'pick') {
-    const nothingToRewind = selectable.length === 0
+    const nothingToRewind = selectable.length === 0 && checkpoints.undo === undefined
     const half = Math.floor(VISIBLE_ROWS / 2)
     const start = Math.max(
       0,
@@ -545,6 +551,12 @@ export function MessageSelector({
         {visible.map((entry, offset) => {
           const entryIndex = start + offset
           const focused = entryIndex === index
+          if (entry === UNDO_REWIND) {
+            return <Box key="undo" flexDirection="column">
+              <Text color={focused ? tokens.accent : undefined}>{focused ? `${figures.pointer} ` : '  '}Undo the rewind</Text>
+              <Text dimColor>    Restore the previous files; conversation unchanged.</Text>
+            </Box>
+          }
           if (entry === CURRENT_PROMPT) {
             return (
               <Box key="current">
@@ -562,9 +574,7 @@ export function MessageSelector({
             ? statsBetween(
                 messages,
                 entry.uuid,
-                entries[entryIndex + 1] === CURRENT_PROMPT
-                  ? undefined
-                  : (entries[entryIndex + 1] as UserMessage | undefined)?.uuid,
+                selectable[entryIndex + 1]?.uuid,
               )
             : null
           const canRestore = historyOn && hasSavedPoint(entry.uuid)
@@ -653,6 +663,13 @@ export function MessageSelector({
       value: 'code',
       description: 'The files go back to their saved state at this point; the conversation is unchanged.',
     })
+    for (const file of checkpoints.files ?? []) {
+      options.push({
+        label: `Restore ${file}`,
+        value: `file:${file}`,
+        description: 'Restore this file only; other files and the conversation are unchanged.',
+      })
+    }
   } else {
     options.push({
       label: 'Restore conversation',
@@ -696,6 +713,7 @@ export function MessageSelector({
 
   const codeLine = (value: string): string | null => {
     if (value === 'summarize') return null
+    if (value.startsWith('file:')) return null
     if (value === 'both' || value === 'code') {
       if (storeStats === undefined) return 'Asking the session what a restore would touch…'
       if (storeStats.filesChanged.length === 0) {
@@ -740,6 +758,10 @@ export function MessageSelector({
           }
           if (value === 'summarize') {
             setPhase('summarize')
+            return
+          }
+          if (value.startsWith('file:')) {
+            void runRestore('code', { filePath: value.slice(5) })
             return
           }
           void runRestore(value as 'both' | 'conversation' | 'code')

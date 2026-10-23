@@ -197,6 +197,9 @@ type StoredKeyField =
   | 'runpodApiKey'
   | 'vastApiKey'
   | 'lambdaApiKey'
+  | 'hyperstackApiKey'
+  | 'verdaApiKey'
+  | 'digitaloceanApiKey'
   | 'mistralApiKey'
   | 'minimaxApiKey'
   | 'togetherApiKey'
@@ -547,3 +550,9 @@ export function readStoredLambdaApiKey(): string | undefined {
 export function writeStoredLambdaApiKey(key: string | null): void {
   writeStoredKey('lambdaApiKey', key)
 }
+export const readStoredHyperstackApiKey = (): string | undefined => readStoredKey('hyperstackApiKey')
+export const writeStoredHyperstackApiKey = (key: string | null): void => writeStoredKey('hyperstackApiKey', key)
+export const readStoredVerdaApiKey = (): string | undefined => readStoredKey('verdaApiKey')
+export const writeStoredVerdaApiKey = (key: string | null): void => writeStoredKey('verdaApiKey', key)
+export const readStoredDigitaloceanApiKey = (): string | undefined => readStoredKey('digitaloceanApiKey')
+export const writeStoredDigitaloceanApiKey = (key: string | null): void => writeStoredKey('digitaloceanApiKey', key)

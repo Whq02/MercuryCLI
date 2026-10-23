@@ -12,7 +12,27 @@ export class HostVendorHttpError extends Error {
   constructor(message: string, readonly status: number, readonly retryAfterSeconds?: number) { super(message) }
 }
 
-export class HostVendorNetworkError extends Error {}
+export class HostVendorNetworkError extends Error {
+  constructor(message: string, readonly reason: string, options?: ErrorOptions) { super(message, options) }
+}
+function networkReason(error: unknown): string {
+  const seen = new Set<object>()
+  const codes = new Set<string>()
+  let detail = ''
+  const visit = (value: unknown): void => {
+    if (!value || typeof value !== 'object' || seen.has(value) || seen.size >= 12) return
+    seen.add(value)
+    const row = value as { code?: unknown; name?: unknown; message?: unknown; cause?: unknown; errors?: unknown }
+    if (typeof row.code === 'string' && /^[A-Z][A-Z0-9_]+$/.test(row.code)) codes.add(row.code)
+    if (row.name === 'AbortError') codes.add('aborted')
+    if (row.name === 'TimeoutError') codes.add('TimeoutError')
+    if (typeof row.message === 'string') detail = row.message
+    visit(row.cause)
+    if (Array.isArray(row.errors)) for (const nested of row.errors) visit(nested)
+  }
+  visit(error)
+  return [...codes].join(', ') || detail || 'unknown network error'
+}
 export function retryAfterSeconds(value: string | null): number | undefined {
   if (!value) return undefined
   const seconds = Number(value)
@@ -20,6 +40,11 @@ export function retryAfterSeconds(value: string | null): number | undefined {
   return Number.isFinite(wait) && wait > 0 ? wait : undefined
 }
 export interface VendorTiming { requestTimeoutMs?: number; readyTimeoutMs?: number; pollMs?: number; settleMs?: number }
+export interface VendorWireOptions {
+  headers?: (signal?: AbortSignal) => Record<string, string> | Promise<Record<string, string>>
+  secrets?: () => readonly string[]
+  textResponses?: boolean
+}
 
 export const keyMaterial = (key: string): string => key.trim().split(/\s+/).slice(0, 2).join(' ')
 export const isOpenSshKey = (key: string): boolean => /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-[^ ]+) [A-Za-z0-9+/]+={0,3}(?: [^\r\n\0]*)?$/.test(key.trim())
@@ -60,7 +85,7 @@ export class VendorApi {
   private readonly gate: RateGate | undefined
   private observedPolicy: string | undefined
   private readonly allowedPaths: readonly string[]
-  constructor(readonly label: string, private key: string, base: string, official: string | readonly string[], private refusals: readonly number[], private timing: VendorTiming, paced = false) {
+  constructor(readonly label: string, private key: string, base: string, official: string | readonly string[], private refusals: readonly number[], private timing: VendorTiming, paced = false, private wire: VendorWireOptions = {}) {
     let url: URL
     try { url = new URL(base) } catch { throw new Error(label + ' needs a valid API URL.') }
     const allowed = (typeof official === 'string' ? [official] : official).map(value => new URL(value))
@@ -74,7 +99,7 @@ export class VendorApi {
     this.gate = paced ? gate : undefined
   }
   redact(text: string): string {
-    return [this.key, encodeURIComponent(this.key), JSON.stringify(this.key).slice(1, -1)].reduce((value, secret) => secret ? value.split(secret).join('[redacted]') : value, text)
+    return [this.key, ...(this.wire.secrets?.() ?? [])].flatMap(secret => [secret, encodeURIComponent(secret), JSON.stringify(secret).slice(1, -1)]).reduce((value, secret) => secret ? value.split(secret).join('[redacted]') : value, text)
   }
   policy(): string | undefined { return this.observedPolicy }
   ambiguous(status?: number): HostCreateError {
@@ -116,21 +141,28 @@ export class VendorApi {
     }
   }
   async request<T>(path: string, schema: z.ZodType<T>, method = 'GET', body?: unknown, signal?: AbortSignal, paid = false): Promise<T> {
+    const timeoutMs = this.timing.requestTimeoutMs ?? 30000
+    let timeout: AbortSignal | undefined
+    const networkFailure = (error: unknown): HostVendorNetworkError => {
+      const reason = this.redact(timeout?.aborted ? 'timed out after ' + timeoutMs / 1000 + ' s (TimeoutError)' : networkReason(error)).replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, 180)
+      return new HostVendorNetworkError(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' failed · ' + reason), reason, { cause: error })
+    }
     let sending = false
     try {
       await this.gate?.take(paid, signal)
       const url = path.startsWith('/api/') ? new URL(new URL(this.base).origin + path) : new URL(this.base + path)
       if (url.origin !== new URL(this.base).origin || url.username || url.password || url.hash || !this.allowedPaths.some(prefix => url.pathname.startsWith(prefix + '/'))) throw new Error('unexpected API path')
       const fresh = method !== 'GET' && !url.pathname.endsWith('/bundles/')
-      const timeout = AbortSignal.timeout(this.timing.requestTimeoutMs ?? 30000)
+      timeout = AbortSignal.timeout(timeoutMs)
+      const authorization = this.wire.headers ? await this.wire.headers(signal) : { Authorization: 'Bearer ' + this.key }
       sending = true
       const response = await fetch(url, {
-        method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json', ...(fresh ? { Connection: 'close' } : {}) },
+        method, headers: { ...authorization, 'Content-Type': 'application/json', ...(fresh ? { Connection: 'close' } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(fresh ? { keepalive: false } : {}), redirect: 'error',
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       }).catch(error => {
         if (signal?.aborted) throw signal.reason
-        throw new HostVendorNetworkError(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' network request failed.'), { cause: error })
+        throw networkFailure(error)
       })
       this.observedPolicy = response.headers.get('ratelimit-policy') ?? this.observedPolicy
       if (response.status === 429) this.gate?.throttle(response.headers.get('retry-after'))
@@ -155,7 +187,11 @@ export class VendorApi {
         if (paid) throw new HostCreateError(message, 'refused', undefined, response.status, code || undefined)
         throw new HostVendorHttpError(message, response.status, retryAfterSeconds(response.headers.get('retry-after')))
       }
-      const answer: unknown = await response.json()
+      let answer: unknown
+      if (this.wire.textResponses) {
+        const text = await response.text()
+        try { answer = text.trim() ? JSON.parse(text) : undefined } catch { answer = text.trim() }
+      } else answer = await response.json()
       const parsed = schema.safeParse(answer)
       if (!parsed.success && paid) throw this.ambiguous()
       if (!parsed.success) throw new HostVendorShapeError(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' answered HTTP ' + response.status + ' in a shape Mercury does not read (' + shapeWords(answer) + '); Mercury needs an update — nothing was changed by this read. Check the ' + this.label + ' console.'))
@@ -166,6 +202,7 @@ export class VendorApi {
       if (paid) throw new HostCreateError(this.label + ' request was not sent; nothing was rented.', 'refused')
       if (signal?.aborted) throw signal.reason
       if (error instanceof HostVendorNetworkError) throw error
+      if (timeout?.aborted || error instanceof TypeError || error instanceof Error && (error.name === 'AbortError' || 'code' in error || error.cause)) throw networkFailure(error)
       throw new Error(this.redact(this.label + ' ' + method + ' ' + path.split('?')[0] + ' failed or returned an unreadable response. Check the ' + this.label + ' console.'))
     }
   }

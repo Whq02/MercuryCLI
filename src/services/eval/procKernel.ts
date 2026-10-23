@@ -341,8 +341,8 @@ export class ProcKernel {
     }
   }
 
-  answerBridge(bridgeId: string, ok: boolean, value?: unknown, error?: string): void {
-    this.send({ t: 'bridge_result', bridgeId, ok, ...(ok ? { value } : { error }) })
+  answerBridge(bridgeId: string, ok: boolean, value?: unknown, error?: string, errorKind?: 'permission' | 'cancelled' | 'error'): void {
+    this.send({ t: 'bridge_result', bridgeId, ok, ...(ok ? { value } : { error, errorKind }) })
   }
 
   exec(cellId: string, code: string, handlers: CellFrameHandlers, names?: string[]): Promise<CellEnd> {

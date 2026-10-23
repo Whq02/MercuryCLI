@@ -9,7 +9,10 @@ import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'sdk-door-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'sdk-door-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 const sdk = await import('../../sdk/src/index.ts')
 const project = await import('../../src/rows/project.ts')
 const dist = join(ROOT, 'dist', 'mercury.mjs')

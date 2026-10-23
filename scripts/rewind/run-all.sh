@@ -15,6 +15,7 @@
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/sessionStorage.ts
 # gate-watch: src/utils/sessionStorage/paths.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/utils/cleanup.ts src/utils/healthReport.ts scripts/lib/settingsPopupHarness.ts scripts/ui/gridToPng.ts
 # gate-watch: scripts/lib/runnerHost.ts
 # gate-watch: scripts/lib/seatDoor.ts
 set -u
@@ -35,6 +36,9 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-cockpit.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/../prompts-panel/prove-notice-free-prompts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/../prompts-panel/prove-notice-free-prompts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-checkpoint-sweep-economy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-checkpoint-sweep-economy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-damaged-blob.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-damaged-blob.ts" "$__t" "$__rc"
+
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-safety-net.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-safety-net.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-safety-frames.tsx" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-safety-frames.tsx" "$__t" "$__rc"
 
 echo
 if [ "$fail" -eq 0 ]; then

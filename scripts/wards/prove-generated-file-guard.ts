@@ -19,7 +19,10 @@ async function main(): Promise<void> {
   const { tmpdir } = await import('node:os')
   const { join, dirname } = await import('node:path')
   const { execFileSync } = await import('node:child_process')
-  process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wards-generated-home-'))
+  const proofHome = mkdtempSync(join(tmpdir(), 'wards-generated-home-'))
+  process.env.MERCURY_CONFIG_DIR = proofHome
+  delete process.env.MERCURY_HOME
+  process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
   const { BUILTIN_WARDS, GENERATED_MARKER, GENERATED_HEAD_LINES, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
   const hook = await import('../../src/guards/wardsGuard.js')
   const { registerWardsGuard, resetWardsEngagedSessionsForTest } = hook

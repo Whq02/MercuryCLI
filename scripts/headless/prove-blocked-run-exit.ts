@@ -8,7 +8,10 @@ import { startFixtureApi, type ScriptedTurn, isHandoffRequest, handoffTurn } fro
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'blocked-run-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'blocked-run-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 const vocabulary = await import('../../src/rows/vocabulary.ts')
 const project = await import('../../src/rows/project.ts')
 const asks = await import('../../src/services/run/unansweredAsk.ts')

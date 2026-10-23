@@ -3,7 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { hostRunner } from '../lib/runnerHost.ts'
+
+const planHome = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-plan-')))
+process.env.MERCURY_CONFIG_DIR = planHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(planHome, { recursive: true, force: true }))
+const { hostRunner } = await import('../lib/runnerHost.ts')
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
@@ -190,8 +195,6 @@ async function runSeat(tag: string, script: () => ScriptedTurn[], prompts: strin
 section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the user in the transcript and never fed back to the model — the row leaves the wire view, the turns around it stay lawful')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-  const planHome = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-plan-')))
-  process.env.MERCURY_CONFIG_DIR ??= planHome
   process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
   const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')

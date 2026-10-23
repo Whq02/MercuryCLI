@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'write-edit-parse-check-'))
-process.env.MERCURY_CONFIG_DIR ??= join(scratch, 'home')
+process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'

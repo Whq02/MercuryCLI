@@ -837,7 +837,7 @@ try {
   )
   const raceDir = mkdtempSync(join(SCRATCH, 'crash-race-'))
   sup.updateConcourseWorkers(workers => {
-    workers['concourse-w9'] = { schema: 1, runnerId: 'concourse-w9', sessionId: '00000000-0000-4000-8000-000000000099', workspaceId: work, isolation: 'shared', modelKey: 'claude-sonnet-5', effort: 'high', spawnedAt: 1, lastLiveAt: 1, buildTree: SHORT_X, restartReason: 'ended', crash: { at: 1, reason: 'ended with its daemon around an update', respawning: false } } as never
+    workers['concourse-w9'] = { schema: 1, runnerId: 'concourse-w9', sessionId: '00000000-0000-4000-8000-000000000099', workspaceId: work, isolation: 'shared', modelKey: 'claude-sonnet-5', effort: 'high', spawnedAt: 1, lastLiveAt: 1, buildTree: SHORT_X, restartReason: 'ended', crash: { at: 1, reason: 'ended around an update', respawning: false } } as never
   }, raceDir)
   sup.markConcourseWorkerCrash('concourse-w9', { reason: 'crashed mid-run (exit none · signal SIGKILL)', respawning: true }, raceDir)
   const raced = sup.readSessionWorkers(raceDir)['concourse-w9']
@@ -876,8 +876,8 @@ try {
   await untilAsync(() => recOf(sid)?.crash !== undefined, 15_000)
   const deadRec = recOf(sid)
   check(
-    'the record found dead with its daemon after the install reads "ended … around an update", the cause unknown, never crash or update',
-    deadRec?.restartReason === 'ended' && (deadRec.crash?.reason ?? '').startsWith(`ended with its daemon around an update to ${SHORT_W} — the cause is not known`),
+    'the record found dead after the install reads "ended around an update", never crash or update',
+    deadRec?.restartReason === 'ended' && (deadRec.crash?.reason ?? '').startsWith(`ended around an update to ${SHORT_W} — enter to resume, or x x releases it`),
     JSON.stringify(deadRec),
   )
   const reqsBeforeEnded = recordedReqs.length

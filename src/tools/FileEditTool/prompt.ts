@@ -1,18 +1,5 @@
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 
-
-const LOCAL_SPAN_REMEDY = `name the smallest unique span, or rewrite the file with ${FILE_WRITE_TOOL_NAME}`
-
-export function localSpanRefusalMessage(share: number): string {
-  return `old_string is ${share}% of the file — ${LOCAL_SPAN_REMEDY}`
-}
-
-function localSpanBullet(model: string | undefined): string {
-  if (model === undefined || declaredRouteOf(model) !== 'local') return ''
-  return `\n- On a locally served model an \`old_string\` over half the file (by bytes) is refused before any write — ${LOCAL_SPAN_REMEDY}.`
-}
 
 function steeringBullet(offered: ReadonlySet<string> | null): string {
   try {
@@ -36,5 +23,5 @@ Usage:
 - A landed edit shows the changed lines as read back after the write, numbered as ${FILE_READ_TOOL_NAME} numbers them, with three lines of context; they count as read, so checking the edit needs no ${FILE_READ_TOOL_NAME}.
 - A newly introduced syntax error in a supported source file or JSON/YAML/TOML is reported after editing when no LSP covers it; an unavailable grammar never blocks the edit.
 - \`append\` adds text at the end of the file with no prior read; \`section\` names a Markdown heading line and, with \`new_string\`, replaces that whole section, or, with \`append\`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or \`expected_anchor\` from a full Read all count.
-- An edit that touches lines you have not read still lands in one call when you have read the file as it stands and those lines fit a ${FILE_READ_TOOL_NAME} window; a file you never read, one that changed after your read, or a stale expected_anchor refuses instead, and the refusal's first sentence says what to do.${localSpanBullet(model)}${steeringBullet(offered)}`
+- An edit that touches lines you have not read still lands in one call when you have read the file as it stands and those lines fit a ${FILE_READ_TOOL_NAME} window; a file you never read, one that changed after your read, or a stale expected_anchor refuses instead, and the refusal's first sentence says what to do.${steeringBullet(offered)}`
 }

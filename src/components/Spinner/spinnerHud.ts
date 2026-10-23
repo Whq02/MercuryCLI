@@ -72,10 +72,11 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   const { mode, liveWords, stillWaiting, effectiveElapsedMs, columns, suffixText } = facts
   const messageWidth = stringWidth(facts.message) + 2
   const suffixWidth = suffixText === '' ? 0 : stringWidth(suffixText) + SEPARATOR_WIDTH
-  const head = facts.message.replace(/…$/, '')
-  const waitPhaseText = (liveWords.reading || liveWords.phase !== facts.livePhase) && head !== liveWords.phase && !head.includes('reconnecting (') ? liveWords.phase : null
-  const thinkingText = mode === 'thinking' && waitPhaseText === null && !head.startsWith(THINKING_WORD) ? facts.thinkingLabel : null
-  const promiseText = liveWords.promise !== null && !head.includes(liveWords.promise) ? liveWords.promise : null
+  const phaseText = liveWords.reading || liveWords.phase !== facts.livePhase || liveWords.phase === 'writing' ? liveWords.phase : null
+  const promiseSpeaksPhase = phaseText !== null && liveWords.promise !== null && liveWords.promise.includes(phaseText)
+  const waitPhaseText = promiseSpeaksPhase ? liveWords.promise : phaseText
+  const promiseText = promiseSpeaksPhase ? null : liveWords.promise
+  const thinkingText = mode === 'thinking' && waitPhaseText === null ? facts.thinkingLabel : null
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
   const metaGate = facts.verbose || effectiveElapsedMs > 0
   const tokensText = hudTokensText(facts)

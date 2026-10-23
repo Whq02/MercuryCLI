@@ -6,10 +6,13 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { handoffTurn, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'docs-automation-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'docs-automation-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+const { hostRunner } = await import('../lib/runnerHost.ts')
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 const docPath = join(ROOT, 'docs', 'AUTOMATION.md')
 const indexPath = join(ROOT, 'docs', 'README.md')

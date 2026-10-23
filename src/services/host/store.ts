@@ -7,21 +7,28 @@ import type { HostRecipe } from './recipes.js'
 import type { HostCluster, HostClusterPod } from './runpod.js'
 import type { HostRetune, HostTunePreferences } from './tune.js'
 import { releaseHostHuggingfaceCredential, type HostHuggingfaceCredential } from './jobCredentials.js'
+import type { WeightsSource } from './weightsSource.js'
+import type { HostEngineDeathFacts } from '../../commands/llmhost/words.js'
 
 export interface HostRecord {
-  vendor?: 'runpod' | 'vast' | 'lambda' | 'huggingface'
+  vendor?: 'runpod' | 'vast' | 'lambda' | 'huggingface' | 'hyperstack' | 'verda' | 'digitalocean'
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
+  machineId?: string
   target?: SshTarget; localPort?: number; provider?: string
   sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
   jobKind?: 'setup' | 'watch' | 'bank'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string; creating?: string
-  watchVendors?: ('runpod' | 'vast' | 'lambda' | 'huggingface')[]
+  watchVendors?: ('runpod' | 'vast' | 'lambda' | 'huggingface' | 'hyperstack' | 'verda' | 'digitalocean')[]
   bankTask?: 'bank' | 'verify'; bankFolder?: string
   huggingfaceCredential?: HostHuggingfaceCredential
-  jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'failed' | 'stopped'
+  jobState?: 'queued' | 'starting' | 'running' | 'ready' | 'paused' | 'failed' | 'stopped'
   generation?: string; jobStartedAt?: number; advancedAt?: number; step?: string; log?: string; error?: string
   steps?: { step: string; at: number }[]
   recipeRow?: HostRecipe
   volumeId?: string; prepareWeightsOnly?: boolean; verifyWeightsFully?: boolean; weightsCheck?: string
+  weightsSource?: WeightsSource
+  loadedWeights?: string
+  engineDeath?: HostEngineDeathFacts
+  linkLost?: true
   cluster?: HostCluster
   nodes?: HostClusterPod[]
   tune?: HostTunePreferences; retuning?: HostRetune

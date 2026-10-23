@@ -15,6 +15,12 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { bundledPayloads } from '../../src/extensions/bundled/content.generated.ts'
+
+const CRAFT_NAMES = Object.keys(bundledPayloads).sort()
+const INSTALLED = `installed (${8 + CRAFT_NAMES.length})`
+const FRESH_INSTALLED = `installed (${CRAFT_NAMES.length})`
+const ON_NAMES = ['deploy-kit', 'notes-sync', 'quiet-notes', 'review-tools', ...CRAFT_NAMES].sort()
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-extui-surface-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -330,18 +336,18 @@ for (const [cols, rows] of [
     rows,
     freshHome: true,
     sends: [...openBoard],
-    ready: 'no extensions yet',
+    ready: FRESH_INSTALLED,
     assert: text => {
       const id = `fresh-installed-${sz}`
-      has(id, text, 'installed (0)')
+      has(id, text, FRESH_INSTALLED)
       has(id, text, 'sources (0)')
-      has(id, text, '○ no extensions yet')
-      has(id, text, 'sources › a adds a git URL, a folder or an archive')
-      has(id, text, 'docs/EXTENSIONS.md explains how to make one')
-      has(id, text, cols >= 120 ? '0 extensions' : 'installed (0)')
+      for (const name of CRAFT_NAMES) has(id, text, name)
+      has(id, text, 'mercury')
+      has(id, text, '● on')
+      hasNot(id, text, 'no extensions yet', 'bundled extensions are available without installing an app')
       has(id, text, 'a source')
       has(id, text, 'esc close')
-      hasNot(id, text, '↑↓ select', 'no rows to select')
+      has(id, text, '↑↓ select')
       noRetiredWords(id, text)
     },
   })
@@ -351,7 +357,7 @@ for (const [cols, rows] of [
     cols,
     rows,
     freshHome: true,
-    sends: [...openBoard, g('installed (0)', '\t')],
+    sends: [...openBoard, g(FRESH_INSTALLED, '\t')],
     ready: '○ no sources',
     assert: text => {
       const id = `fresh-sources-${sz}`
@@ -367,14 +373,13 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', ' '),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))),
+      g(INSTALLED, ' '),
     ],
     ready: 'turned off · r reloads',
     assert: (text, lines) => {
       const id = `installed-seven-states-${sz}`
-      has(id, text, 'installed (8)')
+      has(id, text, INSTALLED)
       has(id, text, 'sources (4)')
       has(id, text, '● on')
       has(id, text, '◑ partial')
@@ -405,9 +410,8 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', ' '),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))),
+      g(INSTALLED, ' '),
       g('turned off · r reloads', 'r'),
     ],
     ready: 'extensions: ',
@@ -424,7 +428,7 @@ for (const [cols, rows] of [
     id: `sources-four-states-${sz}`,
     cols,
     rows,
-    sends: [...openBoard, g('installed (8)', '\t')],
+    sends: [...openBoard, g(INSTALLED, '\t')],
     ready: '↻ stale',
     assert: (text, lines) => {
       const id = `sources-four-states-${sz}`
@@ -448,7 +452,7 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', '\t'),
+      g(INSTALLED, '\t'),
       g('↻ stale', DOWN),
       g('↻ stale', '\r'),
       g('spare-tool', DOWN + DOWN + DOWN + DOWN + DOWN + DOWN),
@@ -474,10 +478,8 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', '\r'),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
+      g(INSTALLED, '\r'),
     ],
     ready: 'tool.after',
     assert: text => {
@@ -501,7 +503,7 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', '\t'),
+      g(INSTALLED, '\t'),
       g('↻ stale', DOWN),
       g('↻ stale', '\r'),
       g('spare-tool', DOWN),
@@ -555,9 +557,7 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
       g('↑ 1.3.0 available', 'U'),
     ],
     ready: 'nothing above runs until you approve',
@@ -584,10 +584,8 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', 'x'),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
+      g(INSTALLED, 'x'),
     ],
     ready: 'uninstall review-tools',
     assert: text => {
@@ -606,7 +604,7 @@ for (const [cols, rows] of [
     id: `remove-source-confirm-${sz}`,
     cols,
     rows,
-    sends: [...openBoard, g('installed (8)', '\t'), g('↻ stale', DOWN), g('↻ stale', 'x')],
+    sends: [...openBoard, g(INSTALLED, '\t'), g('↻ stale', DOWN), g('↻ stale', 'x')],
     ready: 'remove crew-tools?',
     assert: text => {
       const id = `remove-source-confirm-${sz}`
@@ -625,8 +623,8 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN + DOWN + DOWN + DOWN + DOWN + DOWN),
-      g('installed (8)', 'i'),
+      g(INSTALLED, DOWN.repeat(6 + CRAFT_NAMES.length)),
+      g(INSTALLED, 'i'),
     ],
     ready: 'fetch wanted-tool',
     assert: text => {
@@ -644,17 +642,15 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', DOWN),
-      g('installed (8)', '\r'),
+      g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
+      g(INSTALLED, '\r'),
       g('tool.after', ESC),
-      g('installed (8)', ESC),
+      g(INSTALLED, ESC),
     ],
     ready: '❯',
     assert: text => {
       const id = `esc-cascade-${sz}`
-      hasNot(id, text, 'installed (8)', 'the board closed back to the Chat')
+      hasNot(id, text, INSTALLED, 'the board closed back to the Chat')
       check(`${id}: the composer is home`, text.includes('❯'))
     },
   })
@@ -674,7 +670,7 @@ drives.push({
       join(home, 'keybindings.json'),
       JSON.stringify({ bindings: [{ context: 'Extensions', bindings: { t: 'extensions:toggle' } }] }),
     ),
-  sends: [...openBoard, g('installed (8)', DOWN), g('installed (8)', DOWN), g('installed (8)', 't')],
+  sends: [...openBoard, g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))), g(INSTALLED, 't')],
   ready: 'turned off · r reloads',
   assert: text => {
     const id = 'rebind-single-120x40'
@@ -695,9 +691,8 @@ drives.push({
     ),
   sends: [
     ...openBoard,
-    g('installed (8)', DOWN),
-    g('installed (8)', DOWN),
-    g('installed (8)', ' '),
+    g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))),
+    g(INSTALLED, ' '),
   ],
   ready: 'single keys',
   assert: text => {
@@ -726,7 +721,7 @@ await seedTemplate()
     states.has('on') && states.has('off') && states.has('found') && states.has('blocked'),
     [...states].join(','),
   )
-  check('seed: seven entries in-process (the proposal joins in the drives)', entries.length === 7, String(entries.length))
+  check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + CRAFT_NAMES.length, String(entries.length))
 }
 
 const only = process.env.MERCURY_EXTUI_ONLY ?? ''

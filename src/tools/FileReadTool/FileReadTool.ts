@@ -12,7 +12,7 @@ import {
   addAnchoredLineNumbers,
   lineAnchorsEnabled,
 } from '../../services/changeTransaction/lineAnchors.js'
-import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
+import { fileGeneration, recordDisplayedLines } from '../../services/changeTransaction/seenLines.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import {
   mintFileAnchor,
@@ -117,6 +117,7 @@ const MAX_RANGES_PER_READ = 32
 
 const stockFields = () => ({
   file_path: z.string().describe('Absolute path of the file to open'),
+  lossless: semanticBoolean(z.boolean().optional()).describe('With offset + limit or ranges, show complete text lines within the existing total output budget.'),
   offset: semanticNumber(z.number().int().optional()).describe(
     'The line number reading starts from (a negative integer -N starts N lines from the end of the file); pass it only when the whole file is too large for a single read',
   ),
@@ -188,6 +189,7 @@ export type Output =
         startLine: number
         totalLines: number
         overCap?: OverCapNote
+        lossless?: boolean
         anchor?: string
         memoryUpdatedAt?: number
       }
@@ -220,6 +222,7 @@ const outputSchema = z.discriminatedUnion('type', [
       totalLines: z.number(),
       anchor: z.string().optional(),
       memoryUpdatedAt: z.number().optional(),
+      lossless: z.boolean().optional(),
       overCap: z
         .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }), room: z.literal(true).optional() })
         .optional(),
@@ -324,10 +327,11 @@ function notebookSliceRemedy(resolvedPath: string): string {
 
 const MAX_DISPLAY_LINE_CHARS = 2000
 
-function numberedReadContent(content: string, startLine: number, anchored: boolean): string {
+function numberedReadContent(content: string, startLine: number, anchored: boolean, lossless = false): string {
   const numbered = anchored
     ? addAnchoredLineNumbers({ content, startLine })
     : addLineNumbers({ content, startLine })
+  if (lossless) return numbered
   return numbered.split('\n').map(line => {
     const match = /^(\d+(?:#[0-9a-f]+)?\t)([\s\S]*)$/.exec(line)
     if (!match || match[2]!.length <= MAX_DISPLAY_LINE_CHARS) return line
@@ -996,8 +1000,9 @@ async function readMultiRangeTextLane(
   const rawPieces: string[] = []
   let totalShownLines = 0
   let firstStartLine = 1
-  const owner = (anchorPatchEnabled() || staleEditRecoveryEnabled()) ? ownerFromToolUseContext(context) : undefined
-  const generation = owner !== undefined ? fileGeneration(resolvedPath) : null
+  const owner = ownerFromToolUseContext(context)
+  const generation = fileGeneration(resolvedPath)
+  const displayed: { start: number; content: string }[] = []
 
   for (let i = 0; i < parsedRanges.length; i++) {
     const sel = parsedRanges[i]!
@@ -1031,6 +1036,7 @@ async function readMultiRangeTextLane(
       numLines: shown.count,
       startLine,
       totalLines,
+      ...(input.lossless ? { lossless: true } : {}),
     }
     if (slice.content === '') {
       if (totalLines > 0 && startLine > totalLines) {
@@ -1045,12 +1051,7 @@ async function readMultiRangeTextLane(
           ? `\n[${windowSpan(sliceFile)} of ${totalLines} — the end of the file]`
           : cutMark(sliceFile)
       blocks.push(`${numbered}${mark}`)
-      if (owner !== undefined && generation !== null && shown.count > 0) {
-        try {
-          recordSeenLines(owner, resolvedPath, generation, startLine, shown.count)
-        } catch {
-        }
-      }
+      if (shown.count > 0) displayed.push({ start: startLine, content: shown.content })
     }
   }
 
@@ -1060,6 +1061,7 @@ async function readMultiRangeTextLane(
   let combinedRendered = blocks.join('\n\n')
   const tokens = await tokensOverCap(combinedRendered, ext, limits.maxTokens, limits.room !== true)
   if (tokens !== undefined) {
+    if (input.lossless) throw new Error(`Lossless read exceeds the ${limits.maxTokens}-token budget; narrow the range (a single line cannot be split).`)
     const synthRange: ReadFileRangeResult = {
       content: joinedContent,
       lineCount: totalShownLines,
@@ -1097,10 +1099,12 @@ async function readMultiRangeTextLane(
       startLine: firstStartLine,
       totalLines,
       overCap,
-    })}\n${numberedReadContent(window.shown.content, firstStartLine, anchored)}`
+    })}\n${numberedReadContent(window.shown.content, firstStartLine, anchored, input.lossless)}`
     totalShownLines = window.shown.lineCount
   }
-
+  if (generation !== null && overCap === undefined) {
+    for (const shown of displayed) recordDisplayedLines(owner, resolvedPath, generation, shown.start, shown.content, input.lossless ? Infinity : MAX_DISPLAY_LINE_CHARS)
+  }
   context.readFileState.set(keyPath, {
     content: joinedContent,
     timestamp: Math.floor(st.mtimeMs),
@@ -1435,9 +1439,10 @@ async function readTextLane(
     input.outline === true
       ? await buildOutlineNumberedWindow(resolvedPath, shown.content, lineOffset + 1, shown.count, totalLines, anchored)
       : null
-  const rendered = outlineBody ?? numberedReadContent(shown.content, lineOffset + 1, anchored)
+  const rendered = outlineBody ?? numberedReadContent(shown.content, lineOffset + 1, anchored, input.lossless)
   const tokens = await tokensOverCap(rendered, ext, limits.maxTokens, limits.room !== true)
   if (tokens !== undefined) {
+    if (input.lossless) throw new Error(`Lossless read exceeds the ${limits.maxTokens}-token budget; narrow the range (a single line cannot be split).`)
     const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, resolvedPath, ext, limits, tokens)
     if (!ownRead || window === null) {
       const next = { offset: lineOffset + 1, limit: window?.shown.lineCount ?? 1 }
@@ -1501,6 +1506,7 @@ async function readTextLane(
       numLines: shown.count,
       startLine: lineOffset + 1,
       totalLines,
+      ...(input.lossless ? { lossless: true } : {}),
       ...(anchor !== undefined ? { anchor } : {}),
       ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
       ...(overCap !== undefined ? { overCap } : {}),
@@ -1513,18 +1519,11 @@ async function readTextLane(
   if (outlineBody !== null) {
     resultOutlineBodies.set(data, outlineBody)
   }
-  if (anchor !== undefined) {
-    if (anchorPatchEnabled() || staleEditRecoveryEnabled()) {
-      try {
-        const owner = ownerFromToolUseContext(context)
-        rememberAnchoredSnapshot(owner, anchor, anchoredContent, resolvedPath)
-        const generation = fileGeneration(resolvedPath)
-        if (generation !== null) {
-          recordSeenLines(owner, resolvedPath, generation, lineOffset + 1, shown.count)
-        }
-      } catch {
-      }
-    }
+  if (outlineBody === null && shown.count > 0) {
+    const owner = ownerFromToolUseContext(context)
+    const generation = fileGeneration(resolvedPath)
+    if (generation !== null) recordDisplayedLines(owner, resolvedPath, generation, lineOffset + 1, shown.content, input.lossless ? Infinity : MAX_DISPLAY_LINE_CHARS)
+    if (anchor !== undefined && (anchorPatchEnabled() || staleEditRecoveryEnabled())) rememberAnchoredSnapshot(owner, anchor, anchoredContent, resolvedPath)
   }
   return { data }
 }
@@ -1533,7 +1532,7 @@ async function readTextLane(
 type TextFile = Extract<Output, { type: 'text' }>['file']
 
 function numberedWindow(file: TextFile, anchored: boolean): string {
-  const numbered = numberedReadContent(file.content, file.startLine, anchored)
+  const numbered = numberedReadContent(file.content, file.startLine, anchored, file.lossless)
   const phantomPiece = file.content.endsWith('\n') && file.content.split('\n').length === file.numLines + 1
   return phantomPiece ? numbered.slice(0, numbered.lastIndexOf('\n')) : numbered
 }
@@ -1660,6 +1659,9 @@ export const FileReadTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (input.lossless && (input.outline || (!(input.ranges?.length) && (input.offset === undefined || input.limit === undefined)))) {
+      return { result: false as const, message: 'lossless requires offset + limit or ranges, without outline.', errorCode: 1 }
+    }
     if (hasNulByte(input.file_path)) {
       return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
     }

@@ -40,11 +40,22 @@ hourly price, then alphabetically by model name.
 
 Below the model list, **Which model?** includes **Machines I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
-`More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face)`, `A box I can reach by SSH`,
-`A server that's already running`, `One of my computers`, and
-`Bank · your weights`). Each path reads the server's model list and context
+`More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda, DigitalOcean)`, `A box I can reach by SSH`,
+`A server that's already running`, `One of my computers`,
+`Bank · your weights`, and `Private recipes · none · choose a file →`). Each connection path reads the server's model list and context
 windows, runs a reply check, and registers the provider in `/model` and
 `/logins`.
+
+**Private recipes** opens **Which private recipes file?** from `More options →`
+or a private model's screen. The row shows
+`Private recipes · <path> · <N> rows · replaces the shipped list`.
+Enter an absolute path; candidates include the saved choice, `MERCURY_HOST_RECIPES_FILE`
+and `host/private-recipes.json` under the config home, in that precedence order.
+Mercury checks JSON and recipe fields, names missing files, zero valid rows or
+an invalid row and field, and previews the models before **Use this file**.
+The choice is saved in `host/recipes-file.json` and survives restarts; **Which
+model?** refreshes immediately with `private` tags. Only use recipes you trust;
+they can contain install commands.
 
 ### Search Hugging Face and derive an `unverified` recipe
 
@@ -152,8 +163,8 @@ line (or the `RECIPE · unverified — …` line) and five sections:
   - In-stock rental rows across every connected provider, sorted cheapest
     first:
     `Rent · <Provider> <shape> · $<price>/hr · <data centre or region> · in stock · <provider stamp> · <boot source>`.
-    Runpod rows carry `verified on a live rental 2026-10-21`; Vast.ai and
-    Lambda rows carry `API only — not yet booted`. Each row ends with
+    Runpod rows carry `verified on a live rental 2026-10-21`; the other providers
+    carry `API only — not yet booted`. Each row ends with
     `boots from your volume` when a kept Runpod fast-load volume matches that
     data centre (or is global), `boots from your Vast.ai volume on its machine`
     for the matching Vast.ai machine, or `downloads the weights first` otherwise.
@@ -315,22 +326,26 @@ still billing. Terminating a rental that uses the volume asks whether to keep
 or delete it. A Vast.ai volume never attaches to a Runpod pod and a Runpod
 disk never attaches to a Vast.ai instance.
 
-## Rent a GPU (Runpod, Vast.ai, Lambda and Hugging Face)
+## Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda and DigitalOcean)
 
-1. **Connect a GPU provider.** Paste a Runpod, Vast.ai or Lambda API key into
+1. **Connect a GPU provider.** Paste a Runpod, Vast.ai, Lambda, Hyperstack or DigitalOcean API key (Verda uses `client_id:client_secret`) into
    the masked field; Hugging Face uses the sign-in `/logins huggingface` saved
    (an HF endpoint runs the model on hardware Hugging Face sells and hands back
    an address, with no SSH). Mercury verifies a key against the provider's
    instance list and saves it in the credential store (`0600`), never in a
    settings file or URL. On the model screen, Runpod rental rows carry
-   `verified on a live rental 2026-10-21`, and Vast.ai, Lambda and Hugging Face
+   `verified on a live rental 2026-10-21`; all other provider
    rows carry `API only — not yet booted`. Connected API-key vendors have
    **Replace key / Remove key** controls on the model screen. A replacement is
    checked before the saved key changes; removal does not stop rentals or bills.
-   Hugging Face uses **Sign out with /logins huggingface**. If Inference Endpoints
-   returns HTTP 403 for missing permission, create a token with the Inference
-   Endpoints permission at https://huggingface.co/settings/tokens and paste it
-   with `/logins huggingface`.
+   Hugging Face uses **Sign out with /logins huggingface**. Device-code sign-in
+   requests `write-endpoints` for Inference Endpoints management, including
+   viewing, creating and deleting endpoints. If an HTTP 403 notice says your
+   sign-in lacks this permission, sign in again with `/logins huggingface`.
+   A pasted token needs the Inference Endpoints permission from
+   https://huggingface.co/settings/tokens.
+   Hyperstack registers the SSH public key in the selected environment; Verda and DigitalOcean register it on the account. Initial new-account quotas for these three providers are not published: check the provider console before renting.
+   Hyperstack bills per minute, including a public IP charge; `/workspace` uses local storage that is deleted on termination. Verda prepays ten-minute compute increments with unused time refunded, charges separately for its root disk, and does not publish an egress price here; termination permanently deletes that root disk and verifies its absence. DigitalOcean bills per second with a five-minute minimum and includes local disk; Mercury offers its on-demand H100/H200 sizes, not B200 or spot/contract-only B300. Powering off these instances does not end compute billing.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
    for the full shape (every GPU and node in the recipe) across the 32 shipped
    models (78 recipes in `assets/host/recipes.json` version 2, including
@@ -348,9 +363,14 @@ disk never attaches to a Vast.ai instance.
    terms.
 3. **Tune before renting (optional).** On the rental confirmation screen,
    select **Tune** to pick the quantization, `conversations × context` split
-   (calculated against a 12 GB per-GPU engine reserve and the model's documented
-   KV cache bytes per token), and default thinking level before creating the
-   pod.
+   (calculated against the model's documented or measured context bytes per
+   token: for a `llama.cpp` recipe one pool across the cards after a 12 GB
+   per-GPU engine reserve; for an SGLang recipe the pool every card keeps after
+   its share of the weights, inside the recipe's `--mem-fraction-static` share,
+   with the rest of each card named as what is kept free for the engine's
+   prefill work — the `DeepSeek-V4.1-Flash-1017` rows carry the figures read
+   from the engine's own memory plan on 4× B200), and default thinking level
+   before creating the pod.
 4. **Confirm the hourly price.** Nothing is rented until you select the
    confirmation row and press Enter. The confirmation screen shows the time
    estimate for each setup step (engine startup, weight download and model
@@ -377,14 +397,14 @@ or
 or when a model has no stock on the rental flow, select **Watch for stock and
 rent at this price or less** (or choose **Set a lower price ceiling** / **Set a
 price ceiling**). A background worker polls every connected provider (Runpod,
-Vast.ai, Lambda and Hugging Face) once every 5 seconds (12 catalogue reads per minute each)
+Vast.ai, Lambda, Hugging Face, Hyperstack, Verda and DigitalOcean) once every 5 seconds (12 stock checks per minute each)
 for up to 12 hours. As soon as a fitting shape appears at or below your
 ceiling, the first provider with stock rents it (or the cheapest shape when
 several providers answer in the same round) and starts setup. Active watches
 are listed under **Machines I'm paying for** with `$0.00 billed while watching` and
 a **Cancel** action.
 
-### Vendor hiccups and rental failure cleanup
+### Vendor hiccups and setup pauses
 
 During pod or cluster setup and termination checks, transient vendor read
 errors (`HTTP 429`, `HTTP 5xx` and network timeouts across Runpod, Vast.ai and
@@ -398,17 +418,21 @@ not answer after 4 minutes, setup pauses without terminating the pod and posts
 `<Vendor> did not answer <operation> reads for 4 min (HTTP 503 ×<N>)` followed
 by `setup paused · Resume retries · /llmhost → Machines I'm paying for`.
 
-When a standalone pod rental hits a confirmed setup failure instead of a
-transient read hiccup, Mercury terminates the instance through the vendor API,
-reads the vendor's instance list to confirm it is gone, removes any registered
-`/model` entry, and posts one notice naming the cause, cleanup status and
-whether anything still bills:
+No setup check ever terminates a rented machine on its own. When setup trips
+on a confirmed fault, Mercury pauses the setup, leaves the machine running,
+closes its tunnel, and posts one notice naming the cause, the machine, the
+hourly rate it still bills, and the two choices:
+`setup paused · <cause> · <Vendor> pod <id> stays up and bills $<rate>/hr while paused · Resume retries the setup, Terminate stops the bill · /llmhost → Machines I'm paying for`.
+**Resume setup** under **Machines I'm paying for** starts the setup again on
+the same machine (a download continues from what already arrived; a running
+engine is reused); **Terminate** deletes it. The paused row shows
+`paused at <step>` with the cause. The causes:
 
 - **Engine death while loading weights:** if the engine process exits or logs
   `out of memory` (`OOM`), `failed to load model`, `error loading model`,
-  `GGML_ASSERT`, `terminate called` or `CUDA error`, setup stops immediately
-  and reports
-  `the engine died loading the weights: <the engine's own first error line> · machine terminated and verified absent · nothing more bills`.
+  `GGML_ASSERT`, `terminate called` or `CUDA error`, setup pauses immediately
+  with
+  `the engine died loading the weights: <the engine's own first error line>`.
   The cause line is read from the whole engine log instead of its last lines, so
   a crash's stack trace never stands in for it; when no error line was logged,
   the engine's last plain line (such as `Aborted (core dumped)`) is named. When
@@ -419,22 +443,77 @@ whether anything still bills:
   `the engine does not know this file's layout; it needs a newer llama.cpp than the engine image carries`
   (and on an `OOM`, adds
   `the shape was too small for this quality; choose a larger GPU shape`).
+- **Engine silence:** if the engine is still not answering `/health` after the
+  setup budget and has printed nothing new for 10 minutes, setup pauses with
+  `Engine not ready. The engine printed nothing new for <N> min after its <M> min setup budget; it may still be loading on the machine`
+  and the engine's last lines. The engine keeps running on the machine;
+  Resume waits for it again.
 - **Weight download stall or timeout:** a remote watchdog monitors disk and
   network progress every 30 seconds (`downloading weights on the machine · <X> of <Y> GB`).
   If less than 1 GB arrives over 10 minutes (`under 1 GB in 10 min`) or the
-  download passes its deadline (`30 + ceil(weightsGb / 6)` minutes), Mercury
-  terminates the pod and reports
-  `Download stalled at <X> GB of <Y> GB (under 1 GB in 10 min) · machine terminated and verified absent · nothing more bills`
-  (or, when a Runpod fast-load volume was attached, names the kept volume and
-  its monthly charge).
-- **SSH key refusal:** if a `RUNNING` pod rejects SSH login with
-  `Permission denied (publickey)` three times in a row, Mercury terminates the
-  pod and reports
-  `the pod did not accept Mercury's SSH key · <vendor key notice> · machine terminated and verified absent · nothing more bills`.
+  download passes its deadline (`30 + ceil(weightsGb / 6)` minutes), the
+  download stops and setup pauses with
+  `Download stalled at <X> GB of <Y> GB (under 1 GB in 10 min)`
+  (or, when a kept weights volume was attached, adds the volume, what it holds
+  and its monthly charge: `weights disk <id> is kept with <X> GB downloaded and bills <price>`).
+  Resume downloads again from what arrived; a temporary preparation pod for a
+  kept volume pauses the same way and is released only once the weights are
+  kept.
+- **SSH key refusal:** a `RUNNING` pod that rejects SSH login with
+  `Permission denied (publickey)` is retried every poll until it accepts the
+  key or the setup deadline passes (a fresh container often answers before the
+  vendor has installed the account key); the row reads
+  `waiting for SSH · the machine has not accepted the key yet · retrying until it does`.
+  If the deadline passes first, setup pauses with
+  `the machine never accepted Mercury's SSH key before the setup deadline · <vendor key notice>`.
+  For a running Vast.ai instance, Mercury first attaches the same SSH key to
+  that instance and retries for up to four more minutes. If the key is still
+  refused, the pause says `Mercury attached the SSH key to this instance and retried`.
 - **Pod missing from the vendor:** if the vendor returns `HTTP 404` during
-  setup, Mercury checks the vendor's instance list without sending a redundant
-  terminate call and reports
+  setup there is nothing to pause; Mercury checks the vendor's instance list
+  without sending a terminate call and reports
   `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Machines I'm paying for shows it`.
+- **Engine death after setup:** the keep-alive loop reads the engine's own log
+  before it reconnects a dropped tunnel. An engine that exited after it was
+  ready pauses the record the same way (the paused row reads
+  `paused · the engine died after setup`), with the machine up and its weights
+  on disk:
+  `the engine died after setup: <the engine's own first error line> · <Vendor> pod <id> stays up and bills $<rate>/hr while paused · Resume restarts the engine from the weights already on the machine, Terminate stops the bill`.
+  The engine line is shown without its log prefixes and with byte counts in GB.
+  When the engine ran out of GPU memory, the notice says what happened in the
+  engine's terms rather than judging the shape (the shape held the weights; the
+  conversation outgrew the budget):
+  `the engine ran out of GPU memory at <N>k tokens of context · the recipe's budget was <M> · Resume restarts it; a shorter conversation or the Tune screen's smaller context fits`
+  (the tokens held and the budget are read from the engine's own startup plan
+  and last batch line when it printed them). A request sent to that rental from
+  the chat is answered at once with one line instead of a network-outage
+  reconnect countdown — the engine is down while the network is fine:
+  `<Vendor> pod <id> · the engine ran out of GPU memory at <N>k tokens of context (the recipe's budget was <M>): <engine line> · the machine stays up and bills $<rate>/hr · Resume in /llmhost restarts the engine; a shorter conversation or the Tune screen's smaller context fits`.
+  **Resume setup** starts the engine from the folder it loaded its weights
+  from (checked on the machine first); nothing is uploaded or downloaded again.
+  The two-hour rule covers this pause like any other.
+- **Link dropped after setup:** five failed reconnects pause the rental without
+  terminating it. The notice names the rented machine, reconnect count and
+  hourly rate still billing: `Resume reconnects, Terminate stops the bill`.
+  Resume reopens the tunnel on the same port; an answering engine is reused
+  without restarting it or downloading weights. The notice detail includes
+  the last engine lines when they can be read, or `engine log unread`.
+
+The only automatic terminate is the two-hour rule: a rental whose setup pause
+has gone unanswered for 2 hours, or a ready rental that no model request has
+reached for 2 hours (the keep-alive poll does not count; only a completed
+request through its `/model` entry does, which a Tune reload also counts as
+activity), is terminated by the background sweep. It posts
+`<name> · no model request reached it for 2 hours · terminating <Vendor> pod <id> · it bills $<rate>/hr until it is gone`
+(or `the setup pause went unanswered for 2 hours`), terminates the machine,
+reads the vendor's instance list to confirm it is gone, removes the `/model`
+entry, and posts
+`<Vendor> pod <id> terminated and verified absent (<Vendor> no longer lists it) · nothing more bills · /llmhost to rent again`
+(a kept weights volume is never deleted by the sweep; the notice names it and
+its monthly charge instead). The sweep looks every 5 minutes; nothing
+terminates earlier than two hours. An unanswered pause after setup names its
+cause: `the engine died and the pause went unanswered for 2 hours` or
+`the link dropped and the pause went unanswered for 2 hours`.
 
 If the vendor's instance list cannot be read to confirm deletion, Mercury never
 claims the pod is gone; it posts
@@ -452,6 +531,13 @@ count instead of claiming a complete zero. Rows use the vendor's own name:
 Vendor read errors appear once at the top, with their HTTP status and details
 behind the vendor row. A rejected credential stays parked until it changes.
 Each machine row shows its state, hourly rate and available spend estimate.
+Mercury remembers a rental's link drops across restarts. Chat outage notices
+name the rental and Mercury's reconnect count. When Vast.ai lists the same
+physical machine again, its offer stays selectable but follows unaffected
+machines, labelled `link dropped <n> min ago · <k> reconnects`.
+If only weights disks cannot be read, the machines remain listed:
+`weights disks unread; storage may still bill`; transient reads try up to three
+times, and the detail row names the failed request and cause and offers **Retry**.
 
 - **Tune (Runpod single-node `llama.cpp` pods):** change
   `conversations × context` or default thinking and reload `llama-server` in

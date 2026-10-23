@@ -6,11 +6,14 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { PermissionRequestParams } from '../../src/runner/wire/methods.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { hostRunner } from '../lib/runnerHost.ts'
 import type { Frame } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'two-kinds-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'two-kinds-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+const { hostRunner } = await import('../lib/runnerHost.ts')
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {

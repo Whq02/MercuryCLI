@@ -78,7 +78,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/services/compact/compact.ts')
 const { compactConversation } = compactModule
-const FOLD_WINDOW_REFUSAL_KEY: string = compactModule.FOLD_WINDOW_REFUSAL_KEY ?? "the fold cannot run on this model's window"
+const FOLD_WINDOW_REFUSAL_KEY: string = compactModule.FOLD_WINDOW_REFUSAL_KEY ?? "compaction cannot run on this model's window"
 const overflowModule = await import('../../src/services/compact/overflowRecovery.ts')
 const { overflowRefusalText } = overflowModule
 const foldRemedyIsHeadless: (flag: boolean | undefined) => boolean = overflowModule.foldRemedyIsHeadless ?? ((flag: boolean | undefined) => flag === true)
@@ -150,7 +150,7 @@ section('§1 the seated model serves a 4,096-token window the fold\'s own reques
   check('no summary request reached the server (refused before the send)', chat.length === 0, `${chat.length} escaped`)
   const message = run.error ?? ''
   console.log(`  [record] the fold's refusal as thrown: ${message}`)
-  check('the sentence opens with the plain key: the fold cannot run on this model\'s window (4,096 tokens, served)', message.startsWith(`${FOLD_WINDOW_REFUSAL_KEY} (4,096 tokens, served)`), message.slice(0, 120))
+  check('the sentence opens with the plain key: compaction cannot run on this model\'s window (4,096 tokens, served)', message.startsWith(`${FOLD_WINDOW_REFUSAL_KEY} (4,096 tokens, served)`), message.slice(0, 120))
   check('it names the fold\'s own request size and the silent truncation', /its own request \(≈\d+k tokens\) does not fit and the server would silently truncate it/.test(message), message)
   check('the remedy names the in-app window road before the server env', message.includes('/config → Local model window') && message.indexOf('/config → Local model window') < message.indexOf('OLLAMA_CONTEXT_LENGTH'), message)
   check('no "API Error" is nested anywhere in it', !message.includes('API Error'), message)

@@ -2,9 +2,20 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { flagEnv } from '../../src/substrate/flagRegistry.ts'
-import { HOST_RECIPES, type HostRecipe } from '../../src/services/host/recipes.ts'
-import {
+import { tmpdir } from 'node:os'
+import type { HostRecipe } from '../../src/services/host/recipes.ts'
+import { fakeSshRunner, runpodFixture } from './runpodFixture.mjs'
+
+const rootScratch = mkdtempSync(join(tmpdir(), 'recipes-live-'))
+process.env.MERCURY_CONFIG_DIR = rootScratch
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(rootScratch, { recursive: true, force: true }))
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+delete process.env.MERCURY_HOST_RECIPES_FILE
+
+const { flagEnv } = await import('../../src/substrate/flagRegistry.ts')
+const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const {
   HOST_RECIPES_FILE_VERSION,
   HOST_RECIPES_URL,
   SHIPPED_HOST_RECIPES_PATH,
@@ -17,16 +28,9 @@ import {
   loadHostRecipes,
   refreshHostRecipes,
   resetHostRecipesFetchState,
-} from '../../src/services/host/recipesFile.ts'
-import { repoSlugFromUrl, resolveChannelRepo } from '../../src/services/privateChannel/channelCore.ts'
-import { RunpodClient } from '../../src/services/host/runpod.ts'
-import { fakeSshRunner, runpodFixture } from './runpodFixture.mjs'
-
-if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
-mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-const rootScratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'recipes-live-'))
-process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-delete process.env.MERCURY_HOST_RECIPES_FILE
+} = await import('../../src/services/host/recipesFile.ts')
+const { repoSlugFromUrl, resolveChannelRepo } = await import('../../src/services/privateChannel/channelCore.ts')
+const { RunpodClient } = await import('../../src/services/host/runpod.ts')
 
 let checks = 0
 const check = (name: string, truth: unknown): void => {

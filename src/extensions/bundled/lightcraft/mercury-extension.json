@@ -1,0 +1,17 @@
+{
+  "name": "lightcraft",
+  "version": "0.1.0",
+  "description": "Develop photos in the open LightCraft library.",
+  "contributes": {
+    "skills": ["./skills"],
+    "servers": {
+      "app": {
+        "command": "${MERCURY_NODE}",
+        "args": ["${MERCURY_EXTENSION_ROOT}/server/bridge.mjs"]
+      }
+    }
+  },
+  "needs": {
+    "network": ["github.com", "release-assets.githubusercontent.com"]
+  }
+}

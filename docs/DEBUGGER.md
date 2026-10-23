@@ -20,6 +20,26 @@ capability-gated against what the adapter actually announced, with precise
 refusals. `customRequest` is the escape hatch: any DAP request verbatim,
 permission-gated because an arbitrary request can mutate the debuggee.
 
+## Stop waits and cancellation
+
+`timeoutMs` sets how long `launch`, `attach`, `continue`, stepping, `pause`,
+and `restart` wait for a stop. It defaults to 10,000 milliseconds; longer
+waits are allowed. Reaching the deadline reports that the program is still
+running rather than terminating it. Cancelling a call interrupts its pending
+requests and stop waits immediately. A cancelled step can leave the program
+running: use `status` to inspect it or `disconnect` to end the session.
+
+## Adapter-requested programs
+
+Adapters can request a program through DAP `runInTerminal`. The requested
+command, working directory and environment go through the same permission
+checks and guards as Bash. An approved command starts directly from its
+argument list; its process ID is returned to the adapter. Both `integrated`
+and `external` requests use session-managed processes without opening a
+terminal window. Standard output and standard error appear in Debug's bounded
+output buffer, tagged `[debuggee]`. Disconnecting or terminating the session
+ends these processes and their descendants.
+
 ## Adapters
 
 Built-in adapter rows cover python (`debugpy`, vendored in the build with

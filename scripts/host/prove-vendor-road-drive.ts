@@ -7,6 +7,9 @@ import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
+import { hyperstackFixture } from './hyperstackFixture.mjs'
+import { verdaFixture } from './verdaFixture.mjs'
+import { digitaloceanFixture } from './digitaloceanFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -18,6 +21,10 @@ const rp = await runpodFixture()
 const vast = await vastFixture()
 const lambda = await lambdaFixture()
 const hf = await hfEndpointsFixture()
+const hyperstack = await hyperstackFixture()
+const verda = await verdaFixture()
+const digitalocean = await digitaloceanFixture()
+digitalocean.state.linkOrigin = 'https://api.digitalocean.com'
 lambda.state.types.push({ name: 'gpu_1x_rtxpro6000', description: '1x RTX PRO 6000', gpu_description: 'NVIDIA RTX PRO 6000 Blackwell (96 GB)', price_cents_per_hour: 210, specs: { vcpus: 32, memory_gib: 256, storage_gib: 2000, gpus: 1 }, architecture: 'x86_64' })
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
@@ -26,7 +33,7 @@ let denyVastPods = false
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
-  const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', ''), 'https://api.endpoints.huggingface.cloud': hf.origin, 'https://huggingface.co': hf.origin } as Record<string, string>)[url.origin]
+  const base = ({ 'https://api.runpod.io': rp.baseUrl.replace('/v2', ''), 'https://console.vast.ai': vast.baseUrl.replace('/api/v0', ''), 'https://cloud.lambda.ai': lambda.baseUrl.replace('/api/v1', ''), 'https://api.endpoints.huggingface.cloud': hf.origin, 'https://huggingface.co': hf.origin, 'https://infrahub-api.nexgencloud.com': hyperstack.origin, 'https://api.verda.com': verda.origin, 'https://api.digitalocean.com': digitalocean.origin } as Record<string, string>)[url.origin]
   if (url.origin === 'https://console.vast.ai' && (denyVastStock && url.pathname === '/api/v0/bundles/' || denyVastPods && url.pathname === '/api/v1/instances/')) return Response.json({ error: 'fixture list unavailable' }, { status: 503 })
   if (base) return nativeFetch(new Request(base + url.pathname + url.search, request))
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') { escaped.push(url.origin); throw new Error('Vendor road proof only permits loopback fixtures') }
@@ -90,20 +97,24 @@ try {
     await gridToPng(path, join(frames, name + '.png'))
   }
   open(); await mount(120); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
-  check('WHERE offers every disconnected vendor, including Hugging Face', ['Connect Runpod', 'Connect Vast.ai', 'Connect Lambda', 'Connect Hugging Face'].every(label => mounted!.screen().includes(label)))
+  check('WHERE offers all seven disconnected vendors', ['Connect Runpod', 'Connect Vast.ai', 'Connect Lambda', 'Connect Hugging Face', 'Connect Hyperstack', 'Connect Verda', 'Connect DigitalOcean'].every(label => mounted!.screen().includes(label)))
   const { vendorClient, runpodOnly } = await import('../../src/services/host/vendors/client.ts')
   await capture('120-three-vendors')
   await close(); mounted!.unmount(); await mount(80)
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await capture('80-three-vendors')
-  for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda]] as const) {
+  for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda], ['hyperstack', 'Hyperstack', hyperstack], ['verda', 'Verda', verda], ['digitalocean', 'DigitalOcean', digitalocean]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
-    await until('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
+    await until('WEIGHTS'); await select('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
     if (vendor === 'vast') check('Vast offer rows display their hosting type beside the region', /region unknown · (datacenter|community host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
     await choose('Rent · ' + label); await until('Confirm the hourly price')
+    if (mounted!.screen().includes('Saved quality has no stock')) {
+      await choose('Tune:'); await until('QUALITY ·'); mounted!.push(KEY.up); assert.ok(await waitFor(() => selected().includes('1× H200'), 3000)); mounted!.push(KEY.enter); await until('CONVERSATIONS × CONTEXT'); mounted!.push(KEY.enter)
+      await until('THINKING ·'); mounted!.push(KEY.enter); await until('Confirm tune'); await choose('Confirm · save'); await until('Confirm the hourly price')
+    }
     await capture('80-' + vendor + '-confirmation')
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')
     check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now.'))
-    check(label + ' says the storage terms and Tune summary once', confirmation.split('/workspace uses the instance').length - 1 === 1 && confirmation.split('Tune:').length - 1 === 1)
+    check(label + ' says the storage terms and Tune summary once', confirmation.split('/workspace uses').length - 1 === 1 && confirmation.split('Tune:').length - 1 === 1)
     check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH public key') && confirmation.includes('/workspace') && confirmation.includes('setup fails'))
     await choose('Confirm $'); await until('Machine controls')
     check(label + ' queues and reaches ready', await waitFor(() => hostRecords().some(record => record.vendor === vendor && record.jobState === 'ready'), 30000))
@@ -116,7 +127,8 @@ try {
     if (vendor === 'lambda') {
       check('Lambda offers no Stop', !mounted!.screen().includes('Stop ·'))
       check('Lambda waits for cloud-init and launches the recipe in Docker as ubuntu', record.target?.user === 'ubuntu' && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('cloud-init status --wait')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
-    } else check('Vast uses direct root SSH', record.target?.user === 'root' && record.target?.port === 2222)
+    } else if (vendor === 'vast') check('Vast uses direct root SSH', record.target?.user === 'root' && record.target?.port === 2222)
+    else check(label + ' uses VM startup readiness and Docker without Stop', !mounted!.screen().includes('Stop ·') && record.target?.port === 22 && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('/workspace/.mercury-vm-ready')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
     await choose('Logs ·'); await until('Machine controls')
     if (vendor === 'vast') {
       check('Vast log tail uses its own vendor client', await waitFor(() => vast.requests.some((row: any) => row.path.includes('/request_logs/')), 5000))
@@ -156,13 +168,15 @@ try {
   await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   fail = true
   await choose('Rent · Vast.ai'); await until('Confirm the hourly price'); await choose('Confirm $')
-  check('Failed Vast setup is terminated through Vast', await waitFor(() => vast.state.deletes === 2 && vast.state.pods.size === 0, 15000))
+  check('Failed Vast setup pauses with the instance still billing', await waitFor(() => hostRecords().some(row => row.vendor === 'vast' && row.jobState === 'paused'), 15000) && vast.state.deletes === 1 && vast.state.pods.size === 1)
   await Promise.all(jobs)
-  check('Failed Vast setup leaves a truthful terminated receipt', hostRecords().some(row => row.vendor === 'vast' && row.status === 'TERMINATED' && row.error?.includes('verified absent')))
+  check('Failed Vast setup names the cause and both choices', hostRecords().some(row => row.vendor === 'vast' && row.jobState === 'paused' && row.error?.includes('fixture setup failure') && row.error.includes('stays up and bills $') && row.error.includes('Resume retries the setup, Terminate stops the bill')))
+  await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
+  check('the explicit Terminate deletes the paused Vast instance', vast.state.deletes === 2 && vast.state.pods.size === 0)
   await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   await choose('Connect Runpod'); await until('Runpod API key'); mounted!.push(rp.key); await until('********'); mounted!.push(KEY.enter)
   await until('Rent · Vast.ai'); await select('Rent · Runpod')
-  for (const label of ['Rent · Runpod', 'Rent · Vast.ai', 'Rent · Lambda', 'Rent · Hugging Face']) {
+  for (const label of ['Rent · Runpod', 'Rent · Vast.ai', 'Rent · Lambda', 'Rent · Hugging Face', 'Rent · Hyperstack', 'Rent · Verda', 'Rent · DigitalOcean']) {
     await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await select(label)
     check(label + ' has a selectable WHERE rental row', selected().includes(label))
   }
@@ -170,7 +184,7 @@ try {
   await close(); mounted!.unmount(); await mount(120)
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('Rent · Runpod'); await capture('120-connected-three-vendors')
   await close(); denyVastStock = true
-  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai: could not be read')
+  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai: stock unread')
   check('Unreadable Vast stock keeps the other rental rows', ['Rent · Runpod', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await close(); denyVastStock = false; denyVastPods = true
   open(); await until('Which model?'); await until('Vast.ai: could not be read')
@@ -178,7 +192,7 @@ try {
   check('Unreadable paid list is named, not presented as a complete zero', mounted!.screen().includes('Vast.ai: unread'))
   await close(); denyVastPods = false
   open(); await until('Which model?'); await choose('More options'); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?')
-  check('Other roads offers the same four vendors', ['Runpod', 'Vast.ai', 'Lambda', 'Hugging Face'].every(label => mounted!.screen().includes(label)))
+  check('Other options offer all seven vendors', ['Runpod', 'Vast.ai', 'Lambda', 'Hugging Face', 'Hyperstack', 'Verda', 'DigitalOcean'].every(label => mounted!.screen().includes(label)))
   await choose('Lambda'); await until('Optional spending budget'); mounted!.push(KEY.enter); await until('live Lambda stock')
   check('Where-first Lambda stock is never labelled Runpod or Secure Cloud', !mounted!.screen().includes('Secure Cloud') && !mounted!.screen().includes('live Runpod stock'))
   await close()
@@ -186,5 +200,5 @@ try {
   check('Records without a vendor read as Runpod', readHostRecord('old-record')?.vendor === 'runpod')
   check('No Runpod create or cleanup is used for other vendors', rp.state.creates === 0 && rp.state.deletes === 0)
   check('All network requests stay on loopback fixtures', escaped.length === 0)
-  console.log('VENDOR ROAD DRIVE GREEN — ' + checks + ' checks; real popup, Vast and Lambda fixtures, setup workers and model registration; zero billable calls')
-} finally { mounted?.unmount(); (await import('../../src/keybindings/loadUserBindings.ts')).disposeKeybindingWatcher(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); f.close(); globalThis.fetch = nativeFetch }
+  console.log('VENDOR ROAD DRIVE GREEN — ' + checks + ' checks; real popup, seven fixture providers, setup workers and model registration; zero billable calls')
+} finally { mounted?.unmount(); (await import('../../src/keybindings/loadUserBindings.ts')).disposeKeybindingWatcher(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); await hyperstack.close(); await verda.close(); await digitalocean.close(); f.close(); globalThis.fetch = nativeFetch }

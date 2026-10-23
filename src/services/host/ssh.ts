@@ -9,6 +9,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
 import { downloadFailure, hostDownloadScript } from './download.js'
+import { hostEngineOomWords, type HostEngineDeathFacts } from '../../commands/llmhost/words.js'
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
   run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>): Promise<string>
@@ -90,8 +91,10 @@ const unknownLayoutPattern = /unknown model architecture|unsupported model archi
 function engineCauseCommand(engineLog: string): string {
   const log = quote(engineLog)
   return 'grep -i -m 1 -A 1 -E ' + quote(engineCauseGrep) + ' ' + log + ' 2>/dev/null | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_CAUSE /') + '; unused="$(grep -c ' + quote('unused tensor') + ' ' + log + ' 2>/dev/null)"; if test "${unused:-0}" -gt 0 2>/dev/null; then printf ' + quote('MERCURY_UNUSED_TENSORS %s %s\\n') + ' "$unused" "$(grep -m 1 -o ' + quote('unused tensor [^ ]*') + ' ' + log + ' | cut -d" " -f3)"; fi'
+    + '; grep -o -E ' + quote('max_total_num_tokens=[0-9]+.*') + ' ' + log + ' 2>/dev/null | tail -n 1 | cut -c1-300 | sed ' + quote('s/^/MERCURY_ENGINE_PLAN /') + '; grep -E ' + quote('(Prefill|Decode) batch') + ' ' + log + ' 2>/dev/null | tail -n 1 | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_BATCH /')
 }
-export function engineDeathWords(text: string, recipe: Pick<HostRecipe, 'engine'>): string {
+const oomPattern = /out of memory|OutOfMemoryError|\bOOM\b/i
+function engineCause(text: string): { cause?: string; tail: string; unused?: { count: number; example?: string }; oom: boolean } {
   const lines = text.split('\n').map(line => line.trim())
   const marked = lines.filter(line => line.startsWith('MERCURY_ENGINE_CAUSE ')).map(line => line.slice('MERCURY_ENGINE_CAUSE '.length).trim())
   let cause = marked[0] || lines.find(line => line && !line.startsWith('MERCURY_') && engineCausePattern.test(line))
@@ -101,11 +104,43 @@ export function engineDeathWords(text: string, recipe: Pick<HostRecipe, 'engine'
   const unusedLines = lines.filter(line => /unused tensor/.test(line))
   const unused = unusedMark ? { count: Number(unusedMark[1]), example: unusedMark[2] } : unusedLines.length ? { count: unusedLines.length, example: /unused tensor (\S+)/.exec(unusedLines[0]!)?.[1] } : undefined
   const tail = lines.filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:' && !stackFramePattern.test(line) && !/unused tensor/.test(line)).slice(-8).join(' · ')
-  const oom = /out of memory|OutOfMemoryError|\bOOM\b/i.test(text)
+  return { cause, tail, unused, oom: oomPattern.test(text) }
+}
+export function engineDeathWords(text: string, recipe: Pick<HostRecipe, 'engine'>): string {
+  const { cause, tail, unused, oom } = engineCause(text)
   return 'the engine died loading the weights: ' + (cause || tail || 'the engine process exited')
     + (unused ? ' · the engine set aside ' + unused.count + ' tensor' + (unused.count === 1 ? '' : 's') + ' it does not use' + (unused.example ? ' (e.g. ' + unused.example + ')' : '') : '')
     + (cause && unknownLayoutPattern.test(cause) ? ' · the engine does not know this file’s layout; it needs a newer ' + (recipe.engine === 'llamacpp' ? 'llama.cpp' : recipe.engine ?? 'engine') + ' than the engine image carries' : '')
     + (oom ? ' · the shape was too small for this quality; choose a larger GPU shape' : '')
+}
+const gbWords = (bytes: number): string => (bytes / 1e9).toFixed(1) + ' GB'
+export function shortEngineLine(line: string): string {
+  return line.trim()
+    .replace(/^(?:\[rank\d+\]:)?(?:\[[A-Z]\d{4} [\d:.]+ [^\]]*\])?\s*/, '')
+    .replace(/^\[\d{4}-\d{2}-\d{2} [\d:.]+(?: [^\]]*)?\]\s*/, '')
+    .replace(/\b(\d{9,})(?: bytes)?\b/g, (_match, digits: string) => gbWords(Number(digits)))
+    .replace(/\.$/, '')
+    .slice(0, 220)
+}
+function engineTokenFacts(text: string): Pick<HostEngineDeathFacts, 'contextTokens' | 'budgetTokens' | 'poolTokens'> {
+  const plan = /^MERCURY_ENGINE_PLAN (.+)$/m.exec(text)?.[1]
+  const batch = /^MERCURY_ENGINE_BATCH (.+)$/m.exec(text)?.[1]
+  const read = (source: string | undefined, pattern: RegExp): number | undefined => { const value = source ? Number(pattern.exec(source)?.[1]) : NaN; return Number.isFinite(value) && value > 0 ? value : undefined }
+  const poolTokens = read(plan, /max_total_num_tokens=(\d+)/)
+  const budgetTokens = read(plan, /context_len=(\d+)/)
+  const usage = read(batch, /(?:full )?token usage: ([\d.]+)/)
+  const held = (read(batch, /#cached-token: (\d+)/) ?? 0) + (read(batch, /#new-token: (\d+)/) ?? 0)
+  const contextTokens = usage !== undefined && poolTokens !== undefined ? Math.max(Math.round(usage * poolTokens), held) : held || undefined
+  return { ...(contextTokens ? { contextTokens } : {}), ...(budgetTokens ? { budgetTokens } : {}), ...(poolTokens ? { poolTokens } : {}) }
+}
+export class HostEngineDeath extends Error {
+  readonly facts: HostEngineDeathFacts
+  constructor(message: string, facts: HostEngineDeathFacts) { super(message); this.name = 'HostEngineDeath'; this.facts = facts }
+}
+export function engineDeathAfterReadyWords(text: string): HostEngineDeath {
+  const { cause, tail, oom } = engineCause(text)
+  const facts: HostEngineDeathFacts = { at: Date.now(), line: shortEngineLine(cause || tail || 'the engine process exited'), oom, ...engineTokenFacts(text) }
+  return new HostEngineDeath('the engine died after setup: ' + facts.line + (oom ? ' · ' + hostEngineOomWords(facts) : ''), facts)
 }
 function engineFailure(text: string, recipe: HostRecipe, exited = false): Error | undefined {
   if (/MERCURY_(STALL|PARTIAL) /.test(text)) return new Error(downloadFailure(text, recipe).words)
@@ -173,11 +208,11 @@ function enginePollCommand(dir: string): string {
   const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
   return 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'
 }
-export async function engineDeathAfterReady(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal): Promise<Error | undefined> {
+export async function engineDeathAfterReady(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, onLog?: (text: string) => void): Promise<HostEngineDeath | undefined> {
   const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand('/workspace/mercury-host/' + recipe.id)], signal)
+  onLog?.(log)
   if (!log.includes('MERCURY_ENGINE_EXITED')) return
-  const failed = engineFailure(log, recipe, true)
-  return new Error((failed?.message ?? 'the engine died loading the weights: the engine process exited').replace(/^the engine died loading the weights: /, 'the engine died after setup: '))
+  return engineDeathAfterReadyWords(log)
 }
 export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000, onLog: (text: string) => void = () => {}, progressGraceMs = ENGINE_PROGRESS_GRACE_MS): Promise<void> {
   const started = Date.now()
@@ -198,7 +233,8 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
     last = log || last
     await delay(pauseMs, undefined, { signal })
   }
-  throw new Error('Engine not ready. ' + last)
+  const minutes = (ms: number): string => (ms >= 60_000 ? Math.round(ms / 60_000) + ' min' : Math.max(1, Math.round(ms / 1000)) + ' s')
+  throw new Error('Engine not ready. The engine printed nothing new for ' + minutes(Date.now() - progressedAt) + ' after its ' + minutes(timeoutMs) + ' setup budget; it may still be loading on the machine. Last engine lines: ' + last)
 }
 export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, preferredPort?: number): Promise<number> {
   tunnels.get(id)?.stop()

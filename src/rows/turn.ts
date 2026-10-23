@@ -28,7 +28,7 @@ import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
 import type { FileStateCache } from '../utils/fileStateCache.js'
 import { cloneFileStateCache } from '../utils/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../utils/toolResultStorage.js'
-import { fileHistoryEnabled, fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
+import { fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import { engageCommitGate } from '../guards/commitGate.js'
 import { registerForcedReadGuard } from '../guards/forcedRead.js'
@@ -791,7 +791,7 @@ export class Conversation {
       return
     }
 
-    if (!persistenceDisabled && fileHistoryEnabled()) {
+    if (!persistenceDisabled) {
       const snapshots: Promise<void>[] = []
       for (const message of inputResult.messages) {
         if (message.type !== 'user') continue

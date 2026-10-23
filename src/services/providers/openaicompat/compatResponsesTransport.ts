@@ -17,6 +17,7 @@ export function compatResponsesTransport(options: CompatStreamOptions, messages:
     tools: (request.tools ?? []).map(tool => ({ type: 'function', name: tool.function.name, description: tool.function.description, parameters: tool.function.parameters })),
     ...(typeof extra.reasoning_effort === 'string' ? { reasoning: { effort: extra.reasoning_effort } } : {}),
     ...(typeof extra.max_tokens === 'number' ? { max_output_tokens: extra.max_tokens } : {}),
+    ...(typeof extra.prompt_cache_key === 'string' ? { prompt_cache_key: extra.prompt_cache_key } : {}),
     include: ['reasoning.encrypted_content'],
     store: false,
     stream: true,

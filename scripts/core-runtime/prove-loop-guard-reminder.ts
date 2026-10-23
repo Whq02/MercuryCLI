@@ -383,7 +383,7 @@ section('R4 — the same prompt, no reset: the chain survives across model calls
   check('property order is ignored: pattern/path and path/pattern are the same call — the notice rides after the 3rd', requestText(run, 3).includes(GENTLE), `request 3: ${requestText(run, 3).slice(-300)}`)
 }
 
-section('R5 — a repeated call DENIED by permission still counts: three denied Greps fire the notice after the third')
+section('R5 — permission refusals are reminded on the second call and stop headless on the third')
 {
   const run = await runScript(
     [
@@ -394,8 +394,9 @@ section('R5 — a repeated call DENIED by permission still counts: three denied 
     { canUseTool: denyAll },
   )
   check('all three calls were denied (error tool results)', run.ids.every(id => /denied by the rig/.test(toolResultText(run, id))), run.ids.map(id => toolResultText(run, id)).join(' | '))
-  check('the notice rides after the 3rd denied result', requestText(run, 3).includes(GENTLE), `request 3: ${requestText(run, 3).slice(-300)}`)
-  check('and not after the 1st or 2nd', !ANY_NOTICE.test(requestText(run, 1)) && !ANY_NOTICE.test(requestText(run, 2)))
+  check('the second result carries the refusal and reminder before the third request', requestText(run, 2).includes('change something before sending it again') && requestText(run, 2).includes('denied by the rig'))
+  check('there is no reminder after the first call', !ANY_NOTICE.test(requestText(run, 1)))
+  check('the third refused call ends headless without a fourth request', run.calls.length === 3 && run.terminal.reason === 'loop_stopped')
 }
 
 section('R6 — bookkeeping tools are excluded and cannot launder a loop')

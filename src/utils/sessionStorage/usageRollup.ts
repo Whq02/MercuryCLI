@@ -26,6 +26,7 @@ export type TranscriptUsageRollup = {
 type CountedUsage = {
   input_tokens: number
   output_tokens: number
+  request_started_at_ms?: number
   cache_read_input_tokens: number
   cache_creation_input_tokens: number
   server_tool_use?: { web_search_requests: number }
@@ -46,6 +47,7 @@ function countedUsageOf(raw: unknown): CountedUsage | null {
   const usage: CountedUsage = {
     input_tokens: count(u.input_tokens),
     output_tokens: count(u.output_tokens),
+    ...(count(u.request_started_at_ms) > 0 ? { request_started_at_ms: count(u.request_started_at_ms) } : {}),
     cache_read_input_tokens: count(u.cache_read_input_tokens),
     cache_creation_input_tokens: count(u.cache_creation_input_tokens),
     ...(searches > 0 ? { server_tool_use: { web_search_requests: searches } } : {}),

@@ -4,6 +4,33 @@ Drive Mercury from a program through the `mercury run --format rows` one-shot
 stream or the `mercury runner` JSON-RPC session protocol over standard input
 and output.
 
+## Usage history
+
+`mercury usage --history` prints tokens, cache-hit rate and estimated USD
+across saved sessions, grouped by UTC day, model and project. Add `--days 30`
+for today and the preceding 29 UTC days, `--project` for the current project,
+or `--json` for the full report. Unpriced turns are counted separately;
+their tokens are included but no dollar amount is invented.
+
+The report reads local transcripts, including delegated work, without
+contacting providers or changing transcripts. A bounded local cache reuses
+unchanged transcript summaries: at most 4,096 files and 32,768 hourly rows.
+Evicted summaries are rebuilt when needed; eviction does not truncate totals.
+Provider meter readings are retained separately, one latest observation per
+hour, account and window, up to 4,096 rows. Neither cache stores message text.
+
+Costs are estimates at current local rates, not invoices. DeepSeek rates
+were checked against its [pricing page](https://api-docs.deepseek.com/quick_start/pricing/)
+on 2026-10-23: peak hours are Monday–Friday 01:00–04:00 and 06:00–10:00 UTC,
+excluding Chinese public holidays; other hours cost half as much. Requests
+use their start time; older records without that timestamp use the recorded
+message time. The [2026 holiday calendar](https://en.bjhd.gov.cn/workinginhaidian/supportingservices/publicholidays/202512/t20251211_4797062.shtml)
+is included. Peak-window estimates for other years use the full rate because
+the holiday dates are not recorded.
+
+Without `--history`, `mercury usage` samples the current provider meters,
+like `/usage`; `--json` includes their windows, resets and observation times.
+
 ## One-shot runs: `mercury run --format rows`
 
 `mercury run "<prompt>" --format rows` runs a prompt without a terminal

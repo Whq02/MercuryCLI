@@ -2116,6 +2116,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } catch {
               sentinelAge = 'no complete sweep recorded yet'
             }
+            const { fileHistoryStorage } = await import('./cleanup.js')
+            const history = await fileHistoryStorage()
+            sentinelAge += ` · file history ${(history.bytes / (1024 * 1024)).toFixed(1)} MB / ${history.limit / (1024 * 1024)} MB`
+            if (history.bytes > history.limit) return { status: 'warn', evidence: `${sentinelAge} · cleanup pending` }
             const pass = getLifecycleHealth()
             if (pass && pass.cycleFailures > 0) {
               const firstFailure = pass.receipts.flatMap(r => r.failures.map(f => `${r.id}: ${f.path}${f.code ? ` (${f.code})` : ''}`))[0]

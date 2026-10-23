@@ -13,10 +13,13 @@ function section(t: string): void {
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
-  const { mkdtempSync: mkScratch } = await import('node:fs')
+  const { mkdtempSync: mkScratch, rmSync: rmScratch } = await import('node:fs')
   const { tmpdir: scratchRoot } = await import('node:os')
   const { join: joinScratch } = await import('node:path')
-  process.env.MERCURY_CONFIG_DIR ??= mkScratch(joinScratch(scratchRoot(), 'wards-proof-home-'))
+  const proofHome = mkScratch(joinScratch(scratchRoot(), 'wards-proof-home-'))
+  process.env.MERCURY_CONFIG_DIR = proofHome
+  delete process.env.MERCURY_HOME
+  process.on('exit', () => rmScratch(proofHome, { recursive: true, force: true }))
   const {
     BUILTIN_WARDS,
     evaluateWards,

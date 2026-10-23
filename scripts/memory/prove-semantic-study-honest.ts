@@ -1,9 +1,20 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { fuseRankings, scoreCandidates, type LookupCandidate } from '../../src/mneme/mnemeLookup.js'
-import {
+import type { LookupCandidate } from '../../src/mneme/mnemeLookup.js'
+import type { StudyCorpus } from '../memory-study/bench-semantic-recall.js'
+
+const ROOT = resolve(import.meta.dir, '..', '..')
+const proofHome = mkdtempSync(join(tmpdir(), 'semantic-study-honest-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+process.env.NODE_ENV = 'test'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+const { fuseRankings, scoreCandidates } = await import('../../src/mneme/mnemeLookup.js')
+const {
   computeModelRows,
   computeWordBaseline,
   evaluateSignalAblation,
@@ -12,14 +23,8 @@ import {
   renderStudyReport,
   selectDiscriminatingSemantic,
   STUDY_FIXTURE_PATH,
-  type StudyCorpus,
-} from '../memory-study/bench-semantic-recall.js'
-import { openRecorder, recordSimilarities } from '../memory-study/record-semantic-similarities.js'
-
-const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR ?? mkdtempSync(join(tmpdir(), 'semantic-study-honest-'))
-process.env.NODE_ENV = 'test'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+} = await import('../memory-study/bench-semantic-recall.js')
+const { openRecorder, recordSimilarities } = await import('../memory-study/record-semantic-similarities.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

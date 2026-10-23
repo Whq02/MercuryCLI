@@ -53,8 +53,8 @@ function contributions(): { hooks: string[]; servers: string[]; skills: string[]
   }
   return {
     hooks,
-    servers: Object.keys(loadServers.getExtensionMcpServers()),
-    skills: loadCommands.getExtensionSkills().map(c => c.name),
+    servers: Object.entries(loadServers.getExtensionMcpServers()).filter(([, config]) => !config.extensionSource?.endsWith('@mercury')).map(([name]) => name),
+    skills: loadCommands.getExtensionSkills().filter(c => !c.extensionInfo?.id.endsWith('@mercury')).map(c => c.name),
     commands: loadCommands.getExtensionCommands().map(c => c.name),
     agents: loadAgents.getExtensionAgents().map(a => a.agentType),
     language: Object.keys(loadLanguage.getExtensionLspServers()),

@@ -1,0 +1,22 @@
+{
+  "name": "filmcraft-cli",
+  "version": "0.12.0",
+  "tag": "v0.12.0",
+  "repository": "https://github.com/storytold/filmcraft",
+  "license": "MIT OR Apache-2.0",
+  "licenseFiles": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "platforms": {
+    "darwin-arm64": {
+      "target": "universal-apple-darwin",
+      "archive": "filmcraft-cli-0.12.0-macos-universal.zip",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/filmcraft-cli-0.12.0-macos-universal.zip",
+      "checksum": "https://github.com/storytold/filmcraft/releases/download/v0.12.0/SHA256SUMS.txt",
+      "sha256": "04f4001afaef16b31f245696808a0393f28d4569e7eda3ee324ae30bf7906310",
+      "bytes": 60896881
+    }
+  },
+  "notes": "Research draft only; companion CLI for filmcraft on macOS. The desktop DMG is not enough for MCP. Digest verified against upstream SHA256SUMS.txt and the downloaded bytes. CLI --version, commands, MCP initialize/tools/list/command_list were exercised; not a GUI attachment proof. Preserve all shipped notices; this ZIP does not include the repository NOTICE; carry it from the same tagged source before distribution."
+}

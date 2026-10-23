@@ -179,8 +179,8 @@ function completion(prompt, opts) {
 
 async function parallel(thunks, opts) {
   const list = Array.from(thunks)
-  if (list.length === 0) return []
   const o = opts || {}
+  if (list.length === 0) return o.settled ? (parallel.results = []) : []
   let width = o.width || (await bridge('width', {})) || 2
   width = Math.max(1, Math.min(Number(width) || 2, list.length))
   const results = new Array(list.length)
@@ -200,6 +200,20 @@ async function parallel(thunks, opts) {
     }
   }
   await Promise.all(Array.from({ length: width }, () => worker()))
+  if (o.settled) {
+    const failed = []
+    parallel.results = states.map((state, i) => {
+      if (state === 'ok') return { ok: true, value: results[i] }
+      failed.push(i)
+      const e = state.error
+      return { ok: false, error: {
+        kind: e instanceof KernelInterrupt || e?.name === 'AbortError' ? 'cancelled' : e?.kind || 'error',
+        name: e?.name || 'Error', message: String(e?.message ?? e),
+      } }
+    })
+    if (failed.length) console.log('Parallel failed indices (0-based): ' + failed.join(', ') + '; results remain in parallel.results.')
+    return parallel.results
+  }
   for (let i = 0; i < states.length; i++) {
     const s = states[i]
     if (s && s !== 'ok') throw s.error // input order preserved; lowest index wins
@@ -382,7 +396,7 @@ rl.on('line', line => {
     if (wait) {
       bridgeWaits.delete(msg.bridgeId)
       if (msg.ok) wait.resolve(msg.value)
-      else wait.reject(new Error(String(msg.error || 'bridge call failed')))
+      else wait.reject(Object.assign(new Error(String(msg.error || 'bridge call failed')), { kind: msg.errorKind || 'error' }))
     }
     return
   }

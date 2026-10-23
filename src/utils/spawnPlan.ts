@@ -1,3 +1,4 @@
+import { windowsBatchTail } from './shell/windowsBatchLine.js'
 import { hostLookupWorld, resolveExecutable, type LookupWorld } from './which.js'
 
 export interface SpawnWorld extends LookupWorld {
@@ -13,12 +14,10 @@ export function hostSpawnWorld(): SpawnWorld {
 }
 
 const BATCH_SHIM = /\.(cmd|bat)$/i
-const CMD_CANNOT_CARRY = /["%!\r\n\0]/
-const CMD_NEEDS_QUOTES = /[\s&|<>^()]/
+const LINE_BREAK = /[\r\n\0]/
 
-function quoteForCmd(word: string): string {
-  if (word === '') return '""'
-  return CMD_NEEDS_QUOTES.test(word) ? `"${word}"` : word
+function cmdCannotCarry(word: string): boolean {
+  return LINE_BREAK.test(word) || windowsBatchTail([word]) === null
 }
 
 export function spawnPlanOf(argv: readonly string[], world: SpawnWorld = hostSpawnWorld()): SpawnPlan {
@@ -29,13 +28,15 @@ export function spawnPlanOf(argv: readonly string[], world: SpawnWorld = hostSpa
   if (world.platform !== 'win32' || !BATCH_SHIM.test(resolved)) {
     return { file: resolved, args, windowsVerbatimArguments: false }
   }
-  const unsafe = [resolved, ...args].find(word => CMD_CANNOT_CARRY.test(word))
-  if (unsafe !== undefined) {
-    return { refused: `${resolved} is a batch file and the word ${JSON.stringify(unsafe)} carries a character cmd.exe would rewrite (a quote, %, ! or a line break) — run the command by hand` }
+  const words = [resolved, ...args]
+  const unsafe = words.find(cmdCannotCarry)
+  const line = unsafe === undefined ? windowsBatchTail(words) : null
+  if (line === null) {
+    return { refused: `${resolved} is a batch file and the word ${JSON.stringify(unsafe ?? resolved)} carries a character cmd.exe would rewrite (a quote, a line break, or a percent pattern it could expand) — run the command by hand` }
   }
   return {
     file: world.comSpec ?? 'cmd.exe',
-    args: ['/d', '/s', '/c', `"${[resolved, ...args].map(quoteForCmd).join(' ')}"`],
+    args: ['/d', '/s', '/v:off', '/c', line],
     windowsVerbatimArguments: true,
   }
 }

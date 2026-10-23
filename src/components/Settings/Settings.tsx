@@ -3,12 +3,12 @@ import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { useNotifications, type Notification } from '../../context/notifications.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useExitOnCtrlCD } from '../../hooks/useExitOnCtrlCD.js'
-import { Box, Text, wrapText } from '../../ink.js'
+import { Box, Text } from '../../ink.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { Message } from '../../types/message.js'
 import { PopupCompactContext } from '../../context/popupFormContext.js'
-import { SETTINGS_POPUP_COMPACT_HINT, SETTINGS_POPUP_COMPACT_PAGE_HINT, closeSettingsPopup, settingsPopupHintText, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+import { SETTINGS_POPUP_COMPACT_HINT, SETTINGS_POPUP_COMPACT_PAGE_HINT, closeSettingsPopup, settingsPopupHintText, wrapSettingsPopupHint, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
 import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
@@ -113,7 +113,8 @@ export function Settings({
   const folded = tight || compact
   const hintText = settingsPopupHintText(hint ?? request.hint, inner)
   const compactHint = inner >= ('Mercury · ' + view + ' · ' + SETTINGS_POPUP_COMPACT_PAGE_HINT).length + 1 + String(marker ?? '').length + 1 ? SETTINGS_POPUP_COMPACT_PAGE_HINT : SETTINGS_POPUP_COMPACT_HINT
-  const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), wrapText(hintText, Math.max(1, inner + 1), 'wrap').split('\n').length)
+  const hintLines = wrapSettingsPopupHint(hintText, Math.max(1, inner + 1))
+  const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), hintLines.length)
   const bodyBudget = Math.max(1, geometry.rowBudget - Math.max(0, hintRows - 1))
   return (
     <Box
@@ -150,8 +151,10 @@ export function Settings({
         </SettingsPopupFrameContext.Provider>
       </Box>
       <Box height={folded ? 0 : 1} flexShrink={0} />
-      <Box height={hintRows} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden">
-        <Text color={tok.textMuted} wrap="wrap">{hintText}</Text>
+      <Box height={hintRows} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden" flexDirection="column">
+        {hintLines.slice(0, Math.max(1, hintRows)).map((text, index) => (
+          <Text key={index} color={tok.textMuted} wrap="truncate-end">{text}</Text>
+        ))}
       </Box>
     </Box>
   )

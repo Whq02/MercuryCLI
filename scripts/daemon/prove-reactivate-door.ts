@@ -216,7 +216,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
 {
   const crashedSid = sid('d1')
   const wsId = sup.canonicalWorkspaceId(wsD)
-  seedRecord({ runnerId: 'concourse-w5', sessionId: crashedSid, workspaceId: wsId, pid: DEAD_PID, crash: { at: now - T, reason: 'crashed — found dead with its daemon', respawning: false }, title: 'the crashed chat' })
+  seedRecord({ runnerId: 'concourse-w5', sessionId: crashedSid, workspaceId: wsId, pid: DEAD_PID, crash: { at: now - T, reason: 'crashed — ended unexpectedly', respawning: false }, title: 'the crashed chat' })
   roster.refuseRegister = true
   const res = await admit({ workspaceDir: wsD, resumeSessionId: crashedSid })
   roster.refuseRegister = false

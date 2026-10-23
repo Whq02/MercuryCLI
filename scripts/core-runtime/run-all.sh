@@ -92,6 +92,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-reminder.
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-cycle.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-cycle.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-headless.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-headless.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-chant.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-chant.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-failures.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-failures.ts "$__t" "$__rc"
 
 echo "── core-runtime: a byte-identical repeated tool result is a pointer to the earlier call (the transcript keeps the text)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-repeated-result-pointer.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-repeated-result-pointer.ts "$__t" "$__rc"

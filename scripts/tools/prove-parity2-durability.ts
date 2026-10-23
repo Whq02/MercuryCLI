@@ -91,9 +91,9 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     stallError = error
   }
   const stallMessage = stallError instanceof Error ? stallError.message : String(stallError)
-  t('a stalled tools/call settles as the typed stalled error', /stalled: no result and no progress/.test(stallMessage), stallMessage)
+  t('a stalled tools/call settles as an unknown outcome', /unknown outcome/.test(stallMessage), stallMessage)
   t('the stall settles at the idle limit, not the total cap', Date.now() - startedAt < 5_000)
-  t('the error names the tuning knob', /MERCURY_MCP_CALL_IDLE_MINUTES/.test(stallMessage))
+  t('the error names the action and inspection before retrying', /tool "stall" on server "prover".*inspect the effect before retrying/.test(stallMessage))
 
   const slow = await callMCPToolWithUrlElicitationRetry({
     client: connection as never,

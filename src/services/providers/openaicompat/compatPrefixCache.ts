@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, unlinkSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
@@ -12,13 +12,17 @@ const tokens = (value: unknown): value is number => typeof value === 'number' &&
 export function noteCompatPrefixCache(endpoint: { baseUrl: string }, model: string, usage: CompatUsage | undefined): void {
   try {
     const path = cachePath(endpoint.baseUrl)
-    if (!usage || !tokens(usage.inputTokens) || usage.inputTokens === 0 || !tokens(usage.cachedInputTokens) || usage.cachedInputTokens > usage.inputTokens) {
-      try { unlinkSync(path) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
-      return
-    }
+    const measured = Boolean(usage && tokens(usage.inputTokens) && usage.inputTokens > 0 && tokens(usage.cachedInputTokens) && usage.cachedInputTokens <= usage.inputTokens)
     mkdirSync(join(getMercuryHome(), 'cache', 'compat-prefix'), { recursive: true, mode: 0o700 })
-    publishAtomicSync(path, JSON.stringify({ model, total: usage.inputTokens, cached: usage.cachedInputTokens, at: Date.now() }) + '\n', { mode: 0o600 })
+    publishAtomicSync(path, JSON.stringify({ model, ...(measured ? { total: usage!.inputTokens, cached: usage!.cachedInputTokens } : {}), at: Date.now() }) + '\n', { mode: 0o600 })
   } catch (error) { logForDebugging(`Prefix cache reading could not be saved: ${String(error)}`, { level: 'warn' }) }
+}
+
+export function compatEndpointLastTurnAt(endpoint: { baseUrl: string }): number | undefined {
+  try {
+    const row = JSON.parse(readFileSync(cachePath(endpoint.baseUrl), 'utf8')) as { at?: unknown }
+    return typeof row.at === 'number' && Number.isFinite(row.at) ? row.at : undefined
+  } catch { return undefined }
 }
 
 export function compatPrefixCacheWords(endpoint: { baseUrl: string }, now = Date.now()): string {

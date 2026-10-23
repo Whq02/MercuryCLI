@@ -197,7 +197,7 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
   check('the spawn plan module exists', planner !== null)
   const plan = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'dockerfile-language-server-nodejs'], win32) : null
   check('the plan resolves npm to npm.cmd (PATHEXT), never the extensionless script', plan !== null && 'file' in plan && plan.file === win32.comSpec, JSON.stringify(plan))
-  check('a .cmd rides cmd.exe /d /s /c with the whole line quoted once and every word carried verbatim', plan !== null && 'file' in plan && JSON.stringify(plan.args) === JSON.stringify(['/d', '/s', '/c', `""${join(WINBIN, 'npm.cmd')}" i -g dockerfile-language-server-nodejs"`]) && plan.windowsVerbatimArguments === true, JSON.stringify(plan))
+  check('a .cmd rides cmd.exe /d /s /v:off /c with the whole line quoted once and every word in its own quotes (the batch composer\'s line; scripts/lsp/prove-spawn-plan-cmd-line.ts holds the table)', plan !== null && 'file' in plan && JSON.stringify(plan.args) === JSON.stringify(['/d', '/s', '/v:off', '/c', `""${join(WINBIN, 'npm.cmd')}" "i" "-g" "dockerfile-language-server-nodejs""`]) && plan.windowsVerbatimArguments === true, JSON.stringify(plan))
   const docker = harness({ onRun: () => { fakeBinary('docker-langserver') } })
   const code = verb ? await verb.lspInstallCli('docker-langserver', { yes: true, world: win32 } as never, docker.io) : -1
   check('the door installs the npm server on the win32 world: the remedy shown, the plan run once, the binary reported', code === 0 && docker.out[0] === 'Install Dockerfile LS (dockerfile) by running:' && docker.out[1] === '  npm i -g dockerfile-language-server-nodejs' && docker.plans.length === 1 && docker.plans[0]!.file === win32.comSpec && docker.out[2]?.startsWith('Installed Dockerfile LS: ') === true, `${code} ${text(docker.out)}\n${text(docker.err)}`)
@@ -206,7 +206,7 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
   const goPlan = planner ? planner.spawnPlanOf(['go', 'install', 'golang.org/x/tools/gopls@latest'], win32) : null
   check('a .exe tool is spawned directly by its resolved path, with its own argv and no cmd.exe', goPlan !== null && 'file' in goPlan && goPlan.file === join(WINBIN, 'go.exe') && JSON.stringify(goPlan.args) === JSON.stringify(['install', 'golang.org/x/tools/gopls@latest']) && goPlan.windowsVerbatimArguments === false, JSON.stringify(goPlan))
   const spaced = planner ? planner.spawnPlanOf(['npm', 'i', '-g', '@vue/language-server'], win32) : null
-  check('a path with a space is quoted inside the cmd.exe line; a scoped package name passes unquoted', spaced !== null && 'file' in spaced && spaced.args[3] === `""${join(WINBIN, 'npm.cmd')}" i -g @vue/language-server"`, JSON.stringify(spaced))
+  check('a path with a space rides in its own quotes like every other word; a scoped package name is quoted too', spaced !== null && 'file' in spaced && spaced.args[4] === `""${join(WINBIN, 'npm.cmd')}" "i" "-g" "@vue/language-server""`, JSON.stringify(spaced))
   rmSync(join(WINBIN, 'npm.cmd'))
   const bareOnly = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'x'], win32) : null
   check('with only the extensionless npm present the walk answers that file and no cmd.exe ride is invented', bareOnly !== null && 'file' in bareOnly && bareOnly.file === join(WINBIN, 'npm') && bareOnly.windowsVerbatimArguments === false, JSON.stringify(bareOnly))
@@ -214,9 +214,13 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
   const posix = planner ? planner.spawnPlanOf(['npm', 'i', '-g', 'x'], { platform: 'darwin', path: WINBIN }) : null
   check('off win32 a .cmd is never a spelling: the same PATH answers not-on-PATH', posix !== null && 'refused' in posix && posix.missing === 'npm', JSON.stringify(posix))
   console.log('refusals')
-  for (const word of ['50%off', 'say "hi"', 'two\nlines', 'bang!']) {
+  for (const word of ['say "hi"', 'two\nlines', 'a%FOO%b%CD%c']) {
     const unsafe = planner ? planner.spawnPlanOf(['npm', 'i', word], win32) : null
     check(`a word cmd.exe would rewrite (${JSON.stringify(word)}) refuses the batch road, nothing spawned`, unsafe !== null && 'refused' in unsafe && unsafe.missing === undefined && unsafe.refused.includes('cmd.exe would rewrite'), JSON.stringify(unsafe))
+  }
+  for (const word of ['50%off', 'bang!', '%FOO%', 'C:\\dir\\']) {
+    const carried = planner ? planner.spawnPlanOf(['npm', 'i', word], win32) : null
+    check(`a word the batch composer carries literally (${JSON.stringify(word)}) rides the cmd.exe line`, carried !== null && 'file' in carried && carried.file === win32.comSpec, JSON.stringify(carried))
   }
   const noTool = planner ? planner.spawnPlanOf(['', 'x'], win32) : null
   check('an empty program word is refused', noTool !== null && 'refused' in noTool, JSON.stringify(noTool))

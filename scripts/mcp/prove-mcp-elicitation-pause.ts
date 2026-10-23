@@ -32,8 +32,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-const stalledLine = /stalled: no result and no progress for /
-const knob = /MERCURY_MCP_CALL_IDLE_MINUTES/
+const stalledLine = /unknown outcome/
+const recovery = /inspect the effect before retrying/
 
 const proofWatchdog = setTimeout(() => {
   console.log('\nTIMEOUT — the elicitation-pause prover exceeded 90s')
@@ -180,7 +180,7 @@ let redText = ''
   )
   const message = messageOf(outcome)
   check('row 3: a silent server with no question outstanding stalls exactly as today (the typed stalled line)', stalledLine.test(message), message || textOf(outcome))
-  check('the stalled line still names the knob', knob.test(message), message)
+  check('the unknown outcome asks for inspection before retrying', recovery.test(message), message)
   check('the stall settles at the idle limit, not later', outcome.settleMs < 5000, `${outcome.settleMs}ms`)
 }
 {
@@ -258,7 +258,7 @@ section('C. an in-process loopback server (the same client road, the SDK server 
     const outcome = await pending
     const message = messageOf(outcome)
     check('row 2: answered late, then silent for a further limit — the typed deadline still fires', stalledLine.test(message), message || textOf(outcome))
-    check('…and its advice still names the knob', knob.test(message), message)
+    check('…and its advice asks for inspection before retrying', recovery.test(message), message)
     check('…and it fired after the answer, not while the question was open', outcome.settleMs >= HOLD_MS, `settled at ${outcome.settleMs}ms (the answer landed at ${HOLD_MS}ms)`)
   }
   {

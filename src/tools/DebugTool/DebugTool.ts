@@ -1,5 +1,9 @@
 
 import { existsSync } from 'node:fs'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { AssistantMessage } from '../../types/message.js'
+import { DapCancelledError, throwIfDapAborted } from '../../services/dap/dapCancellation.js'
+import { createDapTerminalRunner, type DapTerminalRunner } from '../../services/dap/dapTerminal.js'
 import { whichSync } from '../../utils/which.js'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
@@ -85,6 +89,7 @@ const inputSchema = lazySchema(() =>
     program: z.string().optional().describe('Program path for launch'),
     args: z.array(z.string()).optional().describe('Program arguments for launch'),
     stopOnEntry: semanticBoolean(z.boolean().optional()).describe('Stop at the first instruction (launch)'),
+    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Deadline in milliseconds for a stop wait (default 10000; longer waits are allowed)'),
     file: z.string().optional().describe('Source file for breakpoints'),
     lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('Breakpoint lines (replaces the set for the file; [] clears the file\'s breakpoints on every session)'),
     breakpoints: z
@@ -300,10 +305,11 @@ async function formatStackTop(session: DapSession, threadId: number, depth = 3):
     .join('\n')
 }
 
-async function reportStop(root: DapSession, label: string, sinceStamp = 0): Promise<OpResult> {
-  const outcome = await root.waitForStopOutcome(10_000, undefined, sinceStamp)
+async function reportStop(root: DapSession, label: string, sinceStamp = 0, timeoutMs = 10_000, signal?: AbortSignal): Promise<OpResult> {
+  const outcome = await root.waitForStopOutcome(timeoutMs, signal, sinceStamp)
+  if (outcome.state === 'aborted') throw new DapCancelledError()
   if (outcome.state === 'terminated') {
-    await root.drainOutput()
+    await root.drainOutput(200, 1_000, signal)
     const tail = root.output.slice(-8).join('\n')
     return {
       result: `${label}: debuggee terminated (${root.exitDetail || 'clean exit'})${tail ? `\noutput:\n${tail}` : ''}`,
@@ -311,9 +317,9 @@ async function reportStop(root: DapSession, label: string, sinceStamp = 0): Prom
       debuggee: 'terminated',
     }
   }
-  if (outcome.state === 'timeout' || outcome.state === 'aborted') {
+  if (outcome.state === 'timeout') {
     return {
-      result: `${label}: still running after 10s — op:"pause" to interrupt, op:"output" to inspect`,
+      result: `${label}: still running after ${timeoutMs % 1000 === 0 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`} — op:"pause" to interrupt, op:"output" to inspect`,
       outcome: 'succeeded',
       debuggee: 'running',
     }
@@ -450,7 +456,7 @@ function verdictText(verdict: { verified: boolean; message?: string } | undefine
   return `${verdict?.verified ? 'verified' : 'UNVERIFIED'}${verdict?.message ? ` (${verdict.message})` : ''}`
 }
 
-export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string; env?: Record<string, string>; module?: string } = {}): Promise<OpResult> {
+export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string; env?: Record<string, string>; module?: string; signal?: AbortSignal; terminalRunner?: DapTerminalRunner } = {}): Promise<OpResult> {
   const sessionId = input.session ?? 'main'
   const attach = input.op === 'attach'
   const program = input.program
@@ -472,8 +478,11 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
   }
   const displayProgram =
     program ?? (input.pid !== undefined ? `pid ${input.pid}` : `${input.host ?? '127.0.0.1'}:${input.port}`)
+  throwIfDapAborted(opts.signal)
   const session = await createDapSession({
     owner,
+    signal: opts.signal,
+    terminalRunner: opts.terminalRunner,
     id: sessionId,
     adapterKey,
     program: program
@@ -520,7 +529,7 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
       : ''
   const verb = attach ? 'attached to' : 'launched'
   if (input.stopOnEntry || breakpoints.size || attach) {
-    const stop = await reportStop(session, 'first stop')
+    const stop = await session.withOperation(opts.signal, () => reportStop(session, 'first stop', 0, input.timeoutMs, opts.signal))
     const bpDetail = bpDetailNow()
     const bpNote = bpDetail ? `breakpoints — ${bpDetail};${caveat} ` : caveat ? `${caveat} ` : ''
     return {
@@ -539,12 +548,13 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
   }
 }
 
-async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
+async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, terminalRunner?: DapTerminalRunner): Promise<OpResult> {
+  throwIfDapAborted(signal)
   const sessionId = input.session ?? 'main'
   switch (input.op) {
     case 'launch':
     case 'attach':
-      return runDebugLaunch(input, owner)
+      return runDebugLaunch(input, owner, { signal, terminalRunner })
     case 'breakpoints': {
       const r = requireSession(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
@@ -770,7 +780,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
         threadId,
         ...(wantsInstruction ? { granularity: 'instruction' } : {}),
       })
-      return await reportStop(r.root, wantsInstruction ? `${input.op} (instruction)` : input.op, sinceStamp)
+      return await reportStop(r.root, wantsInstruction ? `${input.op} (instruction)` : input.op, sinceStamp, input.timeoutMs, signal)
     }
     case 'restart': {
       const r = requireSession(owner, sessionId)
@@ -785,7 +795,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       const sinceStamp = r.session.treeNewestStopStamp()
       r.session.lastStopped = null
       await r.session.request('restart', {})
-      return await reportStop(r.session, 'restart', sinceStamp)
+      return await reportStop(r.session, 'restart', sinceStamp, input.timeoutMs, signal)
     }
     case 'disassemble': {
       const r = requireTarget(owner, sessionId)
@@ -1006,7 +1016,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
       const threadId = await resolveThreadId(r.target, input.threadId)
       const sinceStamp = r.root.treeNewestStopStamp()
       await r.target.request('pause', { threadId })
-      return await reportStop(r.root, 'pause', sinceStamp)
+      return await reportStop(r.root, 'pause', sinceStamp, input.timeoutMs, signal)
     }
     case 'output': {
       const r = requireSession(owner, sessionId)
@@ -1087,7 +1097,8 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
     }
     case 'disconnect': {
       const detached = getDapSession(owner, sessionId)?.startMode === 'attach'
-      const removed = await removeDapSession(owner, sessionId)
+      const session = getDapSession(owner, sessionId)
+      const removed = await removeDapSession(owner, sessionId, signal)
       if (!removed) return { result: `no session '${sessionId}' to disconnect`, outcome: 'no-change' }
       return detached
         ? {
@@ -1098,6 +1109,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
         : {
             result: `session '${sessionId}' disconnected (debuggee terminated, adapter reaped)`,
             outcome: 'succeeded',
+            ...(session ? { details: { terminalCleanup: session.terminalCleanup } } : {}),
             debuggee: 'terminated',
           }
     }
@@ -1346,14 +1358,22 @@ export const DebugTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, canUseTool?: CanUseToolFn, assistantMessage?: AssistantMessage) {
     const owner = ownerFromToolUseContext(context)
     const startedAt = Date.now()
     let op: OpResult
+    const signal = context.abortController?.signal
+    const terminalRunner = createDapTerminalRunner(context, canUseTool, assistantMessage)
     try {
-      op = await runOp(input, owner)
+      const session = getDapSession(owner, input.session ?? 'main')
+      session?.setTerminalRunner(terminalRunner)
+      const run = () => runOp(input, owner, signal, terminalRunner)
+      op = session ? await session.withOperation(signal, run) : await run()
+      throwIfDapAborted(signal)
     } catch (err) {
-      op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+      op = signal?.aborted || err instanceof DapCancelledError
+        ? { result: `${input.op} cancelled; a started debuggee may still be running — op:"status" to inspect, op:"disconnect" to end it`, outcome: 'failed', details: { cancelled: true } }
+        : { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
     }
     const output: Output = {
       op: input.op,

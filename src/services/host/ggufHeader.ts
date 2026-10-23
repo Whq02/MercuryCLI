@@ -1,7 +1,7 @@
 import engineTable from '../../../assets/host/llamacpp-engine.json' with { type: 'json' }
 
-interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, string | number | boolean>; tensors: string[]; headerBytes: number }
-interface EngineTable { llamacpp: string; architectures: string[]; tensors: string[] }
+interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, string | number | boolean>; tensors: string[]; types?: number[]; headerBytes: number }
+interface EngineTable { llamacpp: string; architectures: string[]; tensors: string[]; types: Record<string, number>; typeCount: number }
 type GgufParse = { state: 'ok'; header: GgufHeader } | { state: 'more' } | { state: 'bad'; reason: string }
 type GgufHeaderRead = { ok: true; header: GgufHeader; bytes: number } | { ok: false; status?: number; words: string; bad?: boolean }
 export type GgufEngineCheck = { state: 'known' | 'unknown' | 'unread'; words: string }
@@ -9,6 +9,7 @@ interface GgufReadOptions { token?: string; signal?: AbortSignal; timeoutMs?: nu
 
 export const LLAMACPP_ENGINE_TABLE: EngineTable = engineTable
 const GGUF_HEADER_CAP = 64 * 1024 * 1024
+const GGML_MAX_DIMS = 4
 const FIRST_CHUNK = 256 * 1024
 const READ_TIMEOUT_MS = 20_000
 const SCALAR_SIZE: Readonly<Record<number, number>> = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 }
@@ -81,16 +82,19 @@ export function parseGgufHeader(bytes: Uint8Array): GgufParse {
       else kv[key] = cursor.scalar(type)
     }
     const tensors: string[] = []
+    const types: number[] = []
     for (let i = 0; i < tensorCount; i++) {
-      tensors.push(cursor.string())
+      const name = cursor.string()
       const dims = cursor.u32()
-      if (dims > 8) return { state: 'bad', reason: 'a tensor claims ' + dims + ' dimensions' }
+      if (dims > GGML_MAX_DIMS) return { state: 'bad', reason: 'tensor ' + name + ' claims ' + dims + ' dimensions; llama.cpp reads at most ' + GGML_MAX_DIMS }
       for (let d = 0; d < dims; d++) cursor.u64()
-      cursor.u32()
+      const type = cursor.u32()
       cursor.u64()
+      tensors.push(name)
+      types.push(type)
     }
     const architecture = typeof kv['general.architecture'] === 'string' ? kv['general.architecture'] : undefined
-    return { state: 'ok', header: { version, tensorCount, ...(architecture ? { architecture } : {}), kv, tensors, headerBytes: cursor.pos } }
+    return { state: 'ok', header: { version, tensorCount, ...(architecture ? { architecture } : {}), kv, tensors, types, headerBytes: cursor.pos } }
   } catch (error) {
     if (error instanceof NeedMore) return { state: 'more' }
     return { state: 'bad', reason: error instanceof Error ? error.message : String(error) }
@@ -99,16 +103,56 @@ export function parseGgufHeader(bytes: Uint8Array): GgufParse {
 
 export const tensorFamily = (name: string): string => name.replace(/\.(?:weight|bias)$/, '').split('.').map(segment => /^\d+$/.test(segment) ? 'N' : segment).join('.')
 
+const architectureFault = (architecture: string | undefined, table: EngineTable): string | undefined =>
+  !architecture ? 'its header names no architecture'
+    : !table.architectures.includes(architecture) ? 'its architecture "' + architecture + '" is not known to llama.cpp ' + table.llamacpp.slice(0, 7) + ' · a newer llama.cpp is needed'
+    : undefined
+
+function tensorTypeFault(headers: readonly GgufHeader[], table: EngineTable): string | undefined {
+  const known = new Set(Object.values(table.types))
+  for (const header of headers) {
+    const types = header.types ?? []
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i]!
+      if (known.has(type)) continue
+      const example = ' (e.g. ' + header.tensors[i] + ')'
+      return type >= table.typeCount ? 'tensor type ' + type + ' is unknown to llama.cpp ' + table.llamacpp.slice(0, 7) + example + ' · a newer llama.cpp is needed'
+        : 'tensor type ' + type + ' was removed from llama.cpp' + example + ' · look for another quantisation of this model'
+    }
+  }
+  return undefined
+}
+
+function shardFault(headers: readonly GgufHeader[]): string | undefined {
+  const seen = new Set<string>()
+  for (const header of headers) for (const name of header.tensors) { if (seen.has(name)) return "tensor '" + name + "' appears twice"; seen.add(name) }
+  const count = Number(headers[0]?.kv['split.count'] ?? 1)
+  if (!(count > 1)) return undefined
+  if (headers.length !== count) return 'split.count names ' + count + ' shards but ' + headers.length + ' header' + (headers.length === 1 ? ' was' : 's were') + ' read'
+  for (const [index, header] of headers.entries()) {
+    const no = header.kv['split.no']
+    if (no !== index) return 'shard ' + (index + 1) + ' of ' + count + ' carries split.no ' + (no === undefined ? 'nothing' : String(no)) + ' · llama.cpp expects ' + index
+  }
+  const declared = headers[0]!.kv['split.tensors.count']
+  if (typeof declared !== 'number') return 'the first shard names no split.tensors.count'
+  if (declared !== seen.size) return 'split.tensors.count names ' + declared + ' tensors but the ' + count + ' shards carry ' + seen.size
+  return undefined
+}
+
 export function compareGgufWithEngine(headers: readonly GgufHeader[], table: EngineTable = LLAMACPP_ENGINE_TABLE): { ok: boolean; words: string } {
   const short = table.llamacpp.slice(0, 7)
-  const architecture = headers.find(header => header.architecture)?.architecture
-  if (!architecture) return { ok: false, words: 'engine cannot load this file: its header names no architecture' }
-  if (!table.architectures.includes(architecture)) return { ok: false, words: 'engine cannot load this file: its architecture "' + architecture + '" is not known to llama.cpp ' + short + ' · a newer llama.cpp is needed' }
+  const architecture = headers[0]?.architecture
+  const fault = architectureFault(architecture, table)
+  if (fault) return { ok: false, words: 'engine cannot load this file: ' + fault }
   const names = headers.flatMap(header => header.tensors)
   const families = [...new Set(names.map(tensorFamily))]
   const known = new Set(table.tensors)
   const unknown = families.filter(family => !known.has(family))
   if (unknown.length) return { ok: false, words: 'engine cannot load this file: ' + unknown.length + ' tensor famil' + (unknown.length === 1 ? 'y is' : 'ies are') + ' unknown to llama.cpp ' + short + ' (e.g. ' + unknown[0] + ') · a newer llama.cpp is needed' }
+  const type = tensorTypeFault(headers, table)
+  if (type) return { ok: false, words: 'engine cannot load this file: ' + type }
+  const shard = shardFault(headers)
+  if (shard) return { ok: false, words: 'engine cannot load this file: ' + shard }
   return { ok: true, words: 'header read · architecture ' + architecture + ' · ' + names.length + ' tensors in ' + families.length + ' families, all known to llama.cpp ' + short }
 }
 
@@ -188,9 +232,13 @@ export async function checkGgufAgainstEngine(base: string, repo: string, revisio
     if (first.status === 401 || first.status === 403) return unread('Hugging Face answered HTTP ' + first.status + ' for the file header (gated · sign in with /logins huggingface or accept the terms at https://huggingface.co/' + repo + ')')
     return unread(first.words)
   }
+  const early = architectureFault(first.header.architecture, table)
+  if (early) return { state: 'unknown', words: 'engine cannot load this file: ' + early }
   const headers = [first.header]
   const splits = Number(first.header.kv['split.count'] ?? 1)
-  const sharded = /-00001-of-\d{5}\.gguf$/i.test(weightFile)
+  const named = /-00001-of-(\d{5})\.gguf$/i.exec(weightFile)
+  const sharded = named !== null
+  if (named && Number(named[1]) !== splits) return { state: 'unknown', words: 'engine cannot load this file: its name says ' + Number(named[1]) + ' shards but ' + (first.header.kv['split.count'] === undefined ? 'its header names no split.count' : 'split.count says ' + splits) }
   if (sharded && Number.isInteger(splits) && splits > 1) {
     for (let index = 2; index <= splits; index++) {
       const shard = await readGgufHeader(hubFileUrl(base, repo, revision, shardPath(weightFile, index)), options)

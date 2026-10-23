@@ -991,7 +991,7 @@ export async function rewindSession(
   req: { mode: SessionRewindMode; userMessageId: string; dryRun?: boolean },
   roster: SeatRosterPort,
   dir?: string,
-  opts?: { deadlineMs?: number },
+  opts?: { deadlineMs?: number; fileRestore?: import('./protocol.js').SessionFileRestoreRequest },
 ): Promise<SessionRewindOutcomeV1> {
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return refusedRewind(req.mode, 'unknown-session', 'no live worker record owns this session')
@@ -999,7 +999,14 @@ export async function rewindSession(
     return refusedRewind(req.mode, 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
   }
   const deadlineMs = opts?.deadlineMs ?? REWIND_ANSWER_DEADLINE_MS
-  const asked = await askSeat(roster, rec.runnerId, 'session/rewind', { user_message_id: req.userMessageId, mode: req.mode, ...(req.dryRun === true ? { dry_run: true } : {}) }, 'rewind', deadlineMs)
+  const fileRestore = opts?.fileRestore
+  const asked = fileRestore === undefined
+    ? await askSeat(roster, rec.runnerId, 'session/rewind', { user_message_id: req.userMessageId, mode: req.mode, ...(req.dryRun === true ? { dry_run: true } : {}) }, 'rewind', deadlineMs)
+    : await askSeat(roster, rec.runnerId, 'session/file_restore', {
+        user_message_id: fileRestore.userMessageId,
+        ...(fileRestore.action === 'restore' ? { action: 'restore', file_path: fileRestore.filePath } : { action: 'undo' }),
+        ...(fileRestore.dryRun === true ? { dry_run: true } : {}),
+      }, 'rewind', deadlineMs)
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   if (asked.ok) {
     const outcome = rewindOutcomeFromWire(asked.result)

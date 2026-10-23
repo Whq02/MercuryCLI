@@ -9,7 +9,7 @@ import { hostWeightManifestSchema } from './recipesFile.js'
 import type { HostRecord } from './store.js'
 import { patchHostRecord, removeHostRecord } from './store.js'
 import { hostNotice } from './notices.js'
-import { fullCheckMinutes, gigabytes, keptDiskPrice, keptVolumes, matchesVolume, readKeptVolume, volumeModel, volumePrice, writeKeptVolume } from './volumes.js'
+import { fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, readKeptVolume, volumeModel, volumePrice, writeKeptVolume } from './volumes.js'
 import { bankFolder, bankModelPath } from './bank.js'
 import { bankManifest, bytesMatchRecipe, manifestBytes, type BankManifest } from './bankManifest.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
@@ -264,7 +264,7 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
     }
     throw failure
   } finally {
-    if (record.prepareWeightsOnly) {
+    if (record.prepareWeightsOnly && !failure) {
       try {
         await terminateVerified(api, record.id, cleanupRead, label)
         removeHostRecord(record.id)
@@ -272,15 +272,14 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
         if (error instanceof HostTerminationUnconfirmed) throw error
         const disk = readKeptVolume(volume.id) ?? volume
         const plain = (value: unknown): string => (value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
-        const words = (failure ? plain(failure) : 'Weights preparation finished') + ' · Mercury could not verify ' + unit + ' termination: ' + plain(error) + ' · check your account; ' + unit + ' ' + record.id + ' may still bill · ' + diskWord + ' ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Machines I’m paying for → Terminate'
+        const words = 'Weights preparation finished · Mercury could not verify ' + unit + ' termination: ' + plain(error) + ' · check your account; ' + unit + ' ' + record.id + ' may still bill · ' + diskWord + ' ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Machines I’m paying for → Terminate'
         patchHostRecord(record.id, { jobState: 'failed', error: words, prepareWeightsOnly: true })
         hostNotice(record, 'failed', recipe.label + ' · ' + words)
         throw new HostPreparationCleanupFailed(words)
       }
       const disk = readKeptVolume(volume.id)
       if (disk?.preparingPod === record.id) writeKeptVolume({ ...disk, preparingPod: undefined })
-      if (disk && failure) hostNotice(record, 'failed', recipe.label + ' · preparation stopped: ' + (disk.error ?? String(failure)) + ' · temporary ' + unit + ' ' + record.id + ' terminated and verified absent (' + label + ' no longer lists it) · ' + diskWord + ' ' + disk.id + ' is kept ' + (disk.partialBytes === undefined ? '' : 'with ' + gigabytes(disk.partialBytes) + ' downloaded ') + 'and bills ' + keptDiskPrice(disk) + ' · /llmhost → Bank → d deletes the disk, or the next rental downloads again')
-      else if (disk) hostNotice(record, 'prepared', recipe.label + ' · weights kept on ' + (disk.kind === 'vast' ? 'Vast.ai machine ' + disk.machineId + ' (volume ' + disk.id + ')' : disk.id) + ' (' + (disk.verifiedSums?.check ?? 'full') + ' check passed) · temporary ' + unit + ' ' + record.id + ' terminated (' + label + ' no longer lists it) · the ' + (disk.kind === 'vast' ? 'volume bills ' + keptDiskPrice(disk) : 'disk bills ' + volumePrice(disk) + ' without a pod'))
+      if (disk) hostNotice(record, 'prepared', recipe.label + ' · weights kept on ' + (disk.kind === 'vast' ? 'Vast.ai machine ' + disk.machineId + ' (volume ' + disk.id + ')' : disk.id) + ' (' + (disk.verifiedSums?.check ?? 'full') + ' check passed) · temporary ' + unit + ' ' + record.id + ' terminated (' + label + ' no longer lists it) · the ' + (disk.kind === 'vast' ? 'volume bills ' + keptDiskPrice(disk) : 'disk bills ' + volumePrice(disk) + ' without a pod'))
     }
   }
 }

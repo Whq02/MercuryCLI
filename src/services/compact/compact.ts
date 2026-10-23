@@ -108,7 +108,7 @@ export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
-  'This conversation could not be folded: the summariser itself was refused as too long even for its smallest part. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
+  'This conversation could not be compacted: the summariser itself was refused as too long even for its smallest part. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
 export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
   'Compaction was interrupted before a summary arrived — likely a network issue; try again.'
@@ -204,7 +204,7 @@ export function foldRemedyIsHeadless(isNonInteractiveSession: boolean | undefine
   return isNonInteractiveSession === true && !canAnswerAsks()
 }
 
-export const FOLD_WINDOW_REFUSAL_KEY = "the fold cannot run on this model's window"
+export const FOLD_WINDOW_REFUSAL_KEY = "compaction cannot run on this model's window"
 
 export function foldWindowRefusalText(facts: { window: number; sourceWords: string; estTokens: number; remedy: string }): string {
   return `${FOLD_WINDOW_REFUSAL_KEY} (${facts.window.toLocaleString('en-US')} tokens, ${facts.sourceWords}): its own request (≈${Math.round(facts.estTokens / 1000)}k tokens) does not fit and the server would silently truncate it. ${facts.remedy}.`
@@ -661,10 +661,10 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
 
 function obligationsOverThresholdMessage(estimate: number, threshold: number): string {
   return (
-    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fold's fixed material (${estimate} tokens: the system prompt and the tool definitions this ` +
-    `request carries, this stretch's operator messages and the fold ledger) exceeds the window's ceiling (${threshold} tokens, the fold threshold) — ` +
-    `no fold can land here, so no summary was requested and the original context is kept whole; nothing moved. Start a fresh conversation with /clear, ` +
-    `or seat a model with a larger window.`
+    `${ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD}: the fixed material (${estimate} tokens: the system prompt, the tool definitions ` +
+    `and this stretch's messages) exceeds the window's ceiling (${threshold} tokens) — ` +
+    `compaction cannot run here, so no summary was requested and the original context is kept whole; nothing moved. Start a fresh conversation with /clear, ` +
+    `or switch to a model with a larger window.`
   )
 }
 
@@ -1083,7 +1083,7 @@ function proseSkippedNote(cause: string): string {
 }
 
 function proseSkippedLine(cause: string): string {
-  return `${proseSkippedNote(cause)} The folded stretch is carried by Mercury's own records below (the run capsule, the folded work, the memory note and the fold ledger).`
+  return `${proseSkippedNote(cause)} The earlier stretch is preserved in the records below.`
 }
 
 export function summaryRefusedByModel(response: AssistantMessage): boolean {

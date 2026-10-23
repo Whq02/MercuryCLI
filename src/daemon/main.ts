@@ -635,6 +635,10 @@ async function daemonRun(args: string[]): Promise<void> {
           reap(2000)
           return { settled, killed }
         },
+        sessionFileRestore: async req => {
+          if (roster === null) return { outcome: 'refused' as const, mode: 'code' as const, refusal: 'no-channel' as const, detail: 'daemon roster not ready' }
+          return rewindSession(req.sessionId, { mode: 'code', userMessageId: req.userMessageId }, roster, undefined, { fileRestore: req })
+        },
         sessionRewind: async req => {
           if (roster === null) {
             return { outcome: 'refused' as const, mode: req.mode, refusal: 'no-channel' as const, detail: 'daemon roster not ready' }

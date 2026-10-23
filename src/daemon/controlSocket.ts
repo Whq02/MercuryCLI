@@ -265,6 +265,7 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'sessionControl',
   'sessionRelease',
   'sessionRewind',
+  'sessionFileRestore',
   'concourseAdmit',
   'concourseDispatch',
   'concourseList',

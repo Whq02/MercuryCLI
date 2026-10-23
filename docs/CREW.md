@@ -196,8 +196,9 @@ carrying a brief such as a design, a review or a verification to its end)
 with the session's full tool set: every tool the main chat has, in the
 foreground and in the background alike, except the few that need you present
 (AskUserQuestion, ApolloReview, AskAdvisor) or reach past the crewmate's own
-work (Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete,
-ScheduleWakeup, RecordConvention, and the Crewmate tool itself). The
+work (Computer, Journal, Workflow, CronCreate, CronDelete,
+ScheduleWakeup, RecordConvention, and the Crewmate tool itself).
+TaskStop lets a crewmate stop only its own background command. The
 processes a crewmate starts (background shells, Eval kernels, the services
 it starts for the session, debug sessions, its browser) end when it ends; a
 service it starts with the `project` lifecycle outlives it, as that lifecycle

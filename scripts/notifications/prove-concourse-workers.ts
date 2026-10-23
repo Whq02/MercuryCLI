@@ -209,8 +209,8 @@ t.section('§4 — settle + crash reconciliation (exactly-once, G13-conservative
     JSON.stringify({ receipt, crash: victimRec.crash, endedAt: victimRec.endedAt }),
   )
   t.check(
-    'the crash reason speaks to the operator (found dead · enter resumes · x x releases)',
-    /found dead/.test(victimRec.crash?.reason ?? '') && victimRec.crash?.respawning === false,
+    'the crash reason speaks to the operator (ended unexpectedly · enter resumes · x x releases)',
+    /ended unexpectedly/.test(victimRec.crash?.reason ?? '') && victimRec.crash?.respawning === false,
     JSON.stringify(victimRec.crash),
   )
   t.check(
@@ -268,8 +268,8 @@ t.section('§4c — a stale respawn promise converges at the reconcile (the daem
   const receipt = reconcileConcourseWorkers(others, dir)
   const converged = readSessionWorkers(dir)[subject]!.crash
   t.check(
-    'the standing respawn-true fact converges to found-dead wording (respawning false)',
-    converged !== undefined && converged.respawning === false && /found dead/.test(converged.reason),
+    'the standing respawn-true fact converges to ended-unexpectedly wording (respawning false)',
+    converged !== undefined && converged.respawning === false && /ended unexpectedly/.test(converged.reason),
     JSON.stringify(converged),
   )
   t.check('the crash episode keeps its original stamp time', converged?.at === stampedAt, JSON.stringify({ stampedAt, at: converged?.at }))

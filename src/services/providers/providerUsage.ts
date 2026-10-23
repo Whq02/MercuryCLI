@@ -37,7 +37,10 @@ import {
   type WeeklyPoolClaim,
 } from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
-import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
+import { readSignInRecord, subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
+import { recordUsageObservations } from '../../utils/usageHistory.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
+import { credentialFingerprint } from './credentialIdentity.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
 import { providerDisplayName } from './routeLaw.js'
@@ -705,6 +708,15 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
         return
     }
   } catch {
+  } finally {
+    try {
+      const view = usageForProvider(provider)
+      const account = provider === 'anthropic' || provider === 'openai' ? activeWalletEntry(provider)?.id : engineIdentityLive(provider)
+      const envIdentity = credentialFingerprint(PROVIDER_CREDENTIAL_ENV_VARS[provider].map(name => process.env[name] ?? '').join('\0'))
+      const key = `${view.sourceKind}:${account ?? 'unidentified'}:${readSignInRecord(provider)?.at ?? 'untimed'}:${envIdentity}`
+      recordUsageObservations(provider, key, [...view.windows, ...view.pools])
+    } catch {
+    }
   }
 }
 

@@ -68,7 +68,6 @@ const BARRED: Record<string, string> = {
   AskAdvisor: 'present human',
   Computer: 'past its own work',
   Journal: 'past its own work',
-  TaskStop: 'past its own work',
   Workflow: 'past its own work',
   CronCreate: 'past its own work',
   CronDelete: 'past its own work',
@@ -81,8 +80,9 @@ const barred = toolsConstants.ALL_AGENT_DISALLOWED_TOOLS as Set<string>
 for (const [name, reason] of Object.entries(BARRED)) {
   check(`${name} is barred — ${reason}`, barred.has(name) && table[name] === reason, `table says ${JSON.stringify(table[name])}`)
 }
-check('the barred set is exactly these twelve', same([...barred].sort(), Object.keys(BARRED).sort()), [...barred].sort().join(','))
+check('the barred set is exactly these eleven', same([...barred].sort(), Object.keys(BARRED).sort()), [...barred].sort().join(','))
 check('custom definitions bar the same set (one deny set)', toolsConstants.CUSTOM_AGENT_DISALLOWED_TOOLS === barred)
+check('TaskStop is exposed with a runtime ownership check', !barred.has('TaskStop') && src('src/tools/TaskStopTool/TaskStopTool.ts').includes('task.agentId === context.agentId'))
 for (const name of Object.keys(BARRED)) {
   check(`${name} exists in the catalogue (a barred row names a real tool)`, catalogueNames.includes(name))
 }
@@ -185,12 +185,12 @@ section('§8 THE WORDS — the Crewmate tool and docs/CREW.md say what a crewmat
 {
   const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
   const full = await getPrompt([MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT], false, undefined, new Set(catalogueNames))
-  check('the Crewmate description names the barred set and the law, with the whole catalogue offered', full.includes('A crewmate carries every tool of this session except AskUserQuestion, ApolloReview, AskAdvisor, Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete, ScheduleWakeup, RecordConvention and the Crewmate tool itself — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, the services it starts for the session, debug sessions, its browser) end when it ends.'), full.slice(full.indexOf('A crewmate carries'), full.indexOf('A crewmate carries') + 200))
+  check('the Crewmate description names the barred set and the law, with the whole catalogue offered', full.includes('A crewmate carries every tool of this session except AskUserQuestion, ApolloReview, AskAdvisor, Computer, Journal, Workflow, CronCreate, CronDelete, ScheduleWakeup, RecordConvention and the Crewmate tool itself — the few that need the operator present or reach past its own work — in the foreground and in the background alike; the processes it starts (background shells, code kernels, the services it starts for the session, debug sessions, its browser) end when it ends.'), full.slice(full.indexOf('A crewmate carries'), full.indexOf('A crewmate carries') + 200))
   const narrow = await getPrompt([MERCURY_CREW_AGENT], false, undefined, new Set(catalogueNames.filter(n => n !== 'Computer' && n !== 'AskAdvisor')))
-  check('the note names only the barred tools this session offers (no Computer, no AskAdvisor here)', narrow.includes('except AskUserQuestion, ApolloReview, Journal, TaskStop,') && !narrow.includes('Computer'))
+  check('the note names only the barred tools this session offers (no Computer, no AskAdvisor here)', narrow.includes('except AskUserQuestion, ApolloReview, Journal,') && !narrow.includes('Computer'))
   check('mercury-crew still lists as (Tools: *) — the claim the law now makes true', /- mercury-crew: .*\(Tools: \*\)/.test(full))
   const docs = src('docs/CREW.md')
-  check('docs/CREW.md names the same barred set and the processes law', docs.includes('(AskUserQuestion, ApolloReview, AskAdvisor)') && docs.includes('(Computer, Journal, TaskStop, Workflow, CronCreate, CronDelete,\nScheduleWakeup, RecordConvention, and the Crewmate tool itself)') && docs.includes('end when it ends'))
+  check('docs/CREW.md names the same barred set and the processes law', docs.includes('(AskUserQuestion, ApolloReview, AskAdvisor)') && docs.includes('(Computer, Journal, Workflow, CronCreate, CronDelete,\nScheduleWakeup, RecordConvention, and the Crewmate tool itself)') && docs.includes('end when it ends'))
 }
 
 console.log(`\ncrewmate-toolbox: ${checks} checks, ${failures} failed`)

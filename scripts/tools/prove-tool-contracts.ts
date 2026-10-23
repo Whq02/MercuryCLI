@@ -1,5 +1,13 @@
 #!/usr/bin/env bun
 
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const proofHome = mkdtempSync(join(tmpdir(), 'tool-contracts-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
@@ -49,9 +57,6 @@ t('the dispatch grammar admits the engine class aliases and exact engine ids', [
 const modelDescription = (agentSchema as unknown as { shape: { model: { description?: string } } }).shape.model.description ?? ''
 t('the model parameter\'s description enumerates no per-boot id list (prompt-cache stable)', modelDescription.length > 0 && !modelDescription.includes('gpt-5.6-sol') && !modelDescription.includes('glm-5.2'))
 
-process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
-  (await import('node:path')).join((await import('node:os')).tmpdir(), 'tool-contracts-'),
-)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.ts')

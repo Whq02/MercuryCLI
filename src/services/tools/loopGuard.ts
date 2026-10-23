@@ -7,10 +7,11 @@ import type { Message } from '../../types/message.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { createSystemMessage } from '../../utils/messages/systemMessages.js'
+import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { PERSISTED_OUTPUT_TAG, persistToolResult } from '../../utils/toolResultStorage.js'
 import { MC_CLEARED_PLACEHOLDER, MC_DIGEST_PREFIX } from '../compact/microCompactDigest.js'
-import type { OwnerKey } from '../run/ownerKey.js'
+import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
@@ -20,7 +21,7 @@ const CYCLE_MAX_LENGTH = 5
 const CYCLE_REPEATS = 5
 const ARGUMENT_PREVIEW_CHARS = 160
 export const LOOP_GUARD_STOP_SETTING = 'turns.loopGuard'
-const HEADLESS_FAILED_CALL_LIMIT = 8
+const FAILED_CALL_LIMIT = 3
 
 const BOOKKEEPING_PREFIXES = ['Task', 'Todo']
 const BOOKKEEPING_NAMES = new Set(['Checkpoint', 'Rewind', 'Sleep', 'Monitor'])
@@ -64,7 +65,7 @@ interface RoundEntry {
   unchangedRead: boolean
   preview: string
   failureKey: string | null
-  errorLine: string | null
+  errorText: string | null
   bookkeeping: boolean
 }
 
@@ -80,7 +81,6 @@ interface LoopGuardState {
   lastResult: string | null
   run: number
   failureKey: string | null
-  failureLine: string | null
   failureRun: number
   ring: string[]
   roundID: string | null
@@ -98,7 +98,6 @@ function freshState(): LoopGuardState {
     lastResult: null,
     run: 0,
     failureKey: null,
-    failureLine: null,
     failureRun: 0,
     ring: [],
     roundID: null,
@@ -177,12 +176,12 @@ function resultDigest(block: ToolResultBlockParam | undefined, toolUseID: string
   return shortHash(toolUseID.length > 0 ? material.split(toolUseID).join('') : material)
 }
 
-function firstFailureLine(block: ToolResultBlockParam | undefined): string | null {
+function failureText(block: ToolResultBlockParam | undefined): string | null {
   if (block?.is_error !== true) return null
   const content = typeof block.content === 'string'
     ? block.content
     : Array.isArray(block.content) ? block.content.filter(part => part.type === 'text').map(part => part.text).join('\n') : ''
-  return content.split(/\r?\n/)[0] || 'tool returned an error'
+  return unwrapToolUseError(content) || 'tool returned an error'
 }
 
 function isUnchangedReadAnswer(block: ToolResultBlockParam | undefined): boolean {
@@ -424,7 +423,7 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
     const state = store.get(owner)
     settleBoundary(state, observation.messages)
     switchRound(state, observation.roundID)
-    const errorLine = firstFailureLine(observation.result)
+    const errorText = failureText(observation.result)
     state.roundEntries.push({
       ordinal: observation.roundOrdinal,
       toolName: observation.toolName,
@@ -434,8 +433,8 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
       digest: resultDigest(observation.result, observation.toolUseID),
       unchangedRead: isUnchangedReadAnswer(observation.result),
       preview: argumentPreview(observation.arguments),
-      failureKey: errorLine === null ? null : `${observation.toolName}${KEY_SEPARATOR}${canonicalArguments(observation.arguments)}`,
-      errorLine,
+      failureKey: errorText === null ? null : `${observation.toolName}${KEY_SEPARATOR}${canonicalArguments(observation.arguments)}`,
+      errorText,
       bookkeeping: isBookkeepingTool(observation.toolName),
     })
   } catch {
@@ -539,12 +538,19 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
     const rows: string[] = []
     let step: number | null = null
     let last: RoundEntry = entries[0]!
-    let headlessFailure: RoundEntry | null = null
+    let failingCall: RoundEntry | null = null
+    let failureReminder = false
+    const stopFailedCalls = getIsNonInteractiveSession() || parseOwnerKey(owner).lane !== MAIN_LANE
     for (const entry of entries) {
-      state.failureRun = entry.failureKey === null ? 0 : state.failureKey === entry.failureKey && state.failureLine === entry.errorLine ? state.failureRun + 1 : 1
+      state.failureRun = entry.failureKey === null ? 0 : state.failureKey === entry.failureKey ? state.failureRun + 1 : 1
       state.failureKey = entry.failureKey
-      state.failureLine = entry.errorLine
-      if (getIsNonInteractiveSession() && state.failureRun >= HEADLESS_FAILED_CALL_LIMIT && headlessFailure === null) headlessFailure = entry
+      if (state.failureRun === 2) {
+        const message = `Loop check: ${entry.toolName} failed again with the same arguments (${entry.preview}); change something before sending it again.\n${entry.errorText}`
+        reminders.push(message)
+        rows.push(message)
+        failureReminder = true
+      }
+      if (stopFailedCalls && state.failureRun >= FAILED_CALL_LIMIT && failingCall === null) failingCall = entry
       const walked = walkEntry(state, entry, seen)
       if (walked === null) continue
       last = entry
@@ -554,15 +560,15 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
         rows.push(`Loop check: ${entry.toolName} called ${state.run} times with identical arguments and the same result`)
       }
     }
-    if (headlessFailure !== null) {
-      const message = `stopped: the tool call ${headlessFailure.toolName} failed the same way ${HEADLESS_FAILED_CALL_LIMIT} times in a row: ${headlessFailure.errorLine}`
-      const cycle = { length: 1, tools: [headlessFailure.toolName], detection: 1 }
+    if (failingCall !== null) {
+      const message = `Stopped after ${FAILED_CALL_LIMIT} failed ${failingCall.toolName} calls with the same arguments (${failingCall.preview}):\n${failingCall.errorText}`
+      const cycle = { length: 1, tools: [failingCall.toolName], detection: 1 }
       logForDebugging(`[loop-guard] ${message}`, { level: 'warn' })
       return {
-        run: HEADLESS_FAILED_CALL_LIMIT, step, cycle, endTurn: true,
+        run: FAILED_CALL_LIMIT, step, cycle, endTurn: true,
         messages: [
-          createAttachmentMessage({ type: 'loop_stopped', toolUseID: headlessFailure.toolUseID, cycle: cycle.tools, message }),
-          createSystemMessage(message, 'warning', headlessFailure.toolUseID),
+          createAttachmentMessage({ type: 'loop_stopped', toolUseID: failingCall.toolUseID, cycle: cycle.tools, message }),
+          createSystemMessage(message, 'warning', failingCall.toolUseID),
         ],
       }
     }
@@ -572,7 +578,7 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
       state.ring.length = 0
       cycle = rememberDetection(state, found.keys)
     }
-    if (step === null && cycle === null) return quiet(state.run)
+    if (step === null && cycle === null && !failureReminder) return quiet(state.run)
     const stopEnabled = isLoopGuardStopEnabled()
     const endTurn = cycle !== null && cycle.length > 1 && cycle.detection >= 2 && stopEnabled
     const messages: Message[] = []
@@ -596,7 +602,7 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
       if (cycle.length === 1 && step !== null) rows.push(`the turn continues (${LOOP_GUARD_STOP_SETTING} is ${stopEnabled ? 'on, and a successful repeated call never ends a turn' : 'off'})`)
       else rows.push(cycleRow)
     }
-    messages.push(createSystemMessage(rows.join('; '), 'info', last.toolUseID))
+    messages.push(createSystemMessage(rows.join('; '), failureReminder ? 'warning' : 'info', last.toolUseID))
     return { run: state.run, step, cycle, endTurn, messages }
   } catch {
     return quiet(0)

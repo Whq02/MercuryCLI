@@ -37,7 +37,7 @@ function homeFacts(text: string, name = 'proof.ts'): Facts {
   const imports: ts.Node[] = []
   let pinNode: ts.Node | undefined
   visit(sf, n => {
-    if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && PRODUCT.test(n.moduleSpecifier.text)) f.staticImport ??= line(n)
+    if (ts.isImportDeclaration(n) && !n.importClause?.isTypeOnly && ts.isStringLiteral(n.moduleSpecifier) && PRODUCT.test(n.moduleSpecifier.text)) f.staticImport ??= line(n)
     if (ts.isCallExpression(n) && (n.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(n.expression) && n.expression.text === 'require')) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && PRODUCT.test(n.arguments[0].text)) {
       f.dynamicImport ??= line(n)
       imports.push(n)
@@ -85,6 +85,8 @@ function pythonKeeps(text: string): number[] {
   assert.deepEqual(pinned.kept, []); assert.equal(pinned.pin, 2); assert.equal(pinned.staticImport, null); assert.equal(pinned.dynamicImport, 3)
   const late = homeFacts("import { y } from '../../src/b.ts'\nprocess.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR || '/tmp/x'\nif (!process.env.MERCURY_CONFIG_DIR) process.env.MERCURY_CONFIG_DIR = '/tmp/y'\n")
   assert.deepEqual(late.kept, [2, 3]); assert.equal(late.staticImport, 1)
+  const types = homeFacts("import type { T } from '../../src/a.ts'\nprocess.env.MERCURY_CONFIG_DIR = mkdtempSync('p')\nconst m = await import('../../src/b.ts')\n")
+  assert.equal(types.staticImport, null); assert.equal(types.pin, 2); assert.equal(types.dynamicImport, 3)
   const quoted = homeFacts("check('never ??= the ambient one', !face.includes(\"process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(\"))\n")
   assert.deepEqual(quoted.kept, []); assert.equal(quoted.pin, null)
   const reads = homeFacts("const home = process.env.MERCURY_CONFIG_DIR ?? '/tmp/z'\nif (!process.env.MERCURY_CONFIG_DIR) throw new Error('pin it')\n")
@@ -100,33 +102,10 @@ function pythonKeeps(text: string): number[] {
   console.log('PASS the detectors read a kept inherited home, an own pin and the first product import; a spelling inside a string is not an assignment')
 }
 
-const KEPT_HOME_WITHOUT_CREDENTIALS = new Set<string>([
-  'scripts/agents/prove-structured-delivery.ts',
-  'scripts/crew/prove-old-tool-name-rows.ts',
-  'scripts/crew/prove-unshipped-tool-rows.ts',
-  'scripts/dap/prove-dap-data-breakpoints.ts',
-  'scripts/docs/prove-automation-examples.ts',
-  'scripts/docs/prove-llmhost-doc.ts',
-  'scripts/edit-tools/prove-write-edit-parse-check.ts',
-  'scripts/headless/prove-blocked-run-exit.ts',
-  'scripts/headless/prove-refusal-stays-closed.ts',
-  'scripts/headless/prove-two-kinds-of-headless.ts',
-  'scripts/ide/prove-debug-memory-adapters.ts',
-  'scripts/lsp/prove-lsp-rename-fanout.ts',
-  'scripts/memory/prove-semantic-study-honest.ts',
-  'scripts/sdk/prove-run-door-client.ts',
-  'scripts/tools/prove-sleep-row-frames.ts',
-  'scripts/tools/prove-tool-contracts.ts',
-  'scripts/wards/prove-generated-file-guard.ts',
-  'scripts/wards/prove-omission-placeholder.ts',
-  'scripts/wards/prove-wards.ts',
-])
-const STATIC_IMPORT_BEFORE_PIN = new Set<string>([
-  'scripts/host/prove-recipes-live.ts',
-  'scripts/provider-compat/prove-auth-journeys.ts',
-  'scripts/providers/prove-usage-owner-per-family.ts',
-  'scripts/settings/prove-usage-oauth-credits-words.ts',
-])
+const KEPT_HOME_WITHOUT_CREDENTIALS = new Set<string>()
+assert.equal(KEPT_HOME_WITHOUT_CREDENTIALS.size, 0, 'no proof may keep an inherited home')
+const STATIC_IMPORT_BEFORE_PIN = new Set<string>()
+assert.equal(STATIC_IMPORT_BEFORE_PIN.size, 0, 'no credential-writing proof may import the product before pinning its home')
 const ACCOUNT_HOME_ON_PURPOSE: Record<string, string> = {
   'scripts/accounts/prove-auth-scope-isolation.ts': "pins the resolver at the account's own path, as a string, to prove the rest-identity law (getAuthConfigHomeDir equals getMercuryHome) and the keychain service-name hashing; it writes no store",
 }

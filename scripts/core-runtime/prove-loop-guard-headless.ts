@@ -262,17 +262,17 @@ section('H3 — KEY ON, a parallel round on the live shape: the settlement lands
   setStopKey(null)
 }
 
-const LIMIT = 8
+const LIMIT = 3
 const failingSteps = (count: number, name = 'Skill'): Step[] => Array.from({ length: count }, (_, i) => ({ name, input: i % 2 === 0 ? { skill: 'Sleep', args: 'same' } : { args: 'same', skill: 'Sleep' } }))
 
-section('H4 — headless repeated failure stops after eight normalized identical calls')
+section('H4 — headless repeated failure stops after three canonical identical calls')
 {
   attemptedFailures = 0
   setStopKey(false)
   const run = await runHeadless(failingSteps(LIMIT + 1))
   const result = resultOf(run.yields)
-  check('exactly eight failures execute, never the ninth call or another model request', attemptedFailures === LIMIT && run.modelCalls === LIMIT, 'executed=' + attemptedFailures + ' modelCalls=' + run.modelCalls)
-  check('the outcome is loop_stopped with the call, count and first error line', result?.status === 'loop_stopped' && /stopped: the tool call Skill failed the same way 8 times in a row:.*Unknown skill: Sleep/.test(String(errorOf(result).message)), JSON.stringify(result))
+  check('exactly three failures execute, never the fourth call or another model request', attemptedFailures === LIMIT && run.modelCalls === LIMIT, 'executed=' + attemptedFailures + ' modelCalls=' + run.modelCalls)
+  check('the outcome is loop_stopped with the call, count, arguments and error', result?.status === 'loop_stopped' && /Stopped after 3 failed Skill calls with the same arguments.*\nUnknown skill: Sleep/.test(String(errorOf(result).message)), JSON.stringify(result))
   check('the failure is never reported as completed', !run.yields.some(row => row.type === 'outcome' && row.status === 'completed'))
   setStopKey(null)
 }
@@ -285,14 +285,14 @@ section('H5 — interactive sessions remain advisory for the same failures')
   bootstrap.setIsInteractive(false)
 }
 
-section('H6 — the first error line, not changing detail below it, identifies the failure')
+section('H6 — the identical failing call is counted even when its error text changes')
 {
   failureMode = 'details'
   const run = await runHeadless(failingSteps(LIMIT + 1))
   check('changing error detail under the same first line still stops', run.modelCalls === LIMIT && resultOf(run.yields)?.status === 'loop_stopped', 'modelCalls=' + run.modelCalls)
   failureMode = 'changing'
   const changed = await runHeadless(failingSteps(LIMIT + 1))
-  check('a different first error line resets the failing-call count', changed.modelCalls === LIMIT + 2 && resultOf(changed.yields)?.status === 'completed', 'modelCalls=' + changed.modelCalls)
+  check('a different error line does not reset the same failing call', changed.modelCalls === LIMIT && resultOf(changed.yields)?.status === 'loop_stopped', 'modelCalls=' + changed.modelCalls)
   failureMode = 'same'
 }
 
@@ -311,14 +311,14 @@ section('H7 — success, changed arguments and different calls break a consecuti
 section('H8 — failed bookkeeping calls are not invisible to the headless fence')
 {
   const run = await runHeadless(failingSteps(LIMIT + 1, 'Sleep'))
-  check('a bookkeeping tool that fails identically also stops after eight', run.modelCalls === LIMIT && resultOf(run.yields)?.status === 'loop_stopped', 'modelCalls=' + run.modelCalls)
+  check('a bookkeeping tool that fails identically also stops after three', run.modelCalls === LIMIT && resultOf(run.yields)?.status === 'loop_stopped', 'modelCalls=' + run.modelCalls)
 }
 
 section('H9 — unavailable tool names still produce counted failures')
 {
   const run = await runHeadless(failingSteps(LIMIT + 1, 'MissingProbeTool'))
   const result = resultOf(run.yields)
-  check('an unavailable tool stops after eight, with its own error words', run.modelCalls === LIMIT && result?.status === 'loop_stopped' && String(errorOf(result).message).includes('No such tool available: MissingProbeTool'), 'modelCalls=' + run.modelCalls + ' result=' + JSON.stringify(result))
+  check('an unavailable tool stops after three, with its own error words', run.modelCalls === LIMIT && result?.status === 'loop_stopped' && String(errorOf(result).message).includes('No such tool available: MissingProbeTool'), 'modelCalls=' + run.modelCalls + ' result=' + JSON.stringify(result))
 }
 
 console.log('\n' + '='.repeat(76))

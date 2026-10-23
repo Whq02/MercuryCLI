@@ -46,7 +46,8 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { backgroundWorkerDelegationSentence } from '../services/switchboard/backgroundLaunch.js'
-import { inheritBuildNotices, writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
+import { carryClearModel, inheritBuildNotices, writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
+import { readSessionFacts } from '../services/engine-connector/seatProjections.js'
 import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
@@ -131,7 +132,7 @@ export function evaluateConcourseAdmission(
       code: 'workspace-collision',
       reason: `the repo's main checkout is held by a live session`,
       moves: [
-        { verb: 'worktree', label: 'replay the launch — it forks a worktree of its own' },
+        { verb: 'worktree', label: 'retry the launch — it forks a worktree of its own' },
         { verb: 'queue', label: 'or wait — it starts when the checkout frees' },
       ],
     }
@@ -993,7 +994,7 @@ export function makeConcourseAdmitHandler(
         return {
           ok: false,
           code: 'invalid-request',
-          error: `effort refused ('${req.effort}' is not on the shared ladder — the levels are ${EFFORT_LEVELS.join(' | ')})`,
+          error: `effort refused ('${req.effort}' is not a valid level — the levels are ${EFFORT_LEVELS.join(' | ')})`,
         }
       }
       req = { ...req, effort: level }
@@ -1130,10 +1131,14 @@ export function makeConcourseAdmitHandler(
 
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
     const carryBuildNotices = (sessionId: string): void => {
-      if (req.vacatingSessionId === undefined || !Object.values(records).some(row => row.sessionId === req.vacatingSessionId && row.workspaceId === workspaceId)) return
+      if (req.vacatingSessionId === undefined) return
+      const previous = Object.values(records).find(row => row.sessionId === req.vacatingSessionId && row.workspaceId === workspaceId)
+      if (previous === undefined) return
       const home = getProjectDir(workspaceId)
       mkdirSync(home, { recursive: true })
       inheritBuildNotices(home, sessionId, req.vacatingSessionId)
+      const facts = readSessionFacts(previous.sessionId, deps.dir)
+      carryClearModel(home, sessionId, previous.sessionId, facts?.model.setting ?? previous.modelKey)
     }
     if (
       deps.claimWarm !== undefined &&
@@ -1230,7 +1235,7 @@ export function makeConcourseAdmitHandler(
       }
     }
     if (runnerId === null) {
-      return { ok: false, code: 'runtime-ceiling', error: `no free worker slot — ${describeSeatReading(effectiveSeatCeiling())}` }
+      return { ok: false, code: 'runtime-ceiling', error: `at the live-session limit — ${describeSeatReading(effectiveSeatCeiling())}` }
     }
 
     const sessionId = req.resumeSessionId ?? randomUUID()
@@ -1256,7 +1261,7 @@ export function makeConcourseAdmitHandler(
             ok: false,
             code: wt.code,
             error: wt.error,
-            moves: [{ verb: 'retry', label: 'install git, then replay the launch' }],
+            moves: [{ verb: 'retry', label: 'install git, then retry the launch' }],
           }
         }
         return { ok: false, code: 'invalid-request', error: wt.error }
@@ -1696,7 +1701,7 @@ export function reconcileConcourseWorkers(
         if (rec.crash.respawning) {
           rec.crash = {
             at: rec.crash.at,
-            reason: 'crashed — found dead with its daemon; enter to resume, or x x releases it',
+            reason: 'crashed — ended unexpectedly; enter to resume, or x x releases it',
             respawning: false,
           }
         }
@@ -1707,8 +1712,8 @@ export function reconcileConcourseWorkers(
       rec.crash = {
         at: Date.now(),
         reason: acrossBuilds
-          ? `ended with its daemon around an update to ${ownTree} — the cause is not known; enter to resume, or x x releases it`
-          : 'crashed — found dead with its daemon; enter to resume, or x x releases it',
+          ? `ended around an update to ${ownTree} — enter to resume, or x x releases it`
+          : 'crashed — ended unexpectedly; enter to resume, or x x releases it',
         respawning: false,
       }
       if (acrossBuilds) rec.restartReason = 'ended'
@@ -2103,7 +2108,7 @@ export async function reactivateConcourseSession(
   deps: ConcourseAdmitDeps,
 ): Promise<ConcourseAdmitResult> {
   const roster = deps.roster()
-  if (!roster) return refuseReactivate(rec, 'not-ready', 'parked — the daemon roster is not ready · ↵ again retries', deps.dir)
+  if (!roster) return refuseReactivate(rec, 'not-ready', 'parked — starting up · ↵ again retries', deps.dir)
   const kind = args.kind ?? sessionKindOfAsker(args.by)
   const display = args.modelDisplayName !== undefined ? { modelDisplayName: args.modelDisplayName } : {}
   const alive = workerPidAlive(rec)

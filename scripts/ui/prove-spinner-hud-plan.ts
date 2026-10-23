@@ -54,7 +54,7 @@ const keys = (plan: ReturnType<typeof planSpinnerHud>): string => plan.ordered.m
 section('§1 the order law: phase · elapsed · tokens · ctx · tools · tok/s · promise · thinking · still waiting')
 {
   const wide = planSpinnerHud(facts({ ctxPct: 37, activeToolCount: 3, otps: 42, stillWaiting: true }), oneLine)
-  check('the admitted segments paint in the order law on a wide line', keys(wide) === 'timer,tokens,waiting', keys(wide))
+  check('the admitted segments paint in the order law on a wide line — the writing phase leads, the verb heads the row', keys(wide) === 'phase,timer,tokens,waiting' && wide.ordered[0]!.text === 'writing', keys(wide))
   check('the three gauges are visible beside them', wide.showCtx && wide.showWif && wide.showOtps)
   check('the gauge texts carry the words: ◐ N tools and ~N tok/s', wide.wifText === '◐ 3 tools' && wide.otpsText === '~42 tok/s', `${wide.wifText} ${wide.otpsText}`)
   check('the meta group is visible and not thinking-only', wide.metaVisible && !wide.onlyThinking && wide.gaugesVisible)
@@ -77,9 +77,9 @@ section('§2 the shed law on a narrow line: the gauges shed right to left, the s
   const tight = planSpinnerHud(facts({ columns: 52, ctxPct: 37, activeToolCount: 3, otps: 42 }), oneLine)
   check('on a 52-column line the row stacks (segment B wants more than the space beside the verb)', tight.stacked && tight.secondRow)
   const narrow = planSpinnerHud(facts({ columns: 40, ctxPct: 37, activeToolCount: 3, otps: 42 }), () => 1)
-  check('held to one line at 40 columns, the elapsed and the count admit and the gauges shed', keys(narrow) === 'timer,tokens' && !narrow.showCtx && !narrow.showWif && !narrow.showOtps, `${keys(narrow)} ctx=${narrow.showCtx} wif=${narrow.showWif} otps=${narrow.showOtps}`)
-  const mid = planSpinnerHud(facts({ columns: 60, ctxPct: 37, activeToolCount: 3, otps: 42 }), () => 1)
-  check('with a little more room the ctx gauge comes back before the tools and the rate', mid.showCtx && !mid.showOtps, `ctx=${mid.showCtx} wif=${mid.showWif} otps=${mid.showOtps}`)
+  check('held to one line at 40 columns, the phase and the elapsed admit; the count and the gauges shed', keys(narrow) === 'phase,timer' && !narrow.showCtx && !narrow.showWif && !narrow.showOtps, `${keys(narrow)} ctx=${narrow.showCtx} wif=${narrow.showWif} otps=${narrow.showOtps}`)
+  const mid = planSpinnerHud(facts({ columns: 70, ctxPct: 37, activeToolCount: 3, otps: 42 }), () => 1)
+  check('with a little more room the count and then the ctx gauge come back before the tools and the rate', keys(mid) === 'phase,timer,tokens' && mid.showCtx && !mid.showOtps, `${keys(mid)} ctx=${mid.showCtx} wif=${mid.showWif} otps=${mid.showOtps}`)
   const thinkingTight = planSpinnerHud(facts({ mode: 'thinking', columns: 33 }), () => 1)
   check('the thinking label drops its effort suffix before dropping the word', thinkingTight.ordered.some(s => s.key === 'thinking' && s.text === THINKING_WORD), keys(thinkingTight))
 }
@@ -102,11 +102,12 @@ section('§4 segment B and the crewmate shapes')
 {
   const stillRow = planSpinnerHud(facts({ still: true, suffixText: 'hook: lint' }), oneLine)
   check('a still row (a fold) shows no segment B at all', !stillRow.segBVisible)
-  const suffixOnly = planSpinnerHud(facts({ suffixText: 'hook: lint', effectiveElapsedMs: 0, liveWords: words(0, 'responding', 0) }), oneLine)
-  check('a hook suffix alone makes segment B visible', suffixOnly.segBVisible && suffixOnly.ordered.length === 0)
+  const suffixOnly = planSpinnerHud(facts({ mode: 'tool-use', suffixText: 'hook: lint', effectiveElapsedMs: 0, liveWords: words(0, 'tool-use', 0) }), oneLine)
+  check('a hook suffix alone makes segment B visible (a held tool call: the tool label heads the row, no phase word)', suffixOnly.segBVisible && suffixOnly.ordered.length === 0, keys(suffixOnly))
+  const reconnect = planSpinnerHud(facts({ mode: 'thinking', livePhase: 'thinking', liveWords: liveCounterWords({ ...turnFactsOfRefs(4000, null), phase: 'thinking', sentAtMs: NOW - 12_000, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: NOW, delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120_000 } }, NOW) }), oneLine)
+  check('a reconnect promise takes the phase slot itself — one reconnecting, never a second phase word or the thinking label', keys(reconnect) === 'phase,timer,tokens' && reconnect.ordered[0]!.text === 'no tokens for 2 min · reconnecting (1 of 3)', `${keys(reconnect)} ${reconnect.ordered.map(s => s.text).join(' | ')}`)
   check('the count is the live counter\'s own words', hudTokensText({ liveWords: words(4000, 'responding', 0) }) === '↓ ~1k tokens', String(hudTokensText({ liveWords: words(4000, 'responding', 0) })))
 }
-
 section('§5 the plan is pure: the same facts give the same plan, and no input is mutated')
 {
   const f = facts({ ctxPct: 37, activeToolCount: 2, otps: 5 })

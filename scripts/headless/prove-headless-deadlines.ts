@@ -458,8 +458,8 @@ section('§7 — MCP stalled tools/call (real streamable HTTP): typed stall + on
   }
   const settleMs = Date.now() - startedAt
   const message = stallError instanceof Error ? stallError.message : String(stallError)
-  check('the stalled call settles as the TYPED stalled error', /stalled: no result and no progress/.test(message), message.slice(0, 220))
-  check('the error names the tuning knob', /MERCURY_MCP_CALL_IDLE_MINUTES/.test(message))
+  check('the stalled call settles as an unknown outcome', /unknown outcome/.test(message), message.slice(0, 220))
+  check('the error names the action and inspection before retrying', /tool "probe" on server "hd7".*inspect the effect before retrying/.test(message))
   check('it settles at the idle limit, not a 60s fetch budget', settleMs < 10_000, `${settleMs}ms`)
   const cancelled = await (async () => {
     for (let waited = 0; waited < 5_000; waited += 100) {
@@ -472,45 +472,13 @@ section('§7 — MCP stalled tools/call (real streamable HTTP): typed stall + on
   await fixture.close()
 }
 
-section('§8 — MCP dead-socket call: stale-socket rides the reconnect-once route')
+section('§8 — MCP lost response: one effect, unknown outcome, safe rejection retry')
 {
-  process.env.MERCURY_MCP_CALL_IDLE_MINUTES = '0.5'
-  const fixture = await startMcpFixture({ killNthToolCall: 2 })
-  const { callMCPToolWithUrlElicitationRetry, clearServerCache } = await import('../../src/services/mcp/client.ts')
-  const connection = {
-    name: 'hd8',
-    type: 'failed',
-    config: { type: 'http', url: fixture.url, scope: 'dynamic' },
-    error: 'prover seed',
-  }
-  await clearServerCache('hd8', connection.config as never).catch(() => {})
-  const call = (id: string) =>
-    callMCPToolWithUrlElicitationRetry({
-      client: connection as never,
-      tool: 'probe',
-      args: {},
-      signal: new AbortController().signal,
-      parentMessage: { message: { content: [{ type: 'tool_use', id, name: 'probe', input: {} }] } } as never,
-    })
-
-  const first = await call('tu-hd8-1')
-  check('call 1 answers normally', j(first.content).includes('pong-1'), j(first.content).slice(0, 120))
-
-  const startedAt = Date.now()
-  const second = await call('tu-hd8-2')
-  const wallMs = Date.now() - startedAt
-  check(
-    'the killed call recovers THROUGH the reconnect-once route (a re-sent call answered)',
-    j(second.content).includes('pong-3'),
-    j(second.content).slice(0, 160),
-  )
-  check(
-    'the route re-sent the call on a fresh connection (call 2 died, call 3 served)',
-    fixture.toolCallCount() >= 3,
-    `${fixture.toolCallCount()} tools/call POSTs · ${fixture.initializeCount()} initializes`,
-  )
-  check('recovery is immediate', wallMs < 10_000, `${wallMs}ms`)
-  await fixture.close()
+  const { spawnSync } = await import('node:child_process')
+  const proof = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/mcp/prove-mcp-no-replay.ts')], {
+    cwd: ROOT, env: { ...process.env, MERCURY_MCP_CALL_IDLE_MINUTES: '0.5' }, encoding: 'utf8', timeout: 60_000,
+  })
+  check('the Node MCP fixture preserves exactly one effect after a lost response or deadline', proof.status === 0, `${proof.stdout}\n${proof.stderr}`)
 }
 
 console.log('\n============================================================')

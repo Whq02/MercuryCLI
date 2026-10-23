@@ -16,6 +16,13 @@ import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 
 
+export type LSPStopResult = {
+  outcome: 'exited' | 'killed'
+  elapsedMs: number
+  exitCode: number | null
+  survivors: number[]
+}
+
 export type LSPClient = {
   readonly capabilities: ServerCapabilities | undefined
   readonly isInitialized: boolean
@@ -25,7 +32,7 @@ export type LSPClient = {
   sendNotification(method: string, params: unknown): Promise<void>
   onNotification(method: string, handler: (params: unknown) => void): void
   onRequest<P, R>(method: string, handler: (params: P) => R | Promise<R>): void
-  stop(opts?: { gracefulTimeoutMs?: number }): Promise<void>
+  stop(opts?: { gracefulTimeoutMs?: number }): Promise<LSPStopResult | undefined>
 }
 
 const DEFAULT_GRACEFUL_TIMEOUT_MS = 2000
@@ -276,7 +283,9 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     return stdin !== null && stdin.writable && !stdin.destroyed
   }
 
-  async function stop(opts?: { gracefulTimeoutMs?: number }): Promise<void> {
+  async function stop(opts?: { gracefulTimeoutMs?: number }): Promise<LSPStopResult | undefined> {
+    const started = performance.now()
+    let result: LSPStopResult | undefined
     const budget = opts?.gracefulTimeoutMs ?? DEFAULT_GRACEFUL_TIMEOUT_MS
     stopping = true
     let gracefulFailed: unknown = null
@@ -316,13 +325,23 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       connection = null
     }
     if (child !== null) {
-      if (processErrorListener) child.off('error', processErrorListener)
-      if (processExitListener) child.off('exit', processExitListener)
-      if (stdinErrorListener) child.stdin?.off('error', stdinErrorListener)
-      if (stderrDataListener) child.stderr?.off('data', stderrDataListener)
-      const receipt = await endProcessTree(child, 'SIGTERM')
-      if (receipt.survivors.length > 0 && child.pid) {
-        await endProcessTreeSurvivors(child.pid, receipt.survivors, 'SIGKILL')
+      const proc = child
+      if (processErrorListener) proc.off('error', processErrorListener)
+      if (processExitListener) proc.off('exit', processExitListener)
+      if (stdinErrorListener) proc.stdin?.off('error', stdinErrorListener)
+      if (stderrDataListener) proc.stderr?.off('data', stderrDataListener)
+      const alreadyExited = proc.exitCode !== null || proc.signalCode !== null
+      const receipt = await endProcessTree(proc, 'SIGTERM')
+      const finalReceipt = receipt.survivors.length > 0 && proc.pid
+        ? await endProcessTreeSurvivors(proc.pid, receipt.survivors, 'SIGKILL')
+        : receipt
+      const killed = !alreadyExited && (proc.signalCode !== null ||
+        (process.platform === 'win32' && receipt.ended > 0 && proc.exitCode !== 0))
+      result = {
+        outcome: killed ? 'killed' : 'exited',
+        elapsedMs: Math.round(performance.now() - started),
+        exitCode: proc.exitCode,
+        survivors: finalReceipt.survivors,
       }
       child = null
     }
@@ -338,6 +357,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       startError = gracefulFailed instanceof Error ? gracefulFailed : new Error(String(gracefulFailed))
       logForDebugging(`LSP server ${serverName} graceful shutdown failed: ${String(gracefulFailed)}`)
     }
+    return result
   }
 
   return {

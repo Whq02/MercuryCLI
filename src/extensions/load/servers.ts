@@ -4,6 +4,7 @@ import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
 import { getExtensionDataDir } from '../paths.js'
 
+import { registerBundledAppInstall, clearBundledAppInstalls } from '../installConsent.js'
 let memo: Record<string, ScopedMcpServerConfig> | null = null
 
 export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> {
@@ -24,11 +25,14 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
         }
         const declaredEnv: Record<string, string> = {}
         for (const [key, value] of Object.entries(declared.env ?? {})) declaredEnv[key] = resolve(value)
+        const bundledApp = ext.entry.home === 'bundled' && ['filmcraft', 'photocraft', 'lightcraft'].includes(ext.manifest.name)
+        const runtimeCommand = declared.command === '${MERCURY_NODE}' ? process.execPath : resolve(declared.command)
+        const installKey = bundledApp ? registerBundledAppInstall(server.runtimeName, root, dataDir) : null
         config = {
           type: 'stdio',
-          command: resolve(declared.command),
+          command: runtimeCommand,
           args: (declared.args ?? []).map(resolve),
-          env: { 'MERCURY_EXTENSION_ROOT': root, 'MERCURY_EXTENSION_DATA': dataDir, ...optionEnv(ext.options), ...declaredEnv },
+          env: { 'MERCURY_EXTENSION_ROOT': root, 'MERCURY_EXTENSION_DATA': dataDir, ...optionEnv(ext.options), ...declaredEnv, ...(installKey ? { MERCURY_CRAFT_INSTALL_KEY: installKey } : {}) },
         }
       } else {
         const declared = server.config as { type: 'http' | 'sse'; url: string; headers?: Record<string, string> }
@@ -45,4 +49,5 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
 
 export function clearExtensionMcpServerCache(): void {
   memo = null
+  clearBundledAppInstalls()
 }

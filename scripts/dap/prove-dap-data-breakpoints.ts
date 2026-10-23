@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,10 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'dap-data-breakpoints-home-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'dap-data-breakpoints-home-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+delete process.env.MERCURY_HOME
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 const MOCK = join(import.meta.dir, 'mock-dap-adapter-memory.mjs')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({
   'memory-mock': { command: process.execPath, args: [MOCK] },
