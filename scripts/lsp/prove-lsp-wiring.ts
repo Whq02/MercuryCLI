@@ -99,14 +99,14 @@ function check(name: string, ok: boolean, detail?: string): void {
     LspRead: 'c67a0336cff2a20c4a422f4ea132d7860da5042bdf5abe9ec0ee931d7b46eaec',
     LspRename: 'c3b1f84bf5304bf8434d68aeacb2c27a06a1d82c3be85a5223ac0135228735e9',
     LspMoveSymbol: 'cc8bab7b2d215fd6e2789f1001d5e35fb76a6d4d18e510e6b17a87cfd1811ced',
-    LspMoveFile: 'cc36731d9ef822594b6b99d673d0bb8bd538fef6b1554fcb3b159accb0e5e764',
+    LspMoveFile: '8a8e6ec1f11dd96a4f1fc9a7dc5643e41fa07c54d20cf24d434ef49c70e5d05a',
     LspCodeAction: '88bf29165c81c37ffb8e4f6a20e6a22db73ead72c37700a2983be7d1fd4b2b5a',
     LspFormat: '96b0de2212be0ca1a9452f3fa5015f6588233c40c074b6aec1d31810d5c8f1bd',
     LspRequest: '475d9ac660191a081241eaf7b1f8d32a10d040da92b6c8dbc97daa967ac5fb9d',
   }
   for (const name of LSP_TOOL_NAMES) {
     const card = truncateToLines(LSP_DESCRIPTIONS[name], 3)
-    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) is unchanged from .36`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120))
+    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) matches the pinned card`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120))
   }
 }
 

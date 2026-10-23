@@ -215,6 +215,7 @@ reg(
     'src/screens/ResumeConversation.tsx',
     'src/components/Settings/Config.tsx',
     'src/components/HelpV2/Commands.tsx',
+    'src/components/HelpV2/HelpV2.tsx',
     'src/components/Settings/Jev.tsx',
     'src/components/Settings/LocalServer.tsx',
     'src/components/LlmHostDialog.tsx',

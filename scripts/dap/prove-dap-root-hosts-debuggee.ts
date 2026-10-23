@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     check('status: the root line says running', /session 'main'.*— running/.test(status.result), status.result)
     check('status: the child line says terminated', /child 'child-1'.*terminated/.test(status.result), status.result)
     const evald = await callTool({ op: 'evaluate', expression: 'a+b' })
-    check('evaluate labels the debuggee running, never terminated', evald.result.includes('[debuggee running]'), evald.result)
+    check('evaluate labels the debuggee running, never terminated', evald.result === 'evaluate needs a stopped frame: the debuggee is running and no frameId was given — op:"pause" first, or give frameId from op:"stack"' && evald.debuggee === 'running', evald.result)
     const cont = await callTool({ op: 'continue' })
     check("continue routes to the root and the root's own exit is the termination", cont.result.includes('debuggee terminated') && cont.debuggee === 'terminated', cont.result.split('\n')[0])
     const gone = await callTool({ op: 'disconnect' })

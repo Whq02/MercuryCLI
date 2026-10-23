@@ -130,9 +130,9 @@ const OR_KEY = 'sk-or-v1-MINTEDFIXTURE0000000'
   const orGroup = groups.find(g => g.family.id === 'openrouter')
   check('openrouter renders three slots (env · oauth-minted · stored)', orGroup?.slots.length === 3)
   const mintedSlot = orGroup?.slots.find(s => s.id === 'openrouter:oauth-key')
-  check('minted slot: kind oauth, shadowed by the env pin, masked tail only', mintedSlot?.kind === 'oauth' && mintedSlot?.active === false && (mintedSlot?.stateNote ?? '').includes('env pin wins') && !JSON.stringify(mintedSlot).includes(OR_KEY.slice(0, -4)))
+  check('minted slot: kind oauth, shadowed by the env pin, masked tail only', mintedSlot?.kind === 'oauth' && mintedSlot?.active === false && mintedSlot?.stateNote === 'shadowed — the environment variable wins' && !JSON.stringify(mintedSlot).includes(OR_KEY.slice(0, -4)))
   const storedSlot = orGroup?.slots.find(s => s.id === 'openrouter:stored-key')
-  check('stored slot shadowed with the honest note', (storedSlot?.stateNote ?? '').includes('env pin wins'))
+  check('stored slot shadowed with the honest note', storedSlot?.stateNote === 'shadowed — the environment variable wins')
 
   const gmGroup = groups.find(g => g.family.id === 'gemini')
   check('gemini renders four slots (oauth · 2 env keys · stored)', gmGroup?.slots.length === 4)

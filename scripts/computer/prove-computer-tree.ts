@@ -188,7 +188,7 @@ section('§6 Accessibility not granted: the read says so with the remedy and rea
 section('§7 the words and the road')
 {
   const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => ({}) as never, tools: [], agents: [] } as never)
-  check('the prompt teaches tree: the application in front, read-only, role/title/value/frame, bounded with the cut said, no clipboard, no input', /action:"tree" \(depth\?, limit\?\)/.test(prompt) && /read-only/.test(prompt) && /role, title, value and frame/.test(prompt) && /a cut is said/.test(prompt) && /no clipboard, no input/.test(prompt), prompt)
+  check('the prompt teaches tree: roles, titles, values, frames, focus, exact budgets and caps, window and app scopes, no clipboard or input', prompt.split('\n').includes(`tree(depth?,limit?,scope?): roles, titles, values, frames, focus; budgets ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}. scope:window default; app includes other windows/menus. find(target) filters.`) && prompt.includes('No clipboard or input.'), prompt)
   check('the prompt says tree asks like an act', /never ask; tree asks like an act\./.test(prompt))
   const tool = sourceText('src/tools/ComputerTool/ComputerTool.ts')
   const addon = sourceText('native/desktop/src/mac.rs')

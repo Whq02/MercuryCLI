@@ -1179,7 +1179,7 @@ const slotReads = {
   const storedSlot = moonshotSlots.find(s => s.id === 'moonshot:stored-key')
   check(
     'slots: the env pin wins the active flag; the stored key is shadow-noted',
-    envSlot?.active === true && storedSlot?.active === false && storedSlot?.stateNote?.includes('env pin') === true,
+    envSlot?.active === true && storedSlot?.active === false && storedSlot?.stateNote === 'shadowed — the environment variable wins',
     JSON.stringify({ env: envSlot?.active, stored: storedSlot?.stateNote }),
   )
   check(
@@ -1203,7 +1203,7 @@ const slotReads = {
     oauthSlot?.identity.startsWith('Kimi account · device-code, ') === true &&
       !oauthSlot.identity.includes('dd00') &&
       oauthSlot.active === false &&
-      oauthSlot.stateNote?.includes('env pin') === true,
+      oauthSlot.stateNote === 'shadowed — the environment variable wins',
     JSON.stringify({ identity: oauthSlot?.identity, active: oauthSlot?.active, note: oauthSlot?.stateNote }),
   )
 }
