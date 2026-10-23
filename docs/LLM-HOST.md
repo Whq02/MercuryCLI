@@ -79,9 +79,9 @@ screen keeps your query.
   (180 GB) and `B300` (288 GB). Repositories requiring more than `8× B300` are
   refused with `needs more than 8× B300 (<N> GB) · no single-machine recipe`.
 - **The engine check before anything is rented:** for a GGUF repository,
-  Mercury reads the file's header off Hugging Face before the row is offered —
+  Mercury reads the file's header off Hugging Face before the row is offered:
   only the header, by range requests (a few megabytes of a file that may be
-  hundreds of gigabytes; every shard's header when the file is split) — and
+  hundreds of gigabytes; every shard's header when the file is split). It then
   compares its architecture and its tensor names with what the prebuilt
   `llama.cpp` engine knows (`assets/host/llamacpp-engine.json`, generated from
   the pinned `llama.cpp` source). A file the engine cannot load is refused on
@@ -187,7 +187,7 @@ provider's volume.
    creates the folder, and records it in `bank.json`. Each model's files are
    stored under `<bank>/<namespace>--<repo>` with a `SHA256SUMS` manifest.
    An existing folder can be recognised by matching checksums or a model-naming
-   manifest or `config.json`, rather than its spelling alone. **Change folder**
+   manifest or `config.json`, so its spelling alone never decides. **Change folder**
    opens the same folder prompt and refreshes the table after your choice.
    Existing weights are not moved or deleted.
 2. **Read the status line and table.** The status line shows the bank folder
@@ -409,7 +409,7 @@ whether anything still bills:
   `GGML_ASSERT`, `terminate called` or `CUDA error`, setup stops immediately
   and reports
   `the engine died loading the weights: <the engine's own first error line> · machine terminated and verified absent · nothing more bills`.
-  The cause line is read from the whole engine log, not from its last lines, so
+  The cause line is read from the whole engine log instead of its last lines, so
   a crash's stack trace never stands in for it; when no error line was logged,
   the engine's last plain line (such as `Aborted (core dumped)`) is named. When
   the engine reported tensors it does not use, the notice adds
@@ -444,8 +444,8 @@ claims the pod is gone; it posts
 
 Reopen `/llmhost` and select **Machines I'm paying for** to check live rentals,
 clusters, Runpod and Vast.ai volumes, and active stock watches. The model menu
-counts only live machines returned by the vendors, not failed local records,
-volumes or watches. Each vendor says how many machines it returned, `none`,
+counts only live machines returned by the vendors; failed local records,
+volumes and watches are left out of that count. Each vendor says how many machines it returned, `none`,
 `no instances`, `no endpoints` or `unread`; an unread vendor adds `+?` to the
 count instead of claiming a complete zero. Rows use the vendor's own name:
 `Runpod pod`, `Vast.ai instance`, `Lambda instance` or `HF endpoint`.
