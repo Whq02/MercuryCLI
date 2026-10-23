@@ -430,9 +430,9 @@ try {
     legacyText,
   )
   check(
-    '(4b) legacy refusal keeps today’s env-var words (MERCURY_COMPAT_BASE_URL and MERCURY_COMPAT_API_KEY)',
+    '(4b) legacy refusal names the product’s own doors, never an environment variable',
     !legacyUnconfigured.ok &&
-      legacyText.includes('set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY if the endpoint needs one)') &&
+      legacyText.includes('start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model') && !legacyText.includes('MERCURY_COMPAT') &&
       legacyText.includes('the openai-compat family holds no credential on this account'),
     legacyText,
   )

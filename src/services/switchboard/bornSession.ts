@@ -19,6 +19,7 @@ export interface BirthRequest {
   title?: string | null
   firstPaintMs?: number
   vacatingSessionId?: string
+  fallbackNote?: string
 }
 
 export const DAEMON_DID_NOT_START =
@@ -132,7 +133,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
     if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
     const title = req.title !== undefined ? (req.title === null || req.title.trim() === '' ? null : req.title.trim()) : takeBootTitle()
     const worn = takeWornPresetKit()
-    return await admitAndEnter(req, { model, title, effort, worn, facts, fallbackNote: born.receipt })
+    const note = [born.receipt, req.fallbackNote ?? null].filter((row): row is string => row !== null && row !== '').join(' · ')
+    return await admitAndEnter(req, { model, title, effort, worn, facts, fallbackNote: note === '' ? null : note })
   } finally {
     settleLandingWords()
   }
