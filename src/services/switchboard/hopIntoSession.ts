@@ -273,10 +273,13 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
     return { ok: false, reason: 'this session is mid-turn — esc to interrupt it, then /clear' }
   }
   const workspaceDir = focused.workspace().cwd
-  const model = focused.modelFacts().effective
+  const facts = focused.modelFacts()
+  const model = facts.effective
+  const pinned = facts.sessionPin ?? facts.setting
+  const movedAlready = pinned !== null && pinned !== model
   const oldSessionId = focused.sessionId()
   const { bornSession } = await import('./bornSession.js')
-  const born = await bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })
+  const born = await bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId, ...(movedAlready ? { fallbackNote: `the model this chat ran on (${pinned}) is no longer reachable — this fresh chat starts on the default model instead; /model picks another` } : {}) })
   if (!born.ok) {
     const again = model !== undefined && born.reason.startsWith('model refused (')
       ? await bornSession({ workspaceDir, model: null, vacatingSessionId: oldSessionId, fallbackNote: `the model this chat ran on (${model}) is no longer reachable — this fresh chat starts on the default model instead; /model picks another` })

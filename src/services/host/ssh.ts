@@ -84,7 +84,7 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
 }
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
 const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: /i
-const engineCauseGrep = 'GGML_ASSERT|terminate called|what\\(\\):|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
+const engineCauseGrep = 'GGML_ASSERT|terminate called|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
 const stackFramePattern = /^(?:(?:\S+\([^()]*\))?\[0x[0-9a-f]+\]|#\d+\s+0x[0-9a-f]+\b.*|\[New LWP \d+\]|Thread \d+ \(Thread 0x[0-9a-f]+.*|\[Thread debugging using libthread_db enabled\]|Using host libthread_db library .*)$/
 const unknownLayoutPattern = /unknown model architecture|unsupported model architecture|missing tensor info mapping|wrong number of tensors|are not supported for now|unsupported architecture/i
 function engineCauseCommand(engineLog: string): string {
