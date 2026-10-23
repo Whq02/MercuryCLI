@@ -194,7 +194,7 @@ export function buildLocalExtras(
   return {
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),
-    ...(args.server === 'sglang' ? { chat_template_kwargs: { clear_thinking: false } } : {}),
+    ...(args.server === 'sglang' ? { chat_template_kwargs: { clear_thinking: false, thinking: args.thinkingEnabled } } : {}),
     ...(args.server === 'llamacpp' && args.idSlot !== undefined ? { id_slot: args.idSlot, cache_prompt: true } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }

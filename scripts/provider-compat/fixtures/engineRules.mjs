@@ -16,10 +16,11 @@ export const ENGINE_RULE_SOURCES = {
     tools: 'https://docs.vllm.ai/en/latest/features/tool_calling/',
   },
   sglang: {
-    checked: '2026-10-22',
+    checked: '2026-10-23',
     request: 'https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/entrypoints/openai/serving_chat.py',
     envelope: 'https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/entrypoints/openai/protocol.py',
     discovery: 'https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/entrypoints/http_server.py',
+    thinking: 'https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/main/encoding/README.md',
   },
   ollama: {
     checked: '2026-10-22',
@@ -73,6 +74,12 @@ function schemaFailure(schema, root = schema, seen = new Set()) {
   return undefined
 }
 
+export function deepseekV4ThinkingMode(body) {
+  const kwargs = object(body.chat_template_kwargs) ? body.chat_template_kwargs : {}
+  if (typeof kwargs.thinking === 'boolean') return kwargs.thinking ? 'thinking' : 'chat'
+  return body.reasoning_effort != null && body.reasoning_effort !== 'none' ? 'thinking' : 'chat'
+}
+
 export function engineError(dialect, message, param = null) {
   const type = dialect === 'llamacpp' || dialect === 'ollama' ? 'invalid_request_error' : 'BadRequestError'
   const error = { message, type, ...(dialect === 'ollama' ? { param: null, code: null } : dialect === 'llamacpp' ? { code: 400 } : { param, code: 400 }) }
@@ -115,7 +122,7 @@ export function validateEngineRequest(dialect, body, config = {}) {
 
 export async function startEngineRules(dialect, config = {}) {
   if (!(dialect in ENGINE_RULE_SOURCES)) throw new Error(`No rules for ${dialect}`)
-  const model = 'engine-fixture'
+  const model = typeof config.model === 'string' && config.model ? config.model : 'engine-fixture'
   const requests = []
   const queue = []
   const server = createServer(async (req, res) => {
@@ -142,13 +149,13 @@ export async function startEngineRules(dialect, config = {}) {
       if (routed && named === null) return missingModel()
       res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' }); return res.end('llamacpp:prompt_tokens_seconds 1234\n')
     }
-    if ((req.url === '/model_info' && config.legacyOnly !== true || req.url === '/get_model_info' && (config.legacyInfo === true || config.legacyOnly === true)) && dialect === 'sglang') return json(200, { model_path: model, served_model_name: model, tokenizer_path: model, is_generation: true, preferred_sampling_params: null, weight_version: 'default', load_format: 'auto', reasoning_parser: config.reasoning === false ? null : 'qwen3', tool_call_parser: config.tools === false ? null : 'qwen', disaggregation_mode: 'null', has_image_understanding: config.images ?? true, has_audio_understanding: false, model_type: 'qwen3', architectures: ['Qwen3ForCausalLM'] })
+    if ((req.url === '/model_info' && config.legacyOnly !== true || req.url === '/get_model_info' && (config.legacyInfo === true || config.legacyOnly === true)) && dialect === 'sglang') return json(200, { model_path: model, served_model_name: model, tokenizer_path: model, is_generation: true, preferred_sampling_params: null, weight_version: 'default', load_format: 'auto', reasoning_parser: config.reasoning === false ? null : config.reasoningParser ?? 'qwen3', tool_call_parser: config.tools === false ? null : config.toolParser ?? 'qwen', disaggregation_mode: 'null', has_image_understanding: config.images ?? true, has_audio_understanding: false, model_type: config.modelType ?? 'qwen3', architectures: [config.architecture ?? 'Qwen3ForCausalLM'] })
     if (req.url === '/api/tags' && dialect === 'ollama') return json(200, { models: [{ name: model }] })
     if (req.url === '/api/ps' && dialect === 'ollama') return json(200, { models: [{ name: model, context_length: 131072 }] })
     if (req.url === '/api/show' && dialect === 'ollama') return json(200, { capabilities: ['completion', ...(config.images === false ? [] : ['vision']), ...(config.tools === false ? [] : ['tools']), ...(config.reasoning === false ? [] : ['thinking'])], thinking: { values: ['low', 'medium', 'high', 'max'], default: 'high' } })
     if (req.url !== '/v1/chat/completions') return json(404, { error: 'not found' })
     const fault = validateEngineRequest(dialect, body, config)
-    requests.push({ body, fault })
+    requests.push({ body, fault, ...(dialect === 'sglang' ? { deepseekV4Thinking: deepseekV4ThinkingMode(body) } : {}) })
     if (fault) return json(fault.status, fault.body)
     const turn = queue.shift() ?? {}
     if (turn.error) return json(turn.error.status, turn.error.body)
