@@ -89,6 +89,10 @@ try {
   volumes.writeKeptVolume({ ...record, state: 'kept', verifiedSums: { sha256: 'a'.repeat(64), files: 77, bytes: 510296921671, at: new Date().toISOString() } })
   check('the kept words are the row’s promise: weights kept on the machine, size and billing, a rental there boots in minutes, other machines download', /^weights kept on Vast.ai machine 9103 \(556 GB, \$111\.20\/month for its 556 GB \(\$0\.20\/GB-month, the machine’s rate\), with or without an instance\) · a rental on that machine boots in ~\d+ min · other machines download$/.test(vastVolumes.vastVolumeState(b200)))
   check('with a kept volume on machine 9103 the stock watch prefers that machine even at a higher price', (await client.watchOffer(b200, 20, signal()))!.machineId === 9103)
+  const machineOffers = fixture.state.customOffers
+  fixture.state.customOffers = machineOffers.filter(row => row.machine_id !== 9103)
+  check('a kept-volume stock watch never rents another machine when its own machine has no stock', await client.watchOffer(b200, 20, signal()) === undefined)
+  fixture.state.customOffers = machineOffers
   const same = (await client.recipeOffers([b200], signal())).find(row => row.machineId === 9103)!
   const other = (await client.recipeOffers([b200], signal())).find(row => row.machineId === 9999)!
   check('a rental on the volume’s machine attaches it; a rental elsewhere does not', (await vastVolumes.vastRentalVolume(client, b200, same, signal()))?.id === '20118485' && (await vastVolumes.vastRentalVolume(client, b200, other, signal())) === undefined && vastVolumes.vastBootsFromVolume(b200, 9103) && !vastVolumes.vastBootsFromVolume(b200, 9999))

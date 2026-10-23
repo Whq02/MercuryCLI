@@ -208,7 +208,7 @@ export class VastClient implements HostVendor {
     const model = recipe.label.split(' · ')[0]
     const siblings = [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id && (row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda))]
     const kept = this.keptMachine(recipe)
-    return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice).sort((a, b) => Number(kept !== undefined && b.machineId === kept) - Number(kept !== undefined && a.machineId === kept) || Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
+    return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice && (kept === undefined || row.machineId === kept)).sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
   }
   keptMachine: (recipe: HostRecipe) => number | undefined = recipe => keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
