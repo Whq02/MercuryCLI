@@ -179,7 +179,9 @@ try {
     check('b on a freshly opened model works without selecting a rental', hotkeyWorks)
     await step(bankStep)
     await capture(width + '-bank-confirm')
+    const beforeBank = jobs.length
     await choose(width === 120 ? 'bank' : 'verify')
+    assert.ok(await waitFor(() => jobs.length > beforeBank, 10000), 'bank action queues its own job before completion is checked')
     await Promise.all(jobs); await step('door-model')
     const derived = currentHostRecipes().find(row => row.model === fixtureRepos.gguf.id)!
     check('the background bank job verifies the downloaded HF files against the trusted manifest the derived recipe now carries', bank.bankState(derived).banked && bank.bankState(derived).check === 'manifest')
@@ -226,9 +228,9 @@ try {
   await open(); await choose('bank'); await step('door-bank')
   await capture('80-bank-after-session-reset')
   check('the saved HF bank remains on disk after the session recipe is forgotten', bank.bankState(derived).banked && bank.readBankRegistry().models[volumes.volumeModel(derived)] !== undefined)
-  console.log('KNOWN LIMITATION — HF bank row after a fresh recipe session: ' + (question!.rows!.some(row => row.value === derived.id) ? 'present' : 'missing while its weights and registry entry remain'))
+  check('the saved HF model remains a selectable Bank row after its session recipe is forgotten', question!.rows!.some(row => row.value === derived.id))
   await close(); mounted!.unmount(); mounted = undefined
   check('no request left the fixture servers', escaped.length === 0)
   assert.equal(downloads.length, 1)
-  console.log('LLMHOST QC DRIVE GREEN — ' + checks + ' checks; 120x40 and 80x24, live dialog and loopback fixtures; HF mirror limitation captured explicitly')
+  console.log('LLMHOST QC DRIVE GREEN — ' + checks + ' checks; 120x40 and 80x24, live dialog and loopback fixtures; saved HF Bank row survives session reset')
 } finally { mounted?.unmount(); ssh?.close(); await rp.close(); await vast.close(); await lambda.close(); await hf.close(); await endpoints.close(); f.close(); globalThis.fetch = nativeFetch }
