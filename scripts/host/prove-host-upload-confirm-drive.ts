@@ -77,13 +77,30 @@ try {
     for (const label of ['Vast.ai', 'Lambda']) {
       const row = question!.rows!.find(row => row.label.startsWith('Rent · ' + label))!
       assert.ok(row)
+      assert.ok(row.label.includes('uploads your bank first'), 'the rental row must match the saved upload choice')
+      assert.ok(question!.found.includes('upload your bank'), 'the WEIGHTS summary must not promise an HF download for an upload')
       await choose(row.value); await step('rent-confirm')
       assert.ok(question!.willRun.includes('Uploads your bank to the rented machine · ' + safe.bankUploadEstimate(recipe)))
       assert.ok(question!.willRun.includes('This machine bills throughout the upload.'))
       assert.equal(vast.state.creates + lambda.state.creates, 0)
       await close(); await open()
     }
-    await close(); mounted.unmount(); mounted = undefined
+    await close()
+    const volumes = await import('../../src/services/host/volumes.ts')
+    for (const [state, machineId, rowWords, confirmation] of [['preparing', 9101, 'downloads onto your volume first', 'downloads the weights onto your Vast.ai volume'], ['kept', 9101, 'boots from your Vast.ai volume on its machine', 'the download is skipped'], ['kept', 9999, 'uploads your bank first', 'Uploads your bank to the rented machine']] as const) {
+      vast.state.volumes.set(20199999, { id: 20199999, label: 'fixture-kept', machine_id: machineId, disk_space: 20, storage_cost: 0.2, status: 'active', start_date: 1792490400 })
+      volumes.writeKeptVolume({ id: '20199999', name: 'fixture-kept', model: recipe.model, include: '', recipeRow: recipe, kind: 'vast', machineId, dataCenter: 'Vast.ai machine ' + machineId, size: 20, price: 4, storageCost: 0.2, createdAt: new Date().toISOString(), state })
+      await open()
+      const row = question!.rows!.find(row => row.label.startsWith('Rent · Vast.ai'))!
+      assert.ok(row.label.includes(rowWords), row.label)
+      await choose(row.value); await step('rent-confirm')
+      assert.ok(question!.willRun.includes(confirmation), question!.willRun)
+      if (machineId === 9999) assert.ok(question!.willRun.includes('it stays there and bills'))
+      assert.equal(vast.state.creates + lambda.state.creates, 0)
+      await close()
+    }
+    vast.state.volumes.clear(); volumes.removeKeptVolumeRecord('20199999')
+    mounted.unmount(); mounted = undefined
     console.log('PASS k keep safe on the fresh model and saved first-boot upload confirms for Vast.ai/Lambda at ' + width + ' columns; no rentals')
   }
   assert.equal(escaped.length, 0)
