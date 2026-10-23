@@ -94,7 +94,7 @@ if (childMode) {
     queueHostBank(record('bank'))
     await child()
     const bad = Object.values(readBankRegistry().models).find(row => row.path === path)
-    check('same-size corrupt bytes are rejected in the separate worker', bad?.error?.includes('SHA256 differs'))
+    check('same-size corrupt bytes are rejected in the separate worker', bad?.error === 'model.gguf · hash differs from the pinned manifest')
     check('a failed trusted check cannot leave a verified Bank receipt', bad?.verifiedAt === undefined && bad?.check === undefined)
     console.log('BOUNDARY MANIFEST ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; real worker processes and real file hashing, no network')
   } finally {
