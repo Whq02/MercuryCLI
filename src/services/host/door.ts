@@ -281,7 +281,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
         : cheapest ? cheapestVendor + ' ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
         : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect to check stock →') : 'no stock · watch →') + (derived ? '' : ' · ' + stampWord(stamp))
       return { name, variants, where, derived, stamp, rank: live ? 0 : own ? 1 : cheapest ? 2 : 3, price: cheapest?.price ?? Infinity }
-    }).sort((a, b) => a.rank - b.rank || a.price - b.price || a.stamp - b.stamp || a.name.localeCompare(b.name))
+    }).sort((a, b) => a.stamp - b.stamp || a.rank - b.rank || a.price - b.price || a.name.localeCompare(b.name))
     if (!title) {
       const paid = pods ?? []
       const incomplete = pods === undefined || Boolean(podError)
