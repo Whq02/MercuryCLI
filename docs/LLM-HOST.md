@@ -228,7 +228,7 @@ machine is offline). Mercury therefore keeps a model's weights **on one
 Vast.ai machine**: a rental of that model on that machine boots from the
 volume; a rental on any other machine downloads the weights as before.
 
-With Vast.ai connected, `m` on a banked model row offers
+With Vast.ai connected, `m` on a banked model row shows
 `Vast.ai volume · keep on one Vast.ai machine · per GB-month at the machine's rate`
 beside the Runpod volumes (when Runpod is not connected, `m` opens the Vast.ai
 choice directly). The steps:
@@ -259,7 +259,7 @@ Once kept, the model's Bank row reads
 `weights kept on Vast.ai machine <id> (<n> GB, <billing>) · a rental on that machine boots in ~<m> min · other machines download`,
 its `WEIGHTS` line adds `Vast.ai volume ✓ machine <id>`, and the Vast.ai offer
 on that machine reads `machine <id> · boots from your Vast.ai volume on its machine`
-while offers on other machines still say `downloads the weights first`. Renting
+while rentals on other machines say `downloads the weights first`. Renting
 that offer attaches the volume at creation, checks the kept files in a few
 seconds (the sampled check described above) and skips the download; the
 rental confirmation names the volume's monthly amount beside the hourly price.
