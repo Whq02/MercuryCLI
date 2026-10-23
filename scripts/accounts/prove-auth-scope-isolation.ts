@@ -43,6 +43,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/secureStorage/plainTextStorage.ts',
     'src/utils/secureStorage/macOsKeychainHelpers.ts',
     'src/services/providers/providerSecrets.ts',
+    'src/services/host/jobCredentials.ts',
     'src/utils/accounts/signInRefusal.ts',
     'src/utils/redactSecrets.ts',
     'src/services/providers/openai/openaiAccounts.ts',
