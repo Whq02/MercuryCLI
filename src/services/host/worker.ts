@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { vendorClient, vendorKey, vendorKeyNotice, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'
+import { VAST_VOLUME_MOUNT, VastClient } from './vendors/vast.js'
+import { vastRentalVolume } from './vastVolumes.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
 import { hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
@@ -176,6 +178,13 @@ export async function runHostJob(id: string, generation: string, options: { runn
               offer = (await runpod.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
             }
           }
+          const vast = clients.get('vast')
+          if (offer && hit === 'vast' && vast instanceof VastClient) {
+            stage = 'Vast.ai volume not ready'
+            const mount = await vastRentalVolume(vast, offer.recipe, offer, signal)
+            volume = mount ? readKeptVolume(mount.id) : undefined
+            stage = 'provider read failed'
+          }
         } catch (error) {
           if (signal.aborted || unauthorized(error)) throw error
           wait = Math.max(Math.min(60_000, wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
@@ -314,14 +323,17 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!target) throw new Error(last)
     patchHostRecord(id, { target, status: 'RUNNING' })
     let keptWeights: string | undefined
+    let engineCache: string | undefined
     if (initial.volumeId) {
-      keptWeights = await prepareKeptWeights(initial, recipe, runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark, cleanupRead)
+      const disk = readKeptVolume(initial.volumeId)
+      keptWeights = await prepareKeptWeights(initial, recipe, disk?.kind === 'vast' ? api : runpodOnly(api, 'Fast-load weights disks'), target, runner, signal, mark, cleanupRead)
       if (initial.prepareWeightsOnly) return
+      if (disk?.kind === 'vast') engineCache = (disk.mountPath ?? VAST_VOLUME_MOUNT) + '/engine-cache'
     }
     mark(recipe.engine === 'llamacpp' ? 'checking engine' : 'installing')
     const vm = vendor === 'lambda'
     const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
-    await startHostEngine(target, recipe, runner, signal, docker, !vm, undefined, keptWeights)
+    await startHostEngine(target, recipe, runner, signal, docker, !vm, undefined, keptWeights, undefined, engineCache)
     await waitHostEngine(target, recipe, runner, signal, pause, timeout, log)
     }
     patchHostRecord(id, { target, status: 'RUNNING' })

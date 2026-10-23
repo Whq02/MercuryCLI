@@ -14,7 +14,8 @@ import type { HostReadOnly } from './retry.js'
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
   recipeRow: hostRecipeSchema.optional(),
-  kind: z.enum(['network', 'global']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
+  kind: z.enum(['network', 'global', 'vast']), dataCenter: z.string(), size: z.number().positive(), price: z.number().nonnegative(), createdAt: z.string(),
+  machineId: z.number().int().positive().optional(), storageCost: z.number().nonnegative().optional(), hostingType: z.string().optional(), mountPath: z.string().optional(),
   state: z.enum(['creating', 'preparing', 'kept', 'gone', 'failed']), filledBy: z.string().optional(), checkedBy: z.string().optional(), preparingPod: z.string().optional(), error: z.string().optional(), partialBytes: z.number().nonnegative().optional(),
   verifiedSums: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), sampleManifestSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), check: z.enum(['full', 'sampled']).optional(), files: z.number().int().positive(), bytes: z.number().positive(), at: z.string() }).optional(),
 })
@@ -27,11 +28,14 @@ export function keptVolumes(): KeptVolume[] { return readdirSync(directory()).fi
 export function readKeptVolume(id: string): KeptVolume | undefined { try { return volumeRecordSchema.parse(JSON.parse(readFileSync(pathOf(id), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error } }
 export function writeKeptVolume(record: KeptVolume): void { publishAtomicSync(pathOf(record.id), JSON.stringify(volumeRecordSchema.parse(record)) + '\n', { mode: 0o600 }) }
 const removeRecord = (id: string): void => { try { unlinkSync(pathOf(id)) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error } }
+export const removeKeptVolumeRecord = removeRecord
 export const networkMonthly = (size: number): number => Math.round((Math.min(size, 1000) * 0.07 + Math.max(0, size - 1000) * 0.05) * 100) / 100
 export const volumePrice = (record: Pick<KeptVolume, 'kind' | 'price'>): string => (record.kind === 'global' ? '~' : '') + '$' + record.price.toFixed(2) + '/month' + (record.kind === 'global' ? ' + IOPS (actual usage)' : '')
 export const gigabytes = (bytes: number): string => (bytes / 1e9).toFixed(2) + ' GB'
 export const fullCheckMinutes = (weightsGb: number): string => Math.max(1, Math.round(weightsGb / 24)) + '–' + Math.max(1, Math.ceil(weightsGb / 12)) + ' min'
-export const keptDiskPrice = (record: KeptVolume): string => record.kind === 'global' && record.partialBytes !== undefined ? '~$' + (record.partialBytes / 1e9 * 0.09).toFixed(2) + '/month for ' + gigabytes(record.partialBytes) + ' stored + IOPS' : volumePrice(record) + (record.kind === 'network' ? ' for its ' + record.size + ' GB' : '')
+export const vastVolumeBilling = (record: Pick<KeptVolume, 'price' | 'size' | 'storageCost'>): string => '$' + record.price.toFixed(2) + '/month for its ' + record.size + ' GB' + (record.storageCost !== undefined ? ' ($' + record.storageCost.toFixed(2) + '/GB-month, the machine’s rate)' : '') + ', with or without an instance'
+export const keptDiskPrice = (record: KeptVolume): string => record.kind === 'vast' ? vastVolumeBilling(record) : record.kind === 'global' && record.partialBytes !== undefined ? '~$' + (record.partialBytes / 1e9 * 0.09).toFixed(2) + '/month for ' + gigabytes(record.partialBytes) + ' stored + IOPS' : volumePrice(record) + (record.kind === 'network' ? ' for its ' + record.size + ' GB' : '')
+export const runpodKeptVolumes = (): KeptVolume[] => keptVolumes().filter(row => row.kind !== 'vast')
 export function volumeLabel(volume: HostVolume): string {
   const own = readKeptVolume(volume.id)
   const amount = own ? keptDiskPrice(own) : volume.kind === 'global' ? '$0.09/GB/month + IOPS · size not reported by Runpod' : volume.type === 'STANDARD' ? '$' + networkMonthly(volume.size!).toFixed(2) + '/month' : 'monthly price depends on storage tier; see Runpod billing'
@@ -40,7 +44,7 @@ export function volumeLabel(volume: HostVolume): string {
 const pendingGraceMs = 10 * 60_000
 export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal): Promise<HostVolume[]> {
   const live = await api.volumes(signal)
-  for (const record of keptVolumes()) {
+  for (const record of runpodKeptVolumes()) {
     const found = record.id.startsWith('pending-') ? live.filter(row => row.name === record.name && row.kind === record.kind) : live.filter(row => row.id === record.id && row.kind === record.kind)
     if (found.length > 1) throw new Error(record.name + ' has multiple matches in Runpod; inspect the account before retrying.')
     const row = found[0]
@@ -54,9 +58,9 @@ export async function reconcileVolumes(api: RunpodClient, signal?: AbortSignal):
   return live
 }
 export async function rentalVolume(api: RunpodClient, recipe: HostRecipe, signal?: AbortSignal): Promise<KeptVolume | undefined> {
-  if (!keptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
+  if (!runpodKeptVolumes().some(row => matchesVolume(row, recipe) && row.state !== 'gone')) return
   try { await reconcileVolumes(api, signal) } catch (error) { throw new Error('The weights disk for this model cannot be confirmed while Runpod’s volume list is unavailable; no pod was created. ' + String(error)) }
-  const rows = keptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
+  const rows = runpodKeptVolumes().filter(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (rows.length > 1) throw new Error('Multiple weights disks for this model; open /llmhost → Bank before renting.')
   const volume = rows[0]
   if (volume?.state === 'creating') throw new Error(volume.name + ' may exist; refresh /llmhost → Bank before renting. No retry was sent.')
@@ -90,6 +94,7 @@ export async function createKeptVolume(api: RunpodClient, recipe: HostRecipe, ki
 export async function deleteKeptVolume(api: RunpodClient, id: string, readOnly?: HostReadOnly): Promise<void> {
   const record = readKeptVolume(id)
   if (!record || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
+  if (record.kind === 'vast') throw new Error('This is a Vast.ai volume; delete it from its own row in Machines I’m paying for. Nothing was deleted.')
   try { await api.deleteVolume(record.kind, id) } catch (error) {
     if (createRefusal(error) || error instanceof RunpodHttpError && error.status === 409) {
       const mounting = (await api.pods().catch((): HostPod[] => [])).filter(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))

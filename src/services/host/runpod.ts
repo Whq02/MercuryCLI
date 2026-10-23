@@ -10,7 +10,7 @@ const clusterSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name:
 export type HostCluster = z.infer<typeof clusterSchema>
 export type HostPod = z.infer<typeof podSchema> & { family?: HostCluster; nodes?: HostClusterPod[] }
 export type HostClusterPod = z.infer<typeof clusterPodSchema>
-export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string; hostingType?: 'datacenter' | 'community host' | 'host' }
+export interface HostOffer { recipe: HostRecipe; gpuId: string; price: number; dataCenter?: string; availability?: string; hostingType?: 'datacenter' | 'community host' | 'host'; machineId?: number }
 const gpuSchema = z.object({ id: z.string(), name: z.string(), memory: z.number(), secure: z.boolean(), price: z.object({ secure: z.number().nonnegative() }), maxCount: z.object({ secure: z.number() }), availability: z.string().optional(), dataCenters: z.array(z.object({ id: z.string(), availability: z.string() })).optional() })
 const stockRank = (value?: string): number => value === 'HIGH' ? 3 : value === 'MEDIUM' ? 2 : value === 'LOW' ? 1 : 0
 const stock = (value?: string): boolean => stockRank(value) > 0
@@ -132,6 +132,7 @@ export class RunpodClient {
   }
   async get(id: string, signal?: AbortSignal): Promise<HostPod> { return podSchema.parse(await (await this.response('/pods/' + encodeURIComponent(id), 'GET', undefined, signal)).json()) }
   async create(offer: HostOffer, publicKey: string, name: string, volume?: HostVolumeMount): Promise<HostPod> {
+    if (volume?.kind === 'vast') throw new Error('A Vast.ai volume lives on one Vast.ai machine; it cannot be attached to a Runpod pod. Nothing was created.')
     if (volume?.kind === 'network' && offer.dataCenter && offer.dataCenter !== volume.dataCenter) throw new Error('The kept weights disk requires a pod in ' + volume.dataCenter + '. Choose a fitting shape in that data centre.')
     const script = 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server tmux curl && mkdir -p /root/.ssh /run/sshd && chmod 700 /root/.ssh && printf "%s\n" "$PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && ssh-keygen -A && service ssh start && sleep infinity'
     const args = offer.recipe.engine === 'vllm' ? JSON.stringify({ entrypoint: ['bash', '-lc'], cmd: [script] }) : 'bash -lc ' + JSON.stringify(script)
@@ -223,5 +224,5 @@ export class RunpodClient {
 const volumeId = z.string().regex(/^[A-Za-z0-9_-]+$/)
 const networkVolumeSchema = z.object({ id: volumeId, name: z.string(), size: z.number().int().positive(), dataCenter: z.string(), type: z.string() })
 const globalVolumeSchema = z.object({ id: volumeId, name: z.string(), createdAt: z.string() })
-export interface HostVolumeMount { id: string; kind: 'network' | 'global'; dataCenter?: string }
+export interface HostVolumeMount { id: string; kind: 'network' | 'global' | 'vast'; dataCenter?: string; machineId?: number }
 export interface HostVolume extends HostVolumeMount { name: string; size?: number; type?: string; createdAt?: string }
