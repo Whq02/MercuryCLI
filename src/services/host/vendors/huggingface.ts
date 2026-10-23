@@ -1,10 +1,11 @@
+import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
 import { defaultTune, readTunePreferences, tunedRecipe } from '../tune.js'
 import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
-import { HostCreateError, VendorApi, type VendorTiming } from './http.js'
+import { HostCreateError, HostVendorHttpError, VendorApi, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
 export const HF_ENDPOINTS_STORAGE_NOTICE = 'HF-managed · per hour · no SSH · downloads the weights first. One replica, billed by the minute while initializing or running. Pause ends compute billing; Resume starts it again. No weights disk is attached.'
@@ -30,30 +31,61 @@ function hfEndpointRecipeReason(recipe: HostRecipe): string | undefined {
   return undefined
 }
 
+export class HostHuggingfaceSignInRequired extends HostVendorHttpError {
+  readonly state = 'sign-in-required' as const
+  readonly vendor = 'huggingface' as const
+  constructor() { super('Hugging Face: sign in again with /logins huggingface', 401) }
+}
+const rejectedCredentials = new Set<string>()
+const credentialId = (key: string): string => createHash('sha256').update(key).digest('hex')
 export class HuggingfaceClient implements HostVendor {
   readonly vendor = 'huggingface' as const
   readonly label = HOST_VENDOR_INFO.huggingface.label
   readonly keyHelp = HOST_VENDOR_INFO.huggingface.keyHelp
   readonly capabilities = { managed: true, stop: true, dataCenters: true, persistentDisk: 'none' } as const
-  private api: VendorApi
-  private logsApi: VendorApi
-  private hub: VendorApi
+  private api!: VendorApi
+  private logsApi!: VendorApi
+  private hub!: VendorApi
   private namespace?: string
   private hardware?: Hardware[]
   private lastShapes: HostOffer[] = []
   private placements = new WeakMap<HostOffer, { hardware: Hardware; fingerprint: string }>()
-  constructor(key: string, base = official, private timing: VendorTiming = {}) {
-    this.api = new VendorApi(this.label, key, base, official, [400, 401, 403, 404, 409, 422, 429], timing)
+  constructor(private key: string, private base = official, private timing: VendorTiming = {}, private credential?: (refresh: boolean) => Promise<{ key: string } | undefined>) {
+    this.configure(key)
+  }
+  private configure(key: string): void {
+    this.key = key
+    this.namespace = undefined
+    this.api = new VendorApi(this.label, key, this.base, official, [400, 401, 403, 404, 409, 422, 429], this.timing)
     const url = new URL(this.api.base)
     const fixture = url.protocol === 'http:'
-    this.hub = new VendorApi(this.label, key, (fixture ? url.origin : 'https://huggingface.co') + '/api', 'https://huggingface.co/api', [], timing)
-    this.logsApi = new VendorApi(this.label, key, url.origin + '/v3', 'https://api.endpoints.huggingface.cloud/v3', [], timing)
+    this.hub = new VendorApi(this.label, key, (fixture ? url.origin : 'https://huggingface.co') + '/api', 'https://huggingface.co/api', [], this.timing)
+    this.logsApi = new VendorApi(this.label, key, url.origin + '/v3', 'https://api.endpoints.huggingface.cloud/v3', [], this.timing)
   }
   rateLimitPolicy(): string { return this.api.policy() ?? 'HF does not publish a fixed endpoint API quota here. Reads honor Retry-After; creates are never retried.' }
   shapes(): readonly HostOffer[] { return this.lastShapes }
   offersNote(): string { return 'HF-managed · per hour · no SSH · personal namespace · live catalogue and quota, placement not guaranteed · API only — not yet booted' }
   private async account(signal?: AbortSignal): Promise<string> {
-    if (!this.namespace) this.namespace = (await this.hub.request('/whoami-v2', z.object({ type: z.literal('user'), name: namespaceSchema }), 'GET', undefined, signal)).name
+    const credential = await this.credential?.(false)
+    if (this.credential && !credential) throw new HostHuggingfaceSignInRequired()
+    if (credential && credential.key !== this.key) this.configure(credential.key)
+    if (rejectedCredentials.has(credentialId(this.key))) throw new HostHuggingfaceSignInRequired()
+    if (!this.namespace) {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          this.namespace = (await this.hub.request('/whoami-v2', z.object({ type: z.literal('user'), name: namespaceSchema }), 'GET', undefined, signal)).name
+          break
+        } catch (error) {
+          if (!(error instanceof HostVendorHttpError) || ![401, 403].includes(error.status)) throw error
+          if (attempt === 0 && error.status === 401) {
+            const fresh = await this.credential?.(true)
+            if (fresh) { this.configure(fresh.key); continue }
+          }
+          rejectedCredentials.add(credentialId(this.key))
+          throw new HostHuggingfaceSignInRequired()
+        }
+      }
+    }
     return this.namespace
   }
   private async catalogue(signal?: AbortSignal): Promise<Hardware[]> {
