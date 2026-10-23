@@ -21,8 +21,8 @@ check(
   "§A the live thinking label keys off the stream mode and the seat's live facts alone (liveCounterWords owns the phase word: reading the prompt, loading, retrying replace the label only while the facts say so — a pure function, never a timer or a state machine)",
   row.includes("import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'") &&
     row.includes('livePhase: liveCounterPhaseOf(mode)') &&
-    hud.includes('const waitPhaseText = liveWords.reading || liveWords.phase !== facts.livePhase ? liveWords.phase : null') &&
-    hud.includes("const thinkingText = mode === 'thinking' && waitPhaseText === null ? facts.thinkingLabel : null") &&
+    hud.includes("const waitPhaseText = (liveWords.reading || liveWords.phase !== facts.livePhase) && head !== liveWords.phase && !head.includes('reconnecting (') ? liveWords.phase : null") &&
+    hud.includes("const thinkingText = mode === 'thinking' && waitPhaseText === null && !head.startsWith(THINKING_WORD) ? facts.thinkingLabel : null") &&
     !/setTimeout|setInterval|useState|useRef|useEffect/.test(liveWords),
 )
 
