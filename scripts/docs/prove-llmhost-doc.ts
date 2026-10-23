@@ -295,7 +295,16 @@ check('the four setup failure cases (engine death, download stall, SSH key refus
 check('shipped GGUF vision projectors (mmproj), image refusal words, engine refusal remedies and first-token progress match compatProbe.ts and compatRefusals.ts', res.projectorAndEngineRefusalsMatch)
 check('docs/README.md line for LLM-HOST.md names /llmhost, mercury host, Hugging Face search and the Bank', res.indexMatches, res.detail.indexLine)
 
-section('§6 poison controls — a drifted doc fails the proof')
+section('§6 Bank, account and reasoning instructions agree throughout the guide')
+const guide = normQuotes(docText).replace(/\s+/g, ' ')
+check('the Bank introduction counts all five keys instead of four', guide.includes('Five single-key shortcuts') && !guide.includes('Four single-key shortcuts'))
+check('every paid-screen pointer uses Machines, including the Vast volume section', !/Pods I['’]m paying for/.test(docText))
+check('the Bank guide names Change folder and content-based folder recognition', guide.includes('**Change folder**') && guide.includes('Existing weights are not moved or deleted') && guide.includes('manifest or `config.json`'))
+check('mirroring covers derived and private banks and any fitting fill shape', guide.includes('shipped, derived or private recipe') && guide.includes('download receipts') && guide.includes('any GPU shape') && !guide.includes('opens Runpod fast-load volume setup for a shipped recipe'))
+check('the guide names in-place key controls, the HF permission remedy and live-only machine counts', guide.includes('**Replace key / Remove key**') && guide.includes('https://huggingface.co/settings/tokens') && guide.includes('counts only live machines') && guide.includes('no instances') && guide.includes('unread'))
+check('the guide preserves effort on refusal and names the SGLang thinking switch', guide.includes('does not retry at default effort') && guide.includes('`chat_template_kwargs.thinking`') && !guide.includes('retries once without that field'))
+
+section('§7 poison controls — a drifted doc fails the proof')
 check(
   'poison control: dropping unverified from the stamp bullets fails stampsMatch',
   !validateLlmHostDoc(docText.replace('- **`unverified`:**', '- **`draft`:**'), indexText, expectedStamps, expectedWhereRows).stampsMatch,
