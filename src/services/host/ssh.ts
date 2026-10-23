@@ -168,18 +168,29 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   const remote = 'mkdir -p ' + quote(dir) + ' || exit 1; exec 2>>' + launchLog + '; set -e; trap ' + quote('cat ' + launchLog) + ' EXIT; if test -s ' + pidPath + ' && kill -0 "$(cat ' + pidPath + ')" 2>/dev/null && pgrep -f -- ' + match + ' >/dev/null; then echo "Engine job already running"; exit 0; fi; printf %s ' + quote(script) + ' > ' + scriptPath + '; nohup setsid bash ' + scriptPath + ' > ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + pidPath + '; sleep 5; if ! kill -0 "$(cat ' + pidPath + ')" 2>/dev/null || ! pgrep -f -- ' + match + ' >/dev/null; then echo "Engine launch failed; launch.log:"; cat ' + launchLog + '; tail -n 20 ' + quote(dir + '/engine.log') + '; exit 1; fi'
   try { await runner.run('ssh', [...args, remote], signal) } catch (error) { throw engineFailure(String(error), recipe, String(error).includes('Engine launch failed')) ?? new Error('launch.log: ' + String(error)) }
 }
-export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000, onLog: (text: string) => void = () => {}): Promise<void> {
+export const ENGINE_PROGRESS_GRACE_MS = 10 * 60_000
+function enginePollCommand(dir: string): string {
+  const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
+  return 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'
+}
+export async function engineDeathAfterReady(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal): Promise<Error | undefined> {
+  const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand('/workspace/mercury-host/' + recipe.id)], signal)
+  if (!log.includes('MERCURY_ENGINE_EXITED')) return
+  const failed = engineFailure(log, recipe, true)
+  return new Error((failed?.message ?? 'the engine died loading the weights: the engine process exited').replace(/^the engine died loading the weights: /, 'the engine died after setup: '))
+}
+export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs = 5000, timeoutMs = 90 * 60_000, onLog: (text: string) => void = () => {}, progressGraceMs = ENGINE_PROGRESS_GRACE_MS): Promise<void> {
   const started = Date.now()
   let last = ''
   let previous: string[] = []
+  let progressedAt = started
   const dir = '/workspace/mercury-host/' + recipe.id
-  const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
-  while (!signal.aborted && Date.now() - started < timeoutMs) {
-    const log = await runner.run('ssh', [...sshArguments(target), 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'], signal)
+  while (!signal.aborted && (Date.now() - started < timeoutMs || Date.now() - progressedAt < progressGraceMs)) {
+    const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand(dir)], signal)
     const rows = log.trimEnd().split('\n')
     let overlap = Math.min(previous.length, rows.length)
     while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
-    if (overlap < rows.length) onLog(rows.slice(overlap).join('\n'))
+    if (overlap < rows.length) { onLog(rows.slice(overlap).join('\n')); if (previous.length) progressedAt = Date.now() }
     previous = rows
     const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
     if (failed) throw failed

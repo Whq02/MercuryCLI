@@ -23,12 +23,13 @@ import { bankDownloadScript, bankModelPath, bytesWords, folderBytes, recordBankF
 import { bankUploadBudget, uploadBankForRental } from './keepSafe.js'
 import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
-import { ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
+import { engineDeathAfterReady, ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } from './retry.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
+class HostEngineDiedAfterReady extends Error {}
 const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
 const localOs = (): 'darwin' | 'linux' | 'windows' => process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
 
@@ -377,6 +378,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const reconnects = 5
       const reconnect = async (why: string): Promise<void> => {
         if (api.capabilities.managed || !target || port === undefined) throw new Error('The HF endpoint no longer answers: ' + why)
+        const death = await engineDeathAfterReady(target, recipe, runner, signal).catch(() => undefined)
+        if (death) throw new HostEngineDiedAfterReady(death.message)
         for (let attempt = 1; ; attempt++) {
           const words = 'tunnel dropped · reconnecting · attempt ' + attempt + ' of ' + reconnects + ' · ' + why
           log(words)
@@ -470,6 +473,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         hostNotice(record, 'failed', record.name + ' · ' + detail)
         removeHostRecord(id)
       } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
+      else if (error instanceof HostEngineDiedAfterReady) hostNotice(record, 'failed', record.name + ' · ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume restarts the engine, Terminate stops the bill')
       else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
       else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
     }
