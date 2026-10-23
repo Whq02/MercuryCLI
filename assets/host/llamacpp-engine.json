@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/host/export-llamacpp-engine.ts",
-  "llamacpp": "3bb63cbcbfb62056c84fe9e521b0f3d756d29c32",
-  "source": "https://github.com/ggml-org/llama.cpp/blob/3bb63cbcbfb62056c84fe9e521b0f3d756d29c32/src/llama-arch.cpp",
-  "sourceSha256": "1170b4b3b2c99642b4b6b65f245b56e3f9d5a1fb58d8c8dad1fabea52f29fc50",
+  "llamacpp": "184f6536024668e8908ab8c86033d56708e62b40",
+  "source": "https://github.com/ggml-org/llama.cpp/blob/184f6536024668e8908ab8c86033d56708e62b40/src/llama-arch.cpp",
+  "sourceSha256": "109a4cb4918367a9955786b0ae76ba7960face7a06ccec1e5f99fc9b21be6243",
   "architectures": [
     "afmoe",
     "apertus",
@@ -46,6 +46,7 @@
     "exaone4",
     "falcon",
     "falcon-h1",
+    "flint",
     "gemma",
     "gemma-embedding",
     "gemma-embedding2",
@@ -152,6 +153,7 @@
     "rwkv6qwen2",
     "rwkv7",
     "seed_oss",
+    "sensenova_u1",
     "smallthinker",
     "smollm3",
     "spark2_5",

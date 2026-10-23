@@ -1283,7 +1283,7 @@
       "vramGb": 288,
       "diskGb": 300,
       "weightsGb": 200.844798752,
-      "image": "ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8",
+      "image": "ghcr.io/whq02/mercury-llamacpp@sha256:f187c39c119011346722a5a9ae6ad216f1e748637f04213912e0bfd044952251",
       "cuda": "13.0",
       "flags": [
         "--n-gpu-layers",
@@ -1345,8 +1345,8 @@
         }
       },
       "engine": "llamacpp",
-      "imageSource": "https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-3bb63cb",
-      "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",
+      "imageSource": "https://github.com/users/Whq02/packages/container/mercury-llamacpp/1432523828?tag=cuda13-184f653",
+      "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 184f6536024668e8908ab8c86033d56708e62b40 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",
       "weightFile": "UD-Q4_K_XL/GLM-5.3-Flash-UD-Q4_K_XL-00001-of-00006.gguf",
       "mmproj": "mmproj-F16.gguf",
       "include": "*UD-Q4_K_XL*"
@@ -3548,7 +3548,7 @@
       "vramGb": 96,
       "diskGb": 120,
       "weightsGb": 67.495236872,
-      "image": "ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8",
+      "image": "ghcr.io/whq02/mercury-llamacpp@sha256:f187c39c119011346722a5a9ae6ad216f1e748637f04213912e0bfd044952251",
       "cuda": "13.0",
       "flags": [
         "--n-gpu-layers",
@@ -3597,8 +3597,8 @@
       "context": 131072,
       "contextPerSlot": 131072,
       "engine": "llamacpp",
-      "imageSource": "https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-3bb63cb",
-      "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 3bb63cbcbfb62056c84fe9e521b0f3d756d29c32 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",
+      "imageSource": "https://github.com/users/Whq02/packages/container/mercury-llamacpp/1432523828?tag=cuda13-184f653",
+      "install": "export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout 184f6536024668e8908ab8c86033d56708e62b40 && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=\"$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)\" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server",
       "weightFile": "UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf",
       "mmproj": "mmproj-BF16.gguf",
       "include": "*UD-Q3_K_XL*"

@@ -28,7 +28,7 @@ check('prebuilt engine is detected before launch and sends no compiler command',
 check('prebuilt image launches llama-server directly with its downloader and all recipe flags', imageCommands.some(command => command.includes('nohup setsid') && command.includes('llama-server') && command.includes('hf download') && command.includes('524288') && command.includes('reasoning_effort') && !command.includes('/llama.cpp/build/bin/')))
 const sourceCommands: string[] = []
 await startHostEngine({ host: '127.0.0.1' }, { ...llamaRecipe, image: 'nvidia/cuda:13.0.2-devel-ubuntu24.04' }, { ...imageRunner, async run(_command: string, args: string[]) { sourceCommands.push(args.at(-1)!); return '' } }, new AbortController().signal, false, true)
-check('a source image without llama-server still builds the pinned engine', sourceCommands.some(command => command.includes('cmake') && command.includes('3bb63cbcbfb62056c84fe9e521b0f3d756d29c32') && command.includes('MERCURY_STEP building llama.cpp') && command.includes('/llama.cpp/build/bin/llama-server')))
+check('a source image without llama-server still builds the pinned engine', sourceCommands.some(command => command.includes('cmake') && command.includes('184f6536024668e8908ab8c86033d56708e62b40') && command.includes('MERCURY_STEP building llama.cpp') && command.includes('/llama.cpp/build/bin/llama-server')))
 const f = await llmhostFixture()
 const previousRecipes = process.env.MERCURY_HOST_RECIPES_FILE
 const imageRecipes = join(f.home, 'image-recipes.json')

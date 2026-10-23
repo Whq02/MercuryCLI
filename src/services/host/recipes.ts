@@ -57,9 +57,9 @@ const mimoSource = 'https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V
 const mistralSource = 'https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512'
 const mtp = ['--speculative-algorithm', 'EAGLE', '--speculative-num-steps', '5', '--speculative-eagle-topk', '1', '--speculative-num-draft-tokens', '6']
 const pythonInstall = 'python3 -m venv /workspace/mercury-host/venv && /workspace/mercury-host/venv/bin/pip install --upgrade pip uv && /workspace/mercury-host/venv/bin/uv pip install --python /workspace/mercury-host/venv/bin/python --prerelease=allow sglang'
-export const LLAMACPP_ENGINE_SHA = '3bb63cbcbfb62056c84fe9e521b0f3d756d29c32'
-export const LLAMACPP_ENGINE_IMAGE = 'ghcr.io/whq02/mercury-llamacpp@sha256:80f998adbacedc15e9f3c704e3ed3dca5a718fa90de29eb311c2b678a727c9b8'
-const llamaImageSource = 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1415353988?tag=cuda13-' + LLAMACPP_ENGINE_SHA.slice(0, 7)
+export const LLAMACPP_ENGINE_SHA = '184f6536024668e8908ab8c86033d56708e62b40'
+export const LLAMACPP_ENGINE_IMAGE = 'ghcr.io/whq02/mercury-llamacpp@sha256:f187c39c119011346722a5a9ae6ad216f1e748637f04213912e0bfd044952251'
+const llamaImageSource = 'https://github.com/users/Whq02/packages/container/mercury-llamacpp/1432523828?tag=cuda13-' + LLAMACPP_ENGINE_SHA.slice(0, 7)
 const llamaInstall = 'export PATH=/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils build-essential cmake curl libcurl4-openssl-dev git python3-venv && python3 -m venv /workspace/mercury-host/hf && /workspace/mercury-host/hf/bin/pip install -U huggingface_hub && if ! test -d /workspace/mercury-host/llama.cpp; then git clone https://github.com/ggml-org/llama.cpp /workspace/mercury-host/llama.cpp; fi && git -C /workspace/mercury-host/llama.cpp checkout ' + LLAMACPP_ENGINE_SHA + ' && cmake /workspace/mercury-host/llama.cpp -B /workspace/mercury-host/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d .)" && cmake --build /workspace/mercury-host/llama.cpp/build --config Release -j --target llama-server'
 
 function withPrefixCaching(recipes: readonly HostRecipe[]): HostRecipe[] {
