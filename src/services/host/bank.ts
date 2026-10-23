@@ -7,7 +7,8 @@ import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
-import { pinnedWeightManifest } from './keptWeights.js'
+import { resolvedWeightManifest, weightManifestWords } from './keptWeights.js'
+import { bankManifest } from './bankManifest.js'
 import type { HostRecipe } from './recipes.js'
 import { hostRecipeSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
@@ -83,7 +84,7 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
       if (!lstatSync(path).isDirectory()) return false
       const sums = parseBankSums(readFileSync(join(path, 'SHA256SUMS'), 'utf8'))
       const { files, pinned } = bankFiles(recipe, path)
-      if (!files.length || files.some(file => !sums.has(file.path) || fileSize(join(path, file.path)) === undefined || file.size !== undefined && fileSize(join(path, file.path)) !== file.size)) return false
+      if (!files.length || files.some(file => !sums.has(file.path) && !file.git || fileSize(join(path, file.path)) === undefined || file.size !== undefined && fileSize(join(path, file.path)) !== file.size)) return false
       if (pinned && files.some(file => file.sha256)) return files.every(file => !file.sha256 || sums.get(file.path) === file.sha256)
       for (const name of ['manifest.json', 'config.json']) {
         try {
@@ -96,20 +97,21 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
   })
   return matching.length === 1 ? matching[0]! : canonical
 }
-export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]; pinned: boolean } {
-  const manifest = pinnedWeightManifest(recipe)
-  if (manifest) return { files: manifest.files.map(file => ({ path: file.path, size: file.size, sha256: file.sha256, git: file.git })), pinned: true }
+export function bankFiles(recipe: HostRecipe, path: string): { files: BankFile[]; pinned: boolean; sealedByBank: boolean } {
+  const resolved = resolvedWeightManifest(recipe)
+  const manifest = resolved?.manifest ?? bankManifest(recipe, path).manifest
+  if (manifest) return { files: manifest.files.map(file => ({ path: file.path, size: file.size, sha256: file.sha256, git: file.git })), pinned: true, sealedByBank: !resolved || resolved.source === 'bank' }
   if (recipe.weightFile) {
     const parts = /-00001-of-(\d+)\.gguf$/.exec(recipe.weightFile)
     const shards = parts ? Array.from({ length: Number(parts[1]) }, (_, index) => recipe.weightFile!.replace('-00001-of-', '-' + String(index + 1).padStart(5, '0') + '-of-')) : [recipe.weightFile]
-    return { files: shards.map(file => ({ path: file })), pinned: false }
+    return { files: shards.map(file => ({ path: file })), pinned: false, sealedByBank: false }
   }
   const named = ['config.json', 'model.safetensors.index.json']
   try {
     const index = JSON.parse(readFileSync(join(path, 'model.safetensors.index.json'), 'utf8')) as { weight_map?: Record<string, string> }
     const shards = [...new Set(Object.values(index.weight_map ?? {}))].filter(file => /^[a-zA-Z0-9_.-]+$/.test(file)).sort()
-    return { files: [...named, ...shards].map(file => ({ path: file })), pinned: false }
-  } catch { return { files: named.map(file => ({ path: file })), pinned: false } }
+    return { files: [...named, ...shards].map(file => ({ path: file })), pinned: false, sealedByBank: false }
+  } catch { return { files: named.map(file => ({ path: file })), pinned: false, sealedByBank: false } }
 }
 export function bankState(recipe: HostRecipe, folder = bankFolder()): BankState {
   if (!folder) return { banked: false, sealed: false, pinned: false, files: 0, missing: 0, bytes: 0 }
@@ -163,12 +165,12 @@ export function recordBankFailure(recipe: HostRecipe, path: string, error: strin
 }
 export async function verifyBank(recipe: HostRecipe, folder: string, signal: AbortSignal, progress: (text: string) => void = () => {}): Promise<BankReceipt> {
   const path = bankModelPath(folder, recipe)
-  const { files, pinned } = bankFiles(recipe, path)
+  const { files, pinned, sealedByBank } = bankFiles(recipe, path)
   if (!files.length) throw new Error('This recipe names no weight files to verify.')
   if (!existsSync(join(path, 'SHA256SUMS'))) throw new Error('No SHA256SUMS in ' + path + ' · b banks the weights and seals one.')
   const sumsText = readFileSync(join(path, 'SHA256SUMS'), 'utf8')
   const sums = parseBankSums(sumsText)
-  const uncovered = files.find(file => !sums.has(file.path))
+  const uncovered = files.find(file => !sums.has(file.path) && !file.git)
   if (uncovered) throw new Error('SHA256SUMS does not cover every model file: ' + uncovered.path)
   let bytes = 0
   for (const [index, file] of files.entries()) {
@@ -178,16 +180,16 @@ export async function verifyBank(recipe: HostRecipe, folder: string, signal: Abo
     const hashed = await hashFile(target, signal)
     const mismatch = pinnedMismatch(file, hashed)
     if (mismatch) throw new Error(file.path + ' · ' + mismatch)
-    if (hashed.sha256 !== sums.get(file.path)) throw new Error(file.path + ' · hash differs from SHA256SUMS')
+    if (sums.has(file.path) && hashed.sha256 !== sums.get(file.path)) throw new Error(file.path + ' · hash differs from SHA256SUMS')
     bytes += hashed.size
   }
-  const receipt: BankReceipt = { sha256: sha256(sumsText), bytes, files: files.length, check: pinned ? 'manifest' : 'download', at: new Date().toISOString() }
+  const receipt: BankReceipt = { sha256: sha256(sumsText), bytes, files: files.length, check: pinned && !sealedByBank ? 'manifest' : 'download', at: new Date().toISOString() }
   recordReceipt(recipe, path, receipt)
   return receipt
 }
 export async function sealBank(recipe: HostRecipe, folder: string, signal: AbortSignal, progress: (text: string) => void = () => {}): Promise<BankReceipt> {
   const path = bankModelPath(folder, recipe)
-  const { files, pinned } = bankFiles(recipe, path)
+  const { files, pinned, sealedByBank } = bankFiles(recipe, path)
   if (!files.length) throw new Error('This recipe names no weight files to seal.')
   const rows = new Map<string, string>()
   try { for (const [file, hash] of parseBankSums(readFileSync(join(path, 'SHA256SUMS'), 'utf8'))) rows.set(file, hash) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') rows.clear() }
@@ -204,12 +206,12 @@ export async function sealBank(recipe: HostRecipe, folder: string, signal: Abort
   }
   const sumsText = [...rows].map(([file, hash]) => hash + '  ' + file).join('\n') + '\n'
   publishAtomicSync(join(path, 'SHA256SUMS'), sumsText, { mode: 0o644 })
-  const receipt: BankReceipt = { sha256: sha256(sumsText), bytes, files: files.length, check: pinned ? 'manifest' : 'download', at: new Date().toISOString() }
+  const receipt: BankReceipt = { sha256: sha256(sumsText), bytes, files: files.length, check: pinned && !sealedByBank ? 'manifest' : 'download', at: new Date().toISOString() }
   recordReceipt(recipe, path, receipt)
   return receipt
 }
 export function bankDownloadPlan(recipe: HostRecipe): { revision?: string; include: string[] } {
-  const manifest = pinnedWeightManifest(recipe)
+  const manifest = resolvedWeightManifest(recipe)?.manifest
   if (manifest) return { revision: manifest.revision, include: manifest.files.map(file => file.path) }
   if (recipe.include) return { include: [recipe.include] }
   if (recipe.weightFile) return { include: [posix.dirname(recipe.weightFile) === '.' ? '*.gguf' : posix.dirname(recipe.weightFile) + '/*'] }
@@ -264,7 +266,9 @@ function volumeWords(recipe: HostRecipe): string {
 }
 export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => sizeWords(recipe.weightsGb) + ' from Hugging Face · ' + bankedWords(state) + ' · ' + volumeWords(recipe)
 export function bankRowWords(recipe: HostRecipe, state = bankState(recipe)): string {
-  if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: no trusted file manifest')
+  const volume = bankVolume(recipe)
+  if (state.banked && volume?.state === 'kept') return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · weights kept on ' + volume.id + ' · a Runpod rental boots in ~' + bootMinutes(recipe, volume) + ' min · Vast.ai and Lambda still download'
+  if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: ' + weightManifestWords(recipe))
   const where = state.folder ? shortFolder(state.folder) : 'a folder you name'
   return 'Bank · b bank the weights to ' + where + ' (' + sizeWords(recipe.weightsGb) + ', hash-verified) — your own copy, kept on your drive'
 }

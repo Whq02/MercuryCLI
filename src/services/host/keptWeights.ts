@@ -9,7 +9,9 @@ import { hostWeightManifestSchema } from './recipesFile.js'
 import type { HostRecord } from './store.js'
 import { patchHostRecord, removeHostRecord } from './store.js'
 import { hostNotice } from './notices.js'
-import { fullCheckMinutes, gigabytes, keptDiskPrice, readKeptVolume, volumePrice, writeKeptVolume } from './volumes.js'
+import { fullCheckMinutes, gigabytes, keptDiskPrice, keptVolumes, matchesVolume, readKeptVolume, volumeModel, volumePrice, writeKeptVolume } from './volumes.js'
+import { bankFolder, bankModelPath } from './bank.js'
+import { bankManifest, bytesMatchRecipe, manifestBytes, type BankManifest } from './bankManifest.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { RunpodHttpError, type RunpodClient } from './runpod.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, type HostReadOnly } from './retry.js'
@@ -29,14 +31,49 @@ function weightManifests(): WeightManifest[] {
   if (localPath) return manifestsSchema.parse(JSON.parse(readFileSync(resolve(localPath), 'utf8')))
   return shippedManifests
 }
-export function pinnedWeightManifest(recipe: HostRecipe): WeightManifest | undefined {
+const manifestFits = (row: WeightManifest, recipe: HostRecipe): boolean => row.model === recipe.model && row.include === (recipe.include ?? '') && bytesMatchRecipe(manifestBytes(row), recipe.weightsGb)
+const shippedWeightManifest = (recipe: HostRecipe): WeightManifest | undefined => weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
+function keptVolumeManifest(recipe: HostRecipe): WeightManifest | undefined {
+  for (const volume of keptVolumes()) {
+    if (volume.state === 'gone' || !matchesVolume(volume, recipe)) continue
+    const row = hostWeightManifestSchema.safeParse(volume.recipeRow?.weightManifest)
+    if (row.success && manifestFits(row.data, recipe)) return row.data
+  }
+  return undefined
+}
+const resolvingBank = new Set<string>()
+export function bankWeightManifest(recipe: HostRecipe): BankManifest {
+  const key = volumeModel(recipe)
+  if (resolvingBank.has(key)) return { reason: 'the bank folder is still being read' }
+  resolvingBank.add(key)
+  try {
+    const folder = bankFolder()
+    if (!folder) return { reason: 'no bank folder on this computer · b banks the weights' }
+    return bankManifest(recipe, bankModelPath(folder, recipe))
+  } catch (error) {
+    return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
+  } finally { resolvingBank.delete(key) }
+}
+export type WeightManifestSource = 'recipe' | 'shipped' | 'volume' | 'bank'
+export function resolvedWeightManifest(recipe: HostRecipe): { manifest: WeightManifest; source: WeightManifestSource } | undefined {
   const embedded = hostWeightManifestSchema.safeParse(recipe.weightManifest)
-  const row = embedded.success ? embedded.data : weightManifests().find(row => row.model === recipe.model && row.include === (recipe.include ?? ''))
-  return row && row.model === recipe.model && row.include === (recipe.include ?? '') && row.files.reduce((sum, file) => sum + file.size, 0) === Math.round(recipe.weightsGb * 1e9) ? row : undefined
+  if (embedded.success) return manifestFits(embedded.data, recipe) ? { manifest: embedded.data, source: 'recipe' } : undefined
+  const shipped = shippedWeightManifest(recipe)
+  if (shipped) return manifestFits(shipped, recipe) ? { manifest: shipped, source: 'shipped' } : undefined
+  const volume = keptVolumeManifest(recipe)
+  if (volume) return { manifest: volume, source: 'volume' }
+  const bank = bankWeightManifest(recipe).manifest
+  return bank ? { manifest: bank, source: 'bank' } : undefined
+}
+export const pinnedWeightManifest = (recipe: HostRecipe): WeightManifest | undefined => resolvedWeightManifest(recipe)?.manifest
+export function weightManifestWords(recipe: HostRecipe): string {
+  if (hostWeightManifestSchema.safeParse(recipe.weightManifest).success) return 'the recipe’s own file manifest names another model or size'
+  if (shippedWeightManifest(recipe)) return 'the shipped file manifest names another size than this recipe'
+  return bankWeightManifest(recipe).reason ?? 'no trusted file manifest'
 }
 export function weightManifest(recipe: HostRecipe): WeightManifest {
   const row = pinnedWeightManifest(recipe)
-  if (!row) throw new Error('No pinned weight manifest matches this recipe; fast-load cannot trust its files.')
+  if (!row) throw new Error('No pinned weight manifest matches this recipe; fast-load cannot trust its files · ' + weightManifestWords(recipe))
   return row
 }
 export function weightCheckScript(manifest: WeightManifest, directory: string, download: boolean, options: WeightScriptOptions = {}): string {
