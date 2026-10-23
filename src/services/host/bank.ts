@@ -9,6 +9,7 @@ import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
 import { resolvedWeightManifest, weightManifestWords } from './keptWeights.js'
 import { bankManifest } from './bankManifest.js'
+import { bankUploadPreference } from './keepSafe.js'
 import type { HostRecipe } from './recipes.js'
 import { hostRecipeSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
@@ -265,7 +266,7 @@ export function volumeWords(recipe: HostRecipe): string {
   if (volume?.state === 'kept') return 'fast-load volume ✓ ' + volume.dataCenter + ' — boots in ~' + bootMinutes(recipe, volume) + ' min' + vastTail
   if (volume?.state === 'preparing' || volume?.state === 'creating') return 'fast-load volume preparing in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)' + vastTail
   if (volume?.state === 'failed') return 'fast-load volume failed in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)' + vastTail
-  if (vast) return vastVolumeWords(recipe, vast) + (vast.state === 'kept' ? ' · other machines download (~' + bootMinutes(recipe) + ' min)' : ' (~' + bootMinutes(recipe) + ' min)')
+  if (vast) return vastVolumeWords(recipe, vast) + (vast.state === 'kept' ? bankUploadPreference(recipe) ? ' · other Vast.ai machines upload your bank' : ' · other machines download (~' + bootMinutes(recipe) + ' min)' : ' (~' + bootMinutes(recipe) + ' min)')
   return 'no fast-load volume — first boot downloads (~' + bootMinutes(recipe) + ' min)'
 }
 export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => {
@@ -273,13 +274,13 @@ export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): stri
   if (!state.banked) return summary + ' · ' + volumeWords(recipe)
   const volume = bankVolume(recipe)
   const minutes = Math.max(5, Math.ceil(recipe.weightsGb / 30 / 5) * 5)
-  return summary + ' · a rented machine' + (volume?.state === 'kept' ? ' without your volume' : '') + ' downloads from Hugging Face (~' + minutes + ' min); your bank serves your own computers and a mirror · ' + (volume ? volumeWords(recipe) : 'no fast-load volume')
+  return summary + ' · ' + (bankUploadPreference(recipe) ? 'Vast.ai and Lambda rentals without a weights volume upload your bank; other rentals without a kept volume download from Hugging Face' : 'a rented machine' + (volume?.state === 'kept' ? ' without your volume' : '') + ' downloads from Hugging Face (~' + minutes + ' min); your bank serves your own computers and a mirror') + ' · ' + (volume ? volumeWords(recipe) : 'no fast-load volume')
 }
 export function bankRowWords(recipe: HostRecipe, state = bankState(recipe)): string {
   const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   const vast = keptVolumes().find(row => row.kind === 'vast' && matchesVolume(row, recipe) && row.state === 'kept')
-  const vastKept = vast ? 'weights kept on Vast.ai machine ' + vast.machineId + ' (' + vast.size + ' GB, ' + vastVolumeBilling(vast) + ') · a rental on that machine boots in ~' + bootMinutes(recipe, vast) + ' min · other machines download' : ''
-  if (state.banked && volume?.state === 'kept') return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · weights kept on ' + volume.id + ' · a Runpod rental boots in ~' + bootMinutes(recipe, volume) + ' min · ' + (vast ? vastKept : 'Vast.ai and Lambda still download')
+  const vastKept = vast ? 'weights kept on Vast.ai machine ' + vast.machineId + ' (' + vast.size + ' GB, ' + vastVolumeBilling(vast) + ') · a rental on that machine boots in ~' + bootMinutes(recipe, vast) + ' min · ' + (bankUploadPreference(recipe) ? 'other Vast.ai machines upload your bank' : 'other machines download') : ''
+  if (state.banked && volume?.state === 'kept') return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · weights kept on ' + volume.id + ' · a Runpod rental boots in ~' + bootMinutes(recipe, volume) + ' min · ' + (vast ? vastKept : bankUploadPreference(recipe) ? 'Vast.ai and Lambda upload your bank' : 'Vast.ai and Lambda still download')
   if (state.banked && vast) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · ' + vastKept
   if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: ' + weightManifestWords(recipe))
   const where = state.folder ? shortFolder(state.folder) : 'a folder you name'

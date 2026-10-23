@@ -229,7 +229,7 @@ try {
   await close(); mounted!.unmount(); await mount(80)
   open(); await heading('Which model?'); await choose('Tiny-B'); await heading('Tiny-B'); await select('Rent · Runpod'); await capture('80-model-three-vendors')
   const paged = modelRows().filter(line => line.startsWith('Rent · '))
-  check('at 80 columns the rows page to the Runpod rental and the visible rentals stay in price order', paged.length >= 2 && paged.some(line => line.startsWith('Rent · Runpod')) && paged.map(line => Number(/\$(\d+\.\d+)\/hr/.exec(line)?.[1] ?? NaN)).every((price, index, all) => index === 0 || price >= all[index - 1]!))
+  check('at 80 columns the rows page to the Runpod rental and the visible rentals stay in price order', paged.length === 4 && ['Rent · Lambda', 'Rent · Lambda', 'Rent · Runpod', 'Rent · Hugging Face'].every((vendor, index) => paged[index]!.startsWith(vendor)) && paged.map(line => Number(/\$(\d+\.\d+)\/hr/.exec(line)?.[1] ?? NaN)).every((price, index, all) => index === 0 || price >= all[index - 1]!))
   await close(); mounted!.unmount(); await mount(120)
   await openBank(); await heading('Bank'); await press('Tiny-A', 'm'); await heading('How?')
   check('m opens the mirror road with the volume kinds', screen().includes('network volume') && screen().includes('global volume'))

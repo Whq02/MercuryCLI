@@ -19,9 +19,12 @@ Every recipe carries one of four verification stamps:
 - **`community`:** the launch configuration comes from a third-party community repository.
 - **`unverified`:** derived on the spot from a Hugging Face repository's file list and `config.json`; nobody has booted this exact recipe yet.
 
-On **Which model?**, shipped models sort first by where they can run right now:
+On **Which model?**, verification tiers come first (`measured` → `documented` →
+`community` → `unverified`). A private recipe also precedes a search-derived
+recipe within the unverified tier. Within each tier, models sort by where they
+can run right now:
 
-1. Already running on one of your pods
+1. Already running on one of your machines
    (`running on your machine <id> · $<price>/hr · <N> conversations × <tokens> — switch →`).
 2. Fits one of your computers (`fits <computer> (<N> GB) — start here →`).
 3. In stock on a connected GPU provider
@@ -31,9 +34,9 @@ On **Which model?**, shipped models sort first by where they can run right now:
    `Runpod · connect to check stock →` or
    `Runpod · stock unavailable · retry →`).
 
-Within the same availability tier, rows sort by lowest hourly price, then by
-verification stamp (`measured` → `documented` → `community` → `unverified`),
-and then alphabetically by model name.
+Stock and price never move an unverified search result ahead of a more trusted
+recipe. Within the same verification and availability tier, rows sort by lowest
+hourly price, then alphabetically by model name.
 
 Below the model list, **Which model?** includes **Machines I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
@@ -52,21 +55,21 @@ Mercury queries Hugging Face for public `text-generation` models sorted by
 downloads (up to 20 results). While the request is in flight, the popup shows
 `HUGGING FACE · fetching…`; when results arrive, they appear under
 `HUGGING FACE · <N> results · unverified · sorted by downloads` with
-`<repo id> · <params> · <format> · ↓ <downloads> · <licence> · unverified`
+`<repo id> · <params> · found on Hugging Face · not booted by Mercury · <format> · ↓ <downloads> · <licence> · unverified`
 (plus `🔒 gated` or `🔒 private` when applicable). Pressing `Esc` clears an
 active search query; pressing `Esc` again with an empty search closes the
 popup. Search results stay cached for that popup so returning from a model
 screen keeps your query.
 
-- **What Mercury derives:** selecting a Hugging Face row reads up to five pages
-  of the repository's file tree and its `config.json`. For GGUF repositories,
+- **What Mercury derives:** selecting a Hugging Face row reads the repository's
+  paginated file tree at one revision and its `config.json`. For GGUF repositories,
   Mercury groups complete `.gguf` weight files (ignoring standalone `mmproj`
   files and incomplete shard sets), prefers `Q4_K_M` or the next available
   4-bit quantization (`UD-Q4_K_XL`, `Q4_K_L`, `Q4_K_S`, `Q4_K`, `IQ4_XS`,
   `UD-IQ4_XS`, `IQ4_NL`, `Q4_0`, `Q4_1`, or else the largest group by bytes),
-  and builds a `llama.cpp` recipe with 4 parallel slots, per-slot context up to
-  `131,072` tokens, flash attention and `q8_0` KV cache. For safetensors
-  repositories, Mercury builds a `vLLM` recipe (`vllm/vllm-openai:latest`, CUDA
+  and builds a `llama.cpp` recipe with 4 parallel slots, the repository's declared
+  per-slot context (or `131,072` tokens when unknown), flash attention and `q8_0` KV cache.
+  For safetensors repositories, Mercury builds a `vLLM` recipe (`vllm/vllm-openai:latest`, CUDA
   `13.0`) using the safetensors parameter byte counts (or file sizes),
   `--max-model-len` from `config.max_position_embeddings`,
   `--tensor-parallel-size` matching the GPU count, and `--trust-remote-code`
@@ -139,9 +142,10 @@ line (or the `RECIPE · unverified — …` line) and five sections:
   `(change any time with /effort)`.
 - **WEIGHTS:** the download size from Hugging Face, whether the weights are
   banked on your computer (`banked ✓ on <folder> (verified <date>)` or
-  `not banked`), and whether a Runpod fast-load volume is ready
-  (`fast-load volume ✓ <DC> — boots in ~<N> min` or
-  `no fast-load volume — first boot downloads (~<M> min)`).
+  `not banked`), and any kept Runpod or Vast.ai volume. A banked
+  model says that a rented machine without its volume downloads from Hugging
+  Face; your local bank serves your own computers and a mirror. A kept Vast.ai
+  volume names its machine; other machines download.
 - **WHERE:**
   - `Already running · machine <id> · switch now · nothing to pay` for running pods
     you can switch to immediately.
@@ -151,8 +155,8 @@ line (or the `RECIPE · unverified — …` line) and five sections:
     Runpod rows carry `verified on a live rental 2026-10-21`; Vast.ai and
     Lambda rows carry `API only — not yet booted`. Each row ends with
     `boots from your volume` when a kept Runpod fast-load volume matches that
-    data centre (or is a global volume), or `downloads the weights first` when
-    the pod downloads weights on first boot.
+    data centre (or is global), `boots from your Vast.ai volume on its machine`
+    for the matching Vast.ai machine, or `downloads the weights first` otherwise.
   - Computers from **My computers** (`fits (<N> GB) — start here →`,
     `too small: <N> GB, needs <M>`, or `no local recipe for this model`).
   - The **Bank** row
@@ -168,12 +172,12 @@ line (or the `RECIPE · unverified — …` line) and five sections:
     providers without stock for the selected variant, and `Connect Runpod →`,
     `Connect Vast.ai →` or `Connect Lambda →` for unconfigured providers.
 
-## The Bank screen (`Bank · your weights`) and Runpod fast-load volumes
+## The Bank screen (`Bank · your weights`) and kept weights volumes
 
 Open `/llmhost` and select `Bank · your weights` (on **Which model?**, under
 `More options →`, or from a model screen's `Bank · …` row). Opening the Bank
-screen does not require a GPU provider API key until you mirror or drop a
-Runpod volume.
+screen does not require a GPU provider API key until you mirror or delete a
+provider's volume.
 
 1. **Choose or discover the bank folder.** Mercury checks `<config>/host/bank.json`
    for a saved folder, then checks for an existing `~/mercury-model-bank`,
@@ -182,10 +186,14 @@ Runpod volume.
    should the bank live?** prompts for an absolute path on your computer,
    creates the folder, and records it in `bank.json`. Each model's files are
    stored under `<bank>/<namespace>--<repo>` with a `SHA256SUMS` manifest.
+   An existing folder can be recognised by matching checksums or a model-naming
+   manifest or `config.json`, rather than its spelling alone. **Change folder**
+   opens the same folder prompt and refreshes the table after your choice.
+   Existing weights are not moved or deleted.
 2. **Read the status line and table.** The status line shows the bank folder
    path, free disk space on the drive, how many models are banked
    (`Banked: <N> of <M> models · <size>`), the last verification date, and any
-   kept Runpod fast-load volumes with their total size and monthly rate. The
+   kept Runpod and Vast.ai volumes with their total size and monthly rate. The
    table lists one row per weight repository across five columns: `MODEL`,
    `SIZE`, `BANKED` (`✓ <drive>`, `— b to bank`, `… <step>`, or
    `… <done>/<total> files · b resumes`), `VERIFIED` (`✓ <YYYY-MM-DD>`,
@@ -193,7 +201,7 @@ Runpod volume.
    `… preparing in <DC>`, `✗ failed in <DC> · d to drop`, `— m to mirror` when
    banked, or `—`). Pressing `Enter` on a row shows its local path,
    verification status and volume state.
-3. **Run background bank and volume actions.** Four single-key shortcuts work on
+3. **Run background bank and volume actions.** Five single-key shortcuts work on
    the Bank table and on a model screen:
 
 - **`b` (`bank`):** after confirmation, starts a background job (`bank-<id>`)
@@ -211,27 +219,31 @@ Runpod volume.
   file in the model's folder, checks file sizes, `SHA256SUMS` digests and any
   manifest SHA-256 or git blob hashes, updates the `VERIFIED` date, and posts a
   chat notice naming the file if a byte differs.
-- **`m` (`mirror`):** opens Runpod fast-load volume setup for a
-  shipped recipe with a weight manifest. Choose
+- **`m` (`mirror`):** opens volume setup for a shipped, derived or private recipe
+  with a trusted file manifest. For a private bank, Mercury builds that manifest
+  from `SHA256SUMS`, the remaining config and tokenizer files, and the Hugging
+  Face revision in its download receipts or source URL. Missing files, mixed
+  revisions or a size mismatch are explained before anything is rented. Choose
   `Runpod network volume · one data centre · $0.07/GB/month` (`$0.07/GB/month`
   up to 1,000 GB, `$0.05/GB/month` above 1,000 GB, attached to pods in that
   data centre) or
   `Runpod global volume (beta) · any data centre · $0.09/GB/month + IOPS` (or
-  `My own bank over SSH · mercury-host road`). Then choose **Prepare now**
-  (rents the cheapest fitting Runpod pod, downloads the files from Hugging Face
-  directly onto the volume next to the GPUs, checks sizes and SHA-256s, writes
+  `My own bank over SSH · mercury host`). Then choose **Prepare now**
+  (rents the cheapest single-node Runpod pod in stock there, any GPU shape,
+  downloads the files from Hugging Face directly onto the volume next to the GPUs,
+  checks every file against the manifest, writes
   `SHA256SUMS`, `SIZES.json` and `SAMPLES.json`, and terminates the temporary
   pod) or **At the next rental** (creates the volume now and fills it from
   Hugging Face the next time you rent that model). Nothing is uploaded from your
   local drive. When a volume is already kept, `m` lets you run
-  `Verify fully · rent a temporary pod for full SHA256` or
+  `Verify fully · rent a temporary pod to check every file` or
   `Delete weights disk`. When you rent a model with a kept volume, startup
   checks file sizes, modification times, the first and last 64 MB, and eight
   seeded 1 MB samples per large file against `SAMPLES.json` in a few seconds
   and skips downloading weights again.
-- **`d` (`drop`):** deletes the model's Runpod fast-load volume
-  after confirmation (`Delete weights disk?`) while leaving the local bank on
-  your drive untouched.
+- **`d` (`drop`):** deletes a kept Runpod or Vast.ai weights volume after
+  confirmation while leaving the local bank on your drive untouched. Vast.ai
+  refuses deletion while an instance uses the volume; terminate that instance first.
 - **`k` (`keep safe`):** on a banked model, copies the bank to another drive
   this computer can see and checks every file, mirrors it to a Runpod volume,
   or saves a first-boot upload of your bank for Vast.ai and Lambda rentals at a
@@ -288,11 +300,11 @@ seconds (the sampled check described above) and skips the download; the
 rental confirmation names the volume's monthly amount beside the hourly price.
 The launch command also points the engine's compiled-kernel caches at the
 volume (SGLang's cache directory and its DeepGEMM cache, DeepGEMM's own JIT
-cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM), so a second boot on
-that machine skips the kernel tuning as well as the download; the first boot
-on the volume still tunes once.
+cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM). Later boots on that
+machine can reuse those compiled kernels; the first boot fills the caches.
+CUDA-graph capture still runs on each boot.
 
-A kept Vast.ai volume appears under **Pods I'm paying for** as
+A kept Vast.ai volume appears under **Machines I'm paying for** as
 `Vast.ai volume <id> · Vast.ai machine <id> · <hosting tag> · <billing> · weights`
 with the current stock on that machine (`4× B200 in stock on that machine at $…/hr`
 or `no stock on that machine right now · w watch it`, where `w` arms a stock
@@ -312,7 +324,13 @@ disk never attaches to a Vast.ai instance.
    instance list and saves it in the credential store (`0600`), never in a
    settings file or URL. On the model screen, Runpod rental rows carry
    `verified on a live rental 2026-10-21`, and Vast.ai, Lambda and Hugging Face
-   rows carry `API only — not yet booted`.
+   rows carry `API only — not yet booted`. Connected API-key vendors have
+   **Replace key / Remove key** controls on the model screen. A replacement is
+   checked before the saved key changes; removal does not stop rentals or bills.
+   Hugging Face uses **Sign out with /logins huggingface**. If Inference Endpoints
+   returns HTTP 403 for missing permission, create a token with the Inference
+   Endpoints permission at https://huggingface.co/settings/tokens and paste it
+   with `/logins huggingface`.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
    for the full shape (every GPU and node in the recipe) across the 32 shipped
    models (78 recipes in `assets/host/recipes.json` version 2, including
@@ -359,7 +377,7 @@ or
 or when a model has no stock on the rental flow, select **Watch for stock and
 rent at this price or less** (or choose **Set a lower price ceiling** / **Set a
 price ceiling**). A background worker polls every connected provider (Runpod,
-Vast.ai and Lambda) once every 5 seconds (12 catalogue reads per minute each)
+Vast.ai, Lambda and Hugging Face) once every 5 seconds (12 catalogue reads per minute each)
 for up to 12 hours. As soon as a fitting shape appears at or below your
 ceiling, the first provider with stock rents it (or the cheapest shape when
 several providers answer in the same round) and starts setup. Active watches
@@ -402,7 +420,7 @@ whether anything still bills:
   (and on an `OOM`, adds
   `the shape was too small for this quality; choose a larger GPU shape`).
 - **Weight download stall or timeout:** a remote watchdog monitors disk and
-  network progress every 30 seconds (`downloading weights · <X> GB of <Y> GB`).
+  network progress every 30 seconds (`downloading weights on the machine · <X> of <Y> GB`).
   If less than 1 GB arrives over 10 minutes (`under 1 GB in 10 min`) or the
   download passes its deadline (`30 + ceil(weightsGb / 6)` minutes), Mercury
   terminates the pod and reports
@@ -424,10 +442,16 @@ claims the pod is gone; it posts
 
 ### Manage or stop paying for a rental
 
-Reopen `/llmhost` and select **Machines I'm paying for** to check running pods,
-clusters, Runpod volumes and active stock watches across all connected vendors.
-Each row lists the vendor, current setup step or status, hourly rate, elapsed
-time and estimated compute spend so far.
+Reopen `/llmhost` and select **Machines I'm paying for** to check live rentals,
+clusters, Runpod and Vast.ai volumes, and active stock watches. The model menu
+counts only live machines returned by the vendors, not failed local records,
+volumes or watches. Each vendor says how many machines it returned, `none`,
+`no instances`, `no endpoints` or `unread`; an unread vendor adds `+?` to the
+count instead of claiming a complete zero. Rows use the vendor's own name:
+`Runpod pod`, `Vast.ai instance`, `Lambda instance` or `HF endpoint`.
+Vendor read errors appear once at the top, with their HTTP status and details
+behind the vendor row. A rejected credential stays parked until it changes.
+Each machine row shows its state, hourly rate and available spend estimate.
 
 - **Tune (Runpod single-node `llama.cpp` pods):** change
   `conversations × context` or default thinking and reload `llama-server` in
@@ -545,15 +569,15 @@ reported by the server.
   supports (from the recipe's verified `efforts` list or `/api/show` on
   `Ollama`). Requests send `chat_template_kwargs.reasoning_effort` on
   `llama.cpp` and top-level `reasoning_effort` on `vLLM`, `SGLang`, `Ollama` and
-  `Kimi K3`. If a server rejects the `reasoning_effort` or
-  `chat_template_kwargs` parameter name with HTTP 400 before streaming content,
-  Mercury retries once without that field and posts a notice; if the server
-  rejects a specific reasoning value, Mercury keeps your selected effort and
-  reports the server's refusal.
+  `Kimi K3`. If a server rejects a reasoning parameter or value, Mercury keeps
+  your selected effort and thinking, reports the server remedy and does not retry
+  at default effort.
 - **Multi-turn reasoning replay:** SGLang, vLLM, llama.cpp and Kimi K3
   conversations keep assistant `reasoning_content` across tool turns and
   continuations, and SGLang requests set
-  `chat_template_kwargs: { clear_thinking: false }`.
+  `chat_template_kwargs.clear_thinking: false`. The
+  `chat_template_kwargs.thinking` switch follows the session: `true` when
+  thinking is on and `false` when off, whether or not an effort level is set.
 - **Tool schemas and plain-words engine refusals:** `llama.cpp` accepts local
   `#/…` JSON schema pointers, `$defs` and `oneOf`/`anyOf`. Every shipped
   Mercury tool (including `Computer`, whose `sequence` steps use a flat

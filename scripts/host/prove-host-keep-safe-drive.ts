@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
+pinSourceRef()
+const width = process.argv.includes('--80') ? 80 : 120
+const height = width === 80 ? 24 : 44
 const f = await llmhostFixture()
 process.env.HOME = f.home
 let mounted: Mounted | undefined
@@ -16,12 +19,17 @@ try {
   const { HOST_RECIPES } = await import(f.root + '/src/services/host/recipes.ts')
   const bytes = Buffer.from('a complete fixture model bank')
   const hash = createHash('sha256').update(bytes).digest('hex')
-  const recipe = { ...HOST_RECIPES[0], id: 'keep-safe-fixture', label: 'Keep safe fixture', model: 'fixture/keep-safe', weightFile: 'weights.gguf', mmproj: undefined, weightsGb: bytes.length / 1e9, include: '', weightManifest: { model: 'fixture/keep-safe', include: '', revision: 'a'.repeat(40), files: [{ path: 'weights.gguf', size: bytes.length, sha256: hash }] } }
+  const config = Buffer.from('{"model_type":"fixture"}')
+  const tokenizer = Buffer.from('{"version":"fixture"}')
+  const recipe = { ...HOST_RECIPES[0], id: 'keep-safe-fixture', label: 'Keep safe fixture', model: 'fixture/keep-safe', weightFile: 'weights.gguf', mmproj: undefined, weightsGb: (bytes.length + config.length + tokenizer.length) / 1e9, include: '', source: 'https://huggingface.co/fixture/keep-safe/tree/' + 'a'.repeat(40), weightManifest: undefined }
   const folder = bank.rememberBankFolder(join(f.home, 'mercury-model-bank'))
   const path = bank.bankModelFolder(folder, recipe)
   mkdirSync(path)
   writeFileSync(join(path, 'weights.gguf'), bytes)
   writeFileSync(join(path, 'SHA256SUMS'), hash + '  weights.gguf\n')
+  writeFileSync(join(path, 'config.json'), config)
+  writeFileSync(join(path, 'tokenizer.json'), tokenizer)
+  assert.equal(bank.bankFiles(recipe, path).files.length, 3)
   const React = await import('react')
   const { Box } = await import('../../src/ink.ts')
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')
@@ -32,7 +40,7 @@ try {
   let mirrors = 0
   const notices: string[] = []
   const road = async (ask: any, emit: any, signal: AbortSignal) => { await safe.keepSafeDoor(recipe, folder, ask, (event: any) => { notices.push(event.words); emit(event) }, signal, async () => { mirrors++; return undefined }); return { ok: true, words: 'Keep safe finished' } }
-  mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
+  mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height)
   const until = async (text: string) => assert.ok(await waitFor(() => mounted!.screen().includes(text), 15000), text + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const choose = async (text: string) => { for (let i = 0; i < 12 && !selected().includes(text); i++) { const before = selected(); mounted!.push(KEY.down); assert.ok(await waitFor(() => selected() !== before, 3000)) }; assert.ok(selected().includes(text), text + '\n' + mounted!.screen()); mounted!.push(KEY.enter) }
@@ -43,9 +51,9 @@ try {
   if (frameAt >= 0) {
     const frames = process.argv[frameAt + 1]!
     mkdirSync(frames, { recursive: true })
-    const grid = mounted!.lines().map((line, y) => Array.from(line.padEnd(120)).map((c, x) => { const style = mounted!.styleAt(x, y); return { c, bg: style?.bg ?? 'default', fg: style?.fg ?? 'default', bold: style?.bold ?? false } }))
+    const grid = mounted!.lines().map((line, y) => Array.from(line.padEnd(width)).map((c, x) => { const style = mounted!.styleAt(x, y); return { c, bg: style?.bg ?? 'default', fg: style?.fg ?? 'default', bold: style?.bold ?? false } }))
     const file = join(frames, 'keep-safe.json')
-    writeFileSync(file, JSON.stringify({ grid, cols: 120, rows: 44 }))
+    writeFileSync(file, JSON.stringify({ grid, cols: width, rows: height }))
     const { gridToPng } = await import('../ui/gridToPng.ts')
     await gridToPng(file, join(frames, 'keep-safe.png'))
   }
@@ -54,7 +62,12 @@ try {
   assert.equal(existsSync(destination), false)
   await choose('Copy and verify'); await until('Keep safe finished')
   assert.deepEqual(readFileSync(join(destination, 'weights.gguf')), bytes)
-  assert.equal(readFileSync(join(destination, 'SHA256SUMS'), 'utf8'), hash + '  weights.gguf\n')
+  assert.deepEqual(readFileSync(join(destination, 'config.json')), config)
+  assert.deepEqual(readFileSync(join(destination, 'tokenizer.json')), tokenizer)
+  const completeSums = [hash + '  weights.gguf', createHash('sha256').update(config).digest('hex') + '  config.json', createHash('sha256').update(tokenizer).digest('hex') + '  tokenizer.json'].join('\n') + '\n'
+  assert.equal(readFileSync(join(destination, 'SHA256SUMS'), 'utf8'), completeSums)
+  assert.equal((await bank.verifyBank(recipe, join(f.home, 'models'), new AbortController().signal)).files, 3)
+  assert.equal(readFileSync(join(path, 'SHA256SUMS'), 'utf8'), hash + '  weights.gguf\n')
   assert.deepEqual(readFileSync(join(path, 'weights.gguf')), bytes)
   assert.ok(notices.some(text => text.includes('Copied and verified every file')))
   await close()
@@ -69,18 +82,19 @@ try {
   assert.equal(safe.bankUploadPreference(recipe).bytesPerSecond, 25e6 / 8)
   assert.ok(safe.bankUploadEstimate({ ...recipe, weightsGb: 510 }).includes('45.3 hours'))
   const calls: { command: string; args: string[] }[] = []
-  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.ok(readFileSync(list, 'utf8').includes('weights.gguf')); assert.ok(args.includes(path + '/')) }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
+  const runner = { run: async (command: string, args: string[]) => { calls.push({ command, args }); if (command === 'rsync') { const list = args.find(arg => arg.startsWith('--files-from='))!.slice(13); assert.deepEqual(readFileSync(list, 'utf8').trim().split('\n').sort(), ['config.json', 'tokenizer.json', 'weights.gguf']); assert.ok(args.includes(path + '/')) }; return '' }, tunnel: () => { throw new Error('No tunnel is needed') } }
   assert.equal(await safe.uploadBankForRental(recipe, 'runpod', { host: '127.0.0.1' }, runner, new AbortController().signal), undefined)
   assert.equal(calls.length, 0)
   const remote = await safe.uploadBankForRental(recipe, 'vast', { host: '127.0.0.1', user: 'root' }, runner, new AbortController().signal)
   assert.equal(remote, '/workspace/mercury-host/keep-safe-fixture/bank-weights')
   assert.equal(calls.filter(call => call.command === 'rsync').length, 1)
   assert.ok(calls.at(-1)?.args.at(-1)?.includes('sha256sum -c SHA256SUMS'))
+  assert.ok(calls.at(-1)?.args.at(-1)?.includes(completeSums))
   assert.equal(safe.bankUploadPreference(recipe).source, 'transfer')
   assert.ok(!readdirSync(join(f.home, 'host')).some(name => name.startsWith('bank-transfer-')))
   const failed = { ...runner, run: async (command: string, args: string[]) => { if (args.at(-1)?.includes('sha256sum')) throw new Error('checksum mismatch'); return '' } }
   await assert.rejects(safe.uploadBankForRental(recipe, 'lambda', { host: '127.0.0.1' }, failed, new AbortController().signal), /checksum mismatch/)
   safe.rememberBankUpload(recipe, undefined)
   assert.equal(safe.bankUploadPreference(recipe), undefined)
-  console.log('PASS keep safe: real popup confirms a verified second-drive copy, refuses overwrite, delegates mirror, confirms a measured-rate upload, verifies remotely before reuse and removes its temporary files')
+  console.log('PASS keep safe at ' + width + ' columns: real popup copies every private-bank file including unsealed config and tokenizer, checks all copied and uploaded files, preserves the original seal, refuses overwrite and removes temporary files')
 } finally { mounted?.unmount(); f.close() }

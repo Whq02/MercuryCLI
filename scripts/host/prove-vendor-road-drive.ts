@@ -103,6 +103,7 @@ try {
     await capture('80-' + vendor + '-confirmation')
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')
     check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now.'))
+    check(label + ' says the storage terms and Tune summary once', confirmation.split('/workspace uses the instance').length - 1 === 1 && confirmation.split('Tune:').length - 1 === 1)
     check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH public key') && confirmation.includes('/workspace') && confirmation.includes('setup fails'))
     await choose('Confirm $'); await until('Machine controls')
     check(label + ' queues and reaches ready', await waitFor(() => hostRecords().some(record => record.vendor === vendor && record.jobState === 'ready'), 30000))

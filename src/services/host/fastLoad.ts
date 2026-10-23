@@ -22,7 +22,7 @@ const FAST_LOAD_DOOR = 'Fast-load volume'
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
 interface FastLoadOptions { runner: HostRunner; sessionId: string; apiBaseUrl?: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void; vast?: () => VastClient | undefined }
-export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean> }
+export interface BankDoorOptions extends FastLoadOptions { api: () => RunpodClient | undefined; connect: () => Promise<boolean>; refreshVolumes?: () => Promise<void> }
 const cancelled = (): LlmHostResult => ({ ok: true, words: 'Bank closed. Existing weights disks keep billing until deleted.' })
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const pad = (text: string, width: number): string => text.length >= width ? text + ' ' : text.padEnd(width)
@@ -223,10 +223,13 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
   let folder = await ensureBankFolder(ask)
   if (!folder) return { ok: true, words: 'Bank closed. No folder was chosen.' }
   for (;;) {
-    const api = options.api()
-    if (api) try { await reconcileVolumes(api, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
-    const vastApi = options.vast?.()
-    if (vastApi) try { await reconcileVastVolumes(vastApi, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Vast.ai volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
+    if (options.refreshVolumes) await options.refreshVolumes()
+    else {
+      const api = options.api()
+      if (api) try { await reconcileVolumes(api, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
+      const vastApi = options.vast?.()
+      if (vastApi) try { await reconcileVastVolumes(vastApi, signal) } catch (error) { emit({ title: BANK_DOOR, words: 'Vast.ai volume list unavailable; the VOLUME column may be stale. ' + String(error) }) }
+    }
     for (const record of hostRecords().filter(row => row.jobKind === 'bank' && (row.jobState === 'failed' || row.jobState === 'stopped'))) removeHostRecord(record.id)
     const jobs = activeHostBanks()
     const recipes = fastLoadRecipes()

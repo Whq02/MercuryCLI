@@ -5,7 +5,7 @@ import { pipeline } from 'node:stream/promises'
 import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import type { LlmHostRoad, LlmHostResult } from '../llmHost/index.js'
-import { bankCandidates, bankFree, bankModelFolder, bankState, bytesWords, shortFolder, verifyBank } from './bank.js'
+import { bankCandidates, bankFiles, bankFree, bankModelFolder, bankState, bytesWords, shortFolder, verifyBank } from './bank.js'
 import { parseBankSums } from './boxBank.js'
 import { shQuote } from './boxExecution.js'
 import type { HostRecipe } from './recipes.js'
@@ -41,22 +41,24 @@ export function bankUploadBudget(recipe: HostRecipe | undefined): number {
   const preference = bankUploadPreference(recipe)
   return preference ? Math.ceil(recipe.weightsGb * 1e9 / preference.bytesPerSecond * 3000) + 600_000 : 0
 }
-function bankSource(recipe: HostRecipe, folder: string): { path: string; bytes: number; sums: Map<string, string>; text: string } {
+async function bankSource(recipe: HostRecipe, folder: string, signal: AbortSignal): Promise<{ path: string; bytes: number; sums: Map<string, string>; text: string }> {
   const state = bankState(recipe, folder)
   if (!state.banked || !state.path) throw new Error('Bank this model before keeping another copy.')
   const path = realpathSync(state.path)
   const text = readFileSync(join(path, 'SHA256SUMS'), 'utf8')
   const sums = parseBankSums(text)
-  for (const file of sums.keys()) {
+  const files = new Set([...sums.keys(), ...bankFiles(recipe, path).files.map(file => file.path)])
+  for (const file of files) {
     let parent = path
     for (const part of file.split('/')) {
       parent = join(parent, part)
       if (lstatSync(parent).isSymbolicLink()) throw new Error('A bank transfer cannot follow a symbolic link: ' + file)
     }
     if (!lstatSync(parent).isFile()) throw new Error('Not a regular bank file: ' + file)
+    if (!sums.has(file)) sums.set(file, await hash(parent, signal))
   }
   const bytes = [...sums.keys()].reduce((sum, file) => sum + lstatSync(join(path, file)).size, 0)
-  return { path, bytes, sums, text }
+  return { path, bytes, sums, text: [...sums].map(([file, digest]) => digest + '  ' + file).join('\n') + '\n' }
 }
 async function hash(path: string, signal: AbortSignal): Promise<string> {
   signal.throwIfAborted()
@@ -66,7 +68,7 @@ async function hash(path: string, signal: AbortSignal): Promise<string> {
   return digest.digest('hex')
 }
 export async function copyBankToFolder(recipe: HostRecipe, folder: string, destinationFolder: string, signal: AbortSignal, progress: (words: string) => void = () => {}): Promise<string> {
-  const source = bankSource(recipe, folder)
+  const source = await bankSource(recipe, folder, signal)
   mkdirSync(destinationFolder, { recursive: true })
   const destinationRoot = realpathSync(destinationFolder)
   const destination = bankModelFolder(destinationRoot, recipe)
@@ -100,7 +102,7 @@ export async function uploadBankForRental(recipe: HostRecipe, vendor: string, ta
   if (vendor !== 'vast' && vendor !== 'lambda') return
   const preference = bankUploadPreference(recipe)
   if (!preference) return
-  const source = bankSource(recipe, preference.folder)
+  const source = await bankSource(recipe, preference.folder, signal)
   await verifyBank(recipe, preference.folder, signal, progress)
   const remote = '/workspace/mercury-host/' + recipe.id + '/bank-weights'
   const args = sshArguments(target)
