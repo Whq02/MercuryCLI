@@ -9,6 +9,7 @@
  "src/services/gitGraph/observe.ts :: split-slash": 1,
  "src/services/host/boxBank.ts :: split-slash": 1,
  "src/services/host/door.ts :: split-slash": 1,
+ "src/services/host/ggufHeader.ts :: split-slash": 2,
  "src/services/host/hfRecipes.ts :: split-slash": 3,
  "src/services/host/keepSafe.ts :: split-slash": 1,
  "src/services/host/recipesFile.ts :: split-slash": 1,

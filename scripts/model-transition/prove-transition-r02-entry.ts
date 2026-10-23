@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'transition-r02-'))
 const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0

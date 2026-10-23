@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
@@ -88,7 +87,7 @@ try {
   try { await assert.rejects(readOnly(5000, 'Runpod', abort.signal)('pod', async () => { calls++; throw original }), /cancelled fixture/) } finally { clearTimeout(abortTimer) }
   check('cancellation interrupts backoff without a second read', calls === 1)
   let hungCalls = 0
-  await assert.rejects(readOnly(150)('pod', async signal => { if (++hungCalls === 1) throw original; await delay(10000, undefined, { signal }); return undefined }), error => error === original)
+  await assert.rejects(readOnly(150)('pod', async signal => { if (++hungCalls === 1) throw original; await new Promise<never>((_, reject) => signal.addEventListener('abort', () => reject(signal.reason ?? new Error('aborted')), { once: true })); return undefined }), error => error === original)
   check('an in-flight read cannot outlive the budget or lose the original failure', hungCalls === 2)
 
   rp.state.failNext = { route: 'GET /v2/pods/' + pod.id, status: 'disconnect', times: 3 }
@@ -175,7 +174,7 @@ try {
   const liveRecord = queue(livePod)
   const liveStop = new AbortController()
   const liveJob = runHostJob(liveRecord.id, liveRecord.generation!, { runner: ssh.runner, pauseMs: 20, timeoutMs: 5000, keepAlive: true, signal: liveStop.signal })
-  const until = async (test: () => boolean, ms: number): Promise<boolean> => { const end = Date.now() + ms; while (Date.now() < end) { if (test()) return true; await delay(20) } return test() }
+  const until = (test: () => boolean, ms: number): Promise<boolean> => new Promise(resolve => { const ceiling = AbortSignal.timeout(ms); const watch = setInterval(() => { if (test() || ceiling.aborted) { clearInterval(watch); resolve(test()) } }, 20) })
   assert.ok(await until(() => readHostRecord(livePod.id)?.jobState === 'ready', 10000), 'the live pod reaches READY under keep-alive')
   const livePort = readHostRecord(livePod.id)!.localPort!
   const liveDeletes = rp.state.deletes

@@ -168,7 +168,7 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
   const remote = 'mkdir -p ' + quote(dir) + ' || exit 1; exec 2>>' + launchLog + '; set -e; trap ' + quote('cat ' + launchLog) + ' EXIT; if test -s ' + pidPath + ' && kill -0 "$(cat ' + pidPath + ')" 2>/dev/null && pgrep -f -- ' + match + ' >/dev/null; then echo "Engine job already running"; exit 0; fi; printf %s ' + quote(script) + ' > ' + scriptPath + '; nohup setsid bash ' + scriptPath + ' > ' + quote(dir + '/engine.log') + ' 2>&1 < /dev/null & echo $! > ' + pidPath + '; sleep 5; if ! kill -0 "$(cat ' + pidPath + ')" 2>/dev/null || ! pgrep -f -- ' + match + ' >/dev/null; then echo "Engine launch failed; launch.log:"; cat ' + launchLog + '; tail -n 20 ' + quote(dir + '/engine.log') + '; exit 1; fi'
   try { await runner.run('ssh', [...args, remote], signal) } catch (error) { throw engineFailure(String(error), recipe, String(error).includes('Engine launch failed')) ?? new Error('launch.log: ' + String(error)) }
 }
-export const ENGINE_PROGRESS_GRACE_MS = 10 * 60_000
+const ENGINE_PROGRESS_GRACE_MS = 10 * 60_000
 function enginePollCommand(dir: string): string {
   const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
   return 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'
