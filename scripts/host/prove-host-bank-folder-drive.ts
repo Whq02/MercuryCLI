@@ -23,7 +23,9 @@ try {
   const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const road = async (ask: any, emit: any, signal: AbortSignal) => bankDoor(async (q: any) => { questions.push(q); return ask(q) }, emit, signal, { runner: { run: async () => { throw new Error('No process should run') } }, sessionId: 'folder-proof', api: () => undefined, connect: async () => false })
-  mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 44 }, React.createElement(SettingsPopupSlot)))), 120, 44)
+  const width = process.argv.includes('--80') ? 80 : 120
+  const height = width === 80 ? 24 : 44
+  mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height)
   popup.openSettingsPopup(llmHostPopupRequest(road))
   assert.ok(await waitFor(() => questions.some(q => q.step === 'door-bank'), 15000), mounted!.screen())
   assert.ok(questions.at(-1).rows.some((row: any) => row.value === 'change-folder'), 'Bank needs a Change folder row even after remembering a folder')
@@ -46,7 +48,14 @@ try {
   assert.equal(bank.bankFolder(), second)
   mounted!.push(KEY.esc)
   assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000))
+  const beforeReopen = questions.length
   popup.openSettingsPopup(llmHostPopupRequest(road))
-  assert.ok(await waitFor(() => mounted!.screen().includes('second-bank'), 5000))
+  assert.ok(await waitFor(() => questions.length > beforeReopen && questions.at(-1)?.step === 'door-bank' && mounted!.screen().includes('Bank'), 5000))
+  for (let page = 0; page < 8 && !mounted!.screen().includes('second-bank'); page++) {
+    const before = mounted!.screen()
+    mounted!.push('\u001b[6~')
+    assert.ok(await waitFor(() => mounted!.screen() !== before, 5000), 'the Bank folder is reachable by the displayed details pager')
+  }
+  assert.ok(mounted!.screen().includes('second-bank'))
   console.log('PASS Change folder uses the first-use candidates, remembers the choice and re-reads the Bank immediately and on reopen')
 } finally { mounted?.unmount(); f.close() }
