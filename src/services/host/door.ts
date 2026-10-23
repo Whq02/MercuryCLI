@@ -4,6 +4,7 @@ import { hostShape } from './cluster.js'
 import { heavyWeights, hostShortStorageWords, hostSpendSoFar } from './costs.js'
 import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVendorId } from './vendors/client.js'
 import { vendorStamp } from './vendors/vendor.js'
+import { vendorKeyRows } from './vendorKeys.js'
 import { bankRowWords, bankState, bootsFromVolume, weightsLine } from './bank.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
 import { LLM_HOST_SEARCH_MIN_CHARS, hostSetupEstimate } from '../../commands/llmhost/words.js'
@@ -41,6 +42,7 @@ interface ModelDoorDeps {
   road: LlmHostRoad
   connect?: () => Promise<boolean>
   connectVendor?: (vendor: HostVendorId) => Promise<boolean>
+  manageKey?: (vendor: HostVendorId) => Promise<boolean>
   boxes?: () => readonly DoorBox[] | Promise<readonly DoorBox[]>
   vendors?: readonly DoorVendor[]
   rentVendor?: (vendor: DoorVendor, offer: HostOffer, ask: Ask, emit: Emit, signal: AbortSignal) => Promise<LlmHostResult>
@@ -346,11 +348,13 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
         ...(offers === undefined ? deps.managedReadErrors && offerError ? [] : [{ value: 'connect', label: offerError ? 'Runpod stock could not be read · Retry →' : 'Connect Runpod →' }] : modelOffers.length ? [] : [{ value: 'retry:runpod', label: 'Runpod · no stock for this quality · Refresh →' }]),
         ...(deps.connectVendor ? HOST_VENDORS.filter(id => id !== 'runpod' && !vendors.some(row => row.vendor === id)).map(id => ({ value: 'connect:' + id, label: 'Connect ' + vendorLabel(id) + ' →' })) : []),
         ...vendors.filter(row => !(deps.managedReadErrors && vendorErrors.has(row.vendor)) && (vendorErrors.has(row.vendor) || !vendorOffers.some(item => item.vendor === row && modelTitle(item.offer.recipe) === title && qualityKey(item.offer.recipe) === qualityKey(recipe)))).map(row => ({ value: 'retry:' + row.vendor, label: vendorErrors.get(row.vendor) ?? row.label + ' · no stock for this quality · Refresh →' })),
+        ...(deps.manageKey ? vendorKeyRows() : []),
         ...(variants.length > 1 ? [{ value: 'quality', label: 'Choose quality →' }] : []),
         { value: 'back', label: 'Back to models · Escape closes' },
       ] })
       if (!choice || signal.aborted) return stopped()
       if (choice === 'back') { title = undefined; break }
+      if (choice.startsWith('key:') && deps.manageKey) { await deps.manageKey(choice.slice(4) as HostVendorId); break }
       if (choice === 'connect') { if (offerError || await deps.connect?.()) break; continue }
       if (choice.startsWith('connect:') && deps.connectVendor) { if (await deps.connectVendor(choice.slice(8) as HostVendorId)) break; continue }
       if (choice.startsWith('retry:')) break

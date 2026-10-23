@@ -5,6 +5,7 @@ import { hostPaidPodWords, hostSetupEstimate, LLM_HOST_WORDS as words } from '..
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { HOST_VENDORS, vendorClient, vendorKey, vendorLabel, saveVendorKey, vendorStorage, vendorKeyNotice, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HOST_VENDOR_INFO, type HostVendor } from './vendors/vendor.js'
+import { manageVendorKey } from './vendorKeys.js'
 import { formatHostOfferLabel, hostRecipeVerificationWord, type HostRecipe } from './recipes.js'
 import { currentHostRecipes } from './recipesFile.js'
 import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
@@ -363,6 +364,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         podErrors: () => listErrors,
         get vendors() { return HOST_VENDORS.filter(id => id !== 'runpod' && vendorKey(id)).map(id => { const client = clientFor(id); return new Proxy(client, { get(target, property) { if (property === 'offers') return (abort: AbortSignal) => readVendor(id, () => target.offers(abort), 'stock'); const value = Reflect.get(target, property); return typeof value === 'function' ? value.bind(target) : value } }) }) },
         connectVendor: connect,
+        manageKey: id => manageVendorKey(id, question, emit, signal, { apiBaseUrl: baseFor(id), changed: () => { clients.delete(id); if (id === vendor) { key = vendorKey(id); api = undefined } } }),
         confirmRental: question,
         rentVendor: (client, offer, rentAsk, rentEmit, rentSignal) => rentDoorVendor(createHostRoad({ ...options, rental: { client: clientFor(client.vendor as HostVendorId), offer } }), client, offer, rentAsk, rentEmit, rentSignal),
         records: hostRecords,
