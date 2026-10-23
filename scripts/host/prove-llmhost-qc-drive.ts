@@ -149,6 +149,17 @@ try {
     secrets.writeStoredHuggingfaceApiKey(endpoints.key)
     await open()
     check('changing the saved credential resumes HF reads', endpoints.requests.length > requests && !question!.found.includes(summary))
+    await close()
+    endpoints.state.failNext = { route: 'GET /v2/provider/fixture-owner', status: 403, times: 1 }
+    await open()
+    check('an HF endpoint permission refusal names the missing permission rather than asking for the same sign-in', question!.found.includes('Inference Endpoints permission required (HTTP 403)') && !question!.found.includes('sign in again'))
+    const forbiddenReads = endpoints.requests.length
+    await choose('vendor-error:huggingface'); await step('door-vendor-error')
+    check('the HF permission detail keeps HTTP 403 and the token remedy', question!.found.includes('HTTP 403') && question!.found.includes('https://huggingface.co/settings/tokens') && question!.found.includes('paste it with /logins huggingface') && !question!.found.includes(endpoints.key))
+    await choose('back'); await step('door-models')
+    await capture(columns + '-endpoint-permission')
+    await close(); await open()
+    check('the endpoint permission failure parks reads until the credential changes', endpoints.requests.length === forbiddenReads)
     await close(); mounted!.unmount(); mounted = undefined
   }
   secrets.writeStoredHuggingfaceApiKey(null)

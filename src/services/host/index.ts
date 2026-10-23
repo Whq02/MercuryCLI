@@ -24,7 +24,7 @@ import { VastClient, VAST_VOLUME_NOTICE, createVastRental } from './vendors/vast
 import { deleteVastKeptVolume, reconcileVastVolumes, vastBootMinutes, vastKeptVolumes, vastRentalVolume, vastVolumeDeleteDoor, vastVolumeLabel } from './vastVolumes.js'
 import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
 
-type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; operation: string } }
+type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; permission: boolean; operation: string } }
 const vendorReadSessions = new Map<string, Map<string, VendorReadState>>()
 const decoratedQuestions = new WeakSet<object>()
 type HostOptions = { apiBaseUrl?: string; vendorApiBaseUrls?: Partial<Record<HostVendorId, string>>; runner?: HostRunner; pauseMs?: number; readyTimeoutMs?: number; startJob?: (record: HostRecord) => void; sessionId?: string; rental?: { client: HostVendor; offer: HostOffer } }
@@ -88,9 +88,11 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       const text = error instanceof Error ? error.message : String(error)
       const scrubbed = secret ? text.split(secret).join('[redacted]') : text
       const status = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : Number(/HTTP\s+(\d{3})/.exec(scrubbed)?.[1])
-      const detail = status && !/HTTP\s+\d{3}/.test(scrubbed) ? 'HTTP ' + status + ' · ' + scrubbed : scrubbed
+      const permission = id === 'huggingface' && status === 403 && /inference\.endpoints|\/(?:provider|endpoint)\//.test(scrubbed)
+      const detail = (status && !/HTTP\s+\d{3}/.test(scrubbed) ? 'HTTP ' + status + ' · ' + scrubbed : scrubbed) + (permission ? '\nHugging Face Inference Endpoints need a token with the Inference Endpoints permission — create one at https://huggingface.co/settings/tokens and paste it with /logins huggingface.' : '')
       const parked = status === 401 || status === 403
-      stateFor(id).failure = { detail, parked, operation, summary: vendorLabel(id) + ': could not be read' + (status ? ' (HTTP ' + status + ')' : '') + (parked ? id === 'huggingface' ? ' · sign in again with /logins huggingface' : ' · replace the key to reconnect' : ' · select the row for details') + (operation === 'volumes' ? ' · weights disks unread; storage may still bill' : '') }
+      const summary = permission ? 'Hugging Face: Inference Endpoints permission required (HTTP 403) · select the row for details' : vendorLabel(id) + ': could not be read' + (status ? ' (HTTP ' + status + ')' : '') + (parked ? id === 'huggingface' ? ' · sign in again with /logins huggingface' : ' · replace the key to reconnect' : ' · select the row for details')
+      stateFor(id).failure = { detail, parked, permission, operation, summary: summary + (operation === 'volumes' ? ' · weights disks unread; storage may still bill' : '') }
     }
     const readVendor = <T,>(id: HostVendorId, read: () => Promise<T>, operation = 'machines'): Promise<T> => {
       const state = stateFor(id)
@@ -141,7 +143,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (decoratedQuestions.has(plan)) return ask(plan)
       while (!lifetimeSignal.aborted) {
         const failures = HOST_VENDORS.flatMap(id => { const failure = stateFor(id).failure; return failure ? [{ id, ...failure }] : [] })
-        const next = { ...plan, found: [...failures.map(row => row.summary), plan.found].filter(Boolean).join('\n'), ...(plan.rows ? { rows: [...plan.rows, ...failures.map(row => ({ value: 'vendor-error:' + row.id, label: vendorLabel(row.id) + (row.parked ? ' · sign in again' : ' · read error · details →') }))] } : {}) }
+        const next = { ...plan, found: [...failures.map(row => row.summary), plan.found].filter(Boolean).join('\n'), ...(plan.rows ? { rows: [...plan.rows, ...failures.map(row => ({ value: 'vendor-error:' + row.id, label: vendorLabel(row.id) + (row.permission ? ' · token permission · details →' : row.parked ? ' · sign in again' : ' · read error · details →') }))] } : {}) }
         decoratedQuestions.add(next)
         const choice = await ask(next)
         if (!choice?.startsWith('vendor-error:')) return choice
