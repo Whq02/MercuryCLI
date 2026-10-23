@@ -42,7 +42,7 @@ function keptVolumeManifest(recipe: HostRecipe): WeightManifest | undefined {
   return undefined
 }
 const resolvingBank = new Set<string>()
-export function bankWeightManifest(recipe: HostRecipe): BankManifest {
+function bankWeightManifest(recipe: HostRecipe): BankManifest {
   const key = volumeModel(recipe)
   if (resolvingBank.has(key)) return { reason: 'the bank folder is still being read' }
   resolvingBank.add(key)
@@ -54,7 +54,7 @@ export function bankWeightManifest(recipe: HostRecipe): BankManifest {
     return { reason: 'the bank cannot be read: ' + (error instanceof Error ? error.message : String(error)) }
   } finally { resolvingBank.delete(key) }
 }
-export type WeightManifestSource = 'recipe' | 'shipped' | 'volume' | 'bank'
+type WeightManifestSource = 'recipe' | 'shipped' | 'volume' | 'bank'
 export function resolvedWeightManifest(recipe: HostRecipe): { manifest: WeightManifest; source: WeightManifestSource } | undefined {
   const embedded = hostWeightManifestSchema.safeParse(recipe.weightManifest)
   if (embedded.success) return manifestFits(embedded.data, recipe) ? { manifest: embedded.data, source: 'recipe' } : undefined

@@ -12,7 +12,7 @@
   "counts": {
     "owner-internal": 6,
     "guide-probe": 10,
-    "own-guard": 5,
+    "own-guard": 6,
     "baked-mirror": 3
   },
   "sites": [
@@ -176,6 +176,13 @@
       "excerpt": "export const MERCURY_PROJECT_DIR = '.mercury'",
       "cls": "owner-internal",
       "why": "the project-dirs owner — the ONE place project basenames join paths"
+    },
+    {
+      "file": "src/utils/proofHomeGuard.ts",
+      "needle": ".mercury",
+      "excerpt": "return resolve(join(homedir(), '.mercury'))",
+      "cls": "own-guard",
+      "why": "the proof-write guard names the account store as a forbidden boundary, never a write destination or the configurable scratch home"
     },
     {
       "file": "src/utils/verification/verificationState.ts",

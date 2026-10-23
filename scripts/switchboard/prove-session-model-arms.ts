@@ -390,7 +390,7 @@ section("§8 — the refusal's action names the family's OWN /logins word")
   for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta']) {
     check(`${family}: the action names /logins ${family}`, wm.loginsActionFor(family) === `ask the operator to run /logins ${family}`, wm.loginsActionFor(family))
   }
-  check('compat names its connect home, never a /logins leg it lacks', wm.loginsActionFor('openai-compat').includes('MERCURY_COMPAT_BASE_URL') && !wm.loginsActionFor('openai-compat').includes('/logins'))
+  check('compat without an endpoint names the host and model doors, never an unconfigured sign-in', wm.loginsActionFor('openai-compat') === 'ask the operator to start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model')
   check('local names its connect home, never a /logins leg it lacks', wm.loginsActionFor('local').includes('MERCURY_LOCAL_BASE_URL') && !wm.loginsActionFor('local').includes('/logins'))
   const nemotron = await wm.validateWorkerModelChoice('openrouter/nvidia/nemotron-nano-9b-v2:free', 'session')
   check('a keyless OpenRouter id refuses with "/logins openrouter"', !nemotron.ok && String(nemotron.action ?? '').includes('/logins openrouter'), text(nemotron))

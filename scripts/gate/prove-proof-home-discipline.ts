@@ -30,7 +30,7 @@ function assignsHome(node: ts.Node): boolean {
   return found
 }
 
-export function homeFacts(text: string, name = 'proof.ts'): Facts {
+function homeFacts(text: string, name = 'proof.ts'): Facts {
   const sf = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true, name.endsWith('.mjs') ? ts.ScriptKind.JS : ts.ScriptKind.TS)
   const line = (n: ts.Node): number => sf.getLineAndCharacterOfPosition(n.getStart()).line + 1
   const f: Facts = { kept: [], pin: null, pinNamesAccountHome: false, importBeforePin: null, staticImport: null, dynamicImport: null, credentials: false, guarded: GUARDS.test(text) }

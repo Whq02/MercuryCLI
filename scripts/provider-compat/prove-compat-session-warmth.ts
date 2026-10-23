@@ -43,7 +43,9 @@ function worker(name: string, owner: string, agent = false) {
   return { child, started, exited, async next(reset = false) { await started; if (child.exitCode !== null) throw new Error(errors.join('')); return await new Promise<any>(resolve => { answers.push(resolve); child.stdin.write(JSON.stringify({ reset }) + '\n') }) }, async close() { child.stdin.end(); return await exited } }
 }
 try {
-  await configure(api, { llamacpp: { baseUrl: engine.base + '/llamacpp/v1', dialect: 'llamacpp', models: ['Fixture/Reasoner', 'kimi-k3'] } })
+  await configure(api, { unrelated: { baseUrl: engine.base + '/unrelated/v1', dialect: 'llamacpp', models: ['Other'] }, llamacpp: { baseUrl: engine.base + '/llamacpp/v1', dialect: 'llamacpp', models: ['Fixture/Reasoner', 'kimi-k3'] } })
+  const { noteCompatPrefixCache } = await import(`${root}/src/services/providers/openaicompat/compatPrefixCache.ts`)
+  noteCompatPrefixCache({ baseUrl: engine.base + '/unrelated/v1' }, 'Other', { inputTokens: 40, cachedInputTokens: 20 } as never)
   const owners: string[] = []
   for (let n = 0; owners.length < 5; n++) {
     const owner = 'fixture-owner-' + n
@@ -79,7 +81,8 @@ try {
   await workers[0]!.next()
   check('overflow never reassigns an existing session slot', engine.captures.at(-1)!.body.id_slot === leadSlot)
   const { configuredCompatEndpoints } = await import(`${root}/src/services/providers/openaicompat/compatAccounts.ts`)
-  const endpoint = configuredCompatEndpoints()[0]!
+  const endpoint = configuredCompatEndpoints().find(endpoint => endpoint.name === 'llamacpp')!
+  check('the cache reader follows the exercised endpoint, not a neighboring configured server', endpoint?.baseUrl === engine.base + '/llamacpp/v1')
   const kimi = await turn(api, 'compat/llamacpp/kimi-k3', [api.createUserMessage({ content: 'kimi fixture' })])
   check('the Kimi model-specific extras retain slot pinning and cache_prompt', kimi.some(m => !m.isApiErrorMessage) && Number.isInteger(engine.captures.at(-1)!.body.id_slot) && engine.captures.at(-1)!.body.cache_prompt === true)
   check('the Kimi model-specific effort remains max', engine.captures.at(-1)!.body.reasoning_effort === 'max')

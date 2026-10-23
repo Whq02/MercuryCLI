@@ -93,7 +93,7 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
           if ([manifest.model, manifest.repo_id, manifest._name_or_path].includes(recipe.model)) return true
         } catch {}
       }
-      return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(recipe.model.split('/').at(-1)! + '-') && sums.has(recipe.weightFile))
+      return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(posix.basename(recipe.model) + '-') && sums.has(recipe.weightFile))
     } catch { return false }
   })
   return matching.length === 1 ? matching[0]! : canonical
@@ -255,11 +255,11 @@ export const bootsFromVolume = (recipe: HostRecipe, dataCenter?: string): boolea
   return volume?.state === 'kept' && (volume.kind === 'global' || !dataCenter || volume.dataCenter === dataCenter)
 }
 const vastVolumeWords = (recipe: HostRecipe, volume: KeptVolume): string => volume.state === 'kept' ? 'Vast.ai volume ✓ machine ' + volume.machineId + ' — a rental on that machine boots in ~' + bootMinutes(recipe, volume) + ' min' : volume.state === 'failed' ? 'Vast.ai volume failed on machine ' + volume.machineId + ' — this boot downloads' : 'Vast.ai volume preparing on machine ' + volume.machineId + ' — this boot downloads'
-export function bankedWords(state: BankState): string {
+function bankedWords(state: BankState): string {
   if (!state.banked) return 'not banked'
   return 'banked ✓ on ' + shortFolder(state.folder!) + (state.verifiedAt ? ' (verified ' + state.verifiedAt.slice(0, 10) + ')' : state.failedAt ? ' (verification failed ' + state.failedAt.slice(0, 10) + ')' : ' (not verified yet · v)')
 }
-export function volumeWords(recipe: HostRecipe): string {
+function volumeWords(recipe: HostRecipe): string {
   const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   const vast = keptVolumes().find(row => row.kind === 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   const vastTail = vast ? ' · ' + vastVolumeWords(recipe, vast) : ''

@@ -16,15 +16,15 @@ import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
-export interface VastFastLoadOptions { runner: HostRunner; sessionId: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void }
+interface VastFastLoadOptions { runner: HostRunner; sessionId: string; vastApiBaseUrl?: string; startJob?: (record: HostRecord) => void }
 export const VAST_VOLUME_DOOR = 'Vast.ai volume'
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const hourly = (price: number): string => '$' + price.toFixed(2) + '/hr'
 const pendingGraceMs = 10 * 60_000
 export const vastKeptVolumes = (): KeptVolume[] => keptVolumes().filter(row => row.kind === 'vast')
 export const vastVolumeFor = (recipe: HostRecipe): KeptVolume | undefined => vastKeptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
-export const vastMachineWords = (volume: Pick<KeptVolume, 'machineId'>): string => 'Vast.ai machine ' + (volume.machineId ?? 'unknown')
-export const vastVolumeSizeGb = (bytes: number): number => Math.ceil(bytes / 1e9 * 1.05) + 20
+const vastMachineWords = (volume: Pick<KeptVolume, 'machineId'>): string => 'Vast.ai machine ' + (volume.machineId ?? 'unknown')
+const vastVolumeSizeGb = (bytes: number): number => Math.ceil(bytes / 1e9 * 1.05) + 20
 export const vastBootMinutes = (recipe: HostRecipe, volume: KeptVolume): string => /~(\d+) min total/.exec(hostSetupEstimate(recipe, { check: volume.verifiedSums?.sampleManifestSha256 ? 'sampled check' : 'full check ' + fullCheckMinutes(recipe.weightsGb) }))?.[1] ?? '?'
 export const vastBootsFromVolume = (recipe: HostRecipe, machineId?: number): boolean => { const volume = vastVolumeFor(recipe); return volume?.state === 'kept' && machineId !== undefined && volume.machineId === machineId }
 export function vastVolumeState(recipe: HostRecipe, volume = vastVolumeFor(recipe) ?? vastKeptVolumes().find(row => matchesVolume(row, recipe))): string {

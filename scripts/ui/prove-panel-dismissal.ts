@@ -36,6 +36,7 @@ const panels: Record<string, [string, string]> = {
   'list': ['mercury-ui/useInteractiveList.ts', 'hosted navigation, modal slot or route'],
   'content-search': ['MercuryContentSearch.tsx', 'elevated CommandCenter'],
   'feedback-review': ['Feedback.tsx', 'own surface through useElevatedSurface'],
+  'select@LlmHostDialog.tsx': ['LlmHostDialog.tsx', 'host dialog inside the elevated SettingsPopupSlot'],
 }
 const exemptions: Record<string, [string, string]> = {
   'surface:${kind}': ['SurfaceRouter.tsx', 'full-screen route, no chat outside its frame'],
@@ -56,10 +57,11 @@ for (const path of files(join(root, 'src', 'components'))) {
   const names = new Set(nodes(file, ts.isImportSpecifier).filter(n => (n.propertyName ?? n.name).text === 'useRegisterOverlay').map(n => n.name.text))
   for (const call of nodes(file, ts.isCallExpression).filter(n => ts.isIdentifier(n.expression) && names.has(n.expression.text))) {
     const id = call.arguments[0]?.getText(file).slice(1, -1) ?? ''
-    const spec = panels[id] ?? exemptions[id]
     const actual = relative(join(root, 'src', 'components'), path).replaceAll('\\', '/')
-    check(`registration ${id} has an explicit panel host or exemption`, spec !== undefined && spec[0] === actual, spec?.[1] ?? actual)
-    seen.add(id)
+    const key = panels[`${id}@${actual}`] || exemptions[`${id}@${actual}`] ? `${id}@${actual}` : id
+    const spec = panels[key] ?? exemptions[key]
+    check(`registration ${key} has an explicit panel host or exemption`, spec !== undefined && spec[0] === actual, spec?.[1] ?? actual)
+    seen.add(key)
   }
 }
 for (const id of [...Object.keys(panels), ...Object.keys(exemptions)]) check(`census entry ${id} still names live code`, seen.has(id))

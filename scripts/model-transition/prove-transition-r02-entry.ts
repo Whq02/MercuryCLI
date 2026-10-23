@@ -22,8 +22,17 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
   const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
   const card = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
 
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  enableConfigs()
+  const configured = updateSettingsForSource('userSettings', () => ({ compatProvider: { entryfixture: { baseUrl: 'http://127.0.0.1:1/v1', models: ['Fixture'] } } }))
+  if (configured.error) throw configured.error
   const families = loginFamilyRows({ engineLegs: true })
-  check('the owner carries twenty sign-in rows (one Anthropic row, its two roads behind the arm pick)', families.length === 20 && families.filter(row => row.value === 'anthropic').length === 1 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(id => families.some(row => row.value === id)), `families=${families.length}`)
+  const providerRows = families.filter(row => !row.value.startsWith('compat/'))
+  const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+  const endpointRows = configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => `compat/${endpoint.name}`)
+  check('the owner carries exactly twenty provider sign-in rows (one Anthropic row, its two roads behind the arm pick)', providerRows.length === 20 && families.filter(row => row.value === 'anthropic').length === 1 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(id => families.some(row => row.value === id)), `providers=${providerRows.length}`)
+  check('the named endpoints each add exactly their own sign-in row, including the fixture endpoint', endpointRows.includes('compat/entryfixture') && JSON.stringify(families.filter(row => row.value.startsWith('compat/')).map(row => row.value)) === JSON.stringify(endpointRows), JSON.stringify(endpointRows))
   check(
     'every owner family is nameable — /logins <family> resolves each row value',
     families.every(row => parseFamilyFocus(row.value) === row.value),

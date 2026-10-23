@@ -124,9 +124,10 @@ section('§3 — the KEYLESS world: every family refuses TYPED with its OWN name
       JSON.stringify(verdict),
     )
     const action = !verdict.ok ? (verdict.action ?? '') : ''
-    const expectedAction =
-      s.family === 'openai-compat' ? /MERCURY_COMPAT_BASE_URL/ : new RegExp(`/logins ${s.family === 'huggingface' ? 'huggingface' : s.family}`)
-    check(`…and the fix is the family's OWN door`, expectedAction.test(action), action)
+    const correctAction = s.family === 'openai-compat'
+      ? action === 'ask the operator to start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model'
+      : new RegExp(`/logins ${s.family === 'huggingface' ? 'huggingface' : s.family}`).test(action)
+    check(`…and the fix is the family's OWN door`, correctAction, action)
   }
 }
 

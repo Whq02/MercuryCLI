@@ -66,6 +66,12 @@ interface RegisteredRawEnvSite {
 }
 const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
   {
+    file: 'src/services/host/jobCredentials.ts',
+    code: 'const env = reference ? { ...process.env, HF_TOKEN: undefined } : process.env',
+    witness: 'const credential = await resolveHuggingfaceDispatchCredential({ env })',
+    why: 'an in-process credential resolution view masks the ambient Hugging Face token for a recorded account; this env is never a child-process base',
+  },
+  {
     file: 'src/services/structure/grammarFacility.ts',
     code: 'env: process.env,',
     witness: "const probe = spawnSync(process.execPath, ['-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {",

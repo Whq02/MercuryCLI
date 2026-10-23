@@ -128,6 +128,11 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the surface map lists the guides present at the root by name — existence only, never a content load',
   },
   {
+    test: f => f === 'src/utils/proofHomeGuard.ts',
+    cls: 'own-guard',
+    why: 'the proof-write guard names the account store as a forbidden boundary, never a write destination or the configurable scratch home',
+  },
+  {
     test: f => f === 'src/utils/permissions/filesystem.ts',
     cls: 'own-guard',
     why: "the permission estate names Mercury's own config as protected paths (edits ask first)",
