@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { basename, dirname } from 'node:path'
 import type { LlmHostRoad, LlmHostResult } from '../llmHost/index.js'
 import { currentHostRecipes, rememberSessionHostRecipe } from './recipesFile.js'
-import { keptDownloadMinutes, keptStallWords, pinnedWeightManifest } from './keptWeights.js'
+import { keptDownloadMinutes, keptStallWords, pinnedWeightManifest, weightManifestWords } from './keptWeights.js'
+import { manifestBytes } from './bankManifest.js'
+import { hostShape } from './cluster.js'
 import type { HostRecipe } from './recipes.js'
 import { createRefusal, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
 import { ensureHostKey, type HostRunner } from './ssh.js'
@@ -62,6 +64,11 @@ export async function terminateVolumeChoice(id: string | undefined, ask: Ask, si
   const choice = await ask({ step: 'terminate-weights', title: 'Keep the weights disk or delete it?', found: volume.id + ' · ' + volumePrice(volume), willRun: 'Keep: disk bills without a pod. Delete: weights are gone; the next rental downloads them again.', rows: [{ value: 'keep', label: 'Keep the weights disk (' + volumePrice(volume) + ')' }, { value: 'delete', label: 'Delete the weights disk too' }, { value: 'cancel', label: 'Cancel termination' }] })
   return !signal.aborted && (choice === 'keep' || choice === 'delete') ? choice : null
 }
+export function fillOffer(offers: HostOffer[], recipe: HostRecipe, kind: KeptVolume['kind'], dataCenter: string): HostOffer | undefined {
+  const cheapest = offers.filter(row => (row.recipe.nodes ?? 1) === 1 && (kind === 'global' || !row.dataCenter || row.dataCenter === dataCenter)).sort((a, b) => a.price - b.price || Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || a.recipe.id.localeCompare(b.recipe.id))[0]
+  return cheapest && { ...cheapest, recipe: { ...recipe, gpu: cheapest.recipe.gpu, count: cheapest.recipe.count, vramGb: cheapest.recipe.vramGb, cuda: cheapest.recipe.cuda, nodes: undefined } }
+}
+const fillPodWords = (offer: HostOffer): string => 'a temporary ' + hostShape(offer.recipe) + ' pod at $' + offer.price.toFixed(2) + '/hr'
 async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: KeptVolume, offer: HostOffer, options: FastLoadOptions, signal: AbortSignal, fully = false): Promise<HostRecord> {
   if (!options.startJob) await requireHostJobOwner()
   const sshKey = await ensureHostKey(options.runner, signal)
@@ -72,7 +79,7 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
     const pod = await api.create(offer, sshKey.publicKey, name, volume)
     created = pod.id
     writeKeptVolume({ ...volume, state: 'preparing', preparingPod: pod.id, error: undefined })
-    const record = queueHostSetup({ id: pod.id, name: pod.name, recipe: offer.recipe.id, price: offer.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: options.sessionId, workspace: process.cwd(), sshKey: sshKey.path, apiBaseUrl: options.apiBaseUrl, volumeId: volume.id, prepareWeightsOnly: true, verifyWeightsFully: fully })
+    const record = queueHostSetup({ id: pod.id, name: pod.name, recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: options.sessionId, workspace: process.cwd(), sshKey: sshKey.path, apiBaseUrl: options.apiBaseUrl, volumeId: volume.id, prepareWeightsOnly: true, verifyWeightsFully: fully })
     options.startJob?.(record)
     return record
   } catch (error) {
@@ -82,19 +89,21 @@ async function prepareVolume(api: RunpodClient, recipe: HostRecipe, volume: Kept
   }
 }
 export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask: Ask, emit: Emit, signal: AbortSignal, options: FastLoadOptions): Promise<LlmHostResult | undefined> {
-  if (!pinnedWeightManifest(recipe)) {
-    emit({ title: modelTitle(recipe), words: 'This recipe cannot be mirrored without a trusted file manifest. You can still bank and verify your local copy. No volume or pod was created.' })
+  const manifest = pinnedWeightManifest(recipe)
+  if (!manifest) {
+    emit({ title: modelTitle(recipe), words: 'This recipe cannot be mirrored without a trusted file manifest: ' + weightManifestWords(recipe) + '. No volume or pod was created.' })
     return
   }
+  const pinned: HostRecipe = recipe.weightManifest ? recipe : { ...recipe, weightManifest: manifest }
   await reconcileVolumes(api, signal)
   const existing = keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
   if (existing) {
     const action = await ask({ step: 'fast-load-kept', title: recipe.label, found: fastLoadState(recipe), willRun: 'Disks bill whether or not a pod exists. Reopen the Bank to refresh preparation.', rows: [...(existing.state === 'kept' ? [{ value: 'verify', label: 'Verify fully · rent a temporary pod to check every file' }] : []), ...(existing.state !== 'creating' ? [{ value: 'delete', label: 'Delete weights disk' }] : []), { value: 'back', label: 'Back' }] })
     if (action === 'verify') {
-      const offer = (await api.offers(signal)).filter(row => matchesVolume(existing, row.recipe) && (existing.kind === 'global' || !row.dataCenter || row.dataCenter === existing.dataCenter)).sort((a, b) => a.price - b.price)[0]
-      if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No fitting verification pod has stock. No pod was created; the kept disk still bills.' }); return }
-      const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · check every file', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent $' + offer.price.toFixed(2) + '/hr for verification, then terminate. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
-      if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, recipe, existing, offer, options, signal, true)
+      const offer = fillOffer(await api.offers(signal), pinned, existing.kind, existing.dataCenter)
+      if (!offer) { emit({ title: FAST_LOAD_DOOR, words: 'No pod has stock in ' + existing.dataCenter + ' for the verification. No pod was created; the kept disk still bills.' }); return }
+      const confirm = await ask({ step: 'fast-load-verify-confirm', title: 'Verify fully · check every file', found: existing.id + ' · ' + volumePrice(existing) + ' · full check ' + fullCheckMinutes(recipe.weightsGb), willRun: 'Rent ' + fillPodWords(offer) + ' for the verification (the cheapest in stock there; checking files needs no particular GPU), then terminate it. A mismatch downloads the weights again on that pod first. The disk keeps billing without a pod.', rows: [{ value: 'verify', label: 'Confirm full verification · temporary pod ' + hostShape(offer.recipe) + ' $' + offer.price.toFixed(2) + '/hr' }, { value: 'cancel', label: 'Cancel' }] })
+      if (confirm === 'verify' && !signal.aborted) await prepareVolume(api, pinned, existing, offer, options, signal, true)
       return
     }
     if (action === 'delete') { const result = await volumeDeleteDoor(api, existing.id, ask, signal, emit); emit({ title: FAST_LOAD_DOOR, words: result.words }) }
@@ -115,19 +124,20 @@ export async function mirrorToVolume(api: RunpodClient, recipe: HostRecipe, ask:
     if (!centres.some(row => row.id === where)) throw new Error('Choose a data centre from the live catalogue.')
     dataCenter = where
   }
-  const when = await ask({ step: 'fast-load-when', title: 'When should the weights be prepared?', found: recipe.label + ' · ' + dataCenter, willRun: 'Prepare now rents the cheapest fitting pod, downloads and verifies weights, then terminates that pod.', rows: [{ value: 'now', label: 'Prepare now · temporary pod charges plus disk' }, { value: 'next', label: 'At the next rental · create disk now; fill it when I rent' }, { value: 'back', label: 'Back' }] })
+  if (how === 'network' && manifestBytes(manifest) > recipe.diskGb * 1e9) { emit({ title: FAST_LOAD_DOOR, words: 'The recipe’s ' + recipe.diskGb + ' GB disk has no room for its ' + (manifestBytes(manifest) / 1e9).toFixed(2) + ' GB of weights. Nothing was created.' }); return }
+  const when = await ask({ step: 'fast-load-when', title: 'When should the weights be prepared?', found: recipe.label + ' · ' + dataCenter, willRun: 'Prepare now rents the cheapest pod in stock with room for the weights (any GPU shape; it only downloads), downloads and verifies them, then terminates that pod.', rows: [{ value: 'now', label: 'Prepare now · temporary pod charges plus disk' }, { value: 'next', label: 'At the next rental · create disk now; fill it when I rent' }, { value: 'back', label: 'Back' }] })
   if (!when) return cancelled()
   if (when === 'back') return
   if (when !== 'now' && when !== 'next') throw new Error('Choose a preparation time.')
-  const offer = when === 'now' ? (await api.offers(signal)).filter(row => volumeModel(row.recipe) === volumeModel(recipe) && (how === 'global' || !row.dataCenter || row.dataCenter === dataCenter)).sort((a, b) => a.price - b.price)[0] : undefined
-  if (when === 'now' && !offer) { emit({ title: FAST_LOAD_DOOR, words: 'No fitting pod has stock here. Nothing was created; try another data centre or prepare at the next rental.' }); return }
+  const offer = when === 'now' ? fillOffer(await api.offers(signal), pinned, how, dataCenter) : undefined
+  if (when === 'now' && !offer) { emit({ title: FAST_LOAD_DOOR, words: 'No pod has stock in ' + dataCenter + ' to fill the disk. Nothing was created; try another data centre or prepare at the next rental.' }); return }
   const amount = volumePrice({ kind: how, price: how === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb) })
-  const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: $' + offer.price.toFixed(2) + '/hr until download verifies; then terminate. A temporary pod fills the volume from Hugging Face and verifies the same files next to the GPUs; nothing is uploaded from your drive. A stalled download (' + keptStallWords + ') or one past ' + keptDownloadMinutes(recipe) + ' min also terminates the pod and keeps the partial disk.' : ' No pod now; the next rental downloads the weights from Hugging Face onto the disk and verifies them there; nothing is uploaded from your drive.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
+  const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: ' + fillPodWords(offer) + ' (the cheapest in stock in ' + dataCenter + ' with room for the weights; filling a disk needs no particular GPU) until the download verifies; then terminate. A temporary pod fills the volume from Hugging Face and verifies the same files next to the GPUs; nothing is uploaded from your drive. A stalled download (' + keptStallWords + ') or one past ' + keptDownloadMinutes(recipe) + ' min also terminates the pod and keeps the partial disk.' : ' No pod now; the next rental downloads the weights from Hugging Face onto the disk and verifies them there; nothing is uploaded from your drive.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod ' + hostShape(offer.recipe) + ' $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
   if (confirm !== 'confirm' || signal.aborted) return
   if (offer && !options.startJob) await requireHostJobOwner()
-  const volume = await createKeptVolume(api, recipe, how, dataCenter, signal)
+  const volume = await createKeptVolume(api, pinned, how, dataCenter, signal)
   if (offer) {
-    try { await prepareVolume(api, recipe, volume, offer, options, signal) } catch (error) {
+    try { await prepareVolume(api, pinned, volume, offer, options, signal) } catch (error) {
       throw new Error('Weights disk ' + volume.id + ' exists and bills ' + amount + '. Pods I’m paying for → Delete. ' + String(error))
     }
   }
@@ -139,7 +149,7 @@ function volumeCell(recipe: HostRecipe, banked: boolean): string {
   if (volume?.state === 'kept') return '✓ ' + volume.dataCenter + ' · boots ~' + bootMinutes(recipe, volume) + ' min'
   if (volume?.state === 'preparing' || volume?.state === 'creating') return '… preparing in ' + volume.dataCenter
   if (volume?.state === 'failed') return '✗ failed in ' + volume.dataCenter + ' · d to drop'
-  return banked ? pinnedWeightManifest(recipe) ? '— m to mirror' : '— no trusted file hashes' : '—'
+  return banked ? pinnedWeightManifest(recipe) ? '— m to mirror' : '— cannot mirror · Enter says why' : '—'
 }
 const bankDrive = (folder: string): string => shortFolder(basename(folder) === 'mercury-model-bank' ? dirname(folder) : folder)
 function bankCell(state: BankState, job: HostRecord | undefined, width: number): string {
@@ -225,7 +235,7 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const recipe = recipes.find(row => row.id === target)
     if (!recipe) continue
     const state = states.get(recipe.id)!
-    if (action === 'open') { emit({ title: modelTitle(recipe), words: (state.banked ? 'banked ✓ on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) + ' against the ' + (state.check === 'manifest' ? 'pinned manifest' : 'download') : '') + (state.error ? ' · ' + state.error : '') + ' · ' + fastLoadState(recipe) + ' · keys: b bank · v verify · m mirror · d drop' }); continue }
+    if (action === 'open') { emit({ title: modelTitle(recipe), words: (state.banked ? 'banked ✓ on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) + ' against the ' + (state.check === 'manifest' ? 'pinned manifest' : 'download') : '') + (state.error ? ' · ' + state.error : '') + ' · ' + fastLoadState(recipe) + (pinnedWeightManifest(recipe) ? '' : ' · mirroring unavailable: ' + weightManifestWords(recipe)) + ' · keys: b bank · v verify · m mirror · d drop' }); continue }
     if (!BANK_KEYS.some(row => row.value === action)) continue
     const result = await bankAction(recipe, action as BankActionKind, folder, ask, emit, signal, options)
     if (result) return result
