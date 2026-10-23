@@ -136,6 +136,7 @@ src/services/dap/dapClient.ts :: lldbDapMemo :: static-for-process
 src/services/dap/debugpyResolver.ts :: cache :: ttl-bounded
 src/services/dap/debugpyResolver.ts :: pycachePrefixMemo :: static-for-process
 src/services/eval/interpreters.ts :: probeCache :: ttl-bounded
+src/services/host/bankManifest.ts :: memo :: keyed-by-truth
 src/services/ide/blenderProject.ts :: versionCache :: ttl-bounded
 src/services/ide/cppBuild.ts :: cmakeCache :: ttl-bounded
 src/services/ide/cppProject.ts :: profileCache :: ttl-bounded
