@@ -140,7 +140,7 @@ try {
             check(name + ' names the key road and next step', notice.includes('the pod did not accept Mercury') && notice.includes(vendor === 'vast' ? 'https://cloud.vast.ai/manage-keys/' : vendor === 'lambda' ? 'Lambda account keys' : 'added to this pod only') && notice.includes('/llmhost'))
           } else if (kind === 'stall') {
             check(name + ' reports the watchdog verdict', notice.includes('Download stalled') && notice.includes('under 1 GB in 10 min'))
-            check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights.*GB of .*GB.*stalled/.test(row.step)))
+            check(name + ' publishes partial bytes, total and stalled time before failing', result.steps?.some(row => /downloading weights on the machine.*GB of .*GB.*stalled/.test(row.step)))
             check(name + ' executes the window, not a fabricated verdict', (await download)?.code === 75)
           } else {
             check(name + ' reports the engine fatal line without a timeout', notice.includes('the engine died loading the weights') && notice.includes(fatal) && !notice.includes('Engine not ready') && health <= 1)

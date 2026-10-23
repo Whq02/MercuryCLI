@@ -53,7 +53,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   }
   const log = (text: string): void => {
     if (initial.log && text) appendFileSync(initial.log, clean(text) + '\n', { mode: 0o600 })
-    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim())
+    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim().replace(/^downloading weights(?= ·|$)/, 'downloading weights on the machine'))
   }
   let offset = 0
   let logBusy = false

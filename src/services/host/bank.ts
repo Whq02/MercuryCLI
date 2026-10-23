@@ -237,7 +237,13 @@ export function volumeWords(recipe: HostRecipe): string {
   if (volume?.state === 'failed') return 'fast-load volume failed in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)'
   return 'no fast-load volume — first boot downloads (~' + bootMinutes(recipe) + ' min)'
 }
-export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => sizeWords(recipe.weightsGb) + ' from Hugging Face · ' + bankedWords(state) + ' · ' + volumeWords(recipe)
+export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => {
+  const summary = sizeWords(recipe.weightsGb) + ' from Hugging Face · ' + bankedWords(state)
+  if (!state.banked) return summary + ' · ' + volumeWords(recipe)
+  const volume = bankVolume(recipe)
+  const minutes = Math.max(5, Math.ceil(recipe.weightsGb / 30 / 5) * 5)
+  return summary + ' · a rented machine' + (volume?.state === 'kept' ? ' without your volume' : '') + ' downloads from Hugging Face (~' + minutes + ' min); your bank serves your own computers and a mirror · ' + (volume ? volumeWords(recipe) : 'no fast-load volume')
+}
 export function bankRowWords(recipe: HostRecipe, state = bankState(recipe)): string {
   if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: no trusted file manifest')
   const where = state.folder ? shortFolder(state.folder) : 'a folder you name'

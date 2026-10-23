@@ -136,7 +136,7 @@ try {
   config.hold = false; config.log += 'MERCURY_STEP starting engine\n'; save()
   check('closed popup job reaches ready on the built worker', await waitFor(() => readHostRecord(id)?.jobState === 'ready', 25000))
   const ready = readHostRecord(id)!
-  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights ') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights', 'starting engine', 'ready'])
+  assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights on the machine ·') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights on the machine', 'starting engine', 'ready'])
   check('durable step sequence and local log survive runner ownership changes', readFileSync(ready.log!, 'utf8').includes('fixture weights are downloading'))
   const settings = JSON.parse(readFileSync(join(f.home, 'settings.json'), 'utf8'))
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
