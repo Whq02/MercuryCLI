@@ -88,7 +88,7 @@ async function endHostCluster(api: RunpodClient, record: HostRecord, cluster: Ho
     await terminateHostResource(api, { id: record.id, name: record.name, status: 'ERROR', cost: current.price, createdAt: current.startedAt, family: cluster }, cleanupRead)
   } catch (error) {
     if (error instanceof HostTerminationUnconfirmed) throw error
-    throw new Error('Cluster ' + record.id + ' ' + reason + '. Terminating it failed, so it still bills $' + current.price.toFixed(2) + '/hr · ' + cost + ' · /llmhost → Pods I’m paying for → Terminate · ' + String(error) + (detail ? ' · ' + detail : ''))
+    throw new Error('Cluster ' + record.id + ' ' + reason + '. Terminating it failed, so it still bills $' + current.price.toFixed(2) + '/hr · ' + cost + ' · /llmhost → Machines I’m paying for → Terminate · ' + String(error) + (detail ? ' · ' + detail : ''))
   }
   throw new HostClusterEnded('Cluster ' + record.id + ' ' + reason + '. Mercury terminated it through the clusters API and Runpod no longer lists it · ' + cost + (detail ? ' · ' + detail : ''))
 }
@@ -113,7 +113,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
       const confirmed = readHostRecord(record.id)
       if (!rated && billed > 0 && confirmed && cents(billed) !== cents(confirmed.price)) {
         const repriced = patchHostRecord(record.id, { price: billed })
-        if (repriced && cents(billed) > cents(confirmed.price)) hostNotice(repriced, 'rate', repriced.name + ' · Runpod bills this cluster at $' + billed.toFixed(2) + '/hr, above the $' + confirmed.price.toFixed(2) + '/hr catalogue figure that was confirmed · setup continues · /llmhost → Pods I’m paying for → Terminate stops it')
+        if (repriced && cents(billed) > cents(confirmed.price)) hostNotice(repriced, 'rate', repriced.name + ' · Runpod bills this cluster at $' + billed.toFixed(2) + '/hr, above the $' + confirmed.price.toFixed(2) + '/hr catalogue figure that was confirmed · setup continues · /llmhost → Machines I’m paying for → Terminate stops it')
       }
       rated = true
       const targets = nodes.map(node => ({ host: node.ssh!.direct!.host, port: node.ssh!.direct!.port, user: node.ssh!.direct!.username, key: record.sshKey ?? record.target?.key }))
