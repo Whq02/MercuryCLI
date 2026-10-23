@@ -6,6 +6,7 @@ import { HOST_VENDORS, vendorLabel, vendorStorage, vendorKeyNotice, type HostVen
 import { vendorStamp } from './vendors/vendor.js'
 import { vendorKeyRows } from './vendorKeys.js'
 import { bankRowWords, bankState, bootsFromVolume, weightsLine } from './bank.js'
+import { vastBootsFromVolume } from './vastVolumes.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
 import { LLM_HOST_SEARCH_MIN_CHARS, hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'

@@ -217,9 +217,12 @@ export async function terminateVerified(api: Pick<HostVendor, 'terminate' | 'pod
   try { pods = await readOnly('pod listing', signal => api.pods(signal)) } catch (error) { throw new HostTerminationUnconfirmed(label, error) }
   if (pods.some(row => row.id === id && row.status !== 'TERMINATED')) throw new Error(label + ' still lists the pod and it may still bill.')
 }
-export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe, api: RunpodClient, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void, cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs: 5000, timeoutMs: 4 * 60_000, signal, mark })): Promise<string> {
+export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe, api: Pick<HostVendor, 'terminate' | 'pods'> & { label?: string }, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void, cleanupRead = hostJobReadOnly({ label: api.label ?? 'Runpod', pauseMs: 5000, timeoutMs: 4 * 60_000, signal, mark })): Promise<string> {
   const volume = record.volumeId && readKeptVolume(record.volumeId)
   if (!volume || volume.state === 'gone' || volume.state === 'creating') throw new Error('The kept weights disk is not available; open /llmhost → Bank before resuming.')
+  const label = api.label ?? 'Runpod'
+  const unit = volume.kind === 'vast' ? 'instance' : 'pod'
+  const diskWord = volume.kind === 'vast' ? 'Vast.ai volume' : 'weights disk'
   const manifest = weightManifest(recipe)
   const directory = keptWeightsPath(recipe)
   const progressPath = '/workspace/mercury-host/' + recipe.id + '/weights-check.log'
@@ -263,21 +266,21 @@ export async function prepareKeptWeights(record: HostRecord, recipe: HostRecipe,
   } finally {
     if (record.prepareWeightsOnly) {
       try {
-        await terminateVerified(api, record.id, cleanupRead)
+        await terminateVerified(api, record.id, cleanupRead, label)
         removeHostRecord(record.id)
       } catch (error) {
         if (error instanceof HostTerminationUnconfirmed) throw error
         const disk = readKeptVolume(volume.id) ?? volume
         const plain = (value: unknown): string => (value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
-        const words = (failure ? plain(failure) : 'Weights preparation finished') + ' · Mercury could not verify pod termination: ' + plain(error) + ' · check your account; pod ' + record.id + ' may still bill · weights disk ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Machines I’m paying for → Terminate'
+        const words = (failure ? plain(failure) : 'Weights preparation finished') + ' · Mercury could not verify ' + unit + ' termination: ' + plain(error) + ' · check your account; ' + unit + ' ' + record.id + ' may still bill · ' + diskWord + ' ' + disk.id + ' is kept and bills ' + keptDiskPrice(disk) + ' · /llmhost → Pods I’m paying for → Terminate'
         patchHostRecord(record.id, { jobState: 'failed', error: words, prepareWeightsOnly: true })
         hostNotice(record, 'failed', recipe.label + ' · ' + words)
         throw new HostPreparationCleanupFailed(words)
       }
       const disk = readKeptVolume(volume.id)
       if (disk?.preparingPod === record.id) writeKeptVolume({ ...disk, preparingPod: undefined })
-      if (disk && failure) hostNotice(record, 'failed', recipe.label + ' · preparation stopped: ' + (disk.error ?? String(failure)) + ' · temporary pod ' + record.id + ' terminated and verified absent (Runpod no longer lists it) · weights disk ' + disk.id + ' is kept ' + (disk.partialBytes === undefined ? '' : 'with ' + gigabytes(disk.partialBytes) + ' downloaded ') + 'and bills ' + keptDiskPrice(disk) + ' · /llmhost → Bank → d deletes the disk, or the next rental downloads again')
-      else if (disk) hostNotice(record, 'prepared', recipe.label + ' · weights kept on ' + disk.id + ' (' + (disk.verifiedSums?.check ?? 'full') + ' check passed) · temporary pod ' + record.id + ' terminated (Runpod no longer lists it) · the disk bills ' + volumePrice(disk) + ' without a pod')
+      if (disk && failure) hostNotice(record, 'failed', recipe.label + ' · preparation stopped: ' + (disk.error ?? String(failure)) + ' · temporary ' + unit + ' ' + record.id + ' terminated and verified absent (' + label + ' no longer lists it) · ' + diskWord + ' ' + disk.id + ' is kept ' + (disk.partialBytes === undefined ? '' : 'with ' + gigabytes(disk.partialBytes) + ' downloaded ') + 'and bills ' + keptDiskPrice(disk) + ' · /llmhost → Bank → d deletes the disk, or the next rental downloads again')
+      else if (disk) hostNotice(record, 'prepared', recipe.label + ' · weights kept on ' + (disk.kind === 'vast' ? 'Vast.ai machine ' + disk.machineId + ' (volume ' + disk.id + ')' : disk.id) + ' (' + (disk.verifiedSums?.check ?? 'full') + ' check passed) · temporary ' + unit + ' ' + record.id + ' terminated (' + label + ' no longer lists it) · the ' + (disk.kind === 'vast' ? 'volume bills ' + keptDiskPrice(disk) : 'disk bills ' + volumePrice(disk) + ' without a pod'))
     }
   }
 }

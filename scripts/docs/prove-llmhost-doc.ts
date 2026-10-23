@@ -185,7 +185,14 @@ function validateLlmHostDoc(
   const watchAndRunpodOnlyMatch =
     flatDoc.includes('polls every connected provider') &&
     !flatDoc.includes('Stock watches, multi-node clusters') &&
-    flatDoc.includes('Multi-node clusters, fast-load weights volumes and in-place `Tune` reloads are supported on Runpod only')
+    flatDoc.includes('Multi-node clusters and in-place `Tune` reloads are supported on Runpod only') &&
+    !flatDoc.includes('fast-load weights volumes and in-place `Tune` reloads are supported on Runpod only') &&
+    flatDoc.includes('kept weights volumes exist on Runpod (one data centre or any) and on Vast.ai (one machine)') &&
+    flatDoc.includes('Vast.ai sells **local volumes only**') &&
+    flatDoc.includes('`Vast.ai volume · keep on one Vast.ai machine · per GB-month at the machine\'s rate`') &&
+    flatDoc.includes('a rental on that machine boots in ~<m> min · other machines download') &&
+    flatDoc.includes('boots from your Vast.ai volume on its machine') &&
+    flatDoc.includes('no stock on that machine right now · w watch it')
 
   const failureAndHiccupWordsMatch =
     doc.includes('`the engine died loading the weights:') &&

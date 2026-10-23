@@ -6,6 +6,7 @@ import { currentHostRecipes } from '../recipesFile.js'
 import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from './vendor.js'
 import { HostCreateError, HostVendorHttpError, VendorApi, isOpenSshKey, keyMaterial, retryAfterSeconds, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
+import { keptVolumes, matchesVolume } from '../volumes.js'
 
 import type { LlmHostRoad } from '../../llmHost/index.js'
 
@@ -49,7 +50,26 @@ const offerSchema = z.object({
   id: idSchema, gpu_name: z.string(), gpu_ram: z.number().positive(), num_gpus: z.number().int().positive(), dph_total: z.number().positive(),
   verification: z.string(), reliability2: z.number().nullable().optional(), reliability: z.number().nullable().optional(), direct_port_count: z.number(),
   rentable: z.boolean(), rented: z.boolean(), cuda_max_good: z.number(), disk_space: z.number(), geolocation: z.string().nullable().optional(), datacenter: z.boolean().nullable().optional(),
+  machine_id: idSchema.nullable().optional(),
 })
+const hostingType = (datacenter: boolean | null | undefined): NonNullable<HostOffer['hostingType']> => datacenter === true ? 'datacenter' : datacenter === false ? 'community host' : 'host'
+const volumeOfferSchema = z.object({
+  id: idSchema, machine_id: idSchema, host_id: z.number().nullable().optional(), disk_space: z.number().nonnegative(), storage_cost: z.number().nonnegative().nullable().optional(), storage_total_cost: z.number().nullable().optional(),
+  verification: z.string().nullable().optional(), reliability2: z.number().nullable().optional(), reliability: z.number().nullable().optional(), geolocation: z.string().nullable().optional(), datacenter: z.boolean().nullable().optional(),
+  cuda_max_good: z.number().nullable().optional(), disk_bw: z.number().nullable().optional(), inet_down: z.number().nullable().optional(), inet_up: z.number().nullable().optional(),
+})
+const volumeRowSchema = z.object({
+  id: idSchema, label: z.string().nullable().optional(), name: z.string().nullable().optional(), status: z.string().nullable().optional(), machine_id: z.number().nullable().optional(), host_id: z.number().nullable().optional(),
+  disk_space: z.number().nullable().optional(), storage_total_cost: z.number().nullable().optional(), storage_cost: z.number().nullable().optional(), instances: z.unknown().optional(), start_date: z.number().nullable().optional(), deleted_at: z.string().nullable().optional(),
+})
+const volumeRows = z.array(volumeRowSchema)
+const volumeListSchema = z.union([volumeRows, z.object({ volumes: volumeRows }), z.object({ data: volumeRows })]).transform(value => Array.isArray(value) ? value : 'volumes' in value ? value.volumes : value.data)
+const volumeCreatedSchema = z.object({ success: z.literal(true), volume_name: z.string().nullable().optional(), volume_id: z.number().nullable().optional(), id: z.number().nullable().optional() })
+export const VAST_VOLUME_MOUNT = '/workspace/mercury-weights'
+export const VAST_VOLUME_NOTICE = 'A Vast.ai volume lives on one physical machine: only an instance on that machine can mount it, it bills per GB-month for its whole size with or without an instance (never while the machine is offline), and it cannot be resized or moved. Delete it from Machines I’m paying for when you stop renting there.'
+export interface VastVolumeOffer { id: number; machineId: number; hostId?: number; diskGb: number; storageCost: number; verification: string; reliability: number; geolocation?: string; hostingType: NonNullable<HostOffer['hostingType']>; cudaMaxGood?: number }
+export interface VastVolume { id: number; name: string; status: string; machineId?: number; diskGb?: number; hourly?: number; instances: string[]; createdAt: string }
+const instanceIds = (value: unknown): string[] => Array.isArray(value) ? value.flatMap(row => typeof row === 'number' ? [String(row)] : row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'number' ? [String((row as { id: number }).id)] : []) : []
 const instanceSchema = z.object({
   id: idSchema, label: z.string().nullable().optional(), actual_status: z.string().nullable().optional(), dph_total: z.number().nonnegative(), start_date: z.number().nonnegative().nullable().optional(),
   public_ipaddr: z.string().nullable().optional(), ports: z.unknown().optional(),
@@ -115,13 +135,64 @@ export class VastClient implements HostVendor {
         }
         for (const recipe of rows) {
           if (!recipeFits(recipe, gpuId, gigabytes(hardware.gpu_ram), hardware.num_gpus)) continue
-          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hardware.datacenter === true ? 'datacenter' : hardware.datacenter === false ? 'community host' : 'host' }
+          const offer: HostOffer = { recipe, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hostingType(hardware.datacenter), ...(hardware.machine_id ? { machineId: hardware.machine_id } : {}) }
           this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
           offers.push(offer)
         }
       }
     }
     return { offers: offers.sort(sortOffers), unmapped }
+  }
+  async recipeOffers(recipes: readonly HostRecipe[], signal?: AbortSignal): Promise<HostOffer[]> { return (await this.search(recipes, signal)).offers }
+  async machineOffers(recipe: HostRecipe, machineId: number, signal?: AbortSignal): Promise<HostOffer[]> {
+    const containerGb = 30
+    const found = await this.searchPage({ verified: { eq: true }, rentable: { eq: true }, rented: { eq: false }, direct_port_count: { gte: 1 }, machine_id: { eq: machineId }, disk_space: { gte: containerGb }, allocated_storage: containerGb, type: 'ondemand', order: [['dph_total', 'asc']] }, signal)
+    const offers: HostOffer[] = []
+    for (const hardware of found) {
+      if (hardware.verification !== 'verified' || !hardware.rentable || hardware.rented || hardware.direct_port_count < 1 || hardware.disk_space < containerGb || hardware.machine_id !== machineId) continue
+      const plainName = hardware.gpu_name.replaceAll('_', ' ').replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/^NVIDIA\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 48)
+      const gpuId = gpuName(hardware.gpu_name) ?? plainName
+      const offer: HostOffer = { recipe: { ...recipe, gpu: plainName, count: hardware.num_gpus, vramGb: Math.round(gigabytes(hardware.gpu_ram)), cuda: String(hardware.cuda_max_good), nodes: undefined, diskGb: containerGb }, gpuId, price: hardware.dph_total, availability: 'HIGH', hostingType: hostingType(hardware.datacenter), machineId }
+      this.placements.set(offer, { id: hardware.id, fingerprint: fingerprint(offer) })
+      offers.push(offer)
+    }
+    return offers.sort((a, b) => a.price - b.price)
+  }
+  async volumeOffers(minGb: number, machineId?: number, signal?: AbortSignal): Promise<VastVolumeOffer[]> {
+    const body = { verified: { eq: true }, external: { eq: false }, disk_space: { gte: minGb }, ...(machineId ? { machine_id: { eq: machineId } } : {}), order: [['storage_cost', 'asc']], limit: 64, allocated_storage: minGb }
+    const found = (await this.api.request('/api/v0/volumes/search/', z.object({ offers: z.array(volumeOfferSchema) }), 'POST', body, signal)).offers
+    return found.filter(row => row.disk_space >= minGb && (row.verification ?? 'verified') === 'verified' && (machineId === undefined || row.machine_id === machineId)).map(row => ({ id: row.id, machineId: row.machine_id, hostId: row.host_id ?? undefined, diskGb: row.disk_space, storageCost: row.storage_cost ?? (row.storage_total_cost != null && minGb > 0 ? row.storage_total_cost * 720 / minGb : 0), verification: row.verification ?? 'verified', reliability: row.reliability2 ?? row.reliability ?? 0, geolocation: row.geolocation ?? undefined, hostingType: hostingType(row.datacenter), cudaMaxGood: row.cuda_max_good ?? undefined })).sort((a, b) => a.storageCost - b.storageCost || a.machineId - b.machineId)
+  }
+  async volumes(signal?: AbortSignal): Promise<VastVolume[]> {
+    const rows = await this.api.request('/api/v0/volumes?owner=me&type=local_volume', volumeListSchema, 'GET', undefined, signal)
+    return rows.filter(row => !row.deleted_at).map(row => ({ id: row.id, name: this.api.redact(row.label ?? row.name ?? 'V.' + row.id), status: row.status ?? 'unknown', machineId: row.machine_id ?? undefined, diskGb: row.disk_space ?? undefined, hourly: row.storage_total_cost ?? undefined, instances: instanceIds(row.instances), createdAt: row.start_date != null && row.start_date > 0 ? new Date(row.start_date * 1000).toISOString() : '' }))
+  }
+  async createVolume(offer: VastVolumeOffer, sizeGb: number, name: string, signal?: AbortSignal): Promise<VastVolume> {
+    if (!/^[A-Za-z0-9_]{1,64}$/.test(name)) throw new Error('Vast.ai volume names are letters, digits and underscores, at most 64.')
+    const size = Math.ceil(sizeGb)
+    if (!(size > 0) || size > offer.diskGb) throw new Error('Vast.ai machine ' + offer.machineId + ' sells at most ' + offer.diskGb + ' GB of volume space; ' + size + ' GB does not fit. Nothing was created.')
+    const answer = await this.api.request('/api/v0/volumes/', volumeCreatedSchema, 'PUT', { id: offer.id, size, name }, signal, true)
+    const named = answer.volume_id ?? answer.id ?? Number(/^V\.(\d+)$/.exec(answer.volume_name ?? '')?.[1])
+    for (let attempt = 1; ; attempt++) {
+      let listed: VastVolume[] | undefined
+      try { listed = await this.volumes(signal) } catch { listed = undefined }
+      const found = listed?.filter(row => row.name === name || Number.isInteger(named) && row.id === named) ?? []
+      if (found.length === 1) return found[0]!
+      if (found.length > 1) throw new HostCreateError('Vast.ai lists ' + found.length + ' volumes named ' + name + '; they bill. Check Storage in the Vast.ai console before creating another.', 'ambiguous')
+      if (attempt >= 3) throw new HostCreateError('Vast.ai accepted the volume' + (answer.volume_name ? ' (' + this.api.redact(answer.volume_name) + ')' : '') + ' but does not list it yet; it may bill. Check Storage in the Vast.ai console before creating another.', 'ambiguous')
+      await delay(this.timing.pollMs ?? 2500, undefined, { signal })
+    }
+  }
+  async deleteVolume(id: number, readOnly?: HostReadOnly): Promise<void> {
+    if (!Number.isInteger(id) || id <= 0) throw new Error('Vast.ai requires a numeric volume ID.')
+    try { await this.api.request('/api/v0/volumes/?id=' + id, success, 'DELETE', { id }) } catch (error) { if (!(error instanceof HostVendorHttpError && error.status === 404)) throw error }
+    const deadline = Date.now() + (this.timing.readyTimeoutMs ?? 120000)
+    let last = ''
+    for (;;) {
+      try { if (!(await (readOnly ? readOnly('volume listing', signal => this.volumes(signal)) : this.volumes())).some(row => row.id === id)) return } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
+      if (Date.now() >= deadline) throw new Error('Vast.ai still lists volume ' + id + '; the deletion is not verified and it may still bill. Check Storage in the Vast.ai console.' + last)
+      await delay(this.timing.pollMs ?? 2000)
+    }
   }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
     this.lastShapes = []
@@ -136,8 +207,10 @@ export class VastClient implements HostVendor {
   async watchOffer(recipe: HostRecipe, maxPrice: number, signal?: AbortSignal): Promise<HostOffer | undefined> {
     const model = recipe.label.split(' · ')[0]
     const siblings = [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id && (row.label.split(' · ')[0] === model && row.count === recipe.count && row.cuda === recipe.cuda))]
-    return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice).sort((a, b) => Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
+    const kept = this.keptMachine(recipe)
+    return (await this.search(siblings.length ? siblings : [recipe], signal)).offers.filter(row => row.price <= maxPrice).sort((a, b) => Number(kept !== undefined && b.machineId === kept) - Number(kept !== undefined && a.machineId === kept) || Number(b.recipe.id === recipe.id) - Number(a.recipe.id === recipe.id) || sortOffers(a, b))[0]
   }
+  keptMachine: (recipe: HostRecipe) => number | undefined = recipe => keptVolumes().find(row => row.kind === 'vast' && row.state === 'kept' && matchesVolume(row, recipe))?.machineId
   private pod(row: z.infer<typeof instanceSchema>): HostPod {
     const host = row.public_ipaddr?.trim()
     const port = directPort(row.ports)
@@ -196,10 +269,13 @@ export class VastClient implements HostVendor {
       }
     }).catch(error => { throw new HostCreateError(this.api.redact('no instance was created — the SSH key step failed: ' + (error instanceof Error ? error.message : String(error))), 'refused') })
   }
-  async create(offer: HostOffer, publicKey: string, name: string, _volume?: Parameters<HostVendor['create']>[3], findReplacement = true): Promise<HostPod> {
+  async create(offer: HostOffer, publicKey: string, name: string, volume?: Parameters<HostVendor['create']>[3], findReplacement = true): Promise<HostPod> {
     const placement = this.placements.get(offer)
     if (!placement || placement.fingerprint !== fingerprint(offer)) throw new Error('Choose an unchanged offer returned by this Vast.ai client before renting.')
     if (!isOpenSshKey(publicKey)) throw new Error('Vast.ai needs one OpenSSH public key.')
+    if (volume && volume.kind !== 'vast') throw new Error('A Runpod weights disk cannot be attached to a Vast.ai instance. Nothing was created.')
+    if (volume && !/^[1-9][0-9]*$/.test(volume.id)) throw new Error('Vast.ai requires a numeric volume ID. Nothing was created.')
+    if (volume?.machineId !== undefined && offer.machineId !== volume.machineId) throw new Error('The kept volume lives on Vast.ai machine ' + volume.machineId + '; choose an offer on that machine. Nothing was created.')
     await this.api.reconcile(() => this.pods())
     await this.registerKey(publicKey)
     let contract: number
@@ -207,12 +283,13 @@ export class VastClient implements HostVendor {
       contract = (await this.api.request('/api/v0/asks/' + placement.id + '/', z.object({ success: z.literal(true), new_contract: idSchema }), 'PUT', {
         image: offer.recipe.image, disk: offer.recipe.diskGb, label: name, runtype: 'ssh_direct', cancel_unavail: true, onstart: ONSTART,
         env: { HF_HOME: '/workspace/huggingface' },
+        ...(volume ? { volume_info: { create_new: false, volume_id: Number(volume.id), mount_path: VAST_VOLUME_MOUNT } } : {}),
       }, undefined, true)).new_contract
     } catch (error) {
       if (findReplacement && error instanceof HostCreateError && error.outcome === 'refused' && error.status === 410 && (error.code === 'no_such_ask' || error.message.includes('no_such_ask'))) {
         let replacement: HostOffer | undefined
-        try { replacement = (await this.search([offer.recipe])).offers.find(row => this.placements.get(row)?.id !== placement.id) } catch { throw new VastOfferGone(undefined, 'Replacement stock could not be read; refresh stock before trying again.') }
-        throw new VastOfferGone(replacement)
+        try { replacement = (await this.search([offer.recipe])).offers.find(row => this.placements.get(row)?.id !== placement.id && (volume?.machineId === undefined || row.machineId === volume.machineId)) } catch { throw new VastOfferGone(undefined, 'Replacement stock could not be read; refresh stock before trying again.') }
+        throw new VastOfferGone(replacement, volume?.machineId !== undefined && !replacement ? 'No other offer on Vast.ai machine ' + volume.machineId + ', where the kept volume lives, is available right now.' : '')
       }
       if (error instanceof HostCreateError && error.outcome === 'ambiguous') this.api.remember(name)
       throw error

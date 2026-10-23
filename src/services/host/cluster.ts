@@ -27,7 +27,8 @@ function familyPod(cluster: HostCluster, nodes: HostClusterPod[], price?: number
 }
 
 export async function createHostResource(api: RunpodClient | HostVendor, offer: HostOffer, publicKey: string, name: string, volume?: HostVolumeMount): Promise<HostPod> {
-  if (volume) runpodOnly(api, 'Network and global volumes')
+  if (volume && volume.kind !== 'vast') runpodOnly(api, 'Network and global volumes')
+  if (volume?.kind === 'vast' && !('vendor' in api && api.vendor === 'vast')) throw new Error('A Vast.ai volume mounts only on a Vast.ai instance on its own machine; ' + ('label' in api ? api.label : 'this vendor') + ' cannot attach it. Nothing was created.')
   if ((offer.recipe.nodes ?? 1) === 1) return api.create(offer, publicKey, name, volume)
   if (volume) throw new Error('A kept weights disk mounts on one pod; a cluster downloads its weights on every node.')
   const client = runpodOnly(api, 'Clusters')

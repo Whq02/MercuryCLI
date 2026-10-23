@@ -19,8 +19,9 @@ import { hostJobReadOnly, HostTerminationUnconfirmed } from './retry.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { BANK_DOOR, bankAction, bankDoor, ensureBankFolder, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
-import { deleteKeptVolume, fastLoadEstimate, rentalVolume, reconcileVolumes, volumeLabel, volumePrice } from './volumes.js'
-import { VastClient, createVastRental } from './vendors/vast.js'
+import { deleteKeptVolume, fastLoadEstimate, readKeptVolume, rentalVolume, reconcileVolumes, vastVolumeBilling, volumeLabel, volumePrice, type KeptVolume } from './volumes.js'
+import { VastClient, VAST_VOLUME_NOTICE, createVastRental } from './vendors/vast.js'
+import { deleteVastKeptVolume, reconcileVastVolumes, vastBootMinutes, vastKeptVolumes, vastRentalVolume, vastVolumeDeleteDoor, vastVolumeLabel } from './vastVolumes.js'
 import { bankUploadEstimate, bankUploadPreference } from './keepSafe.js'
 
 type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; operation: string } }
@@ -113,6 +114,20 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (!client) { client = vendorClient(id, { apiBaseUrl: baseFor(id) }); clients.set(id, client) }
       return client
     }
+    const vastClient = (): VastClient | undefined => { if (!vendorKey('vast')) return; const client = clientFor('vast'); return client instanceof VastClient ? client : undefined }
+    const bankOptionsFor = () => ({ runner, sessionId, apiBaseUrl: baseFor('runpod'), vastApiBaseUrl: baseFor('vast'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, vast: vastClient, connect: () => connect('runpod') })
+    const vastVolumeRows = async (): Promise<{ value: string; label: string }[]> => {
+      const client = vastClient()
+      if (!client) return []
+      try { await reconcileVastVolumes(client, signal) } catch (error) { emit({ title: words.paid, words: 'Vast.ai volume list unavailable; volumes are not shown and may still bill. ' + String(error) }); return [] }
+      const rows: { value: string; label: string }[] = []
+      for (const row of vastKeptVolumes().filter(row => row.state !== 'gone')) {
+        let stock = ''
+        if (row.recipeRow && row.machineId) try { const offer = (await client.recipeOffers([row.recipeRow], signal)).find(item => item.machineId === row.machineId); stock = offer ? ' · ' + shape(offer.recipe) + ' in stock on that machine at ' + price(offer.price) : ' · no stock on that machine right now · w watch it' } catch { stock = ' · stock on that machine unread' }
+        rows.push({ value: 'vastvolume:' + row.id, label: vastVolumeLabel(row) + stock })
+      }
+      return rows
+    }
     let pod: HostPod | undefined
     let record: HostRecord | undefined
     let saved: LlmHostResult | undefined
@@ -188,7 +203,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         mark()
         const refresh = setInterval(() => { if (pod) { record = readHostRecord(pod.id); mark() } }, 1000)
         let action: string | null
-        try { action = await question({ step: 'pod-controls', title: words.manage, found: api.label + ' · ' + pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until termination; Runpod has no cluster Stop action.' : vendorStorage(vendor) + (vendor === 'runpod' ? '' : ' Tune reload and fast-load weights disks are Runpod-only.'), rows: [...(vendor === 'runpod' && record?.provider && record.target && pod.status === 'RUNNING' && !pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(api.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && pod.status === 'RUNNING' ? [{ value: 'resume', label: api.capabilities.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(!api.capabilities.stop || pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: api.capabilities.managed ? 'Pause · end compute billing' : words.stopPod }]), { value: 'logs', label: 'Logs · vendor log tail' }, { value: 'terminate', label: api.capabilities.managed ? 'Terminate · delete the endpoint' : words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? api.capabilities.managed ? 'Close · keep the paused endpoint' : words.closePod : words.keepPod }] }) } finally { clearInterval(refresh) }
+        try { action = await question({ step: 'pod-controls', title: words.manage, found: api.label + ' · ' + pod.name + ' · ' + pod.id + ' · ' + price(pod.cost), willRun: pod.family ? 'Cluster nodes and disks bill until termination; Runpod has no cluster Stop action.' : vendorStorage(vendor) + (vendor === 'runpod' ? '' : vendor === 'vast' ? ' Tune reload is Runpod-only; a kept Vast.ai volume lives on its own machine.' : ' Tune reload and kept weights volumes are not offered on ' + api.label + '.'), rows: [...(vendor === 'runpod' && record?.provider && record.target && pod.status === 'RUNNING' && !pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(api.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && pod.status === 'RUNNING' ? [{ value: 'resume', label: api.capabilities.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(!api.capabilities.stop || pod.family || pod.status === 'EXITED' ? [] : [{ value: 'stop', label: api.capabilities.managed ? 'Pause · end compute billing' : words.stopPod }]), { value: 'logs', label: 'Logs · vendor log tail' }, { value: 'terminate', label: api.capabilities.managed ? 'Terminate · delete the endpoint' : words.terminatePod }, { value: 'close', label: pod.status === 'EXITED' ? api.capabilities.managed ? 'Close · keep the paused endpoint' : words.closePod : words.keepPod }] }) } finally { clearInterval(refresh) }
         const latest = readHostRecord(pod.id)
         if (latest?.status === 'TERMINATED') return { ok: false, words: latest.error ?? 'Instance terminated and verified absent.' }
         if (!action || action === 'close') return { ...(saved ?? { ok: true }), words: keepWords(pod, vendor) }
@@ -239,7 +254,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           }
           removeHostRecord(pod.id)
           if (weightsChoice === 'delete' && volumeId) {
-            try { await deleteKeptVolume(runpodOnly(api, 'Fast-load weights disks'), volumeId) } catch (error) {
+            const vastApi = vastClient()
+            try { if (readKeptVolume(volumeId)?.kind === 'vast' && vastApi) await deleteVastKeptVolume(vastApi, volumeId); else await deleteKeptVolume(runpodOnly(api, 'Fast-load weights disks'), volumeId) } catch (error) {
               const detail = words.terminatedPod + ' · weights disk ' + volumeId + ' deletion is not verified and it may still bill. Machines I’m paying for → Delete. ' + String(error)
               emit({ title: words.manage, words: detail, host: { id: pod.id, price: 0, startedAt: pod.createdAt, status: 'TERMINATED' } })
               return { ok: false, words: detail }
@@ -383,7 +399,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         connect: () => connect('runpod'),
         watch: async recipe => { const watched = await watchRoad(recipe, HOST_VENDORS.filter(id => vendorKey(id))); return watched === 'models' ? undefined : watched },
         bank: async (action, recipe) => {
-          const bankOptions = { runner, sessionId, apiBaseUrl: baseFor('runpod'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, connect: () => connect('runpod') }
+          const bankOptions = bankOptionsFor()
           if (action === 'open') return bankDoor(question, emit, signal, bankOptions)
           const folder = await ensureBankFolder(question)
           return folder ? bankAction(recipe, action, folder, question, emit, signal, bankOptions) : undefined
@@ -394,19 +410,20 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       let volumes: Awaited<ReturnType<RunpodClient['volumes']>> = []
       let volumeListError = ''
       if (vendorKey('runpod')) try { volumes = await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes') } catch { volumeListError = ' + volumes unread' }
+      let vastVolumes = vastClient() ? await vastVolumeRows() : []
       const watches = activeWatches()
       const door = await question({ step: 'where', title: words.where, found: 'Choose where the model runs. No GPU is rented without a separate price confirmation.', willRun: '', rows: [{ value: 'rent', label: words.rent }, { value: 'ssh', label: words.ssh }, { value: 'existing', label: words.existing }, { value: 'boxes', label: 'One of my computers' }, { value: 'fast-load', label: BANK_DOOR }, ...(HOST_VENDORS.some(id => vendorKey(id)) ? [{ value: 'pods', label: words.paid + ' · ' + paidCount(pods) + volumeListError }] : []), ...watches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: 'pod:' + paidValue(row), label: paidWords(row) }))] })
       if (!door) return stopped()
       if (door === 'existing') return runLlmHost(ask, emit, signal)
       if (door === 'boxes') return createBoxRoad(runner)(ask, emit, signal)
-      if (door === 'fast-load') return bankDoor(question, emit, signal, { runner, sessionId, apiBaseUrl: baseFor('runpod'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, connect: () => connect('runpod') })
+      if (door === 'fast-load') return bankDoor(question, emit, signal, bankOptionsFor())
       let target: SshTarget
       let recipe: HostRecipe
       let docker = false
       let bank: string | undefined
       if (door === 'rent' || door === 'pods' || door.startsWith('pod:') || door.startsWith('watch:')) {
         if (door === 'rent') {
-          const selected = await question({ step: 'rental-vendor', title: 'Rent from which vendor?', found: 'Each vendor has its own key, stock and billing. No rental starts before the price confirmation.', willRun: 'Clusters and fast-load weights disks are Runpod-only.', rows: HOST_VENDORS.map(id => ({ value: id, label: vendorLabel(id) + (vendorKey(id) ? ' · connected' : ' · connect →') })) })
+          const selected = await question({ step: 'rental-vendor', title: 'Rent from which vendor?', found: 'Each vendor has its own key, stock and billing. No rental starts before the price confirmation.', willRun: 'Clusters are Runpod-only. Kept weights volumes: Runpod (one data centre or any) and Vast.ai (one machine).', rows: HOST_VENDORS.map(id => ({ value: id, label: vendorLabel(id) + (vendorKey(id) ? ' · connected' : ' · connect →') })) })
           if (!selected || !HOST_VENDORS.includes(selected as HostVendorId)) return stopped()
           vendor = selected as HostVendorId
         }
@@ -418,10 +435,19 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           if (door.startsWith('watch:')) return cancelWatch(door.slice(6))
           pods = await paidPods()
           volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => []) : []
+          vastVolumes = vastClient() ? await vastVolumeRows() : []
           const liveWatches = activeWatches()
-          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including machines created outside Mercury, volumes and stock watches. Disks bill without a machine; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
+          const id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods) + '\nLive account list, including machines created outside Mercury, volumes and stock watches. Disks bill without a machine; external volumes are read-only.', willRun: '', rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...vastVolumes, ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
           if (!id) return stopped()
-          if (id.startsWith('volume:')) return volumeDeleteDoor(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), id.slice(7), question, signal)
+          if (id.startsWith('volume:') || id.startsWith('delete:volume:')) return volumeDeleteDoor(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), id.slice(id.indexOf('volume:') + 7), question, signal)
+          if (id.startsWith('vastvolume:') || id.startsWith('delete:vastvolume:')) { const client = vastClient(); if (!client) return stopped(); return vastVolumeDeleteDoor(client, id.slice(id.indexOf('vastvolume:') + 11), question, signal, emit) }
+          if (id.startsWith('watch:vastvolume:')) {
+            const kept = readKeptVolume(id.slice(17))
+            if (!kept?.recipeRow) return { ok: false, words: 'That volume no longer names a recipe; nothing was started.' }
+            const watched = await watchRoad(kept.recipeRow, ['vast'])
+            return watched === 'models' ? stopped() : watched
+          }
+          if (id.startsWith('delete:') || id.startsWith('watch:') && !activeWatches().some(row => 'watch:' + row.id === id)) return stopped()
           if (id.startsWith('watch:')) { api = clientFor('runpod'); return cancelWatch(id.slice(6)) }
           const selected = pods.find(row => paidValue(row) === id)
           if (!selected) throw new Error('That machine could not be read. Refresh the paid-pods list before changing it.')
@@ -486,7 +512,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           } else if (modelOffers.length === 1 && !forceShapeList) {
             offer = modelOffers[0]!
           } else {
-            const selectedShape = await question({ step: 'offers', title: vendor === 'runpod' ? words.shapes : 'Choose a GPU shape · live ' + api.label + ' stock', found: chosenModel + ' · ' + (modelOffers.length ? stockWords : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: formatHostOfferLabel(row.recipe, shape(row.recipe) + ' · ' + price(row.price) + (heavyWeights(row.recipe) ? ' · ' + hostShortStorageWords(row.recipe) : '') + ' · ' + (vendor === 'runpod' ? 'Secure Cloud' : api!.label) + (row.dataCenter ? ' · ' + row.dataCenter : '') + (row.hostingType ? ' · ' + row.hostingType : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '')) })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+            const selectedShape = await question({ step: 'offers', title: vendor === 'runpod' ? words.shapes : 'Choose a GPU shape · live ' + api.label + ' stock', found: chosenModel + ' · ' + (modelOffers.length ? stockWords : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: formatHostOfferLabel(row.recipe, shape(row.recipe) + ' · ' + price(row.price) + (heavyWeights(row.recipe) ? ' · ' + hostShortStorageWords(row.recipe) : '') + ' · ' + (vendor === 'runpod' ? 'Secure Cloud' : api!.label) + (row.dataCenter ? ' · ' + row.dataCenter : '') + (row.hostingType ? ' · ' + row.hostingType : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') + (row.machineId ? ' · machine ' + row.machineId + (vastKeptVolumes().some(volume => volume.state === 'kept' && volume.machineId === row.machineId && volume.model === row.recipe.model && volume.include === (row.recipe.include ?? '')) ? ' · boots from your volume' : '') : '')) })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
             if (!selectedShape || selectedShape === 'cancel') return stopped()
             if (selectedShape === 'models') { chosenModel = undefined; forceShapeList = false; continue }
             if (selectedShape === 'refresh') continue
@@ -500,6 +526,14 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           const client = api
           offer = await confirmTunedRental(offer, offers, budget, question, emit, signal, async row => {
             if (client.capabilities.managed) return { willRun: vendorKeyNotice(vendor) + '. Billing starts now. If initial setup fails, Mercury deletes the endpoint and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · API only — not yet booted', vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this HF endpoint' }
+            if (vendor === 'vast' && client instanceof VastClient) {
+              const mount = await vastRentalVolume(client, row.recipe, row, signal)
+              const kept = mount ? readKeptVolume(mount.id) : undefined
+              if (kept?.state === 'kept') return { titleSuffix: ' · weights kept on its machine', willRun: 'Boots from your Vast.ai volume ' + kept.id + ' on machine ' + kept.machineId + ': the download is skipped and the engine’s compiled kernels are read from the volume, ~' + vastBootMinutes(row.recipe, kept) + ' min total · the volume bills ' + vastVolumeBilling(kept) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone; the volume stays.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · machine ' + kept.machineId + ' · weights kept on its machine', 'volume ' + kept.id + ' · ' + vastVolumeBilling(kept), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' + volume $' + kept.price.toFixed(2) + '/month (bills with or without an instance) · create this instance' }
+              if (kept) return { titleSuffix: ' · fills your volume', willRun: hostSetupEstimate(row.recipe) + ' · this instance downloads the weights onto your Vast.ai volume ' + kept.id + ' on machine ' + kept.machineId + ' and verifies them there; later rentals on that machine skip the download · the volume bills ' + vastVolumeBilling(kept) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone; the volume stays.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + ' · machine ' + kept.machineId, 'volume ' + kept.id + ' · ' + vastVolumeBilling(kept), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' + volume $' + kept.price.toFixed(2) + '/month · create this instance' }
+              const elsewhere = vastKeptVolumes().find(volume => volume.state === 'kept' && volume.model === row.recipe.model && volume.include === (row.recipe.include ?? ''))
+              if (elsewhere) return { titleSuffix: ' · downloads', willRun: hostSetupEstimate(row.recipe) + ' · your Vast.ai volume ' + elsewhere.id + ' lives on machine ' + elsewhere.machineId + ', not this one (' + (row.machineId ?? 'machine unknown') + '), so this instance downloads the weights · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price) + (row.machineId ? ' · machine ' + row.machineId : '') + ' · downloads the weights', vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this instance' }
+            }
             if (vendor !== 'runpod') return { willRun: (bankUploadPreference(row.recipe) ? 'Uploads your bank to the rented machine · ' + bankUploadEstimate(row.recipe) + '. This machine bills throughout the upload.' : hostSetupEstimate(row.recipe)) + ' · ' + vendorStorage(vendor) + ' ' + vendorKeyNotice(vendor) + ' Billing starts now. If initial setup fails, Mercury terminates the instance and verifies it is gone.', lines: [vendorLabel(vendor) + ' · ' + price(row.price), vendorStorage(vendor)], confirmLabel: 'Confirm ' + price(row.price) + ' · create this instance' }
             const kept = await rentalVolume(runpodOnly(client, 'Fast-load weights disks'), row.recipe, signal)
             return {
@@ -510,7 +544,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             }
           })
           if (!offer) return stopped()
-          const volume = vendor === 'runpod' ? await rentalVolume(runpodOnly(api, 'Fast-load weights disks'), offer.recipe, signal) : undefined
+          const volume: KeptVolume | undefined = vendor === 'runpod' ? await rentalVolume(runpodOnly(api, 'Fast-load weights disks'), offer.recipe, signal) : vendor === 'vast' && api instanceof VastClient ? await vastRentalVolume(api, offer.recipe, offer, signal).then(mount => mount ? readKeptVolume(mount.id) : undefined) : undefined
           if (!options.startJob) await requireHostJobOwner()
           recipe = offer.recipe
           emit({ title: api.capabilities.managed ? 'HF endpoint' : words.publicKey, words: vendorKeyNotice(vendor) })
