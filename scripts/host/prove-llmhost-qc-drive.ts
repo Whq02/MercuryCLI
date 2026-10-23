@@ -185,7 +185,7 @@ try {
     check('the background bank job verifies the downloaded HF files against the trusted manifest the derived recipe now carries', bank.bankState(derived).banked && bank.bankState(derived).check === 'manifest')
     await choose('bank'); await step('door-bank')
     await capture(width + '-bank')
-    check('the Bank table and all four action keys are offered', ['MODEL', 'SIZE', 'BANKED', 'VERIFIED', 'VOLUME'].every(word => question!.rows![0]!.label.includes(word)) && question!.keys!.map(row => row.key).join() === 'b,v,m,d')
+    check('the Bank table and all five action keys are offered', ['MODEL', 'SIZE', 'BANKED', 'VERIFIED', 'VOLUME'].every(word => question!.rows![0]!.label.includes(word)) && question!.keys!.map(row => row.key).join() === 'b,v,m,d,k')
     await select(derived.id)
     const beforeVerify = jobs.length
     mounted!.push('v')

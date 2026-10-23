@@ -85,8 +85,9 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     const failedRead = (id: HostVendorId, error: unknown, operation = 'machines'): void => {
       const secret = vendorKey(id)
       const text = error instanceof Error ? error.message : String(error)
-      const detail = secret ? text.split(secret).join('[redacted]') : text
-      const status = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : Number(/HTTP\s+(\d{3})/.exec(detail)?.[1])
+      const scrubbed = secret ? text.split(secret).join('[redacted]') : text
+      const status = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : Number(/HTTP\s+(\d{3})/.exec(scrubbed)?.[1])
+      const detail = status && !/HTTP\s+\d{3}/.test(scrubbed) ? 'HTTP ' + status + ' · ' + scrubbed : scrubbed
       const parked = status === 401 || status === 403
       stateFor(id).failure = { detail, parked, operation, summary: vendorLabel(id) + ': could not be read' + (status ? ' (HTTP ' + status + ')' : '') + (parked ? id === 'huggingface' ? ' · sign in again with /logins huggingface' : ' · replace the key to reconnect' : ' · select the row for details') + (operation === 'volumes' ? ' · weights disks unread; storage may still bill' : '') }
     }
