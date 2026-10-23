@@ -298,7 +298,9 @@ try {
   const pod = await new RunpodClient(rp.key, rp.baseUrl).create(overrideOffers[0]!, sshKey.publicKey, 'mercury-recipes-proof')
   const queued = queueHostSetup({ id: pod.id, name: pod.name, recipe: overrideRow.id, price: overrideOffers[0]!.price, startedAt: pod.startedAt ?? pod.createdAt, status: pod.status, sessionId: 'recipes-proof', workspace: f.home, sshKey: sshKey.path, apiBaseUrl: rp.baseUrl })
   delete process.env.MERCURY_HOST_RECIPES_FILE
-  check('queueing the setup keeps the confirmed row in the pod record', canonical(readHostRecord(pod.id)?.recipeRow) === canonical(overrideRow))
+  const { pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
+  const weightManifest = pinnedWeightManifest(overrideRow)
+  check('queueing the setup keeps the confirmed row and its pinned manifest in the pod record', weightManifest !== undefined && canonical(readHostRecord(pod.id)?.recipeRow) === canonical({ ...overrideRow, weightManifest }))
   await runHostJob(pod.id, queued.generation!, { runner: ssh.runner, pauseMs: 20, timeoutMs: 5000, keepAlive: false })
   const engineCommand = (ssh.commands as Array<{ args: string[] }>).map(entry => entry.args.at(-1) ?? '').find(remote => remote.includes('nohup setsid')) ?? ''
   check('the setup job runs the confirmed operator row although its own process has no MERCURY_HOST_RECIPES_FILE', readHostRecord(pod.id)?.jobState === 'ready' && engineCommand.includes('--operator-proof-flag') && engineCommand.includes('/workspace/mercury-host/' + overrideRow.id))
@@ -307,7 +309,10 @@ try {
   const resumed = queueHostSetup(readHostRecord(pod.id)!)
   delete process.env.MERCURY_HOST_RECIPES_FILE
   const resumedAgain = queueHostSetup(readHostRecord(pod.id)!)
-  check('a resume takes the operator\'s edited row, and keeps the recorded row once the file is gone', Boolean(resumed.recipeRow?.flags.includes('--operator-proof-flag-2') && resumedAgain.recipeRow?.flags.includes('--operator-proof-flag-2')) && hostRecipeOfRecord(resumedAgain)?.id === overrideRow.id)
+  const confirmed = hostRecipeSchema.parse({ ...overrideRow, weightManifest })
+  assert.deepEqual(resumed.recipeRow, confirmed, 'resume retains the exact confirmed schema fields')
+  assert.deepEqual(resumedAgain.recipeRow, confirmed, 'resume without the recipe file retains the exact confirmed schema fields')
+  check('a resume keeps the confirmed recipe and manifest even when the recipe file changes or disappears', hostRecipeOfRecord(resumedAgain)?.id === overrideRow.id)
   check('a record with no kept row, or a kept row of another id, sets up with the built-in row of its recipe id', canonical(hostRecipeOfRecord({ recipe: 'qwen38-27b-h200' })) === canonical(qwenH200) && canonical(hostRecipeOfRecord({ recipe: 'qwen38-27b-h200', recipeRow: overrideRow })) === canonical(qwenH200))
   check('with no file and no cache the door rows are exactly the compiled table', canonical(currentHostRecipes()) === canonical(shippedRows))
 
