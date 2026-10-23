@@ -41,6 +41,7 @@ section('the product spells its config home once')
 {
   const SPELLING = /(homedir\(\)|process\.env\.HOME\b|process\.env\.USERPROFILE\b|\$\{?HOME\}?)[^\n]*['"`]\.mercury['"`]|['"`]\.mercury['"`][^\n]*(homedir\(\)|process\.env\.HOME\b)/
   const offenders: string[] = []
+  let refusalBoundaries = 0
   const HOME_JOIN_BY_NAME = new Set([
     'src/utils/envUtils.ts',
     'src/services/privateChannel/installLayout.ts',
@@ -50,14 +51,16 @@ section('the product spells its config home once')
     code(file)
       .split('\n')
       .forEach((line, i) => {
-        if (SPELLING.test(line)) offenders.push(`${file}:${i + 1}`)
+        if (file === 'src/utils/proofHomeGuard.ts' && line.trim() === "return resolve(join(homedir(), '.mercury'))") refusalBoundaries++
+        else if (SPELLING.test(line)) offenders.push(`${file}:${i + 1}`)
       })
   }
   check(
     /homedir\(\), '\.mercury'/.test(code('src/utils/envUtils.ts')),
     'src/utils/envUtils.ts derives the default home from homedir() (the one resolver)',
   )
-  check(offenders.length === 0, 'no other product module joins the operator home with .mercury (settings, model choice and session facts ride getMercuryHome; the one resolver and the launcher text that runs without the product are named)', offenders.join(', '))
+  check(refusalBoundaries === 1 && code('src/utils/proofHomeGuard.ts').includes('if (proof === undefined || !homeIsAccountStore(home)) return'), 'the proof-write guard names exactly one account-home refusal boundary, not a configurable write destination')
+  check(offenders.length === 0, 'no other product module joins the operator home with .mercury (settings, model choice and session facts ride getMercuryHome; the resolver, launcher text and exact proof-write refusal boundary are named)', offenders.join(', '))
 }
 
 const PRODUCT_LINE = /mercury\.mjs|render-tui\.ts/
