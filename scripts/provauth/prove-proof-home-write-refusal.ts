@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '../..')
 const FIXTURE = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
 const scratch = mkdtempSync(join(tmpdir(), 'proof-home-wall-'))
+process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
 let checks = 0
 const check = (label: string, ok: unknown, detail = ''): void => {
   assert(ok, `${label}${detail ? ` — ${detail}` : ''}`)
