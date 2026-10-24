@@ -58,6 +58,7 @@ try {
       const child = /CHILD (\d+)/.exec(line)
       if (child) pids.push(Number(child[1]))
       check(`${kind}: stdout carries cwd/env and child PID`, line.includes(scratch + ' literal $value undefined') && !!child, line)
+      await until(() => session.output.some((line: string) => line.includes('[debuggee] DEBUGGEE STDERR')))
       check(`${kind}: stderr captured and output identified as debuggee`, session.output.some((line: string) => line.includes('[debuggee] DEBUGGEE STDERR')), session.output.join('\n'))
     }
   }
