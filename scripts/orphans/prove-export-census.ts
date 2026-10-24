@@ -85,6 +85,10 @@ const SYNTHETIC: Record<string, string> = {
   'scripts/x/prove-lib.ts': ["import { dd } from './lib.js'", 'console.log(dd.ddUsed)', ''].join('\n'),
   'src/ee.ts': ['export const eeA = 1', 'export const eeB = 2', ''].join('\n'),
   'scripts/x/prove-root.ts': ["import { join } from 'node:path'", "const root = join(import.meta.dir, '../../src')", "const m = await import(join(root, 'ee.ts'))", 'console.log(m.eeA)', ''].join('\n'),
+  'src/copied.ts': ["import 'node:fs'", 'export const copiedRead = 1', 'export const copiedUnused = 2', ''].join('\n'),
+  'scripts/x/prove-copy.ts': ["import { cpSync } from 'node:fs'", "import { cp as copy } from 'node:fs/promises'", "import { join } from 'node:path'", "import { pathToFileURL } from 'node:url'", "const ROOT = join(import.meta.dir, '../..')", "const scratch = makeScratch()", "const delivered = join(scratch, 'delivered')", "cpSync(join(ROOT, 'src'), delivered, { recursive: true })", "const { copiedRead } = await import(pathToFileURL(join(delivered, 'copied.ts')).href)", "const second = join(scratch, 'second.ts')", "await copy(join(ROOT, 'src/copied.ts'), second)", "const again = await import(pathToFileURL(second).href)", 'console.log(copiedRead, again.copiedRead)', ''].join('\n'),
+  'src/shared/bridge.ts': ["import 'node:fs'", 'export const bundledRead = 1', 'export const bundledUnused = 2', ''].join('\n'),
+  'src/app/server/main.ts': ["import { bundledRead } from '../shared/bridge.ts'", 'console.log(bundledRead)', ''].join('\n'),
   'src/ff.ts': ['export const ffA = 1', 'export type FfB = 2', ''].join('\n'),
   'scripts/x/prove-checker.ts': ["import ts from 'typescript'", "const program = ts.createProgram(['src/ff.ts'], {})", 'const checker = program.getTypeChecker()', "const names = checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile('src/ff.ts')!)!).map(s => s.name)", 'console.log(names)', ''].join('\n'),
 }
@@ -100,7 +104,7 @@ function syntheticEstate(): { root: string; options: CensusOptions } {
     root,
     subjects: files.filter(f => /\.(ts|tsx|mjs)$/.test(f)),
     readers: files,
-    stubMap: {},
+    stubMap: { [join(root, 'src/app/shared/bridge.ts')]: join(root, 'src/shared/bridge.ts') },
     entrypoints: ['src/entrypoints/cli.tsx'],
     rowsSurface: [],
     generated: [],
@@ -155,6 +159,8 @@ function selfTest(): void {
     ['src/dd.ts:ddUsed', 'a namespace binding a helper module exports is read whole'],
     ['src/dd.ts:ddAlso', 'a namespace binding a helper module exports is read whole'],
     ['src/ee.ts:eeA', "a file's own root constant wins over the anchor table (import(join(root, …)) with root = …/src)"],
+    ['src/copied.ts:copiedRead', 'a module imported from a fixture copy resolves to its source'],
+    ['src/shared/bridge.ts:bundledRead', 'a delivered shared-folder import resolves to its source'],
     ['src/ff.ts:ffA', 'a proof enumerating exports through the checker (getExportsOfModule) reads every name of the modules it names'],
     ['src/ff.ts:FfB', 'a proof enumerating exports through the checker (getExportsOfModule) reads every name of the modules it names'],
   ]
@@ -188,6 +194,8 @@ function selfTest(): void {
     ['src/bb.ts:BB_TOOL_NAME', 'pattern-pin', "a proof's regex over source matches the declaration head"],
     ['src/bb.ts:bbOther', 'candidate', 'the other export of a pattern-read module'],
     ['src/ee.ts:eeB', 'candidate', 'the other export of a module loaded through a file-own root constant'],
+    ['src/copied.ts:copiedUnused', 'candidate', 'copying a module does not consume its unread exports'],
+    ['src/shared/bridge.ts:bundledUnused', 'candidate', 'a delivered shared folder does not consume its unread exports'],
   ]
   for (const [key, cls, why] of expectClass) check(`${cls} — ${why} (${key})`, classOf(key) === cls, `class ${classOf(key)}`)
   check('the inventory flag rides the row the contract inventory records', byKey.get('src/a.ts:unused')?.inventory === true)

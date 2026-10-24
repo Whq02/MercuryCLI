@@ -109,7 +109,7 @@ export async function checkInstall(adapter, options) {
   } catch (error) { return { state: 'invalid', plan, reason: error.message } }
 }
 
-export async function downloadPinned(row, destination, { signal, onProgress, fetcher = fetch } = {}) {
+async function downloadPinned(row, destination, { signal, onProgress, fetcher = fetch } = {}) {
   abort(signal)
   const response = await fetcher(row.url, { signal, redirect: 'follow' })
   if (!response.ok || !response.body) throw new Error(`Download failed: HTTP ${response.status}`)
@@ -160,7 +160,7 @@ export function zipEntries(bytes) {
   return entries
 }
 
-export async function extractArchive(archive, destination, { signal } = {}) {
+async function extractArchive(archive, destination, { signal } = {}) {
   abort(signal)
   if (archive.endsWith('.dmg')) {
     if (process.platform !== 'darwin') throw new Error('Disk images require macOS')

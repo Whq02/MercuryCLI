@@ -14,7 +14,7 @@ export const HOST_IDLE_LIMIT_MS = 2 * 3600_000
 export const HOST_IDLE_POLL_MS = 5 * 60_000
 export const hostIdleHoursWords = Math.round(HOST_IDLE_LIMIT_MS / 3600_000) + ' hours'
 
-export interface HostIdleVerdict { kind: 'paused' | 'idle'; since: number }
+interface HostIdleVerdict { kind: 'paused' | 'idle'; since: number }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
@@ -42,13 +42,13 @@ export function hostIdleVerdict(record: HostRecord, now = Date.now(), options: {
   return { kind: record.jobState === 'paused' ? 'paused' : 'idle', since: floor }
 }
 
-export function hostIdleReason(verdict: HostIdleVerdict, record?: HostRecord): string {
+function hostIdleReason(verdict: HostIdleVerdict, record?: HostRecord): string {
   if (verdict.kind !== 'paused') return 'no model request reached it for ' + hostIdleHoursWords
   const cause = record?.engineDeath ? 'the engine died and the pause' : record?.linkLost ? 'the link dropped and the pause' : 'the setup pause'
   return cause + ' went unanswered for ' + hostIdleHoursWords
 }
 
-export async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): Promise<void> {
+async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): Promise<void> {
   const vendor = record.vendor ?? 'runpod'
   const machine = record.cluster ? 'Runpod cluster ' + record.id : hostMachineName(vendor, record.id)
   const rate = '$' + record.price.toFixed(2) + '/hr'

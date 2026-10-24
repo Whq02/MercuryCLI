@@ -137,7 +137,7 @@ function descriptor(dataDir, endpoint) {
   return record
 }
 
-export async function probe({ endpoint, dataDir, signal, installation, input = {} }) {
+async function probe({ endpoint, dataDir, signal, installation, input = {} }) {
   const listener = await verifyListener(endpoint, installation.gui, { signal, expectedSha256: installation.manifest.guiSha256 })
   let record
   if (input.tokenFile) {
@@ -155,7 +155,7 @@ export async function probe({ endpoint, dataDir, signal, installation, input = {
   return { identity: 'photocraft', version: record.version, project: record.readRoot, readRoot: record.readRoot, writeRoot: record.writeRoot, document: state.document?.name ?? null, pid: record.pid }
 }
 
-export function otherPhotoCraftRunning() {
+function otherPhotoCraftRunning() {
   try {
     if (process.platform === 'win32') return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "@(Get-CimInstance Win32_Process -Filter \"Name='photocraft.exe'\").Count"], { env: powershellEnvironment(), encoding: 'utf8', timeout: 10000 }).trim() !== '0'
     return execFileSync('pgrep', ['-i', '-x', 'photocraft'], { encoding: 'utf8', timeout: 10000 }).trim() !== ''

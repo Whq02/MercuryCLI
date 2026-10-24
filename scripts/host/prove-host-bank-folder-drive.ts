@@ -35,7 +35,8 @@ try {
   mounted!.push(KEY.enter)
   assert.ok(await waitFor(() => questions.at(-1)?.step === 'door-bank-folder', 10000))
   assert.equal(questions.at(-1).initial, bank.shortFolder(first))
-  assert.ok(questions.at(-1).found.includes('mercury-model-bank'))
+  assert.equal(questions.at(-1).found, bank.shortFolder(first), 'Change folder shows the saved bank location')
+  assert.equal(questions.at(-1).willRun, 'Existing weights stay in their current folder.', 'Change folder says the existing weights stay where they are')
   assert.ok(await waitFor(() => mounted!.screen().includes('Where should the bank live?'), 5000))
   const beforeClear = mounted!.screen()
   mounted!.push('\u0015')
@@ -57,5 +58,5 @@ try {
     assert.ok(await waitFor(() => mounted!.screen() !== before, 5000), 'the Bank folder is reachable by the displayed details pager')
   }
   assert.ok(mounted!.screen().includes('second-bank'))
-  console.log('PASS Change folder uses the first-use candidates, remembers the choice and re-reads the Bank immediately and on reopen')
+  console.log('PASS Change folder shows the saved location, remembers the choice and re-reads the Bank immediately and on reopen')
 } finally { mounted?.unmount(); f.close() }

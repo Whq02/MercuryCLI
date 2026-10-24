@@ -23,7 +23,7 @@ export type DapTerminalRunner = (
 
 const quote = (word: string): string => /^[a-zA-Z0-9_./:@=-]+$/.test(word) ? word : `'${word.replaceAll("'", "'\\''")}'`
 
-export function dapTerminalCommand(request: DapTerminalRequest): string {
+function dapTerminalCommand(request: DapTerminalRequest): string {
   const changes = Object.entries(request.env ?? {})
   const env = changes.length ? ['env', ...changes.filter(([, value]) => value === null).flatMap(([key]) => ['-u', key]), ...changes.filter(([, value]) => value !== null).map(([key, value]) => `${key}=${value}`)] : []
   return `(cd ${quote(request.cwd)} && ${[...env, ...request.args].map(quote).join(' ')})`

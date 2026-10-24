@@ -86,7 +86,7 @@ _mercury_completions() {
       return 0
       ;;
     usage)
-      COMPREPLY=( $(compgen -W "--help --json" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--days --help --history --json --project" -- "$cur") )
       return 0
       ;;
     version)

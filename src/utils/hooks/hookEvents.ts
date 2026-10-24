@@ -24,9 +24,12 @@ type HookEventHandler = (event: HookExecutionEvent) => void
 const HOOK_PROGRESS_MIN_DELTA_BYTES = 8192
 
 const observers = new Set<HookEventHandler>()
+const HELD_EVENTS_MAX = 256
+const held: HookExecutionEvent[] = []
 
 export function subscribeHookExecutionEvents(observer: HookEventHandler): () => void {
   observers.add(observer)
+  for (const event of held.splice(0)) observer(event)
   return () => {
     observers.delete(observer)
   }
@@ -50,7 +53,14 @@ export function withHookRunContext<T>(context: HookRunContext, run: () => Promis
 }
 
 function deliver(event: HookExecutionEvent): void {
-  getHookRunContext()?.handler?.(event)
+  const handler = getHookRunContext()?.handler
+  handler?.(event)
+  if (observers.size === 0) {
+    if (handler !== undefined || event.hookEvent !== 'session.start') return
+    held.push(event)
+    if (held.length > HELD_EVENTS_MAX) held.splice(0, held.length - HELD_EVENTS_MAX)
+    return
+  }
   for (const observer of observers) observer(event)
 }
 

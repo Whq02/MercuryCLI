@@ -144,7 +144,7 @@ if (process.platform !== 'win32') {
 section('§3 the debug-adapter dispose rides the tree owner (call-shaped)')
 {
   const dap = readFileSync(join(import.meta.dir, '../../src/services/dap/dapClient.ts'), 'utf8')
-  const disposeAt = dap.indexOf('async dispose(): Promise<void> {')
+  const disposeAt = dap.indexOf('async dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {')
   const killSyncAt = dap.indexOf('killSync(): void {')
   const disposeBody = disposeAt !== -1 && killSyncAt !== -1 ? dap.slice(disposeAt, killSyncAt) : ''
   check('dispose() exists ahead of killSync()', disposeAt !== -1 && killSyncAt > disposeAt)
@@ -152,7 +152,7 @@ section('§3 the debug-adapter dispose rides the tree owner (call-shaped)')
   check('…and strikes any survivor by pid', /endProcessTreeSurvivors\(/.test(disposeBody))
   check('the sync exit sweep keeps its leader kill (exit handlers cannot await — the documented residual)', /if \(this\.#child && this\.#child\.exitCode === null\) this\.#child\.kill\('SIGKILL'\)/.test(dap))
   const lsp = readFileSync(join(import.meta.dir, '../../src/services/lsp/LSPClient.ts'), 'utf8')
-  check('LSPClient.stop() routes through the tree owner (no bare child.kill())', /await endProcessTree\(child, 'SIGTERM'\)/.test(lsp) && !/\n\s*child\.kill\(\)/.test(lsp))
+  check('LSPClient.stop() routes through the tree owner (no bare child.kill())', /await endProcessTree\(proc, 'SIGTERM'\)/.test(lsp) && !/\n\s*(?:child|proc)\.kill\(\)/.test(lsp))
   const cpp = readFileSync(join(import.meta.dir, '../../src/services/ide/cppBuild.ts'), 'utf8')
   check(
     'the cmake timeout rides the settle owner (tree-killing forced ends; no bare SIGKILL on the driver)',

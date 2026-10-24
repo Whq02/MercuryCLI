@@ -170,7 +170,7 @@ try {
     const secondOutage = readHostLinkObservation('vast', a.pod.id)
     const loss = notices().find(words => words.includes(a.pod.id) && words.includes('<status>stopped'))
     check('five failed reconnects pause, never terminate or replace the rental, and close the second outage', ended.jobState === 'paused' && vast.state.deletes === 0 && vast.state.creates === creates && secondOutage?.outages.length === 2 && secondOutage.outages[1]!.outcome === 'lost' && secondOutage.outages[1]!.reconnects === 5, JSON.stringify({ ended: ended.error, secondOutage }))
-    check('the outage notice names the rental, machine, reconnects, bill and actions', Boolean(loss) && loss!.includes('The SSH tunnel to Vast.ai instance ' + a.pod.id + ' · mercury-linkdrop-a · machine 9102 dropped and 5 reconnects failed over') && loss!.includes('bills $') && loss!.includes('Resume reconnects, Terminate stops the bill'), loss)
+    check('the outage notice names the rental, machine, reconnects, bill and actions', Boolean(loss) && loss!.includes('The SSH tunnel to Vast.ai instance ' + a.pod.id + ' · mercury-linkdrop-a · machine 9102 dropped and 5 reconnects failed over') && loss!.includes('$' + ended.price.toFixed(2) + '/hr still billing') && loss!.includes('Resume or Terminate in /llmhost'), loss)
     await captureHostNotice(loss!, 'link-lost-notice')
     const chatAt = f.events.length
     await f.run('compat/' + ended.provider + '/' + f.model)
@@ -214,7 +214,7 @@ try {
     const rentRows = doorRows.filter(row => row.value.startsWith('rent:'))
     const rowA = rentRows.find(row => row.label.includes('machine 9102'))
     const rowB = rentRows.find(row => row.label.includes('machine 9103'))
-    check('the model picker lists B before cheaper A, labels A and keeps it selectable', Boolean(rowA && rowB) && rentRows.indexOf(rowB!) < rentRows.indexOf(rowA!) && /link dropped \d+ min ago · 5 reconnects/.test(rowA!.label) && !/link dropped/.test(rowB!.label), rentRows.map(row => row.label).join('\n'))
+    check('the model picker lists B before cheaper A and keeps both machine rows selectable without outage narration', Boolean(rowA && rowB) && rentRows.indexOf(rowB!) < rentRows.indexOf(rowA!) && rentRows.every(row => !/link dropped|reconnects/.test(row.label)), rentRows.map(row => row.label).join('\n'))
   }
   check('reliability proof makes no public requests', escaped.length === 0)
   console.log('HOST RELIABILITY GREEN — ' + checks + ' checks; loopback fixtures and fake runners only, no key, no machine, no network')

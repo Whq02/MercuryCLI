@@ -43,7 +43,9 @@ export function patchHostRecord(id: string, patch: Partial<HostRecord>): HostRec
 }
 const ensuredDirectories = new Set<string>()
 function ensureDirectory(dir: string): string {
-  if (!ensuredDirectories.has(dir)) { mkdirSync(dir, { recursive: true, mode: 0o700 }); ensuredDirectories.add(dir) }
+  if (!ensuredDirectories.has(dir)) {
+    try { mkdirSync(dir, { recursive: true, mode: 0o700 }); ensuredDirectories.add(dir) } catch (error) { if (!['EACCES', 'EPERM', 'EROFS'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error }
+  }
   return dir
 }
 export function hostDirectory(): string {

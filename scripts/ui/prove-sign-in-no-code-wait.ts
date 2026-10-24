@@ -154,7 +154,7 @@ if (!existsSync(DIST)) {
   const COMPOSER_READY = 'Type a prompt'
   const MENU_ROW = 'Anthropic — Claude subscription'
   const MENU_PAINTED = 'Anthropic'
-  const PICK_PAINTED = 'connect.'
+  const PICK_PAINTED = 'Anthropic Console'
   const OPENED = 'press c to copy the URL'
   const NO_CODE = 'No code arrived from the browser'
   const squash = (s: string): string => s.replace(/\s+/g, '')

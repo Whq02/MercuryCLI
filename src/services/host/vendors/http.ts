@@ -40,7 +40,7 @@ export function retryAfterSeconds(value: string | null): number | undefined {
   return Number.isFinite(wait) && wait > 0 ? wait : undefined
 }
 export interface VendorTiming { requestTimeoutMs?: number; readyTimeoutMs?: number; pollMs?: number; settleMs?: number }
-export interface VendorWireOptions {
+interface VendorWireOptions {
   headers?: (signal?: AbortSignal) => Record<string, string> | Promise<Record<string, string>>
   secrets?: () => readonly string[]
   textResponses?: boolean

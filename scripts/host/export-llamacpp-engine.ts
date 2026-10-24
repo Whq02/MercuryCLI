@@ -20,8 +20,8 @@ const ROW = {
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
-export interface EngineImageStamp { ref: string; digest: string; manifest: string; revision: string; cudaArchitectures: string; created: string; readOn: string; evidence: string }
-export interface EngineTableFile { generatedBy: string; llamacpp: string; source: string; sourceSha256: string; ggmlSource: string; ggmlSourceSha256: string; image?: EngineImageStamp; typeCount: number; types: Record<string, number>; architectures: string[]; tensors: string[] }
+interface EngineImageStamp { ref: string; digest: string; manifest: string; revision: string; cudaArchitectures: string; created: string; readOn: string; evidence: string }
+interface EngineTableFile { generatedBy: string; llamacpp: string; source: string; sourceSha256: string; ggmlSource: string; ggmlSourceSha256: string; image?: EngineImageStamp; typeCount: number; types: Record<string, number>; architectures: string[]; tensors: string[] }
 interface Manifest { mediaType?: string; manifests?: { digest: string; platform?: { os?: string; architecture?: string } }[]; config?: { digest: string } }
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
@@ -33,7 +33,7 @@ const readAsset = (): EngineTableFile => JSON.parse(readFileSync(resolve(root, A
 const canonical = (table: EngineTableFile): EngineTableFile => ({ generatedBy: table.generatedBy, llamacpp: table.llamacpp, source: table.source, sourceSha256: table.sourceSha256, ggmlSource: table.ggmlSource, ggmlSourceSha256: table.ggmlSourceSha256, ...(table.image ? { image: table.image } : {}), typeCount: table.typeCount, types: table.types, architectures: table.architectures, tensors: table.tensors })
 const writeAsset = (table: EngineTableFile): void => { writeFileSync(resolve(root, ASSET), JSON.stringify(canonical(table), null, 2) + '\n'); registerGeneratedAsset(ROW) }
 
-export function engineTableFromSources(archSource: string, ggmlSource: string, sha: string, image?: EngineImageStamp): EngineTableFile {
+function engineTableFromSources(archSource: string, ggmlSource: string, sha: string, image?: EngineImageStamp): EngineTableFile {
   const architectures = [...archSource.matchAll(/\{\s*LLM_ARCH_([A-Z0-9_]+),\s*"([^"]+)"\s*\}/g)].filter(match => match[1] !== 'UNKNOWN').map(match => match[2]!)
   const tensors = [...archSource.matchAll(/\{\s*LLM_TENSOR_[A-Z0-9_]+,\s*"([^"]+)"\s*\}/g)].map(match => match[1]!.replaceAll('%d', 'N'))
   if (architectures.length < 50 || tensors.length < 100) throw new Error(ARCH_SOURCE + ' at ' + sha + ' yielded ' + architectures.length + ' architectures and ' + tensors.length + ' tensor names; the source shape changed')

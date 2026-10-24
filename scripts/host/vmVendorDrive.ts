@@ -163,15 +163,16 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     }
     popup.openSettingsPopup(llmHostPopupRequest(road)); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await capture('connect-row')
     await choose('Connect ' + label); await until(label + ' API key'); await capture('connect')
-    check('connect states unpublished new-account quotas', mounted.screen().includes('quotas are not published'))
+    const keyHelp = { hyperstack: 'Create a key at https://console.hyperstack.cloud/api-keys.', verda: 'API Credentials at https://console.verda.com · paste Client ID:Client Secret.', digitalocean: 'Create a token at https://cloud.digitalocean.com/account/api/tokens with Droplet, size, image, region and SSH-key access.' }[vendor]!
+    check('connect says where to create the credential and what to paste without quota narration', mounted.screen().replace(/[│\s]+/g, ' ').includes(keyHelp) && !mounted.screen().includes('quotas'))
     mounted.push(fixture.key); await until('********'); mounted.push(KEY.enter)
     await until('Rent · ' + label); await capture('offer')
     check('the offer row carries no boot stamp', !mounted.screen().includes('not yet booted') && !mounted.screen().includes('verified on a live rental'))
     const before = fixture.state.creates
     await choose('Rent · ' + label); await until('Confirm the hourly price'); await capture('confirm')
     const screen = mounted.screen().replace(/[│\s]+/g, ' ')
-    check('confirmation precedes creation and discloses storage and key', fixture.state.creates === before && screen.includes('/workspace') && screen.includes('SSH public key'))
-    if (vendor === 'verda') check('unpublished egress price is disclosed', screen.includes('egress price is not published'))
+    check('confirmation names storage, the account SSH key and billing before creating a machine', fixture.state.creates === before && screen.includes(vendor === 'verda' ? 'Root disk: $0.20/GiB-month; Terminate deletes it.' : 'Local disk included; Terminate deletes it.') && screen.includes('Adds an SSH key') && screen.includes('Billing starts now and continues after closing.'))
+    if (vendor === 'verda') check('the confirmation says the egress price is unavailable', screen.includes('Egress price unavailable.'))
     await choose('Confirm $'); await until('Machine controls')
     check('worker reaches ready and registers model', await waitFor(() => hostRecords().some((row: any) => row.vendor === vendor && row.jobState === 'ready'), 15000))
     const record = hostRecords().find((row: any) => row.vendor === vendor && row.jobState === 'ready')!

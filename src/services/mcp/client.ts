@@ -543,6 +543,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let transport: Transport
   let inProcessServer: { close: () => Promise<void> } | null = null
   let stdioTransport: StdioClientTransport | null = null
+  let releaseSpawnGuard: (() => void) | undefined
+  let spawnRefused = false
   let stderrBuffer = ''
   let inProcess = false
   const buildStdioTransport = (): StdioClientTransport => {
@@ -625,6 +627,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     } else if (type === 'stdio') {
       stdioTransport = buildStdioTransport()
       transport = stdioTransport
+      releaseSpawnGuard = registerCleanup(async () => { spawnRefused = true; await endStdioTree(); await stdioTransport?.close().catch(() => {}) })
     } else {
       throw new Error(`Unsupported MCP server type: ${String(type)}`)
     }
@@ -669,6 +672,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   installRootsHandler(client)
   const eraKey = getServerCacheKey(name, serverRef)
   const prior = await readEraVerdict(eraKey)
+  if (spawnRefused) return { name, type: 'disabled', config: serverRef }
 
   const connectPromise = (async (): Promise<void> => {
     try {
@@ -728,6 +732,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     const unauthorized = err instanceof UnauthorizedError
     if ((type === 'sse' || type === 'http') && unauthorized) return handleRemoteAuthFailure(name, serverRef, type.toUpperCase())
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
+    releaseSpawnGuard?.()
     await endStdioTree()
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
@@ -821,6 +826,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
     await client.close().catch(err => logMCPError(name, err))
   }
+  releaseSpawnGuard?.()
   const unregister = registerCleanup(cleanup)
 
   return {

@@ -1,8 +1,10 @@
 import { existsSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { relative, resolve, isAbsolute } from 'node:path'
 
 export const REMOVE_RETRY_CODES: ReadonlySet<string> = new Set(['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'])
 
-export type RemoveScratchOptions = {
+type RemoveScratchOptions = {
   maxRetries?: number
   retryDelayMs?: number
   remove?: (target: string) => void
@@ -16,6 +18,8 @@ export function removeScratch(target: string, options: RemoveScratchOptions = {}
   const maxRetries = options.maxRetries ?? 10
   const retryDelayMs = options.retryDelayMs ?? 100
   const remove = options.remove ?? ((path: string) => rmSync(path, { recursive: true, force: true }))
+  const inside = relative(resolve(target), process.cwd())
+  if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) process.chdir(tmpdir())
   for (let attempt = 0; ; attempt++) {
     try {
       remove(target)

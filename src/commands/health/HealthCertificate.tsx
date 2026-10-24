@@ -71,7 +71,7 @@ const HEALTH_POPUP_MIN_ROWS = 10
 const HEALTH_POPUP_SPARE_ROWS = 7
 const HEALTH_POPUP_CHROME_ROWS = 7
 const HEALTH_POPUP_COMPACT_CHROME_ROWS = 4
-export const HEALTH_POPUP_LEGEND_MIN_ROWS = 30
+const HEALTH_POPUP_LEGEND_MIN_ROWS = 30
 export const HEALTH_POPUP_CLOSE_HINT = 'esc or click outside closes'
 
 export function healthPopupShape(): CommandPopupShape {

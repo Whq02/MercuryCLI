@@ -35,7 +35,7 @@ function powershell(script, signal) {
   return exec(command, ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop'; ${script}`], { env: powershellEnvironment(), signal, timeout: 10000, maxBuffer: 1024 * 1024 })
 }
 
-export async function inspectListener(endpoint, signal) {
+async function inspectListener(endpoint, signal) {
   const port = endpointPort(endpoint)
   if (process.platform === 'darwin') {
     const { stdout } = await exec('/usr/sbin/lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpun'], { signal, timeout: 10000 })
@@ -146,7 +146,7 @@ export async function readLibrary(endpoint, signal) {
   })
 }
 
-export async function probe(context) {
+async function probe(context) {
   const expected = await realpath(libraryPath(context.input))
   const identity = await verifyListener(context)
   const project = await realpath(await readLibrary(context.endpoint, context.signal))
@@ -154,7 +154,7 @@ export async function probe(context) {
   return { identity: 'lightcraft', version: desktop.version, project, process: identity }
 }
 
-export async function verify(context) {
+async function verify(context) {
   const current = await probe(context)
   const previous = context.attached?.process
   if (!previous || current.process.pid !== previous.pid || current.process.started !== previous.started || current.process.executableSha256 !== previous.executableSha256) {
@@ -250,7 +250,7 @@ export async function launch({ installation, endpoint, dataDir, input, signal })
   throw new Error(`LightCraft opened but could not be verified: ${lastError?.message}. The window was left open.`)
 }
 
-export function upstream({ installation, endpoint, dataDir, input }) {
+function upstream({ installation, endpoint, dataDir, input }) {
   const library = libraryPath(input)
   endpointPort(endpoint)
   return {

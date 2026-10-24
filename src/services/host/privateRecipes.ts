@@ -3,9 +3,9 @@ import { shortFolder } from './bank.js'
 import { currentPrivateHostRecipes, privateHostRecipesCandidates, rememberPrivateHostRecipesFile, validatePrivateHostRecipesPath, type PrivateHostRecipes } from './recipesFile.js'
 
 export const PRIVATE_RECIPES_ROW = 'private-recipes'
-export const PRIVATE_RECIPES_EMPTY = 'Private recipes · none · choose a file →'
-export const PRIVATE_RECIPES_REPLACES = 'replaces the shipped list'
-export const PRIVATE_RECIPES_PROMPT = 'Which private recipes file?'
+const PRIVATE_RECIPES_EMPTY = 'Private recipes · none · choose a file →'
+const PRIVATE_RECIPES_REPLACES = 'replaces the shipped list'
+const PRIVATE_RECIPES_PROMPT = 'Which private recipes file?'
 export function privateRecipesRow(state = currentPrivateHostRecipes()): { value: string; label: string } {
   const loaded = state.path && state.recipes.length
   return { value: PRIVATE_RECIPES_ROW, label: loaded ? 'Private recipes · ' + shortFolder(state.path!) + ' · ' + state.recipes.length + ' rows · ' + PRIVATE_RECIPES_REPLACES : PRIVATE_RECIPES_EMPTY }

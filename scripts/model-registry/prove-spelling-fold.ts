@@ -109,7 +109,7 @@ check(
     headlessModelSrc.includes("import { parseUserSpecifiedModel } from '../../utils/model/model.js'") &&
       /else model = parseUserSpecifiedModel\(requested\)/.test(headlessModelSrc) &&
       /return model/.test(headlessModelSrc) &&
-      printSrc.includes("import { resolveHeadlessModel } from './headless/model.js'"),
+      printSrc.includes("import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'"),
   )
   check(
     'the entry seed folds through the headless resolver (call-shaped)',

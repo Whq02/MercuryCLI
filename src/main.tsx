@@ -910,7 +910,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       if ((options.days !== undefined || options.project) && !options.history) failCli('--days and --project require --history.', 2)
       if (options.history) {
         const { usageHistoryCli } = await import('./cli/handlers/usageHistory.js')
-        usageHistoryCli({ json: options.json === true, days: options.days, project: options.project })
+        await usageHistoryCli({ json: options.json === true, days: options.days, project: options.project })
       } else {
         const { usageCli } = await import('./cli/handlers/usage.js')
         await usageCli({ json: options.json === true })

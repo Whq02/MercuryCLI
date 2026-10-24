@@ -35,7 +35,7 @@ try {
     return questions
   }
   const count = (questions: LlmHostQuestion[]) => questions.find(row => row.step === 'door-models')!.rows!.find(row => row.value === 'pods')!.label
-  assert.match(count(await inspect()), /paying for · 0 \(/, 'two never-confirmed local records do not count as live machines')
+  assert.equal(count(await inspect()), 'Machines I’m paying for · 0 · ~$0.00 so far + storage', 'two never-confirmed local records leave the live count and cost at zero')
   const paid = (await inspect(true)).find(row => row.step === 'paid-pods')!
   assert.ok(paid.found.includes('Vast.ai: no instances') && paid.found.includes('Runpod: none'), paid.found)
   assert.equal(paid.rows!.filter(row => !row.value.startsWith('vendor-error:')).length, 0)

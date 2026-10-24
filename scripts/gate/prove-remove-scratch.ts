@@ -57,6 +57,12 @@ try {
   check('ENOENT while the path still stands is a race, retried once more', thrown(() => removeScratch(racing, { remove: raced.remove, retryDelayMs: 1 })) === '' && raced.attempts() === 2, `attempts=${raced.attempts()}`)
   const vanished = failing(['ENOENT'])
   check('ENOENT once the path is gone is the success it reports', thrown(() => removeScratch(join(world, 'vanished'), { remove: vanished.remove, retryDelayMs: 1 })) === '' && vanished.attempts() === 1, `attempts=${vanished.attempts()}`)
+  const occupied = join(world, 'occupied', 'deep')
+  mkdirSync(occupied, { recursive: true })
+  const before = process.cwd()
+  process.chdir(occupied)
+  check('a scratch tree the process sits in is left first, then removed', thrown(() => removeScratch(join(world, 'occupied'))) === '' && !existsSync(join(world, 'occupied')) && !process.cwd().startsWith(join(world, 'occupied')), process.cwd())
+  process.chdir(before)
 } finally {
   removeScratch(world)
 }

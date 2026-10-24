@@ -31,7 +31,7 @@ try {
   const privateRow = { ...base, id: 'private-deepseek', label: privateName, model: 'fixture/private-deepseek', verified: { by: 'documented', on: '2026-10-22', source: 'https://huggingface.co/fixture/private-deepseek' } }
   const unverified = { ...base, id: 'saved-search-deepseek', label: foundName + ' · EXL3', model: foundName, gpu: 'H100', count: 1, vramGb: 80, verified: { by: 'unverified', on: '2026-10-22', source: 'https://huggingface.co/' + foundName, note: "derived from the repo's config and file list; nobody has booted this recipe" }, verification: 'unverified · derived from the repo · vLLM (EXL3) · not booted' }
   const measured = { ...privateRow, id: 'measured-deepseek', label: 'DeepSeek measured', model: 'fixture/measured-deepseek', verified: { ...privateRow.verified, by: 'measured' } }
-  const inStock = { ...privateRow, id: 'documented-in-stock', label: 'DeepSeek documented stock', model: 'fixture/documented-stock', gpu: 'H100', count: 1, vramGb: 80 }
+  const inStock = { ...privateRow, id: 'documented-in-stock', label: 'DeepSeek documented stock', model: 'fixture/documented-stock', gpu: 'H100', count: 2, vramGb: 80 }
   const privateUnverified = { ...privateRow, id: 'private-unverified', label: 'DeepSeek private experiment', verified: { ...privateRow.verified, by: 'unverified' } }
   const recipeFile = join(f.home, 'recipes.json')
   writeFileSync(recipeFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [unverified, privateRow, measured, inStock, privateUnverified] }))
@@ -82,10 +82,13 @@ try {
     }
     await step('door-models')
     const values = question!.rows!.map(row => row.value)
-    assert.deepEqual(values.slice(0, 5), [measured.label, inStock.label, privateName, privateUnverified.label, foundName], 'verification tier precedes stock; a private unverified row also precedes search-derived stock')
-    assert.ok(question!.rows![4]!.label.includes('in stock'))
-    assert.ok(question!.rows![2]!.label.includes('no stock'))
-    assert.equal(question!.initial, measured.label)
+    assert.deepEqual(values.slice(0, 2), ['pods', 'keys'], 'the machine and vendor-key rows sit above the models')
+    const modelRows = question!.rows!.filter(row => row.section === 'MODELS')
+    assert.deepEqual(modelRows.map(row => row.value), [foundName, inStock.label, measured.label, privateName, privateUnverified.label], 'in-stock models are ordered by price before no-stock models, with tier only breaking ties')
+    assert.ok(modelRows.slice(0, 2).every(row => row.label.includes('in stock')) && modelRows.slice(2).every(row => row.label.includes('no stock')), 'the models show their current stock')
+    assert.ok(modelRows.every(row => !/\b(measured|documented|community|unverified|verified)\b/i.test(row.label.slice(row.label.indexOf(' · ') + 3))), 'model descriptions carry no verification tier')
+    assert.equal(question!.initial, foundName, 'the cursor opens on the cheapest in-stock model')
+    assert.ok(await waitFor(() => selected().includes(foundName.slice(0, 28)), 3000), 'the cheapest model is visibly selected\n' + screen())
     await select(foundName)
     assert.ok(flat().includes('EXL3') && !flat().includes('not booted by Mercury'), 'saved rows retain format without provenance\n' + screen())
     await capture('saved-search')
@@ -103,7 +106,7 @@ try {
     assert.equal(rp.state.creates, 0)
     await capture('rental-confirm')
     mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)); mounted.unmount(); mounted = undefined
-    console.log('PASS format labels and unchanged tier ordering at ' + width + '; no provenance stamp; nothing rented')
+    console.log('PASS model rows follow account rows in stock and price order, with the cheapest selected at ' + width + '; format labels remain, no provenance stamp and nothing rented')
   }
   assert.equal(escaped.length, 0)
 } finally { mounted?.unmount(); await rp.close(); await hf.close(); f.close(); globalThis.fetch = fetchBefore }

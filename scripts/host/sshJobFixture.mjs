@@ -1,9 +1,20 @@
 #!/usr/bin/env node
-import { appendFileSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
-import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
+function bashSyntax(script) {
+  const dir = mkdtempSync(join(tmpdir(), 'bash-syntax-'))
+  const file = join(dir, 'script.sh')
+  writeFileSync(file, script)
+  try {
+    return spawnSync('bash', ['-n', file.replaceAll('\\', '/')], { encoding: 'utf8' })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 const needleAt = (source, needle) => {
   const at = source.indexOf(needle)
@@ -31,7 +42,7 @@ if (args.includes('-N')) {
 } else {
   const remote = args.at(-1)
   assert.ok(args.includes('127.0.0.1'), 'fixture must never connect to a public host')
-  const syntax = spawnSync('bash', ['-n', '-c', remote], { encoding: 'utf8' })
+  const syntax = bashSyntax(remote)
   assert.equal(syntax.status, 0, syntax.stderr)
   for (const answer of config.answers ?? []) {
     const pattern = new RegExp(answer.pattern)

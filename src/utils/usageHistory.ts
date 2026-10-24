@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { lstatSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { publishAtomicSync } from '../substrate/fileStore.js'
+import { acquirePidLockWithRetry, noteLockRelease } from '../substrate/pidLock.js'
 import type { Entry } from '../types/logs.js'
 import { getMercuryHome } from './envUtils.js'
-import { lockSync } from './lockfile.js'
 import { calculateUSDCost, modelPricingBasis, resolveModelPricing } from './modelCost.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { servedModelOfAssistantRow } from './model/retainedModel.js'
@@ -26,8 +26,8 @@ export type UsageTotals = {
   costUSD: number
   unpricedTurns: number
 }
-export type UsageHour = UsageTotals & { hour: string; model: string; project: string }
-export type UsageObservation = {
+type UsageHour = UsageTotals & { hour: string; model: string; project: string }
+type UsageObservation = {
   hour: string
   provider: string
   account: string
@@ -96,23 +96,23 @@ export function boundUsageHistory(store: HistoryStore): HistoryStore {
   return { revision: REVISION, files, observations: store.observations.sort((a, b) => a.observedAtMs - b.observedAtMs).slice(-USAGE_OBSERVATION_MAX_ROWS) }
 }
 
-function publish(update: (current: HistoryStore) => HistoryStore): boolean {
-  let release: (() => void) | undefined
+async function publish(update: (current: HistoryStore) => HistoryStore): Promise<boolean> {
+  let lock: Awaited<ReturnType<typeof acquirePidLockWithRetry>> | undefined
   try {
     mkdirSync(getMercuryHome(), { recursive: true, mode: 0o700 })
-    release = lockSync(storePath(), { realpath: false, stale: 10_000 })
+    lock = await acquirePidLockWithRetry(storePath() + '.pid-lock', randomUUID(), { liveness: 'assume-alive' })
     const next = boundUsageHistory(update(readStore()))
     const text = JSON.stringify(next)
     if (Buffer.byteLength(text) > MAX_CACHE_BYTES) return false
-    durableAtomicPublishSync(storePath(), text, { mode: 0o600 })
+    publishAtomicSync(storePath(), text, { mode: 0o600 })
     return true
   } catch { return false }
-  finally { try { release?.() } catch {} }
+  finally { if (lock) noteLockRelease('usage-history', await lock.release()) }
 }
 
-export function recordUsageObservations(provider: string, account: string, windows: ReadonlyArray<{
+export async function recordUsageObservations(provider: string, account: string, windows: ReadonlyArray<{
   key: string; state: string; observedAtMs?: number; usedPct?: number; resetsAtMs?: number; source?: string
-}>): boolean {
+}>): Promise<boolean> {
   const rows = windows.filter(window => window.observedAtMs !== undefined && Number.isFinite(window.observedAtMs)).map(window => ({
     hour: hourOf(window.observedAtMs!), provider,
     account: createHash('sha256').update(`${provider}:${account}`).digest('hex').slice(0, 16),
@@ -225,7 +225,7 @@ function scanFile(file: { path: string; session: string; project: string }): Cac
   return { signature: '', pricing: pricingKey(rows), rows, skipped }
 }
 
-export function readUsageHistory(opts: { days?: number; project?: string; now?: number } = {}): UsageHistoryReport {
+export async function readUsageHistory(opts: { days?: number; project?: string; now?: number } = {}): Promise<UsageHistoryReport> {
   const now = opts.now ?? Date.now()
   const since = opts.days === undefined ? -Infinity : Date.parse(new Date(now).toISOString().slice(0, 10)) - (opts.days - 1) * 24 * HOUR_MS
   const warnings: string[] = []
@@ -250,7 +250,7 @@ export function readUsageHistory(opts: { days?: number; project?: string; now?: 
       rows.push(...data.rows.filter(row => Date.parse(row.hour) >= since && (!opts.project || row.project === opts.project)))
     } catch { warnings.push(`Could not read ${file.path}.`) }
   }
-  if (!publish(current => ({ ...current, files }))) warnings.push('Usage cache could not be saved; totals were read from local files.')
+  if (!await publish(current => ({ ...current, files }))) warnings.push('Usage cache could not be saved; totals were read from local files.')
   const totals = emptyTotals()
   for (const row of rows) add(totals, row)
   return { totals, byDay: group(rows, row => row.hour.slice(0, 10)), byModel: group(rows, row => row.model), byProject: group(rows, row => row.project),

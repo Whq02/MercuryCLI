@@ -76,8 +76,8 @@ export function formatUsageHistory(report: UsageHistoryReport, columns = 80): st
   return wrapped.join('\n') + '\n'
 }
 
-export function usageHistoryCli(opts: { json?: boolean; days?: number; project?: boolean }): void {
-  const report = readUsageHistory({ ...(opts.days === undefined ? {} : { days: opts.days }), ...(opts.project ? { project: getOriginalCwd() } : {}) })
+export async function usageHistoryCli(opts: { json?: boolean; days?: number; project?: boolean }): Promise<void> {
+  const report = await readUsageHistory({ ...(opts.days === undefined ? {} : { days: opts.days }), ...(opts.project ? { project: getOriginalCwd() } : {}) })
   const columns = process.stdout.columns || Number(process.env.COLUMNS) || 80
   writeSync(1, opts.json ? JSON.stringify(report, null, 2) + '\n' : formatUsageHistory(report, columns))
 }

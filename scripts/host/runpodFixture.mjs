@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { bashSyntax } from './bashSyntax.mjs'
 const sample = name => JSON.parse(readFileSync(new URL('./fixtures/' + name + '.json', import.meta.url), 'utf8'))
 export const liveCatalogue = sample('catalog-gpus-secure-count1')
 const livePod = sample('pod-get-running')
@@ -104,7 +105,7 @@ export async function runpodFixture() {
       const launch = JSON.parse(body.args)
       assert.deepEqual(launch.entrypoint, ['bash', '-lc'])
       assert.equal(launch.cmd.length, 1)
-      assert.equal(spawnSync('bash', ['-n', '-c', launch.cmd[0]]).status, 0)
+      assert.equal(bashSyntax(launch.cmd[0]).status, 0)
       const id = 'fixture-cluster-' + state.clusterCreates
       const nodes = Array.from({ length: body.compute.podCount }, (_, rank) => ({ ...structuredClone(livePod), id: id + '-node-' + rank, name: body.name + '-' + rank, status: 'RUNNING', cudaVersion: state.clusterCuda, cost: Math.round((state.clusterGpus.find(gpu => gpu.id === body.compute.gpuTypeId)?.price.secure ?? 7.99) * body.compute.gpuCountPerPod * (state.clusterRatePremium ?? 1) * 10000) / 10000, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, createdAt: new Date().toISOString(), ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
       const cluster = { id, name: body.name, type: body.type, compute: body.compute, pods: { total: nodes.length, byStatus: { RUNNING: nodes.length } }, primary: { podId: nodes[0].id, status: 'RUNNING' }, createdAt: new Date().toISOString() }
@@ -155,7 +156,7 @@ export async function runpodFixture() {
         assert.equal(launch.cmd.length, 1)
         bootstrap = launch.cmd[0]
       } else assert.ok(body.args.startsWith('bash -lc '))
-      const syntax = spawnSync('bash', ['-n', '-c', bootstrap], { encoding: 'utf8' })
+      const syntax = bashSyntax(bootstrap)
       assert.equal(syntax.status, 0, syntax.stderr)
       const gpuEntry = (state.customGpus ?? gpus).find(gpu => gpu.id === body.gpu.id) ?? gpus.find(gpu => gpu.id === body.gpu.id)
       const pod = { ...structuredClone(livePod), id: 'fixture-pod-' + state.creates, name: body.name, mounts: body.mounts, status: 'PROVISIONING', cost: gpuEntry.price.secure * body.gpu.count, createdAt: new Date(Date.now() - 60000).toISOString(), startedAt: new Date(Date.now() - 60000).toISOString(), ssh: { direct: null, proxy: null } }
@@ -200,7 +201,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       if (state.refuse) throw new Error('fixture SSH connection refused')
       const remote = args.at(-1)
       if (command === 'ssh') {
-        const parse = spawnSync('bash', ['-n', '-c', remote], { encoding: 'utf8' })
+        const parse = bashSyntax(remote)
         assert.equal(parse.status, 0, parse.stderr)
       }
       let output = ''

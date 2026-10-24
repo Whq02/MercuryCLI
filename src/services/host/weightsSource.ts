@@ -23,7 +23,7 @@ export type WeightsSource =
   | { kind: 'private-repo'; repo: string; patterns?: string[]; bytes?: number; files?: number }
   | { kind: 'bank'; folder: string }
   | { kind: 'volume'; volumeId: string }
-export type WeightsSourceKind = WeightsSource['kind']
+type WeightsSourceKind = WeightsSource['kind']
 export interface WeightsSourceContext {
   recipe: HostRecipe
   vendor: HostVendorId
@@ -35,9 +35,9 @@ export interface WeightsSourceContext {
   hubBase?: string
   remembered?: string
 }
-export interface WeightsSourceChoice { value: WeightsSourceKind; label: string; source?: WeightsSource; reason?: string }
-export const WEIGHTS_SOURCE_STEP = 'weights-source'
-export const WEIGHTS_PRIVATE_REPO_STEP = 'weights-private-repo'
+interface WeightsSourceChoice { value: WeightsSourceKind; label: string; source?: WeightsSource; reason?: string }
+const WEIGHTS_SOURCE_STEP = 'weights-source'
+const WEIGHTS_PRIVATE_REPO_STEP = 'weights-private-repo'
 export const WEIGHTS_SOURCE_ROW = 'weights-source'
 const modelTitle = (recipe: HostRecipe): string => recipe.label.split(' · ')[0]!
 const REPO_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/
@@ -64,7 +64,7 @@ export function weightsSourceWords(source: WeightsSource, recipe: HostRecipe, vo
   if (volume.kind === 'vast') return 'Vast.ai volume ' + volume.id + ' · machine ' + volume.machineId + (volume.state === 'kept' ? ' · ~' + vastBootMinutes(recipe, volume) + ' min' : ' · downloads first') + ' · ' + vastVolumeBilling(volume)
   return 'weights disk ' + volume.id + ' · ' + volume.dataCenter + (volume.state === 'kept' ? ' · ~' + bootMinutes(recipe, volume) + ' min' : ' · downloads first') + ' · ' + keptDiskPrice(volume)
 }
-export function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoice[] {
+function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoice[] {
   const { recipe, vendor, managed } = context
   const token = context.token ?? huggingFaceToken()
   const unavailable = (value: WeightsSourceKind, label: string, reason: string): WeightsSourceChoice => ({ value, label: label + ' · unavailable · ' + reason, reason })
@@ -83,7 +83,7 @@ export function weightsSourceChoices(context: WeightsSourceContext): WeightsSour
     : { value: 'volume', source: { kind: 'volume', volumeId: context.volume.id }, label: 'Kept volume · ' + weightsSourceWords({ kind: 'volume', volumeId: context.volume.id }, recipe, context.volume) }
   return [huggingface, privateRepo, bank, volume]
 }
-export async function readPrivateRepo(context: Pick<WeightsSourceContext, 'recipe' | 'token' | 'hubBase'>, repo: string, signal: AbortSignal): Promise<{ ok: true; source: WeightsSource & { kind: 'private-repo' } } | { ok: false; words: string }> {
+async function readPrivateRepo(context: Pick<WeightsSourceContext, 'recipe' | 'token' | 'hubBase'>, repo: string, signal: AbortSignal): Promise<{ ok: true; source: WeightsSource & { kind: 'private-repo' } } | { ok: false; words: string }> {
   if (!REPO_PATTERN.test(repo)) return { ok: false, words: 'Give the repository as namespace/name.' }
   const token = context.token ?? huggingFaceToken()
   if (!token) return { ok: false, words: 'No Hugging Face sign-in · /logins huggingface' }
@@ -123,7 +123,7 @@ export async function chooseWeightsSource(context: WeightsSourceContext, current
   }
 }
 const imagePath = 'if test -r /proc/1/environ; then image_path="$(tr \'\\0\' \'\\n\' < /proc/1/environ | sed -n \'s/^PATH=//p\')"; if test -n "$image_path"; then export PATH="$image_path:$PATH"; fi; fi\n'
-export function privateRepoDownloadScript(source: WeightsSource & { kind: 'private-repo' }, recipe: HostRecipe, directory: string, tokenPath: string): string {
+function privateRepoDownloadScript(source: WeightsSource & { kind: 'private-repo' }, recipe: HostRecipe, directory: string, tokenPath: string): string {
   const bytes = source.bytes || recipe.weightsGb * 1e9
   return `import json, os, pathlib, sys, threading, time
 from huggingface_hub import snapshot_download
@@ -154,7 +154,7 @@ export function privateRepoDownloadCommand(source: WeightsSource & { kind: 'priv
   const script = 'set -e\n' + (execution.pod ? imagePath : '') + python + '"$py" -c ' + shQuote(privateRepoDownloadScript(source, recipe, directory, tokenPath)) + '\n'
   return execution.docker && !execution.pod ? 'docker run --rm -v /workspace:/workspace -e HF_HOME=/workspace/huggingface --entrypoint bash ' + shQuote(recipe.image) + ' -c ' + shQuote(script) : script
 }
-export const TOKEN_CLEANUP_MS = 60_000
+const TOKEN_CLEANUP_MS = 60_000
 export const TOKEN_REVOKE_WORDS = 'revoke the token at https://huggingface.co/settings/tokens if the machine is kept'
 export async function downloadPrivateRepoForRental(source: WeightsSource & { kind: 'private-repo' }, recipe: HostRecipe, token: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, mark: (step: string) => void, execution: { docker: boolean; pod: boolean }): Promise<string> {
   const base = '/workspace/mercury-host/' + recipe.id

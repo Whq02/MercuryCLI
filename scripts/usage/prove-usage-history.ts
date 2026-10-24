@@ -2,7 +2,7 @@
 // gate-watch: src/utils/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/utils/modelCost.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/providerUsage.ts
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -111,10 +111,10 @@ try {
   const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/utils/usageHistory.ts')
   globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fetch
   const { transcriptReaderCensus } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-  const today = readUsageHistory({ days: 1, now: Date.parse('2026-10-23T20:00:00Z') })
+  const today = await readUsageHistory({ days: 1, now: Date.parse('2026-10-23T20:00:00Z') })
   assert.equal(today.totals.turns, 3)
   const bytesBefore = transcriptReaderCensus.bytesRead
-  readUsageHistory()
+  await readUsageHistory()
   assert.equal(transcriptReaderCensus.bytesRead, bytesBefore, 'unchanged transcripts are not re-read')
   const { calculateUSDCost, resolveModelPricing } = await import('../../src/utils/modelCost.ts')
   const price = (at: string, model = 'deepseek-flash') => calculateUSDCost(model, { ...usage, request_started_at_ms: Date.parse(at) })
@@ -134,24 +134,24 @@ try {
     return Response.json({ data: { limit: 100, usage: 25, limit_remaining: 75 } })
   }) as typeof fetch })
   assert.equal(requests, 1)
-  const providerReading = readUsageHistory().observations.find(row => row.provider === 'openrouter')
+  const providerReading = (await readUsageHistory()).observations.find(row => row.provider === 'openrouter')
   assert.equal(providerReading?.usedPct, 25)
   assert.equal(providerReading?.source, 'endpoint')
   assert.equal(providerReading?.observedAtMs, at)
   process.env.OPENROUTER_API_KEY = 'fixture-other-history-key'
   await refreshProviderUsage('openrouter', { force: true, now: () => at + 1000, fetchImpl: (async () => Response.json({ data: { limit: 100, usage: 40, limit_remaining: 60 } })) as typeof fetch })
-  assert.equal(readUsageHistory().observations.filter(row => row.provider === 'openrouter').length, 2)
+  assert.equal((await readUsageHistory()).observations.filter(row => row.provider === 'openrouter').length, 2)
   assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-other-history-key'))
   console.log('PASS provider refresh records its observation; changed credentials stay separate and secret-free')
-  recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at, usedPct: 10, source: 'endpoint' }])
-  recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at + 1000, usedPct: 20, source: 'endpoint' }])
-  recordUsageObservations('fixture', 'account-b', [{ key: '5h', state: 'live', observedAtMs: at + 1000, usedPct: 30, source: 'headers' }])
-  const observed = readUsageHistory().observations.filter(row => row.provider === 'fixture')
+  await recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at, usedPct: 10, source: 'endpoint' }])
+  await recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at + 1000, usedPct: 20, source: 'endpoint' }])
+  await recordUsageObservations('fixture', 'account-b', [{ key: '5h', state: 'live', observedAtMs: at + 1000, usedPct: 30, source: 'headers' }])
+  const observed = (await readUsageHistory()).observations.filter(row => row.provider === 'fixture')
   assert.equal(observed.length, 2)
   assert.deepEqual(observed.map(row => row.usedPct).sort(), [20, 30])
   assert.ok(!observed.some(row => row.account === 'account-a'))
   const lots = Array.from({ length: USAGE_OBSERVATION_MAX_ROWS + 3 }, (_, i) => ({ ...observed[0]!, observedAtMs: at + i * 3_600_000, hour: new Date(at + i * 3_600_000).toISOString() }))
-  assert.equal(recordUsageObservations('fixture', 'account-c', lots.map(row => ({ ...row, key: row.window }))), true)
+  assert.equal(await recordUsageObservations('fixture', 'account-c', lots.map(row => ({ ...row, key: row.window }))), true)
   assert.equal(JSON.parse(readFileSync(join(home, 'usage-history.json'), 'utf8')).observations.length, USAGE_OBSERVATION_MAX_ROWS)
   const sample = JSON.parse(readFileSync(join(home, 'usage-history.json'), 'utf8')).files[join('alpha', sid + '.jsonl')]
   const cache = boundUsageHistory({ revision: 1, files: { big: { ...sample, rows: Array.from({ length: USAGE_HISTORY_MAX_ROWS + 1 }, () => sample.rows[0]) } }, observations: lots })
@@ -161,15 +161,20 @@ try {
   const files = Object.fromEntries(Array.from({ length: USAGE_HISTORY_MAX_FILES + 2 }, (_, i) => [String(i), sample]))
   assert.equal(Object.keys(boundUsageHistory({ revision: 1, files, observations: [] }).files).length, USAGE_HISTORY_MAX_FILES)
   console.log('PASS hourly downsampling, account separation, file/row/observation bounds')
+  const concurrent = await Promise.all(Array.from({ length: 8 }, (_, i) => recordUsageObservations('concurrent', `account-${i}`, [{ key: '5h', state: 'live', observedAtMs: at + (USAGE_OBSERVATION_MAX_ROWS + i) * 3_600_000, usedPct: i }])))
+  assert.ok(concurrent.every(Boolean))
+  assert.equal((await readUsageHistory()).observations.filter(row => row.provider === 'concurrent').length, 8)
+  if (process.platform !== 'win32') assert.equal(statSync(join(home, 'usage-history.json')).mode & 0o777, 0o600)
+  console.log('PASS concurrent observations are serialized and the published history stays private')
 
   append(file, row('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'local/fixture', '2026-10-23T12:00:00Z', sid, project, { ...usage, input_tokens: 10, output_tokens: 0, cache_read_input_tokens: 0 }))
-  const changed = readUsageHistory()
+  const changed = await readUsageHistory()
   assert.equal(changed.filesRead, 1)
   assert.equal(changed.totals.turns, 5)
   rmSync(file2)
-  assert.equal(readUsageHistory().totals.unpricedTurns, 0)
+  assert.equal((await readUsageHistory()).totals.unpricedTurns, 0)
   writeFileSync(join(home, 'usage-history.json'), '{broken cache')
-  assert.equal(readUsageHistory().totals.turns, 4)
+  assert.equal((await readUsageHistory()).totals.turns, 4)
   console.log('PASS changed/deleted transcripts and corrupt-cache rebuild')
 } finally { rmSync(scratch, { recursive: true, force: true }) }
 console.log('usage-history: PASS')

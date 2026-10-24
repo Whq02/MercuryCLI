@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 import { GRAPH_ROOT, readStubMap, resolveSpec } from './graph.ts'
 
@@ -182,6 +182,7 @@ class PathEvaluator {
   private readonly functions = new Map<string, ts.FunctionLikeDeclaration>()
   private readonly lists = new Map<string, { expression: ts.Expression; index: number | null }>()
   private readonly overrides = new Map<ts.Node, string>()
+  private readonly copies = new Map<string, ts.Expression>()
   constructor(private readonly root: string, private readonly file: string, sf: ts.SourceFile) {
     const collect = (n: ts.Node): void => {
       if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) {
@@ -200,6 +201,21 @@ class PathEvaluator {
       ts.forEachChild(n, collect)
     }
     collect(sf)
+    const copyNames = new Set<string>()
+    for (const statement of sf.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || !/^(?:node:)?fs(?:\/promises)?$/.test(statement.moduleSpecifier.text)) continue
+      const bindings = statement.importClause?.namedBindings
+      if (bindings && ts.isNamedImports(bindings)) for (const element of bindings.elements) {
+        if (['cp', 'cpSync', 'copyFile', 'copyFileSync'].includes((element.propertyName ?? element.name).text)) copyNames.add(element.name.text)
+      }
+    }
+    const collectCopies = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && copyNames.has(node.expression.text) && node.arguments[0] && node.arguments[1]) {
+        this.copies.set(unwrapExpression(node.arguments[1]).getText(sf), node.arguments[0])
+      }
+      ts.forEachChild(node, collectCopies)
+    }
+    collectCopies(sf)
   }
 
   localFunction(name: string): ts.FunctionLikeDeclaration | undefined {
@@ -322,6 +338,8 @@ class PathEvaluator {
     const over = this.overrides.get(e)
     if (over !== undefined) return over
     const x = unwrapExpression(e)
+    const copiedFrom = this.copies.get(x.getText())
+    if (copiedFrom) return this.evaluate(copiedFrom, env, depth + 1)
     if (ts.isStringLiteralLike(x)) return x.text
     if (ts.isTemplateExpression(x)) {
       let out = x.head.text
@@ -423,7 +441,13 @@ function treePathTail(text: string): string | null {
 
 function resolveModule(root: string, fromFile: string, spec: string, stubMap: Record<string, string>): string | null {
   if (spec.startsWith('file://')) spec = spec.slice('file://'.length)
-  if (spec.startsWith('/')) {
+  const absolute = isAbsolute(spec) ? spec : spec.startsWith('.') ? resolve(dirname(fromFile), spec) : join(root, spec)
+  for (const [delivered, source] of Object.entries(stubMap)) {
+    if (isAbsolute(delivered) && (absolute === delivered || absolute.startsWith(delivered + sep))) {
+      return resolveModule(root, fromFile, source + absolute.slice(delivered.length), {})
+    }
+  }
+  if (isAbsolute(spec)) {
     const candidates = [spec, spec.replace(/\.js$/, '.ts'), spec.replace(/\.js$/, '.tsx'), spec + '.ts', spec + '.tsx', join(spec, 'index.ts'), join(spec, 'index.tsx')]
     for (const c of candidates) if (existsSync(c) && statSync(c).isFile()) return c
     return null
@@ -1202,7 +1226,20 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   }
   const generatedSet = (f: string): boolean => matchesAny(f, generated)
   const pinSources = tracked.filter(f => (f.startsWith('scripts/') || f.startsWith('.github/') || f === 'build.ts' || f === 'package.json' || f.startsWith('sdk/')) && TEXT_PIN_FILE.test(f) && !generatedSet(f))
-  return { root, subjects, readers, stubMap: readStubMap(), entrypoints, rowsSurface, generated, fixtures, orphanBaseline, inventory, pinSources, generators }
+  const stubMap = readStubMap()
+  const bundledPath = join(root, 'src/extensions/bundled/content.generated.ts')
+  if (existsSync(bundledPath)) {
+    const text = readFileSync(bundledPath, 'utf8')
+    const payloads = JSON.parse(text.slice(text.indexOf('=') + 1)) as Record<string, Record<string, string>>
+    for (const manifest of tracked.filter(f => /^src\/extensions\/bundled\/[^/]+\/mercury-extension\.json$/.test(f))) {
+      const name = manifest.split('/')[3]!
+      for (const source of tracked.filter(f => f.startsWith('src/extensions/bundled/shared/') && CODE_FILE.test(f))) {
+        const delivered = source.slice('src/extensions/bundled/'.length)
+        if (payloads[name]?.[delivered] === readFileSync(join(root, source), 'utf8')) stubMap[join(root, dirname(manifest), delivered)] = join(root, source)
+      }
+    }
+  }
+  return { root, subjects, readers, stubMap, entrypoints, rowsSurface, generated, fixtures, orphanBaseline, inventory, pinSources, generators }
 }
 
 interface RewriteResult {

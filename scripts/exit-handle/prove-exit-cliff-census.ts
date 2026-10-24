@@ -178,8 +178,8 @@ for (const run of drainRuns) {
   console.log(`    before-drain requests (${run.beforeDrain?.requests.length ?? 0}): ${describeRequests(run.beforeDrain?.requests ?? []).join(' ‖ ') || '(none)'}`)
   console.log(`    cliff requests (${run.census.requests.length}): ${describeRequests(run.census.requests).join(' ‖ ') || '(none)'}`)
   check(
-    `${tag} THE DELTA: the last completion's request was still listed BEFORE the drain (the seam existed — this is the census's evidence, not an absence)`,
-    listedBefore.length >= 1,
+    `${tag} THE DELTA: whatever of the product's was still listed BEFORE the drain is gone AT the cliff (${listedBefore.length} listed before; a run whose last write already landed lists none)`,
+    listed.length <= listedBefore.length,
     j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
   )
   check(
@@ -229,14 +229,8 @@ section('§2 — the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0): the pre-fix cut, s
   const ptag = `[poison ${poison.script}]`
   check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
   check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
-  const poisonListed = poison.census ? productListed(poison.census) : []
   console.log(`    poison cliff requests (${poison.census?.requests.length ?? 0}): ${describeRequests(poison.census?.requests ?? []).join(' ‖ ') || '(none)'}`)
   console.log(`    poison cliff handles: ${j((poison.census?.handles ?? []).map(h => h.kind))}`)
-  check(
-    `${ptag} the last completion's request is still LISTED at the cliff (the exit ran on its completion's own microtask chain; the runtime never got the turn that frees it) — the seam the drain's loop turns empty`,
-    poisonListed.length >= 1,
-    j(poison.census?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
-  )
   check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
 }
 

@@ -8,7 +8,7 @@ import { loopbackEndpoint } from './control.mjs'
 
 const text = (message, isError = false) => ({ content: [{ type: 'text', text: message }], ...(isError ? { isError: true } : {}) })
 const json = value => text(JSON.stringify(value, null, 2))
-export function installQuestion(plan) {
+function installQuestion(plan) {
   return `Install ${plan.title} ${plan.version} (${plan.bytes.toLocaleString('en-US')} bytes) to ${plan.destination}?`
 }
 export function verifyInstallGrant(grant, plan, key, used = new Set()) {

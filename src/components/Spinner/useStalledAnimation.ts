@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { SpinnerMode } from './types.js'
 
 
-export const MID_STREAM_STILL_WAITING_MS = 10_000
+const MID_STREAM_STILL_WAITING_MS = 10_000
 
 export const STILL_WAITING_MAX_INTENSITY = 0.5
 

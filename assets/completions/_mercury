@@ -73,7 +73,7 @@ _mercury() {
       compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'
       ;;
     usage)
-      compadd -- '--help' '--json'
+      compadd -- '--days' '--help' '--history' '--json' '--project'
       ;;
     version)
       compadd -- '--help' '--version'

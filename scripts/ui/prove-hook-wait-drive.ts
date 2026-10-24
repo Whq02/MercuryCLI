@@ -189,7 +189,7 @@ if (waiting) {
   check('the wait names the hook and counts the seconds against its timeout', words.length > 0 && words.every(line => new RegExp(`^${WAITING.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d+ s of ${TIMEOUT_S}\\b`).test(line)), JSON.stringify(words))
   const seconds = words.map(line => Number(/(\d+) s of/.exec(line)?.[1] ?? -1))
   check(`the clock reads a moment inside the hold (1..${HOLD_S + 2} s)`, seconds.length > 0 && seconds.every(s => s >= 1 && s <= HOLD_S + 2), JSON.stringify(seconds))
-  check('the wait is said on the working strip (the status row the turn paints, beside its live counters)', lines.some(row => /ctx\)|tokens/.test(row.slice(row.indexOf(WAITING)))), lines.map(row => row.trim().slice(0, 140)).join(' | '))
+  check('the wait is said on the working strip (the status row the turn paints, beside its clock and token count)', lines.some(row => /\(\d+s · ↓ ~\d+\)/.test(row.slice(row.indexOf(WAITING)))), lines.map(row => row.trim().slice(0, 140)).join(' | '))
   check('the wait is also said on the Read row in the transcript, after its operation count', lines.some(row => /\d+ operations? · waiting on hook/.test(row)), `${lines.length} line(s): ${lines.map(row => row.trim().slice(0, 140)).join(' | ')}`)
 }
 check('the wait words leave the screen once the hook has run', done !== undefined && !rowsOf(done.grid).some(row => row.includes(WAITING)), done ? rowsOf(done.grid).filter(row => row.includes(WAITING)).join(' | ') : 'no done mark')

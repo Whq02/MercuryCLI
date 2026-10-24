@@ -714,7 +714,7 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
       const account = provider === 'anthropic' || provider === 'openai' ? activeWalletEntry(provider)?.id : engineIdentityLive(provider)
       const envIdentity = credentialFingerprint(PROVIDER_CREDENTIAL_ENV_VARS[provider].map(name => process.env[name] ?? '').join('\0'))
       const key = `${view.sourceKind}:${account ?? 'unidentified'}:${readSignInRecord(provider)?.at ?? 'untimed'}:${envIdentity}`
-      recordUsageObservations(provider, key, [...view.windows, ...view.pools])
+      await recordUsageObservations(provider, key, [...view.windows, ...view.pools])
     } catch {
     }
   }

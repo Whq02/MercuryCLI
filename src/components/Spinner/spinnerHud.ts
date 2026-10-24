@@ -20,7 +20,7 @@ const RAIL_INSET = 2
 const SEPARATOR_WIDTH = 3
 const HUD_ORDER = ['timer', 'tokens', 'attention'] as const
 
-export type HudSegment = { key: string; text: string }
+type HudSegment = { key: string; text: string }
 
 type HudFacts = {
   mode: SpinnerMode

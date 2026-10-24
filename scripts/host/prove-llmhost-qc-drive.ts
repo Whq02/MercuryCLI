@@ -115,7 +115,7 @@ try {
   }
   const choose = async (value: string) => { await select(value); mounted!.push(KEY.enter) }
   const capture = async (name: string) => {
-    check(name + ' has intact borders and no render error, credential or internal jargon', screen().includes('╰') && !screen().includes('RENDER ERROR') && [rp.key, vast.key, lambda.key].every(key => !screen().includes(key)) && !/\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)s?\b/i.test(screen()))
+    check(name + ' has intact borders and no render error, credential or internal jargon', screen().includes('╰') && !screen().includes('RENDER ERROR') && [rp.key, vast.key, lambda.key].every(key => !screen().includes(key)) && !/(?<![\\/\w.-])(door|road|seat|fold|lane|ladder|owner|law|pin|prover)s?(?![\\/\w.-])/i.test(screen()))
     if (!frames) return
     writeFileSync(join(frames, name + '.txt'), screen())
     const grid = mounted!.lines().map((line, y) => Array.from(line.padEnd(width)).map((c, x) => ({ c, bg: mounted!.styleAt(x, y)?.bg ?? 'default', fg: mounted!.styleAt(x, y)?.fg ?? 'default', bold: mounted!.styleAt(x, y)?.bold ?? false })))
@@ -196,7 +196,7 @@ try {
     check('the background bank job verifies the downloaded HF files against the trusted manifest the derived recipe now carries', bank.bankState(derived).banked && bank.bankState(derived).check === 'manifest')
     await choose('bank'); await step('door-bank')
     await capture(width + '-bank')
-    check('the Bank table and all five action keys are offered', ['MODEL', 'SIZE', 'BANKED', 'VERIFIED', 'VOLUME'].every(word => question!.rows![0]!.label.includes(word)) && question!.keys!.map(row => row.key).join() === 'b,v,m,d,k')
+    check('the Bank table shows a check column without a verification stamp and offers all five action keys', ['MODEL', 'SIZE', 'BANKED', 'CHECK', 'VOLUME'].every(word => question!.rows![0]!.label.includes(word)) && question!.rows!.every(row => !/\bverified\b/i.test(row.label)) && question!.keys!.map(row => row.key).join() === 'b,v,m,d,k')
     await select(derived.id)
     const beforeVerify = jobs.length
     mounted!.push('v')
@@ -224,7 +224,7 @@ try {
     await close()
     await open(); await choose('DeepSeek Tiny'); await step('door-model'); await choose('watch'); await step('rent-confirm')
     await capture(width + '-watch-confirm')
-    check('the watch confirm names all providers and the first-hit rule', question!.willRun.includes('first provider') && (question!.found + question!.willRun).includes('Runpod, Vast.ai, Lambda'))
+    check('the watch confirmation names all providers, the price ceiling, separate storage billing and when it stops', question!.found.includes('Runpod, Vast.ai, Lambda') && question!.found.includes('ceiling $1.23/hr') && question!.willRun.includes('Rents automatically at or below the ceiling; storage bills separately.') && question!.willRun.includes('Stops after 12 hours or on Cancel.'))
     await close()
     await open(); mounted!.push('deepseek'); assert.ok(await waitFor(() => question?.search?.query === 'deepseek', 10000)); mounted!.push(KEY.esc); await until('model name'); check('Escape clears first and leaves the model list open', popup.isSettingsPopupOpen()); await close()
     check('no bank job remains unfinished', hostRecords().every(record => record.jobKind !== 'bank'))

@@ -108,7 +108,7 @@ try {
         details += '\n' + mounted!.screen()
         check(columns + ' ' + model + ' pages facts without losing the selected vendor', selected().includes('Connect Runpod'))
       }
-      check(columns + ' ' + model + ' keeps every detail section reachable', ['QUALITY', 'CONVERSATIONS × CONTEXT', 'THINKING', 'WHERE'].every(word => details.includes(word)))
+      check(columns + ' ' + model + ' keeps quality, context, thinking and weights reachable', ['QUALITY', 'CONVERSATIONS × CONTEXT', 'THINKING', 'WEIGHTS'].every(word => details.includes(word)))
       check(columns + ' ' + model + ' rounds display weights without changing their budget', !/\d+\.\d{4}/.test(details))
       await capture(model + '-details-paged')
       await choose('Connect Runpod'); await step('runpod-key')
