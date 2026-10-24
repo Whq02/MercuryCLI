@@ -161,7 +161,7 @@ section('§3 /health: the Hidden characters row names each file, line and class;
   check('the clean row still counts the files it read', /2 instruction file\(s\) · 1 skill\(s\)/.test(cleanRow?.evidence ?? ''), cleanRow?.evidence)
 }
 
-section('§4 the chat: one warning line at the next turn names the file and the line, once')
+section('§4 the run reports each finding once, at startup or on the next turn')
 {
   const project = scratchProject('chat', true)
   const fixture = await startScriptedFixture(req => [{ type: 'text', text: req.ask.includes('again') ? 'second answer' : 'first answer' }])
@@ -215,10 +215,11 @@ section('§4 the chat: one warning line at the next turn names the file and the 
   await fixture.close()
   check('three turns complete against the fixture', first && second && third && code === 0 && outcomes().every(o => o.status === 'completed'), `${code} ${JSON.stringify(outcomes().map(o => o.status))} ${stderr.slice(0, 300)}`)
   const saved = sessionFilesOf(project.home)
-  const said = saved.filter(row => JSON.stringify(row).includes('MERCURY.md carries 5 hidden characters'))
-  check('the chat was told once that MERCURY.md carries five hidden characters, with the line and column', said.length === 1 && JSON.stringify(said[0]).includes('line 3, column 5: an invisible character (U+200B)') && JSON.stringify(said[0]).includes('loaded as written, nothing changed'), `${said.length} row(s): ${JSON.stringify(said).slice(0, 500)}`)
-  const importSaid = saved.filter(row => JSON.stringify(row).includes('notes/extra.md carries 2 hidden characters'))
-  check('the @import target was told once too', importSaid.length === 1, `${importSaid.length} row(s)`)
+  const reported = [...stderr.split('\n'), ...saved.map(row => JSON.stringify(row))]
+  const said = reported.filter(line => line.includes('MERCURY.md carries 5 hidden characters'))
+  check('the run reported MERCURY.md once, with five hidden characters and the line and column', said.length === 1 && said[0]!.includes('line 3, column 5: an invisible character (U+200B)') && said[0]!.includes('loaded as written, nothing changed'), `${said.length} report(s): ${JSON.stringify(said).slice(0, 500)}`)
+  const importSaid = reported.filter(line => line.includes('notes/extra.md carries 2 hidden characters'))
+  check('the @import target was reported once too', importSaid.length === 1, `${importSaid.length} report(s)`)
   check('the settings file finding reached stderr at the start of the run and the chat did not repeat it', /settings\.json carries 2 hidden characters/.test(stderr) && saved.filter(row => JSON.stringify(row).includes('settings.json carries')).length === 0, stderr.slice(0, 400))
   check('the model was still asked three times: nothing was refused and no file was changed', fixture.requests.length >= 3 && readFileSync(join(project.cwd, 'MERCURY.md'), 'utf8') === project.files['MERCURY.md'], `${fixture.requests.length} requests`)
 }

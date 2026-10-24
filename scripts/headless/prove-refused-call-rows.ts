@@ -43,7 +43,7 @@ try {
   tally.check('a tool_result row with status refused joins it and carries the reason', result !== undefined && result.status === 'refused' && typeof result.output === 'string' && result.output.length > 0, JSON.stringify(result))
   const callSeq = Number(call?.seq ?? -1)
   const resultSeq = Number(result?.seq ?? -1)
-  const noticeSeq = Number(run1.frames.find(row => row.type === 'notice')?.seq ?? -1)
+  const noticeSeq = Number(run1.frames.find(row => row.type === 'notice' && String(row.text ?? '').includes('Tool call refused before execution (Git)'))?.seq ?? -1)
   tally.check('the pair lands in order, before the correction notice', callSeq > 0 && resultSeq > callSeq && noticeSeq > resultSeq, JSON.stringify({ callSeq, resultSeq, noticeSeq }))
   tally.check('the refused call is not a denial: the outcome lists none', Array.isArray(outcome?.denials) && (outcome!.denials as unknown[]).length === 0, JSON.stringify(outcome?.denials))
 } finally {

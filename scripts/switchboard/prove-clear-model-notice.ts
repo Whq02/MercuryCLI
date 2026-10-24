@@ -4,7 +4,6 @@ import { homedir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { stripVTControlCharacters } from 'node:util'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { recordPty, type PtyRecord } from '../lib/ptyRecorder.ts'
 import { resolveCaptureDriver } from '../lib/captureDriver.ts'
@@ -62,7 +61,6 @@ async function road(name: 'keyless' | 'refused' | 'unchanged'): Promise<void> {
   const workers = (): any[] => Object.values(json(join(daemonDir, 'concourse-workers.json'))?.workers ?? {})
   const facts = (sid: string): any => json(join(daemonDir, 'session-facts', `${sid}.json`))
   const raw = (): string => Buffer.concat(pty.records.filter(r => r.direction === 'output').map(r => r.bytes)).toString()
-  const plain = (): string => stripVTControlCharacters(raw()).toLowerCase()
   function frame(label: string): string {
     const tee = join(frames, `${name}-${label}.tee`), grid = join(frames, `${name}-${label}.json`)
     const chunks = pty.records.filter(r => r.direction === 'output').map((r: PtyRecord, i: number) => {
@@ -77,7 +75,7 @@ async function road(name: 'keyless' | 'refused' | 'unchanged'): Promise<void> {
   }
   let old: any
   try {
-    assert(await until(() => plain().includes('new session')), `boot menu missing: ${frame('boot-failed')}`)
+    assert(await until(() => normal(frame('boot-probe')).toLowerCase().includes('new session')), `boot menu missing: ${frame('boot-failed')}`)
     pty.send('\r')
     assert(await until(() => workers().length > 0), 'the old chat was never admitted')
     old = workers().find(r => r.endedAt === undefined)
