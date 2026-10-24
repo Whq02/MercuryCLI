@@ -145,7 +145,9 @@ function sweepOwned(): { swept: string; refused: string } {
       refused.push(`${pid} recorded=${recordedStart ?? '(none)'} live=${liveStart}`)
       continue
     }
-    alive.push(`${pid} ${liveStart}`)
+    let args = ''
+    try { args = execFileSync('ps', ['-o', 'ppid=,stat=,args=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().slice(0, 240) } catch {}
+    alive.push(`${pid} ${liveStart} · ${args || '(gone before ps)'}`)
     try {
       process.kill(pid, 'SIGTERM')
     } catch {

@@ -627,7 +627,15 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     } else if (type === 'stdio') {
       stdioTransport = buildStdioTransport()
       transport = stdioTransport
-      releaseSpawnGuard = registerCleanup(async () => { spawnRefused = true; await endStdioTree(); await stdioTransport?.close().catch(() => {}) })
+      releaseSpawnGuard = registerCleanup(async () => {
+        spawnRefused = true
+        const pid = stdioTransport?.pid ?? null
+        if (pid !== null) {
+          const { endProcessTree } = await import('../../utils/processGroup.js')
+          await endProcessTree(pid, 'SIGKILL').catch(() => {})
+        }
+        await stdioTransport?.close().catch(() => {})
+      })
     } else {
       throw new Error(`Unsupported MCP server type: ${String(type)}`)
     }
