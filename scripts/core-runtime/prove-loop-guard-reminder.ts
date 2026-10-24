@@ -320,7 +320,7 @@ section('R1 — the same Grep nine times: a notice after the 3rd, 5th and 8th re
   check('the gentle sentence first appears in the 4th request (never earlier)', firstRequestWith(run, GENTLE) === 3, `first=${firstRequestWith(run, GENTLE)}`)
   check('no new notice after the 4th result', !requestText(run, 4).includes(NAMED_FIVE) && !requestText(run, 4).includes(NAMED_EIGHT))
   check('the named notice with the run length 5 rides after the 5th result', requestText(run, 5).includes(NAMED_FIVE), `request 5: ${requestText(run, 5).slice(-600)}`)
-  check('the 5-notice carries a capped preview of the arguments', /identical arguments \([^)]*needle/.test(requestText(run, 5)))
+  check('the 5-notice carries a capped preview of the arguments: the key and its shape, never the value', /identical arguments \(\{\\"path\\": \\"\/tmp\/haystack\\", \\"pattern\\": <6 chars>\}\)/.test(requestText(run, 5)), requestText(run, 5).match(/Loop notice[^\]]{0,400}/)?.[0] ?? '(no notice)')
   check('no new notice after the 6th or 7th result', !requestText(run, 7).includes(NAMED_EIGHT), `first8=${firstRequestWith(run, NAMED_EIGHT)}`)
   check('the named notice with the run length 8 rides after the 8th result', requestText(run, 8).includes(NAMED_EIGHT), `request 8: ${requestText(run, 8).slice(-600)}`)
   check('the notice reaches the model as a system reminder on the wire (the attachment row, enveloped at the wire door behind the tool result)', /<system-reminder>[^"]*Loop check/.test(wireText(run, 3)), wireText(run, 3).slice(-400))

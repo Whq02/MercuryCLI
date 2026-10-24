@@ -228,7 +228,7 @@ section('A — the same Grep twice, one per round, byte-identical answers: the s
   const pointer = String(secondSent?.content ?? '')
   check(`the second result is the pointer (starts with "${REPEATED_RESULT_TAG}")`, pointer.startsWith(REPEATED_RESULT_TAG), pointer.slice(0, 200))
   check('the pointer names the earlier call by its id and the exact length', pointer.includes(`call ${first}`) && pointer.includes(`${LONG.length} characters`), pointer)
-  check('the pointer names the tool and previews the arguments', pointer.includes('this Grep call') && pointer.includes('"pattern":"needle"'), pointer)
+  check('the pointer names the tool and previews the arguments by address and shape, never value', pointer.includes('this Grep call') && pointer.includes('"path": "/tmp/haystack"') && pointer.includes('"pattern": <6 chars>') && !pointer.includes('needle"'), pointer)
   check('the pointer is short beside the text it replaces', pointer.length < LONG.length / 2, `${pointer.length} vs ${LONG.length}`)
   check('the pointer is not an error result', secondSent?.is_error !== true)
   const kept = pointerFile(pointer)
