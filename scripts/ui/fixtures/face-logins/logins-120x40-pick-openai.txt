@@ -11,7 +11,7 @@
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │ OpenAI                                                         │  │ ❯ ChatGPT subscription — browser sign-in   │
    │ ❯ ChatGPT subscription — browser sign-in                       │  │                                            │
-   │   OpenAI API key — paste one (stored locally, mode 600)        │  │ One OpenAI family, two credentials:        │
+   │   OpenAI API key — usage-based billing                         │  │ One OpenAI family, two credentials:        │
    ╰────────────────────────────────────────────────────────────────╯  │ the ChatGPT subscription signs in with     │
                                                                        │ the browser (d on the wait switches to     │
                                                                        │ a device code); an API key bills           │

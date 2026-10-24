@@ -7,16 +7,16 @@
 
    ↑ 5 more
    available
-     OpenRouter — one credential, the whole …  not signed in
+     OpenRouter — browser sign-in or API key   not signed in
      Google Gemini — Google sign-in, API key   not signed in
      GLM (Z.AI) — API key (general or GLM Co…  not signed in
      DeepSeek — API key                        not signed in
    ❯ xAI — Grok subscription sign-in or API …  not signed in
      Meta — Muse Code sign-in or API key       not signed in
-     Mistral — API key (Mistral Large 4)       not signed in
-     Nous Portal — account sign-in or API ke…  not signed in
-     MiniMax — API key or M Plan key (M3, M2…  not signed in
-     Together AI — API key (the gateway's ch…  not signed in
+     Mistral — API key                         not signed in
+     Nous Portal — sign-in or API key          not signed in
+     MiniMax — API key or M Plan key           not signed in
+     Together AI — API key                     not signed in
    ↓ 6 more
 
    xAI · not signed in

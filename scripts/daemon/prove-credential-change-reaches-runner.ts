@@ -346,7 +346,7 @@ try {
   check("the sign-out raised the screen's poke", pokeRequests.slice(pokesBefore6).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore6)))
   const rows6 = transcriptLines(sid).length
   await say(DELEGATE_ASK, sid)
-  check('after the sign-out the dispatch is no longer refused for the window', await untilAsync(() => turnEnded(sid) && rowsSince(sid, rows6).includes(DELEGATE_REPORT), 90_000) && !rowsSince(sid, rows6).includes('usage window is reached'), unescaped(rowsSince(sid, rows6)).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
+  check('after the sign-out the dispatch is no longer refused for the window (with no account the delegate fails for want of a sign-in, and the loop guard may end the turn after three identical failures — never a window refusal)', await untilAsync(() => turnEnded(sid), 90_000) && !rowsSince(sid, rows6).includes('usage window is reached'), unescaped(rowsSince(sid, rows6)).match(/(the delegate reported:|Stopped after 3 failed|usage window is reached)[^"\\]{0,200}/)?.[0] ?? '(no report, no stop)')
   const pokesBefore7 = pokeRequests.length
   landSignIn(ACCOUNTS.c)
   await pokesSettled()

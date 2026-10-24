@@ -918,7 +918,7 @@ for (const cols of [80, 120]) {
     scene.push('\x1b[H')
     await waitFor(() => focus().includes('Sign in / re-login'), 1800)
     scene.push(keys.enter)
-    check(cols + ' login account card: Enter opens credential choices without authentication', await waitFor(() => scene.screen().includes('pick the credential'), 1800), scene.screen())
+    check(cols + ' login account card: Enter opens credential choices without authentication', await waitFor(() => scene.screen().includes('ChatGPT subscription — browser sign-in') && scene.screen().includes('OpenAI API key — usage-based billing'), 1800), scene.screen())
     scene.push(keys.esc)
     await settledFrame(scene)
     scene.push(keys.esc)

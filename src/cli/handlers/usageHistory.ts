@@ -10,7 +10,7 @@ const hitRate = (row: UsageTotals): string => row.inputTokens > 0 ? `${(100 * ro
 const usd = (row: UsageTotals): string => row.turns === row.unpricedTurns && row.turns > 0 ? '—' : `$${row.costUSD.toFixed(4)}`
 
 function projectLabels(paths: string[]): Map<string, string> {
-  const parts = paths.map(path => path.replace(/\\/g, '/').split('/').filter(Boolean))
+  const parts = paths.map(path => path.split(/[\\/]+/).filter(Boolean))
   return new Map(paths.map((path, index) => {
     const own = parts[index]!
     for (let depth = 1; depth <= own.length; depth++) {

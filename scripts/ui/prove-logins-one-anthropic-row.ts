@@ -84,7 +84,7 @@ const OLD_USAGE_ROW = 'Usage-based billing — Anthropic Console sign-in or API 
 const ANTHROPIC_ROW = 'Anthropic — Claude subscription or Console sign-in / API key'
 const SUBSCRIPTION_ARM = 'Claude subscription — browser sign-in'
 const USAGE_ARM = 'Usage-based billing — Anthropic Console sign-in or API key'
-const CARD_PICK_TITLE = 'Anthropic — pick the credential to connect.'
+const CARD_PICK_TITLE = 'Usage-based billing — Anthropic Console'
 const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
 const PICK_LEGEND = '↑↓ move · ↵ pick · esc back'
 const ESC = '\x1b'
@@ -238,7 +238,7 @@ section('§2 the /logins card: the one row, then the arm pick, each arm its own 
   await key(m, DOWN)
   await key(m, ENTER)
   const pickUp = await waitFor(() => m.screen().includes(CARD_PICK_TITLE), 3000)
-  check('↵ on the Anthropic row opens the arm pick, titled like the OpenAI one', pickUp, m.screen().split('\n').filter(l => l.trim()).slice(0, 6).join(' | '))
+  check('↵ on the Anthropic row opens the arm pick (the Claude subscription and Anthropic Console rows)', pickUp, m.screen().split('\n').filter(l => l.trim()).slice(0, 6).join(' | '))
   check('the pick offers the subscription arm', m.screen().includes(SUBSCRIPTION_ARM))
   check('the pick offers the usage-based arm', m.screen().includes(USAGE_ARM))
   check('the pick started nothing by itself', starts.length === 0, JSON.stringify(starts))

@@ -332,7 +332,7 @@ for (const s of sizes) {
     save(board.m, s, `${estate}-menu`)
     if (compact) {
       check(`${estate} compact: the one Anthropic row is on the menu`, board.m.screen().includes('Anthropic — Claude subscription') && !board.m.screen().includes('Claude subscription account') && !board.m.screen().includes('Usage-based billing —'))
-      check(`${estate} compact: a signed-in family row carries its identity chip inline`, await walk(board.m, 'Groq — API key (text models) · groq@example.com', KEY.down))
+      check(`${estate} compact: a signed-in family row carries its identity chip inline`, await walk(board.m, 'Groq — API key · groq@example.com', KEY.down))
       fits(board.m, s, `${estate} estate`)
     } else {
       check(`${estate} readiness reaches the credentialed family rows`, await walk(board.m, 'ready · oauth'))

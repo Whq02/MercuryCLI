@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
+import { homedir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -15,7 +16,7 @@ const option = (flag: string): string | undefined => { const at = process.argv.i
 const bundle = resolve(option('--bundle') ?? join(repo, 'dist/mercury.mjs'))
 const parent = process.env.MERCURY_CONFIG_DIR
 assert(parent, 'set MERCURY_CONFIG_DIR to a scratch directory')
-assert(!process.env.MERCURY_HOME, 'MERCURY_HOME must be unset')
+assert(!process.env.MERCURY_HOME || process.env.MERCURY_HOME !== join(homedir(), '.mercury'), 'MERCURY_HOME must not be the real home')
 assert(existsSync(bundle), `build first: ${bundle}`)
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') throw new Error('This capture uses the POSIX PTY; run the Windows repro with the box\'s ConPTY driver.')

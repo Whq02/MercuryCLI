@@ -125,7 +125,7 @@ const RENDERERS: Record<string, string> = {
 };
 const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8') + (k === 'spinner' ? `\n${readFileSync('src/components/Spinner/spinnerHud.ts', 'utf8')}` : '')]));
 for (const [name, src] of Object.entries(sources)) {
-  check(`${name}: imports the thinking grammar owner`, src.includes("/thinkingGrammar.js'"));
+  check(name === 'spinner' ? `${name}: imports no thinking grammar (the strip paints no phase word)` : `${name}: imports the thinking grammar owner`, name === 'spinner' ? !src.includes("/thinkingGrammar.js'") : src.includes("/thinkingGrammar.js'"));
   check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK') && !code(src).includes('\u273B'));
   check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
 }
@@ -137,8 +137,8 @@ check(
   'live tail: draws no thinking line of its own (no grammar import, no label, no thinking word, no route read, no model subscription)',
   !tail.includes("/thinkingGrammar.js'") && !tail.includes('ThinkingLabel') && !/\bthinking\b/i.test(tail) && !tail.includes('declaredRouteOf') && !tail.includes('subscribeThroughFocused') && !tail.includes('modelFacts') && !tail.includes('useAppState'),
 );
-check('spinner: the HUD word is the grammar word (full label and bare fallback)', sources.spinner!.includes('`${THINKING_WORD}${effortSuffix') && sources.spinner!.includes('text: THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
-check('spinner: the segment paints the grammar colour at rest (the dim override that beat it is gone)', sources.spinner!.includes('return THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
+check('spinner: the HUD paints no thinking word (the phase words are gone from the strip)', !sources.spinner!.includes('THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
+check('spinner: no thinking colour and no dim override remain on the strip', !sources.spinner!.includes('THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
 
 const walk = (dir: string, out: string[]): void => {
   for (const e of readdirSync(dir)) {

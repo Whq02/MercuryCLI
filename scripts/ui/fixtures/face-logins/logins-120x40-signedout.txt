@@ -12,24 +12,24 @@
    │ available                                                      │  │ ❯ OpenAI — ChatGPT subscription or API key │
    │ ❯ OpenAI — ChatGPT subscription or API key       not signed in │  │                                            │
    │   Anthropic — Claude subscription or Cons…       not signed in │  │ OpenAI                                     │
-   │   OpenRouter — one credential, the whole …       not signed in │  │                                            │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │                                            │
    │   Google Gemini — Google sign-in, API key        not signed in │  │ OpenAI — ChatGPT subscription or API       │
-   │   Hugging Face — device-code sign-in or a…       not signed in │  │ key                                        │
+   │   Hugging Face — sign-in or Hub token            not signed in │  │ key                                        │
    │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ state: not signed in                       │
    │   DeepSeek — API key                             not signed in │  │ · no sign-in on this arm yet               │
    │   xAI — Grok subscription sign-in or API …       not signed in │  │                                            │
    │   Meta — Muse Code sign-in or API key            not signed in │  │ · no credential for this family            │
-   │   Mistral — API key (Mistral Large 4)            not signed in │  │                                            │
-   │   Nous Portal — account sign-in or API ke…       not signed in │  ╰────────────────────────────────────────────╯
-   │   MiniMax — API key or M Plan key (M3, M2…       not signed in │  ╭────────────────────────────────────────────╮
-   │   Together AI — API key (the gateway's ch…       not signed in │  │ LOGINS                                     │
-   │   Cohere — API key (Command A+, North)           not signed in │  │ Families   20                              │
-   │   Groq — API key (text models)                   not signed in │  │ Signed in  0 of 20                         │
-   │   Cerebras — API key (text models)               not signed in │  │ Ready      0 lanes                         │
-   │   Fireworks — API key (text models)              not signed in │  ╰────────────────────────────────────────────╯
-   │   Qwen — QwenCloud or Model Studio API ke…       not signed in │  ╭────────────────────────────────────────────╮
-   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ ENVIRONMENT                                │
+   │   Mistral — API key                              not signed in │  │                                            │
+   │   Nous Portal — sign-in or API key               not signed in │  ╰────────────────────────────────────────────╯
+   │   MiniMax — API key or M Plan key                not signed in │  ╭────────────────────────────────────────────╮
+   │   Together AI — API key                          not signed in │  │ LOGINS                                     │
+   │   Cohere — API key                               not signed in │  │ Families   20                              │
+   │   Groq — API key                                 not signed in │  │ Signed in  0 of 20                         │
+   │   Cerebras — API key                             not signed in │  │ Ready      0 lanes                         │
+   │   Fireworks — API key                            not signed in │  ╰────────────────────────────────────────────╯
+   │   Qwen — QwenCloud or Model Studio API key       not signed in │  ╭────────────────────────────────────────────╮
+   │   OpenCode Zen — API key                         not signed in │  │ ENVIRONMENT                                │
    ╰────────────────────────────────────────────────────────────────╯  │ Mercury    Opus 5                          │
                                                                        │ Critter    Octopus                         │
                                                                        │ Dir        orchard-src                     │

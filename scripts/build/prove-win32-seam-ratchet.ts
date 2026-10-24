@@ -24,7 +24,7 @@ function walk(dir: string, out: string[]): void {
     if (s.isDirectory()) {
       if (e === 'node_modules' || e === '__snapshots__') continue
       walk(p, out)
-    } else if (p.endsWith('.ts') || p.endsWith('.tsx')) {
+    } else if ((p.endsWith('.ts') || p.endsWith('.tsx')) && e !== 'content.generated.ts') {
       out.push(p)
     }
   }

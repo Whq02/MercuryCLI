@@ -563,7 +563,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 20', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — account sign-in or API ke…', 'MiniMax — API key or M Plan key (M3, M2…', 'Together AI — API key (the gateway\'s ch…', 'Cohere — API key (Command A+, North)', 'Groq — API key (text models)', 'Cerebras — API key (text models)', 'Fireworks — API key (text models)', 'Qwen — QwenCloud or Model Studio API ke…', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 20', 'xAI — Grok subscription sign-in or API …', 'Meta — Muse Code sign-in or API key', 'Mistral — API key', 'Nous Portal — sign-in or API key', 'MiniMax — API key or M Plan key', 'Together AI — API key', 'Cohere — API key', 'Groq — API key', 'Cerebras — API key', 'Fireworks — API key', 'Qwen — QwenCloud or Model Studio API key', 'OpenCode Zen — API key'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -682,7 +682,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['anthropic', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
 
   const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
-  t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — paste one (stored locally, mode 600)']))
+  t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — usage-based billing']))
   t.check('the anthropic pick is the row owner\'s two-arm pair, byte-same labels, the roads in their values', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' }]))
   const consoleFlowSrc = read('src/components/ConsoleOAuthFlow.tsx')
   t.check(

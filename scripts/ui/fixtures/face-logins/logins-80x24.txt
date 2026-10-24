@@ -5,18 +5,18 @@
  signed in
  ❯ OpenAI — ChatGPT subscription or API key  ChatGPT Plus
    Anthropic — Claude subscription or Cons…  op@example.com
-   Hugging Face — device-code sign-in or a…  keyed-op …k9f2
+   Hugging Face — sign-in or Hub token       keyed-op …k9f2
    Kimi (Moonshot) — device-code sign-in o…  kimi.ai (global) · window reached
  available
-   OpenRouter — one credential, the whole …  not signed in
+   OpenRouter — browser sign-in or API key   not signed in
    Google Gemini — Google sign-in, API key   not signed in
    GLM (Z.AI) — API key (general or GLM Co…  not signed in
    DeepSeek — API key                        not signed in
    xAI — Grok subscription sign-in or API …  not signed in
    Meta — Muse Code sign-in or API key       not signed in
-   Mistral — API key (Mistral Large 4)       not signed in
-   Nous Portal — account sign-in or API ke…  not signed in
-   MiniMax — API key or M Plan key (M3, M2…  not signed in
+   Mistral — API key                         not signed in
+   Nous Portal — sign-in or API key          not signed in
+   MiniMax — API key or M Plan key           not signed in
  ↓ 7 more
 
  OpenAI · ChatGPT Plus

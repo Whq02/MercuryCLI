@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { waitFor } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => {
@@ -20,6 +21,7 @@ delete process.env.NO_COLOR
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', IS_DEV: false }
 
+const sceneNeedle = (scene: string): string => scene === 'still' ? 'compacting context' : scene === 'crew-view' ? 'layout' : scene === 'permission-ask' ? 'Yes' : scene === 'provider-error' ? 'Fixture provider unavailable' : '↓'
 const states = ['thinking', 'thinking-frame', 'reply-streaming', 'long-prefill', 'one-tool', 'several-tools', 'waiting-on-crewmates', 'crew-view', 'reconnect', 'permission-ask', 'compaction', 'still', 'streaming-hold', 'provider-error']
 const noise = /reading the prompt|reading \d+k tokens of context|waiting for the first token|still waiting|first.byte budget|first byte expected|\bthinking\b|\bwriting\b|summarising|micro-compaction|restoring|↻/
 const child = arg('--child')
@@ -107,7 +109,7 @@ if (child) {
       }
     }
   })()
-  await new Promise<void>(r => setTimeout(r, 800))
+  await waitFor(() => streaming.replyChars > 0 && streaming.phase === 'writing', 4000)
   const frozen = { ...streaming }
   const reconnect: Facts = { ...prefill, sentAtMs: started - 130_000, wait: { kind: 'retry', attempt: 2, of: 5, sinceMs: started, delayMs: 1000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120_000 } }
   let fold = foldStatusOnEvent(beginFoldStatus({ trigger: 'auto', startedAtMs: started - 20_000, sessionMemory: false, microcompaction: true }), { type: 'compact_start' })
@@ -177,7 +179,7 @@ if (child) {
   for (const [cols, rows] of [[80, 24], [120, 40]].filter(([cols]) => !arg('--cols') || cols === Number(arg('--cols')))) {
     for (const scene of arg('--state') ? [arg('--state')!] : states) {
       const stem = join(out, `${before ? 'before' : 'after'}-${scene}-${cols}x${rows}`)
-      writeFileSync(`${stem}.cfg.json`, JSON.stringify({ argv: [process.execPath, resolve(import.meta.path), '--child', scene, '--receipt', `${stem}.receipt.json`], cwd: ROOT, cols, rows, total: 40, sends: [], out: `${stem}.json` }))
+      writeFileSync(`${stem}.cfg.json`, JSON.stringify({ argv: [process.execPath, resolve(import.meta.path), '--child', scene, '--receipt', `${stem}.receipt.json`], cwd: ROOT, cols, rows, total: 40, sends: [{ mark: 'scene', data: '', atTick: 999, awaitText: sceneNeedle(scene), requireAwait: true }], out: `${stem}.json` }))
       const capture = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), `${stem}.cfg.json`], { cwd: ROOT, env: process.env, encoding: 'utf8', timeout: 45_000 })
       if (capture.status !== 0) throw new Error(capture.stderr || capture.stdout || `capture exited ${capture.status}`)
       const receipt = JSON.parse(readFileSync(`${stem}.receipt.json`, 'utf8'))

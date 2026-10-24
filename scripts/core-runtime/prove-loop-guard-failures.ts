@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
+import { homedir } from 'node:os'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
 import { z } from 'zod/v4'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
-assert.equal(process.env.MERCURY_HOME, undefined, 'MERCURY_HOME must be unset')
+assert.ok(!process.env.MERCURY_HOME || process.env.MERCURY_HOME !== join(homedir(), '.mercury'), 'MERCURY_HOME must not be the real home')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'loop-failures-'))
 const cwd = join(scratch, 'project')

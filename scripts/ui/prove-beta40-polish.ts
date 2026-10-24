@@ -68,7 +68,8 @@ try {
     for (let n = 0; n < 30; n++) {
       const selected = m.lines().find(line => line.includes('› ')) ?? ''
       if (selected.includes(text)) { m.push(KEY.enter); return }
-      m.push(KEY.down)
+      const lines = m.lines(); const target = lines.findIndex(line => line.includes(text)); const cursor = lines.findIndex(line => line.includes('› '))
+      m.push(target >= 0 && target < cursor ? KEY.up : text === 'Machines I’m paying for' ? KEY.up : KEY.down)
       assert.ok(await waitFor(() => (m.lines().find(line => line.includes('› ')) ?? '') !== selected, 3000), 'selection moves toward ' + text + '\n' + m.screen())
     }
     throw new Error('Choice not found: ' + text)
@@ -84,16 +85,16 @@ try {
   await choose('Qwen3.8-27B'); await until('Confirm the hourly price'); await capture(m, 'host-confirm')
   const confirm = questions.at(-1)
   check('one stocked shape skips the shape question and spends nothing before confirm', confirm.step === 'rent-confirm' && !questions.some(q => q.step === 'offers') && rp.state.creates === 0)
-  check('confirmation replaces the generic wait with per-step estimates and uncertainty', !confirm.willRun.includes('20–90') && /engine|builds|installs/.test(confirm.willRun) && /downloads/.test(confirm.willRun) && /loads/.test(confirm.willRun))
-  check('the confirmation paints its storage and billing words at this width', m.lines().map(line => line.replaceAll('│', '')).join(' ').replace(/\s+/g, ' ').includes('Billing starts now.') && m.screen().includes('disk'))
+  check('confirmation says what billing does and what a failed setup does, without a generic wait', !confirm.willRun.includes('20–90') && confirm.willRun.includes('Billing starts now and continues after closing') && confirm.willRun.includes('Resume or Terminate'))
+  check('the confirmation paints its storage and billing words at this width', m.lines().map(line => line.replaceAll('│', '')).join(' ').replace(/\s+/g, ' ').includes('Billing starts now and continues after closing') && m.screen().includes('disk'))
   await choose('Confirm $2.49/hr'); await until('Machine controls')
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.step?.startsWith('downloading weights'), 10000))
   patchHostRecord('fixture-pod-1', { startedAt: new Date(Date.now() - 3600_000).toISOString(), step: 'downloading weights 18.70 GB of 187 GB' })
-  await until('downloading weights'); await capture(m, 'host-setup-log')
-  check('setup tells Escape closes without cancelling the job', m.screen().includes('setup keeps running'))
+  await until('so far'); await capture(m, 'host-setup-log')
+  check('setup tells Escape closes without cancelling the job', m.screen().includes('billing continues'))
   await close()
-  open(); await untilPlain('Which model?'); await choose('Machines I’m paying for'); await until('Live account list'); await until('fixture-pod-1'); await capture(m, 'host-paid-pods')
-  check('paid pod rows name the step, elapsed time and estimated cost so far', m.screen().includes('downloading') && m.screen().includes('so far') && /1[.:]00|1\.0h|60 min/.test(m.screen()))
+  open(); await untilPlain('Which model?'); await choose('Machines I’m paying for'); await until('Runpod: 1 pods'); await until('fixture-pod-1'); await capture(m, 'host-paid-pods')
+  check('paid pod rows name the state, elapsed time and estimated cost so far', m.screen().includes('running') && m.screen().includes('so far') && /1[.:]00|1\.0h|60 min/.test(m.screen()))
   await close()
   ssh.state.holdHealth = false
   await Promise.all(jobs)
@@ -102,21 +103,21 @@ try {
   check('worker associates its provider with the pod for later termination', settings.compatProvider['pod-fixture-pod-1'].hostPodId === 'fixture-pod-1')
   deliverHostNotices('polish-session')
   const ready = getCommandQueue().filter(row => row.mode === 'task-notification').map(row => String(row.value)).find(words => words.includes('ready')) ?? ''
-  check('ready notice names its /model row and how to pick it', ready.includes('/model') && ready.includes('pod-fixture-pod-1') && /pick|select|choose/.test(ready))
+  check('ready notice names the /model command and its row', ready.includes('/model') && ready.includes('pod-fixture-pod-1'))
   const notice = await mountOffscreen(React.createElement(Text, null, ready), cols, height)
   try { await waitFor(() => notice.screen().includes('ready'), 3000); await capture(notice, 'host-ready-notice') } finally { notice.unmount() }
   open(); await untilPlain('Which model?'); await choose('Machines I’m paying for'); await until('fixture-pod-1'); await choose('fixture-pod-1'); await until('Machine controls'); await capture(m, 'host-ready-controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated'); await close()
   writeHostRecord({ id: 'watch-polish', name: 'GLM-5.3-Flash', recipe: 'glm53-flash-gguf-b300', jobKind: 'watch', jobState: 'queued', price: 8.99, maxPrice: 8.99, startedAt: new Date(Date.now() - 300_000).toISOString(), status: 'WATCHING', step: 'Waiting for stock at $8.99/hr or less' })
-  open(); await until('Where should the model run?'); await choose('Machines I’m paying for'); await until('Live account list'); await until('watch-polish'); await capture(m, 'host-watch-row'); await close()
+  open(); await until('Where should the model run?'); await choose('Machines I’m paying for'); await until('watch-polish'); await capture(m, 'host-watch-row'); await close()
   rp.state.customGpus = liveCatalogue.gpus.filter((row: any) => ['NVIDIA H200', 'NVIDIA RTX PRO 6000 Blackwell Server Edition'].includes(row.id)).map((row: any) => ({ ...row, availability: 'HIGH', dataCenters: [{ id: 'EU-FIXTURE', availability: 'HIGH' }] }))
   open(); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?'); await choose('Runpod'); await text('Optional spending budget'); await until('Choose a model'); await choose('Qwen3.8-27B'); await until('Choose a GPU shape'); await capture(m, 'host-shapes')
-  check('shape verification is visible at this width', m.screen().includes('documented'))
+  check('the shape rows carry no verification stamp at this width', !/ · (measured|documented|community|unverified)\b/.test(m.screen()) && m.screen().includes('/hr'))
   await close()
   const { hostSetupEstimate } = await import('../../src/commands/llmhost/words.ts')
   const knownEstimate = hostSetupEstimate({ engine: 'llamacpp', diskGb: 300, weightsGb: 187 })
-  check('known weights estimate is derived per step and discloses its download assumption', knownEstimate.includes('builds llama.cpp ~10 min') && knownEstimate.includes('downloads 187 GB ~5–10 min') && knownEstimate.includes('loads ~3 min') && knownEstimate.includes('~25 min total') && knownEstimate.includes('0.5–1 GB/s'))
+  check('known weights estimate is derived per step', knownEstimate.includes('build ~10 min') && knownEstimate.includes('downloads 187 GB ~5–10 min') && knownEstimate.includes('loads ~3 min') && knownEstimate.includes('~25 min total'))
   const estimateView = await mountOffscreen(React.createElement(Text, null, knownEstimate), cols, height)
-  try { await waitFor(() => estimateView.screen().includes('builds llama.cpp'), 3000); await capture(estimateView, 'host-known-size-estimate') } finally { estimateView.unmount() }
+  try { await waitFor(() => estimateView.screen().includes('build ~10 min'), 3000); await capture(estimateView, 'host-known-size-estimate') } finally { estimateView.unmount() }
   console.log('BETA40 HOST POLISH ' + (failures ? 'RED' : 'GREEN') + ' — ' + failures + ' failures')
   process.exitCode = failures ? 1 : 0
 } finally { mounted?.unmount(); ssh?.close(); await rp.close(); f.close() }

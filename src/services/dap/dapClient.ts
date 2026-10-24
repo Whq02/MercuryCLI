@@ -22,7 +22,7 @@ import { projectExternalState } from '../primitives/externalProjection.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
+import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../utils/processGroup.js'
 import {
   findGodotProjectRoot,
   godotBridgeCommand,
@@ -2013,9 +2013,7 @@ export class DapSession {
   killSync(): void {
     this.#lifetime.abort()
     for (const process of this.#terminalProcesses) {
-      if (process.pid !== undefined && globalThis.process.platform !== 'win32') {
-        try { globalThis.process.kill(-process.pid, 'SIGKILL') } catch {  }
-      }
+      strikeProcessGroupNow(process, 'SIGKILL')
       process.kill('SIGKILL')
     }
     this.#terminalProcesses.clear()

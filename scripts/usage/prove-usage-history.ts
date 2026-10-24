@@ -2,6 +2,7 @@
 // gate-watch: src/utils/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/utils/modelCost.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/providerUsage.ts
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -85,8 +86,8 @@ try {
       if (process.platform !== 'win32') {
         const grid = join(captures, `usage-${width}.grid.json`)
         const config = join(scratch, `capture-${width}.json`)
-        writeFileSync(config, JSON.stringify({ cols: width, rows: 40, total: 30, cwd: project, argv: ['node', '--require', netGuard, cli, 'usage', '--history'], out: grid }))
-        const capture = spawnSync('python3', [join(root, 'scripts/ui/vshot.py'), config], { env: process.env, encoding: 'utf8', timeout: 30_000 })
+        writeFileSync(config, JSON.stringify({ cols: width, rows: 40, total: 30, cwd: project, argv: ['node', '--require', netGuard, cli, 'usage', '--history'], readyText: 'By model', out: grid }))
+        const capture = spawnCaptureSync('python3', [join(root, 'scripts/ui/vshot.py'), config], { env: process.env, encoding: 'utf8', timeout: 30_000 })
         assert.equal(capture.status, 0, capture.stderr)
         assert.match(capture.stdout, /By model/)
         const { gridToPng } = await import('../ui/gridToPng.ts')

@@ -26,7 +26,7 @@ function srcFiles(dir: string, out: string[] = []): string[] {
     const p = join(dir, name)
     const st = statSync(p)
     if (st.isDirectory()) srcFiles(p, out)
-    else if (/\.(ts|tsx)$/.test(name)) out.push(p)
+    else if (/\.(ts|tsx)$/.test(name) && name !== 'content.generated.ts') out.push(p)
   }
   return out
 }

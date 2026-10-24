@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { mountOffscreen, waitFor, pinSourceRef, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -48,7 +48,7 @@ const { setComposerInsert } = await import('../../src/components/PromptInput/com
 const { getFocusedWorkspaceCwd } = await import('../../src/hooks/useFocusedWorkspaceCwd.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-assert.equal(getFocusedWorkspaceCwd(), root, 'the real file slot must browse the fixture workspace')
+assert.equal(realpathSync(getFocusedWorkspaceCwd()), realpathSync(root), 'the real file slot must browse the fixture workspace')
 const h = React.createElement
 const keys = { down: '\x1b[B', up: '\x1b[A', left: '\x1b[D', esc: '\x1b', enter: '\r', pgdn: '\x1b[6~', pgup: '\x1b[5~' }
 let failures = 0

@@ -101,12 +101,11 @@ async function mountAndSample(reducedMotion: boolean, samplesMs: number[], respo
   return out
 }
 
-console.log('the thinking label holds its colour for the first three seconds of EACH think, however long the row has been up')
+console.log('the working strip paints no thinking label at any moment of a think: the verb, the clock and the count are the row')
 const [quiet] = await mountAndSample(true, [400])
-check('the still reference: a reduced-motion think paints the label in the thinking colour', quiet !== null, 'no thinking label ink found')
+check('a reduced-motion think paints no thinking label', quiet === null, `label ink ${quiet}`)
 const [early, late1, late2] = await mountAndSample(false, [400, 3_900, 4_250], 3_600)
-check(`a think that begins 3.6 s into the turn (the row was responding) is quiet at first: its label wears the thinking colour at 0.4 s (${early})`, early !== null && early === quiet, `early ${early} · quiet ${quiet}`)
-check(`…and shimmers once the think itself is three seconds old (3.9 s ${late1} · 4.25 s ${late2})`, late1 !== null && late2 !== null && (late1 !== quiet || late2 !== quiet), `quiet ${quiet}`)
+check('a think that begins 3.6 s into the turn paints no thinking label at 0.4 s, 3.9 s or 4.25 s', early === null && late1 === null && late2 === null, `early ${early} · 3.9 s ${late1} · 4.25 s ${late2}`)
 
-console.log(failures === 0 ? '\n✅ thinking shimmer quiet GREEN — three still seconds per think' : `\n❌ thinking shimmer quiet RED — ${failures} failure(s)`)
+console.log(failures === 0 ? '\n✅ thinking shimmer quiet GREEN — no phase word on the strip' : `\n❌ thinking shimmer quiet RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

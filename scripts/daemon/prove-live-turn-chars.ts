@@ -106,8 +106,8 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   const hud = read('src/components/Spinner/spinnerHud.ts')
   check(
-    'the spinner still keys its display and tok/s off the ref (the fed ref revives both)',
-    spinner.includes('responseLengthRef.current') && spinner.includes('smoothedOtpsRef'),
+    'the spinner still keys its display and tok/s off the ref (the fed ref revives both: the count read from the ref feeds useOutputRate)',
+    spinner.includes('responseLengthRef.current') && /useOutputRate\(\s*liveTurnFactsRef\?\.current\.replyChars \?\? currentResponseLength/.test(spinner),
   )
   check('the spinner paints the count from the one words function (liveCounterWords: the wire figure as a fact, characters over four with the ~ mark, the thinking count apart, no count while nothing has arrived) — the old zero-persisting tokens text is gone', hud.includes('return facts.liveWords.count') && !spinner.includes('tokenDirection') && !hud.includes('tokenDirection'))
   check('the cadence beside it stays a text rate and its label says so', hud.includes('`~${facts.otps} tok/s`'))
