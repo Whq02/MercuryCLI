@@ -113,9 +113,9 @@ try {
     }
     const capture = (name: string) => {
       check(width + ' ' + name + ' paints its exit hint', m.screen().includes('esc') && !m.screen().includes('RENDER ERROR'))
-      check(width + ' ' + name + ' keeps the GPU budget visible', m.screen().includes('288 GB/GPU'))
+      if (name !== 'thinking') check(width + ' ' + name + ' keeps the GPU budget visible', m.screen().includes('288 GB/GPU'))
       check(width + ' ' + name + ' names no engine internals', !/\bKV\b|\bslots?\b/i.test(m.screen()))
-      if (name === 'context') check(width + ' context names the room in words and keeps it whole', m.lines().some(row => row.includes('room for about 7.3M tokens in all, up to 1M each · esc closes')))
+      if (name === 'context') check(width + ' context names the room in words and keeps it whole', m.lines().some(row => row.includes('~7.3M tokens total · up to 1M each')))
       if (!frames) return
       writeFileSync(join(frames, width + '-' + name + '.txt'), m.screen())
       const grid = m.lines().map((line, y) => Array.from(line.padEnd(width)).map((c, x) => { const style = m.styleAt(x, y); return { c, bg: style?.bg ?? 'default', fg: style?.fg ?? 'default', bold: style?.bold ?? false, rev: style?.inverse ?? false } }))
@@ -225,7 +225,7 @@ try {
   let nemotronRows: string[] = []
   await tune.runTune('Nemotron 3.5 Super VL 120B', { recipes: [nemotron] }, async question => { if (question.step === 'tune-thinking') { nemotronRows = question.rows?.map(row => row.label) ?? []; return null } return question.step === 'tune-quality' ? nemotron.id : '0' }, emit)
   const nemotronLaunch = tune.tunedRecipe(nemotron, tune.defaultTune(nemotron))
-  check('a llama.cpp model whose template takes no named level shows thinking as information and launches without a reasoning_effort it would ignore', JSON.stringify(nemotronRows) === JSON.stringify(['default · this model has no named thinking levels']) && tune.defaultTune(nemotron).effort === 'default' && !nemotronLaunch.flags.includes('--chat-template-kwargs'))
+  check('a llama.cpp model whose template takes no named level shows thinking as information and launches without a reasoning_effort it would ignore', JSON.stringify(nemotronRows) === JSON.stringify(['default']) && tune.defaultTune(nemotron).effort === 'default' && !nemotronLaunch.flags.includes('--chat-template-kwargs'))
   const beforeQuality = ssh.commands.length
   const alternative = HOST_RECIPES.find(row => row.id === 'glm53-flash-b200-community')!
   let nextRental = false

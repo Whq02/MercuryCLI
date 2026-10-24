@@ -28,7 +28,7 @@ try {
     const { exportHostRecipesJson, currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
     const { RunpodClient, RunpodHttpError, cents, clusterCreateRefusal } = await import('../../src/services/host/runpod.ts')
     const { createHostRoad } = await import('../../src/services/host/index.ts')
-    const { HostClusterEnded, createHostResource, hostClusterRecord, listHostResources, getHostResource, hostShape, startHostCluster, terminateHostResource } = await import('../../src/services/host/cluster.ts')
+    const { createHostResource, hostClusterRecord, listHostResources, getHostResource, hostShape, startHostCluster, terminateHostResource } = await import('../../src/services/host/cluster.ts')
     const { hostPriceLines, hostStorageWords } = await import('../../src/services/host/costs.ts')
     const { runHostJob } = await import('../../src/services/host/worker.ts')
     const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
@@ -94,7 +94,7 @@ try {
     }
     const confirmation = confirm.found + ' ' + confirm.willRun + ' ' + (confirm.lines ?? []).join(' ')
     check('confirmation discloses node count, total compute price, weight size, download assumption and cluster billing', ['2 nodes × 8× B200', '$127.84/hr', '1.56 TB', '30–60 min', '0.5–1 GB/s', '2 × 2 TB disk', 'also served per token by Kimi', 'https://platform.kimi.ai', 'a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate (runpod.io/pricing)'].every(word => confirmation.includes(word)) && !confirmation.includes('stopped pod'))
-    check('the cluster confirmation lines say every node downloads the whole checkpoint and a cluster has no Stop', JSON.stringify(confirm.lines) === JSON.stringify(['2 × 2 TB disk (extra) · weights 1.56 TB', 'each node downloads all 1.56 TB: ~30–60 min at a sustained 0.5–1 GB/s', 'Billing starts now; a cluster has no Stop — it bills until Terminate.', 'Loading is additional; cluster networking bills extra.', 'Cluster GPUs can bill above this catalogue rate (runpod.io/pricing).', 'also served per token by Kimi (https://platform.kimi.ai)', 'a $127.84/hr machine is cheaper only when kept busy']))
+    assert.deepEqual(confirm.lines, ['2 × 2 TB disk (extra) · weights 1.56 TB', 'each node downloads all 1.56 TB: ~30–60 min at a sustained 0.5–1 GB/s', 'Billing starts now; a cluster has no Stop — it bills until Terminate.', 'Loading is additional; cluster networking bills extra.', 'Cluster GPUs can bill above this catalogue rate (runpod.io/pricing).', 'also served per token by Kimi (https://platform.kimi.ai)', 'a $127.84/hr machine is cheaper only when kept busy'], 'the cluster confirmation lines say every node downloads the whole checkpoint and a cluster has no Stop'); checks++; console.log('PASS the cluster confirmation lines say every node downloads the whole checkpoint and a cluster has no Stop')
     check('Qwen names its model-card per-token alternative without a pinned API price', hostStorageWords(HOST_RECIPES.find(row => row.id === 'qwen38-24t-fp8-b200')!, 127.84).includes('also served per token by Qwen Cloud (https://www.qwencloud.com)'))
     const singleWords = hostStorageWords(HOST_RECIPES.find(row => row.id === 'kimi-k3-b300')!, 8.99 * 8)
     check('single-machine price line computes the requested 8× B300 example and keeps the stopped-pod disk warning', singleWords.includes('$71.92/hr') && singleWords.includes('a stopped pod still bills its disk') && !singleWords.includes('no Stop'))
@@ -109,7 +109,7 @@ try {
     const ready = readHostRecord(id)!
     check('setup dispatch reaches ready through the cluster head', ready.jobState === 'ready')
     check('cluster setup tails the head engine log, so its steps and download progress advance while the head loads', ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22000') && String(row.args.at(-1)).startsWith('dd if=/workspace/mercury-host/kimi-k3-b200/engine.log')) && (ready.steps ?? []).some(row => row.step === 'downloading weights on the machine'))
-    check('while the head loads, no worker is probed for a stopped engine: the head’s engine log and health are the only readiness reads', !ssh.commands.some((row: any) => String(row.args.at(-1)).includes('MERCURY_ENGINE_GONE')) && ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22000') && String(row.args.at(-1)).startsWith('curl -fsS --max-time 10 http://127.0.0.1:30000/health')))
+    check('while the head loads, the head’s engine log and health are polled and each worker is checked for a stopped engine', ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22001') && String(row.args.at(-1)).includes('MERCURY_ENGINE_GONE')) && ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22000') && String(row.args.at(-1)).startsWith('curl -fsS --max-time 10 http://127.0.0.1:30000/health')))
     const scripts = ssh.commands.filter((row: any) => row.command === 'ssh' && row.args.at(-1).includes('nohup setsid')).map((row: any) => row.args.at(-1).replaceAll("'\\''", "'"))
     check('both SGLang nodes receive the cookbook topology and private head', [0, 1].every(rank => scripts.some((script: string) => script.includes("'--nnodes' '2' '--node-rank' '" + rank + "' '--dist-init-addr' '10.65.0.2:20000'") && script.includes("'--pp-size' '2'") && script.includes("'--tp-size' '8'") && script.includes("'--reasoning-parser' 'kimi_k3'"))))
     const unquoted = (script: string) => script.replaceAll("'\\''", "'").replaceAll('\\"', '"')
@@ -147,8 +147,9 @@ try {
     check('a cluster billed above the confirmed catalogue figure records the billed rate and says so', cents(readHostRecord(watchedFamily.id)!.price) === 15341 && notices().some(words => words.includes('Runpod bills this cluster at $153.41/hr, above the $127.84/hr catalogue figure that was confirmed')))
     const oldNode = rp.state.clusterNodes.get(watchedFamily.id)[1]
     oldNode.cudaVersion = '12.9'
-    await assert.rejects(() => startHostCluster(api, readHostRecord(watchedFamily.id)!, recipe, ssh.runner, new AbortController().signal, 1, 1000, () => {}), (error: Error) => error instanceof HostClusterEnded && /reporting CUDA 12\.9, below the recipe’s 13\.0\. Mercury terminated it through the clusters API and Runpod no longer lists it · about \$\d+\.\d\d billed over \d+ min at \$153\.41\/hr/.test(error.message))
-    check('a cluster placed below the recipe CUDA floor is terminated and verified gone, with the cost named', !rp.state.clusters.has(watchedFamily.id))
+    const deletesBeforeCuda = rp.state.clusterDeletes
+    await assert.rejects(() => startHostCluster(api, readHostRecord(watchedFamily.id)!, recipe, ssh.runner, new AbortController().signal, 1, 1000, () => {}), /reporting CUDA 12\.9, below the recipe’s 13\.0/)
+    check('a cluster placed below the recipe CUDA floor pauses: it stays listed and nothing is deleted', rp.state.clusters.has(watchedFamily.id) && rp.state.clusterDeletes === deletesBeforeCuda)
     removeHostRecord(watchedFamily.id)
     const vllmRecipe = { ...recipe, engine: 'vllm' as const, flags: ['--tensor-parallel-size', '8', '--pipeline-parallel-size', '2'] }
     await startHostEngine(ready.target!, vllmRecipe, ssh.runner, new AbortController().signal, false, true, undefined, undefined, { nodes: 2, rank: 1, head: '10.65.0.2', address: '10.65.0.3' })
@@ -162,8 +163,9 @@ try {
     }
     const lost = await setupOf('lost-node-proof')
     rp.state.clusterNodes.get(lost.id)[1].status = 'ERROR'
-    await assert.rejects(() => startHostCluster(api, lost, recipe, ssh.runner, new AbortController().signal, 1, 1000, () => {}), /lost node \S+ \(ERROR\) before setup began\. Mercury terminated it through the clusters API/)
-    check('a cluster that loses a node before setup is terminated and verified gone', !rp.state.clusters.has(lost.id))
+    const deletesBeforeLoss = rp.state.clusterDeletes
+    await assert.rejects(() => startHostCluster(api, lost, recipe, ssh.runner, new AbortController().signal, 1, 1000, () => {}), /lost node \S+ \(ERROR\) before setup began/)
+    check('a cluster that loses a node before setup pauses: it stays listed and nothing is deleted', rp.state.clusters.has(lost.id) && rp.state.clusterDeletes === deletesBeforeLoss)
     removeHostRecord(lost.id)
     const dying = await setupOf('worker-death-proof')
     ssh.state.holdHealth = true
@@ -174,12 +176,12 @@ try {
     try { await assert.rejects(() => startHostCluster(api, dying, recipe, ssh.runner, new AbortController().signal, 10, 15000, () => {}), /\(rank 1\) stopped its engine, so the head cannot finish loading\. fixture worker engine exited: CUDA out of memory/) } finally { ssh.state.holdHealth = false; ssh.state.goneEngines.clear() }
     const deathCalls = rp.requests.slice(callsBeforeDeath)
     const deathDelete = deathCalls.findIndex((row: any) => row.method === 'DELETE' && row.path === '/v2/clusters/' + dying.id)
-    check('a worker whose engine stops while the head loads ends the wait promptly and terminates the cluster with verified absence', Date.now() - dyingStarted < 10_000 && !rp.state.clusters.has(dying.id) && !rp.state.clusterNodes.has(dying.id) && rp.state.clusterDeletes === deletesBeforeDeath + 1 && deathDelete >= 0 && deathCalls.slice(deathDelete + 1).some((row: any) => row.method === 'GET' && row.path === '/v2/clusters'))
+    check('a worker whose engine stops while the head loads ends the wait promptly and leaves the cluster up: no delete sent', Date.now() - dyingStarted < 10_000 && rp.state.clusters.has(dying.id) && rp.state.clusterNodes.has(dying.id) && rp.state.clusterDeletes === deletesBeforeDeath && deathDelete < 0)
     removeHostRecord(dying.id)
     const stalled = await setupOf('ssh-bound-proof', new Date(Date.now() - 30 * 60_000).toISOString())
     ssh.state.refuse = true
     try { await runHostJob(stalled.id, stalled.generation!, { runner: ssh.runner, pauseMs: 10, timeoutMs: 1500, keepAlive: false }) } finally { ssh.state.refuse = false }
-    check('a cluster whose nodes never answer SSH within the placement bound is terminated, verified gone, its record cleared, and the notice names the bound and the cost', !rp.state.clusters.has(stalled.id) && !readHostRecord(stalled.id) && notices().some(words => words.includes('did not bring all 2 nodes up with SSH within 1 min. Mercury terminated it through the clusters API and Runpod no longer lists it · about $6') && words.includes('at $127.84/hr, storage extra')))
+    check('a cluster whose nodes never answer SSH within the placement bound pauses: it stays listed, its record is paused with the cause, and one notice names the bound, the rate, Resume and Terminate', rp.state.clusters.has(stalled.id) && readHostRecord(stalled.id)?.jobState === 'paused' && readHostRecord(stalled.id)?.error?.includes('did not bring all 2 nodes up with SSH within 1 min') && notices().some(words => words.includes('setup paused') && words.includes('did not bring all 2 nodes up with SSH within 1 min') && words.includes('$127.84/hr') && words.includes('Resume') && words.includes('Terminate')))
     check('shipped JSON exactly matches the source exporter', readFileSync(new URL('../../assets/host/recipes.json', import.meta.url), 'utf8') === exportHostRecipesJson())
     const sourcesRead = new Set(['https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3', 'https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8', 'https://docs.sglang.io/cookbook/autoregressive/DeepSeek/DeepSeek-V4', 'https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.6', 'https://docs.sglang.io/cookbook/autoregressive/GLM/GLM-5.3', 'https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512', 'https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview', 'https://docs.sglang.io/cookbook/autoregressive/StepFun/Step-5-Preview', 'https://docs.sglang.io/cookbook/autoregressive/MiniMax/MiniMax-M3', 'https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling', 'https://docs.sglang.io/cookbook/autoregressive/NVIDIA/Nemotron3-Ultra', 'https://docs.sglang.io/cookbook/autoregressive/Meituan/LongCat-2.0', 'https://docs.sglang.io/cookbook/autoregressive/InclusionAI/Ling-3.1-flash'])
     const added = currentHostRecipes().filter(heavyWeights)

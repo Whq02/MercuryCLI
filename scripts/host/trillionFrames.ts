@@ -31,7 +31,7 @@ export async function trillionFrames(question: LlmHostQuestion, check: (name: st
       }
       const first = screen.replace(/[│\s]+/g, ' ')
       check(cols + '-column frame shows node count, total rate, disk and weight size', ['2 nodes × 8× B200', '$127.84/hr', '2 × 2 TB disk', 'weights 1.56 TB'].every(word => first.includes(word)))
-      check(cols + '-column first frame retains the cluster billing warning, confirmation and cancel hint', ['a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate', 'Confirm $127.84/hr', 'keep things as they are', 'esc'].every(word => first.includes(word)) && !first.includes('stopped pod'))
+      check(cols + '-column first frame retains the cluster billing warning, confirmation and cancel hint', ['a cluster has no Stop', 'bills until Terminate', 'above this catalogue rate', 'Confirm $127.84/hr', 'Cancel', 'esc'].every(word => first.includes(word)) && !first.includes('stopped pod'))
       let details = screen
       for (;;) {
         const marker = /Details (\d+)–(\d+) of (\d+)/.exec(m.screen())
@@ -40,7 +40,7 @@ export async function trillionFrames(question: LlmHostQuestion, check: (name: st
         m.push('\x1b[6~')
         assert.ok(await waitFor(() => m.screen() !== before, 5000), 'the remaining rental details can be paged')
         details += '\n' + m.screen()
-        check(cols + '-column paged details keep both rental choices visible', m.screen().includes('Confirm $127.84/hr') && m.screen().includes('keep things as they are'))
+        check(cols + '-column paged details keep both rental choices visible', m.screen().includes('Confirm $127.84/hr') && m.screen().includes('Cancel'))
         if (output) writeFileSync(join(output, 'price-' + cols + '-paged.txt'), m.screen())
       }
       const all = details.replace(/[│\s]+/g, ' ')

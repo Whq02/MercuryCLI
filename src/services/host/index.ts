@@ -108,7 +108,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       const state = stateFor(id, operation)
       const turn = state.tail.then(async () => {
         signal.throwIfAborted()
-        const parked = [state.failure, ...['machines', 'volumes', 'stock'].map(other => stateFor(id, other).failure)].find(failure => failure?.parked)
+        const parked = [state.failure, ...(id === 'huggingface' ? ['machines', 'volumes', 'stock'].map(other => stateFor(id, other).failure) : [])].find(failure => failure?.parked)
         if (parked) throw new Error(parked.detail)
         const previous = state.failure
         try {
@@ -604,7 +604,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             const privateWords = source.kind === 'private-repo' ? 'The machine downloads ' + source.repo + ' with your Hugging Face sign-in. ' : ''
             if (vendor === 'runpod') return {
               willRun: privateWords + consent,
-              lines: [...(hostPriceLines(row.recipe, row.price) ?? [row.recipe.diskGb + ' GB disk extra (rate unavailable).']), vendorStorage(vendor)],
+              lines: [...(hostPriceLines(row.recipe, row.price) ?? [row.recipe.diskGb + ' GB disk extra (rate unavailable).']), ...((row.recipe.nodes ?? 1) > 1 ? [] : [vendorStorage(vendor)])],
               confirmLabel: 'Confirm ' + price(row.price) + (kept ? ' + ' + volumePrice(kept) + ' disk (bills without a pod)' : ' + storage') + ' · create this ' + hostResourceKind(row.recipe),
             }
             return {

@@ -92,21 +92,37 @@ try {
   await heading('Which model?')
   const pages = [screen()]
   const first = selected()
-  for (let index = 0; index < names.length + 4; index++) {
+  const below = names.length - 1 + 4
+  for (let index = 0; index < below; index++) {
     const before = selected()
     mounted!.push(KEY.down)
     assert.ok(await waitFor(() => selected() !== before, 3000), 'every model and utility row is reachable\n' + screen())
     pages.push(screen())
   }
-  for (let index = 0; index < names.length + 4; index++) {
+  assert.ok(selected().includes('More options'), 'More options is the last row\n' + screen())
+  for (let index = 0; index < below; index++) {
     const before = selected()
     mounted!.push(KEY.up)
     assert.ok(await waitFor(() => selected() !== before, 3000), 'return to the suggested model\n' + screen())
   }
   assert.equal(selected(), first)
+  const account = ['Vendor keys', 'Machines I’m paying for']
+  for (const row of account) {
+    const before = selected()
+    mounted!.push(KEY.up)
+    assert.ok(await waitFor(() => selected() !== before && selected().includes(row), 3000), 'the account rows sit above the models: ' + row + '\n' + screen())
+    pages.push(screen())
+  }
+  for (let index = 0; index < account.length; index++) {
+    const before = selected()
+    mounted!.push(KEY.down)
+    assert.ok(await waitFor(() => selected() !== before, 3000), 'back down to the suggested model\n' + screen())
+  }
+  assert.equal(selected(), first)
   const plain = pages.join('\n')
+  const hourlyPrices = (plain.match(/\$\d+\.\d\d\/hr/g) ?? []).map(word => Number(word.slice(1, -3)))
   check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Machines I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
-  check('model tier ordering stays internal without stamps on rows', !/ · (measured|documented|community|unverified)\b/.test(plain) && selected().includes('GLM-5.3-Flash'))
+  check('the cursor starts on the cheapest in-stock model and no row carries a tier stamp', !/ · (measured|documented|community|unverified)\b/.test(plain) && hourlyPrices.length > 0 && first.includes('$' + Math.min(...hourlyPrices).toFixed(2) + '/hr') && first.includes('in stock'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
   hf.state.delayMs = 300
   type('deepseek')

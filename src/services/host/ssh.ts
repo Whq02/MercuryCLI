@@ -219,13 +219,14 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
   let last = ''
   let previous: string[] = []
   let progressedAt = started
+  let progressed = false
   const dir = '/workspace/mercury-host/' + recipe.id
-  while (!signal.aborted && (Date.now() - started < timeoutMs || Date.now() - progressedAt < progressGraceMs)) {
+  while (!signal.aborted && (Date.now() - started < timeoutMs || progressed && Date.now() - progressedAt < progressGraceMs)) {
     const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand(dir)], signal)
     const rows = log.trimEnd().split('\n')
     let overlap = Math.min(previous.length, rows.length)
     while (overlap && previous.slice(-overlap).join('\n') !== rows.slice(0, overlap).join('\n')) overlap--
-    if (overlap < rows.length) { onLog(rows.slice(overlap).join('\n')); if (previous.length) progressedAt = Date.now() }
+    if (overlap < rows.length) { onLog(rows.slice(overlap).join('\n')); if (previous.length) { progressedAt = Date.now(); progressed = true } }
     previous = rows
     const failed = engineFailure(log, recipe, log.includes('MERCURY_ENGINE_EXITED'))
     if (failed) throw failed
