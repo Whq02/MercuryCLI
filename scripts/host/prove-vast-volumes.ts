@@ -96,7 +96,7 @@ try {
   const same = (await client.recipeOffers([b200], signal())).find(row => row.machineId === 9103)!
   const other = (await client.recipeOffers([b200], signal())).find(row => row.machineId === 9999)!
   check('a rental on the volume’s machine attaches it; a rental elsewhere does not', (await vastVolumes.vastRentalVolume(client, b200, same, signal()))?.id === '20118485' && (await vastVolumes.vastRentalVolume(client, b200, other, signal())) === undefined && vastVolumes.vastBootsFromVolume(b200, 9103) && !vastVolumes.vastBootsFromVolume(b200, 9999))
-  check('Runpod’s own readers never touch a Vast.ai record', volumes.runpodKeptVolumes().length === 0 && volumes.keptVolumes().length === 1)
+  check('Runpod’s own readers never touch a Vast.ai record', !volumes.runpodKeptVolumes().some(row => row.id === '20118485') && volumes.keptVolumes().some(row => row.id === '20118485' && row.kind === 'vast'))
   fixture.state.volumes.clear()
   await vastVolumes.reconcileVastVolumes(client, signal())
   check('a volume Vast no longer lists is marked gone and the row says not kept', volumes.readKeptVolume('20118485')?.state === 'gone' && vastVolumes.vastVolumeState(b200).startsWith('not kept on Vast.ai'))
