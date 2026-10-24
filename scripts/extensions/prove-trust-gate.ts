@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { createServer, type Server } from 'node:http'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-trust-'))
 const home = join(scratch, 'home')
@@ -168,7 +169,7 @@ console.log('[4] the project folder: inert until approved; shadows after')
   check('a contributions change reads changed — re-approve and stops contributing', changed?.changedSinceApproval === true && rosterMod.trustStateOf(changed!) === 'off')
   const c2 = contributions()
   check('the installed copy takes over again (one name active)', activeMod.getActiveSet().active.filter(e => e.manifest.name === 'kitchen-sink').length === 1 && c2.skills.includes('kitchen-sink:fixture-skill'))
-  rmSync(folder, { recursive: true, force: true })
+  removeScratch(folder)
   await swap()
 }
 
@@ -282,6 +283,6 @@ console.log('[10] a kind switched off contributes nothing; the rest stay live')
   check('hooks return with the switch', contributions().hooks.length >= 2)
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ TRUST GATE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

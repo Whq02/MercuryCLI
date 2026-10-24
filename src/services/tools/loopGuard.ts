@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { getIsNonInteractiveSession, getSessionKind } from '../../bootstrap/state.js'
 import { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
@@ -540,7 +540,7 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
     let last: RoundEntry = entries[0]!
     let failingCall: RoundEntry | null = null
     let failureReminder = false
-    const stopFailedCalls = getIsNonInteractiveSession() || parseOwnerKey(owner).lane !== MAIN_LANE
+    const stopFailedCalls = (getIsNonInteractiveSession() && getSessionKind() !== 'oculus') || parseOwnerKey(owner).lane !== MAIN_LANE
     for (const entry of entries) {
       state.failureRun = entry.failureKey === null ? 0 : state.failureKey === entry.failureKey ? state.failureRun + 1 : 1
       state.failureKey = entry.failureKey

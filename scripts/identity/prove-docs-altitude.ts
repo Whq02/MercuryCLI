@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -8,6 +9,10 @@ const J = (...parts: string[]): string => parts.join('')
 
 const ROOT_SURFACES = ['README.md', 'AGENTS.md', 'BUILD-NOTES.md', 'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md', 'SECURITY.md', '.github/PULL_REQUEST_TEMPLATE.md']
 function docsPages(): string[] {
+  const tracked = execFileSync('git', ['-C', ROOT, 'ls-files', '--', 'docs'], { encoding: 'utf8' })
+    .split('\n')
+    .filter(f => f.endsWith('.md'))
+  if (tracked.length > 0) return tracked.sort()
   const out: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {

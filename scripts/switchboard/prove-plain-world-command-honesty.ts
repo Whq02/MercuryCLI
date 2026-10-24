@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -158,7 +159,7 @@ for (const hit of wireHits.slice(0, 2)) {
   console.log(`    wire evidence: …${raw.slice(Math.max(0, idx - 220), idx + 120).replace(/\n/g, ' ')}…`)
 }
 
-rmSync(home, { recursive: true, force: true })
-rmSync(cwd, { recursive: true, force: true })
+removeScratch(home)
+removeScratch(cwd)
 console.log(failures === 0 ? '\nprove-plain-world-command-honesty: ALL LAWS HOLD' : `\nprove-plain-world-command-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { startDaemonClientBeat, type DaemonClientBeat } from '../lib/daemonClientBeat.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'tiles-drive-')))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -247,7 +248,7 @@ try {
   daemon?.kill('SIGTERM')
   await api.close()
   if (process.env.TILES_DRIVE_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? `\nprove-live-tiles-drive ${SIZE.cols}x${SIZE.rows}: ALL LAWS HOLD` : `\nprove-live-tiles-drive ${SIZE.cols}x${SIZE.rows}: ${failures} FAILURE(S)`)

@@ -271,10 +271,7 @@ export function RosterWorkDetail({
       ) : null}
       <KeyValueGrid rows={rows} keyWidth={8} />
       <Box marginTop={1} flexDirection="column">
-        <Text color={tokens.textMuted} wrap="wrap">
-          runs in this session — its stream and controls live with the
-          session&apos;s runner{work.kind === 'workflow' && !chatOnlyBoot() ? '; /workflows opens the run board' : ''}
-        </Text>
+        {work.kind === 'workflow' && !chatOnlyBoot() ? <Text color={tokens.textMuted}>/workflows opens the run board</Text> : null}
         <Text dimColor>
           <KeyboardShortcutHint shortcut="Esc" action="back" />
         </Text>

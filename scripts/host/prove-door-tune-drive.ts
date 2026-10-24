@@ -93,7 +93,7 @@ try {
     await until(() => plan?.step === 'rent-confirm' || plan?.step === 'door-confirm', 'rental confirmation')
     await capture('rental-before')
     check('door rental confirmation exposes Tune', plan!.rows?.some(row => row.value === 'tune'))
-    check('door uses one decorated prebuilt-engine estimate', plan!.willRun.includes('Engine from image ~1 min') && !plan!.title.includes('min'))
+    check('rental confirmation keeps the weights source and time estimate', plan!.rows?.some(row => row.value === 'weights-source' && /~\d+ min/.test(row.label)) && !plan!.title.includes('min'))
     check('no rental before consent', rp.state.creates === queued.length && queued.length === (width === 120 ? 0 : 1))
     await choose('Tune:'); await step('tune-quality'); check('Tune starts on the quality from the rental confirmation', plan!.initial === recipe.id && selected().includes('Balanced')); await capture('quality'); await choose('Balanced')
     await step('tune-context'); await capture('context'); await choose(width === 120 ? '1 × 1M' : '2 × 512k')
@@ -102,9 +102,9 @@ try {
     await step('rent-confirm'); await capture('rental-after')
     const conversations = width === 120 ? 1 : 2
     const context = width === 120 ? 1048576 : 524288
-    check('changed split returns to the same money boundary', plan!.willRun.includes(width === 120 ? '1 × 1M' : '2 × 512k') && plan!.willRun.includes('high'))
+    check('changed split returns to the same money boundary', plan!.rows?.some(row => row.value === 'tune' && row.label.includes(width === 120 ? '1 × 1M' : '2 × 512k') && row.label.includes('high')))
     check('current consent is not mixed with stale pre-Tune context', !mounted!.screen().includes('131,072 context') && !mounted!.screen().includes('saved for next rental'))
-    check('all rental controls remain visible at this width', mounted!.screen().includes('Tune:') && mounted!.screen().includes('Confirm $8.99/hr') && mounted!.screen().includes('keep things as they are'))
+    check('rental actions remain visible', mounted!.screen().includes('Tune:') && mounted!.screen().includes('Confirm $8.99/hr') && mounted!.screen().includes('Cancel'))
     await choose('Confirm $8.99/hr'); await step('pod-controls'); await Promise.all(jobs)
     const record = readHostRecord(queued.at(-1)!)!
     check('door creates one pod carrying its confirmed preferences', record.jobState === 'ready' && record.tune?.quality === recipe.id && record.tune.conversations === conversations && record.tune.contextPerConversation === context && record.tune.effort === 'high')
@@ -131,11 +131,11 @@ try {
     popup.openSettingsPopup(llmHostPopupRequest(observedQuality))
     mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height: 44 }, React.createElement(SettingsPopupSlot)))), width, 44)
     await step('door-models'); await choose(model); await step('door-model'); await choose('Rent · ' + vendor); await step('rent-confirm')
-    if (vendor === 'Runpod') check('door confirmation recognizes kept weights before changing quality', plan!.title.includes('weights kept') && plan!.willRun.includes('weights kept ~0'))
-    else check('Vast ignores the Runpod kept disk', !plan!.title.includes('weights kept') && !plan!.willRun.includes('weights kept ~0'))
+    if (vendor === 'Runpod') check('confirmation names the kept disk', plan!.rows?.some(row => row.value === 'weights-source' && row.label.includes(kept.id)))
+    else check('Vast does not use the Runpod disk', !plan!.rows?.some(row => row.value === 'weights-source' && row.label.includes(kept.id)))
     await choose('Tune:'); await step('tune-quality'); await choose(quality); await step('tune-context'); check('non-llama quality offers its documented default split', plan!.rows?.length === 1 && selected()); mounted.push(KEY.enter); await step('tune-thinking'); await choose('default'); await step('tune-confirm'); await choose('Confirm · save'); await step('rent-confirm')
     check(vendor + ' changed quality has a live offer and a price confirmation', plan!.rows?.some(row => row.value === 'rent') && plan!.found.includes(vendor === 'Runpod' ? '8× B300' : '4× B200'))
-    check(vendor + ' changed weights do not inherit the previous disk', !plan!.title.includes('weights kept') && !plan!.willRun.includes('weights kept ~0'))
+    check(vendor + ' changed weights do not inherit the previous disk', !plan!.rows?.some(row => row.value === 'weights-source' && row.label.includes(kept.id)))
     if (frames) {
       const path = join(frames, width + '-quality-change')
       writeFileSync(path + '.txt', mounted.screen())

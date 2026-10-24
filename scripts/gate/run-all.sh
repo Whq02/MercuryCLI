@@ -17,6 +17,8 @@ echo "# Gate machinery"
 echo "############################################################"
 run_proof "$here/prove-gate-runner.sh" bash "$here/prove-gate-runner.sh" || fail=1
 run_proof "$here/prove-proof-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-scratch.ts" || fail=1
+run_proof "$here/prove-node-preload-path.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-preload-path.ts" || fail=1
+run_proof "$here/prove-remove-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-remove-scratch.ts" || fail=1
 run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
 run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
 run_proof "$here/prove-screen-slot-claims.sh" bash "$here/prove-screen-slot-claims.sh" || fail=1

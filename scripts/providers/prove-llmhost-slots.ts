@@ -41,11 +41,13 @@ const state = {
   healthRequests: 0,
   processingSlot: -1,
   firstTokenDelayMs: 0,
+  firstTokenOnSlotsRead: false,
   slotsHang: false,
   slotsMissing: false,
   mode: 'reply' as 'reply' | 'tools' | '5xx-once' | 'delayed-first-token' | 'slow-tool-stream' | 'silent-after-headers' | 'no-headers',
 }
 const heldResponses = new Set<ServerResponse>()
+const heldFirstTokens = new Map<number, () => void>()
 const model = 'Fixture/GLM-5.3-Flash-GGUF'
 const SLOW_TOOL_TICK_MS = 650
 const SLOW_TOOL_TICKS = 15
@@ -104,6 +106,7 @@ const server = createServer(async (req, res) => {
       return
     }
     sendJson(res, 200, Array.from({ length: state.totalSlots }, (_, id) => ({ id, is_processing: state.processingSlot === id })))
+    if (state.firstTokenOnSlotsRead) heldFirstTokens.get(state.processingSlot)?.()
     return
   }
   if (path !== '/v1/chat/completions') {
@@ -201,11 +204,16 @@ const server = createServer(async (req, res) => {
     state.processingSlot = slot
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
     res.flushHeaders()
-    const timer = setTimeout(() => {
+    const release = (): void => {
+      clearTimeout(timer)
+      heldFirstTokens.delete(slot)
       state.processingSlot = -1
       if (!res.writableEnded && !res.destroyed) res.end(payload)
-    }, delayMs)
+    }
+    const timer = setTimeout(release, state.firstTokenOnSlotsRead ? delayMs * 10 : delayMs)
+    if (state.firstTokenOnSlotsRead) heldFirstTokens.set(slot, release)
     res.on('close', () => {
+      heldFirstTokens.delete(slot)
       state.processingSlot = -1
       clearTimeout(timer)
     })
@@ -614,11 +622,13 @@ try {
     const slotsBefore = state.slotsRequests
     state.mode = 'delayed-first-token'
     state.firstTokenDelayMs = 1_450
+    state.firstTokenOnSlotsRead = true
     const slotTicks: number[] = []
     const slotAliveReplies = await runTurn(llamaId, [createUserMessage({ content: 'prefill guarded by /slots is_processing' })], {
       querySource: 'overload_probe',
       onStreamActivity: (atMs: number) => slotTicks.push(atMs),
     })
+    state.firstTokenOnSlotsRead = false
     check(
       'llamacpp counts the request as alive when the idle deadline fires while /slots reports the pinned slot is_processing',
       slotAliveReplies.length > 0 &&
@@ -691,6 +701,7 @@ try {
   } finally {
     delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
     state.firstTokenDelayMs = 0
+    state.firstTokenOnSlotsRead = false
     state.mode = 'reply'
   }
 

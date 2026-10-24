@@ -96,7 +96,7 @@ try {
   const screen = () => mounted!.screen()
   const flat = () => screen().replace(/[│\s]+/g, ' ')
   dump = screen
-  const until = async (needle: string) => assert.ok(await waitFor(() => screen().includes(needle), 20000), 'screen reaches ' + needle + '\n' + screen())
+  const until = async (needle: string) => assert.ok(await waitFor(() => flat().includes(needle), 20000), 'screen reaches ' + needle + '\n' + screen())
   const heading = async (needle: string) => assert.ok(await waitFor(() => mounted!.lines().slice(0, 4).join(' ').includes(needle), 20000), 'question reaches ' + needle + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const select = async (needle: string) => {
@@ -129,7 +129,7 @@ try {
   check('the confirm names the machine, the 556 GB volume, its per GB-month billing with or without an instance, and the fill instance: a temporary 1× RTX PRO 6000 at $1.35/hr on that machine, not the 4× B200; nothing created yet', flat().includes('556 GB on machine 9103 (datacenter)') && flat().includes('$111.20/month for its 556 GB ($0.20/GB-month, the machine’s rate), with or without an instance') && flat().includes('Vast.ai bills the volume per GB-month at that machine’s rate from creation, with or without an instance, until you delete it') && /a temporary 1× RTX PRO 6000 instance at \$1\.35\/hr on that machine \(the cheapest there with room; filling a volume needs no particular GPU\)/.test(flat()) && !flat().includes('B200 instance') && /Confirm \$111\.20\/month \+ temporary instance 1× RTX PRO 6000 \$1\.35\/hr/.test(flat()) && vast.state.volumeCreates === 0 && vast.state.creates === 0)
   noKeys('the confirm screen')
   await choose('Confirm $111.20/month'); await until('preparing on machine 9103')
-  assert.ok(await waitFor(() => volumes.keptVolumes().some(volume => volume.kind === 'vast' && volume.state === 'kept'), 20000), 'the fill instance verifies the weights on the volume\n' + screen())
+  assert.ok(await waitFor(() => volumes.keptVolumes().some(volume => volume.kind === 'vast' && volume.state === 'kept'), 20000), 'the fill instance verifies the weights on the volume\n' + screen() + '\nVOLUMES ' + JSON.stringify(volumes.keptVolumes()) + '\nRECORDS ' + JSON.stringify(hostRecords()) + '\nNOTICES ' + JSON.stringify(notices()) + '\nSSH ' + JSON.stringify(ssh.commands.map(command => String(command.args.at(-1)).slice(0, 80))))
   await Promise.all(jobs.splice(0))
   const kept = volumes.keptVolumes().find(volume => volume.kind === 'vast')!
   const fillBody = vast.state.createBodies[0]

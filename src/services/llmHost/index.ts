@@ -172,7 +172,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     if (!reading.models.length) throw new Error(words.noModels)
     emit({ title: words.address, words: `${baseUrl} · ${reading.models.length} models` })
     const detected = reading.dialect ?? (recheck ? existing?.dialect : undefined)
-    const picked = recheck ? existing?.dialect ?? 'chat-completions' : await question({ step: 'dialect', title: words.dialect, found: detected ? `Detected ${detected}. Confirm it, or choose another dialect.` : words.dialectUnknown, willRun: words.dialectRun, rows: [...LLM_HOST_DIALECTS].sort((a, b) => Number(b.value === detected) - Number(a.value === detected)) })
+    const picked = recheck ? existing?.dialect ?? 'chat-completions' : await question({ step: 'dialect', title: words.dialect, found: detected ?? words.dialectUnknown, willRun: words.dialectRun, rows: [...LLM_HOST_DIALECTS].sort((a, b) => Number(b.value === detected) - Number(a.value === detected)) })
     if (picked === null) return stop()
     if (!LLM_HOST_DIALECTS.some(row => row.value === picked)) throw new Error(words.inputError)
     const dialect = picked as CompatDialect
@@ -227,7 +227,7 @@ export const runLlmHost: LlmHostRoad = async (ask, emit, signal) => {
     const efforts = hostModelEfforts(selected, dialect, reading.efforts?.[selected])
     const savedFacts = updateSettingsForSource('userSettings', raw => ({ models: ModelFactsSchema().parse({ [model]: { ...(raw.models as Record<string, object> | undefined)?.[model], efforts: [...efforts] } }) }))
     if (savedFacts.error) throw savedFacts.error
-    emit({ title: words.done, words: `${model} · available in /model and /logins` })
+    emit({ title: words.done, words: '/model ' + model })
     const result = await checkLlmHostReply(model, signal)
     if (key) { result.words = result.words.split(key).join('[redacted]'); if (result.reply) result.reply = result.reply.split(key).join('[redacted]') }
     return result

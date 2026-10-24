@@ -10,8 +10,8 @@ import { sortVmOffers, validateVmCreate, verifyVmAbsent, vmKeyName, VmPlacements
 
 const BASE = 'https://api.verda.com/v1'
 const IMAGE = 'ubuntu-24.04-cuda-13.0-open-docker'
-export const VERDA_STORAGE_NOTICE = '/workspace uses the root disk, billed separately at $0.20/GiB-month. Termination permanently deletes that disk; other attached volumes remain and bill. Compute prepays ten-minute increments; unused time is refunded. Shutdown keeps compute billing. Network egress price is not published. Initial new-account quotas are not published; check the console.'
-export const VERDA_KEY_NOTICE = 'Renting adds Mercury’s SSH public key and a startup script to your Verda account. The key is named mercury-host- plus its fingerprint. Remove them in the console when finished.'
+export const VERDA_STORAGE_NOTICE = 'Root disk: $0.20/GiB-month; Terminate deletes it. Other volumes keep billing. Compute prepays ten-minute increments; unused time is refunded. Shutdown keeps compute billing. Egress price unavailable.'
+export const VERDA_KEY_NOTICE = 'Adds an SSH key and startup script to your Verda account. Remove them in the console when finished.'
 export const VERDA_STARTUP_SCRIPT = '#!/bin/bash\nset -e\nmkdir -p /workspace\nif ! command -v curl >/dev/null || ! command -v setsid >/dev/null; then apt-get update; DEBIAN_FRONTEND=noninteractive apt-get install -y curl util-linux; fi\ndocker info >/dev/null\ntouch /workspace/.mercury-vm-ready\n'
 const idSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/)
 const money = z.union([z.number(), z.string().regex(/^\d+(?:\.\d+)?$/)]).transform(Number).pipe(z.number().finite().nonnegative())

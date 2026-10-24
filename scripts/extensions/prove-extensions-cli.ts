@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -47,7 +48,7 @@ console.log('============================================================')
 console.log('[1] the verb walk: add → sources → list → install(--yes) → disable/enable → refresh → uninstall → remove')
 {
   const empty = run(['extensions', 'list'])
-  check('list on a fresh home exits 0 with the empty state naming the maker doc', empty.code === 0 && empty.stdout.includes('no extensions yet') && empty.stdout.includes('docs/EXTENSIONS.md'), empty.stdout.slice(0, 200))
+  check('list on a fresh home exits 0 with the three bundled Craft rows and nothing else', empty.code === 0 && ['filmcraft', 'lightcraft', 'photocraft'].every(name => empty.stdout.includes(name)) && empty.stdout.split('\n').filter(line => line.includes('● on')).length === 3 && !empty.stdout.includes('no extensions yet'), empty.stdout.slice(0, 200))
   const emptySources = run(['extensions', 'sources'])
   check('sources on a fresh home names the add act', emptySources.code === 0 && emptySources.stdout.includes('add'), emptySources.stdout.slice(0, 160))
 
@@ -149,6 +150,6 @@ console.log('[5] /extensions is in the catalogue with its help-domain row; the r
   check("the help domain 'config & setup' lists extensions", rows.includes("'extensions'") || rows.includes('"extensions"'))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ EXTENSIONS CLI — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -27,6 +27,7 @@ import { WorkCapsuleContext } from './mercury-ui/WorkCapsule.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './Spinner/liveCounterWords.js'
+import { useOutputRate } from './Spinner/useOutputRate.js'
 import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
@@ -182,13 +183,18 @@ export function SpinnerWithVerb({
       </Text>
     ) : null
 
+  const otps = useOutputRate(
+    liveTurnFactsRef?.current.replyChars ?? responseLengthRef.current ?? 0,
+    compact && !still && !reducedMotion && pauseStartTimeRef.current === null && liveTurnFactsRef?.current.wait == null && (effectiveMode === 'responding' || effectiveMode === 'tool-input'),
+    now,
+  )
   if (compact) {
-    if (compactWarning) return <Box height={1} width="100%" overflow="hidden"><Text color="warning" wrap="truncate-end">{truncateKeepingTail(message, Math.max(0, columns))}</Text></Box>
+    if (compactWarning || still) return <Box height={1} width="100%" overflow="hidden"><Text color={compactWarning ? 'warning' : messageColor} wrap="truncate-end">{still ? `${GLYPH.spark} ` : ''}{truncateKeepingTail(message, Math.max(0, columns - (still ? 2 : 0)))}</Text></Box>
     const liveWords = liveCounterWords(
       { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(effectiveMode), sentAtMs: now - elapsedMs },
       now,
     )
-    const detail = liveCounterLine(liveWords, Math.max(0, columns - 5))
+    const detail = liveCounterLine(liveWords, Math.max(0, columns - 5), ' · ', otps)
     const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }

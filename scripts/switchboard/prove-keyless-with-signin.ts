@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = process.cwd()
 const scratch = mkdtempSync(join(tmpdir(), 'keyless-signin-'))
@@ -68,7 +69,7 @@ console.log('§3 the note\'s road, by source')
   check('the resume door mints it the same way (one seam)', read('src/services/switchboard/hopIntoSession.ts').includes(needle))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 if (failures > 0) {
   console.log(`\n ❌ keyless-with-signin — ${failures} failure(s)`)
   process.exit(1)

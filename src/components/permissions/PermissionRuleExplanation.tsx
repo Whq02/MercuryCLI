@@ -84,7 +84,7 @@ export function PermissionRuleExplanation({
         (reason as { message?: string; reason?: string }).reason
       if (!text) return null
       return (
-        <Text wrap="truncate-middle">
+        <Text wrap={reason.type === 'safetyCheck' && reason.operatorOnly ? 'wrap' : 'truncate-middle'}>
           <Ansi>{text}</Ansi>
         </Text>
       )

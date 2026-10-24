@@ -2,43 +2,15 @@
 
 <!-- answers: Search Hugging Face or pick a shipped recipe in `/llmhost`, bank weights and mirror Runpod volumes, rent a GPU on Runpod, Vast.ai or Lambda, run a model with `mercury host`, or connect a running server. -->
 
-Run `/llmhost` in the foreground chat. Its popup opens on **Which model?**,
-which lists 32 models across 78 recipes in `assets/host/recipes.json` alongside
-a live Hugging Face search line (`model name — e.g. deepseek, qwen, glm`).
-Each model row shows where it can run right now and ends with its verification
-stamp. In `/model`, you can also pick a `Run a model` entry tagged
-`run it → /llmhost` (`run it → /llmhost · run it on this Mac →` when a recipe
-fits your Mac) to open that model's screen directly.
+Run `/llmhost` in the foreground chat. **Which model?** lists 32 models across
+78 recipes alongside Hugging Face search. Rows show the model, where it can run
+and its hourly price. Choosing a row opens the model; nothing is rented before
+you confirm the price.
 
-### Verification stamps and list order
+In `/model`, a `Run a model` entry tagged `run it → /llmhost` opens the same
+screen. A fitting Mac also shows `run it on this Mac →`.
 
-Every recipe carries one of four verification stamps:
-
-- **`measured`:** Mercury booted the recipe on that GPU shape and recorded its token rate, memory use and per-slot context window.
-- **`documented`:** the GPU shape, launch flags, context length and reasoning effort levels come from the model author's or engine's published deployment guide or model card.
-- **`community`:** the launch configuration comes from a third-party community repository.
-- **`unverified`:** derived on the spot from a Hugging Face repository's file list and `config.json`; nobody has booted this exact recipe yet.
-
-On **Which model?**, verification tiers come first (`measured` → `documented` →
-`community` → `unverified`). A private recipe also precedes a search-derived
-recipe within the unverified tier. Within each tier, models sort by where they
-can run right now:
-
-1. Already running on one of your machines
-   (`running on your machine <id> · $<price>/hr · <N> conversations × <tokens> — switch →`).
-2. Fits one of your computers (`fits <computer> (<N> GB) — start here →`).
-3. In stock on a connected GPU provider
-   (`<Provider> <shape> · $<price>/hr · in stock`), ordered by lowest hourly
-   price across connected providers.
-4. Out of stock or no provider connected (`no stock · watch →`,
-   `Runpod · connect to check stock →` or
-   `Runpod · stock unavailable · retry →`).
-
-Stock and price never move an unverified search result ahead of a more trusted
-recipe. Within the same verification and availability tier, rows sort by lowest
-hourly price, then alphabetically by model name.
-
-Below the model list, **Which model?** includes **Machines I'm paying for**, **My
+Alongside the models, **Which model?** includes **Machines I'm paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
 `More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda, DigitalOcean)`, `A box I can reach by SSH`,
 `A server that's already running`, `One of my computers`,
@@ -57,66 +29,26 @@ The choice is saved in `host/recipes-file.json` and survives restarts; **Which
 model?** refreshes immediately with `private` tags. Only use recipes you trust;
 they can contain install commands.
 
-### Search Hugging Face and derive an `unverified` recipe
+### Search Hugging Face
 
-Typing in **Which model?** filters the shipped list immediately by model name
-(case-insensitive) under a `VERIFIED RECIPES` heading. After you type at least
-3 characters (`model name — e.g. deepseek, qwen, glm`) and pause for 450 ms,
-Mercury queries Hugging Face for public `text-generation` models sorted by
-downloads (up to 20 results). While the request is in flight, the popup shows
-`HUGGING FACE · fetching…`; when results arrive, they appear under
-`HUGGING FACE · <N> results · unverified · sorted by downloads` with
-`<repo id> · <params> · found on Hugging Face · not booted by Mercury · <format> · ↓ <downloads> · <licence> · unverified`
-(plus `🔒 gated` or `🔒 private` when applicable). Pressing `Esc` clears an
-active search query; pressing `Esc` again with an empty search closes the
-popup. Search results stay cached for that popup so returning from a model
-screen keeps your query.
+Type a model name to filter the `MODELS` list. After 3 characters and a 450 ms
+pause, Mercury searches Hugging Face for up to 20 text-generation models,
+sorted by downloads. The search placeholder is
+`model name — e.g. deepseek, qwen, glm`.
 
-- **What Mercury derives:** selecting a Hugging Face row reads the repository's
-  paginated file tree at one revision and its `config.json`. For GGUF repositories,
-  Mercury groups complete `.gguf` weight files (ignoring standalone `mmproj`
-  files and incomplete shard sets), prefers `Q4_K_M` or the next available
-  4-bit quantization (`UD-Q4_K_XL`, `Q4_K_L`, `Q4_K_S`, `Q4_K`, `IQ4_XS`,
-  `UD-IQ4_XS`, `IQ4_NL`, `Q4_0`, `Q4_1`, or else the largest group by bytes),
-  and builds a `llama.cpp` recipe with 4 parallel slots, the repository's declared
-  per-slot context (or `131,072` tokens when unknown), flash attention and `q8_0` KV cache.
-  For safetensors repositories, Mercury builds a `vLLM` recipe (`vllm/vllm-openai:latest`, CUDA
-  `13.0`) using the safetensors parameter byte counts (or file sizes),
-  `--max-model-len` from `config.max_position_embeddings`,
-  `--tensor-parallel-size` matching the GPU count, and `--trust-remote-code`
-  only when the repository is tagged `custom_code`. Mercury adds a 20% memory
-  margin (`weights × 1.2`) and picks the smallest fitting single-node shape
-  from `1`, `2`, `4` or `8` GPUs across `H100` (80 GB), `H200` (141 GB), `B200`
-  (180 GB) and `B300` (288 GB). Repositories requiring more than `8× B300` are
-  refused with `needs more than 8× B300 (<N> GB) · no single-machine recipe`.
-- **The engine check before anything is rented:** for a GGUF repository,
-  Mercury reads the file's header off Hugging Face before the row is offered:
-  only the header, by range requests (a few megabytes of a file that may be
-  hundreds of gigabytes; every shard's header when the file is split). It then
-  compares its architecture and its tensor names with what the prebuilt
-  `llama.cpp` engine knows (`assets/host/llamacpp-engine.json`, generated from
-  the pinned `llama.cpp` source). A file the engine cannot load is refused on
-  the list, before any rent or watch, with
-  `engine cannot load this file: <why> · a newer llama.cpp is needed` (for
-  example `its architecture "glm5next" is not known to llama.cpp <sha>`, or
-  `3 tensor families are unknown to llama.cpp <sha> (e.g. blk.N.…)`); a file
-  that is not a GGUF at all is refused as `engine cannot load this file: the file does not start with GGUF`.
-  A known file carries `header checked against the engine` on its row and
-  `header read · architecture <arch> · <N> tensors in <M> families, all known to llama.cpp <sha>`
-  on the model screen. When the header cannot be read (a gated file answers
-  HTTP 403, or Hugging Face does not answer), the row is still offered with
-  `header unread` and `engine check skipped · <why>`; nothing is refused on a
-  guess. For a safetensors repository, Mercury reads the quantisation method
-  from `config.json`: an `EXL2` or `EXL3` file (ExLlama's formats) is refused
-  with
-  `this file is an EXL3 quantisation; none of Mercury's engines (vLLM, SGLang, llama.cpp) run it — look for a GGUF, FP8, AWQ or GPTQ copy`,
-  and a method vLLM does not load with
-  `this file is a <METHOD> quantisation, which vLLM does not load — look for a GGUF, FP8, AWQ or GPTQ copy`.
-- **What `unverified` commits you to:** the derived recipe stays in session
-  memory (and on the pod record if you rent or watch it) without altering
-  `assets/host/recipes.json`. The model screen opens with
-  `RECIPE · unverified — recipe derived from the repo's config and file list a moment ago (engine <engine> · <format> · <N> GB); nobody has booted this exact recipe yet. The price is confirmed before anything is rented; the pod guard terminates a pod that never answers.`
-- **Gated repositories:** selecting a `🔒 gated` row without a Hugging Face
+Results appear under `HUGGING FACE · <N> results`, with the repository,
+parameter count, format, downloads and licence when supplied. `gated` or
+`private` identifies restricted repositories. `Esc` clears a search; a second
+`Esc` closes the popup. Results stay cached while the popup is open.
+
+Selecting a result reads its files and configuration to choose an engine and
+GPU shape. GGUF uses `llama.cpp`; safetensors uses `vLLM`. The model screen
+shows quality, context and weights size, followed by the available rentals.
+A file the engine cannot load is refused before renting, with the reason and
+an alternative format where available. The recipe stays in session memory
+and is saved with a rental or stock watch; it does not change the shipped list.
+
+- **Gated repositories:** selecting a `gated` row without a Hugging Face
   token keeps you on the list and shows
   `gated · sign in with /logins huggingface`. When signed in
   (`/logins huggingface` or `HF_TOKEN`), Mercury sends your bearer token; if
@@ -130,57 +62,25 @@ screen keeps your query.
   its reason (`— not a chat model (<reason>)`) and cannot be rented.
 - **Offline or unreachable:** if Hugging Face does not answer within 5 seconds
   or returns an error, the popup shows
-  `Hugging Face is unreachable · the verified list is shown` under
-  `HUGGING FACE` (or `Hugging Face is unreachable · nothing was derived` when
-  picking a row) and keeps the shipped list active.
+  `Hugging Face is unreachable` under `HUGGING FACE` and keeps the model list
+  active.
 
 ### The model screen
 
-Selecting a shipped or derived model opens its screen with a top recipe summary
-line (or the `RECIPE · unverified — …` line) and five sections:
+The model screen shows the selected **QUALITY**, **CONVERSATIONS × CONTEXT**,
+**THINKING** level and **WEIGHTS** size. Use `Choose quality →` for another
+variant, `/effort` to change thinking, or **Tune** on the rental confirmation
+for the conversation/context split.
 
-- **QUALITY:** each quantization or precision variant for the model (such as
-  `Balanced · 4-bit (recommended)`, `Best quality · 8-bit FP8` or
-  `Fast crew · NVFP4`), the required GPU shape and memory, the lowest current
-  hourly price, and the context window. When a model has multiple variants,
-  `Choose quality →` switches between them.
-- **CONVERSATIONS × CONTEXT:** how the GPU memory budget splits across parallel
-  conversations (for example
-  `4 × 131k — measured to fit · lead + 3 crew (recommended)`), calculated with
-  a 12 GB per-GPU engine reserve and the recipe's documented KV cache bytes per
-  token.
-- **THINKING:** the default reasoning level, with
-  `(change any time with /effort)`.
-- **WEIGHTS:** the download size from Hugging Face, whether the weights are
-  banked on your computer (`banked ✓ on <folder> (verified <date>)` or
-  `not banked`), and any kept Runpod or Vast.ai volume. A banked
-  model says that a rented machine without its volume downloads from Hugging
-  Face; your local bank serves your own computers and a mirror. A kept Vast.ai
-  volume names its machine; other machines download.
-- **WHERE:**
-  - `Already running · machine <id> · switch now · nothing to pay` for running pods
-    you can switch to immediately.
-  - In-stock rental rows across every connected provider, sorted cheapest
-    first:
-    `Rent · <Provider> <shape> · $<price>/hr · <data centre or region> · in stock · <boot source>`.
-    Each row ends with
-    `boots from your volume` when a kept Runpod fast-load volume matches that
-    data centre (or is global), `boots from your Vast.ai volume on its machine`
-    for the matching Vast.ai machine, or `downloads the weights first` otherwise.
-  - Computers from **My computers** (`fits (<N> GB) — start here →`,
-    `too small: <N> GB, needs <M>`, or `no local recipe for this model`).
-  - The **Bank** row
-    (`Bank · b bank the weights to <folder> (<size>, hash-verified) — your own copy, kept on your drive`
-    when unbanked, or
-    `Bank · weights banked ✓ on <folder> · v verify again · m mirror to a fast-load volume ($0.07/GB·month)`
-    when banked).
-  - `Watch stock · across every provider above · tell me when the cheapest shape comes back`
-    (or
-    `No stock · watch · across every provider above · tell me when the cheapest shape comes back`
-    when no connected provider has stock).
-  - `<Provider> · no stock for this quality · Refresh →` for connected
-    providers without stock for the selected variant, and `Connect Runpod →`,
-    `Connect Vast.ai →` or `Connect Lambda →` for unconfigured providers.
+Below those values are the actions:
+
+- **Already running:** switch to an existing machine without another rental.
+- **Rent:** provider, GPU shape, hourly rate and location. The confirmation
+  names the weights source and any storage charges.
+- **My computers:** start on a fitting computer.
+- **Bank:** open your local weights and kept volumes.
+- **Watch stock** or **No stock · watch:** set a rental price ceiling.
+- **Connect** and **Refresh:** connect a provider or refresh its stock.
 
 ## The Bank screen (`Bank · your weights`) and kept weights volumes
 
@@ -200,17 +100,11 @@ provider's volume.
    manifest or `config.json`, so its spelling alone never decides. **Change folder**
    opens the same folder prompt and refreshes the table after your choice.
    Existing weights are not moved or deleted.
-2. **Read the status line and table.** The status line shows the bank folder
-   path, free disk space on the drive, how many models are banked
-   (`Banked: <N> of <M> models · <size>`), the last verification date, and any
-   kept Runpod and Vast.ai volumes with their total size and monthly rate. The
-   table lists one row per weight repository across five columns: `MODEL`,
-   `SIZE`, `BANKED` (`✓ <drive>`, `— b to bank`, `… <step>`, or
-   `… <done>/<total> files · b resumes`), `VERIFIED` (`✓ <YYYY-MM-DD>`,
-   `✗ <YYYY-MM-DD>`, or blank), and `VOLUME` (`✓ <DC> · boots ~<N> min`,
-   `… preparing in <DC>`, `✗ failed in <DC> · d to drop`, `— m to mirror` when
-   banked, or `—`). Pressing `Enter` on a row shows its local path,
-   verification status and volume state.
+2. **Read the status line and table.** The summary shows the folder, free
+   space, banked model count and size, and any kept volumes' monthly rate.
+   The table has `MODEL`, `SIZE`, `BANKED`, `CHECK` and `VOLUME` columns.
+   `CHECK` shows `failed · v` when a file check failed. Press `Enter` for the
+   path, error and volume detail; `v` runs the check again.
 3. **Run background bank and volume actions.** Five single-key shortcuts work on
    the Bank table and on a model screen:
 
@@ -219,15 +113,13 @@ provider's volume.
   `hf download` for the recipe's revision and file list (passing your stored
   Hugging Face token in `HF_TOKEN` when signed in so gated repositories
   download), hashes every file in one streaming pass, writes `SHA256SUMS`,
-  verifies the files (`verified against the pinned manifest` for shipped
-  manifests or `verified against the download` otherwise), and posts a chat
-  notice when done. If a download is interrupted, partial files remain in the
-  folder and pressing `b` resumes; if the model is already banked, `b` lets you
+  verifies the files, and posts a chat notice when done. Interrupted downloads
+  leave partial files in the folder; `b` resumes. If already banked, `b` lets you
   choose `Verify instead (no download)` or
-  `Bank again · re-check against Hugging Face`.
+  `Bank again`.
 - **`v` (`verify`):** starts a background job (`verify-<id>`) that streams every
   file in the model's folder, checks file sizes, `SHA256SUMS` digests and any
-  manifest SHA-256 or git blob hashes, updates the `VERIFIED` date, and posts a
+  manifest SHA-256 or git blob hashes, updates the check result, and posts a
   chat notice naming the file if a byte differs.
 - **`m` (`mirror`):** opens volume setup for a shipped, derived or private recipe
   with a trusted file manifest. For a private bank, Mercury builds that manifest
@@ -300,14 +192,10 @@ choice directly). The steps:
    (`a temporary 1× RTX PRO 6000 instance at $1.35/hr on that machine`). Nothing
    is created before this confirmation.
 
-Once kept, the model's Bank row reads
-`weights kept on Vast.ai machine <id> (<n> GB, <billing>) · a rental on that machine boots in ~<m> min · other machines download`,
-its `WEIGHTS` line adds `Vast.ai volume ✓ machine <id>`, and the Vast.ai offer
-on that machine reads `machine <id> · boots from your Vast.ai volume on its machine`
-while rentals on other machines say `downloads the weights first`. Renting
-that offer attaches the volume at creation, checks the kept files in a few
-seconds (the sampled check described above) and skips the download; the
-rental confirmation names the volume's monthly amount beside the hourly price.
+Once kept, the Bank names the Vast.ai machine and its volume charge. The
+rental confirmation shows the volume's monthly amount beside the hourly
+rental price. A rental on that machine mounts the volume, checks the files
+and skips downloading them again; other machines need another source.
 The launch command also points the engine's compiled-kernel caches at the
 volume (SGLang's cache directory and its DeepGEMM cache, DeepGEMM's own JIT
 cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM). Later boots on that
@@ -341,8 +229,9 @@ disk never attaches to a Vast.ai instance.
    sign-in lacks this permission, sign in again with `/logins huggingface`.
    A pasted token needs the Inference Endpoints permission from
    https://huggingface.co/settings/tokens.
-   Hyperstack registers the SSH public key in the selected environment; Verda and DigitalOcean register it on the account. Initial new-account quotas for these three providers are not published: check the provider console before renting.
-   Hyperstack bills per minute, including a public IP charge; `/workspace` uses local storage that is deleted on termination. Verda prepays ten-minute compute increments with unused time refunded, charges separately for its root disk, and does not publish an egress price here; termination permanently deletes that root disk and verifies its absence. DigitalOcean bills per second with a five-minute minimum and includes local disk; Mercury offers its on-demand H100/H200 sizes, not B200 or spot/contract-only B300. Powering off these instances does not end compute billing.
+   Hyperstack registers the SSH public key in the selected environment; Verda
+   and DigitalOcean register it on the account.
+   Hyperstack bills per minute, including a public IP charge; `/workspace` uses local storage that is deleted on termination. Verda prepays ten-minute compute increments with unused time refunded, charges separately for its root disk, and does not publish an egress price here; termination permanently deletes that root disk and verifies its absence. DigitalOcean bills per second with a five-minute minimum and includes local disk; Mercury lists its on-demand H100/H200 sizes; B200 and the spot/contract-only B300 are left out. Powering off these instances does not end compute billing.
 2. **Choose a model and GPU shape.** Mercury reads live stock and hourly prices
    for the full shape (every GPU and node in the recipe) across the 32 shipped
    models (78 recipes in `assets/host/recipes.json` version 2, including
@@ -353,30 +242,23 @@ disk never attaches to a Vast.ai instance.
    MiniMax-M3 427B-A23B, Inkling 952B, Inkling-Small 266B,
    Nemotron 3 Ultra 550B-A55B, LongCat-2.0 1.8T, Ling-3.1-flash 572B,
    Qwen3.8-Flash-Next 180B-A6B, MiMo-V2.6-Flash-RL 309B-A15B,
-   gpt-oss-120b and Gemma 4 31B) plus any `unverified` recipe derived from
+   gpt-oss-120b and Gemma 4 31B) plus models from
    Hugging Face search. Large single-node and multi-node Runpod Instant Cluster
    recipes list total hourly compute, per-node disk sizes, weight download
    sizes, estimated download times at 0.5 to 1 GB/s per node, and model-licence
    terms.
-3. **Tune before renting (optional).** On the rental confirmation screen,
-   select **Tune** to pick the quantization, `conversations × context` split
-   (calculated against the model's documented or measured context bytes per
-   token: for a `llama.cpp` recipe one pool across the cards after a 12 GB
-   per-GPU engine reserve; for an SGLang recipe the pool every card keeps after
-   its share of the weights, inside the recipe's `--mem-fraction-static` share,
-   with the rest of each card named as what is kept free for the engine's
-   prefill work — the `DeepSeek-V4.1-Flash-1017` rows carry the figures read
-   from the engine's own memory plan on 4× B200), and default thinking level
-   before creating the pod.
+3. **Tune before renting (optional).** Select **Tune** to choose quality,
+   `conversations × context` and default thinking before creating the rental.
+   Choices use the recipe's memory budget; an oversized choice names the
+   larger shape it needs.
 4. **Confirm the hourly price.** Nothing is rented until you select the
-   confirmation row and press Enter. The confirmation screen shows the time
-   estimate for each setup step (engine startup, weight download and model
-   load), the recipe's verification status, and the vendor's storage and SSH-key
-   terms. The two shipped `llama.cpp` GGUF recipes (`GLM-5.3-Flash` and
-   `Nemotron 3.5 Super VL 120B`) use a prebuilt CUDA 13 `llama.cpp` container
-   image, built at the `llama.cpp` commit the recipes pin (the commit the engine
-   check's table is generated from), and skip source compilation when the
-   image's `llama-server` binary is present.
+   confirmation row and press Enter. It names the model, GPU shape, rate,
+   weights source, storage charges and deletion consequences. **Weights** lets
+   you choose Hugging Face, a private repository, this computer's Bank or a
+   kept volume. Unavailable choices say what action is needed. A private
+   repository uses your Hugging Face sign-in on the rented machine; a Bank
+   upload bills compute throughout the transfer. Billing starts on creation
+   and continues after you close the popup.
 5. **Background preparation and ready notice.** A detached background worker
    creates or registers the SSH key, provisions the pod or cluster, downloads
    the weights, starts the engine on remote loopback, opens a local SSH tunnel,
@@ -387,11 +269,8 @@ disk never attaches to a Vast.ai instance.
 
 ### Watch for stock across connected providers
 
-From a model screen
-(`Watch stock · across every provider above · tell me when the cheapest shape comes back`
-or
-`No stock · watch · across every provider above · tell me when the cheapest shape comes back`)
-or when a model has no stock on the rental flow, select **Watch for stock and
+From a model screen, choose **Watch stock** or **No stock · watch**. Then
+select **Watch for stock and
 rent at this price or less** (or choose **Set a lower price ceiling** / **Set a
 price ceiling**). A background worker polls every connected provider (Runpod,
 Vast.ai, Lambda, Hugging Face, Hyperstack, Verda and DigitalOcean) once every 5 seconds (12 stock checks per minute each)
@@ -403,27 +282,20 @@ a **Cancel** action.
 
 ### Vendor hiccups and setup pauses
 
-During pod or cluster setup and termination checks, transient vendor read
-errors (`HTTP 429`, `HTTP 5xx` and network timeouts across Runpod, Vast.ai and
-Lambda) do not immediately stop setup. Each read retries with exponential
-backoff from 5 seconds up to 60 seconds (honouring any longer `Retry-After`
-header) within a 4-minute read budget. While waiting, the pod status shows
-`<Vendor> read failed (HTTP 503) · retrying in <N> s · attempt <k>`, and once
-the vendor answers again it records
-`<Vendor> <operation> read recovered · continuing`. If the vendor still does
-not answer after 4 minutes, setup pauses without terminating the pod and posts
-`<Vendor> did not answer <operation> reads for 4 min (HTTP 503 ×<N>)` followed
-by `setup paused · Resume retries · /llmhost → Machines I'm paying for`.
+Transient vendor read errors (`HTTP 429`, `HTTP 5xx` and network timeouts)
+retry with exponential backoff from 5 seconds up to 60 seconds, honouring a
+longer `Retry-After`. If the vendor still does not answer within the 4-minute
+read budget, setup pauses without terminating the machine.
 
 No setup check ever terminates a rented machine on its own. When setup trips
 on a confirmed fault, Mercury pauses the setup, leaves the machine running,
 closes its tunnel, and posts one notice naming the cause, the machine, the
 hourly rate it still bills, and the two choices:
-`setup paused · <cause> · <Vendor> pod <id> stays up and bills $<rate>/hr while paused · Resume retries the setup, Terminate stops the bill · /llmhost → Machines I'm paying for`.
+`setup paused · <cause> · <Vendor> pod <id> · $<rate>/hr still billing · Resume or Terminate in /llmhost`.
 **Resume setup** under **Machines I'm paying for** starts the setup again on
 the same machine (a download continues from what already arrived; a running
-engine is reused); **Terminate** deletes it. The paused row shows
-`paused at <step>` with the cause. The causes:
+engine is reused); **Terminate** deletes it. The row shows `paused`; open it
+for the cause and recovery actions. The causes:
 
 - **Engine death while loading weights:** if the engine process exits or logs
   `out of memory` (`OOM`), `failed to load model`, `error loading model`,
@@ -458,9 +330,8 @@ engine is reused); **Terminate** deletes it. The paused row shows
   kept.
 - **SSH key refusal:** a `RUNNING` pod that rejects SSH login with
   `Permission denied (publickey)` is retried every poll until it accepts the
-  key or the setup deadline passes (a fresh container often answers before the
-  vendor has installed the account key); the row reads
-  `waiting for SSH · the machine has not accepted the key yet · retrying until it does`.
+  key or the setup deadline passes. A fresh container may answer before the
+  vendor installs the account key.
   If the deadline passes first, setup pauses with
   `the machine never accepted Mercury's SSH key before the setup deadline · <vendor key notice>`.
   For a running Vast.ai instance, Mercury first attaches the same SSH key to
@@ -472,26 +343,24 @@ engine is reused); **Terminate** deletes it. The paused row shows
   `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Machines I'm paying for shows it`.
 - **Engine death after setup:** the keep-alive loop reads the engine's own log
   before it reconnects a dropped tunnel. An engine that exited after it was
-  ready pauses the record the same way (the paused row reads
-  `paused · the engine died after setup`), with the machine up and its weights
-  on disk:
-  `the engine died after setup: <the engine's own first error line> · <Vendor> pod <id> stays up and bills $<rate>/hr while paused · Resume restarts the engine from the weights already on the machine, Terminate stops the bill`.
+ready pauses the record with the machine up and its weights on disk:
+  `<Vendor> pod <id> · <engine error> · paused, $<rate>/hr still billing · Resume or Terminate in /llmhost`.
   The engine line is shown without its log prefixes and with byte counts in GB.
   When the engine ran out of GPU memory, the notice says what happened in the
-  engine's terms rather than judging the shape (the shape held the weights; the
+  engine's terms, without judging the shape (the shape held the weights; the
   conversation outgrew the budget):
   `the engine ran out of GPU memory at <N>k tokens of context · the recipe's budget was <M> · Resume restarts it; a shorter conversation or the Tune screen's smaller context fits`
   (the tokens held and the budget are read from the engine's own startup plan
   and last batch line when it printed them). A request sent to that rental from
   the chat is answered at once with one line instead of a network-outage
-  reconnect countdown — the engine is down while the network is fine:
+  reconnect countdown, because the engine is down while the network is fine:
   `<Vendor> pod <id> · the engine ran out of GPU memory at <N>k tokens of context (the recipe's budget was <M>): <engine line> · the machine stays up and bills $<rate>/hr · Resume in /llmhost restarts the engine; a shorter conversation or the Tune screen's smaller context fits`.
   **Resume setup** starts the engine from the folder it loaded its weights
   from (checked on the machine first); nothing is uploaded or downloaded again.
   The two-hour rule covers this pause like any other.
 - **Link dropped after setup:** five failed reconnects pause the rental without
   terminating it. The notice names the rented machine, reconnect count and
-  hourly rate still billing: `Resume reconnects, Terminate stops the bill`.
+  hourly rate still billing: `Resume or Terminate in /llmhost`.
   Resume reopens the tunnel on the same port; an answering engine is reused
   without restarting it or downloading weights. The notice detail includes
   the last engine lines when they can be read, or `engine log unread`.
@@ -505,7 +374,7 @@ activity), is terminated by the background sweep. It posts
 (or `the setup pause went unanswered for 2 hours`), terminates the machine,
 reads the vendor's instance list to confirm it is gone, removes the `/model`
 entry, and posts
-`<Vendor> pod <id> terminated and verified absent (<Vendor> no longer lists it) · nothing more bills · /llmhost to rent again`
+`<Vendor> pod <id> terminated · nothing more bills`
 (a kept weights volume is never deleted by the sweep; the notice names it and
 its monthly charge instead). The sweep looks every 5 minutes; nothing
 terminates earlier than two hours. An unanswered pause after setup names its
@@ -528,13 +397,12 @@ count instead of claiming a complete zero. Rows use the vendor's own name:
 Vendor read errors appear once at the top, with their HTTP status and details
 behind the vendor row. A rejected credential stays parked until it changes.
 Each machine row shows its state, hourly rate and available spend estimate.
-Mercury remembers a rental's link drops across restarts. Chat outage notices
-name the rental and Mercury's reconnect count. When Vast.ai lists the same
-physical machine again, its offer stays selectable but follows unaffected
-machines, labelled `link dropped <n> min ago · <k> reconnects`.
+Mercury remembers a rental's link drops across restarts. When Vast.ai lists
+the same physical machine again, its offer stays selectable but follows
+unaffected machines.
 If only weights disks cannot be read, the machines remain listed:
 `weights disks unread; storage may still bill`; transient reads try up to three
-times, and the detail row names the failed request and cause and offers **Retry**.
+times, and the detail row names the failed request and cause and shows **Retry**.
 
 - **Tune (Runpod single-node `llama.cpp` pods):** change
   `conversations × context` or default thinking and reload `llama-server` in
@@ -679,23 +547,12 @@ reported by the server.
   configuring `SGLang` with `--tool-call-parser` or `--reasoning-parser`,
   starting `llama.cpp` with `--mmproj`, or sending base64 image data to
   `Ollama`.
-- **Slot affinity, prefill speed and live stream status:** on `llama.cpp`
-  servers that report multiple slots in `GET /props`, each conversation reuses
-  the same `id_slot` with `cache_prompt: true`. On `llama.cpp` and `SGLang`,
-  Mercury reads `/metrics` (`llamacpp:prompt_tokens_seconds` or SGLang prompt
-  and TTFT counters) to estimate prompt ingestion time, extends the first-byte
-  allowance by that duration, and displays
-  `reading <N>k tokens of context · ~<duration>` on the turn spinner. Once
-  response headers arrive, the spinner and context compaction row show
-  `waiting for the first token`, then `thinking` with a live
-  `↓ ~<N> thinking tokens` count during reasoning, and `writing` with the
-  growing token count and `~<rate> tok/s` as reply tokens stream. During long
-  prefills, Mercury polls server liveness (`GET /slots` on `llama.cpp`;
-  `/health`, `/` or `/v1/models` on `vLLM`, `SGLang`, `Ollama` and `LM Studio`)
-  instead of timing out after 30 seconds, and shows
-  `no tokens for <duration> · reconnecting (<k> of <N>)` or
-  `connection dropped · reconnecting (<k> of <N>)` when reconnecting an
-  interrupted stream.
+- **Slot affinity and long prompts:** on `llama.cpp` servers with multiple
+  slots, each conversation reuses its `id_slot` with `cache_prompt: true`.
+  Mercury uses `llama.cpp` and SGLang metrics to allow time for long prompts,
+  and checks server liveness instead of timing out after 30 seconds. The
+  spinner shows its verb, elapsed time, token count and rate; interrupted
+  streams show a concise reconnect or error line.
 
 ## A rented pod through a manual SSH tunnel
 

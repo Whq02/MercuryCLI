@@ -2,12 +2,8 @@ import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
 import type { Theme } from '../../utils/theme.js'
-import { getTheme } from '../../utils/theme.js'
-import { useTheme } from '../design-system/ThemeProvider.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { gaugeColor } from '../mercury-ui/theme.js'
 import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
-import { getLiveContextUsage } from '../../utils/cockpit/contextUsageLive.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { GlimmerMessage } from './GlimmerMessage.js'
 import { hookWaitLineOf } from '../../utils/hooks/wait.js'
@@ -15,17 +11,15 @@ import { getEphemeralProgressFrame, useEphemeralProgressVersion } from '../../st
 import { SpinnerGlyph } from './SpinnerGlyph.js'
 import { useShimmerAnimation } from './useShimmerAnimation.js'
 import { useStalledAnimation } from './useStalledAnimation.js'
-import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
+import { useOutputRate } from './useOutputRate.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
-import { planSpinnerHud, type HudSegment } from './spinnerHud.js'
+import { planSpinnerHud } from './spinnerHud.js'
 
 const SLOW_TICK_MS = WORK_TICK_MS * 2
-const THINKING_SHIMMER_SUPPRESS_MS = 3000
-const THINKING_SHIMMER_PERIOD_MS = 2000
 
 type SpinnerAnimationRowProps = {
   mode: SpinnerMode
@@ -56,7 +50,6 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   const {
     mode,
     reducedMotion,
-    activeToolCount,
     responseLengthRef,
     outputTokensRef,
     liveTurnFactsRef,
@@ -71,12 +64,9 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
     hookWaitKeys = NO_KEYS,
     verbose,
     columns,
-    effortSuffix,
     inWorkCapsule = false,
     still = false,
   } = props
-  const [themeName] = useTheme()
-  const theme = getTheme(themeName)
   const tokens = useMercuryTokens()
   const now = Date.now()
 
@@ -111,26 +101,12 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
     now,
   )
 
-  const rateSampleRef = useRef({ at: 0, len: 0 })
-  const smoothedOtpsRef = useRef(0)
+  const otps = useOutputRate(
+    liveTurnFactsRef?.current.replyChars ?? currentResponseLength,
+    !reducedMotion && !still && pauseStartTimeRef.current === null && liveWords.promise === null && (mode === 'responding' || mode === 'tool-input'),
+    now,
+  )
   const stackedLatchRef = useRef(false)
-  if (reducedMotion) {
-    smoothedOtpsRef.current = 0
-  } else {
-    const dtMs = now - rateSampleRef.current.at
-    if (dtMs >= 250) {
-      const deltaChars = currentResponseLength - rateSampleRef.current.len
-      if (rateSampleRef.current.at !== 0 && deltaChars >= 0) {
-        const instant = deltaChars / 4 / (dtMs / 1000)
-        smoothedOtpsRef.current = smoothedOtpsRef.current * 0.6 + instant * 0.4
-      }
-      rateSampleRef.current = { at: now, len: currentResponseLength }
-    }
-  }
-  const otps = Math.round(smoothedOtpsRef.current)
-
-  const ctxPctRaw = getLiveContextUsage().usedPct
-  const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
   useEphemeralProgressVersion(hookWaitKeys)
   const suffixText = spinnerSuffix ?? hookWaitLineOf(hookWaitKeys.map(getEphemeralProgressFrame)) ?? ''
 
@@ -142,20 +118,15 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
       verbose,
       still,
       suffixText,
-      stillWaiting,
-      thinkingLabel: `${THINKING_WORD}${effortSuffix ?? ''}`,
       liveWords,
-      livePhase: liveCounterPhaseOf(mode),
       effectiveElapsedMs,
-      ctxPct,
-      activeToolCount,
       otps,
       wasStacked: stackedLatchRef.current,
     },
     wanted => turnStripLines(loadingStartTimeRef.current, wanted),
   )
   stackedLatchRef.current = plan.stacked
-  const { ordered, secondRow, showCtx, showWif, showOtps, wifText, otpsText, ctxSpark } = plan
+  const { ordered, secondRow, showOtps, otpsText } = plan
 
   const displayedHead = message.split(' · ')[0]!.replace(/…\s*$/, '').trim()
   const cadence = isQuicksilverLine(displayedHead) ? 'quicksilver' : 'standard'
@@ -164,40 +135,9 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   const flashOpacity = mode === 'tool-use' && !reducedMotion ? (Math.sin((slowTime / 2000) * Math.PI * 2) + 1) / 2 : 0
   const effectiveIntensity = overrideColor !== null ? 0 : attentionIntensity
 
-  const thinkingSinceRef = useRef<number | null>(null)
-  if (mode !== 'thinking') thinkingSinceRef.current = null
-  else if (thinkingSinceRef.current === null) thinkingSinceRef.current = time
-  const thinkingAgeMs = thinkingSinceRef.current === null ? 0 : time - thinkingSinceRef.current
-  const shimmerActive = mode === 'thinking' && !reducedMotion && thinkingAgeMs > THINKING_SHIMMER_SUPPRESS_MS
-  const shimmerPhase = (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
-  const metaColor = (segment: HudSegment): string | undefined => {
-    if (segment.kind === 'waiting') return theme.warning
-    if (segment.kind === 'thinking') {
-      if (!shimmerActive) return THINKING_COLOR
-      const grey = Math.round(120 + shimmerPhase * 60)
-      return `rgb(${grey},${grey},${grey})`
-    }
-    return undefined
-  }
-
   const metaNodes: React.ReactNode[] = []
-  for (const segment of ordered.filter(s => s.kind === undefined)) {
+  for (const segment of ordered) {
     metaNodes.push(<Text key={segment.key}>{segment.text}</Text>)
-  }
-  if (showCtx && ctxPct != null) {
-    metaNodes.push(
-      <Text key="ctx">
-        <Text color={gaugeColor(ctxPct)}>{ctxSpark} {ctxPct}%</Text>
-        <Text color={tokens.textSecondary}>{' ctx'}</Text>
-      </Text>,
-    )
-  }
-  if (showWif) {
-    metaNodes.push(
-      <Text key="wif">
-        <Text color={tokens.success}>{wifText}</Text>
-      </Text>,
-    )
   }
   if (showOtps) {
     metaNodes.push(
@@ -206,25 +146,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
       </Text>,
     )
   }
-  for (const segment of ordered.filter(s => s.kind === 'thinking')) {
-    metaNodes.push(
-      <Text key={segment.key} color={metaColor(segment)}>
-        {segment.text}
-      </Text>,
-    )
-  }
-  if (ordered.some(segment => segment.kind === 'waiting')) {
-    metaNodes.push(
-      <Text dimColor italic={true} key="stillWaiting">
-        {'still waiting…'}
-      </Text>,
-    )
-  }
-  const metaGroup = !plan.metaVisible ? null : plan.onlyThinking && !plan.gaugesVisible ? (
-    <Text color={metaColor(ordered[0]!)}>
-      ({ordered[0]!.text})
-    </Text>
-  ) : (
+  const metaGroup = !plan.metaVisible ? null : (
     <Text dimColor>
       {'('}
       {metaNodes.map((node, index) => (

@@ -13,6 +13,7 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -87,6 +88,7 @@ function readAuthFile(): OpenaiAuthFile | null {
 
 function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   const dir = getAuthConfigHomeDir()
+  refuseProofWriteIntoAccountStore(dir, `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(dir, { recursive: true })
   const existing = readAuthFile() ?? { version: OPENAI_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENAI_AUTH_VERSION })

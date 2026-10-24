@@ -20,7 +20,7 @@ const stateGb = glm.kvBytesPerToken!.conversationBytes! / 1e9
 check('one long conversation and four medium ones hold the same context memory; each extra conversation adds only its fixed state', Math.abs(split(4, 262144)!.requiredGb! - split(1, 1048576)!.requiredGb! - 3 * stateGb) < 1e-9 && Math.abs(split(2, 524288)!.requiredGb! - split(1, 1048576)!.requiredGb! - stateGb) < 1e-9)
 check('weights are not confused with volume disk size', budget.weightsGb === 195)
 check('unknown sizes offer only the recipe default', tune.tuneBudget({ ...glm, weightsGb: undefined, kvBytesPerToken: undefined }, 288, 1).candidates.length === 1)
-check('unknown size words make no promise', tune.tuneBudget({ ...glm, weightsGb: undefined }, 288, 1).words.includes('weights size unknown'))
+check('unknown size does not add an uncertainty badge', !/unknown|promise/.test(tune.tuneBudget({ ...glm, weightsGb: undefined }, 288, 1).words))
 check('balanced quality is explicit', tune.qualityWords(glm).includes('Balanced · 4-bit'))
 check('FP8 quality is explicit', tune.qualityWords({ ...glm, label: 'GLM-5.3-Flash · FP8' }).includes('Best quality · 8-bit FP8'))
 check('NVFP4 quality carries community provenance', tune.qualityWords(HOST_RECIPES.find(row => row.id === 'glm53-flash-b200-community')!).includes('Fast crew · NVFP4'))
@@ -28,14 +28,14 @@ check('unknown variant is never guessed', tune.qualityWords({ ...glm, label: 'Mo
 
 check('per token the engine keeps the 11 attention layers\' latent and indexer row at q8_0, not all 45 layers', glm.kvBytesPerToken?.bytes === 10472 && glm.kvBytesPerToken.bytes === 11 * (512 + 3 * 128) * 34 / 32 && glm.kvBytesPerToken.verified.source.endsWith('/config.json'))
 check('the 34 linear-attention layers cost a fixed f32 state per conversation, whatever its length', glm.kvBytesPerToken?.conversationBytes === 152633344 && glm.kvBytesPerToken.conversationBytes === 34 * (3 * 3 * 64 * 128 + 128 * 128 * 64) * 4)
-check('engine overhead is a visible allowance', budget.words.includes('12 GB/GPU engine allowance'))
+check('budget detail retains GPU memory and weights', budget.words.includes('288 GB/GPU') && budget.words.includes('weights 195 GB'))
 check('the estimate for the measured launch sits above the 193,464 MiB the B300 run used and inside the GPU', split(4, 131072)!.requiredGb! >= 193464 * 2 ** 20 / 1e9 && split(4, 131072)!.requiredGb! <= 288)
-check('the measured launch carries the measured qualifier', split(4, 131072)!.measured && split(4, 131072)!.label.includes('measured to fit'))
-check('eight conversations of 64k hold eight states, more than the measured four, so the split is an estimate', !split(8, 65536)!.measured && split(8, 65536)!.label.includes('should fit (estimate)'))
+check('the measured launch retains its internal qualifier without a badge', split(4, 131072)!.measured && !split(4, 131072)!.label.includes('measured'))
+check('eight conversations retain their unmeasured fit result', !split(8, 65536)!.measured && split(8, 65536)!.fits)
 check('the room line counts the context the GPU holds after weights, states and allowance', budget.totalTokens === Math.floor(((288 - 12) * 1 - 195 - 4 * glm.kvBytesPerToken!.conversationBytes! / 1e9) * 1e9 / 10472))
-check('a weights size from the files reads as one decimal', tune.tuneBudget({ ...glm, weightsGb: 199.716751456 }, 288, 1).words.includes('weights 199.7 GB · '))
-check('a launch whose cache type is not the one the estimate assumed offers only the recipe default', tune.tuneBudget({ ...glm, flags: glm.flags.map(value => value === 'q8_0' ? 'f16' : value) }, 288, 1).candidates.length === 1 && tune.tuneBudget({ ...glm, flags: glm.flags.map(value => value === 'q8_0' ? 'f16' : value) }, 288, 1).words.includes('context memory unknown'))
-check('1M is an estimate not a measurement', budget.candidates.find(row => row.conversations === 1)?.label.includes('should fit (estimate)'))
+check('a weights size from the files reads as one decimal', tune.tuneBudget({ ...glm, weightsGb: 199.716751456 }, 288, 1).words.includes('weights 199.7 GB'))
+check('a mismatched cache type offers only the recipe default', tune.tuneBudget({ ...glm, flags: glm.flags.map(value => value === 'q8_0' ? 'f16' : value) }, 288, 1).candidates.length === 1)
+check('1M retains its unmeasured fit result', budget.candidates.find(row => row.conversations === 1)?.measured === false && budget.candidates.find(row => row.conversations === 1)?.fits === true)
 check('larger totals require another card', budget.candidates.find(row => row.conversations === 8 && row.contextPerConversation === 1048576)?.needsCount === 2)
 const offer = { recipe: glm, gpuId: 'NVIDIA B300 SXM6 AC', price: 7.99, dataCenter: 'EU-NL-1', availability: 'HIGH' }
 const bigger = { ...offer, recipe: { ...glm, count: 2 }, price: 18 }
@@ -48,9 +48,9 @@ const dsFraction = Number(ds.flags[ds.flags.indexOf('--mem-fraction-static') + 1
 check('the DeepSeek-V4.1 B200 recipe sizes its prefill chunk and static share from the measured plan: chunk 2048, 78% static', ds.flags[ds.flags.indexOf('--chunked-prefill-size') + 1] === '2048' && dsFraction === 0.78 && ds.context === 1048576 && ds.contextPerSlot === 1048576)
 check('its per-token cost is the engine’s own measured cell and the measurement is dated and sourced', ds.kvBytesPerToken?.bytes === 11624 && ds.kvBytesPerToken.verified.by === 'measured' && ds.kvBytesPerToken.verified.on === '2026-10-23' && ds.kvBytesPerToken.verified.note?.includes('max_total_num_tokens=1754112') === true)
 check('the room line is the pool one card holds after its share of the weights, not four cards of flat allowance', dsBudget.totalTokens === Math.floor((dsFraction * 180 - ds.weightsGb / 4) * 1e9 / 11624) && dsBudget.totalTokens! >= 1048576)
-check('the budget words name the per-card weights and the share kept free for the engine’s prefill work', dsBudget.words === '4× B200 · 180 GB/GPU · weights 510.3 GB (127.6 GB per card) · 39.6 GB/GPU kept free for the engine’s prefill work (22% of each card)')
-check('the one candidate is the engine default at the full 1M context and it fits as an estimate', dsBudget.candidates.length === 1 && dsBudget.candidates[0]!.conversations === null && dsBudget.candidates[0]!.contextPerConversation === 1048576 && dsBudget.candidates[0]!.fits && dsBudget.candidates[0]!.label === 'engine default × 1M — should fit (estimate)')
-check('a card too small for the plan is told so, never a nonsense card count', tune.tuneBudget(ds, 141, 4).candidates[0]!.label === 'engine default × 1M — over this shape’s budget (estimate)' && tune.tuneBudget(ds, 141, 4).candidates[0]!.fits === false)
+check('the budget detail retains hardware and weights without calculation narration', dsBudget.words === '4× B200 · 180 GB/GPU · weights 510.3 GB')
+check('the default full 1M candidate and fit are unchanged', dsBudget.candidates.length === 1 && dsBudget.candidates[0]!.conversations === null && dsBudget.candidates[0]!.contextPerConversation === 1048576 && dsBudget.candidates[0]!.fits && dsBudget.candidates[0]!.label === '1M')
+check('an undersized card still requires a larger shape', tune.tuneBudget(ds, 141, 4).candidates[0]!.label === '1M · choose a larger shape' && tune.tuneBudget(ds, 141, 4).candidates[0]!.fits === false)
 check('the verification words carry the measured reason for the chunk and the share', ds.verification.includes('prefill chunk 2048 and a 78% static share, set from the engine’s own memory plan read on 4× B200 on 2026-10-23') && ds.verification.includes('outgrew the 24.7 GB headroom near 150k tokens of context'))
 check('the 288 GB cards keep the 80% share with a 4096 chunk and say the figure is computed, not measured there', ['deepseek41-b300', 'deepseek41-gb300'].every(id => { const row = HOST_RECIPES.find(entry => entry.id === id)!; return row.flags[row.flags.indexOf('--chunked-prefill-size') + 1] === '4096' && row.flags[row.flags.indexOf('--mem-fraction-static') + 1] === '0.8' && row.verification.includes('not measured on this card') && tune.tuneBudget(row, row.vramGb, row.count).candidates[0]!.fits }))
 check('the saved tune of a DeepSeek rental passes the budget check', tune.tunedRecipe(ds, tune.defaultTune(ds)).id === ds.id)
@@ -209,8 +209,8 @@ try {
   let unknownLimit = false
   const defaults = await tune.runTune('Qwen3.8-27B', { recipes: [qwen] }, async question => {
     if (question.step === 'tune-quality') return qwen.id
-    if (question.step === 'tune-context') { unknownLimit = question.willRun.includes('limit not documented for this recipe'); return '0' }
-    if (question.step === 'tune-thinking') { informational = question.rows?.length === 1 && question.rows[0]?.label === 'default · /effort changes it per request'; return 'default' }
+    if (question.step === 'tune-context') { unknownLimit = question.rows?.length === 1 && question.rows[0]?.label === 'engine default'; return '0' }
+    if (question.step === 'tune-thinking') { informational = question.rows?.length === 1 && question.rows[0]?.label === 'default'; return 'default' }
     return 'confirm'
   }, emit)
   check('SGLang thinking is informational rather than an unsupported launch choice', informational && defaults?.effort === 'default')

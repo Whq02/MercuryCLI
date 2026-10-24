@@ -54,7 +54,7 @@ try {
   }
   const tunnels = (): number => ssh!.commands.filter(row => row.command === 'tunnel').length
   const pauseWords = (pod: { id: string; cost: number }, cause: string, notice: string): boolean =>
-    notice.includes('setup paused · ' + cause) && notice.includes(hostMachineName('runpod', pod.id) + ' stays up and bills $' + pod.cost.toFixed(2) + '/hr while paused') && notice.includes('Resume retries the setup, Terminate stops the bill · /llmhost → Machines I’m paying for')
+    notice.includes('setup paused · ' + cause) && notice.includes(hostMachineName('runpod', pod.id)) && notice.includes('$' + pod.cost.toFixed(2) + '/hr still billing') && notice.includes('Resume or Terminate in /llmhost')
   const pausedTrip = (name: string, pod: { id: string; cost: number }, record: HostRecord, cause: string, deletesBefore: number, tunnelsBefore: number): void => {
     const posted = notices(pod.id)
     for (const row of posted) console.log('  notice · ' + (/<summary>([^]*?)<\/summary>/.exec(row.words)?.[1] ?? row.words))
@@ -115,7 +115,7 @@ try {
   check('Resume re-queues a paused record with a fresh generation and clears the pause', resumed.jobState === 'queued' && resumed.generation !== oom.generation && resumed.error === undefined && resumed.id === oomPod.id)
   const ready = await run(resumed)
   check('the resumed setup completes on the same machine with no terminate and a registered model entry', ready.jobState === 'ready' && ready.provider !== undefined && configuredCompatEndpoints().some(row => row.name === ready.provider) && rp.state.deletes === oomDeletes && rp.state.creates === 4, JSON.stringify({ jobState: ready.jobState, error: ready.error }))
-  check('the pause posted one notice and the resume posted its own ready notice', notices(oomPod.id).filter(row => row.words.includes('setup paused')).length === 1 && notices(oomPod.id).some(row => row.words.includes('is ready')))
+  check('one pause notice and a separate ready notice are delivered', notices(oomPod.id).filter(row => row.words.includes('setup paused')).length === 1 && notices(oomPod.id).some(row => row.words.includes('ready · /model')))
 
   const readySince = hostIdleSince(ready)!
   check('a ready rental counts from its ready mark and the reply check that registered it', readySince !== undefined && readySince >= (ready.steps?.find(row => row.step === 'ready')?.at ?? Infinity))
@@ -135,7 +135,7 @@ try {
   const idleNotices = notices(oomPod.id).filter(row => row.words.includes(hostIdleHoursWords))
   for (const row of idleNotices) console.log('  notice · ' + (/<summary>([^]*?)<\/summary>/.exec(row.words)?.[1] ?? row.words))
   check('at two idle hours the sweep terminates the ready rental, verifies it absent and removes its model entry', released.length === 1 && released[0]!.kind === 'idle' && rp.state.deletes === idleDeletes + 1 && !rp.state.pods.has(oomPod.id) && idleRecord.status === 'TERMINATED' && !configuredCompatEndpoints().some(row => row.name === ready.provider), JSON.stringify(idleRecord))
-  check('the idle terminate posts a notice naming the two hours and the rate before, and the verified absence after', idleNotices.length === 2 && idleNotices.some(row => row.words.includes('no model request reached it for ' + hostIdleHoursWords + ' · terminating ' + hostMachineName('runpod', oomPod.id) + ' · it bills $' + oomPod.cost.toFixed(2) + '/hr until it is gone')) && idleNotices.some(row => row.words.includes(hostMachineName('runpod', oomPod.id) + ' terminated and verified absent (Runpod no longer lists it) · nothing more bills')), idleNotices.map(row => row.words).join('\n'))
+  check('idle termination notices retain the reason, rate and end of billing', idleNotices.length === 2 && idleNotices.some(row => row.words.includes('no model request reached it for ' + hostIdleHoursWords + ' · terminating ' + hostMachineName('runpod', oomPod.id) + ' · it bills $' + oomPod.cost.toFixed(2) + '/hr until it is gone')) && idleNotices.some(row => row.words.includes(hostMachineName('runpod', oomPod.id) + ' terminated · nothing more bills')), idleNotices.map(row => row.words).join('\n'))
   check('the idle terminate uses no house words on screen', !idleNotices.some(row => houseWords.test(row.words.replace(/<[^>]+>/g, ' '))))
   closeHostTunnel(oomPod.id)
 

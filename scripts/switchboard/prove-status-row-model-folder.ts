@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -8,6 +8,7 @@ import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 import type { SeatStatusV1, SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
 import type { SampleRowV1, WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const argument = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -327,7 +328,7 @@ try {
   failures++
   console.log(`  [FAIL] render — ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
 } finally {
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 console.log(`\nprove-status-row-model-folder: ${failures === 0 ? `GREEN (${checks} checks)` : `${failures} of ${checks} RED`}`)
 process.exit(failures === 0 ? 0 : 1)

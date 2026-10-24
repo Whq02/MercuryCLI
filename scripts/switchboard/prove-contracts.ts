@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,6 +21,7 @@ const { markConcourseWorkerDelivery, readSessionWorkers } = await import(
 )
 const { appendSessionReceipt, readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
 const DIR = join(SCRATCH, 'daemon')
@@ -210,6 +211,6 @@ console.log('G — warm re-surfacing (T3 mechanism 1: at birth, then on cadence,
   }
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-contracts: ALL LAWS HOLD' : `\nprove-contracts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

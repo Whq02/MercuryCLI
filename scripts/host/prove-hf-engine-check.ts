@@ -93,7 +93,7 @@ try {
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   const picked = await pickHuggingFaceModel(ggufModel, { base, token: hf.token })
   check('picking a known GGUF derives the row with the engine check on it', picked.ok && picked.row.engineCheck?.startsWith('header read · architecture deepseek2') === true && picked.row.recipe.verification.endsWith(' · header checked against the engine'))
-  check('the RECIPE words on the model screen carry the engine check', picked.ok && derivedRecipeWords(picked.row.recipe)?.includes('header read · architecture deepseek2') === true)
+  check('engine check data remains internal rather than a row stamp', picked.ok && picked.row.engineCheck?.includes('header read · architecture deepseek2') === true && !derivedRecipeWords(picked.row.recipe)?.includes('header read'))
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   hf.state.ggufVariant = 'fork'
   const refused = await pickHuggingFaceModel(ggufModel, { base, token: hf.token })

@@ -51,7 +51,7 @@ try {
   const fp8 = models.find(model => model.id === hf.repos.fp8.id)!
   const gated = models.find(model => model.id === hf.repos.gated.id)!
   const vision = models.find(model => model.id === hf.repos.vision.id)!
-  check('rows carry size, plain source warning, format, downloads, licence and gated status', hfRowLabel(fp8) === fp8.id + ' · 284B · found on Hugging Face · not booted by Mercury · safetensors FP8 · ↓ 3.4M · MIT · unverified' && hfRowLabel(gguf) === gguf.id + ' · 284B · found on Hugging Face · not booted by Mercury · GGUF Q4_K_M · ↓ 412k · MIT · unverified' && hfRowLabel(gated) === gated.id + ' · 36B · found on Hugging Face · not booted by Mercury · safetensors BF16 · ↓ 1.2k · MIT · gated · unverified')
+  check('rows retain size, format, downloads, licence and access without provenance', hfRowLabel(fp8) === fp8.id + ' · 284B · safetensors FP8 · ↓ 3.4M · MIT' && hfRowLabel(gguf) === gguf.id + ' · 284B · GGUF Q4_K_M · ↓ 412k · MIT' && hfRowLabel(gated) === gated.id + ' · 36B · safetensors BF16 · ↓ 1.2k · MIT · gated')
   check('the vision repo is listed as not a chat model and cannot be picked', hfRowLabel(vision).includes(HF_NOT_CHAT_WORDS + ' (vision)') && !hfModelChat(vision).ok)
   check('the padded id keeps the columns aligned', hfRowLabel(gguf, 48).startsWith(gguf.id.padEnd(48) + ' · '))
 
@@ -73,7 +73,7 @@ try {
     const expected = context ?? 131072
     check('GGUF context ' + (context ?? 'unknown') + ' retains its declaration or the unknown-context default', variation.recipe.context === expected && variation.recipe.contextPerSlot === expected && variation.recipe.flags.join(' ').includes('--ctx-size ' + expected * 4 + ' --parallel 4'))
   }
-  check('the GGUF recipe is stamped unverified with the repo as its source and passes the schema', g.verified.by === 'unverified' && g.verified.source === 'https://huggingface.co/' + gguf.id && /^\d{4}-\d{2}-\d{2}$/.test(g.verified.on!) && g.verified.note!.includes('nobody has booted this recipe') && g.id === 'hf-unsloth-deepseek-v4.1-flash-gguf' && g.label === gguf.id + ' · found on Hugging Face · not booted by Mercury · GGUF Q4_K_M' && g.model === gguf.id && hostRecipeSchema.safeParse(g).success && ggufDerived.engine === 'llama.cpp' && ggufDerived.format === 'GGUF Q4_K_M')
+  check('internal recipe tier and source are unchanged while the label names only the model and format', g.verified.by === 'unverified' && g.verified.source === 'https://huggingface.co/' + gguf.id && /^\d{4}-\d{2}-\d{2}$/.test(g.verified.on!) && g.verified.note!.includes('nobody has booted this recipe') && g.id === 'hf-unsloth-deepseek-v4.1-flash-gguf' && g.label === gguf.id + ' · GGUF Q4_K_M' && g.model === gguf.id && hostRecipeSchema.safeParse(g).success && ggufDerived.engine === 'llama.cpp' && ggufDerived.format === 'GGUF Q4_K_M')
 
   const fp8Repo = await fetchHuggingFaceRepo(fp8.id, { base })
   assert.ok(fp8Repo.ok, 'the FP8 tree and config are read')
@@ -82,7 +82,7 @@ try {
   assert.ok(fp8Derived.ok, 'the FP8 recipe derives: ' + JSON.stringify(fp8Derived))
   const v = fp8Derived.recipe
   check('safetensors → vLLM with --max-model-len from the config and --tensor-parallel-size = the GPU count', v.engine === 'vllm' && v.image === 'vllm/vllm-openai:latest' && v.flags.join(' ') === '--max-model-len 1048576 --tensor-parallel-size 2' && v.context === 1048576)
-  check('FP8 memory = params × 1 byte (BF16 × 2) × 1.2 → 2× B200; weights and disk from the file sizes', v.gpu === 'B200' && v.count === 2 && v.vramGb === 180 && v.weightsGb === 288 && v.diskGb === 450 && v.label === fp8.id + ' · found on Hugging Face · not booted by Mercury · safetensors FP8' && hostRecipeSchema.safeParse(v).success && fp8Derived.engine === 'vLLM' && fp8Derived.format === 'safetensors FP8')
+  check('FP8 memory and hardware stay unchanged', v.gpu === 'B200' && v.count === 2 && v.vramGb === 180 && v.weightsGb === 288 && v.diskGb === 450 && v.label === fp8.id + ' · safetensors FP8' && hostRecipeSchema.safeParse(v).success && fp8Derived.engine === 'vLLM' && fp8Derived.format === 'safetensors FP8')
 
   const visionDerived = deriveHostRecipe(vision, [{ path: 'model.safetensors', size: 6e9 }, { path: 'config.json', size: 4096 }], { architectures: ['DeepseekOCRForConditionalGeneration'] })
   check('the vision repo is refused by the derivation', !visionDerived.ok && visionDerived.reason.includes(HF_NOT_CHAT_WORDS))
@@ -93,7 +93,7 @@ try {
   check('a gated repo without a token says sign in with /logins huggingface and reads nothing', !gatedPick.ok && gatedPick.words === gated.id + ' · ' + HF_GATED_WORDS && hf.state.trees === 2)
   const gatedPicked = await pickHuggingFaceModel(gated, { base, token: hf.token })
   assert.ok(gatedPicked.ok, 'a gated repo with the token derives: ' + JSON.stringify(gatedPicked))
-  check('with the token the tree is read with the bearer and the BF16 recipe fits 1× H200 (72 GB × 1.2)', hf.requests.some(row => /\/tree\/[a-f0-9]{40}$/.test(row.path) && row.authorization === 'Bearer ' + hf.token) && gatedPicked.row.recipe.gpu === 'H200' && gatedPicked.row.recipe.count === 1 && gatedPicked.row.recipe.label === gated.id + ' · found on Hugging Face · not booted by Mercury · safetensors BF16' && gatedPicked.row.recipe.flags.join(' ') === '--max-model-len 131072 --tensor-parallel-size 1')
+  check('the gated recipe uses the token and preserves hardware and flags', hf.requests.some(row => /\/tree\/[a-f0-9]{40}$/.test(row.path) && row.authorization === 'Bearer ' + hf.token) && gatedPicked.row.recipe.gpu === 'H200' && gatedPicked.row.recipe.count === 1 && gatedPicked.row.recipe.label === gated.id + ' · safetensors BF16' && gatedPicked.row.recipe.flags.join(' ') === '--max-model-len 131072 --tensor-parallel-size 1')
   check('no token ever reaches a record: the recipe carries the repo URL and the stamp, never the bearer', !JSON.stringify(gatedPicked.row.recipe).includes(hf.token))
 
   const picked = await pickHuggingFaceModel(gguf, { base })
@@ -103,7 +103,7 @@ try {
   check('a pick is remembered by repo id: the second pick reads nothing and returns the same recipe', again.ok && again.row === picked.row && hf.state.trees === treesAfterPick && derivedHfRecipe(gguf.id) === picked.row)
   check('a picked recipe joins the session list the road reads, after the shipped recipes, never the shipped file', currentHostRecipes().at(-1)?.id === picked.row.recipe.id && sessionHostRecipes().some(row => row.id === picked.row.recipe.id) && !HOST_RECIPES.some(row => row.id === picked.row.recipe.id))
   const words = derivedRecipeWords(picked.row.recipe)!
-  check('the RECIPE line reads unverified with the engine, format and size and the price-confirm and pod-guard promise', words.startsWith('RECIPE · unverified — recipe derived from the repo’s config and file list a moment ago (engine llama.cpp · GGUF Q4_K_M · 120 GB); nobody has booted this exact recipe yet.') && words.endsWith('The price is confirmed before anything is rented; a pod that never answers is terminated automatically.') && derivedRecipeWords(picked.row.recipe, Date.now() + 3 * 60_000)!.includes('3 min ago') && derivedRecipeWords(HOST_RECIPES[0]!) === undefined)
+  check('derived summary has only engine, format and size, without dates or guard promises', words === 'llama.cpp · GGUF Q4_K_M · 120 GB' && derivedRecipeWords(picked.row.recipe, Date.now() + 3 * 60_000) === words && derivedRecipeWords(HOST_RECIPES[0]!) === undefined)
 
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()
   check('forgetting the session leaves the shipped list alone', !currentHostRecipes().some(row => row.id.startsWith('hf-')))

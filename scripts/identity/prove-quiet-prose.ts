@@ -130,6 +130,7 @@ const SKIP_FUNCTIONS = new Set([
   'downloadWatchScript',
   'hostDownloadScript',
   'bankDownloadScript',
+  'privateRepoDownloadScript',
   'boxEngineScript',
   'boxServiceDocument',
   'boxServiceCommand',
@@ -162,12 +163,12 @@ const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: string }> 
   },
   {
     file: 'src/services/host/vendors/vast.ts',
-    text: 'Renting adds Mercury’s SSH public key to your Vast.ai account keys, which Vast.ai installs on your instances. Remove it at https://cloud.vast.ai/manage-keys/ when you stop renting through Mercury.',
+    text: 'Adds an SSH key to your Vast.ai account and instances. Remove it at https://cloud.vast.ai/manage-keys/ when finished.',
     reason: 'Consent disclosure: tells the user what is added to their Vast.ai account and how to remove it.',
   },
   {
     file: 'src/services/host/vendors/lambda.ts',
-    text: 'Renting adds Mercury’s SSH public key to your Lambda account keys, named mercury-host- and the key’s fingerprint; only instances launched with that key accept it. Remove it in the Lambda console when you stop renting through Mercury.',
+    text: 'Adds an SSH key to your Lambda account for new rentals. Remove it in the console when finished.',
     reason: 'Consent disclosure: tells the user what is added to their Lambda account and how to remove it.',
   },
   {
@@ -187,7 +188,7 @@ const ALLOW_LIST: ReadonlyArray<{ file: string; text: string; reason: string }> 
   },
   {
     file: 'src/components/Settings/Config.tsx',
-    text: 'on hides the lanes and vitals rails and the chat takes the full width of the terminal — /zen flips it too · view.zen in settings',
+    text: 'Hide the side rails for full-width chat. /zen also toggles this.',
     reason: 'User screen term: the LANES and VITALS side rails in the cockpit.',
   },
   {

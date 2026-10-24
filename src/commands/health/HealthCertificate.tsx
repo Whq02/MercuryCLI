@@ -8,7 +8,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContex
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { ProductLockup, SectionHeader, StateBadge } from '../../components/mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { panelWidth, shedToFit } from '../../components/mercury-ui/geometry.js'
@@ -33,7 +33,7 @@ import {
   type HealthSection,
   type HealthStatus,
 } from '../../utils/healthReport.js'
-import { formatAge, isFixable, sha7 } from '../../utils/healthCertCore.js'
+import { isFixable } from '../../utils/healthCertCore.js'
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../utils/healthFix.js'
 
 
@@ -50,22 +50,19 @@ const statusColor = (status: HealthStatus): string => TONE_COLOR[HEALTH_STATUS_M
 
 const VERDICT_META: Record<
   Cert['verdict'],
-  { state: 'live' | 'gated' | 'failed'; label: string; line: string }
+  { state: 'live' | 'gated' | 'failed'; label: string }
 > = {
   certified: {
     state: 'live',
-    label: 'CERTIFIED',
-    line: 'every check is backed by fresh evidence — safe to trust',
+    label: 'OK',
   },
   caution: {
     state: 'gated',
-    label: 'CAUTION',
-    line: 'trust with care — stale, unknown, or warning rows below',
+    label: 'ATTENTION',
   },
   fault: {
     state: 'failed',
-    label: 'FAULT',
-    line: 'do not trust until the failing checks are fixed',
+    label: 'FAILED',
   },
 }
 
@@ -150,14 +147,13 @@ function CheckRow({
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const meta = HEALTH_STATUS_META[check.status]
-  const evidenceW = Math.max(8, width - 2 - 2 - LABEL_W - 1)
   return (
     <InteractiveRow id={`health:row:${check.id}`} selected={active} onSelect={onSelect} onActivate={onActivate} width={width} flexDirection="column" rowRef={rowRef}>
       <Text wrap="truncate-end">
         <CursorCell focused={active} color={accent} />
         <Text color={statusColor(check.status)}>{meta.glyph} </Text>
         <Text color={meta.tone === 'neutral' ? SECOND : IVORY}>{labelCell(check.label)}</Text>
-        {!open ? <Text color={FAINT}>{truncateToWidth(check.evidence, evidenceW)}</Text> : null}
+        {!open ? <Text color={FAINT}>{check.status}</Text> : null}
       </Text>
       {open ? (
         <Box flexDirection="column" marginLeft={4} marginBottom={1}>
@@ -189,7 +185,7 @@ type FixFlow =
 
 const FIX_CARD_DESTRUCTIVE_WORDS = 'DESTRUCTIVE — this discards state that cannot be mechanically recovered. '
 const FIX_CARD_CONFIRM_WORDS = '↵ apply · esc cancel'
-const FIX_CARD_RUNNING_WORDS = '◐ applying… (the panel stays read-only until it settles)'
+const FIX_CARD_RUNNING_WORDS = '◐ applying…'
 
 function fixCardTitle(flow: FixFlow): string {
   return `fix · ${flow.check.label} · ${flow.check.remedy?.class ?? 'safe'} remedy`
@@ -273,7 +269,6 @@ function FixCard({ flow }: { flow: FixFlow }): React.ReactNode {
 }
 
 function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }: { onClose: () => void; report?: typeof runAndRecordHealthReport }): React.ReactNode {
-  const accent = useSessionAccent().accent
   const tok = useMercuryTokens()
   const elevatedRef = useElevatedSurface()
   const { columns, rows: termRows } = useTerminalSize()
@@ -506,8 +501,8 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
   const statusLine = cert && meta
     ? null
     : loading
-      ? `◐ examining the harness (${depthRef.current})…${progress ? ` ${progress.done}/${progress.total} · ${progress.current} · ${Math.round((Date.now() - runStartedAt.current) / 1000)}s` : ''}`
-      : `▲ the certificate could not be produced — r re-runs${loadError ? ` · ${loadError}` : ''}`
+      ? `◐ Checking…${progress ? ` ${progress.done}/${progress.total} · ${progress.current}` : ''}`
+      : `▲ Health check failed — r retries${loadError ? ` · ${loadError}` : ''}`
 
   return (
     <Box ref={elevatedRef} flexDirection="column" width={width} flexShrink={0} borderStyle="round" borderColor={tok.borderStrong} paddingX={1} opaque={true} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
@@ -522,21 +517,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       </Box>
       {layout.compact ? null : (
         <Box height={1}>
-          {cert && meta ? (
-            <Text color={FAINT} wrap="truncate-end">
-              {meta.line} · issued {formatAge(Date.now() - Date.parse(cert.ranAt))} · {cert.version}
-              {cert.head.branch ? (
-                <>
-                  {' '}
-                  · {branchChip(cert.head.branch)} @ {sha7(cert.head.sha)}
-                  {cert.head.dirty ? ' (dirty)' : ''}
-                </>
-              ) : null}{' '}
-              · {cert.durationMs}ms · read-only
-            </Text>
-          ) : (
-            <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text>
-          )}
+          <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text>
         </Box>
       )}
       {layout.compact ? null : (
@@ -597,18 +578,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
         ))}
       </ScrollBox>
       )}</PopupScrollViewport>
-      {layout.legend ? (
-        <Box height={1}>
-          <Text color={FAINT} wrap="truncate-end">
-            every claim names its evidence — <Text color={accent}>↵</Text>
-            <Text color={FAINT}> opens the full trail · </Text>
-            <Text color={SECOND}>{GLYPH.drifting} stale</Text>
-            <Text color={FAINT}> = evidence predates what it certifies · </Text>
-            <Text color={SECOND}>{GLYPH.read} unknown</Text>
-            <Text color={FAINT}> = no evidence either way</Text>
-          </Text>
-        </Box>
-      ) : null}
+      {layout.legend ? <Box height={1} /> : null}
       <Box height={1} width={innerW + 1} marginRight={-1}>
         <Text color={tok.textMuted} wrap="truncate-end">{footer}</Text>
       </Box>

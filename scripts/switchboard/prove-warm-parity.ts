@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'warm-parity-')))
 const home = join(SCRATCH, 'home')
@@ -201,7 +202,7 @@ try {
   daemon.kill('SIGTERM')
   await api.close()
   if (process.env.WARM_PARITY_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? '\nprove-warm-parity: ALL LAWS HOLD' : `\nprove-warm-parity: ${failures} FAILURE(S)`)

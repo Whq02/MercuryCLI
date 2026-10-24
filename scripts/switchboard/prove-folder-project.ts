@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'folder-project-')))
 const HOME = join(SCRATCH, 'home')
@@ -236,7 +237,7 @@ try {
   }
 } finally {
   facts._resetProjectCatalogForTesting()
-  rmSync(SCRATCH, { recursive: true, force: true })
+  removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? '\nprove-folder-project: ALL LAWS HOLD' : `\nprove-folder-project: ${failures} FAILURE(S)`)

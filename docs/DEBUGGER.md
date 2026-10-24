@@ -25,7 +25,7 @@ permission-gated because an arbitrary request can mutate the debuggee.
 `timeoutMs` sets how long `launch`, `attach`, `continue`, stepping, `pause`,
 and `restart` wait for a stop. It defaults to 10,000 milliseconds; longer
 waits are allowed. Reaching the deadline reports that the program is still
-running rather than terminating it. Cancelling a call interrupts its pending
+running and does not terminate it. Cancelling a call interrupts its pending
 requests and stop waits immediately. A cancelled step can leave the program
 running: use `status` to inspect it or `disconnect` to end the session.
 

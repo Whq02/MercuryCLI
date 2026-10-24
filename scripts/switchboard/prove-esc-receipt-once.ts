@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HOME = mkdtempSync(join(tmpdir(), 'esc-receipt-once-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -110,7 +111,7 @@ section('R4 no crew running: no receipt on either press (byte-identical to today
 }
 
 focusedSlot._resetFocusedSessionConnectorForTesting()
-rmSync(HOME, { recursive: true, force: true })
+removeScratch(HOME)
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('✅ ALL ESC-RECEIPT-ONCE PROOFS PASS')
 else console.log(`❌ ${failures} ESC-RECEIPT-ONCE PROOF(S) FAILED`)

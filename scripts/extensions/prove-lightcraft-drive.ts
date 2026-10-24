@@ -20,8 +20,11 @@ const modes = ['--install', '--check', '--headless', '--gui'].filter(flag => arg
 assert.equal(modes.length, 1, 'Choose exactly one proof mode.')
 assert.ok(args.every((arg, i) => ['--root', ...modes].includes(arg) || args[i - 1] === '--root'), 'Unknown argument')
 await mkdir(root, { recursive: true, mode: 0o700 })
-const { adapter, privateEnvironment } = await import(pathToFileURL(join(repo, 'src/extensions/bundled/lightcraft/server/install.mjs')).href)
-const { planInstall, installPinned, checkInstall } = await import(pathToFileURL(join(repo, 'src/extensions/bundled/shared/install.mjs')).href)
+const delivered = join(root, 'extension')
+await cp(join(repo, 'src/extensions/bundled/lightcraft'), delivered, { recursive: true })
+await cp(join(repo, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+const { adapter, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
+const { planInstall, installPinned, checkInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const dataDir = join(root, 'data')
 const env = { ...process.env, HOME: join(root, 'home'), USERPROFILE: join(root, 'home'), XDG_CONFIG_HOME: join(root, 'config'), ...privateEnvironment(root) } as Record<string, string>
 await mkdir(env.HOME!, { recursive: true, mode: 0o700 })

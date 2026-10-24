@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-strip-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -358,6 +359,6 @@ console.log('S5 — --concourse-off: the face, then menu ⇄ chat with no live v
   reapHome(home)
 }
 
-if (process.env.MERCURY_STRIP_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_STRIP_KEEP !== '1') removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-strip-bridge-drive: ALL LAWS HOLD' : `\nprove-strip-bridge-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -284,6 +285,6 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
   check('D2 no probe ran at the home root without the boundary pathspec', atHome.length === 0, atHome.map(r => r.args).join(' | '))
 }
 
-if (process.env.MERCURY_HOMEREPO_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_HOMEREPO_KEEP !== '1') removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-home-repo-drive: ALL LAWS HOLD' : `\nprove-home-repo-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

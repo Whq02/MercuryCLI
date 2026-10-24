@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -118,6 +119,7 @@ function readAuthFile(): GeminiAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: GEMINI_AUTH_VERSION }
   const next = mutate({ ...existing, version: GEMINI_AUTH_VERSION })

@@ -24,6 +24,7 @@ import {
 import { publishPatchRegister } from '../../services/changeTransaction/patchRegisters.js'
 import {
   checkSeenLines,
+  clippedLinesRefusal,
   dropSeenLines,
   fileGeneration,
   moveSeenLines,
@@ -237,37 +238,38 @@ function planContext(
       if (decision.behavior === 'deny') return 'denied by a rule'
       return null
     },
-    ...(lowered
-      ? {
-          seenLinesCheck: (
-            target: { canonicalPath: string; requestedPath: string },
-            spans: Parameters<typeof checkSeenLines>[3],
-          ) => {
-            const meta = lowered.memberMeta.get(target.requestedPath)
-            if (meta?.recovered) return { ok: true as const }
-            const generation =
-              fileGeneration(target.canonicalPath) ?? fileGeneration(target.requestedPath)
-            if (generation === null) return { ok: true as const }
-            const verdict = checkSeenLines(
-              owner,
-              target.canonicalPath,
-              generation,
-              spans,
-              displayPath(target.canonicalPath),
-            )
-            if (verdict.ok) return { ok: true as const }
-            const fallback = checkSeenLines(
-              owner,
-              expandPath(target.requestedPath),
-              generation,
-              spans,
-              displayPath(target.canonicalPath),
-            )
-            if (fallback.ok) return { ok: true as const }
-            return { ok: false as const, message: verdict.hint }
-          },
-        }
-      : {}),
+    seenLinesCheck: (
+      target: { canonicalPath: string; requestedPath: string },
+      spans: Parameters<typeof checkSeenLines>[3],
+    ) => {
+      const meta = lowered?.memberMeta.get(target.requestedPath)
+      if (meta?.recovered) return { ok: true as const }
+      const generation =
+        fileGeneration(target.canonicalPath) ?? fileGeneration(target.requestedPath)
+      if (generation === null) return { ok: true as const }
+      const clipped =
+        clippedLinesRefusal(owner, target.canonicalPath, displayPath(target.canonicalPath), generation, spans) ??
+        clippedLinesRefusal(owner, expandPath(target.requestedPath), displayPath(target.canonicalPath), generation, spans)
+      if (clipped !== null) return { ok: false as const, message: clipped }
+      if (!lowered) return { ok: true as const }
+      const verdict = checkSeenLines(
+        owner,
+        target.canonicalPath,
+        generation,
+        spans,
+        displayPath(target.canonicalPath),
+      )
+      if (verdict.ok) return { ok: true as const }
+      const fallback = checkSeenLines(
+        owner,
+        expandPath(target.requestedPath),
+        generation,
+        spans,
+        displayPath(target.canonicalPath),
+      )
+      if (fallback.ok) return { ok: true as const }
+      return { ok: false as const, message: verdict.hint }
+    },
   }
 }
 

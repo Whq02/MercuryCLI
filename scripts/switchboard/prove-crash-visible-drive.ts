@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -277,8 +278,7 @@ daemon?.kill('SIGTERM')
 await api.close()
 reapDaemon()
 run.cleanup()
-const { rmSync } = await import('node:fs')
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 
 console.log(failures === 0 ? '\nprove-crash-visible-drive: ALL LAWS HOLD' : `\nprove-crash-visible-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

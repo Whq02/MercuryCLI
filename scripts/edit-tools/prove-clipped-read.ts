@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, utimesSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, realpathSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'clipped-read-'))
+const realHome = realpathSync(home)
 process.env.MERCURY_CONFIG_DIR = join(home, 'config')
+process.env.MERCURY_CHANGESET_DIR = join(home, 'changesets')
 process.env.MERCURY_BARE = '1'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.ANTHROPIC_API_KEY = 'fixture-token-count-key'
@@ -78,5 +80,26 @@ try {
   try { await read({ file_path: huge, offset: 1, limit: 1, lossless: true }, ctx) } catch (e) { error = String(e) }
   check('one line beyond the existing budget is refused honestly', /exceeds.*budget.*single line cannot be split/i.test(error), error)
   check('over-budget lossless read grants no whole-line knowledge', (await Edit.validateInput({ file_path: huge, old_string: 'x'.repeat(600_000), new_string: 'replacement' }, ctx)).result === false)
+  const { FileWriteTool: Write } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+  const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
+  const siblingContext = (): any => { const c = context(); c.userModified = false; c.getAppState = () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), additionalWorkingDirectories: new Map([[realHome, { source: 'session' }]]) } }); return c }
+  const written = join(realHome, 'written.txt'); writeFileSync(written, line + '\nshort\n')
+  const writeCtx = siblingContext()
+  await read({ file_path: written }, writeCtx)
+  let writeRefusal = ''
+  try { await Write.call({ file_path: written, content: 'rewritten\n' }, writeCtx, null as any, parent) } catch (e) { writeRefusal = String(e) }
+  check('Write refuses to overwrite a file whose read clipped a line, naming the lossless read', writeRefusal.includes(`Line 1 was clipped; Read(file_path: ${JSON.stringify(written)}, offset: 1, limit: 1, lossless: true)`) && readFileSync(written, 'utf8').startsWith(line), writeRefusal)
+  await read({ file_path: written, offset: 1, limit: 1, lossless: true }, writeCtx)
+  await Write.call({ file_path: written, content: 'rewritten\n' }, writeCtx, null as any, parent)
+  check('Write lands once the clipped line was read lossless', readFileSync(written, 'utf8') === 'rewritten\n')
+  const set = join(realHome, 'set.txt'); writeFileSync(set, line + '\nshort\n')
+  const setCtx = siblingContext()
+  const setRead = await read({ file_path: set }, setCtx)
+  const member = { file_path: set, expected_anchor: (setRead.data as any).file.anchor, hunks: [{ lines: '1', replace: 'replacement' }] }
+  const refusedSet = await (ChangeSetTool as any).call({ op: 'apply', changes: [member] }, setCtx, null, parent)
+  check('ChangeSet refuses a hunk over a clipped line, naming the lossless read', String(refusedSet.data?.result).includes('[not-read] Line 1 was clipped; Read(') && readFileSync(set, 'utf8').startsWith(line), refusedSet.data?.result)
+  await read({ file_path: set, offset: 1, limit: 1, lossless: true }, setCtx)
+  await (ChangeSetTool as any).call({ op: 'apply', changes: [member] }, setCtx, null, parent)
+  check('ChangeSet lands once the clipped line was read lossless', readFileSync(set, 'utf8') === 'replacement\nshort\n')
 } finally { rmSync(home, { recursive: true, force: true }) }
 process.exit(failures ? 1 : 0)

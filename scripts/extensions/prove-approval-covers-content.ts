@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-consent-'))
 const home = join(scratch, 'home')
@@ -141,6 +142,6 @@ console.log('[6] tampering with the installed copy flips the roster')
 
 check('installed/ still holds the extension whole (no side effects)', existsSync(join(records.installedOrEmpty()[ID]?.path ?? '', 'mercury-extension.json')))
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ APPROVAL COVERS CONTENT — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

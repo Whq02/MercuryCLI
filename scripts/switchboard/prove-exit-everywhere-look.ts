@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -35,7 +36,7 @@ const NOTICE = 'press ctrl+c twice to close Mercury'
 const NOTICE_ROW = `  ${NOTICE}`
 
 const scratch = join(tmpdir(), `exit-everywhere-look-${process.pid}-home`)
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 seedFirstRun(scratch, [REPO])
 const fixture = referenceFixtureSnapshot()
 fixture.needsYou = []

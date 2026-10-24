@@ -58,8 +58,8 @@ let pending: Promise<void> | undefined
 try {
   pending = withFoldStatus(context, scoped => compactConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
   assert.ok(await waitFor(() => response !== undefined && fold?.stage === 'summarising', 10000))
-  assert.ok(await waitFor(() => mounted.screen().includes('waiting for the first token'), 3000), mounted.screen())
-  assert.ok(await waitFor(() => /waiting for the first token.*[1-4]s/.test(mounted.screen()), 3000), 'the waiting row clock must advance before a token arrives')
+  assert.ok(await waitFor(() => mounted.screen().includes('compacting context') && !mounted.screen().includes('↓'), 3000), mounted.screen())
+  assert.ok(await waitFor(() => /compacting context[^\n]*[1-4]s/.test(mounted.screen()), 3000), 'the compaction row clock must advance before a token arrives')
   console.log('WAIT FRAME ' + mounted.lines().filter(Boolean).join('\n'))
   const thought = 'reasoning about the parser; '.repeat(16)
   response!.write(chunk({ reasoning_content: thought }))
@@ -67,7 +67,7 @@ try {
   const first = fold!.summaryTokens
   response!.write(chunk({ reasoning_content: thought }))
   assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) > first, 3000))
-  assert.ok(await waitFor(() => mounted.screen().includes('tokens') && !mounted.screen().includes('waiting for the first token'), 3000), mounted.screen())
+  assert.ok(await waitFor(() => /compacting context[^\n]*↓ ~?[\d.]+k?/.test(mounted.screen()), 3000), mounted.screen())
   console.log('THINK FRAME ' + mounted.lines().filter(Boolean).join('\n'))
   const summary = 'The parser accepts quoted commas and all 14 checks passed. Preserve the test command and continue with CLI verification.'
   response!.write(chunk({ content: summary }))

@@ -12,7 +12,7 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
     const stopped = { ok: false, words: 'No computer changed.' }
     const question: Parameters<LlmHostRoad>[0] = plan => signal.aborted ? Promise.resolve(null) : ask(plan)
     try {
-      const selected = await question({ step: 'boxes', title: 'One of my computers', found: 'Saved computers share their model with every Mercury session.', willRun: 'Read hardware, installed engines and model bank folders. No service starts yet.', rows: [{ value: 'this-computer', label: 'This computer' }, ...listBoxes().filter(box => box.name !== 'this-computer').map(box => ({ value: box.name, label: box.name + ' · ' + boxHardwareWords(box) })), { value: '__add__', label: 'Add a box over SSH' }] })
+      const selected = await question({ step: 'boxes', title: 'One of my computers', found: '', willRun: '', rows: [{ value: 'this-computer', label: 'This computer' }, ...listBoxes().filter(box => box.name !== 'this-computer').map(box => ({ value: box.name, label: box.name + ' · ' + boxHardwareWords(box) })), { value: '__add__', label: 'Add a box over SSH' }] })
       if (!selected) return stopped
       let box: HostBox
       if (selected === '__add__') {
@@ -47,7 +47,7 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
         if (action !== 'model') throw new Error('Choose one of the listed computer controls.')
         let selectedRecipe: string | null
         for (;;) {
-          selectedRecipe = await question({ step: 'box-recipes', title: 'Choose a model for ' + box.name, found: boxHardwareWords(box), willRun: 'Weights fit is not a speed or context guarantee. The engine must load and report its served window.', rows: [...BOX_RECIPES.map(recipe => ({ value: recipe.id, label: recipe.label + ' · ' + recipe.verified.by + ' · ' + boxFitWords(recipe, box) })), { value: 'back', label: 'Back to this computer' }] })
+          selectedRecipe = await question({ step: 'box-recipes', title: 'Choose a model for ' + box.name, found: boxHardwareWords(box), willRun: '', rows: [...BOX_RECIPES.map(recipe => ({ value: recipe.id, label: recipe.label + ' · ' + boxFitWords(recipe, box) })), { value: 'back', label: 'Back to this computer' }] })
           if (!selectedRecipe || selectedRecipe === 'back') break
           const recipe = BOX_RECIPES.find(row => row.id === selectedRecipe)
           if (!recipe) throw new Error('Choose a listed recipe.')
@@ -56,13 +56,13 @@ export function createBoxRoad(runner: HostRunner = hostRunner): LlmHostRoad {
         }
         if (!selectedRecipe || selectedRecipe === 'back') continue
         const recipe = BOX_RECIPES.find(row => row.id === selectedRecipe)!
-        const source = await question({ step: 'box-weights', title: 'Where are the weights?', found: recipe.label + ' · ~' + recipe.downloadGb + ' GB', willRun: 'Paths belong to ' + box.name + ', not the screen running Mercury.', rows: [{ value: 'bank', label: 'Use a verified bank folder · no download' }, { value: 'download', label: 'Download to a folder I choose' }, { value: 'back', label: 'Back to this computer' }] })
+        const source = await question({ step: 'box-weights', title: 'Where are the weights?', found: recipe.label + ' · ~' + recipe.downloadGb + ' GB', willRun: 'Folder on ' + box.name, rows: [{ value: 'bank', label: 'Use a bank folder · no download' }, { value: 'download', label: 'Download to a folder I choose' }, { value: 'back', label: 'Back to this computer' }] })
         if (!source || source === 'back') continue
         if (!['bank', 'download'].includes(source)) throw new Error('Choose bank or download.')
-        const path = await question({ step: 'box-bank', title: source === 'bank' ? 'Verified bank folder on ' + box.name : 'Download folder on ' + box.name, found: box.bankPaths.join(' · ') || 'No bank folder discovered.', willRun: source === 'bank' ? 'SHA256SUMS must cover the selected model; every required file is checked.' : '~' + recipe.downloadGb + ' GB of weights; the next screen confirms before downloading.', initial: box.bankPaths[0] ?? boxJoin(box, box.home, 'mercury-model-bank', recipe.id) })
+        const path = await question({ step: 'box-bank', title: source === 'bank' ? 'Bank folder on ' + box.name : 'Download folder on ' + box.name, found: box.bankPaths.join(' · '), willRun: source === 'bank' ? 'SHA256SUMS required.' : '~' + recipe.downloadGb + ' GB download', initial: box.bankPaths[0] ?? boxJoin(box, box.home, 'mercury-model-bank', recipe.id) })
         if (!path) continue
         const destination = boxAbsolutePath(box, path.trim())
-        const confirm = await question({ step: 'box-start-confirm', fullDetails: true, title: 'Confirm model service', found: boxWeightsWords(recipe, destination, source === 'bank'), willRun: 'Install/start ' + recipe.engine + ' · ' + boxServiceLifetimeWords(box) + ' · ' + recipe.verified.by + ' · ' + (recipe.verified.note ?? '') + ' · ' + recipe.verified.source, rows: [{ value: 'start', label: 'Confirm installation and start' }, { value: 'cancel', label: 'Keep things as they are' }] })
+        const confirm = await question({ step: 'box-start-confirm', fullDetails: true, title: 'Confirm model service', found: boxWeightsWords(recipe, destination, source === 'bank'), willRun: 'Install/start ' + recipe.engine + ' · ' + boxServiceLifetimeWords(box), rows: [{ value: 'start', label: 'Confirm installation and start' }, { value: 'cancel', label: 'Cancel' }] })
         if (confirm !== 'start') continue
         emit({ title: 'Preparing ' + box.name, words: 'Installing engine, checking weights and starting service · closing stops waiting, not an installed service.' })
         await startBoxEngine(box, recipe, { destination, bank: source === 'bank', confirmed: true, runner, signal, port: readBoxService(box.name)?.port, onStep: words => emit({ title: 'Preparing ' + box.name, words }) })

@@ -15,6 +15,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-unify-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -348,11 +349,11 @@ for (const [cols, rows] of [
     prepare: home => {
       const from = join(SCRATCH, `home-u2-first-message-${cols}x${rows}`)
       for (const sub of ['projects', 'daemon']) {
-        rmSync(join(home, sub), { recursive: true, force: true })
+        removeScratch(join(home, sub))
         if (existsSync(join(from, sub))) cpSync(join(from, sub), join(home, sub), { recursive: true })
       }
       if (!existsSync(join(home, 'daemon'))) throw new Error(`u3 needs the u2 drive's home (${from}) — run u2 in the same pass`)
-      for (const f of readdirSync(join(home, 'daemon'))) if (!f.endsWith('.json')) rmSync(join(home, 'daemon', f), { recursive: true, force: true })
+      for (const f of readdirSync(join(home, 'daemon'))) if (!f.endsWith('.json')) removeScratch(join(home, 'daemon', f))
     },
     sends: [
       { atTick: 200, awaitText: 'hello from the boot chat', minTick: 5, awaitSettleTicks: 8, data: '', mark: 'first-frame' },
@@ -843,7 +844,7 @@ if (latencies.length > 0) {
 }
 if (!KEEP) {
   try {
-    rmSync(SCRATCH, { recursive: true, force: true })
+    removeScratch(SCRATCH)
   } catch {
   }
 } else {

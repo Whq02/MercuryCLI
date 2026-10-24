@@ -171,6 +171,7 @@ if (!existsSync(distPath)) {
       (process.execPath.includes('bun') ? 'node' : process.execPath),
       [distPath, 'run', '/say hello-from-proof'],
       {
+        cwd: home,
         env: {
           ...cleanEnv,
           HOME: home,

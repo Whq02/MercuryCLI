@@ -3,9 +3,10 @@
 
 import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-sources-'))
 const home = join(scratch, 'home')
@@ -312,7 +313,7 @@ console.log('[7] the vanished source: unreachable host · missing folder · 404 
   check('the doomed source adds', dead.ok)
   const inst = await install.installFromSource('dead-src', 'kitchen-sink')
   check('an install from it lands', inst.ok, inst.ok ? '' : inst.reason)
-  rmSync(deadRepo, { recursive: true, force: true })
+  removeScratch(deadRepo)
   const unreachable = await sources.refreshSource('dead-src')
   check('refresh of a vanished host fails naming the step', !unreachable.ok && unreachable.reason.length > 0)
   check('the row reads ✕ unreachable', sources.listSources().find(r => r.label === 'dead-src')?.state === 'unreachable')
@@ -331,7 +332,7 @@ console.log('[7] the vanished source: unreachable host · missing folder · 404 
   check('the vanishing folder adds', vf.ok)
   const vfInstall = await install.installFromSource('vanishing', 'needs-node')
   check('an install from it copies the folder (never in place)', vfInstall.ok && !vfInstall.root.startsWith(vanishing))
-  rmSync(vanishing, { recursive: true, force: true })
+  removeScratch(vanishing)
   const vfRow = sources.listSources().find(r => r.label === 'vanishing')
   check('the row reads ✕ unreachable · folder missing · <path>', vfRow?.state === 'unreachable' && (vfRow.reason ?? '').includes('folder missing'), vfRow?.reason ?? '')
   const vfInstall2 = await install.installFromSource('vanishing', 'kitchen-sink')
@@ -380,6 +381,6 @@ console.log('[8] sources --json and list --source shapes')
 }
 
 server?.close()
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ SOURCE LIFECYCLE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

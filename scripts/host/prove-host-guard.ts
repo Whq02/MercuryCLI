@@ -31,7 +31,7 @@ const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
 const { hostMachineName } = await import('../../src/commands/llmhost/words.ts')
 const pauseWords = (vendor: 'runpod' | 'vast' | 'lambda', id: string, price: number, notice: string): boolean =>
-  notice.includes('setup paused · ') && notice.includes(hostMachineName(vendor, id) + ' stays up and bills $' + price.toFixed(2) + '/hr while paused') && notice.includes('Resume retries the setup, Terminate stops the bill · /llmhost → Machines I’m paying for') && !notice.includes('terminated') && !notice.includes('nothing more bills')
+  notice.includes('setup paused · ') && notice.includes(hostMachineName(vendor, id)) && notice.includes('$' + price.toFixed(2) + '/hr still billing') && notice.includes('Resume or Terminate in /llmhost') && !notice.includes('terminated') && !notice.includes('nothing more bills')
 const recipe = HOST_RECIPES.find(row => row.id === 'nemotron35-super-gguf-rtx-pro-6000')!
 const vllm = HOST_RECIPES.find(row => row.engine === 'vllm')!
 const failures: string[] = []

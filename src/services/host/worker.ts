@@ -109,7 +109,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (verifying) {
         const receipt = await verifyBank(recipe, folder, signal, mark)
         mark('verified')
-        hostNotice(initial, 'verified', initial.name + ' · verified against the ' + (receipt.check === 'manifest' ? 'pinned manifest' : 'download') + ' · ' + receipt.files + ' files · ' + bytesWords(receipt.bytes) + ' on ' + shortFolder(folder) + ' · /llmhost → Bank')
+        hostNotice(initial, 'verified', initial.name + ' · check passed · ' + receipt.files + ' files · ' + bytesWords(receipt.bytes))
         removeHostRecord(id)
         return
       }
@@ -120,7 +120,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       try { await runBoxScript({ os: localOs(), target: undefined }, bankDownloadScript(recipe, path), runner, signal, 12 * 3600_000, token ? { HF_TOKEN: token.key } : undefined) } finally { clearInterval(progress) }
       const receipt = await sealBank(recipe, folder, signal, mark)
       mark('banked')
-      hostNotice(initial, 'banked', initial.name + ' · banked on ' + shortFolder(folder) + ' · ' + bytesWords(receipt.bytes) + ' in ' + receipt.files + ' files · verified against the ' + (receipt.check === 'manifest' ? 'pinned manifest' : 'download') + ' · /llmhost → Bank')
+      hostNotice(initial, 'banked', initial.name + ' · banked on ' + shortFolder(folder) + ' · ' + bytesWords(receipt.bytes))
       removeHostRecord(id)
     } catch (error) {
       const current = readHostRecord(id)
@@ -503,7 +503,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const failedSetup = readHostRecord(id)
     if (error instanceof HostEngineDeath && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
       const machine = hostMachineName(vendor, id)
-      const words = clean(error.message) + ' · ' + machine + ' stays up and bills $' + initial.price.toFixed(2) + '/hr while paused · Resume restarts the engine from the weights already on the machine, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      const words = machine + ' · ' + clean(error.message) + ' · paused, $' + initial.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
       log(words)
       const at = error.facts.at
       const step = 'paused · the engine died after setup'
@@ -513,7 +513,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       return
     }
     if (error instanceof HostLinkLost && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
-      const words = clean(error.message) + ' · the machine stays up and bills $' + initial.price.toFixed(2) + '/hr while paused · Resume reconnects, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      const words = clean(error.message) + ' · paused, $' + initial.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
       log(words)
       const at = Date.now()
       const step = 'paused · the link dropped after setup'
@@ -522,7 +522,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       closeHostTunnel(id)
       return
     }
-    if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && !(error instanceof HostTerminationUnconfirmed) && !hostReadFailureWords(error) && (!initial.cluster || clusterStarted && !signal.aborted) && failedSetup.jobState !== 'ready') {
+    if (failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped' && !(error instanceof HostTerminationUnconfirmed) && !hostReadFailureWords(error) && failedSetup.jobState !== 'ready') {
       const resource = initial.cluster ? 'cluster' : 'pod'
       const volume = initial.volumeId && readKeptVolume(initial.volumeId)
       if (volume && volume.state !== 'kept' && volume.state !== 'failed' && volume.state !== 'gone') writeKeptVolume({ ...volume, state: 'failed', error: clean(String(error)), preparingPod: undefined })
@@ -554,8 +554,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         return
       }
       const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
-      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' is stopped · its disk still bills until Terminate' : machine + ' stays up and bills $' + initial.price.toFixed(2) + '/hr while paused'
-      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + ' · Resume retries the setup, Terminate stops the bill · /llmhost → Machines I’m paying for'
+      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' · stopped; disk still bills until Terminate' : machine + ' · $' + initial.price.toFixed(2) + '/hr still billing'
+      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + ' · Resume or Terminate in /llmhost'
       log(words)
       const at = Date.now()
       const step = 'paused at ' + (failedSetup.step ?? 'setup').replace(/ · retrying until it does$/, '')

@@ -3,7 +3,8 @@ import { useSyncExternalStore } from 'react'
 import { Text } from '../ink.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
-import { foldBarCells, foldRowVisible, foldRowWords, isFoldLandingRow, type FoldStatusV1 } from '../services/compact/foldStatus.js'
+import { FOLD_ROW_HEAD, foldBarCells, foldRowVisible, foldRowWords, isFoldLandingRow, type FoldStatusV1 } from '../services/compact/foldStatus.js'
+import { formatTokens } from '../utils/format.js'
 import { MessageResponse } from './MessageResponse.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -33,7 +34,7 @@ export function FoldStatusRow({ rows, conversationId }: { rows: readonly FoldLan
   if (fold === null) return null
   const words = foldRowWords(fold, nowMs)
   const cells = foldBarCells(fold)
-  const lead = [words.head, words.stage, words.tokens].filter((part): part is string => part !== null).join(' · ')
+  const lead = [FOLD_ROW_HEAD, running ? null : words.stage, running && fold.summaryTokens > 0 ? `↓ ~${formatTokens(fold.summaryTokens)}` : null].filter((part): part is string => part !== null).join(' · ')
   return (
     <MessageResponse height={1}>
       <Text dimColor>{lead} · </Text>

@@ -26,11 +26,11 @@ try {
   const recipe = HOST_RECIPES.find(row => row.nodes === 2 && row.gpu === 'B200')!
   assert.ok(recipe)
   const notices = (id: string): string[] => readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === id).map(row => row.words)
-  for (const mode of ['shape-mismatch', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused'] as const) {
+  for (const mode of ['shape-mismatch', 'node-lost', 'cuda', 'placement', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused'] as const) {
     const id = 'cluster-' + mode
     const at = new Date().toISOString()
     const cluster = { id, name: id, type: 'APPLICATION', compute: { podCount: mode === 'shape-mismatch' ? 3 : 2, gpuCountPerPod: recipe.count, gpuTypeId: 'NVIDIA B200' }, primary: { podId: id + '-0', status: 'RUNNING' }, createdAt: at }
-    const nodes = [0, 1].map(rank => ({ id: id + '-' + rank, name: id + '-' + rank, cost: 10, status: 'RUNNING', cudaVersion: '13.0', createdAt: at, cluster: { id, rank, ip: '10.65.0.' + (rank + 2) }, ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
+    const nodes = [0, 1].map(rank => ({ id: id + '-' + rank, name: id + '-' + rank, cost: 10, status: mode === 'node-lost' && rank === 1 ? 'EXITED' : 'RUNNING', cudaVersion: mode === 'cuda' ? '12.0' : '13.0', createdAt: at, cluster: { id, rank, ip: mode === 'placement' ? undefined : '10.65.0.' + (rank + 2) }, ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
     rp.state.clusters.set(id, cluster)
     rp.state.clusterNodes.set(id, nodes)
     rp.state.holdClusterDelete = mode.endsWith('delete-held')
@@ -47,30 +47,25 @@ try {
         if (mode === 'node-launch' && rank === 1 && remote.includes('nohup setsid')) throw new Error('Engine launch failed; failed to load model: fixture node')
         if (remote.includes('/health')) { health++; if (mode.startsWith('tunnel-')) return '{}'; throw new Error('fixture head is still loading') }
         if (remote.includes('MERCURY_ENGINE_GONE')) return 'MERCURY_ENGINE_GONE\nfixture worker exited: CUDA out of memory'
-        if (remote.startsWith('tail -n 8')) return mode === 'worker-exit' || mode.startsWith('tunnel-') ? 'MERCURY_STEP starting engine\n' : 'CUDA out of memory\nMERCURY_ENGINE_EXITED\n'
+        if (remote.startsWith('tail -n 8')) return mode === 'worker-exit' ? 'fixture worker exited: CUDA out of memory\nMERCURY_ENGINE_EXITED\n' : mode.startsWith('tunnel-') ? 'MERCURY_STEP starting engine\n' : 'CUDA out of memory\nMERCURY_ENGINE_EXITED\n'
         return ''
       },
     }
     const before = rp.requests.length
-    await runHostJob(id, queued.generation!, { runner, pauseMs: 2, timeoutMs: mode === 'read-paused' || mode.endsWith('listing-unavailable') ? 120 : 2000, keepAlive: false })
+    await runHostJob(id, queued.generation!, { runner, pauseMs: 2, timeoutMs: mode === 'placement' || mode === 'read-paused' || mode.endsWith('listing-unavailable') ? 120 : 2000, keepAlive: false })
     const calls = rp.requests.slice(before)
     const deletes = calls.filter(row => row.method === 'DELETE')
     const words = notices(id)
     if (mode === 'read-paused') {
       check('transient vendor-read exhaustion pauses the cluster without terminating it', deletes.length === 0 && rp.state.clusters.has(id) && readHostRecord(id)?.jobState === 'failed' && words.length === 1 && words[0]!.includes('setup paused'))
     } else {
-      check(mode + ' terminates the cluster once rather than individual member pods', deletes.length === 1 && deletes[0]!.path === '/v2/clusters/' + id)
-      const deletion = calls.findIndex(row => row.method === 'DELETE')
-      check(mode + ' checks cluster absence after sending termination', calls.slice(deletion + 1).some(row => row.method === 'GET' && row.path === '/v2/clusters'))
-      check(mode + ' emits one final notice without credentials', words.length === 1 && !words[0]!.includes(rp.key))
-      if (mode.endsWith('delete-held') || mode.endsWith('listing-unavailable')) {
-        check(mode + ' retains the failed record and does not claim verified termination', readHostRecord(id)?.jobState === 'failed' && readHostRecord(id)?.status !== 'TERMINATED' && !words[0]!.includes('Runpod no longer lists it') && /may still bill|still bills|did not confirm/.test(words[0]!))
-      } else {
-        const cause = mode === 'shape-mismatch' ? 'shape does not match' : mode.startsWith('tunnel-') ? 'fixture tunnel failed' : mode === 'node-launch' ? 'failed to load model' : 'out of memory'
-        check(mode + ' removes the ended rental and names its cause and verified cluster termination', !readHostRecord(id) && !rp.state.clusters.has(id) && !rp.state.clusterNodes.has(id) && words[0]!.includes(cause) && words[0]!.includes('Runpod no longer lists it'))
-        if (mode === 'shape-mismatch') check('a mismatched placement launches no engine', launches === 0)
-        check(mode + ' ends promptly instead of consuming the setup timeout', health < 30)
-      }
+      const record = readHostRecord(id)
+      const cause = mode === 'shape-mismatch' ? 'shape does not match' : mode === 'node-lost' ? 'lost node' : mode === 'cuda' ? 'below the recipe' : mode === 'placement' ? 'did not bring all' : mode.startsWith('tunnel-') ? 'fixture tunnel failed' : mode === 'node-launch' ? 'failed to load model' : 'out of memory'
+      check(mode + ' never terminates the cluster or a node', deletes.length === 0 && rp.state.clusters.has(id) && rp.state.clusterNodes.has(id))
+      check(mode + ' keeps the paused rental and cause', record?.jobState === 'paused' && record.status === 'RUNNING' && record.error?.includes(cause))
+      check(mode + ' posts one pause with billing and both actions', words.length === 1 && words[0]!.includes('setup paused') && words[0]!.includes(cause) && words[0]!.includes('$20.00/hr') && words[0]!.includes('Resume') && words[0]!.includes('Terminate') && !words[0]!.includes(rp.key))
+      if (['shape-mismatch', 'node-lost', 'cuda', 'placement'].includes(mode)) check(mode + ' launches no engine', launches === 0)
+      check(mode + ' settles promptly', health < 30)
     }
     rp.state.holdClusterDelete = false
     rp.state.failNext = null

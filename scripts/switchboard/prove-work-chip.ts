@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'work-chip-')))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -119,6 +120,6 @@ console.log('— K5 registration gates —')
   check('K5 an unregistered session reads still', store.readTile('dispatch:nope').kind === 'still' && store.readTile(SID).kind === 'still')
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-work-chip: ALL LAWS HOLD' : `\nprove-work-chip: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

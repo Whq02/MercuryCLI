@@ -8,8 +8,8 @@ import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from 
 import { HostCreateError, VendorApi, isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
-export const LAMBDA_STORAGE_NOTICE = '/workspace uses the instance root disk and survives a restart, not termination. Lambda has no stop; compute keeps billing until termination. No persistent filesystem is created or attached.'
-export const LAMBDA_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your Lambda account keys, named mercury-host- and the key’s fingerprint; only instances launched with that key accept it. Remove it in the Lambda console when you stop renting through Mercury.'
+export const LAMBDA_STORAGE_NOTICE = 'Root disk survives restart; Terminate deletes it. No Stop: compute bills until Terminate.'
+export const LAMBDA_KEY_NOTICE = 'Adds an SSH key to your Lambda account for new rentals. Remove it in the console when finished.'
 export const LAMBDA_USER_DATA = '#cloud-config\n' + JSON.stringify({
   package_update: true, packages: ['tmux', 'curl', 'util-linux'],
   runcmd: [['mkdir', '-p', '/workspace'], ['chown', 'ubuntu:ubuntu', '/workspace'], ['groupadd', '-f', 'docker'], ['usermod', '-aG', 'docker', 'ubuntu']],

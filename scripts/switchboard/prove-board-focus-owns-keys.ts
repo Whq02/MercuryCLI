@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -206,7 +207,7 @@ if (sendRecs.length === sends.length) {
   check('the streaming turn was NOT interrupted (no ⨯ Interrupted, no interrupted state on the row)', !/Interrupted|interrupted/.test(t(typedFrame)) && !/Interrupted|interrupted/.test(t(finalFrame)))
   check('split did not toggle (no width note from the s)', !/split needs/.test(t(typedFrame)))
 }
-rmSync(home, { recursive: true, force: true })
-rmSync(cwd, { recursive: true, force: true })
+removeScratch(home)
+removeScratch(cwd)
 console.log(failures === 0 ? '\nprove-board-focus-owns-keys: ALL LAWS HOLD' : `\nprove-board-focus-owns-keys: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

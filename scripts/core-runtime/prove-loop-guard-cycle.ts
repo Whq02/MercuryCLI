@@ -66,9 +66,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const budgetMs = vshotBudgetMs(120_000)
+const budgetMs = vshotBudgetMs(300_000)
 const watchdog = setTimeout(() => {
-  console.log(`\nTIMEOUT — loop-guard cycle prover exceeded ${budgetMs / 1000}s`)
+  console.log(`\nTIMEOUT — loop-guard cycle prover exceeded ${budgetMs / 1000}s (13 s on a Mac; each of the rig's 165 Bash test calls makes the product record evidence, and each record runs git add -A and git write-tree synchronously, so a box that spawns git slowly pays 330 spawns — a Windows box was cut unfinished at 143 s under the old 120 s bound)`)
   process.exit(1)
 }, budgetMs)
 watchdog.unref?.()

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-manifest-'))
 const scratch2 = mkdtempSync(join(tmpdir(), 'mercury-ext-manifest-c15-'))
@@ -381,7 +382,7 @@ console.log('[11] C15 — BOM-led manifests parse, URL schemes floor, escaping h
   }
 }
 
-rmSync(scratch, { recursive: true, force: true })
-rmSync(scratch2, { recursive: true, force: true })
+removeScratch(scratch)
+removeScratch(scratch2)
 console.log(failures === 0 ? '\n ✅ MANIFEST CONTRACT — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

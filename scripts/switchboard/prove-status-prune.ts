@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'status-prune-'))
 const HOME = join(SCRATCH, 'home')
@@ -168,6 +169,6 @@ console.log('D — the REAL sweep over the scratch estate: aged recordings go, n
   check("POISON: the door's function appears nowhere in the sweep's path (auto-deletion cannot re-arm)", !sweep.includes('operatorPruneTranscripts') && !sweep.includes('transcriptPruneDoor'))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-status-prune: ALL LAWS HOLD' : `\nprove-status-prune: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

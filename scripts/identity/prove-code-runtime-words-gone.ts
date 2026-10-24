@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { CODE_TOOL_SPELLINGS } from './forbidden-code-tool.js'
@@ -5,9 +6,13 @@ import { CODE_TOOL_SPELLINGS } from './forbidden-code-tool.js'
 const root = resolve(import.meta.dir, '../..')
 const forbidden = CODE_TOOL_SPELLINGS.map(word => word.toLowerCase())
 const hits: string[] = []
+const ignored = (rel: string): boolean => {
+  try { execFileSync('git', ['-C', root, 'check-ignore', '-q', '--', rel], { stdio: 'ignore' }); return true } catch { return false }
+}
 function walk(path: string): void {
   const rel = relative(root, path)
   if (rel === 'src/constants/changelog.ts' || rel === 'scripts/identity/forbidden-code-tool.ts') return
+  if (rel && ignored(rel)) return
   if (statSync(path).isDirectory()) {
     for (const entry of readdirSync(path, { withFileTypes: true })) {
       if (!entry.isSymbolicLink()) walk(join(path, entry.name))

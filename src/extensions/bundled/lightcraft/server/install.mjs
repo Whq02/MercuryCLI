@@ -5,6 +5,7 @@ import { readFile, readdir, readlink, realpath, stat } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import { isAbsolute, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { powershellEnvironment } from '../shared/powershell.mjs'
 
 const exec = promisify(execFile)
 const desktop = JSON.parse(readFileSync(new URL('./lightcraft.lock.json', import.meta.url), 'utf8'))
@@ -31,7 +32,7 @@ async function digest(path) {
 
 function powershell(script, signal) {
   const command = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
-  return exec(command, ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop'; ${script}`], { signal, timeout: 10000, maxBuffer: 1024 * 1024 })
+  return exec(command, ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop'; ${script}`], { env: powershellEnvironment(), signal, timeout: 10000, maxBuffer: 1024 * 1024 })
 }
 
 export async function inspectListener(endpoint, signal) {
@@ -177,8 +178,34 @@ export function privateEnvironment(dataDir) {
   if (process.platform === 'win32') {
     const command = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     for (const directory of [temp, config]) {
-      execFileSync(command, ['-NoProfile', '-NonInteractive', '-Command', "$ErrorActionPreference='Stop'; $p=$env:MERCURY_LIGHTCRAFT_PRIVATE_DIR; $u=[System.Security.Principal.WindowsIdentity]::GetCurrent().User; $a=Get-Acl -LiteralPath $p; $a.SetAccessRuleProtection($true,$false); foreach($r in @($a.Access)){$a.RemoveAccessRuleSpecific($r)}; $a.SetOwner($u); $r=New-Object System.Security.AccessControl.FileSystemAccessRule($u,'FullControl','ContainerInherit,ObjectInherit','None','Allow'); $a.AddAccessRule($r); Set-Acl -LiteralPath $p -AclObject $a; $v=Get-Acl -LiteralPath $p; if(-not $v.AreAccessRulesProtected -or @($v.Access | Where-Object {$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value -ne $u.Value}).Count -ne 0){throw 'Private directory ACL verification failed'}"], {
-        env: { ...process.env, MERCURY_LIGHTCRAFT_PRIVATE_DIR: directory }, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+      execFileSync(command, ['-NoProfile', '-NonInteractive', '-Command', `
+        $ErrorActionPreference='Stop'
+        function Test-PrivateAcl($acl, $user) {
+          if(-not $acl.AreAccessRulesProtected -or $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $user.Value){return $false}
+          $rules=@($acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]))
+          if($rules.Count -ne 1){return $false}
+          $rule=$rules[0]
+          return ($rule.IdentityReference.Value -eq $user.Value -and
+            $rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+            $rule.FileSystemRights -eq [System.Security.AccessControl.FileSystemRights]::FullControl -and
+            $rule.InheritanceFlags -eq [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit' -and
+            $rule.PropagationFlags -eq [System.Security.AccessControl.PropagationFlags]::None)
+        }
+        $p=$env:MERCURY_LIGHTCRAFT_PRIVATE_DIR
+        $u=[System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        $a=Get-Acl -LiteralPath $p
+        if(-not (Test-PrivateAcl $a $u)){
+          $a.SetAccessRuleProtection($true,$false)
+          foreach($r in @($a.Access)){$a.RemoveAccessRuleSpecific($r)}
+          $a.SetOwner($u)
+          $r=New-Object System.Security.AccessControl.FileSystemAccessRule($u,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+          $a.AddAccessRule($r)
+          Set-Acl -LiteralPath $p -AclObject $a
+          $a=Get-Acl -LiteralPath $p
+          if(-not (Test-PrivateAcl $a $u)){throw 'Private directory ACL verification failed'}
+        }
+      `], {
+        env: { ...powershellEnvironment(), MERCURY_LIGHTCRAFT_PRIVATE_DIR: directory }, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
       })
     }
   }

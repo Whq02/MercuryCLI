@@ -6,6 +6,7 @@ import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
 const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
@@ -35,6 +36,7 @@ function readAuth(): AuthFile {
   } catch { return { version: 1 } }
 }
 function writeAuth(file: AuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), 'the auth file .xai-auth.json')
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   durableAtomicPublishSync(xaiAuthPathForDisplay(), JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
   noteCredentialChange()

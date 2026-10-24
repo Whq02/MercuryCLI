@@ -174,8 +174,8 @@ try {
   const { SpinnerWithVerb } = await import('../../src/components/Spinner.tsx')
   class Output extends EventEmitter { isTTY = true; rows = 40; constructor(public columns: number) { super() }; write() { return true } }
   class Input extends EventEmitter { isTTY = true; isRaw = false; setEncoding() { return this }; setRawMode(v: boolean) { this.isRaw = v; return this }; ref() { return this }; unref() { return this }; read() { return null }; get readableLength() { return 0 } }
-  snapshots.push({ tag: 'no tokens for 2 min · reconnecting (1 of 3)', facts: { ...freshFacts(), thinkingChars: 4800, replyChars: 1200, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: Date.now(), delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120000 } as Wait } })
-  snapshots.push({ tag: 'reading 60k tokens of context', facts: { ...freshFacts(), wait: { kind: 'first-byte', model: 'fixture', cold: true, promptTokens: 60000, budgetMs: 140000, sinceMs: Date.now(), attempt: 1, prefillMs: 20000 } as Wait } })
+  snapshots.push({ tag: 'no tokens for 2 min · reconnecting (1 of 3)', facts: { ...freshFacts(), sentAtMs: Date.now() - 120000, thinkingChars: 4800, replyChars: 1200, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: Date.now(), delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120000 } as Wait } })
+  snapshots.push({ tag: 'reading 60k tokens of context', facts: { ...freshFacts(), sentAtMs: Date.now() - 65000, wait: { kind: 'first-byte', model: 'fixture', cold: true, promptTokens: 60000, budgetMs: 140000, sinceMs: Date.now(), attempt: 1, prefillMs: 20000 } as Wait } })
   type SpinnerProps = Parameters<typeof SpinnerWithVerb>[0]
   const renderRow = async (columns: number, compact: boolean, f: Facts, over: Partial<SpinnerProps>): Promise<string> => {
     const stdout = new Output(columns)
@@ -214,18 +214,17 @@ try {
     const where = `${columns} cols, ${compact ? 'compact' : 'full'}, ${sample.tag}`
     check(`${where}: the verb heads the row`, head === VERB, JSON.stringify({ head, frame }))
     check(`${where}: no phase word in the head`, !PHASE_WORDS.some(word => head.toLowerCase().includes(word)), head)
-    const rowOk = sample.tag === 'waiting' ? hud.includes('waiting for the first token')
-      : sample.tag === 'thinking' ? hud.some(s => /^thinking( with .+ effort)?$/.test(s)) && hud.some(s => s.includes('tokens'))
-      : sample.tag === 'writing' ? hud.includes('writing') && hud.some(s => s.includes('tokens'))
-      : sample.tag.startsWith('reading') ? hud.includes('reading 60k tokens of context') && hud.includes('~20 s')
-      : hudText.includes('no tokens for 2 min · reconnecting (1 of 3)') && !hud.includes('reconnecting')
-    check(`${where}: the phase and the count stand on the row`, rowOk, hudText)
+    const count = words.liveCounterWords(sample.facts, Date.now()).count
+    const rowOk = !/reading|thinking|writing|waiting|first.byte|↻/.test(hudText)
+      && (count === null ? !hudText.includes('↓') : hud.includes(count))
+      && (sample.facts.wait?.kind !== 'retry' || hudText.includes('reconnecting 1 of 3'))
+    check(`${where}: one count and clock, with attention only for a real retry`, rowOk && /\d+s/.test(hudText), hudText)
   }
   const writing = snapshots.find(s => s.tag === 'writing')!.facts
   const controls: Array<{ tag: string; head: string; facts: Facts; over: Partial<SpinnerProps>; compacts: boolean[] }> = [
     { tag: 'active tool', head: 'Reading fixture.ts', facts: writing, over: { mode: 'tool-use', hasActiveTools: true, activeToolCount: 1, activeToolLabel: 'Reading fixture.ts' }, compacts: [false, true] },
     { tag: 'explicit override', head: 'compacting context', facts: writing, over: { overrideMessage: 'compacting context' }, compacts: [false, true] },
-    { tag: 'still override', head: 'compacting context', facts: freshFacts(), over: { overrideMessage: 'compacting context', still: true }, compacts: [false] },
+    { tag: 'still override', head: 'compacting context', facts: freshFacts(), over: { overrideMessage: 'compacting context', still: true }, compacts: [false, true] },
   ]
   for (const control of controls) for (const compact of control.compacts) {
     const frame = await renderRow(120, compact, control.facts, control.over)
@@ -234,7 +233,7 @@ try {
     const where = `120 cols, ${compact ? 'compact' : 'full'}, ${control.tag}`
     check(`${where}: the ${control.tag} heads the row, not the verb`, head === control.head && !frame.includes(VERB), JSON.stringify({ head, frame }))
     if (control.tag === 'still override') check(`${where}: a still row stands bare — no ellipsis, no HUD`, hudText === '' && !frame.includes('…'), frame)
-    else check(`${where}: the count stays on the row${compact ? '' : ' and the tool phase adds no word beside the tool label'}`, hud.some(s => s.includes('tokens')) && (compact || !hud.includes('working')), hudText)
+    else check(`${where}: the count stays on the row without routine phase words`, hud.some(s => s.startsWith('↓ ')) && !hud.includes('working'), hudText)
   }
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
   process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '400'

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-held-continue-')))
 const HOME = join(SCRATCH, 'home')
@@ -351,7 +352,7 @@ try {
 } catch {
 }
 clearTimeout(watchdog)
-if (process.env.MERCURY_HELD_CONTINUE_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_HELD_CONTINUE_KEEP !== '1') removeScratch(SCRATCH)
 else console.log(`  [keep] the world stays at ${SCRATCH}`)
 console.log(failures === 0 ? '\nprove-held-session-continue-drive: ALL LAWS HOLD' : `\nprove-held-session-continue-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

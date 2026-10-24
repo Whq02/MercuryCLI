@@ -284,7 +284,7 @@ export function ConsoleOAuthFlow({
       case 'anthropic':
         return frame(
           <Box flexDirection="column" gap={compact ? 0 : 1}>
-            <Text wrap="truncate-end">Anthropic — pick the credential to connect.</Text>
+            <Text wrap="truncate-end">Anthropic</Text>
             <Select
               options={[...anthropicArmPickRows]}
               onChange={value => {
@@ -300,7 +300,7 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(
           <Box flexDirection="column" gap={compact ? 0 : 1}>
-            <Text wrap="truncate-end">OpenAI — pick the credential to connect.</Text>
+            <Text wrap="truncate-end">OpenAI</Text>
             <Select
               options={[...openaiArmPickRows]}
               onChange={value => setLeg(value === 'key' ? 'openai-key' : 'openai-subscription')}
@@ -400,9 +400,7 @@ export function ConsoleOAuthFlow({
       const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
       const facts = popup ? collectLoginsScreenFacts() : null
       const arms = popup ? loginsCatalogue() : []
-      const intro =
-        startingMessage ??
-        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen · MiniMax · Together AI · Cohere · Groq · Cerebras · Fireworks · Qwen).'
+      const intro = startingMessage ?? 'Choose a provider to sign in.'
       const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
       const rosterCompact = compact || refusalLayout
       const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null

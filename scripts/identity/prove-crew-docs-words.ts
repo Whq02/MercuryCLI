@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -29,11 +30,13 @@ const ALLOW: Row[] = [
 
 function pages(): string[] {
   const out: string[] = []
+  const tracked = new Set(execFileSync('git', ['-C', ROOT, 'ls-files', '--', 'docs'], { encoding: 'utf8' }).split('\n').filter(Boolean))
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir).sort()) {
       const p = join(dir, name)
+      const rel = relative(ROOT, p).split('\\').join('/')
       if (statSync(p).isDirectory()) walk(p)
-      else if (name.endsWith('.md')) out.push(relative(ROOT, p).split('\\').join('/'))
+      else if (name.endsWith('.md') && (tracked.size === 0 || tracked.has(rel))) out.push(rel)
     }
   }
   walk(join(ROOT, 'docs'))

@@ -1,0 +1,8 @@
+# scripts/extensions-drives/members.txt — the Craft extension drives, one
+# basename per line (the files live in scripts/extensions/). Each member installs
+# the real pinned desktop app from its lock file and drives it; they report
+# with the drives (their wall follows the runner), never in the release verdict.
+prove-filmcraft-drive.ts
+prove-filmcraft-gui-drive.ts
+prove-photocraft-drive.ts
+prove-lightcraft-drive.ts

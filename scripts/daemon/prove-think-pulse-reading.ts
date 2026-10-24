@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const HOME = mkdtempSync(join(tmpdir(), 'think-pulse-home-'))
+const HOME = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'think-pulse-home-'))
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const CONFIG = join(HOME, 'config')
 const DAEMON_DIR = join(HOME, 'daemon')
 mkdirSync(CONFIG, { recursive: true })
@@ -35,38 +36,35 @@ const T = 1_800_000_000_000
 const facts = (over: Partial<Facts>): Facts => ({ phase: 'thinking', sentAtMs: T - 271_000, firstByteAtMs: T - 270_000, replyChars: 0, thinkingChars: 0, wireOutputTokens: null, wait: null, ...over })
 const line = (f: Facts, now = T): string => words.liveCounterSegments(words.liveCounterWords(f, now)).join(' · ')
 
-section('§1 THE WORDS — a long think with its text withheld reads the last byte\'s age and the blocks received beside the count')
+section('§1 quiet words retain counters without heartbeat or block narration')
 {
   const air = line(facts({ replyChars: 872, wireOutputTokens: 218, thinkingBlocks: 1, lastByteAtMs: T - 3_000 }))
-  check(`RED ON THE BASE: the Air's shape (218 reply tokens, one thinking block with no text, a byte 3 s ago) reads the block and the age: ${air}`, air === '↓ 218 tokens · 1 thinking block · ↻3s · thinking · 4m 31s', air)
+  check(`known reply tokens remain exact: ${air}`, air === '4m 31s · ↓ 218', air)
   const opus = line(facts({ sentAtMs: T - 300_000, thinkingBlocks: 1, lastByteAtMs: T - 12_000 }))
-  check(`RED ON THE BASE: no reply yet, one block, a byte 12 s ago: ${opus}`, opus === '↓ 1 thinking block · ↻12s · thinking · 5m 0s', opus)
+  check(`unknown withheld thinking has no token count: ${opus}`, opus === '5m 0s', opus)
   const two = line(facts({ replyChars: 872, wireOutputTokens: 218, thinkingBlocks: 2, lastByteAtMs: T - 65_000 }))
-  check(`two blocks and a minute of silence: ${two}`, two === '↓ 218 tokens · 2 thinking blocks · ↻1m · thinking · 4m 31s', two)
+  check(`multiple hidden blocks add no screen words: ${two}`, two === '4m 31s · ↓ 218', two)
   const absent = line(facts({}))
-  check(`a seat without the facts (an older daemon) reads exactly as before: ${absent}`, absent === 'thinking · 4m 31s', absent)
+  check(`a seat without token facts paints only its clock: ${absent}`, absent === '4m 31s', absent)
   const texted = line(facts({ sentAtMs: T - 40_000, firstByteAtMs: T - 38_000, thinkingChars: 3_000, thinkingBlocks: 1, lastByteAtMs: T - 1_000 }))
-  check(`thinking text that counts keeps its token count; the block count is not repeated beside it: ${texted}`, texted === '↓ ~750 thinking tokens · ↻1s · thinking · 40s', texted)
+  check(`thinking text retains one estimated total: ${texted}`, texted === '40s · ↓ ~750', texted)
   const writing = line(facts({ phase: 'writing', replyChars: 1_360, thinkingBlocks: 1, lastByteAtMs: T - 1_000 }))
-  check(`writing prose: the count moves, so no pulse and no block count ride the row: ${writing}`, writing === '↓ ~340 tokens · writing · 4m 31s', writing)
+  check(`reply prose retains one estimated total: ${writing}`, writing === '4m 31s · ↓ ~340', writing)
   const working = line(facts({ phase: 'working', replyChars: 1_360, thinkingBlocks: 1, lastByteAtMs: T - 1_000 }))
-  check(`a running tool: no pulse (the tool's own clock speaks): ${working}`, working === '↓ ~340 tokens · working · 4m 31s', working)
+  check(`a running tool retains the existing total: ${working}`, working === '4m 31s · ↓ ~340', working)
   const wait = line(facts({ firstByteAtMs: null, thinkingBlocks: 0, lastByteAtMs: T - 1_000, wait: { kind: 'first-byte', cold: true, promptTokens: 65_000, model: 'Opus 5.5', budgetMs: 271_000, sinceMs: T - 12_000, attempt: 1 } }))
-  check(`a request wait: the promise speaks, never the pulse: ${wait}`, wait === 'reading the prompt · 4m 31s · first byte expected within 4m 31s', wait)
+  check(`prefill keeps known zero and time, no budget: ${wait}`, wait === '4m 31s · ↓ 0', wait)
   const full = words.liveCounterWords(facts({ replyChars: 872, wireOutputTokens: 218, thinkingBlocks: 1, lastByteAtMs: T - 3_000, wait: { kind: 'silence', model: 'Opus 5.5', silentMs: 45_000, sinceMs: T - 45_000, answered: true } }), T)
   const wide = words.liveCounterLine(full, 120)
   const tight = words.liveCounterLine(full, 60)
   const tighter = words.liveCounterLine(full, 40)
   const tightest = words.liveCounterLine(full, 34)
-  check(`the width ladder keeps every segment when it fits: ${wide}`, wide === '↓ 218 tokens · 1 thinking block · ↻3s · thinking · 4m 31s · no bytes for 45s — the server still answers', wide)
-  check(`a tight row sheds the promise first and keeps the pulse: ${tight}`, tight === '↓ 218 tokens · 1 thinking block · ↻3s · thinking · 4m 31s', tight)
-  check(`tighter sheds the long count and keeps the pulse beside the short one: ${tighter}`, tighter === '↓ 218 tokens · ↻3s · thinking · 4m 31s', tighter)
-  check(`tightest sheds the pulse before the phase and the clock: ${tightest}`, tightest === '↓ 218 tokens · thinking · 4m 31s', tightest)
+  check('all four widths fit the same quiet row', [wide, tight, tighter, tightest].every(text => text === '4m 31s · ↓ 218'), j([wide, tight, tighter, tightest]))
   const never = [facts({ thinkingBlocks: 0, lastByteAtMs: null }), facts({ thinkingBlocks: 0 }), facts({ lastByteAtMs: Number.NaN })].map(f => line(f))
-  check('no block and no stamp paint nothing new (never a ↻ with no byte, never 0 thinking blocks)', never.every(text => text === 'thinking · 4m 31s'), j(never))
+  check('no block and no stamp paint no extra words', never.every(text => text === '4m 31s'), j(never))
 }
 
-section('§2 THE SPINNER HUD — the pulse rides beside the count, after the tokens and before the gauges')
+section('§2 spinner HUD keeps time and count without duplicate phase or heartbeat')
 {
   const live = words.liveCounterWords(facts({ replyChars: 872, wireOutputTokens: 218, thinkingBlocks: 1, lastByteAtMs: T - 3_000 }), T)
   const plan = hud.planSpinnerHud(
@@ -77,25 +75,20 @@ section('§2 THE SPINNER HUD — the pulse rides beside the count, after the tok
       verbose: false,
       still: false,
       suffixText: '',
-      stillWaiting: false,
-      thinkingLabel: 'thinking with max effort',
       liveWords: live,
-      livePhase: 'thinking',
       effectiveElapsedMs: 271_000,
-      ctxPct: 5,
-      activeToolCount: 0,
       otps: 0,
       wasStacked: true,
     },
     () => 2,
   )
   const keys = plan.ordered.map(segment => segment.key)
-  check(`RED ON THE BASE: the HUD admits the pulse right after the tokens: ${keys.join(' · ')}`, keys.join(' · ') === 'timer · tokens · pulse · thinking', keys.join(' · '))
+  check(`the HUD keeps only elapsed and count: ${keys.join(' · ')}`, keys.join(' · ') === 'timer · tokens', keys.join(' · '))
   const texts = plan.ordered.map(segment => segment.text)
-  check(`the segments read the Air's row with the reading added: ${texts.join(' · ')}`, texts.join(' · ') === '4m · ↓ 218 tokens · 1 thinking block · ↻3s · thinking with max effort', texts.join(' · '))
-  check('the context gauge still paints after them', plan.showCtx && plan.ctxPct === 5)
+  check(`the HUD reads the existing exact count: ${texts.join(' · ')}`, texts.join(' · ') === '4m 31s · ↓ 218', texts.join(' · '))
+  check('the internal pulse remains available, not on screen', live.pulse === '↻3s' && live.phase === 'thinking')
   const row = read('src/components/Spinner/SpinnerAnimationRow.tsx')
-  check('the spinner row paints every unkinded segment in HUD order (the pulse included) before the gauges', row.includes("for (const segment of ordered.filter(s => s.kind === undefined))"))
+  check('the row paints the quiet HUD in order', row.includes('for (const segment of ordered)'))
 }
 
 section('§3 THE SEAT — a reasoning block\'s start counts on the tail; text blocks do not; the outcome and a respawn zero it')
@@ -171,7 +164,7 @@ section('§3 THE SEAT — a reasoning block\'s start counts on the tail; text bl
   check('RED ON THE BASE: the connector\'s turn facts carry thinkingBlocks 1', inFlight.thinkingBlocks === 1, j(inFlight))
   check('RED ON THE BASE: …and lastByteAtMs equal to the seat\'s liveness stamp', typeof stamp === 'number' && inFlight.lastByteAtMs === stamp, j({ stamp, facts: inFlight }))
   const pulse = words.liveCounterWords({ ...inFlight, phase: 'thinking', sentAtMs: Date.now() - 65_000 }, Date.now())
-  check(`the status line's words from those facts carry the reading: ${words.liveCounterSegments(pulse).join(' · ')}`, /^↓ 1 thinking block · ↻\d+s · thinking · 1m 5s$/.test(words.liveCounterSegments(pulse).join(' · ')), words.liveCounterSegments(pulse).join(' · '))
+  check(`the status line keeps only the elapsed for unknown withheld output: ${words.liveCounterSegments(pulse).join(' · ')}`, words.liveCounterSegments(pulse).join(' · ') === '1m 5s', words.liveCounterSegments(pulse).join(' · '))
   publishSessionFacts({ ...base, busy: false } as never, DAEMON_DIR)
   await untilBusy(false)
   onSeatRow(SHORT, row({ type: 'outcome', schema: 1, turn_id: 't-tp2', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: {}, denials: [] }), roster as never, DAEMON_DIR)
@@ -183,10 +176,11 @@ section('§3 THE SEAT — a reasoning block\'s start counts on the tail; text bl
   check('idle: no block count and no stamp (the row paints nothing)', (idle.thinkingBlocks ?? 0) === 0 && idle.lastByteAtMs === null, j(idle))
 }
 
+rmSync(HOME, { recursive: true, force: true })
 console.log(`\n${'═'.repeat(76)}`)
 if (failures > 0) {
   console.log(`❌ prove-think-pulse-reading: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log('✅ prove-think-pulse-reading: while a think streams with its text withheld, the status line reads the last byte\'s age and the thinking blocks received beside the count — a reading, never a guard')
+console.log('PASS: internal thinking blocks and byte stamps survive; the screen stays quiet')
 process.exit(0)

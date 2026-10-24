@@ -41,12 +41,12 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
     ...(engineLegs
       ? [
           {
-            label: 'OpenRouter — one credential, the whole catalogue (OAuth or key)',
+            label: 'OpenRouter — browser sign-in or API key',
             value: 'openrouter' as const,
           },
           { label: 'Google Gemini — Google sign-in, API key', value: 'gemini' as const },
           {
-            label: 'Hugging Face — device-code sign-in or a Hub token (open models)',
+            label: 'Hugging Face — sign-in or Hub token',
             value: 'huggingface' as const,
           },
           { label: 'Kimi (Moonshot) — device-code sign-in or API key', value: 'moonshot' as const },
@@ -54,16 +54,16 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: META_LOGIN_FAMILY_LABEL, value: 'meta' as const },
-          { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
-          { label: 'Nous Portal — account sign-in or API key (model gateway)', value: 'nous' as const },
-          { label: 'MiniMax — API key or M Plan key (M3, M2.7)', value: 'minimax' as const },
-          { label: 'Together AI — API key (the gateway\'s chat models)', value: 'together' as const },
-          { label: 'Cohere — API key (Command A+, North)', value: 'cohere' as const },
-          { label: 'Groq — API key (text models)', value: 'groq' as const },
-          { label: 'Cerebras — API key (text models)', value: 'cerebras' as const },
-          { label: 'Fireworks — API key (text models)', value: 'fireworks' as const },
-          { label: 'Qwen — QwenCloud or Model Studio API key (Qwen3.8 Max, Qwen3.7 Plus)', value: 'qwen' as const },
-          { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
+          { label: 'Mistral — API key', value: 'mistral' as const },
+          { label: 'Nous Portal — sign-in or API key', value: 'nous' as const },
+          { label: 'MiniMax — API key or M Plan key', value: 'minimax' as const },
+          { label: 'Together AI — API key', value: 'together' as const },
+          { label: 'Cohere — API key', value: 'cohere' as const },
+          { label: 'Groq — API key', value: 'groq' as const },
+          { label: 'Cerebras — API key', value: 'cerebras' as const },
+          { label: 'Fireworks — API key', value: 'fireworks' as const },
+          { label: 'Qwen — QwenCloud or Model Studio API key', value: 'qwen' as const },
+          { label: 'OpenCode Zen — API key', value: 'zen' as const },
           ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — ${cachedCompatCatalogue(endpoint)?.error || compatEndpointPodTerminated(endpoint) ? 'server is not answering · retry or remove in /model' : 'endpoint API key'}`, value: `compat/${endpoint.name}` as const })),
         ]
       : []),
@@ -84,7 +84,7 @@ export function loginFamilyInitialFocus<T extends string>(
 
 export const openaiArmPickRows = [
   { label: 'ChatGPT subscription — browser sign-in', value: 'subscription' },
-  { label: 'OpenAI API key — paste one (stored locally, mode 600)', value: 'key' },
+  { label: 'OpenAI API key — usage-based billing', value: 'key' },
 ] as const
 
 export const anthropicArmPickRows = [

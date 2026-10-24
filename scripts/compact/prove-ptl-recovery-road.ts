@@ -20,7 +20,7 @@ console.log('L2 roads that exist')
 check('/clear is named', text.includes('/clear'), text)
 check('a larger context window (a model switch) is named', /larger context window/i.test(text), text)
 check('/compact is named', text.includes('/compact'), text)
-check('the sentence says what happened (the summariser itself was refused)', /summariser itself was refused/i.test(text), text)
+check('the sentence names the cause without narrating the summariser', text.includes('too much context') && !text.includes('summariser itself'), text)
 
 console.log('L3 the refused road is still refused (the why)')
 {

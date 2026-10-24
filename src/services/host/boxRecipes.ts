@@ -31,7 +31,7 @@ export function boxFitWords(recipe: BoxRecipe, box: HostBox): string {
   const memory = boxMemory(box, recipe.engine)
   if (memory < recipe.memoryGb) return 'needs ' + recipe.memoryGb + ' GB' + (recipe.engine === 'llamacpp' && cudaMemory(box) > 0 ? ' of GPU memory' : '') + '; this box has ' + Math.round(memory)
   if (!fitsBox(recipe, box)) return 'install llama-server on this Windows box first'
-  return 'weights fit · ' + (box.engines.some(engine => engine.kind === recipe.engine) ? recipe.engine + ' found' : 'install ' + recipe.engine) + ' · runtime memory checked at start'
+  return 'weights fit · ' + (box.engines.some(engine => engine.kind === recipe.engine) ? recipe.engine : 'install ' + recipe.engine)
 }
 export function boxWeightsWords(recipe: BoxRecipe, destination: string, bank: boolean): string {
   return bank ? 'Use ' + destination + ' on this box · verify SHA256SUMS before starting; no weights download' : 'Download up to ~' + recipe.downloadGb + ' GB to ' + destination + ' on this box · ' + (recipe.engine === 'ollama' ? 'Ollama pull ' : 'hf download ') + recipe.model

@@ -2,10 +2,11 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'chat-mode-polish-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -99,7 +100,7 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check('/concourse\'s description says what the door opens per world, read live', concourseCmd.includes('get description(): string {') && concourseCmd.includes("'Open the live view of your sessions — the concourse is off in this boot'") && concourseCmd.includes("'Open the Session Concourse — the multi-session home board, in place'"))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
-  t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? '; /workflows opens the run board' : ''") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
+  t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? <Text color={tokens.textMuted}>/workflows opens the run board</Text> : null") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
   t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {
@@ -147,5 +148,5 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   t.check('--chat before a session: the menu alone; shift+→ moves nothing (the dim hint, no commit)', route.stripStops(plain).join(',') === 'boot-settings' && JSON.stringify(route.stripMove('boot-settings', 'right', route.stripStops(plain))) === JSON.stringify({ to: null, hint: 'no chat open' }))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 t.finish('prove-chat-mode-polish')

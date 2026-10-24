@@ -1,5 +1,3 @@
-import { configuredCompatEndpoints } from '../../services/providers/openaicompat/compatAccounts.js'
-import { compatPrefixCacheWords } from '../../services/providers/openaicompat/compatPrefixCache.js'
 import { HOST_VENDOR_INFO } from '../../services/host/vendors/vendor.js'
 
 export const LLM_HOST_WORDS = {
@@ -12,7 +10,7 @@ export const LLM_HOST_WORDS = {
   offers: 'Choose a model · live Runpod stock',
   shapes: 'Choose a GPU shape · live Runpod stock',
   budget: 'Optional spending budget in USD',
-  budgetHelp: 'Runpod does not expose account credit here. Enter a budget for an hours estimate, or leave blank.',
+  budgetHelp: 'Leave blank to skip the hours estimate.',
   rentalConfirm: 'Confirm the hourly price',
   watchConfirm: 'Watch for stock and rent at this price or less',
   creating: 'Creating the machine',
@@ -27,20 +25,20 @@ export const LLM_HOST_WORDS = {
   closePod: 'Close · keep the stopped disk',
   stoppedDisk: 'Stopped · compute ended; disk storage still bills until Terminate.',
   terminatedPod: 'Machine terminated · its disk is deleted.',
-  noStock: 'No documented shape has stock right now. Choose a model to watch for stock, or refresh.',
+  noStock: 'No stock. Choose a model to watch, or refresh.',
   sshHost: 'SSH host or config alias',
   sshUser: 'SSH user (blank uses SSH config)',
   sshPort: 'SSH port (blank uses SSH config)',
   sshKey: 'Private key path (blank uses SSH config or agent)',
   sshBank: 'Local model bank folder (blank downloads from Hugging Face)',
   sshConfirm: 'Start this model on the SSH box',
-  opening: 'model server set-up · rental setup continues in the background',
+  opening: 'Model hosting',
   hint: '↑↓ choose · ↵ continue · esc or click outside closes',
-  choose: '↑↓ then ↵ · nothing is pre-chosen',
-  suggested: '↑↓ then ↵ · the cursor starts on a suggestion',
+  choose: '',
+  suggested: '',
   input: '↵ continue · esc closes',
-  running: 'running… · esc closes',
-  stopped: 'stopped · nothing more runs · esc closes',
+  running: '…',
+  stopped: 'Cancelled',
   servers: 'registered servers',
   add: 'connect another server',
   action: 'what to do with this server',
@@ -48,26 +46,26 @@ export const LLM_HOST_WORDS = {
   repoint: 'change the address and check it',
   remove: 'remove this provider and its stored key',
   address: '1 · the server address',
-  addressFound: 'A server you already run, or the loopback address of an SSH tunnel.',
-  addressRun: 'Read the model list and server metadata at this address. Nothing is installed or started.',
+  addressFound: 'API base URL, including the port.',
+  addressRun: '',
   dialect: '2 · the server dialect',
-  dialectUnknown: 'The server did not identify its dialect. Choose the API it serves.',
-  dialectRun: 'Use this dialect for model requests and read its served window.',
+  dialectUnknown: 'Choose the server’s API.',
+  dialectRun: '',
   key: '3 · the server key',
-  keyRequired: 'The server asked for a key. It is hidden here and stored only when you register.',
-  keyOptional: 'No key was needed to list models. Leave blank, or give a key for replies.',
-  keyRun: 'Used for this check; saved only when you register.',
+  keyRequired: 'This server requires a key.',
+  keyOptional: 'Leave blank if no key is needed.',
+  keyRun: '',
   model: '4 · choose the model',
-  modelRun: 'Choose one listed model for the reply check. Every listed model will appear in /model.',
+  modelRun: '',
   name: '5 · name the provider',
   nameFound: 'Use 1–32 lowercase letters, digits or hyphens. The default is llmhost.',
-  nameRun: 'The model will be named compat/<name>/<model>. An existing name is never overwritten by a new server.',
+  nameRun: '',
   confirm: '5 · register and check a reply',
-  confirmRun: 'Save endpoint + key, then request one reply. The session model stays unchanged.',
-  recheckRun: 'Read this server’s models and ask the selected model for one short reply. The session model stays unchanged.',
+  confirmRun: 'Save the address and key. The session model stays unchanged.',
+  recheckRun: 'The session model stays unchanged.',
   register: 'register and check',
   check: 'check a reply',
-  cancel: 'keep things as they are',
+  cancel: 'Cancel',
   done: '6 · provider registered',
   removed: 'provider removed · the server itself keeps running',
   noModels: 'The server returned no models. Load a model there, then open /llmhost again.',
@@ -77,9 +75,9 @@ export const LLM_HOST_WORDS = {
   failed: 'reply check failed',
   empty: 'The server completed without a text reply.',
   finished: 'esc closes',
-  offersHelp: 'Live stock and prices on Secure Cloud, cheapest first. A price covers every GPU in the shape; storage is billed on top.',
-  ended: 'model server set-up · ended',
-  stoppedSaved: 'stopped · provider saved · esc closes',
+  offersHelp: 'Hourly price for all GPUs · storage extra.',
+  ended: 'Model hosting',
+  stoppedSaved: 'Cancelled · provider saved',
 } as const
 
 export const hostHuggingfaceScopeWords = (knownScope: boolean): string => knownScope
@@ -115,14 +113,14 @@ function prebuiltEngineImage(engine: string | undefined, image: string | undefin
 export function hostSetupEstimate(recipe: { engine?: string; pythonInstall?: string; install?: string; image?: string; diskGb: number; weightsGb?: number }, kept?: { check: string }): string {
   const size = recipe.weightsGb
   const engineMinutes = prebuiltEngineImage(recipe.engine, recipe.image) ? 1 : recipe.engine === 'llamacpp' || recipe.pythonInstall ? 10 : 5
-  const engine = engineMinutes === 1 ? 'Engine from image ~1 min · no engine build' : recipe.engine === 'llamacpp' ? 'builds llama.cpp ~10 min' : recipe.pythonInstall ? 'installs SGLang ~10 min' : 'starts the engine ~5 min'
-  if (size === undefined || !Number.isFinite(size) || size <= 0) return `${engine} · downloads weights (size unknown) · loads model (time unknown). Total depends on the download; ${recipe.diskGb} GB is disk space, not download size`
+  const engine = engineMinutes === 1 ? 'engine ~1 min' : recipe.engine === 'llamacpp' ? 'build ~10 min' : recipe.pythonInstall ? 'engine ~10 min' : 'engine ~5 min'
+  if (size === undefined || !Number.isFinite(size) || size <= 0) return engine + ' · ' + recipe.diskGb + ' GB disk'
   const fast = Math.max(5, Math.ceil(size / 60 / 5) * 5)
   const slow = Math.max(5, Math.ceil(size / 30 / 5) * 5)
   const loadMinutes = Math.max(3, Math.ceil(size / 70))
-  const weights = kept ? `weights kept ~0 download · ${kept.check}` : `downloads ${+size.toFixed(2)} GB ~${fast === slow ? fast : fast + '–' + slow} min`
+  const weights = kept ? 'weights kept' : `downloads ${+size.toFixed(2)} GB ~${fast === slow ? fast : fast + '–' + slow} min`
   const total = Math.ceil((engineMinutes + (kept ? 0 : slow) + loadMinutes) / 5) * 5
-  return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total (estimate at a sustained 0.5–1 GB/s; stock and network can add time)`
+  return `${engine} · ${weights} · loads ~${loadMinutes} min · ~${total} min total`
 }
 
 export const hostNoStockWords = (vendors: readonly string[]): string => 'no stock on ' + (vendors.length ? vendors.join(', ') : 'the connected vendors') + ' · watch →'
@@ -130,7 +128,7 @@ export const hostNoStockWords = (vendors: readonly string[]): string => 'no stoc
 export const hostRunningCountWords = (running: number): string => running ? ' · ' + running + ' running' : ''
 
 export const hostVendorKeysWords = (vendors: readonly { label: string; connected: boolean; fault?: 'key' | 'read' }[]): string =>
-  'Vendor keys · ' + vendors.map(row => row.label + (row.fault === 'key' ? ' ✗ replace the key to reconnect' : row.fault === 'read' ? ' ✗ could not be read' : row.connected ? ' ✓' : '')).join(' · ') + ' — replace or remove →'
+  'Vendor keys · ' + vendors.map(row => row.label + (row.fault === 'key' ? ' · replace key' : row.fault === 'read' ? ' · retry' : row.connected ? ' ✓' : '')).join(' · ')
 
 export const hostMachineName = (vendor: keyof typeof HOST_VENDOR_INFO, id: string): string => (vendor === 'huggingface' ? 'HF endpoint' : HOST_VENDOR_INFO[vendor].label + (vendor === 'runpod' ? ' pod' : ' instance')) + ' ' + id
 
@@ -157,17 +155,11 @@ export function hostPaidPodWords(pod: { id: string; name: string; status: string
   if (pod.status === 'EXITED') return `${identity} · stopped · storage still bills`
   const started = Date.parse(record?.startedAt ?? pod.startedAt ?? pod.createdAt)
   const hours = Number.isFinite(started) ? Math.max(0, now - started) / 3600_000 : undefined
-  const cost = hours === undefined ? 'elapsed time and cost unknown' : `${Math.floor(hours * 60)} min · $${(pod.cost * hours).toFixed(2)} so far (estimate; storage extra)`
-  let cache = ''
-  try {
-    const endpoint = record?.provider ? configuredCompatEndpoints().find(row => row.name === record.provider) : undefined
-    if (endpoint && pod.status === 'RUNNING' && record?.step === 'ready') cache = compatPrefixCacheWords(endpoint, now)
-  } catch {}
-  return `${identity} · ${record?.step ?? pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr · ${cost}${cache ? ' · ' + cache : ''}`
+  const cost = hours === undefined ? '' : `${Math.floor(hours * 60)} min · ~$${(pod.cost * hours).toFixed(2)} so far + storage`
+  return `${identity} · ${record?.step?.startsWith('paused') ? 'paused' : pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr${cost ? ' · ' + cost : ''}`
 }
 
 export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {
-  const [, provider, ...wire] = model.split('/')
   const hours = Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000
-  return `${label} is ready. In /model, choose ${wire.join('/')} under Custom endpoint · ${provider}.\nOr run /model ${model}.\n$${(record.price * hours).toFixed(2)} so far (estimate; storage extra).`
+  return `${label} ready · /model ${model}\n~$${(record.price * hours).toFixed(2)} so far + storage.`
 }

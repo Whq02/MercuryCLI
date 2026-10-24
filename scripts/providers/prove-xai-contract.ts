@@ -22,6 +22,7 @@ function exportsOf(path: string): Map<string, string> {
   }
   return out
 }
+const DEEPSEEK_RATE_ONLY: ReadonlySet<string> = new Set(['DEEPSEEK_PRICING_SOURCE', 'DEEPSEEK_PRICING_OBSERVED_AT', 'deepseekRatePeriod'])
 let count = 0
 try {
   const pairs = ['CallModel', 'Catalogue', 'Login', 'Pins'].map(part => [`src/services/providers/deepseek/deepseek${part}.ts`, `src/services/providers/xai/xai${part}.ts`])
@@ -29,12 +30,19 @@ try {
   for (const [from, to] of pairs) {
     const expected = exportsOf(join(root, from!))
     const actual = exportsOf(join(root, to!))
+    let mirrored = 0
     for (const [name, signature] of expected) {
+      if (DEEPSEEK_RATE_ONLY.has(name)) {
+        assert.equal(actual.get(rename(name)), undefined, `${to}: ${rename(name)} is not invented — the DeepSeek rate pins have no xAI counterpart`)
+        continue
+      }
       assert.equal(actual.get(rename(name)), rename(signature), `${to}: ${rename(name)} preserves the mirrored signature`)
       count++
+      mirrored++
     }
-    console.log(`[PASS] ${to}: all ${expected.size} mirrored exports and function signatures`)
+    console.log(`[PASS] ${to}: all ${mirrored} mirrored exports and function signatures`)
   }
+  for (const name of DEEPSEEK_RATE_ONLY) assert.ok(exportsOf(join(root, 'src/services/providers/deepseek/deepseekPins.ts')).has(name), `${name} is a DeepSeek pin`)
   const flags = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
   assert.ok(flags.includes("env: 'MERCURY_XAI_API_BASE'"))

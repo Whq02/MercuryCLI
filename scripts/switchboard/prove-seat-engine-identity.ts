@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -210,7 +211,7 @@ section('§5 — workers: the spec boots on the model admission resolved')
 
 server.close()
 try {
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 } catch {
 }
 console.log(

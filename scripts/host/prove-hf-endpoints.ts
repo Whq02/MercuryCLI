@@ -39,7 +39,7 @@ try {
   check('live 8x H200 price is forty dollars, not per-GPU', offers.some(row => row.recipe.count === 8 && row.recipe.gpu === 'H200' && row.price === 40))
   check('510 GB B200 recipe is not fabricated on HF hardware', !offers.some(row => row.recipe.id.startsWith('deepseek41-')))
   check('local-file and multi-node recipes are not offered', offers.every(row => !row.recipe.files && (row.recipe.nodes ?? 1) === 1))
-  check('HF disclosure is managed and unstamped', api.capabilities.managed && api.offersNote().includes('HF-managed · per hour · no SSH') && !api.offersNote().includes('booted'))
+  check('HF is managed and adds no note line to the machine screen', api.capabilities.managed && api.offersNote() === '')
   const selectedRecipe = { ...offers.find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!.recipe, flags: ['--fixture-selected-row'], image: 'fixture/selected-image' }
   const watched = await api.watchOffer(selectedRecipe, 3, signal)
   check('stock watch retains the saved same-id recipe instead of current catalogue defaults', watched?.recipe.flags.includes('--fixture-selected-row') && watched.recipe.image === selectedRecipe.image)
@@ -81,7 +81,7 @@ try {
   await runHostJob(queued.id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
   const guarded = readHostRecord(queued.id)!
   check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
-  check('paused endpoint keeps its billing and recovery choices', guarded.error?.includes('bills $') && guarded.error.includes('Resume retries the setup, Terminate stops the bill'))
+  check('paused endpoint keeps its billing and recovery choices', guarded.error?.includes('/hr still billing') && guarded.error.includes('Resume or Terminate in /llmhost'))
   const notices = readdirSync(join(f.home, 'host/notices')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === 'hf-never-ready')
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
   hf.state.neverReady = false

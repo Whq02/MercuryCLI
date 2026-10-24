@@ -42,7 +42,7 @@ export function fastLoadState(recipe: HostRecipe): string {
 function runpodFastLoadState(recipe: HostRecipe, row: KeptVolume): string {
   if (row.state === 'gone') return 'not kept · ' + (row.error ?? 'disk gone')
   if (row.state === 'creating') return 'preparing · create answer unclear; disk may exist and bill'
-  if (row.state === 'kept') return 'kept on ' + row.id + ' in ' + row.dataCenter + ' since ' + row.createdAt.slice(0, 10) + ' · ' + volumePrice(row) + (row.verifiedSums?.check ? ' · ' + row.verifiedSums.check + ' check passed' : '') + (row.verifiedSums?.sampleManifestSha256 ? '' : ' · next check is full ' + fullCheckMinutes(recipe.weightsGb))
+  if (row.state === 'kept') return 'kept on ' + row.id + ' · ' + row.dataCenter + ' · ' + volumePrice(row)
   if (row.state === 'failed') return 'failed · ' + row.id + ' in ' + row.dataCenter + ' · ' + keptDiskPrice(row) + (row.error ? ' · ' + row.error : '') + ' · the next rental downloads again'
   return 'preparing · ' + row.id + ' in ' + row.dataCenter + ' · ' + volumePrice(row) + (row.preparingPod ? ' · on pod ' + row.preparingPod : '')
 }
@@ -147,7 +147,7 @@ export async function mirrorToVolume(api: RunpodClient | undefined, recipe: Host
   const offer = when === 'now' ? fillOffer(await api.offers(signal), pinned, how, dataCenter) : undefined
   if (when === 'now' && !offer) { emit({ title: FAST_LOAD_DOOR, words: 'No pod has stock in ' + dataCenter + ' to fill the disk. Nothing was created; try another data centre or prepare at the next rental.' }); return }
   const amount = volumePrice({ kind: how, price: how === 'global' ? recipe.weightsGb * 0.09 : networkMonthly(recipe.diskGb) })
-  const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: ' + fillPodWords(offer) + ' (the cheapest in stock in ' + dataCenter + ' with room for the weights; filling a disk needs no particular GPU) until the download verifies; then terminate. A temporary pod fills the volume from Hugging Face and verifies the same files next to the GPUs; nothing is uploaded from your drive. A stalled download (' + keptStallWords + ') or one past ' + keptDownloadMinutes(recipe) + ' min also terminates the pod and keeps the partial disk.' : ' No pod now; the next rental downloads the weights from Hugging Face onto the disk and verifies them there; nothing is uploaded from your drive.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod ' + hostShape(offer.recipe) + ' $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
+  const confirm = await ask({ step: 'fast-load-confirm', title: 'Confirm weights disk · ' + amount, found: recipe.label + ' · ' + (how === 'network' ? recipe.diskGb + ' GB disk' : recipe.weightsGb.toFixed(2) + ' GB estimated usage') + ' · ' + dataCenter, willRun: 'Disk bills whether or not a pod exists.' + (offer ? ' Prepare now: ' + fillPodWords(offer) + ' (the cheapest in stock in ' + dataCenter + ' with room for the weights; filling a disk needs no particular GPU) until the download verifies; then terminate. A temporary pod fills the volume from Hugging Face and verifies the same files next to the GPUs; nothing is uploaded from your drive. A stalled download (' + keptStallWords + ') or one past ' + keptDownloadMinutes(recipe) + ' min pauses the pod, which keeps billing; the partial disk is kept.' : ' No pod now; the next rental downloads the weights from Hugging Face onto the disk and verifies them there; nothing is uploaded from your drive.'), rows: [{ value: 'confirm', label: 'Confirm ' + amount + (offer ? ' + temporary pod ' + hostShape(offer.recipe) + ' $' + offer.price.toFixed(2) + '/hr' : '') }, { value: 'cancel', label: 'Cancel' }] })
   if (confirm !== 'confirm' || signal.aborted) return
   if (offer && !options.startJob) await requireHostJobOwner()
   const volume = await createKeptVolume(api, pinned, how, dataCenter, signal)
@@ -179,7 +179,7 @@ export const BANK_KEYS = [{ key: 'b', value: 'bank', label: 'bank' }, { key: 'v'
 export async function ensureBankFolder(ask: Ask, change = false): Promise<string | undefined> {
   const folder = bankFolder()
   if (folder && !change) return folder
-  const named = await ask({ step: 'door-bank-folder', title: 'Where should the bank live?', found: (folder ? 'Current bank: ' + shortFolder(folder) + '. Choose ' : 'No bank folder was found on this computer. Choose ') + bankCandidateWords() + ', or another folder.', willRun: 'The folder is created if missing and remembered. Existing weights stay in their current folder.', initial: shortFolder(folder ?? bankCandidates()[0]!) })
+  const named = await ask({ step: 'door-bank-folder', title: 'Where should the bank live?', found: folder ? shortFolder(folder) : bankCandidateWords(), willRun: 'Existing weights stay in their current folder.', initial: shortFolder(folder ?? bankCandidates()[0]!) })
   if (named === null) return
   return rememberBankFolder(named)
 }
@@ -192,13 +192,13 @@ export async function bankAction(recipe: HostRecipe, action: BankActionKind, fol
     if (action === 'verify' && !state.banked) { emit({ title: modelTitle(recipe), words: state.sealed ? 'The folder is missing ' + state.missing + ' of ' + state.files + ' files · b banks the weights' : 'Not banked yet · b banks the weights to ' + shortFolder(folder) }); return }
     let task: 'bank' | 'verify' = action
     if (action === 'bank' && state.banked) {
-      const again = await ask({ step: 'door-bank-again', title: modelTitle(recipe) + ' · already banked', found: 'Every file is on ' + state.path + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) : ' · not verified yet') + '.', willRun: 'Bank again re-checks every file against Hugging Face (complete files are skipped) and seals SHA256SUMS anew. v verifies without a download.', rows: [{ value: 'verify', label: 'Verify instead (no download)' }, { value: 'bank', label: 'Bank again · re-check against Hugging Face' }, { value: 'cancel', label: 'Cancel' }] })
+      const again = await ask({ step: 'door-bank-again', title: modelTitle(recipe) + ' · already banked', found: state.path ?? '', willRun: '', rows: [{ value: 'verify', label: 'Verify instead (no download)' }, { value: 'bank', label: 'Bank again' }, { value: 'cancel', label: 'Cancel' }] })
       if (again !== 'verify' && again !== 'bank') return
       task = again
     }
     if (task === 'bank') {
       const free = bankFree(folder)
-      const confirm = await ask({ step: 'door-bank-confirm', title: 'Bank ' + modelTitle(recipe), found: sizeWords(recipe.weightsGb) + ' from https://huggingface.co/' + recipe.model + ' → ' + state.path + (free !== undefined && free < recipe.weightsGb * 1e9 ? ' · only ' + bytesWords(free) + ' free on the drive' : ''), willRun: 'Downloads in the background with hf download (your Hugging Face token is used when a repo is gated), then seals SHA256SUMS and verifies every file ' + (state.pinned ? 'against the pinned manifest' : 'against the download') + '. Mercury tells you when it is done; nothing is rented.', rows: [{ value: 'bank', label: 'Bank it · ' + sizeWords(recipe.weightsGb) + ' download' }, { value: 'cancel', label: 'Cancel' }] })
+      const confirm = await ask({ step: 'door-bank-confirm', title: 'Bank ' + modelTitle(recipe), found: sizeWords(recipe.weightsGb) + ' from https://huggingface.co/' + recipe.model + ' → ' + state.path + (free !== undefined && free < recipe.weightsGb * 1e9 ? ' · only ' + bytesWords(free) + ' free on the drive' : ''), willRun: 'Downloads to this computer · $0.00.', rows: [{ value: 'bank', label: 'Bank it · ' + sizeWords(recipe.weightsGb) + ' download' }, { value: 'cancel', label: 'Cancel' }] })
       if (confirm !== 'bank' || signal.aborted) return
     }
     await bankDoorQueue(recipe, task, folder, emit, options)
@@ -240,19 +240,18 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const rows = recipes.map(recipe => {
       const state = states.get(recipe.id)!
       const job = jobs.find(row => bankJobModel(row) === volumeModel(recipe))
-      const verified = state.verifiedAt ? '✓ ' + state.verifiedAt.slice(0, 10) : state.failedAt && !state.verifiedAt ? '✗ ' + state.failedAt.slice(0, 10) : ''
-      return { value: recipe.id, label: pad(fit(rowTitle(recipe), nameWidth - 1), nameWidth) + pad(sizeWords(recipe.weightsGb), 8) + bankCell(state, job, bankedWidth) + pad(verified, 13) + volumeCell(recipe, state.banked) }
+      const check = state.error ? 'failed · v' : ''
+      return { value: recipe.id, label: pad(fit(rowTitle(recipe), nameWidth - 1), nameWidth) + pad(sizeWords(recipe.weightsGb), 8) + bankCell(state, job, bankedWidth) + pad(check, 11) + volumeCell(recipe, state.banked) }
     })
-    const header = '─ ' + pad('MODEL', nameWidth) + pad('SIZE', 8) + pad('BANKED', bankedWidth) + pad('VERIFIED', 13) + 'VOLUME'
+    const header = '─ ' + pad('MODEL', nameWidth) + pad('SIZE', 8) + pad('BANKED', bankedWidth) + pad('CHECK', 11) + 'VOLUME'
     if (rows[0]) rows[0].label = header + '\n' + rows[0].label
     const banked = recipes.filter(recipe => states.get(recipe.id)!.banked)
     const bankedBytes = banked.reduce((sum, recipe) => sum + states.get(recipe.id)!.bytes, 0)
-    const lastVerified = banked.map(recipe => states.get(recipe.id)!.verifiedAt ?? '').filter(Boolean).sort().at(-1)
     const kept = keptVolumes().filter(row => row.state === 'kept' && recipes.some(recipe => matchesVolume(row, recipe)))
     const keptGb = kept.reduce((sum, row) => sum + (recipes.find(recipe => matchesVolume(row, recipe))?.weightsGb ?? 0), 0)
-    const totals = 'Banked: ' + banked.length + ' of ' + recipes.length + ' models · ' + bytesWords(bankedBytes) + (lastVerified ? ' · last verified ' + lastVerified.slice(0, 10) : '') + (kept.length ? ' · fast-load volumes: ' + kept.length + ' kept (' + sizeWords(keptGb) + ', $' + kept.reduce((sum, row) => sum + row.price, 0).toFixed(2) + '/month' + (kept.length === 1 ? ', ' + (kept[0]!.kind === 'vast' ? 'Vast.ai machine ' + kept[0]!.machineId : kept[0]!.dataCenter) : '') + ')' : ' · no fast-load volume')
+    const totals = 'Banked: ' + banked.length + ' of ' + recipes.length + ' models · ' + bytesWords(bankedBytes) + (kept.length ? ' · volumes: ' + kept.length + ' · ' + sizeWords(keptGb) + ' · $' + kept.reduce((sum, row) => sum + row.price, 0).toFixed(2) + '/month' : '')
     const free = bankFree(folder)
-    const choice = await ask({ step: 'door-bank', title: 'Bank', found: 'Your copy of the weights. Banked once from Hugging Face, hash-verified, kept on your drive; mirrored to a fast-load volume so a rental boots in minutes. The repo holds recipes, never weights.\n' + shortFolder(folder) + (free === undefined ? '' : ' · ' + bytesWords(free) + ' free') + ' · ' + totals, willRun: '', initial: rows[0]?.value, keys: BANK_KEYS, rows: [...rows, { value: 'change-folder', label: 'Change folder' }, { value: 'refresh', label: '────────────────────\nRefresh · re-read the bank folder and the volumes' }, { value: 'back', label: 'Back · Escape closes' }] })
+    const choice = await ask({ step: 'door-bank', title: 'Bank', found: shortFolder(folder) + (free === undefined ? '' : ' · ' + bytesWords(free) + ' free') + '\n' + totals, willRun: '', initial: rows[0]?.value, keys: BANK_KEYS, rows: [...rows, { value: 'change-folder', label: 'Change folder' }, { value: 'refresh', label: '────────────────────\nRefresh' }, { value: 'back', label: 'Back' }] })
     if (!choice || signal.aborted) return { ok: true, words: 'Bank closed.' + (kept.length ? ' Kept weights disks keep billing until deleted.' : '') }
     if (choice === 'change-folder') { folder = await ensureBankFolder(ask, true) ?? folder; continue }
     if (choice === 'refresh') continue
@@ -261,7 +260,7 @@ export async function bankDoor(ask: Ask, emit: Emit, signal: AbortSignal, option
     const recipe = recipes.find(row => row.id === target)
     if (!recipe) continue
     const state = states.get(recipe.id)!
-    if (action === 'open') { emit({ title: modelTitle(recipe), words: (state.banked ? 'banked ✓ on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) + ' against the ' + (state.check === 'manifest' ? 'pinned manifest' : 'download') : '') + (state.error ? ' · ' + state.error : '') + ' · ' + fastLoadState(recipe) + (pinnedWeightManifest(recipe) ? '' : ' · mirroring unavailable: ' + weightManifestWords(recipe)) + ' · keys: b bank · v verify · m mirror · d drop · k keep safe' }); continue }
+    if (action === 'open') { emit({ title: modelTitle(recipe), words: state.error ? state.error + ' · v to retry' : (state.banked ? 'banked on ' + state.path : state.files > 0 && state.missing < state.files ? (state.files - state.missing) + ' of ' + state.files + ' files on ' + state.path : 'not banked') + ' · ' + fastLoadState(recipe) }); continue }
     if (!BANK_KEYS.some(row => row.value === action)) continue
     const result = await bankAction(recipe, action as BankActionKind, folder, ask, emit, signal, options)
     if (result) return result
@@ -272,5 +271,5 @@ async function bankDoorQueue(recipe: HostRecipe, task: 'bank' | 'verify', folder
   const id = (task === 'verify' ? 'verify-' : 'bank-') + randomUUID().slice(0, 12)
   const record = queueHostBank({ id, name: modelTitle(recipe), recipe: recipe.id, price: 0, startedAt: new Date().toISOString(), status: task === 'verify' ? 'VERIFYING' : 'BANKING', sessionId: options.sessionId, workspace: process.cwd(), bankTask: task, bankFolder: folder })
   if (record.id === id) options.startJob?.(record)
-  emit({ title: modelTitle(recipe), words: (record.id === id ? (task === 'verify' ? 'Verifying the bank' : 'Banking the weights to ' + shortFolder(folder)) : 'Already running') + ' · ' + record.id + ' · in the background · Mercury tells you when it is done' })
+  emit({ title: modelTitle(recipe), words: (record.id === id ? (task === 'verify' ? 'Checking ' : 'Downloading to ') + shortFolder(folder) : 'Already running') })
 }

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -166,7 +167,7 @@ section('§4 the prune is untouched: the age window still rules the card\'s offe
   check('the door still unlinks only the three named files (no rm, no directory removal)', !/rmSync\(|\brm\(|rmdir|recursive/.test(source('src/utils/sessionStorage/transcriptPruneDoor.ts')))
 }
 
-for (const dir of [HOME, PROJ]) rmSync(dir, { recursive: true, force: true })
+for (const dir of [HOME, PROJ]) removeScratch(dir)
 console.log(`\n${checks - failures}/${checks} checks passed`)
 if (failures > 0) {
   console.log(`${failures} check(s) failed`)

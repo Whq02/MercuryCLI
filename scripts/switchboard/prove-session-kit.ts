@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'session-kit-')))
 const SYMLINKED_TMP = tmpdir()
@@ -460,6 +461,6 @@ console.log("H — the membership handoff: kitMembership consulted BY the one ow
   const callers = spawnSync('grep', ['-rln', 'kitMembership(', join(SRC_ROOT, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(SRC_ROOT.length + 1)).sort()
   check("H8 kitMembership has exactly THREE speakers and no connect road among them: the owner's own body (the swap), the completion composer, and the dial's reconcile delta (kitDial REUSES the one predicate — a re-spelling there would be the poison); every connect road still follows through isMcpCatalogueMember", deepEq(callers, ['src/services/mcp/kitCompletion.ts', 'src/services/mcp/kitDial.ts', 'src/services/mcp/membership.ts']), callers.join(','))
 }
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nsession-kit: GREEN' : `\nsession-kit: RED (${failures} failing)`)
 process.exit(failures === 0 ? 0 : 1)

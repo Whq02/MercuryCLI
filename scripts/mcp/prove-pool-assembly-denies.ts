@@ -45,14 +45,17 @@ section('§2 THE RUN ASSEMBLY')
   const seam = print.slice(seamAt, seamAt + 1400)
   check('the run per-turn assembly exists', seamAt !== -1)
   check('startup extras cannot shadow the current filtered MCP collection', /sessionTools\.filter\(tool => !baseToolNames\.has\(tool\.name\) && !tool\.isMcp\)/.test(seam))
+  const pool = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')
+  const partitionAt = pool.indexOf('export function mcpToolPartition')
+  const partition = pool.slice(partitionAt, partitionAt + 400)
   check(
-    'the MCP partitions ride filterToolsByDenyRules (FC-026, call-shaped)',
-    /filterToolsByDenyRules\(/.test(seam),
+    'the MCP partitions ride filterToolsByDenyRules (FC-026, call-shaped) through the one shared partition',
+    /mcpToolPartition\(state\.mcp\.tools as Tool\[\], state\.toolPermissionContext\)/.test(seam) && partitionAt !== -1 && /filterToolsByDenyRules\(/.test(partition),
     seam.slice(0, 120).replace(/\s+/g, ' '),
   )
   check(
     "and the blocked ceiling is enforced (effectiveMaxPermission !== 'blocked')",
-    /effectiveMaxPermission\s*!==\s*'blocked'/.test(seam),
+    /effectiveMaxPermission\s*!==\s*'blocked'/.test(partition),
   )
 }
 

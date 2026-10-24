@@ -25,8 +25,8 @@ export async function createVastRental(api: VastClient, offer: HostOffer, public
     return { pod: await api.create(next, publicKey, name, volume, false), offer: next }
   }
 }
-export const VAST_STORAGE_NOTICE = '/workspace uses the instance container disk. Stop retains data and storage billing, and a restart waits until the host’s GPUs are free; terminate deletes the disk and its data. No separate volume is created.'
-export const VAST_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your Vast.ai account keys, which Vast.ai installs on your instances. Remove it at https://cloud.vast.ai/manage-keys/ when you stop renting through Mercury.'
+export const VAST_STORAGE_NOTICE = 'Stop keeps the disk and storage bill; restart waits for free GPUs. Terminate deletes the disk and its data.'
+export const VAST_KEY_NOTICE = 'Adds an SSH key to your Vast.ai account and instances. Remove it at https://cloud.vast.ai/manage-keys/ when finished.'
 export const VAST_GPU_NAMES: Readonly<Record<string, string>> = {
   H100: 'NVIDIA H100', 'H100 SXM': 'NVIDIA H100', 'H100 PCIE': 'NVIDIA H100',
   H200: 'NVIDIA H200', 'H200 NVL': 'NVIDIA H200', B200: 'NVIDIA B200', B300: 'NVIDIA B300', 'B300 PC': 'NVIDIA B300', GB300: 'NVIDIA GB300',

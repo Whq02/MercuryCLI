@@ -94,11 +94,6 @@ const getFocusedThinkingKey = (): string => {
   const live = c.live()
   return live.inFlight && live.phase === 'thinking' ? 'thinking' : ''
 }
-function thinkingPulseWords(status: { phaseMs: number | null; quietMs: number | null }): string {
-  const elapsed = status.phaseMs !== null ? ` ${formatQuietAge(status.phaseMs)}` : ''
-  const age = status.quietMs !== null ? ` ${GLYPH.dot} ↻${formatQuietAge(status.quietMs)}` : ''
-  return `${GLYPH.inProgress} thinking${elapsed}${age}`
-}
 
 function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
   fluxMark('render:frame')
@@ -378,13 +373,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const thinkingStatus = thinkingKey === 'thinking' && hasSeatLive(focusedSeat) ? focusedSeat.status() : null
   const thinkingShown = !isCompact && !routeSurface && thinkingStatus !== null && thinkingStatus.wait === null
   useNowTick(thinkingShown ? 1000 : null)
-  const thinkingNode =
-    thinkingShown && thinkingStatus !== null ? (
-      <Text>
-        <Sep />
-        <Text color={thinkingStatus.stuck ? tok.warning : tok.success}>{thinkingPulseWords(thinkingStatus)}</Text>
-      </Text>
-    ) : null
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
     const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
@@ -447,7 +435,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {turnsNode}
         {needsNode}
         {motionNode}
-        {thinkingNode}
         {
 }
         {wfNode}

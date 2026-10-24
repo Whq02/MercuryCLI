@@ -77,16 +77,16 @@ try {
   }
   const until = async (needle: string) => assert.ok(await waitFor(() => mounted!.screen().includes(needle), 30000), 'screen reaches ' + needle + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
-  const select = async (needle: string) => {
+  const select = async (needle: string, key: string = KEY.down) => {
     for (let n = 0; n < 50; n++) {
       const before = selected()
       if (before.includes(needle)) return
-      mounted!.push(KEY.down)
+      mounted!.push(key)
       assert.ok(await waitFor(() => selected() !== before, 3000), 'selection reaches ' + needle + '\n' + mounted!.screen())
     }
     throw new Error('Choice not found: ' + needle)
   }
-  const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
+  const choose = async (needle: string, key: string = KEY.down) => { await select(needle, key); mounted!.push(KEY.enter) }
   const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
   const capture = async (name: string) => {
     if (!frames) return
@@ -104,8 +104,8 @@ try {
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await capture('80-three-vendors')
   for (const [vendor, label, fixture] of [['vast', 'Vast.ai', vast], ['lambda', 'Lambda', lambda], ['hyperstack', 'Hyperstack', hyperstack], ['verda', 'Verda', verda], ['digitalocean', 'DigitalOcean', digitalocean]] as const) {
     await choose('Connect ' + label); await until(label + ' API key'); mounted!.push(fixture.key); await until('********'); mounted!.push(KEY.enter)
-    await until('WEIGHTS'); await select('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.screen().includes('in stock'))
-    if (vendor === 'vast') check('Vast offer rows display their hosting type beside the region', /region unknown · (datacenter|community host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
+    await until('WEIGHTS'); await select('Rent · ' + label); check(label + ' offers appear after key validation', mounted!.lines().some(line => line.includes('Rent · ' + label) && /\$[\d.]+\/hr/.test(line)))
+    if (vendor === 'vast') check('Vast offer rows display their hosting type beside the price', /\$[\d.]+\/hr · (datacenter|community host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
     await choose('Rent · ' + label); await until('Confirm the hourly price')
     if (mounted!.screen().includes('Saved quality has no stock')) {
       await choose('Tune:'); await until('QUALITY ·'); mounted!.push(KEY.up); assert.ok(await waitFor(() => selected().includes('1× H200'), 3000)); mounted!.push(KEY.enter); await until('CONVERSATIONS × CONTEXT'); mounted!.push(KEY.enter)
@@ -113,9 +113,9 @@ try {
     }
     await capture('80-' + vendor + '-confirmation')
     const confirmation = mounted!.screen().replace(/[│\s]+/g, ' ')
-    check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now.'))
-    check(label + ' says the storage terms and Tune summary once', confirmation.split('/workspace uses').length - 1 === 1 && confirmation.split('Tune:').length - 1 === 1)
-    check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH public key') && confirmation.includes('/workspace') && confirmation.includes('setup fails'))
+    check(label + ' confirms before creating', fixture.state.creates === 0 && confirmation.includes('Billing starts now'))
+    check(label + ' says the storage terms and Tune summary once', confirmation.split('Billing starts now').length - 1 === 1 && confirmation.split('Tune:').length - 1 === 1 && confirmation.includes('disk'))
+    check(label + ' discloses key registration, storage and failure cleanup', confirmation.includes('SSH key') && confirmation.includes('Terminate') && confirmation.includes('Setup failures pause'))
     await choose('Confirm $'); await until('Machine controls')
     check(label + ' queues and reaches ready', await waitFor(() => hostRecords().some(record => record.vendor === vendor && record.jobState === 'ready'), 30000))
     const record = hostRecords().find(record => record.vendor === vendor)!
@@ -129,21 +129,21 @@ try {
       check('Lambda waits for cloud-init and launches the recipe in Docker as ubuntu', record.target?.user === 'ubuntu' && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('cloud-init status --wait')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
     } else if (vendor === 'vast') check('Vast uses direct root SSH', record.target?.user === 'root' && record.target?.port === 2222)
     else check(label + ' uses VM startup readiness and Docker without Stop', !mounted!.screen().includes('Stop ·') && record.target?.port === 22 && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('/workspace/.mercury-vm-ready')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
-    await choose('Logs ·'); await until('Machine controls')
+    await choose('Logs'); await until('Machine controls')
     if (vendor === 'vast') {
       check('Vast log tail uses its own vendor client', await waitFor(() => vast.requests.some((row: any) => row.path.includes('/request_logs/')), 5000))
       await choose('Stop ·'); await until('Confirm stop'); await choose('Confirm stop'); await until('Stopped · compute ended')
       check('Vast Stop retains the instance and verifies stopped state', vast.state.stops === 1 && vast.state.pods.size === 1 && readHostRecord(record.id)?.status === 'EXITED')
     }
-    await close(); open(); await until('Which model?'); await choose('Machines I’m paying for'); await until(record.id)
+    await close(); open(); await until('Which model?'); await choose('Machines I’m paying for', KEY.up); await until(record.id)
     check('Paid machines use the vendor’s own noun for ' + label, mounted!.screen().includes(label + ' instance ' + record.id))
     await choose(record.id); await until('Machine controls'); await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
     check(label + ' termination uses the right client and verifies absence', fixture.state.deletes === 1 && fixture.state.pods.size === 0 && !readHostRecord(record.id))
     await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   }
   await choose('Connect Hugging Face'); await until('Use saved sign-in')
-  check('HF reuses the existing login door without a new token dialog', mounted!.screen().includes('/logins huggingface') && !mounted!.screen().includes('Hugging Face API key'))
-  await choose('Open existing Hugging Face sign-in'); await until('Sign in with Hugging Face')
+  check('HF reuses the existing login door without a new token dialog', mounted!.screen().includes('Hugging Face sign-in') && mounted!.screen().includes('Sign in') && !mounted!.screen().includes('Hugging Face API key'))
+  await choose('Sign in'); await until('Sign in with Hugging Face')
   check('HF Connect embeds the existing login choices', mounted!.screen().includes('device code') && mounted!.screen().includes('Paste a token'))
   mounted!.push(KEY.esc); await until('WEIGHTS'); await choose('Connect Hugging Face'); await until('Use saved sign-in')
   const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
@@ -154,12 +154,12 @@ try {
   await choose('Rent · Hugging Face'); await until('Confirm the hourly price')
   await capture('80-hf-confirmation')
   const hfConfirm = mounted!.screen().replace(/[│\s]+/g, ' ')
-  check('HF confirms managed billing without SSH or disk claims', hf.state.creates === 0 && hfConfirm.includes('HF-managed') && hfConfirm.includes('no SSH') && hfConfirm.includes('downloads the weights first'))
+  check('HF confirms managed billing without SSH or disk claims', hf.state.creates === 0 && hfConfirm.includes('billed by the minute') && hfConfirm.includes('No SSH or weights disk') && hfConfirm.includes('Pause ends compute billing'))
   await choose('Confirm $'); await until('Machine controls')
   check('HF popup rental reaches READY on its real managed worker', await waitFor(() => hostRecords().some(row => row.vendor === 'huggingface' && row.jobState === 'ready'), 15000))
   const hfRecord = hostRecords().find(row => row.vendor === 'huggingface')!
   check('HF setup never invokes SSH and registers a compat provider', ssh!.commands.length === sshBefore && configuredCompatEndpoints().some(row => row.name === hfRecord.provider && row.baseUrl === hf.origin + '/v1'))
-  await choose('Pause'); await until('Confirm stop'); await choose('Confirm stop'); await until('Paused')
+  await choose('Pause'); await until('Confirm stop'); await choose('Confirm stop'); await until('paused · no compute bills')
   check('HF pause keeps endpoint with no compute bill', hf.state.pauses === 1 && hf.state.pods.size === 1)
   await choose('Resume'); await until('Confirm resume'); await choose('Confirm resume')
   check('HF resume uses the endpoint API', await waitFor(() => hf.state.resumes === 1, 5000))
@@ -170,7 +170,7 @@ try {
   await choose('Rent · Vast.ai'); await until('Confirm the hourly price'); await choose('Confirm $')
   check('Failed Vast setup pauses with the instance still billing', await waitFor(() => hostRecords().some(row => row.vendor === 'vast' && row.jobState === 'paused'), 15000) && vast.state.deletes === 1 && vast.state.pods.size === 1)
   await Promise.all(jobs)
-  check('Failed Vast setup names the cause and both choices', hostRecords().some(row => row.vendor === 'vast' && row.jobState === 'paused' && row.error?.includes('fixture setup failure') && row.error.includes('stays up and bills $') && row.error.includes('Resume retries the setup, Terminate stops the bill')))
+  check('Failed Vast setup names the cause, bill and both choices', hostRecords().some(row => row.vendor === 'vast' && row.jobState === 'paused' && row.error?.includes('fixture setup failure') && row.error.includes('/hr still billing') && row.error.includes('Resume or Terminate in /llmhost')))
   await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
   check('the explicit Terminate deletes the paused Vast instance', vast.state.deletes === 2 && vast.state.pods.size === 0)
   await close(); open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
@@ -188,7 +188,7 @@ try {
   check('Unreadable Vast stock keeps the other rental rows', ['Rent · Runpod', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await close(); denyVastStock = false; denyVastPods = true
   open(); await until('Which model?'); await until('Vast.ai: could not be read')
-  await choose('Machines I’m paying for'); await until('Live account list'); await until('Vast.ai: unread')
+  await choose('Machines I’m paying for', KEY.up); await until('Vast.ai: unread')
   check('Unreadable paid list is named, not presented as a complete zero', mounted!.screen().includes('Vast.ai: unread'))
   await close(); denyVastPods = false
   open(); await until('Which model?'); await choose('More options'); await until('Where should the model run?'); await choose('Rent a GPU'); await until('Rent from which vendor?')

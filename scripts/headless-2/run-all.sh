@@ -26,6 +26,7 @@
 # gate-watch: src/mneme/* src/types/textInputTypes.ts
 # gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts
 # gate-watch: scripts/release/launcherTemplates.mjs package.json src/services/run/unansweredAsk.ts
+# gate-watch: scripts/mcp/prove-mcp-no-replay.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -63,7 +64,8 @@ check('poison control: a listing line without the topic list fails the listing p
 
 section('§2 the pages — README.md and every docs/*.md page of this tree, byte for byte, nothing else')
 const pages = docsSkill.mercuryDocPages()
-const expected = ['README.md', ...readdirSync(join(ROOT, 'docs')).filter(n => n.endsWith('.md')).sort().map(n => `docs/${n}`)]
+const tracked = new Set(execFileSync('git', ['-C', ROOT, 'ls-files', '--', 'docs'], { encoding: 'utf8' }).split('\n').filter(Boolean))
+const expected = ['README.md', ...readdirSync(join(ROOT, 'docs')).filter(n => n.endsWith('.md') && tracked.has(`docs/${n}`)).sort().map(n => `docs/${n}`)]
 check('the page set is README.md plus every top-level docs page', JSON.stringify(Object.keys(pages).sort()) === JSON.stringify([...expected].sort()), `${Object.keys(pages).length} carried vs ${expected.length} on disk`)
 let identical = 0
 for (const rel of expected) if (pages[rel] === readFileSync(join(ROOT, rel), 'utf8')) identical++

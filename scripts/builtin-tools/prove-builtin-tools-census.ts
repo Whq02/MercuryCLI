@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
@@ -156,13 +157,14 @@ const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts', 'design-system']
 const RETIRED_SCAN_HISTORY =
   /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/identity\/forbidden-file-tool\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
 const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
+const trackedFiles = new Set(execFileSync('git', ['-C', repoRoot, 'ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean).map(rel => join(repoRoot, rel)))
 function walk(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) continue
       walk(path, out)
-    } else if (TEXT_FILE.test(entry.name)) {
+    } else if (TEXT_FILE.test(entry.name) && trackedFiles.has(path)) {
       out.push(path)
     }
   }

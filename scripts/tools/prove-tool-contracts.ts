@@ -316,4 +316,33 @@ const { z } = await import('zod/v4')
   )
 }
 
+{
+  const { cpSync, readFileSync } = await import('node:fs')
+  const { resolve } = await import('node:path')
+  const { mcpToolPartition } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { registerBundledAppInstall } = await import('../../src/extensions/installConsent.ts')
+  const root = resolve(import.meta.dir, '../..')
+  const runner = readFileSync(join(root, 'src/cli/run.ts'), 'utf8')
+  t(
+    'the runner assembles its MCP partition through mcpToolPartition, never its own deny filter',
+    runner.includes('mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)') && !runner.includes('filterToolsByDenyRules('),
+  )
+  const serverName = 'ext:filmcraft:app'
+  const delivered = mkdtempSync(join(proofHome, 'filmcraft-'))
+  cpSync(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
+  cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+  registerBundledAppInstall(serverName, delivered, mkdtempSync(join(proofHome, 'craft-data-')))
+  let seen: Record<string, unknown> | undefined
+  const mcpTool = (name: string, toolName: string): never => ({
+    name, mcpInfo: { serverName, toolName }, isMcp: true,
+    checkPermissions: async () => ({ behavior: 'passthrough' }),
+    call: async (input: Record<string, unknown>) => { seen = input; return { data: [] } },
+  }) as never
+  const partition = mcpToolPartition([mcpTool('mcp__zeta__late', 'late'), mcpTool('mcp__ext_filmcraft_app__craft_install', 'craft_install'), mcpTool('mcp__alpha__early', 'early')], getEmptyToolPermissionContext())
+  t('the partition is name-sorted whatever the connection order', partition.map(tool => tool.name).join(',') === 'mcp__alpha__early,mcp__ext_filmcraft_app__craft_install,mcp__zeta__late', partition.map(tool => tool.name).join(','))
+  await partition[1]!.call({}, { abortController: new AbortController() } as never, null as never, undefined as never)
+  t('the bundled craft_install member reaches its server consent-wrapped: the call carries the signed install grant', typeof seen?._mercuryInstallGrant === 'string' && /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(String(seen._mercuryInstallGrant)), JSON.stringify(seen))
+}
+
 process.exit(failures)

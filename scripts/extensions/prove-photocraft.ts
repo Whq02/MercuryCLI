@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
 import { getExtensionSkills, clearExtensionCommandCaches } from '../../src/extensions/load/commands.js'
 import { validateManifest } from '../../src/extensions/manifest.js'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1] }
@@ -50,7 +51,7 @@ try {
   const readRoot = join(scratch, 'project'), writeRoot = join(scratch, 'outputs')
   mkdirSync(readRoot); mkdirSync(writeRoot)
   check('roots are explicit, existing project folders; no home or disk-wide scope', () => {
-    assert.deepEqual(scopedRoots({ readRoot, writeRoot }), { readRoot, writeRoot })
+    assert.deepEqual(scopedRoots({ readRoot, writeRoot }), { readRoot: realpathSync(readRoot), writeRoot: realpathSync(writeRoot) })
     assert.throws(() => scopedRoots({ readRoot: '/', writeRoot })); assert.throws(() => scopedRoots({ readRoot: homedir(), writeRoot }))
     assert.throws(() => scopedRoots({ readRoot: 'relative', writeRoot })); assert.throws(() => scopedRoots({ readRoot }))
     assert.throws(() => endpointParts('0.0.0.0:7878')); assert.throws(() => endpointParts('127.0.0.1:65536'))
@@ -124,4 +125,4 @@ try {
     assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'))
   })
   console.log(`${passed} PhotoCraft static checks passed. Routing examples: PhotoCraft crop included; video trim explicitly excluded.`)
-} finally { publishActiveSet(null); clearExtensionCommandCaches(); rmSync(scratch, { recursive: true, force: true }) }
+} finally { publishActiveSet(null); clearExtensionCommandCaches(); removeScratch(scratch) }

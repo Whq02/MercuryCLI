@@ -18,31 +18,30 @@ check('§A no thinkingStatus prop reaches the row', !/thinkingStatus[:=]/.test(r
 check('§A no display timeouts for the thinking label anywhere', !spinner.includes('showDurationTimer') && !row.includes('showDurationTimer'))
 const liveWords = readFileSync(join(ROOT, 'src/components/Spinner/liveCounterWords.ts'), 'utf8')
 check(
-  "§A the live thinking label keys off the stream mode and the seat's live facts alone (liveCounterWords owns the phase word: reading the prompt, loading, retrying replace the label only while the facts say so — a pure function, never a timer or a state machine)",
+  '§A internal stream phases still feed the shared facts without being painted as routine HUD labels',
   row.includes("import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'") &&
-    row.includes('livePhase: liveCounterPhaseOf(mode)') &&
-    hud.includes("const waitPhaseText = (liveWords.reading || liveWords.phase !== facts.livePhase) && head !== liveWords.phase && !head.includes('reconnecting (') ? liveWords.phase : null") &&
-    hud.includes("const thinkingText = mode === 'thinking' && waitPhaseText === null && !head.startsWith(THINKING_WORD) ? facts.thinkingLabel : null") &&
+    row.includes('phase: liveCounterPhaseOf(mode)') &&
+    !hud.includes('waitPhaseText') && !hud.includes('thinkingText') &&
     !/setTimeout|setInterval|useState|useRef|useEffect/.test(liveWords),
 )
 
 check('§B the retired per-phase clock is gone from the row', !row.includes('phaseElapsedMs'))
-check('§B the whole-turn timer is the single default time basis', row.includes('effectiveElapsedMs') && hud.includes('const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })'))
+check('§B the whole-turn timer retains seconds as well as minutes', row.includes('effectiveElapsedMs') && hud.includes('const timerText = formatDuration(effectiveElapsedMs)'))
 
-check('§C one phrase: the thinking label is admitted exactly when it exists', hud.includes("if (thinkingText !== null) {\n    if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {"))
+check('§C the HUD never adds a routine phase beside the verb', !hud.includes("key: 'thinking'") && !hud.includes("key: 'phase'") && !hud.includes("key: 'waiting'"))
 check('§C the painted message is the verb chain (the one message prop is budgeted and painted)', hud.includes('const messageWidth = stringWidth(facts.message) + 2') && row.includes('<GlimmerMessage\n              message={message}'))
 
 check(
-  '§D the HUD order law is in-source (action · elapsed · burn · work-in-flight: the segment pushes sit in that order)',
+  '§D the HUD order is elapsed, count, reply rate and attention',
   (() => {
-    const at = ['thinkingText', 'timerText', 'tokensText', 'ctxText', 'wifText'].map(name => hud.indexOf(`fullSegmentTexts.push(${name})`))
+    const at = ['timerText', 'tokensText', 'otpsText', 'attentionText'].map(name => hud.indexOf(`fullSegmentTexts.push(${name})`))
     return at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1]!))
   })(),
 )
 check('§D token readout persists from zero (no zero→non-zero shuffle: the count admits on the meta gate alone, never an elapsed term)', hud.includes("if (metaGate && tokensText !== null) admit({ key: 'tokens', text: tokensText })"))
 
 check('§E work colour resolves through theme tokens', row.includes('useMercuryTokens') || /Adaptive meta ink/.test(row))
-check('§E reduced motion disables the thinking shimmer', row.includes("mode === 'thinking' && !reducedMotion"))
+check('§E reduced motion still gates the spinner animation', row.includes('reducedMotion ? null : WORK_TICK_MS') && row.includes('reducedMotion={reducedMotion}'))
 
 console.log(failed === 0 ? '\n ✅ ONE TURN-STATUS PROJECTION HOLDS' : `\n ❌ ${failed} FAILED`)
 process.exit(failed === 0 ? 0 : 1)

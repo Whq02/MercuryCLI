@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
@@ -87,6 +88,7 @@ function readAuthFile(): HuggingfaceAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: HF_AUTH_VERSION }
   const next = mutate({ ...existing, version: HF_AUTH_VERSION })

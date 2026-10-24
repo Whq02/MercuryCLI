@@ -167,19 +167,19 @@ section('6 · the picker row states only the ACTIVE source (structural)')
   )
   check(
     'the toggle copy names the declared-max state with the served default beside it',
-    picker.includes('the source-declared max (served default '),
+    picker.includes('ctx active · default ${fmtCtx(focusedGptWindow.served)}'),
   )
   check(
     "the toggle copy names the served state with the declared max beside it",
-    picker.includes("the source's served default (declared max "),
+    picker.includes('ctx active · max ${fmtCtx(focusedGptWindow.ceiling)}'),
   )
   check(
     'both toggle states advertise the toggle (never a dead-end claim)',
     picker.includes(' · ${MODEL_PICKER_CONTEXT_CHORD} toggles'),
   )
   check(
-    'the ONE-window case keeps the source-truth notice (nothing to toggle)',
-    picker.includes('set by the GPT account source') && picker.includes('not a toggle'),
+    'the ONE-window case names the window and says there is no alternate',
+    picker.includes('`${fmtCtx(focusedGptWindow.served)} ctx · no alternate window`'),
   )
   check(
     'the retired always-fixed copy is GONE (a two-window row is never "not a toggle")',

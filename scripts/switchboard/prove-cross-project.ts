@@ -28,6 +28,7 @@ const { applyHarnessGround } = await import('../../src/services/switchboard/harn
 const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')
@@ -546,6 +547,6 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
 }
 
 await applyHarnessGround(null)
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-cross-project: ALL LAWS HOLD' : `\nprove-cross-project: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

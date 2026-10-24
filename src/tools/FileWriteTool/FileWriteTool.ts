@@ -5,7 +5,7 @@ import {
   recordNoChangeOutcome,
   serializeIntentDigest,
 } from '../../services/changeTransaction/repetitionPolicy.js'
-import { generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
+import { clippedLinesRefusal, fileGeneration, generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
@@ -327,6 +327,8 @@ export const FileWriteTool = buildTool({
           throw new Error(modifiedSinceReadMessage())
         }
       }
+      const clipped = clippedLinesRefusal(ownerFromToolUseContext(context), expandedPath, input.file_path, fileGeneration(expandedPath), null)
+      if (clipped !== null) throw new Error(clipped)
     }
 
     let writtenContent = shaped.replaceAll('\r\n', '\n')

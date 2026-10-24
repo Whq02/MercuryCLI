@@ -175,6 +175,8 @@ const READING_RE = /reading the prompt/
 const THINKING_RE = /\(thinking\)|· thinking\)|thinking \(max\)|· thinking ·/
 const WRITING_RE = /◐ \d+(?:m \d+)?s|· writing ·/
 const TOOL_RE = /Running sleep 2; echo flip/
+const PHASE_WORD_RE = /· (reading the prompt|thinking|writing|working|waiting for the first token|still waiting)( ·|$)/
+const VERB_ROW_RE = /[✶✻✽✢✹✺✸✷] \S[^│]{2,60}… (?:\(|·)/
 const phaseOf = (f: Frame): string | null => {
   if (f.rows.some(r => READING_RE.test(r))) return 'reading'
   if (f.rows.some(r => TOOL_RE.test(r))) return 'tool'
@@ -298,15 +300,20 @@ for (const scene of scenes) {
     const phases = timed.map(phaseOf).filter((p): p is string => p !== null)
     const runs = phases.filter((p, i) => i === 0 || p !== phases[i - 1])
     const seen = new Set(runs)
+    const phaseWords = timed.filter(f => f.rows.some(r => PHASE_WORD_RE.test(r)))
+    const verbRows = timed.filter(f => f.rows.some(r => VERB_ROW_RE.test(r)))
     t.check(
-      `the strip painted every phase of the flip cycle (reading, thinking, writing, tool)`,
-      ['reading', 'thinking', 'writing', 'tool'].every(p => seen.has(p)),
-      `saw ${[...seen].join(',') || 'nothing'}`,
+      `the strip shows only the verb row, the stream row and the tool row across the flip cycle, and never a phase word`,
+      seen.has('tool') && !seen.has('reading') && !seen.has('thinking') && phaseWords.length === 0 && verbRows.length + phases.length >= Math.floor(timed.length * 0.5),
+      `saw ${[...seen].join(',') || 'nothing'}; ${verbRows.length} verb-row frame(s); ${phaseWords.length} frame(s) with a phase word`,
     )
+    const states = timed.map(f => (f.rows.some(r => TOOL_RE.test(r)) ? 'tool' : f.rows.some(r => VERB_ROW_RE.test(r) || WRITING_RE.test(r)) ? 'stream' : null)).filter((p): p is string => p !== null)
+    const stateRuns = states.filter((p, i) => i === 0 || p !== states[i - 1])
+    const toolTurns = stateRuns.filter(p => p === 'tool').length
     t.check(
-      `the strip flipped phase at least ${Math.floor(scene.flips * 0.7)} times on screen (${scene.flips} scripted)`,
-      runs.length - 1 >= Math.floor(scene.flips * 0.7),
-      `${runs.length - 1} flips: ${runs.join(' → ')}`,
+      `each scripted tool turn flipped the strip to its tool row and back (${scene.flips} scripted flips over the three turns)`,
+      toolTurns >= 2 && stateRuns.length - 1 >= 2 * toolTurns - 1,
+      `${stateRuns.length - 1} flips: ${stateRuns.join(' → ')}`,
     )
     if (compactLayout) {
       const stripRows = timed.map(compactStripRowOf).filter(i => i !== -1)

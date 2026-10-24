@@ -63,7 +63,7 @@ try {
       else {
         const posted = notices(pod.id)
         if (posted[0]) await captureHostNotice(posted[0], 'vast-key-attached-paused')
-        check('continued refusal pauses once with attachment and retry, machine, rate and actions', ended.jobState === 'paused' && posted.length === 1 && posted[0]!.includes('Mercury attached the SSH key to this instance and retried') && posted[0]!.includes('Vast.ai instance ' + pod.id + ' stays up and bills $' + pod.cost.toFixed(2) + '/hr while paused') && posted[0]!.includes('Resume retries the setup, Terminate stops the bill'), posted.join('\n'))
+        check('continued refusal pauses once with attachment and retry, machine, rate and actions', ended.jobState === 'paused' && posted.length === 1 && posted[0]!.includes('Mercury attached the SSH key to this instance and retried') && posted[0]!.includes('Vast.ai instance ' + pod.id) && posted[0]!.includes('$' + pod.cost.toFixed(2) + '/hr still billing') && posted[0]!.includes('Resume or Terminate in /llmhost'), posted.join('\n'))
       }
     } else if (mode === 'attach-failed') {
       check('an attachment refusal is not retried or claimed successful, and the machine pauses', sent.length === 1 && ended.jobState === 'paused' && ended.error?.includes('could not attach the SSH key') && !ended.error.includes('attached the SSH key to this instance and retried'), ended.error)

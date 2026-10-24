@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { recordPty, type PtyRecord } from '../lib/ptyRecorder.ts'
 import { resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const repo = resolve(import.meta.dir, '../..')
 const option = (flag: string): string | undefined => { const at = process.argv.indexOf(flag); return at < 0 ? undefined : process.argv[at + 1] }
@@ -134,7 +135,7 @@ try {
   }
 } finally {
   console.log(`frames: ${frames}`)
-  if (option('--frames') !== undefined) rmSync(root, { recursive: true, force: true })
+  if (option('--frames') !== undefined) removeScratch(root)
 }
 console.log(`clear-model-notice: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

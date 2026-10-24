@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { isOutcome, parseFrame } from '../lib/rows.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-command-table-')))
 const HOME = join(SCRATCH, 'home')
@@ -233,7 +234,7 @@ console.log('C7 — the former doors are unknown commands')
 
 await api.close()
 try {
-  rmSync(SCRATCH, { recursive: true, force: true })
+  removeScratch(SCRATCH)
 } catch {
 }
 console.log(failures === 0 ? '\nprove-command-table: ALL LAWS HOLD' : `\nprove-command-table: ${failures} FAILURE(S)`)

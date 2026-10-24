@@ -16,6 +16,12 @@ const psWords = (line: string): string[] => {
   return words
 }
 
+export function boxScriptText(command: string, args: string[]): string {
+  if (command === 'powershell.exe' && args[2] === '-EncodedCommand' && args[3]) return Buffer.from(args[3], 'base64').toString('utf16le')
+  if (command === '/bin/sh' && args[0] === '-c' && args[1] !== undefined) return args[1]
+  return args.join(' ')
+}
+
 export function bankDownloadWords(command: string, args: string[]): string[] | undefined {
   if (command === '/bin/sh' && args[1]?.includes(' download ')) {
     const syntax = spawnSync('bash', ['-n', '-c', args[1]], { encoding: 'utf8' })

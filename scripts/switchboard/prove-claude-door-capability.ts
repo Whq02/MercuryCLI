@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -217,6 +218,6 @@ section('§5 the road census — every door reaches a capability owner; a new ju
   check('the docs say a new Anthropic model runs before a catalogue row lands, and what a row adds', /runs before its catalogue row lands/.test(docs) && /A catalogue row adds/.test(docs) && /display name/.test(docs) && /price tier/.test(docs) && /1M twin/.test(docs) && /wire laws/.test(docs))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n✅ prove-claude-door-capability — all checks pass' : `\n❌ prove-claude-door-capability — ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

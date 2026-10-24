@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -80,8 +81,8 @@ try {
     check('the README names `mercury sessions list`', readme.includes('`mercury sessions list`'))
   }
 } finally {
-  rmSync(HOME, { recursive: true, force: true })
-  rmSync(PROJ, { recursive: true, force: true })
+  removeScratch(HOME)
+  removeScratch(PROJ)
 }
 
 console.log(`\n${count} checks, ${failures} failures`)

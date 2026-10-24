@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
@@ -58,7 +59,7 @@ check('control: the escaped spelling is clean', rawControlLines(Buffer.from("con
 
 console.log('L2 the rig round trip: vshot delivers ESC-led chords whole to a raw-mode PTY child')
 const scratch = join(tmpdir(), `esc-led-sends-${process.pid}`)
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 mkdirSync(scratch, { recursive: true })
 const tapPath = join(scratch, 'child-bytes.log')
 const childScript =
@@ -86,7 +87,7 @@ check('↑ arrives as 1b5b41', whole[1] === '1b5b41', JSON.stringify(whole))
 check('⇧← arrives as 1b5b313b3244', whole[2] === '1b5b313b3244', JSON.stringify(whole))
 const bare = roundTrip('bare', ['[B'])
 check("poison: a bare '[B' send arrives as 5b42 — the very signature the class wore", bare[0] === '5b42', JSON.stringify(bare))
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 
 console.log(failures === 0 ? 'ESC-LED SEND LAWS HOLD' : `${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

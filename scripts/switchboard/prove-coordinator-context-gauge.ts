@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -110,7 +111,7 @@ section('§3 — the threshold relation: the main chat’s own ladder over the g
   check('over the ceiling: compact', over.level === 'compact' || over.level === 'blocked', over.level)
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log('\n' + '═'.repeat(60))
 console.log(failures ? '❌ COORDINATOR-CONTEXT-GAUGE RED' : '✅ COORDINATOR-CONTEXT-GAUGE GREEN')
 process.exit(failures)

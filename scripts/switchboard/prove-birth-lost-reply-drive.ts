@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { controlSockPath } from '../../src/daemon/controlSocket.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -347,6 +348,6 @@ for (const c of spawned) {
 }
 console.log(`  daemon ${daemon.pid} ended (${daemon.exitCode ?? daemon.signalCode}) · runner pids signalled ${text(leftovers)} · stand-in ended`)
 if (KEEP || failures > 0) console.log(`  world kept at ${world}`)
-else rmSync(world, { recursive: true, force: true })
+else removeScratch(world)
 console.log(failures === 0 ? '\nprove-birth-lost-reply-drive: ONE ↵, ONE SESSION' : `\nprove-birth-lost-reply-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

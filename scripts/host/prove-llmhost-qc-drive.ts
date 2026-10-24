@@ -29,7 +29,8 @@ const lambda = await lambdaFixture()
 rp.state.customGpus = [{ ...liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA H100 80GB HBM3'), availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
 vast.state.customOffers = [{ id: 101, gpu_name: 'H100', gpu_ram: 80 * 1024, num_gpus: 1, dph_total: 1.2, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000, geolocation: 'US' }]
 const data = Buffer.from('fixture weights for the integrated popup journey\n')
-fixtureRepos.gguf.files = [{ path: 'tiny-Q4_K_M.gguf', size: data.length, git: createHash('sha1').update('blob ' + data.length + '\0').update(data).digest('hex') }]
+const dataBlob = createHash('sha1').update('blob ' + data.length + '\0').update(data).digest('hex')
+fixtureRepos.gguf.files = Array.from({ length: 4 }, (_, index) => ({ path: 'tiny-Q4_K_M-0000' + (index + 1) + '-of-00004.gguf', size: data.length, git: dataBlob }))
 fixtureRepos.gguf.gguf.context_length = 131072
 const hf = await hfFixture()
 const endpoints = await hfEndpointsFixture()
@@ -168,17 +169,17 @@ try {
     await until('/ b')
     check('b types in the searchable popup rather than opening Bank', question?.step === 'door-models')
     mounted!.push(KEY.esc); await until('model name')
-    mounted!.push('deepseek'); await until('VERIFIED RECIPES')
+    mounted!.push('deepseek'); await until('MODELS')
     check('the verified list narrows before the Hub responds', !question?.search || !screen().includes('Qwen Tiny'))
     assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000))
     await select('hf:' + fixtureRepos.gguf.id)
     await capture(width + '-search')
-    mounted!.push(KEY.enter); await step('door-model'); await until('RECIPE · unverified')
+    mounted!.push(KEY.enter); await step('door-model'); await until('QUALITY')
     await capture(width + '-hf-model')
-    check('HF recipe and all provider prices reach the model screen', question!.found.includes('RECIPE · unverified') && question!.rows!.filter(row => row.label.startsWith('Rent · ')).length >= 3)
+    check('HF values and provider prices reach the model screen without a recipe paragraph', question!.found.includes('QUALITY') && !question!.found.includes('RECIPE ·') && question!.rows!.filter(row => row.label.startsWith('Rent · ')).length >= 3)
     const rentals = question!.rows!.filter(row => row.label.startsWith('Rent · '))
     const prices = rentals.map(row => Number(/\$([\d.]+)\/hr/.exec(row.label)![1]))
-    check('providers are cheapest first, unstamped, and name the download', prices.every((price, index) => !index || price >= prices[index - 1]!) && rentals.every(row => row.label.includes('downloads the weights first') && !row.label.includes('booted') && !row.label.includes('verified on')))
+    check('providers remain cheapest first without provenance or download narration', prices.every((price, index) => !index || price >= prices[index - 1]!) && rentals.every(row => !row.label.includes('downloads the weights first') && !row.label.includes('booted') && !row.label.includes('verified on')))
     check('there is one stock watch across providers', question!.rows!.filter(row => row.value === 'watch').length === 1)
     mounted!.push('b')
     const bankStep = width === 120 ? 'door-bank-confirm' : 'door-bank-again'

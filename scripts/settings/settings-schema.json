@@ -433,7 +433,7 @@
       "type": "object",
       "properties": {
         "loopGuard": {
-          "description": "Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls",
+          "description": "Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; crewmates and headless runs still end after three consecutive identical failing tool calls",
           "type": "boolean"
         }
       },

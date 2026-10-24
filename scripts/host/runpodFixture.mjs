@@ -256,7 +256,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       if (remote.includes('tail -n 8')) output = state.log
       if (remote.startsWith('dd if=')) { const offset = Number(/skip=(\d+)/.exec(remote)?.[1] ?? 0); output = state.log.slice(offset, offset + 8192) }
       if (remote.includes('MERCURY_ENGINE_GONE')) output = state.goneEngines.has(Number(args[args.indexOf('-p') + 1])) ? 'MERCURY_ENGINE_GONE\nfixture worker engine exited: CUDA out of memory' : 'MERCURY_ENGINE_ALIVE'
-      return actualRunner.run(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', output], signal)
+      return actualRunner.run(process.execPath, ['-e', 'process.stdout.write(process.env.MERCURY_FIXTURE_SSH_OUTPUT ?? "")'], signal, undefined, { MERCURY_FIXTURE_SSH_OUTPUT: output })
     },
     tunnel(args) {
       commands.push({ command: 'tunnel', args })

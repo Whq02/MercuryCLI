@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -160,8 +161,8 @@ if (sendRecs.length === sends.length) {
 }
 if (process.env.CONTRACT_OFFER_KEEP === '1') console.log(`[kept] home=${home} cwd=${cwd}`)
 else {
-  rmSync(home, { recursive: true, force: true })
-  rmSync(cwd, { recursive: true, force: true })
+  removeScratch(home)
+  removeScratch(cwd)
 }
 console.log(failures === 0 ? '\nprove-contract-offer-drive: ALL LAWS HOLD' : `\nprove-contract-offer-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

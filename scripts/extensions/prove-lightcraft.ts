@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:net'
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync } from 'node:fs'
 import { Client } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { tmpdir } from 'node:os'
@@ -10,11 +10,15 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
 import { clearExtensionCommandCaches, getExtensionSkills } from '../../src/extensions/load/commands.js'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const extension = join(root, 'src/extensions/bundled/lightcraft')
-const { adapter, endpointPort, verifyListener, readLibrary, privateEnvironment } = await import(pathToFileURL(join(extension, 'server/install.mjs')).href)
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR || tmpdir(), 'lightcraft-unit-'))
+const delivered = join(scratch, 'delivered')
+cpSync(extension, delivered, { recursive: true })
+cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+const { adapter, endpointPort, verifyListener, readLibrary, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 let passed = 0
 function check(name: string, fn: () => unknown) { fn(); passed++; console.log(`PASS ${name}`) }
 async function checkAsync(name: string, fn: () => Promise<unknown>) { await fn(); passed++; console.log(`PASS ${name}`) }
@@ -143,9 +147,6 @@ try {
     assert.match(adapterSource, /probe, launch, upstream, verify/)
   })
   await checkAsync('real bootstrap SDK discovery is actionable and has no install side effects', async () => {
-    const delivered = join(scratch, 'delivered')
-    cpSync(extension, delivered, { recursive: true })
-    cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
     const dataDir = join(scratch, 'missing-app-data')
     const client = new Client({ name: 'lightcraft-missing-app-proof', version: '1' }, { capabilities: {} })
     const transport = new StdioClientTransport({ command: 'node', args: [join(delivered, 'server/bridge.mjs')], env: { PATH: process.env.PATH!, MERCURY_EXTENSION_DATA: dataDir }, stderr: 'pipe' })
@@ -170,5 +171,5 @@ try {
 } finally {
   publishActiveSet(null)
   clearExtensionCommandCaches()
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }

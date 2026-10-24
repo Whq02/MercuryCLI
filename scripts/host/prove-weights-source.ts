@@ -126,7 +126,7 @@ try {
   let from = ssh.commands.length
   let outcome = await drive([
     ['door-models', () => 'Source fixture'], ['door-model', question => rentRow(question, 'Runpod')],
-    ['rent-confirm', question => { const row = weightsRow(question); check('the confirmation names the default Hugging Face download with its estimate', row.label.includes('Hugging Face download') && /~\d+ min to ready/.test(row.label) && question.title.includes('cold rental')); return 'rent' }],
+    ['rent-confirm', question => { const row = weightsRow(question); check('confirmation names Hugging Face and its time estimate', row.label.includes('Hugging Face') && /~\d+ min/.test(row.label) && !question.title.includes('cold rental')); return 'rent' }],
   ])
   await Promise.all(jobs.splice(0))
   check('the Hugging Face rental reaches ready', outcome.result.ok && readHostRecord('fixture-pod-1')?.jobState === 'ready')
@@ -139,10 +139,10 @@ try {
     ['rent-confirm', question => weightsRow(question).value],
     ['weights-source', question => {
       const rows = question.rows!
-      check('the chooser offers all four sources with availability and reasons', rows.some(row => row.value === 'huggingface' && row.label.includes(recipe.model)) && rows.some(row => row.value === 'private-repo' && row.label.includes('private repository')) && rows.some(row => row.value === 'bank' && row.label.includes("model bank 'kept'") && row.label.includes('upload time not measured yet')) && rows.some(row => row.value === 'volume' && row.label.includes('unavailable') && row.label.includes('no kept volume')))
+      check('the chooser retains all four source actions and their availability', rows.some(row => row.value === 'huggingface' && row.label.includes(recipe.model)) && rows.some(row => row.value === 'private-repo' && /private repository/i.test(row.label)) && rows.some(row => row.value === 'bank' && row.label.includes('upload')) && rows.some(row => row.value === 'volume' && row.label.includes('unavailable')))
       return 'bank'
     }],
-    ['rent-confirm', question => { const row = weightsRow(question); check('the confirmation now discloses the bank upload', row.label.includes("bank on") && question.title.includes('uploads your bank') && question.willRun.includes('Uploads your bank to the rented machine')); return 'rent' }],
+    ['rent-confirm', question => { const row = weightsRow(question); check('confirmation names the Bank upload and ongoing billing', row.label.includes('Bank') && row.label.includes('upload') && question.willRun.includes('Billing starts now')); return 'rent' }],
   ])
   await Promise.all(jobs.splice(0))
   const bankRecord = readHostRecord('fixture-pod-2')!
@@ -164,7 +164,7 @@ try {
     ['weights-source', () => 'private-repo'], ['weights-private-repo', () => WRONG],
     ['weights-source', () => 'private-repo'], ['weights-private-repo', () => hub.repos.gated.id],
     ['weights-source', () => 'private-repo'], ['weights-private-repo', question => { check('the repository question names the files the recipe needs', question.found.includes('weights.bin') || question.found.includes('pinned manifest')); return MIRROR }],
-    ['rent-confirm', question => { const row = weightsRow(question); check('the confirmation discloses the private repository and its size read from the hub', row.label.includes(MIRROR) && question.title.includes('private repository') && question.willRun.includes('Downloads from your private repository ' + MIRROR)); return 'rent' }],
+    ['rent-confirm', question => { const row = weightsRow(question); check('confirmation names the private source and credential use', row.label.includes(MIRROR) && question.willRun.includes('downloads ' + MIRROR + ' with your Hugging Face sign-in')); return 'rent' }],
   ])
   check('an unreachable repository, a copy of another size and a gated repository the sign-in cannot read are refused with their reasons and rent nothing', outcome.emitted.some(words => words.includes('nobody/missing-repo') && words.includes('unreachable')) && outcome.emitted.some(words => words.includes(WRONG) && words.includes('not the same copy')) && outcome.emitted.some(words => words.includes(hub.repos.gated.id) && words.includes('no access')) && rp.state.creates === createsBefore + 1)
   check('the preflight read the file list with the saved sign-in and published nothing to the hub', hub.requests.some(row => row.path.includes(encodeURIComponent('source-mirror')) && row.authorization === 'Bearer ' + endpoints.key) && hubWrites() === 0)
@@ -228,7 +228,7 @@ try {
   run = await attempt({ cleanup: 'fail' })
   check('a finished download with an unconfirmed removal is not reported as clean: no directory, no started engine, the uncertainty named', run.directory === undefined && run.message.includes('finished, but') && run.message.includes('could not be confirmed removed') && run.message.includes(tokenPath) && !run.steps.some(step => step.includes('removed from the machine')))
   run = await attempt({})
-  check('the ordinary road removes the file, confirms it, and the script unlinks the token before it downloads', run.directory === '/workspace/mercury-host/source-fixture/private-weights' && run.cleanup !== undefined && run.steps.at(-1)?.includes('sign-in file removed from the machine') && run.download !== undefined && run.download.remote.indexOf('token_path.unlink()') < run.download.remote.indexOf('snapshot_download('))
+  check('the ordinary road removes the file, confirms it, and the script unlinks the token before it downloads', run.directory === '/workspace/mercury-host/source-fixture/private-weights' && run.cleanup !== undefined && run.steps.at(-1)?.includes('sign-in file removed from the machine') && run.download !== undefined && run.download.remote.includes('token_path.unlink()') && run.download.remote.includes('snapshot_download(') && run.download.remote.indexOf('token_path.unlink()') < run.download.remote.indexOf('snapshot_download('))
   check('none of the cleanup roads published or mutated anything on Hugging Face', hubWrites() === 0 && endpoints.state.creates === 0)
 
   rp.state.volumes.set('fixture-volume-1', { id: 'fixture-volume-1', name: 'mercury-weights-fixture', kind: 'global', createdAt: new Date().toISOString(), createdByUserId: 'fixture-user' })
@@ -237,11 +237,11 @@ try {
   from = ssh.commands.length
   outcome = await drive([
     ['door-models', () => 'Source fixture'], ['door-model', question => rentRow(question, 'Runpod')],
-    ['rent-confirm', question => { const row = weightsRow(question); check('with a kept volume the default is the volume, named with its boot estimate', row.label.includes('fixture-volume-1') && row.label.includes('boots in')); return row.value }],
+    ['rent-confirm', question => { const row = weightsRow(question); check('the kept volume default retains its id and estimate', row.label.includes('fixture-volume-1') && /~\d+ min/.test(row.label)); return row.value }],
     ['weights-source', question => { check('the volume row is available and Hugging Face stays offered', question.rows!.some(row => row.value === 'volume' && !row.label.includes('unavailable')) && question.rows!.some(row => row.value === 'huggingface')); return 'huggingface' }],
-    ['rent-confirm', question => { check('switching away from the volume is disclosed as a cold rental', question.title.includes('cold rental')); return weightsRow(question).value }],
+    ['rent-confirm', question => { check('switching source updates the Weights row', weightsRow(question).label.includes('Hugging Face')); return weightsRow(question).value }],
     ['weights-source', () => 'volume'],
-    ['rent-confirm', question => { check('switching back discloses the kept weights', question.title.includes('weights kept')); return 'rent' }],
+    ['rent-confirm', question => { check('switching back names the kept volume', weightsRow(question).label.includes('fixture-volume-1')); return 'rent' }],
   ])
   await Promise.all(jobs.splice(0))
   const volumeRecord = readHostRecord('fixture-pod-4')!
@@ -268,12 +268,12 @@ try {
   outcome = await drive([
     ['door-models', () => 'Source fixture'], ['door-model', question => rentRow(question, 'Hugging Face')],
     ['rent-confirm', question => weightsRow(question).value],
-    ['weights-source', question => { check('an HF endpoint says why the bank, a private repository and a volume cannot be used', ['bank', 'private-repo', 'volume'].every(value => question.rows!.find(row => row.value === value)?.label.includes('unavailable · HF endpoints'))); return 'bank' }],
+    ['weights-source', question => { check('HF endpoints retain unavailable source actions with reasons', ['bank', 'private-repo', 'volume'].every(value => question.rows!.find(row => row.value === value)?.label.includes('unavailable'))); return 'bank' }],
     ['weights-source', () => 'private-repo'],
     ['weights-source', () => 'back'],
     ['rent-confirm', () => 'cancel'],
   ])
-  check('an unsupported source on a managed endpoint is refused with its reason before any charge', outcome.emitted.filter(words => words.includes('cannot be used') && words.includes('HF endpoints')).length === 2 && endpoints.state.creates === 0 && rp.state.creates === creates && hubWrites() === 0)
+  check('unsupported managed sources explain the refusal before any charge', outcome.emitted.filter(words => words.includes('cannot be used')).length === 2 && endpoints.state.creates === 0 && rp.state.creates === creates && hubWrites() === 0)
 
   volumes.writeKeptVolume({ ...volumes.readKeptVolume('fixture-volume-1')!, state: 'gone' })
   rp.state.noStock = true
@@ -325,14 +325,14 @@ try {
   check('the popup confirmation shows the Weights row', screen().includes('Weights:'))
   await capture('01-confirm-default')
   await choose(weightsRow(question!).value); await step('weights-source')
-  check('the popup chooser lists the four sources', ['Hugging Face', 'private repository', 'Bank', 'Kept volume'].every(words => screen().includes(words)))
+  check('the popup chooser lists the four sources', ['Hugging Face', 'Private repository', 'Bank', 'Kept volume'].every(words => screen().includes(words)))
   await capture('02-weights-chooser')
   await choose('private-repo'); await step('weights-private-repo'); await capture('03-private-repository')
   mounted.push(MIRROR); assert.ok(await waitFor(() => screen().includes(MIRROR), 3000)); mounted.push(KEY.enter)
   await step('rent-confirm')
-  check('the popup confirmation discloses the private repository', question!.title.includes('private repository') && screen().includes('private repository'))
+  check('the popup confirmation names the chosen repository and private source', screen().includes(MIRROR) && weightsRow(question!).label.includes('private'))
   await capture('04-confirm-private-repository')
-  await choose('cancel'); assert.ok(await waitFor(() => screen().includes('stopped') || !popup.isSettingsPopupOpen(), 5000), screen())
+  await choose('cancel'); assert.ok(await waitFor(() => screen().includes('Cancelled') || !popup.isSettingsPopupOpen(), 5000), screen())
   mounted.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) mounted.push(KEY.esc)
   assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000))
   check('the popup walk rents nothing', rp.state.creates === popupCreates && endpoints.state.creates === 0)

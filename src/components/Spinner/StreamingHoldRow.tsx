@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { useRef } from 'react'
 import { Box, Text, useAnimationValue } from '../../ink.js'
 import { formatDuration } from '../../utils/format.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { MID_STREAM_STILL_WAITING_MS } from './useStalledAnimation.js'
+import { useOutputRate } from './useOutputRate.js'
 import { liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
@@ -41,16 +40,12 @@ export function StreamingHoldRow({
         loadingStartTimeRef.current -
         totalPausedMsRef.current
       : now - loadingStartTimeRef.current - totalPausedMsRef.current
-  const liveChars = responseLengthRef?.current ?? 0
+  const liveChars = responseLengthRef?.current ?? Number.NaN
   const liveWords = liveCounterWords(
     { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)), phase: 'writing', sentAtMs: now - Math.max(0, elapsedMs) },
     now,
   )
-  const movementRef = useRef({ lastChars: -1, lastMovedAt: now })
-  if (movementRef.current.lastChars !== liveChars) {
-    movementRef.current = { lastChars: liveChars, lastMovedAt: now }
-  }
-  const stillWaiting = now - movementRef.current.lastMovedAt >= MID_STREAM_STILL_WAITING_MS
+  const otps = useOutputRate(liveTurnFactsRef?.current.replyChars ?? liveChars, pauseStartTimeRef.current === null && liveWords.promise === null, now)
   const stripLines = turnStripLines(loadingStartTimeRef.current, 1)
   return (
     <Box height={stripLines} width="100%">
@@ -60,7 +55,8 @@ export function StreamingHoldRow({
         {liveWords.count !== null ? (
           <Text color={tokens.textMuted}> · {liveWords.count}</Text>
         ) : null}
-        {stillWaiting ? <Text color={tokens.textMuted}> · still waiting</Text> : null}
+        {otps >= 1 ? <Text color={tokens.textMuted}> · ~{otps} tok/s</Text> : null}
+        {liveWords.promise !== null ? <Text color={tokens.textMuted}> · {liveWords.promise}</Text> : null}
       </Text>
     </Box>
   )

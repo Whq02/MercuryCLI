@@ -37,7 +37,7 @@ export function noteWords(entry: RosterEntry, health: Health | null): string {
   switch (state) {
     case 'on': {
       const outcome = health?.outcome ?? 'loads'
-      if (outcome !== 'loads') parts.push(health?.reasons[0] ?? outcome)
+      if (outcome !== 'loads') parts.push('↵ details')
       else if (entry.availableVersion) parts.push(`↑ ${entry.availableVersion} available`)
       break
     }
@@ -69,7 +69,6 @@ export function noteWords(entry: RosterEntry, health: Health | null): string {
   if (entry.sourceRemoved && entry.home === 'installed') parts.push(`from ${entry.label} (removed)`)
   if (entry.changedOnDisk) parts.push('changed on disk')
   if (entry.record?.pendingFirstLoad && entry.previous) parts.push(`previous ${entry.previous.version} kept`)
-  if (entry.bundledUpdatedWith) parts.push(entry.bundledUpdatedWith)
   return parts.join(' · ')
 }
 

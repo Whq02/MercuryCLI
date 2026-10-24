@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -67,6 +68,7 @@ function readAuthFile(): OpenrouterAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: OPENROUTER_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENROUTER_AUTH_VERSION })

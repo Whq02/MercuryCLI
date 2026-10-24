@@ -99,8 +99,7 @@ async function main(): Promise<void> {
     const stdout = Object.assign(stream, { columns: 120, rows: 40 }) as unknown as NodeJS.WriteStream
     const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
     const store = createStore(getDefaultAppState())
-    const agentWait = live.phase === 'waiting' ? bar.waitingStatusWords(live) : null
-    const overrideMessage = agentWait ?? wait(lawful ? verbs.activeToolCall(messages, live.inProgressToolUseIDs)?.name : undefined, work)
+    const overrideMessage = null
     const spinner = React.createElement(SpinnerWithVerb, {
       mode: live.phase === 'tool' ? 'tool-use' : 'requesting',
       loadingStartTimeRef: { current: Date.now() - 18 * 60_000 },
@@ -136,10 +135,10 @@ async function main(): Promise<void> {
   const background: SessionLiveV1 = { ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }
   const foregroundFrame = await paint(foreground, crewmateTurn, rows)
   console.log(`  foreground crewmate: ${JSON.stringify(foregroundFrame.trim())}`)
-  check(`the foreground crewmate's row reads "${WORDS}…", never "Delegating…"`, foregroundFrame.includes(`${WORDS}…`) && !foregroundFrame.includes('Delegating'), foregroundFrame.trim())
+  check('the foreground delegation keeps its tool verb and output count', foregroundFrame.includes('Delegating…') && foregroundFrame.includes('↓ 1.7k') && !foregroundFrame.includes('waiting on'), foregroundFrame.trim())
   const backgroundFrame = await paint(background, crewmateTurn, rows)
   console.log(`  background wait:     ${JSON.stringify(backgroundFrame.trim())}`)
-  check(`the background wait's row reads the same "${WORDS}…"`, backgroundFrame.includes(`${WORDS}…`), backgroundFrame.trim())
+  check('the background wait keeps a verb and its existing count, not a sentence', backgroundFrame.includes('…') && backgroundFrame.includes('↓ 1.7k') && !backgroundFrame.includes('waiting on'), backgroundFrame.trim())
   const bareFrame = await paint(foreground, crewmateTurn, [])
   console.log(`  nothing on the roster: ${JSON.stringify(bareFrame.trim())}`)
   check('a delegation call with no running row keeps the verb Delegating…', bareFrame.includes('Delegating…'), bareFrame.trim())
@@ -148,16 +147,15 @@ async function main(): Promise<void> {
   check('a Read in flight beside a running shell keeps its own verb', readFrame.includes('Reading live.ts…') && !readFrame.includes('waiting on'), readFrame.trim())
   const workflowFrame = await paint({ ...foreground, inProgressToolUseIDs: new Set(['t4']) }, workflowTurn, [{ id: 'wf-1', kind: 'workflow', name: 'the pipeline', status: 'running', startTime: t0 }])
   console.log(`  a Workflow in flight:  ${JSON.stringify(workflowFrame.trim())}`)
-  check('a foreground Workflow reads "waiting on 1 workflow…"', workflowFrame.includes('waiting on 1 workflow…'), workflowFrame.trim())
+  check('a foreground workflow keeps its tool verb and output count', workflowFrame.includes('…') && workflowFrame.includes('↓ 1.7k') && !workflowFrame.includes('waiting on'), workflowFrame.trim())
 
   section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster')
   {
     const repl = read('src/screens/Chat.tsx')
     const connector = read('src/services/engine-connector/daemonConnector.ts')
-    check('the Chat reads the focused work rows', repl.includes('const viewWorkRows = useFocusedWorkRows();') && repl.includes("import { useFocusedWorkRows } from '../components/tasks/useFocusedWork.js';"))
-    check('the Chat composes the agent wait first, the delegation wait second, over the newest in-flight call', repl.includes('const viewDelegationWait = viewAgentWait ?? delegationWaitWords(activeToolCall(messages, viewInProgressToolUseIDs)?.name, viewWorkRows);'))
-    check('the strip takes the composed words as its override (the tool verb stands only when they are null)', repl.includes("viewCompacting ? FOLD_ROW_HEAD : viewDelegationWait}") && !repl.includes("viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}"))
-    check('the standing wait line is untouched', repl.includes("const viewAgentWait = seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null;"))
+    check('the Chat no longer composes a duplicate delegation-wait sentence', !repl.includes('viewDelegationWait') && !repl.includes('const viewAgentWait ='))
+    check('the spinner override is reserved for compaction and attention', repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}'))
+    check('compact attention still uses the real status facts', repl.includes('statusRowWarns(seatLive, compactSeatStatus)') && repl.includes('statusLine(seatLive, compactSeatStatus, null, true)'))
     check('a running tool keeps the tool phase in the connector (the foreground case never reads as a bare wait)', connector.includes("this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'"))
   }
 

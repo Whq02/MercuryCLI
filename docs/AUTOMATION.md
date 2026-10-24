@@ -19,7 +19,7 @@ Evicted summaries are rebuilt when needed; eviction does not truncate totals.
 Provider meter readings are retained separately, one latest observation per
 hour, account and window, up to 4,096 rows. Neither cache stores message text.
 
-Costs are estimates at current local rates, not invoices. DeepSeek rates
+Costs are estimates at current local rates; they are not invoices. DeepSeek rates
 were checked against its [pricing page](https://api-docs.deepseek.com/quick_start/pricing/)
 on 2026-10-23: peak hours are Monday–Friday 01:00–04:00 and 06:00–10:00 UTC,
 excluding Chinese public holidays; other hours cost half as much. Requests

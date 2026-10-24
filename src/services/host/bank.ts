@@ -7,9 +7,8 @@ import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { isProofShapeRun } from '../../utils/privacyLevel.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { parseBankSums } from './boxBank.js'
-import { resolvedWeightManifest, weightManifestWords } from './keptWeights.js'
+import { resolvedWeightManifest } from './keptWeights.js'
 import { bankManifest } from './bankManifest.js'
-import { bankUploadPreference } from './keepSafe.js'
 import type { HostRecipe } from './recipes.js'
 import { hostRecipeSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
@@ -248,41 +247,20 @@ export function folderBytes(path: string): number {
   walk(path)
   return total
 }
-const bankVolume = (recipe: HostRecipe): KeptVolume | undefined => keptVolumes().find(row => matchesVolume(row, recipe) && row.state !== 'gone')
 export const bootMinutes = (recipe: HostRecipe, volume?: KeptVolume): string => /~(\d+) min total/.exec(volume?.state === 'kept' ? fastLoadEstimate(recipe, volume) : hostSetupEstimate(recipe))?.[1] ?? '?'
 export const bootsFromVolume = (recipe: HostRecipe, dataCenter?: string): boolean => {
   const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   return volume?.state === 'kept' && (volume.kind === 'global' || !dataCenter || volume.dataCenter === dataCenter)
 }
-const vastVolumeWords = (recipe: HostRecipe, volume: KeptVolume): string => volume.state === 'kept' ? 'Vast.ai volume ✓ machine ' + volume.machineId + ' — a rental on that machine boots in ~' + bootMinutes(recipe, volume) + ' min' : volume.state === 'failed' ? 'Vast.ai volume failed on machine ' + volume.machineId + ' — this boot downloads' : 'Vast.ai volume preparing on machine ' + volume.machineId + ' — this boot downloads'
 function bankedWords(state: BankState): string {
   if (!state.banked) return 'not banked'
-  return 'banked ✓ on ' + shortFolder(state.folder!) + (state.verifiedAt ? ' (verified ' + state.verifiedAt.slice(0, 10) + ')' : state.failedAt ? ' (verification failed ' + state.failedAt.slice(0, 10) + ')' : ' (not verified yet · v)')
+  return 'banked on ' + shortFolder(state.folder!) + (state.error ? ' · check failed · v to retry' : '')
 }
-function volumeWords(recipe: HostRecipe): string {
-  const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
-  const vast = keptVolumes().find(row => row.kind === 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
-  const vastTail = vast ? ' · ' + vastVolumeWords(recipe, vast) : ''
-  if (volume?.state === 'kept') return 'fast-load volume ✓ ' + volume.dataCenter + ' — boots in ~' + bootMinutes(recipe, volume) + ' min' + vastTail
-  if (volume?.state === 'preparing' || volume?.state === 'creating') return 'fast-load volume preparing in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)' + vastTail
-  if (volume?.state === 'failed') return 'fast-load volume failed in ' + volume.dataCenter + ' — this boot downloads (~' + bootMinutes(recipe) + ' min)' + vastTail
-  if (vast) return vastVolumeWords(recipe, vast) + (vast.state === 'kept' ? bankUploadPreference(recipe) ? ' · other Vast.ai machines upload your bank' : ' · other machines download (~' + bootMinutes(recipe) + ' min)' : ' (~' + bootMinutes(recipe) + ' min)')
-  return 'no fast-load volume — first boot downloads (~' + bootMinutes(recipe) + ' min)'
-}
-export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => {
-  const summary = sizeWords(recipe.weightsGb) + ' from Hugging Face · ' + bankedWords(state)
-  if (!state.banked) return summary + ' · ' + volumeWords(recipe)
-  const volume = bankVolume(recipe)
-  const minutes = Math.max(5, Math.ceil(recipe.weightsGb / 30 / 5) * 5)
-  return summary + ' · ' + (bankUploadPreference(recipe) ? 'Vast.ai and Lambda rentals without a weights volume upload your bank; other rentals without a kept volume download from Hugging Face' : 'a rented machine' + (volume?.state === 'kept' ? ' without your volume' : '') + ' downloads from Hugging Face (~' + minutes + ' min); your bank serves your own computers and a mirror') + ' · ' + (volume ? volumeWords(recipe) : 'no fast-load volume')
-}
+export const weightsLine = (recipe: HostRecipe, state = bankState(recipe)): string => sizeWords(recipe.weightsGb) + ' · ' + bankedWords(state)
 export function bankRowWords(recipe: HostRecipe, state = bankState(recipe)): string {
   const volume = keptVolumes().find(row => row.kind !== 'vast' && matchesVolume(row, recipe) && row.state !== 'gone')
   const vast = keptVolumes().find(row => row.kind === 'vast' && matchesVolume(row, recipe) && row.state === 'kept')
-  const vastKept = vast ? 'weights kept on Vast.ai machine ' + vast.machineId + ' (' + vast.size + ' GB, ' + vastVolumeBilling(vast) + ') · a rental on that machine boots in ~' + bootMinutes(recipe, vast) + ' min · ' + (bankUploadPreference(recipe) ? 'other Vast.ai machines upload your bank' : 'other machines download') : ''
-  if (state.banked && volume?.state === 'kept') return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · weights kept on ' + volume.id + ' · a Runpod rental boots in ~' + bootMinutes(recipe, volume) + ' min · ' + (vast ? vastKept : bankUploadPreference(recipe) ? 'Vast.ai and Lambda upload your bank' : 'Vast.ai and Lambda still download')
-  if (state.banked && vast) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · ' + vastKept
-  if (state.banked) return 'Bank · weights banked ✓ on ' + shortFolder(state.folder!) + ' · v verify again · ' + (state.pinned ? 'm mirror to a fast-load volume ($0.07/GB·month)' : 'mirroring unavailable: ' + weightManifestWords(recipe))
-  const where = state.folder ? shortFolder(state.folder) : 'a folder you name'
-  return 'Bank · b bank the weights to ' + where + ' (' + sizeWords(recipe.weightsGb) + ', hash-verified) — your own copy, kept on your drive'
+  const local = state.banked ? bankedWords(state) : 'b to bank · ' + sizeWords(recipe.weightsGb)
+  const disks = [volume ? volume.id + ' · ' + volume.state : '', vast ? 'Vast.ai machine ' + vast.machineId + ' · ' + vastVolumeBilling(vast) : ''].filter(Boolean)
+  return ['Bank', local, ...disks].join(' · ')
 }

@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -135,7 +136,7 @@ const noticeOnlyOnLastRow = (lines: string[]): boolean => lines.slice(0, -1).eve
 
 function freshHome(tag: string, shape?: (fixture: ReturnType<typeof referenceFixtureSnapshot>) => void): { home: string; fixturePath: string } {
   const home = join(tmpdir(), `exit-everywhere-${process.pid}-${tag}-home`)
-  rmSync(home, { recursive: true, force: true })
+  removeScratch(home)
   seedFirstRun(home, [REPO])
   const fixture = referenceFixtureSnapshot()
   fixture.needsYou = []

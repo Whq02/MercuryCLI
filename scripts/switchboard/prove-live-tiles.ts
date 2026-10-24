@@ -3,6 +3,7 @@
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'live-tiles-')))
 process.env['MERCURY_CONFIG_DIR'] = join(SCRATCH, 'home')
@@ -244,6 +245,6 @@ console.log('L6 peek geometry')
   check('poison: a squeezed grant clamps at 0..8', tiny.peekRows >= 0 && tiny.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${tiny.peekRows}`)
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? `LIVE-TILES LAWS HOLD (${checks} checks)` : `LIVE-TILES ${failures}/${checks} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

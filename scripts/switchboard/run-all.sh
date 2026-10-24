@@ -15,6 +15,7 @@
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: src/daemon/headlessRun.ts src/utils/config.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/model/model.ts src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/loading.ts src/services/engine-connector/daemonConnector.ts src/commands/restart/restart.ts
+# gate-watch: scripts/ui/gridToPng.ts scripts/ui/replay-tee-grid.py
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

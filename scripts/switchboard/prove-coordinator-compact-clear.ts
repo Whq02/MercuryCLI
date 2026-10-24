@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -125,7 +126,7 @@ try {
     check('the conversation is empty', rows.length === 0, String(rows.length))
   }
 } finally {
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 
 if (failures > 0) {

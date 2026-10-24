@@ -609,7 +609,7 @@ export function Config({
     kind: 'boolean',
     setByYou: merged.view?.ping !== undefined,
     value: boolValue(merged.view?.ping !== false),
-    warning: 'one ping when a chat finishes its turn while you are away — an iTerm2 notification there, the terminal bell elsewhere · view.ping in settings',
+    warning: 'Notify when a turn finishes while you are away: iTerm2 notification or terminal bell.',
     change: () => {
       const next = merged.view?.ping === false
       if (writeSource('userSettings', { view: { ping: next ? undefined : false } })) {
@@ -630,7 +630,7 @@ export function Config({
         {merged.view?.accountIdentity !== false ? 'shown' : 'hidden'}
       </Text>
     ),
-    warning: 'hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word; the Logins screen, /accounts and the health report still name the account · view.accountIdentity in settings',
+    warning: 'Hide addresses, usernames and key tails for recording. Logins, /accounts and /health still show them.',
     change: () => {
       const next = merged.view?.accountIdentity === false
       if (writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })) {
@@ -647,7 +647,7 @@ export function Config({
     kind: 'boolean',
     setByYou: merged.view?.zen !== undefined,
     value: boolValue(merged.view?.zen === true),
-    warning: 'on hides the lanes and vitals rails and the chat takes the full width of the terminal — /zen flips it too · view.zen in settings',
+    warning: 'Hide the side rails for full-width chat. /zen also toggles this.',
     change: () => {
       const next = merged.view?.zen !== true
       const error = setZenMode(next)
@@ -896,7 +896,7 @@ export function Config({
     kind: 'boolean',
     setByYou: merged.engine?.usageNotice !== undefined,
     value: boolValue(merged.engine?.usageNotice === true),
-    warning: "with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters · engine.usageNotice in settings",
+    warning: 'Tell the model at 80% and 90% of a usage window or spending limit. Your meters stay visible either way.',
     change: () => {
       const next = merged.engine?.usageNotice !== true
       if (writeSource('userSettings', { engine: { usageNotice: next ? true : undefined } })) {
@@ -1343,7 +1343,7 @@ export function Config({
         {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
       </Text>
     ),
-    warning: 'default effort for a spawned crewmate when the call names none (independent of the lead\'s own effort) · ←/→ walk the levels',
+    warning: 'Used when a crewmate call names no effort; independent of the lead.',
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })
@@ -1361,7 +1361,7 @@ export function Config({
         {agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
       </Text>
     ),
-    warning: 'the model a spawned crewmate runs on when neither the call nor its definition names one · ←/→ opens the picker, every family live; Inherit follows the parent',
+    warning: 'Used when the call and agent definition name no model. Inherit uses the parent’s model.',
     open: 'agent-model',
   })
   const envFanoutCap = agentFanoutCap()
@@ -1380,7 +1380,7 @@ export function Config({
         ) : null}
       </Text>
     ),
-    warning: 'how many crewmates the Crewmate tool may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
+    warning: 'Maximum simultaneous crewmates. Workflows have their own limit.',
     change: direction => {
       const next = Math.max(1, agentDefaults.maxConcurrent + direction)
       writeAgents({ maxConcurrent: next })

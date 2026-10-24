@@ -137,7 +137,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const disclosure = question?.step !== 'rent-confirm' ? [] : (question.lines ?? []).flatMap(text => wrapPlain(text, width))
   const choiceHint = question?.rows ? cursor !== null && rows[cursor] ? words.suggested : words.choose : words.input
   const hours = host ? Math.max(0, now - Date.parse(host.startedAt)) / 3600_000 : 0
-  const meter = !host ? '' : host.managed ? host.status === 'TERMINATED' ? 'HF endpoint terminated · verified absent' : host.status === 'EXITED' ? 'HF endpoint · Paused · no compute bills' : 'HF endpoint · $' + host.price.toFixed(2) + '/hr · billed by the minute until Pause or Terminate' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching for stock ≤ $' + host.price.toFixed(2) + '/hr · $0.00 billed while watching' : '$' + host.price.toFixed(2) + '/hr × ' + (Number.isFinite(hours) ? hours.toFixed(2) + 'h = $' + (host.price * hours).toFixed(2) + ' so far (estimate; storage extra)' : 'elapsed time unknown')
+  const meter = !host ? '' : host.managed ? host.status === 'TERMINATED' ? 'HF endpoint terminated' : host.status === 'EXITED' ? 'HF endpoint · paused · no compute bills' : 'HF endpoint · $' + host.price.toFixed(2) + '/hr until Pause or Terminate' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching ≤ $' + host.price.toFixed(2) + '/hr · $0.00 while watching' : '$' + host.price.toFixed(2) + '/hr · ' + (Number.isFinite(hours) ? '~$' + (host.price * hours).toFixed(2) + ' so far + storage' : 'elapsed time unknown')
   const hostLines = compact || result && host?.status === 'TERMINATED' ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
   const labelDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
   const sectioned = Boolean(question?.search && query)
@@ -165,7 +165,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const choiceBudget = Math.max(1, available)
   const window = fitMeasuredWindow(rows.length, choiceBudget, span => paneWindow(rows.length, cursor ?? 0, span), win => rowLines.slice(win.start, win.end).reduce((sum, lines) => sum + lines.length, 0))
   const activeHost = host && !['TERMINATED', 'EXITED'].includes(host.status)
-  const exit = activeHost ? host.status === 'WATCHING' ? 'esc closes · the stock watch keeps running' : host.step === 'ready' ? 'esc closes · the model keeps running' : 'esc closes · the setup keeps running' : 'esc closes'
+  const exit = activeHost ? host.status === 'WATCHING' ? 'esc closes · watch continues' : 'esc closes · billing continues' : 'esc closes'
   const choicesPage = Boolean(question?.rows) && detailsFit && !scrollDetails && window.end - window.start < rows.length
   const keyActions = question?.rows && !question.search && question.keys?.length ? question.keys : []
   const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + (question?.search ? 'type to search · ' : '') + (question?.search && query ? 'esc clears the search' : exit) + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')

@@ -996,7 +996,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   key while keeping the inference key. A management key alone cannot run Grok;
 - **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
 - **zai, deepseek, zen, local, compat, minimax, together, cohere, groq, cerebras, fireworks, qwen**: env pins and stored keys.
-- **huggingface**: `/logins huggingface` offers device-code sign-in or a stored Hub
+- **huggingface**: `/logins huggingface` signs in by device code or takes a stored Hub
   token (`HF_TOKEN` takes precedence). Sign-in requests `openid profile inference-api
   write-endpoints`: identity, Inference Providers calls and Inference Endpoints
   management. If `/llmhost` reports that the sign-in lacks endpoint management,

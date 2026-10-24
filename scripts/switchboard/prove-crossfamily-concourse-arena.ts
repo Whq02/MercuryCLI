@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'cma-arena-')))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -218,7 +219,7 @@ try {
   daemon?.kill('SIGTERM')
   await fixture.close()
   if (process.env.ARENA_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? `\nprove-crossfamily-concourse-arena (${COLS}×${ROWS}): ALL LAWS HOLD` : `\nprove-crossfamily-concourse-arena (${COLS}×${ROWS}): ${failures} FAILURE(S)`)

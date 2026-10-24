@@ -82,16 +82,7 @@ function privateIp(value?: string): value is string {
 }
 
 async function endHostCluster(api: RunpodClient, record: HostRecord, cluster: HostCluster, reason: string, detail: string, cleanupRead: HostReadOnly): Promise<never> {
-  const current = readHostRecord(record.id) ?? record
-  const minutes = Math.max(0, (Date.now() - Date.parse(current.startedAt)) / 60_000)
-  const cost = 'about $' + (current.price * minutes / 60).toFixed(2) + ' billed over ' + Math.ceil(minutes) + ' min at $' + current.price.toFixed(2) + '/hr, storage extra'
-  try {
-    await terminateHostResource(api, { id: record.id, name: record.name, status: 'ERROR', cost: current.price, createdAt: current.startedAt, family: cluster }, cleanupRead)
-  } catch (error) {
-    if (error instanceof HostTerminationUnconfirmed) throw error
-    throw new Error('Cluster ' + record.id + ' ' + reason + '. Terminating it failed, so it still bills $' + current.price.toFixed(2) + '/hr · ' + cost + ' · /llmhost → Machines I’m paying for → Terminate · ' + String(error) + (detail ? ' · ' + detail : ''))
-  }
-  throw new HostClusterEnded('Cluster ' + record.id + ' ' + reason + '. Mercury terminated it through the clusters API and Runpod no longer lists it · ' + cost + (detail ? ' · ' + detail : ''))
+  throw new Error('Cluster ' + record.id + ' ' + reason + (detail ? ' · ' + detail : ''))
 }
 
 export async function startHostCluster(api: RunpodClient, record: HostRecord, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs: number, timeoutMs: number, onStep: (step: string) => void, onHead: (target: SshTarget) => void = () => {}): Promise<SshTarget> {

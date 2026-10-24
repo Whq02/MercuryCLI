@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'effort-seat-drive-'))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -214,7 +215,7 @@ try {
   daemon?.kill('SIGTERM')
   await fixture.close()
   if (process.env.EFFORT_SEAT_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? '\nprove-effort-seat-drive: ALL LAWS HOLD' : `\nprove-effort-seat-drive: ${failures} FAILURE(S)`)

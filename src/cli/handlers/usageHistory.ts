@@ -49,15 +49,15 @@ export function formatUsageHistory(report: UsageHistoryReport, columns = 80): st
     table('By model', report.byModel)
     const labels = projectLabels(report.byProject.map(row => row.key))
     table('By project', report.byProject.map(row => ({ ...row, key: labels.get(row.key)! })))
+    lines.push('Input includes cache reads and writes. Cache hit = reads / input.',
+      'Unpriced = turns without a rate; their tokens count, their USD does not.',
+      'Estimates use current local rates; older turns use their recorded time.',
+      `Hourly provider observations retained: ${count(report.observations.length)}`,
+      `Transcript files: ${report.filesCached} cached, ${report.filesRead} read.`)
   }
-  lines.push('Input includes cache reads and writes. Cache hit = reads / input.',
-    'Unpriced = turns without a rate; their tokens count, their USD does not.',
-    'Estimates use current local rates; older turns use their recorded time.',
-    `Hourly provider observations retained: ${count(report.observations.length)}`,
-    `Transcript files: ${report.filesCached} cached, ${report.filesRead} read.`)
   if (report.skippedRecords > 0) lines.push(`Skipped records: ${report.skippedRecords} invalid or missing a date.`)
   for (const warning of report.warnings) lines.push(clean(warning))
-  lines.push(`DeepSeek rates checked ${DEEPSEEK_PRICING_OBSERVED_AT}:`, DEEPSEEK_PRICING_SOURCE,
+  if (report.totals.turns > 0) lines.push(`DeepSeek rates checked ${DEEPSEEK_PRICING_OBSERVED_AT}:`, DEEPSEEK_PRICING_SOURCE,
     'Peak: Mon–Fri 01:00–04:00, 06:00–10:00 UTC, except public holidays.',
     'Off-peak: all other hours, at half price. Holiday calendar: 2026.',
     'Other years: peak-window prices are upper-bound estimates.')

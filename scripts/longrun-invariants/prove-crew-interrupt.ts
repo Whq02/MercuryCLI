@@ -317,7 +317,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const rows = projectWorkRoster({ 'ag-w': running } as never)
   check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
   const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
-  check('K10 the crew record carries it and the status cell speaks the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, within 45 s' && crew.crewStateLabel(facts) === 'running')
+  check('K10 the row stays running while its detail keeps the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'running' && crew.crewPhaseWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, within 45 s' && crew.crewStateLabel(facts) === 'running')
   const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, phase: { phase: 'tool', sinceMs: t0 } } } } as never)
   const toolFacts = crew.crewAgentFactsOf(toolRow[0]!, 'fx')!
   check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')

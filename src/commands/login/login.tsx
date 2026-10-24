@@ -2,7 +2,6 @@ import * as React from 'react'
 import { useRef, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { ConsoleOAuthFlow, type LoginFamilyFocus } from '../../components/ConsoleOAuthFlow.js'
-import { SIGN_IN_WORDS } from '../../components/Onboarding.js'
 import { PopupForm } from '../../components/PopupForm.js'
 import { usePopupCompact } from '../../context/popupFormContext.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
@@ -193,7 +192,7 @@ export async function call(
     scrollRef,
     width: 100,
     rows: 29,
-    line: 'esc back · from the menu, esc closes /logins',
+    line: '',
     hint: 'esc or click outside closes',
     bodyOwnsEscape: true,
     body: geometry => (
@@ -208,7 +207,6 @@ export async function call(
           closeSettingsPopup()
           completeOpenai(result)
         }}
-        startingMessage={SIGN_IN_WORDS.intro}
         {...(initialFocus !== undefined ? { initialFocus } : {})}
       />
     ),

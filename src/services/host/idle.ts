@@ -67,7 +67,7 @@ export async function releaseIdleRental(record: HostRecord, verdict: HostIdleVer
     const volume = record.volumeId ? readKeptVolume(record.volumeId) : undefined
     if (volume && volume.preparingPod === record.id) writeKeptVolume({ ...volume, preparingPod: undefined })
     const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : record.volumeId ? 'weights disk billing is not verified; check your account' : ''
-    const ended = reason + ' · ' + machine + ' terminated and verified absent (' + api.label + ' no longer lists it) · ' + (disk || 'nothing more bills') + ' · /llmhost to rent again'
+    const ended = reason + ' · ' + machine + ' terminated · ' + (disk || 'nothing more bills')
     patchHostRecord(record.id, { status: 'TERMINATED', jobState: 'failed', step: 'terminated after ' + hostIdleHoursWords + ' idle', error: ended })
     hostNotice(record, 'ended', record.name + ' · ' + ended)
   } catch (error) {

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
@@ -160,7 +161,7 @@ try {
   check("the family word 'openai' still picks the GPT row beside it", stillWord.ok && /gpt/i.test(stillWord.entry.modelId), text(stillWord))
 } finally {
   await fixture.close()
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 
 console.log(failures === 0 ? '\nprove-neutral-worker-seat: NO FAMILY IS FAVOURED' : '\nprove-neutral-worker-seat: FAILURE(S)')

@@ -123,7 +123,7 @@ try {
     for (const columns of [120, 80]) {
       await open(modelDoorRoad(road, 'Kimi K3'), columns); await step('door-model'); await capture('cluster-model'); await choose('B200'); await step('rent-confirm'); await capture('cluster-confirm')
       check('door cluster consent preserves topology and whole-shape price', plan!.found.includes('2 nodes × 8× B200') && plan!.found.includes('$127.84/hr'))
-      check('cluster consent keeps billing facts and both choices visible', mounted!.screen().includes('Confirm $127.84/hr') && mounted!.screen().includes('keep things as they are') && mounted!.screen().replace(/[│\s]+/g, ' ').includes('bills until Terminate'))
+      check('cluster consent keeps billing facts and both choices visible', mounted!.screen().includes('Confirm $127.84/hr') && mounted!.screen().includes('Cancel') && mounted!.screen().replace(/[│\s]+/g, ' ').includes('bills until Terminate'))
       await choose('Confirm $127.84/hr'); await step('pod-controls')
       const record = readHostRecord(queued.at(-1)!)!
       check('door creates a cluster family, never a single pod', record.cluster?.compute.podCount === 2 && record.nodes?.length === 2 && rp.state.creates === 0)

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-reactivate-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -346,6 +347,6 @@ console.log('D3 — the screen dies: records stand, the daemon goes down, the ne
   void c
 }
 
-if (process.env.MERCURY_REACTIVATE_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_REACTIVATE_KEEP !== '1') removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-reactivate-drive: ALL LAWS HOLD' : `\nprove-reactivate-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

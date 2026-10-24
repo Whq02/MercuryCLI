@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -383,12 +384,12 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
     const revived = Object.values(workersAfter).find(w => w.sessionId === sessionId2 && w.endedAt === undefined)
     check('the revived record is stamped KEYLESS (a later sign-in takes the neutral default; the retained model is not carried)', revived !== undefined && revived.keyless === true, text(Object.values(workersAfter).map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, keyless: w.keyless, modelKey: w.modelKey }))))
   }
-  rmSync(home2, { recursive: true, force: true })
-  rmSync(cwd2, { recursive: true, force: true })
+  removeScratch(home2)
+  removeScratch(cwd2)
 }
 
-rmSync(captureHome, { recursive: true, force: true })
-rmSync(cwd, { recursive: true, force: true })
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(captureHome)
+removeScratch(cwd)
+removeScratch(scratch)
 console.log(failures === 0 ? '\nprove-birth-flips-first: THE FIRST CHAT PAINTS AT ONCE' : `\nprove-birth-flips-first: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

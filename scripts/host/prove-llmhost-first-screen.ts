@@ -97,22 +97,22 @@ try {
   const open = async () => { question = undefined; popup.openSettingsPopup(llmHostPopupRequest(road)); await step('door-models') }
   const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'Escape closes\n' + screen()) }
   const mount = async (columns: number, rows: number) => { width = columns; height = rows; mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height) }
-  const firstRecipe = () => question!.rows!.find(row => row.section === 'VERIFIED RECIPES')!
+  const firstRecipe = () => question!.rows!.find(row => row.section === 'MODELS')!
   const aboveRecipes = (needle: string) => { const text = normal(); const at = text.indexOf(needle); const recipe = text.indexOf(rowText(firstRecipe()) + ' ·'); return at >= 0 && recipe >= 0 && at < recipe }
   const keysRow = () => question!.rows!.find(row => row.value === 'keys')
   const podsRow = () => question!.rows!.find(row => row.value === 'pods')!
-  const noStockRows = () => question!.rows!.filter(row => row.section === 'VERIFIED RECIPES' && row.label.includes('no stock'))
+  const noStockRows = () => question!.rows!.filter(row => row.section === 'MODELS' && row.label.includes('no stock'))
 
   await mount(120, 40)
   await open()
   await capture('120x40-first-screen')
   check('the first screen opens on the model list with no key pressed', question!.step === 'door-models' && selected().length > 0)
-  check('a vendor-keys row sits on the first screen, above the recipes, naming the connected vendors and the vendor whose key must be replaced', keysRow() !== undefined && normal().includes('Vendor keys · Runpod ✓ · Vast.ai ✗ replace the key to reconnect · Lambda · Hyperstack · Verda · DigitalOcean — replace or remove →') && aboveRecipes('Vendor keys ·'))
-  check('the paid-machines row sits above the recipes and counts the running machines the vendor lists, record or no record', /Machines I’m paying for · 2\+\? · Vast\.ai unread · 2 running \(/.test(normal()) && aboveRecipes('Machines I’m paying for ·') && hostRecords().every(record => record.id !== 'fixture-orphan'))
-  check('the lost-record and de-registered pods are not promoted to a model row (no endpoint to switch to)', !question!.rows!.some(row => row.section === 'VERIFIED RECIPES' && row.label.includes('running on your machine')))
+  check('key controls name connected vendors and the action for a refused key', keysRow() !== undefined && normal().includes('Vendor keys · Runpod ✓ · Vast.ai · replace key') && aboveRecipes('Vendor keys ·'))
+  check('paid count includes vendor machines without records and marks an unread vendor', /Machines I’m paying for · 2\+\? · Vast\.ai unread · 2 running/.test(normal()) && aboveRecipes('Machines I’m paying for ·') && hostRecords().every(record => record.id !== 'fixture-orphan'))
+  check('lost-record and de-registered pods are not promoted to model rows', !question!.rows!.some(row => row.section === 'MODELS' && row.label.includes('running on your machine')))
   check('the refused Vast.ai key keeps its one-line notice and its detail row', normal().includes('Vast.ai: could not be read (HTTP 401) · replace the key to reconnect') && question!.rows!.some(row => row.value === 'vendor-error:vast'))
   check('a no-stock model names the shapes and the vendors whose stock was read, never the bare words', noStockRows().length > 0 && noStockRows().every(row => row.label.includes('no stock on Runpod · watch →')) && !question!.rows!.some(row => row.label.includes('no stock · watch →')))
-  check('a running machine is never counted as stock', !question!.rows!.some(row => row.section === 'VERIFIED RECIPES' && row.label.includes('in stock') && /fixture-orphan|fixture-unlinked|7001/.test(row.label)))
+  check('a running machine is never counted as stock', !question!.rows!.some(row => row.section === 'MODELS' && row.label.includes('in stock') && /fixture-orphan|fixture-unlinked|7001/.test(row.label)))
   check('opening the first screen rents nothing', rp.state.creates === 0 && vast.state.creates === 0 && lambda.state.creates === 0 && queued.length === 0)
 
   await choose('keys'); await step('door-keys')
@@ -127,8 +127,8 @@ try {
   await step('door-models')
   assert.ok(await waitFor(() => normal().includes('Vast.ai ✓'), 15000), 'the first screen reopens with Vast.ai connected\n' + screen())
   await capture('120x40-first-screen-reconnected')
-  check('the replaced key is saved and the first screen reads Vast.ai again: the row shows ✓, the notice is gone', vendorKey('vast') === vast.key && normal().includes('Vendor keys · Runpod ✓ · Vast.ai ✓ · Lambda · Hyperstack · Verda · DigitalOcean — replace or remove →') && !normal().includes('could not be read') && !question!.rows!.some(row => row.value === 'vendor-error:vast'))
-  check('the Vast.ai machine the vendor lists as running joins the count the moment the key reads', /Machines I’m paying for · 3 · 3 running \(/.test(normal()) && !hostRecords().some(record => record.id === '7001'))
+  check('the replaced key is saved and the notice disappears', vendorKey('vast') === vast.key && normal().includes('Vendor keys · Runpod ✓ · Vast.ai ✓') && !normal().includes('could not be read') && !question!.rows!.some(row => row.value === 'vendor-error:vast'))
+  check('the reconnected vendor joins the live machine count', /Machines I’m paying for · 3 · 3 running/.test(normal()) && !hostRecords().some(record => record.id === '7001'))
   check('the no-stock words now name both vendors whose stock was read', noStockRows().length > 0 && noStockRows().every(row => row.label.includes('no stock on Runpod, Vast.ai · watch →')))
   await choose('pods'); await step('paid-pods')
   await capture('120x40-machines')
@@ -141,21 +141,21 @@ try {
   check('removal asks once more and says what keeps billing', question!.found.includes('Rented machines and disks keep billing') && question!.rows!.some(row => row.value === 'remove'))
   await choose('remove'); await step('door-models')
   assert.ok(await waitFor(() => normal().includes('Vast.ai · Lambda'), 15000), 'the first screen reopens with Vast.ai disconnected\n' + screen())
-  check('removing the key disconnects Vast.ai on the first screen and stops reading its account; nothing at the vendor changed', vendorKey('vast') === undefined && normal().includes('Vendor keys · Runpod ✓ · Vast.ai · Lambda · Hyperstack · Verda · DigitalOcean — replace or remove →') && /Machines I’m paying for · 2 · 2 running \(/.test(normal()) && vast.state.deletes === 0 && vast.state.stops === 0)
+  check('removing the key stops account reads without changing vendor resources', vendorKey('vast') === undefined && normal().includes('Vendor keys · Runpod ✓ · Vast.ai · Lambda') && /Machines I’m paying for · 2 · 2 running/.test(normal()) && vast.state.deletes === 0 && vast.state.stops === 0)
   await choose('keys'); await step('door-keys')
   check('a disconnected vendor is offered a connect row in the key controls', question!.rows!.some(row => row.value === 'connect:vast' && row.label === 'Connect Vast.ai →') && !question!.rows!.some(row => row.value === 'key:vast'))
   await choose('connect:vast'); await step('vast-key')
   await typeSecret(vast.key)
   await step('door-models')
   assert.ok(await waitFor(() => normal().includes('Vast.ai ✓'), 15000), 'the first screen reopens with Vast.ai reconnected\n' + screen())
-  check('connecting from the key controls saves the checked key and reads the account again', vendorKey('vast') === vast.key && /Machines I’m paying for · 3 · 3 running \(/.test(normal()))
+  check('connecting saves the checked key and reads the account again', vendorKey('vast') === vast.key && /Machines I’m paying for · 3 · 3 running/.test(normal()))
   await close()
   mounted!.unmount(); mounted = undefined
 
   await mount(80, 24)
   await open()
   await capture('80x24-first-screen')
-  check('at 80×24 the paid-machines and vendor-keys rows are on the opening frame above the recipes', aboveRecipes('Machines I’m paying for ·') && aboveRecipes('Vendor keys ·') && /Machines I’m paying for · 3 · 3 running/.test(normal()) && normal().includes('Vendor keys · Runpod ✓ · Vast.ai ✓ · Lambda · Hyperstack · Verda · DigitalOcean — replace or remove →'))
+  check('80×24 keeps account actions above the recipes', aboveRecipes('Machines I’m paying for ·') && aboveRecipes('Vendor keys ·') && /Machines I’m paying for · 3 · 3 running/.test(normal()) && normal().includes('Vendor keys · Runpod ✓ · Vast.ai ✓'))
   check('at 80×24 the cursor still starts on the first recipe, not on the account rows', selected().includes(rowText(firstRecipe())))
   await choose('keys'); await step('door-keys')
   await capture('80x24-vendor-keys')

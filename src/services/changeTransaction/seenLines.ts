@@ -194,6 +194,14 @@ export function losslessReadCall(path: string, line: number): string {
   return `Read(file_path: ${JSON.stringify(path)}, offset: ${line}, limit: 1, lossless: true)`
 }
 
+export function clippedLinesRefusal(owner: OwnerKey, path: string, displayPath: string, generation: string | null, touched: readonly SeenRange[] | null): string | null {
+  for (const cut of columnCutsOf(owner, path, generation)) {
+    if (touched !== null && !touched.some(range => range.start <= cut.line && range.end >= cut.line)) continue
+    return `Line ${cut.line} was clipped; ${losslessReadCall(displayPath, cut.line)} shows it before replacement.`
+  }
+  return null
+}
+
 export function seenLinesOf(
   owner: OwnerKey,
   path: string,

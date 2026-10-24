@@ -43,8 +43,8 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     const { hostRunner } = await import('../../src/services/host/ssh.ts')
     const { runHostJob } = await import('../../src/services/host/worker.ts')
     const { keptVolumes } = await import('../../src/services/host/volumes.ts')
-    const bytes = [Buffer.from('first shard'), Buffer.from('second shard')]
-    hf.repos.gguf.files = bytes.map((data, index) => ({ path: 'Q4_K_M/tiny-Q4_K_M-' + String(index + 1).padStart(5, '0') + '-of-00002.gguf', size: data.length, sha256: createHash('sha256').update(data).digest('hex') }))
+    const bytes = [Buffer.from('first shard'), Buffer.from('second shard'), Buffer.from('third shard'), Buffer.from('fourth shard')]
+    hf.repos.gguf.files = bytes.map((data, index) => ({ path: 'Q4_K_M/tiny-Q4_K_M-' + String(index + 1).padStart(5, '0') + '-of-00004.gguf', size: data.length, sha256: createHash('sha256').update(data).digest('hex') }))
     hf.repos.gguf.files.push(...Array.from({ length: 5 }, (_, index) => ({ path: 'other-' + index + '.json', size: 1 })))
     hf.state.pageSize = 1
     const configBytes = Buffer.from(JSON.stringify(hf.repos.fp8.rawConfig))
@@ -54,17 +54,17 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     assert.equal(found.state, 'ready')
     const model = found.state === 'ready' ? found.models.find(row => row.id === hf.repos.gguf.id)! : undefined!
     const picked = await pickHuggingFaceModel(model, { base: hf.baseUrl })
-    assert.ok(picked.ok)
+    assert.ok(picked.ok, JSON.stringify(picked).slice(0, 400))
     const recipe = picked.row.recipe
     let manifest
     try { manifest = weightManifest(recipe) } catch {}
     check('a derived HF recipe carries a trusted file manifest instead of failing at mirror', manifest)
     assert.ok(manifest)
     const revision = createHash('sha1').update(model.id).digest('hex')
-    check('the manifest pins the Hub commit, exact quant files, byte counts and SHA256 hashes', manifest.revision === revision && manifest.files.length === 2 && manifest.files.every((file, index) => file.path === hf.repos.gguf.files[index]!.path && file.size === bytes[index]!.length && file.sha256 === createHash('sha256').update(bytes[index]!).digest('hex')))
+    check('the manifest pins the Hub commit, exact quant files, byte counts and SHA256 hashes', manifest.revision === revision && manifest.files.length === 4 && manifest.files.every((file, index) => file.path === hf.repos.gguf.files[index]!.path && file.size === bytes[index]!.length && file.sha256 === createHash('sha256').update(bytes[index]!).digest('hex')))
     check('the tree and config use the resolved immutable commit, not a moving main', hf.requests.some(row => row.path.endsWith('/tree/' + revision)) && !hf.requests.some(row => row.path.endsWith('/tree/main')))
     check('bank downloads use the same exact revision and file list', bankDownloadPlan(recipe).revision === revision && bankDownloadPlan(recipe).include.join() === manifest.files.map(file => file.path).join())
-    check('the trusted file list reads beyond five pages rather than sealing a truncated tree', hf.state.trees === 8)
+    check('the trusted file list reads beyond five pages rather than sealing a truncated tree', hf.state.trees > 5 && hf.state.trees === hf.repos.gguf.files.length + 1)
     hf.state.repeatPage = true
     const repeated = await fetchHuggingFaceRepo(model.id, { base: hf.baseUrl })
     check('a repeated page cannot produce a partial trusted manifest', !repeated.ok)

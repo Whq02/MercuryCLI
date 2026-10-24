@@ -2,22 +2,22 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · logins                                                   │ │
-NEXT                │ │ esc back · from the menu, esc closes /logins                             │ │
+NEXT                │ │                                                                          │ │
   · /workflows — cr…│ │                                                                          │ │
                     │ │ Sign in                                                                  │ │
 FILES · orchard     │ │                                                                          │ │
-  ↵ or click · brow…│ │ Use a Claude or OpenAI subscription, usage-based billing, or connect     │ │
-                    │ │ OpenRouter, Google Gemini, Hugging Face, Kimi (Moonshot), GLM (Z.AI),    │ │
-VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal, MiniMax, Together AI,         │ │
-  · spend —         │ │ Cohere, Groq, Cerebras, Fireworks, Qwen or OpenCode Zen.                 │ │
-  · ctx — · —       │ │                                                                          │ │
-  · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
-                    │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
-                    │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
-                    │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
+  ↵ or click · brow…│ │ Choose a provider to sign in.                                            │ │
+                    │ │                                                                          │ │
+VITALS              │ │   OpenAI — ChatGPT subscription or API key                               │ │
+  · spend —         │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
+  · ctx — · —       │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
+  · health — run /h…│ │   OpenRouter — browser sign-in or API key                                │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
-                    │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
-                    │ │   Kimi (Moonshot) — device-code sign-in or API key                     ↓ │ │
+                    │ │   Hugging Face — sign-in or Hub token                                    │ │
+                    │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │
+                    │ │   GLM (Z.AI) — API key (general or GLM Coding Plan)                      │ │
+                    │ │   DeepSeek — API key                                                     │ │
+                    │ │   xAI — Grok subscription sign-in or API key                           ↓ │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes    │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

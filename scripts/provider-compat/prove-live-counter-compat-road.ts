@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 process.chdir(resolve(import.meta.dir, '..', '..'))
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'live-counter-road-home-'))
+const HOME = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'live-counter-road-home-'))
+process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
@@ -30,7 +31,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const dir = mkdtempSync(join(tmpdir(), 'live-counter-road-daemon-'))
+const dir = mkdtempSync(join(HOME, 'live-counter-road-daemon-'))
 const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-liveroad0001'
 const SHORT = 'concourse-lcr1'
 updateConcourseWorkers(workers => {
@@ -170,7 +171,7 @@ const readingRow = rowWords(reading, 'thinking')
 check('the request left: the seat carries the first-byte wait', (reading.wait as { kind?: string } | null)?.kind === 'first-byte', JSON.stringify(reading.wait))
 check('no byte yet: the seat stamps no first-byte-at and counts nothing', reading.firstByteAtMs === null && reading.replyChars === 0 && reading.thinkingChars === 0, JSON.stringify(reading))
 check('the words function has a home (the row\'s live words are owned in one place)', wordsModule !== null)
-check(`the row reads the prompt with the clock and the promise, never a dead 0 (${readingRow})`, /^reading the prompt · \d+s · first byte expected within /.test(readingRow) && !readingRow.includes('↓ 0'), readingRow)
+check(`the prefill row keeps elapsed and known zero (${readingRow})`, /^\d+s · ↓ 0$/.test(readingRow), readingRow)
 
 await sleep(FIRST_BYTE_DELAY_MS - 1_200 + 700)
 const thinkingA = factsOfTail()
@@ -180,7 +181,7 @@ await sleep(800)
 const thinkingB = factsOfTail()
 check('the thinking count grows while the reasoning stretch runs', thinkingB.thinkingChars > thinkingA.thinkingChars && thinkingB.replyChars === 0, `${thinkingA.thinkingChars} → ${thinkingB.thinkingChars}`)
 const thinkingRow = rowWords(thinkingB, 'thinking')
-check(`the row counts the thinking tokens beside the clock (${thinkingRow})`, /^↓ ~\d+ thinking tokens · thinking · \d+s$/.test(thinkingRow), thinkingRow)
+check(`the row counts thinking output once without a phase label (${thinkingRow})`, /^\d+s · ↓ ~[\d.k]+$/.test(thinkingRow), thinkingRow)
 
 await sleep(REASONING_MS - 1_500 + 250)
 const replyA = factsOfTail()
@@ -189,7 +190,7 @@ await sleep(TEXT_GAP_MS * 2 + 50)
 const replyB = factsOfTail()
 check('the reply count grows row by row', replyB.replyChars > replyA.replyChars, `${replyA.replyChars} → ${replyB.replyChars}`)
 const replyRow = rowWords(replyB, 'writing')
-check(`the row shows thinking and reply counts together (${replyRow})`, /^↓ ~\d+ thinking · \d+ tokens · writing · \d+s$/.test(replyRow), replyRow)
+check(`the row combines thinking and reply into one total (${replyRow})`, /^\d+s · ↓ ~[\d.k]+$/.test(replyRow), replyRow)
 
 await Promise.race([consumed, sleep(4_000)])
 await sleep(120)
@@ -202,6 +203,6 @@ check('the turn\'s outcome retires the thinking count and the first-byte stamp w
 check('the road publishes send and token-phase waits, then clears once at content without a teardown-owned clear', waits.length === 3 && waits[0]?.kind === 'first-byte' && waits[0]?.phase === undefined && waits[1]?.kind === 'first-byte' && waits[1]?.phase === 'tokens' && waits[2] === null, JSON.stringify(waits))
 check('the token-phase wait keeps the original request clock, prompt, model and budget', waits[1] !== null && JSON.stringify(waits[1]) === JSON.stringify({ ...waits[0], phase: 'tokens' }), JSON.stringify(waits))
 check('the settled seat retains the provider output count rather than a character estimate', settled.wireOutputTokens === 130, JSON.stringify(settled))
-
+rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ live counter on the compat road GREEN' : `\n❌ live counter on the compat road RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

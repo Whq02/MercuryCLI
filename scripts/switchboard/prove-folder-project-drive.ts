@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-folderproj-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -291,7 +292,7 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   const estate = join(FOO, '.mercury')
   check('D2 the first birth created exactly `<folder>/.mercury/`', existsSync(estate) && statSync(estate).isDirectory(), c.tail.slice(-120))
   check('D2 the estate is an empty directory (nothing speculative inside)', existsSync(estate) && readdirSync(estate).length === 0, existsSync(estate) ? readdirSync(estate).join(',') : 'absent')
-  rmSync(estate, { recursive: true, force: true })
+  removeScratch(estate)
   check('D2 beyond the estate the folder is byte-identical (the birth wrote nothing else)', treeHash(FOO) === before)
   const stores = storeDirsFor(home, FOO)
   check('D2 the project card sits in the folder\'s session-store dir', stores.length === 1 && existsSync(join(stores[0]!, 'project.json')), stores.join(','))
@@ -339,6 +340,6 @@ console.log('D3 — booting inside `gamma/.mercury` names the project "gamma" an
   reapHome(home)
 }
 
-if (process.env.MERCURY_FOLDERPROJ_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_FOLDERPROJ_KEEP !== '1') removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-folder-project-drive: ALL LAWS HOLD' : `\nprove-folder-project-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

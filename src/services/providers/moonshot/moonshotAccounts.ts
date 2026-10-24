@@ -3,6 +3,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredMoonshotApiKey } from '../providerSecrets.js'
@@ -119,6 +120,7 @@ function readAuthFile(): MoonshotAuthFile | null {
 }
 
 function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })

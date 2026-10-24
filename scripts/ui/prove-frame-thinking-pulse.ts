@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'frame-thinking-pulse-'))
+const HOME = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'frame-thinking-pulse-'))
+process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
@@ -72,7 +73,7 @@ const band = (): string => strip(instance.lastFrame()).split('\n').find(l => l.i
 section("§1 the band's thinking pulse: the phase, how long it has stood, and the age of the stream's last frame")
 {
   const row = band()
-  check('RED ON THE BASE: while the focused session thinks, the band carries the pulse chip in the heartbeat grammar (◐ thinking <elapsed> · ↻<last frame age>)', row.includes('◐ thinking 4m · ↻3s'), row)
+  check('the frame does not repeat the thinking label or heartbeat', !/thinking|↻/.test(row), row)
   check("the status row itself still says nothing for a healthy think (the pulse is the band's, not a second sentence)", statusLine(live() as never, status() as never) === '', statusLine(live() as never, status() as never))
 }
 
@@ -80,12 +81,12 @@ section('§2 the chip moves with the stream: the age climbs on the tick when no 
 {
   seat.quietMs = 41_000
   await settle(1300)
-  check('a stream gone quiet for 41 s reads ↻41s on the next tick without any frame from the runner', band().includes('↻41s'), band())
+  check('a quiet stream adds no repeated heartbeat narration', !/thinking|↻/.test(band()), band())
   seat.quietMs = 1000
   seat.phaseMs = 253_000
   poke()
   await settle(300)
-  check('a frame arriving brings the age back down', band().includes('↻1s'), band())
+  check('new frames do not add a second status row', !/thinking|↻/.test(band()), band())
 }
 
 section('§3 the chip is the thinking phase only, and never over a wait the status row already speaks')
@@ -121,12 +122,13 @@ section('§4 the stuck verdict keeps the chip and only changes its ink (never a 
   poke()
   await settle(300)
   const row = band()
-  check('past the watchdog\'s warning point the chip still paints, with the elapsed think and the silence', row.includes('◐ thinking 10m · ↻5m'), row)
+  check('the frame stays quiet while the status row retains the actual warning', !/thinking|↻/.test(row) && statusLine(live() as never, status() as never).includes('session may be stuck'), row)
   const frameSrc = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8'))
-  check('the band holds no thinking clock of its own: the facts are the seat\'s (phaseMs, quietMs, stuck) and nothing here aborts, caps or nudges a think', frameSrc.includes('thinkingStatus.stuck ? tok.warning : tok.success') && !/abort|setTimeout\(|nudge/.test(frameSrc.slice(frameSrc.indexOf('thinkingKey'), frameSrc.indexOf('thinkingNode ='))))
+  check('the frame still reads the machine facts without painting a duplicate chip', frameSrc.includes('const thinkingStatus =') && !frameSrc.includes('thinkingPulseWords') && !frameSrc.includes('{thinkingNode}'))
 }
 
 instance.unmount?.()
 _resetFocusedSessionConnectorForTesting()
+rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-frame-thinking-pulse: all green' : `\nprove-frame-thinking-pulse: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

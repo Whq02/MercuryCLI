@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-update-'))
 const home = join(scratch, 'home')
@@ -99,7 +100,7 @@ console.log('[2] the version key: pre-fetch; a lying catalogue refuses; a warm r
   check('re-check lands', (await sources.refreshSource('update-src')).ok)
   const record = records.installedOrEmpty()[ID]!
   check('the record path is the version-keyed folder', record.path === paths.getInstalledVersionDir(ID, '1.0.0'))
-  rmSync(repo, { recursive: true, force: true })
+  removeScratch(repo)
   const warm = rosterMod.computeRoster({ cwd }).entries.find(e => e.id === ID)
   check('with the remote DELETED the copy still resolves under the key (no re-clone)', warm !== undefined && warm.root === record.path && warm.manifest !== null)
   cpSync(FIXTURE, repo, { recursive: true })
@@ -176,7 +177,7 @@ console.log('[5] in-place: a version bump alone carries; a contributions change 
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
   row = rosterMod.computeRoster({ cwd }).entries.find(e => e.id === 'needs-node@project')
   check('a contributions change reads changed — re-approve', row?.changedSinceApproval === true)
-  rmSync(folder, { recursive: true, force: true })
+  removeScratch(folder)
 }
 
 console.log('[6] no background updater: the request log stays empty across a full boot')
@@ -204,6 +205,6 @@ console.log('[6] no background updater: the request log stays empty across a ful
   server.close()
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ UPDATE DISCIPLINE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

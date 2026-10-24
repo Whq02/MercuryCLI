@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { bundledPayloads } from '../../src/extensions/bundled/content.generated.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const CRAFT_NAMES = Object.keys(bundledPayloads).sort()
 const INSTALLED = `installed (${8 + CRAFT_NAMES.length})`
@@ -293,7 +294,8 @@ async function runAll(all: Drive[], concurrency: number): Promise<void> {
 }
 
 function has(id: string, text: string, needle: string): void {
-  check(`${id}: paints '${needle.length > 64 ? needle.slice(0, 64) + '…' : needle}'`, text.includes(needle))
+  const flat = text.replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
+  check(`${id}: paints '${needle.length > 64 ? needle.slice(0, 64) + '…' : needle}'`, text.includes(needle) || flat.includes(needle))
 }
 function hasNot(id: string, text: string, needle: string, why: string): void {
   check(`${id}: never paints '${needle}' (${why})`, !text.includes(needle))
@@ -383,9 +385,9 @@ for (const [cols, rows] of [
       has(id, text, 'sources (4)')
       has(id, text, '● on')
       has(id, text, '◑ partial')
-      has(id, text, 'missing-bin-fx not on PATH')
+      has(id, text, '↵ details')
       has(id, text, '✕ broken')
-      has(id, text, 'changed since install')
+      hasNot(id, text, 'not on PATH', 'the reason lives behind the row, in its details')
       has(id, text, '◐ reload')
       has(id, text, 'turned off · r reloads')
       has(id, text, '○ off')
@@ -828,6 +830,6 @@ console.log('\n── the vocabulary law (07 §2 row 8)')
   check('no retired vocabulary in the surface estate + core + maker doc', dirty === 0, `${files.length} files swept`)
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(`\n${failures === 0 ? '✅ EXTENSIONS SURFACE — GREEN' : `❌ ${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

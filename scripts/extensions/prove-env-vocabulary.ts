@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-env-'))
 const home = join(scratch, 'home')
@@ -137,6 +138,6 @@ console.log("[6] prose gets the placeholder; the child env gets the value; only 
   check("another product's session-id spelling never substitutes", !loaderSrc.includes(EXTERNAL_SESSION))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ ENV VOCABULARY — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,5 @@
 import { stringWidth } from '../../ink/stringWidth.js'
 import { formatDuration } from '../../utils/format.js'
-import { GLYPH, SPARK } from '../mercury-ui/glyphs.js'
-import { THINKING_WORD } from '../messages/thinkingGrammar.js'
 import type { LiveCounterWords } from './liveCounterWords.js'
 import type { SpinnerMode } from './types.js'
 
@@ -20,10 +18,9 @@ export function spinnerStackDecision(facts: {
 
 const RAIL_INSET = 2
 const SEPARATOR_WIDTH = 3
-const HUD_ORDER = ['phase', 'timer', 'tokens', 'pulse', 'promise', 'thinking', 'waiting'] as const
+const HUD_ORDER = ['timer', 'tokens', 'attention'] as const
 
-type HudSegmentKind = 'thinking' | 'waiting'
-export type HudSegment = { key: string; text: string; kind?: HudSegmentKind }
+export type HudSegment = { key: string; text: string }
 
 type HudFacts = {
   mode: SpinnerMode
@@ -32,78 +29,34 @@ type HudFacts = {
   verbose: boolean
   still: boolean
   suffixText: string
-  stillWaiting: boolean
-  thinkingLabel: string
   liveWords: LiveCounterWords
-  livePhase: string
   effectiveElapsedMs: number
-  ctxPct: number | null
-  activeToolCount: number
   otps: number
   wasStacked: boolean
-}
-
-type HudPlan = {
-  stacked: boolean
-  secondRow: boolean
-  ordered: HudSegment[]
-  showCtx: boolean
-  showWif: boolean
-  showOtps: boolean
-  ctxPct: number | null
-  ctxSpark: string
-  wifText: string
-  otpsText: string
-  metaVisible: boolean
-  onlyThinking: boolean
-  gaugesVisible: boolean
-  segBVisible: boolean
 }
 
 export function hudTokensText(facts: Pick<HudFacts, 'liveWords'>): string | null {
   return facts.liveWords.count
 }
 
-function hudCtxSpark(ctxPct: number | null): string {
-  return ctxPct != null ? SPARK[Math.min(SPARK.length - 1, Math.floor((ctxPct / 100) * SPARK.length))]! : ''
-}
-
-export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => number): HudPlan {
-  const { mode, liveWords, stillWaiting, effectiveElapsedMs, columns, suffixText } = facts
+export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => number) {
+  const { mode, liveWords, effectiveElapsedMs, columns, suffixText } = facts
   const messageWidth = stringWidth(facts.message) + 2
   const suffixWidth = suffixText === '' ? 0 : stringWidth(suffixText) + SEPARATOR_WIDTH
-  const phaseText = liveWords.reading || liveWords.phase !== facts.livePhase || liveWords.phase === 'writing' ? liveWords.phase : null
-  const promiseSpeaksPhase = phaseText !== null && liveWords.promise !== null && liveWords.promise.includes(phaseText)
-  const waitPhaseText = promiseSpeaksPhase ? liveWords.promise : phaseText
-  const promiseText = promiseSpeaksPhase ? null : liveWords.promise
-  const thinkingText = mode === 'thinking' && waitPhaseText === null ? facts.thinkingLabel : null
-  const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
+  const timerText = formatDuration(effectiveElapsedMs)
   const metaGate = facts.verbose || effectiveElapsedMs > 0
   const tokensText = hudTokensText(facts)
-  const pulseText = liveWords.pulse
-  const ctxPct = facts.ctxPct
-  const ctxSpark = hudCtxSpark(ctxPct)
-  const ctxText = ctxPct != null ? `${ctxSpark} ${ctxPct}% ctx` : ''
-  const ctxWidth = stringWidth(ctxText) + SEPARATOR_WIDTH
-  const wifText = facts.activeToolCount >= 2 ? `${GLYPH.inProgress} ${facts.activeToolCount} tools` : ''
-  const wifWidth = stringWidth(wifText) + SEPARATOR_WIDTH
+  const attentionText = liveWords.promise
   const otpsEligible = (mode === 'responding' || mode === 'tool-input') && facts.otps >= 1
   const otpsText = otpsEligible ? `~${facts.otps} tok/s` : ''
   const otpsWidth = stringWidth(otpsText) + SEPARATOR_WIDTH
 
   const fullSegmentTexts: string[] = []
-  if (stillWaiting) fullSegmentTexts.push('still waiting…')
-  if (thinkingText !== null) fullSegmentTexts.push(thinkingText)
-  if (waitPhaseText !== null) fullSegmentTexts.push(waitPhaseText)
   if (metaGate && effectiveElapsedMs >= 1000) fullSegmentTexts.push(timerText)
   if (metaGate && tokensText !== null) fullSegmentTexts.push(tokensText)
-  if (metaGate && pulseText !== null) fullSegmentTexts.push(pulseText)
-  if (metaGate && ctxPct != null) fullSegmentTexts.push(ctxText)
-  if (metaGate && wifText !== '') fullSegmentTexts.push(wifText)
   if (metaGate && otpsText !== '') fullSegmentTexts.push(otpsText)
-  if (promiseText !== null) fullSegmentTexts.push(promiseText)
-  const fullMetaCost = fullSegmentTexts.reduce((sum, text) => sum + stringWidth(text) + SEPARATOR_WIDTH, 0)
-  const segBFullCost = fullMetaCost
+  if (attentionText !== null) fullSegmentTexts.push(attentionText)
+  const segBFullCost = fullSegmentTexts.reduce((sum, text) => sum + stringWidth(text) + SEPARATOR_WIDTH, 0)
   const railSpace = columns - RAIL_INSET
   const oneLineSpace = railSpace - messageWidth - suffixWidth - 5
   const stacked = spinnerStackDecision({
@@ -124,34 +77,14 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
     admitted.push(segment)
     return true
   }
-  if (stillWaiting) admit({ key: 'waiting', text: 'still waiting…', kind: 'waiting' })
-  if (thinkingText !== null) {
-    if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {
-      admit({ key: 'thinking', text: THINKING_WORD, kind: 'thinking' })
-    }
-  }
-  if (waitPhaseText !== null) admit({ key: 'phase', text: waitPhaseText })
+  if (attentionText !== null) admit({ key: 'attention', text: attentionText })
   if (metaGate && effectiveElapsedMs >= 1000) admit({ key: 'timer', text: timerText })
   if (metaGate && tokensText !== null) admit({ key: 'tokens', text: tokensText })
-  if (metaGate && pulseText !== null) admit({ key: 'pulse', text: pulseText })
-  const usedAfterTokens = used
-  const showCtx = metaGate && ctxPct != null && availableSpace > usedAfterTokens + ctxWidth
-  if (showCtx) used += ctxWidth
-  const usedAfterCtx = used
-  const showWif = metaGate && wifText !== '' && availableSpace > usedAfterCtx + wifWidth
-  if (showWif) used += wifWidth
-  const usedAfterWif = used
-  const showOtps = metaGate && otpsText !== '' && availableSpace > usedAfterWif + otpsWidth
-  if (showOtps) used += otpsWidth
-  if (promiseText !== null) admit({ key: 'promise', text: promiseText })
-
+  const showOtps = metaGate && otpsText !== '' && availableSpace > used + otpsWidth
   const ordered = HUD_ORDER.map(key => admitted.find(segment => segment.key === key)).filter(
     (segment): segment is HudSegment => segment !== undefined,
   )
-  const onlyThinking = ordered.length === 1 && ordered[0]!.kind === 'thinking'
-  const gaugesVisible = showCtx || showWif || showOtps
-  const metaVisible = ordered.length > 0 || gaugesVisible
-  const segBTailPresent = metaVisible
-  const segBVisible = !facts.still && (suffixText !== '' || segBTailPresent)
-  return { stacked, secondRow, ordered, showCtx, showWif, showOtps, ctxPct, ctxSpark, wifText, otpsText, metaVisible, onlyThinking, gaugesVisible, segBVisible }
+  const metaVisible = ordered.length > 0 || showOtps
+  const segBVisible = !facts.still && (suffixText !== '' || metaVisible)
+  return { stacked, secondRow, ordered, showOtps, otpsText, metaVisible, segBVisible }
 }

@@ -85,11 +85,11 @@ if (process.env.HEALTH_RENDER_CHILD) {
   {
     const grid = capture(100, 24, [])
     const lines = grid.split('\n')
-    check('@100x24: the verdict banner is on-screen', /CERTIFIED|CAUTION|FAULT|examining/.test(grid))
+    check('@100x24: the verdict banner is on-screen', /OK|ATTENTION|FAILED|Checking/.test(grid))
     check('@100x24: the keybind footer is on-screen', grid.includes('esc or click outside closes') && grid.includes('re-run'))
     check('@100x24: the position marker rides the footer tail', /· \d+\/\d+\s*│/.test(grid))
     check('@100x24: page verbs are visible', grid.includes('⇞⇟ page'))
-    check('@100x24: the verdict chip sits beside the lockup on the title row', /Mercury · health · [^\n]*(CERTIFIED|CAUTION|FAULT)/.test(grid) || /examining/.test(grid))
+    check('@100x24: the verdict chip sits beside the lockup on the title row', /Mercury · health · [^\n]*(OK|ATTENTION|FAILED)/.test(grid) || /Checking/.test(grid))
     const bottomBorder = lines.findIndex(l => l.includes('╰'))
     check('@100x24: the frame bottom border is INSIDE the grid', bottomBorder !== -1, 'no ╰ row found — frame overflowed')
     check('@100x24: no emoji', !/[\u{1F300}-\u{1FAFF}]/u.test(grid))
@@ -112,7 +112,7 @@ if (process.env.HEALTH_RENDER_CHILD) {
     const grid = capture(120, 50, [])
     check('@120x50: the certificate renders with its footer', grid.includes('esc or click outside closes'))
     check('@120x50: the counts line reads the checks under the verdict', /\d+ checks/.test(grid))
-    check('@120x50: the provenance legend is fixed chrome (≥30 rows)', grid.includes('every claim names its evidence'))
+    check('@120x50: no provenance lecture or duplicate detail hint', !grid.includes('every claim names its evidence') && !grid.includes('↵ details'))
   }
 
   console.log(failures === 0 ? '\nHEALTH VIEWPORT: ALL GREEN' : `\nHEALTH VIEWPORT: ${failures} FAILURE(S)`)

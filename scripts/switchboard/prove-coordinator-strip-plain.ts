@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -23,7 +24,7 @@ if (!existsSync(DIST)) {
 const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-stripplain-${process.pid}`)
 const WORK = path.join(RUN_HOME, 'work')
 const MERCURY_HOME = path.join(RUN_HOME, 'proof-home')
-rmSync(RUN_HOME, { recursive: true, force: true })
+removeScratch(RUN_HOME)
 mkdirSync(WORK, { recursive: true })
 mkdirSync(MERCURY_HOME, { recursive: true })
 writeFileSync(
@@ -115,7 +116,7 @@ check(
   stripLines.join('\n'),
 )
 
-if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
+if (failures === 0) removeScratch(RUN_HOME)
 else console.log(`[forensics] world kept: ${RUN_HOME}`)
 console.log(failures === 0 ? '\nprove-coordinator-strip-plain: ALL LAWS HOLD' : `\nprove-coordinator-strip-plain: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

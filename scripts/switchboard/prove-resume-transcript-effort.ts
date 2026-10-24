@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(tmpdir(), 'resume-transcript-effort-'))
@@ -98,7 +99,7 @@ try {
   }
 } finally {
   await fixture.close()
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 console.log(`prove-resume-transcript-effort: ${checks - failures}/${checks} PASS`)
 process.exit(failures === 0 ? 0 : 1)

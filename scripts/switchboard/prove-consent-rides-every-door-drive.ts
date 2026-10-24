@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-sovereign-doors-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -311,6 +312,6 @@ if (counts.r4 !== undefined) {
 }
 console.log(`\n[SUMMARY] ${Object.entries(counts).map(([id, c]) => `${id}=${c.distinct}`).join(' · ')}`)
 
-if (!KEEP) rmSync(SCRATCH, { recursive: true, force: true })
+if (!KEEP) removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-consent-rides-every-door-drive: ALL LAWS HOLD' : `\nprove-consent-rides-every-door-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

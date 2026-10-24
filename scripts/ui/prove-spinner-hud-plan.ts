@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
-process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'spinner-hud-plan-'))
+const HOME = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'spinner-hud-plan-'))
+process.env.MERCURY_CONFIG_DIR = HOME
+delete process.env.MERCURY_HOME
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const { planSpinnerHud, spinnerStackDecision, STACK_EXIT_SLACK, hudTokensText } = await import('../../src/components/Spinner/spinnerHud.ts')
 const { liveCounterWords, turnFactsOfRefs } = await import('../../src/components/Spinner/liveCounterWords.ts')
 const { stripLinesForEpoch } = await import('../../src/components/Spinner/stripHeight.ts')
-const { THINKING_WORD } = await import('../../src/components/messages/thinkingGrammar.tsx')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type HudFacts = Parameters<typeof planSpinnerHud>[0]
 
 let failures = 0
@@ -19,8 +19,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-
 const NOW = 1_700_000_000_000
 const words = (chars: number, mode: string, elapsedMs: number, wire: number | null = null) =>
   liveCounterWords({ ...turnFactsOfRefs(chars, wire), phase: mode === 'thinking' ? 'thinking' : mode === 'responding' ? 'writing' : mode === 'tool-use' || mode === 'tool-input' ? 'working' : 'waiting', sentAtMs: NOW - elapsedMs }, NOW)
@@ -28,95 +26,59 @@ const words = (chars: number, mode: string, elapsedMs: number, wire: number | nu
 function facts(over: Partial<HudFacts> = {}): HudFacts {
   const mode = over.mode ?? 'responding'
   const elapsed = over.effectiveElapsedMs ?? 12_000
-  const liveWords = over.liveWords ?? words(4000, mode, elapsed)
-  return {
-    mode,
-    message: 'Pondering…',
-    columns: 120,
-    verbose: false,
-    still: false,
-    suffixText: '',
-    stillWaiting: false,
-    thinkingLabel: `${THINKING_WORD} (max)`,
-    liveWords,
-    livePhase: liveWords.phase,
-    effectiveElapsedMs: elapsed,
-    ctxPct: null,
-    activeToolCount: 0,
-    otps: 0,
-    wasStacked: false,
-    ...over,
-  }
+  return { mode, message: 'Fencing the wolves…', columns: 120, verbose: false, still: false, suffixText: '', liveWords: words(4000, mode, elapsed), effectiveElapsedMs: elapsed, otps: 0, wasStacked: false, ...over }
 }
 const oneLine = (wanted: number): number => wanted
 const keys = (plan: ReturnType<typeof planSpinnerHud>): string => plan.ordered.map(s => s.key).join(',')
+const text = (plan: ReturnType<typeof planSpinnerHud>): string => plan.ordered.map(s => s.text).join(' · ')
 
-section('§1 the order law: phase · elapsed · tokens · ctx · tools · tok/s · promise · thinking · still waiting')
 {
-  const wide = planSpinnerHud(facts({ ctxPct: 37, activeToolCount: 3, otps: 42, stillWaiting: true }), oneLine)
-  check('the admitted segments paint in the order law on a wide line — the writing phase leads, the verb heads the row', keys(wide) === 'phase,timer,tokens,waiting' && wide.ordered[0]!.text === 'writing', keys(wide))
-  check('the three gauges are visible beside them', wide.showCtx && wide.showWif && wide.showOtps)
-  check('the gauge texts carry the words: ◐ N tools and ~N tok/s', wide.wifText === '◐ 3 tools' && wide.otpsText === '~42 tok/s', `${wide.wifText} ${wide.otpsText}`)
-  check('the meta group is visible and not thinking-only', wide.metaVisible && !wide.onlyThinking && wide.gaugesVisible)
-  const thinking = planSpinnerHud(facts({ mode: 'thinking' }), oneLine)
-  check('a thinking turn admits its label with the effort suffix after the elapsed and the count', keys(thinking) === 'timer,tokens,thinking' && thinking.ordered.at(-1)!.text === `${THINKING_WORD} (max)`, keys(thinking))
+  const wide = planSpinnerHud(facts({ otps: 42 }), oneLine)
+  check('elapsed and one total count, with the response rate', keys(wide) === 'timer,tokens' && text(wide) === '12s · ↓ ~1k' && wide.showOtps && wide.otpsText === '~42 tok/s', text(wide))
+  const thinking = planSpinnerHud(facts({ mode: 'thinking', otps: 42 }), oneLine)
+  check('thinking has no phase label or response rate', keys(thinking) === 'timer,tokens' && !thinking.showOtps, text(thinking))
   const fresh = planSpinnerHud(facts({ mode: 'thinking', effectiveElapsedMs: 400, liveWords: words(0, 'thinking', 400) }), oneLine)
-  check('under one second with no tokens, only the thinking label stands — the group is thinking-only', keys(fresh) === 'thinking' && fresh.onlyThinking && fresh.metaVisible, keys(fresh))
-  const reading = planSpinnerHud(facts({ mode: 'requesting', effectiveElapsedMs: 2000, liveWords: liveCounterWords({ ...turnFactsOfRefs(0, null), phase: 'waiting', sentAtMs: NOW - 2000, wait: { kind: 'first-byte', cold: false, promptTokens: 1200, model: 'm', attempt: 1, sinceMs: NOW - 2000, budgetMs: 60_000 } }, NOW) }), oneLine)
-  check('a first-byte wait admits the phase word first and the promise last', keys(reading) === 'phase,timer,promise' && reading.ordered[0]!.text === 'reading the prompt', keys(reading))
-  const otpsOff = planSpinnerHud(facts({ mode: 'thinking', otps: 42 }), oneLine)
-  check('tok/s shows only while text streams (responding / tool-input)', !otpsOff.showOtps && planSpinnerHud(facts({ mode: 'tool-input', otps: 9 }), oneLine).showOtps)
-  const oneTool = planSpinnerHud(facts({ activeToolCount: 1 }), oneLine)
-  check('the tools gauge lights only on parallel tools (two or more)', !oneTool.showWif && oneTool.wifText === '')
-  const noCtx = planSpinnerHud(facts({ ctxPct: null }), oneLine)
-  check('the context gauge self-omits when the live usage is unknown', !noCtx.showCtx && noCtx.ctxSpark === '')
+  check('known empty counters stay zero, with no invented phase', keys(fresh) === 'tokens' && text(fresh) === '↓ 0', text(fresh))
+  const unknown = planSpinnerHud(facts({ mode: 'thinking', liveWords: liveCounterWords({ ...turnFactsOfRefs(0, null), firstByteAtMs: NOW - 1000, thinkingBlocks: 1, phase: 'thinking', sentAtMs: NOW - 12000 }, NOW) }), oneLine)
+  check('withheld thinking has no made-up zero or block count', keys(unknown) === 'timer', text(unknown))
+  const reading = planSpinnerHud(facts({ mode: 'requesting', effectiveElapsedMs: 65000, liveWords: liveCounterWords({ ...turnFactsOfRefs(0, null), phase: 'waiting', sentAtMs: NOW - 65000, wait: { kind: 'first-byte', cold: false, promptTokens: 1200, model: 'm', attempt: 1, sinceMs: NOW - 65000, budgetMs: 60000 } }, NOW) }), oneLine)
+  check('long prefill shows the full clock and known zero, not a budget or phase', text(reading) === '1m 5s · ↓ 0', text(reading))
+  check('tool-input can show an observed response rate', planSpinnerHud(facts({ mode: 'tool-input', otps: 9 }), oneLine).showOtps)
+  check('active tools do not borrow a response rate', !planSpinnerHud(facts({ mode: 'tool-use', otps: 9 }), oneLine).showOtps)
 }
-
-section('§2 the shed law on a narrow line: the gauges shed right to left, the segments by admission order')
 {
-  const tight = planSpinnerHud(facts({ columns: 52, ctxPct: 37, activeToolCount: 3, otps: 42 }), oneLine)
-  check('on a 52-column line the row stacks (segment B wants more than the space beside the verb)', tight.stacked && tight.secondRow)
-  const narrow = planSpinnerHud(facts({ columns: 40, ctxPct: 37, activeToolCount: 3, otps: 42 }), () => 1)
-  check('held to one line at 40 columns, the phase and the elapsed admit; the count and the gauges shed', keys(narrow) === 'phase,timer' && !narrow.showCtx && !narrow.showWif && !narrow.showOtps, `${keys(narrow)} ctx=${narrow.showCtx} wif=${narrow.showWif} otps=${narrow.showOtps}`)
-  const mid = planSpinnerHud(facts({ columns: 70, ctxPct: 37, activeToolCount: 3, otps: 42 }), () => 1)
-  check('with a little more room the count and then the ctx gauge come back before the tools and the rate', keys(mid) === 'phase,timer,tokens' && mid.showCtx && !mid.showOtps, `${keys(mid)} ctx=${mid.showCtx} wif=${mid.showWif} otps=${mid.showOtps}`)
-  const thinkingTight = planSpinnerHud(facts({ mode: 'thinking', columns: 33 }), () => 1)
-  check('the thinking label drops its effort suffix before dropping the word', thinkingTight.ordered.some(s => s.key === 'thinking' && s.text === THINKING_WORD), keys(thinkingTight))
+  const tight = planSpinnerHud(facts({ columns: 40, otps: 42 }), oneLine)
+  check('a narrow row still stacks when its content needs it', tight.stacked && tight.secondRow)
+  const narrow = planSpinnerHud(facts({ columns: 38, otps: 42 }), () => 1)
+  check('a forced narrow line keeps the elapsed before shedding count and rate', keys(narrow) === 'timer' && !narrow.showOtps, text(narrow))
+  const mid = planSpinnerHud(facts({ columns: 52, otps: 42 }), () => 1)
+  check('a little more room keeps the count before the rate', keys(mid) === 'timer,tokens' && !mid.showOtps, text(mid))
+  const reconnect = planSpinnerHud(facts({ columns: 80, mode: 'thinking', effectiveElapsedMs: 130000, liveWords: liveCounterWords({ ...turnFactsOfRefs(0, null), phase: 'thinking', sentAtMs: NOW - 130000, wait: { kind: 'retry', attempt: 2, of: 5, sinceMs: NOW, delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120000 } }, NOW) }), oneLine)
+  check('actual reconnection follows time and count once', text(reconnect) === '2m 10s · ↓ 0 · reconnecting 2 of 5', text(reconnect))
+  const attentionOnly = planSpinnerHud(facts({ columns: 50, liveWords: liveCounterWords({ ...turnFactsOfRefs(0, null), phase: 'waiting', sentAtMs: NOW - 130000, wait: { kind: 'retry', attempt: 2, of: 5, sinceMs: NOW, delayMs: 0, reason: 'connection closed', reconnecting: true } }, NOW) }), () => 1)
+  check('attention is not shed to make room for routine counters', text(attentionOnly).includes('reconnecting 2 of 5'), text(attentionOnly))
 }
-
-section('§3 the stack hysteresis: stacking engages when the cost exceeds the space; unstacking waits for the slack')
 {
   check('a cost over the space stacks', spinnerStackDecision({ eligible: true, cost: 30, space: 29, wasStacked: false }))
   check('a cost inside the space does not stack from a one-line state', !spinnerStackDecision({ eligible: true, cost: 28, space: 29, wasStacked: false }))
-  check(`a stacked row stays stacked until the cost fits with ${STACK_EXIT_SLACK} cells to spare`, spinnerStackDecision({ eligible: true, cost: 25, space: 29, wasStacked: true }) && !spinnerStackDecision({ eligible: true, cost: 22, space: 29, wasStacked: true }))
-  check('an ineligible row (nothing to say in segment B) never stacks', !spinnerStackDecision({ eligible: false, cost: 99, space: 1, wasStacked: true }))
+  check(`stack exit keeps ${STACK_EXIT_SLACK} cells of slack`, spinnerStackDecision({ eligible: true, cost: 25, space: 29, wasStacked: true }) && !spinnerStackDecision({ eligible: true, cost: 22, space: 29, wasStacked: true }))
+  check('an empty segment never stacks', !spinnerStackDecision({ eligible: false, cost: 99, space: 1, wasStacked: true }))
   const latch = { epoch: 0, lines: 1 }
-  const twoLines = planSpinnerHud(facts({ columns: 52, ctxPct: 37, activeToolCount: 3, otps: 42 }), wanted => stripLinesForEpoch(latch, 7, wanted))
+  const twoLines = planSpinnerHud(facts({ columns: 40, otps: 42 }), wanted => stripLinesForEpoch(latch, 7, wanted))
   const backToOne = planSpinnerHud(facts({ columns: 120, wasStacked: twoLines.stacked }), wanted => stripLinesForEpoch(latch, 7, wanted))
-  check('within one turn the strip never shrinks: a row that stacked keeps its second line even when the words fit again', twoLines.secondRow && backToOne.secondRow && !backToOne.stacked)
-  const nextTurn = planSpinnerHud(facts({ columns: 120 }), wanted => stripLinesForEpoch(latch, 8, wanted))
-  check('a new turn (a new epoch) starts on one line again', !nextTurn.secondRow)
+  check('the strip never shrinks within the same turn', twoLines.secondRow && backToOne.secondRow && !backToOne.stacked)
+  check('a new turn starts on one line', !planSpinnerHud(facts(), wanted => stripLinesForEpoch(latch, 8, wanted)).secondRow)
 }
-
-section('§4 segment B and the crewmate shapes')
 {
-  const stillRow = planSpinnerHud(facts({ still: true, suffixText: 'hook: lint' }), oneLine)
-  check('a still row (a fold) shows no segment B at all', !stillRow.segBVisible)
-  const suffixOnly = planSpinnerHud(facts({ mode: 'tool-use', suffixText: 'hook: lint', effectiveElapsedMs: 0, liveWords: words(0, 'tool-use', 0) }), oneLine)
-  check('a hook suffix alone makes segment B visible (a held tool call: the tool label heads the row, no phase word)', suffixOnly.segBVisible && suffixOnly.ordered.length === 0, keys(suffixOnly))
-  const reconnect = planSpinnerHud(facts({ mode: 'thinking', livePhase: 'thinking', liveWords: liveCounterWords({ ...turnFactsOfRefs(4000, null), phase: 'thinking', sentAtMs: NOW - 12_000, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: NOW, delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120_000 } }, NOW) }), oneLine)
-  check('a reconnect promise takes the phase slot itself — one reconnecting, never a second phase word or the thinking label', keys(reconnect) === 'phase,timer,tokens' && reconnect.ordered[0]!.text === 'no tokens for 2 min · reconnecting (1 of 3)', `${keys(reconnect)} ${reconnect.ordered.map(s => s.text).join(' | ')}`)
-  check('the count is the live counter\'s own words', hudTokensText({ liveWords: words(4000, 'responding', 0) }) === '↓ ~1k tokens', String(hudTokensText({ liveWords: words(4000, 'responding', 0) })))
-}
-section('§5 the plan is pure: the same facts give the same plan, and no input is mutated')
-{
-  const f = facts({ ctxPct: 37, activeToolCount: 2, otps: 5 })
+  check('a still row shows no metadata', !planSpinnerHud(facts({ still: true, suffixText: 'hook: lint' }), oneLine).segBVisible)
+  const suffix = planSpinnerHud(facts({ mode: 'tool-use', suffixText: 'hook: lint', effectiveElapsedMs: 0, liveWords: words(0, 'tool-use', 0) }), oneLine)
+  check('an actionable hook suffix still stands', suffix.segBVisible && suffix.ordered.length === 0, keys(suffix))
+  check('the wire total loses the estimate marker', hudTokensText({ liveWords: words(4000, 'responding', 0, 1200) }) === '↓ 1.2k')
+  const f = facts({ otps: 5 })
   const before = JSON.stringify(f)
-  const a = planSpinnerHud(f, oneLine)
-  const b = planSpinnerHud(f, oneLine)
-  check('two calls on the same facts agree cell for cell', JSON.stringify(a) === JSON.stringify(b))
-  check('the facts are untouched', JSON.stringify(f) === before)
+  check('the plan stays deterministic', JSON.stringify(planSpinnerHud(f, oneLine)) === JSON.stringify(planSpinnerHud(f, oneLine)))
+  check('the plan never mutates its facts', JSON.stringify(f) === before)
 }
-
-console.log(`\n${failures === 0 ? '✅' : '❌'} SPINNER-HUD-PLAN ${failures === 0 ? 'GREEN' : 'RED'} — ${checks - failures}/${checks} checks`)
+rmSync(HOME, { recursive: true, force: true })
+console.log(`SPINNER-HUD-PLAN: ${checks - failures}/${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

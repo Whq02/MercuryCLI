@@ -23,6 +23,7 @@
 # gate-watch: scripts/host/prove-host-wheel-drive.ts src/components/ScrollKeybindingHandler.tsx src/context/overlayContext.tsx src/context/overlayStack.ts src/ink/**
 # gate-watch: scripts/host/measure-recipe.ts scripts/host/prove-measure-recipe.ts scripts/host/prove-frontier-roster.ts src/services/providers/zai/zaiCodec.ts src/utils/envUtils.ts
 # gate-watch: scripts/lib/hermetic.ts vendor/** vendor/node.lock.json
+# gate-watch: .github/workflows/engine-image.yml assets/host/llamacpp-engine.json scripts/lib/generated-assets-map.mjs
 set -euo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -101,4 +102,8 @@ bun "$ROOT/scripts/host/prove-llamacpp-engine-upkeep.ts"
 bun "$ROOT/scripts/host/prove-host-model-trust-drive.ts"
 bun "$ROOT/scripts/host/prove-host-upload-confirm-drive.ts"
 bun "$ROOT/scripts/host/prove-host-volume-read-drive.ts"
+bun "$ROOT/scripts/host/prove-llmhost-first-screen.ts"
+bun "$ROOT/scripts/host/prove-host-plain-words-drive.ts"
+bun "$ROOT/scripts/host/prove-weights-source.ts"
+bun "$ROOT/scripts/host/prove-bank-rail-hint-drive.ts"
 exec bun "$ROOT/scripts/host/prove-host-job-drive.ts" --bundle "$ROOT/dist/mercury.mjs"

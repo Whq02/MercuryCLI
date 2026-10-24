@@ -34,7 +34,7 @@ const flag = (recipe: HostRecipe, name: string): string | undefined => { const a
 
 export function qualityWords(recipe: HostRecipe): string {
   const variant = recipe.label.split(' · ').slice(1).join(' · ').replace(/^found on Hugging Face · not booted by Mercury · /, '').replace(/^(?:GGUF|safetensors) /, '')
-  const table: [RegExp, string][] = [[/^(?:UD-)?Q4(?:_|$)/i, 'Balanced · 4-bit (recommended)'], [/^FP8$/i, 'Best quality · 8-bit FP8'], [/^NVFP4$/i, 'Fast crew · NVFP4']]
+  const table: [RegExp, string][] = [[/^(?:UD-)?Q4(?:_|$)/i, 'Balanced · 4-bit'], [/^FP8$/i, 'Best quality · 8-bit FP8'], [/^NVFP4$/i, 'Fast crew · NVFP4']]
   return table.find(([pattern]) => pattern.test(variant))?.[1] ?? (variant || recipe.label)
 }
 
@@ -52,7 +52,7 @@ export function defaultTune(recipe: HostRecipe): HostTunePreferences {
 }
 
 function tuneSummary(prefs: HostTunePreferences, recipe: HostRecipe): string {
-  return (prefs.conversations ?? 'engine default') + ' × ' + (prefs.contextPerConversation ? tokens(prefs.contextPerConversation) : 'context unknown') + ' · ' + qualityWords(recipe).replace(' (recommended)', '') + ' · ' + prefs.effort
+  return (prefs.contextPerConversation ? (prefs.conversations ? prefs.conversations + ' × ' : '') + tokens(prefs.contextPerConversation) : 'engine default') + ' · ' + qualityWords(recipe) + ' · ' + prefs.effort
 }
 
 export function readTunePreferences(modelTitle: string): HostTunePreferences | undefined {
@@ -98,9 +98,7 @@ export function tuneBudget(recipe: HostRecipe, gpuMemoryGb: number, count: numbe
     ? Math.max(0, Math.floor((share * gpuMemoryGb - weightsGb! / recipe.count - stateGb(defaults.conversations)) * 1e9 / kv!.bytes))
     : Math.max(0, Math.floor(((gpuMemoryGb - ENGINE_ALLOWANCE_GB) * count - weightsGb! - stateGb(defaults.conversations)) * 1e9 / kv!.bytes))
   const memory = count + '× ' + recipe.gpu + ' · ' + gpuMemoryGb + ' GB/GPU'
-  const words = !known ? memory + ' · ' + (weightsGb === undefined ? 'weights size unknown' : 'context memory unknown') + ' — Mercury cannot promise what fits'
-    : share !== undefined ? memory + ' · weights ' + gb(weightsGb!) + ' GB (' + gb(weightsGb! / recipe.count) + ' GB per card) · ' + gb(allowanceGb) + ' GB/GPU kept free for the engine’s prefill work (' + Math.round((1 - share) * 100) + '% of each card)'
-    : memory + ' · weights ' + gb(weightsGb!) + ' GB · ' + ENGINE_ALLOWANCE_GB + ' GB/GPU engine allowance'
+  const words = memory + (weightsGb === undefined ? '' : ' · weights ' + gb(weightsGb) + ' GB')
   const splits: Array<[number | null, number | null]> = known && recipe.engine === 'llamacpp'
     ? [[1, 1048576], [2, 524288], [4, 262144], [4, 131072], [8, 65536], [8, 131072], [4, 524288], [8, 1048576]] : [[defaults.conversations, defaults.contextPerConversation]]
   if (!splits.some(([n, ctx]) => n === defaults.conversations && ctx === defaults.contextPerConversation)) splits.push([defaults.conversations, defaults.contextPerConversation])
@@ -115,10 +113,9 @@ export function tuneBudget(recipe: HostRecipe, gpuMemoryGb: number, count: numbe
     const measured = known && recipe.verified.by === 'measured' && gpuMemoryGb >= recipe.vramGb && count >= recipe.count && conversations !== null && defaults.conversations !== null && conversations <= defaults.conversations && totalTokens !== undefined && measuredTotal !== undefined && totalTokens <= measuredTotal
     const fits = !known || measured || needsCount !== undefined && needsCount <= count
     const offer = offers.filter(row => row.recipe.id === recipe.id && row.recipe.count >= (needsCount ?? count)).sort((a, b) => a.price - b.price)[0]
-    const split = (conversations ?? 'engine default') + ' × ' + (contextPerConversation ? tokens(contextPerConversation) : 'context unknown')
-    const verdict = !known ? 'recipe default only' + (!conversations || !contextPerConversation ? ' · limit not documented for this recipe' : '') : measured ? 'measured to fit' : fits ? 'should fit (estimate)' : needsCount === Infinity ? 'over this shape’s budget (estimate)' : 'needs ' + needsCount + '× ' + recipe.gpu + ' (estimate)'
-    const use = conversations === 4 && contextPerConversation === 131072 ? ' · lead + 3 crew (recommended)' : conversations === 1 ? ' · one long session' : ''
-    return { conversations, contextPerConversation, totalTokens, requiredGb, needsCount, fits, measured, offer, label: split + ' — ' + verdict + (offer ? ' · ' + rate(offer.price) : '') + use }
+    const split = contextPerConversation ? (conversations ? conversations + ' × ' : '') + tokens(contextPerConversation) : 'engine default'
+    const verdict = !known || fits ? '' : needsCount === Infinity ? ' · choose a larger shape' : ' · needs ' + needsCount + '× ' + recipe.gpu
+    return { conversations, contextPerConversation, totalTokens, requiredGb, needsCount, fits, measured, offer, label: split + verdict + (offer ? ' · ' + rate(offer.price) : '') }
   })
   return { weightsGb, kvBytesPerToken: known ? kv!.bytes : undefined, totalTokens: capacity, words, candidates }
 }
@@ -150,10 +147,10 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   let recipe = recipes.find(row => row.id === saved?.quality) ?? recipes[0]!
   const question: Ask = plan => signal.aborted ? Promise.resolve(null) : ask(plan)
   const summary = (row: HostRecipe): string => tuneBudget(row, row.vramGb, row.count, options.offers).words
-  const quality = await question({ step: 'tune-quality', title: 'QUALITY · ' + modelTitle, found: summary(recipe), willRun: pod ? 'Different quality applies at the next rental · no download now · esc closes' : 'Choose weights · no changes until Confirm · esc closes', initial: recipe.id, rows: recipes.map(row => {
+  const quality = await question({ step: 'tune-quality', title: 'QUALITY · ' + modelTitle, found: summary(recipe), willRun: pod ? 'Different quality applies at the next rental.' : '', initial: recipe.id, rows: recipes.map(row => {
     const cheapest = options.offers?.filter(offer => offer.recipe.id === row.id).sort((a, b) => a.price - b.price)[0]
     const context = defaultTune(row).contextPerConversation
-    return { value: row.id, label: qualityWords(row) + ' · ' + row.verified.by + ' · ' + row.count + '× ' + row.gpu + (cheapest ? ' · from ' + rate(cheapest.price) : ' · price unavailable') + (context ? ' · ' + tokens(context) + '/conversation' : ' · context unknown') }
+    return { value: row.id, label: qualityWords(row) + ' · ' + row.count + '× ' + row.gpu + (cheapest ? ' · from ' + rate(cheapest.price) : '') + (context ? ' · ' + tokens(context) + '/conversation' : '') }
   }) })
   if (!quality) return
   recipe = recipes.find(row => row.id === quality)!
@@ -164,12 +161,12 @@ export async function runTune(modelTitle: string, options: { recipes: readonly H
   const memory = hardware ? Math.min(...hardware.gpus.map(gpu => gpu.memory)) : recipe.vramGb
   const budget = tuneBudget(recipe, memory, count, options.offers)
   const initial = budget.candidates.findIndex(row => row.conversations === previous.conversations && row.contextPerConversation === previous.contextPerConversation)
-  const choice = await question({ step: 'tune-context', title: 'CONVERSATIONS × CONTEXT', found: budget.words, willRun: (budget.totalTokens === undefined ? (!previous.conversations || !previous.contextPerConversation ? 'limit not documented for this recipe' : recipe.verification) : budget.totalTokens < 1024 ? 'no room for context beside the weights' : 'room for about ' + about(budget.totalTokens) + ' tokens in all, up to ' + tokens(recipe.kvBytesPerToken!.maxContext) + ' each') + ' · esc closes', initial: String(Math.max(0, initial)), rows: budget.candidates.map((row, index) => ({ value: String(index), label: row.label })) })
+  const choice = await question({ step: 'tune-context', title: 'CONVERSATIONS × CONTEXT', found: budget.words, willRun: budget.totalTokens === undefined ? '' : budget.totalTokens < 1024 ? 'No room for context beside the weights.' : '~' + about(budget.totalTokens) + ' tokens total · up to ' + tokens(recipe.kvBytesPerToken!.maxContext) + ' each', initial: String(Math.max(0, initial)), rows: budget.candidates.map((row, index) => ({ value: String(index), label: row.label })) })
   if (choice === null) return
   const candidate = budget.candidates[Number(choice)]
   if (!candidate || !candidate.fits) { emit({ title: 'Tune', words: candidate?.label ?? words.inputError }); return }
   const levels = thinkingLevels(recipe)
-  const effort = await question({ step: 'tune-thinking', title: 'THINKING · change any time with /effort', found: budget.words, willRun: recipe.verification + ' · esc closes', initial: levels.length ? (levels.includes(previous.effort) ? previous.effort : levels[0]) : 'default', rows: levels.length ? levels.map(value => ({ value, label: value + (value === levels[0] ? ' (recommended)' : '') })) : [{ value: 'default', label: recipe.efforts?.levels.length === 0 ? 'default · this model has no named thinking levels' : 'default · /effort changes it per request' }] })
+  const effort = await question({ step: 'tune-thinking', title: 'THINKING · /effort', found: '', willRun: '', initial: levels.length ? (levels.includes(previous.effort) ? previous.effort : levels[0]) : 'default', rows: levels.length ? levels.map(value => ({ value, label: value })) : [{ value: 'default', label: 'default' }] })
   if (!effort) return
   if (!(levels.length ? levels : ['default']).includes(effort as HostTunePreferences['effort'])) throw new Error(words.inputError)
   const prefs = preferenceSchema.parse({ quality, conversations: candidate.conversations, contextPerConversation: candidate.contextPerConversation, effort, updatedAt: new Date().toISOString() })
@@ -202,7 +199,7 @@ export async function confirmTunedRental(initial: HostOffer, offers: readonly Ho
     const recipe = offer.recipe
     const context = prefs.contextPerConversation
     const decor = decorate ? await decorate(offer) : {}
-    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm + (decor.titleSuffix ?? ''), found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || recipe.verified.by + ' · ' + recipe.verification + ' · ' + (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.'), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(decor.rows ?? []), ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
+    const confirm = await ask({ step: 'rent-confirm', ...(decor.lines ? { lines: decor.lines } : {}), title: words.rentalConfirm, found: recipe.label + ' · ' + hostShape(recipe) + ' · ' + rate(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + (offer.hostingType ? ' · ' + offer.hostingType : '') + (budget ? ' · ~' + (budget / offer.price).toFixed(1) + 'h for $' + budget : ''), willRun: refusal || (decor.willRun ?? (context ? context.toLocaleString('en-US') + ' context · ' : '') + recipe.diskGb + ' GB disk (extra). Billing starts now.'), rows: [{ value: 'tune', label: 'Tune: ' + tuneSummary(prefs, recipe) + ' — change' }, ...(decor.rows ?? []), ...(refusal ? [] : [{ value: 'rent', label: decor.confirmLabel ?? 'Confirm ' + rate(offer.price) + ' + storage · create this pod' }]), { value: 'cancel', label: words.cancel }] })
     if (signal.aborted) return
     if (confirm === 'tune') { await runTune(title, { recipes: [recipe, ...currentHostRecipes().filter(row => row.id !== recipe.id)], offers, signal }, ask, emit); continue }
     if (confirm && decor.rows?.some(row => row.value === confirm)) { await decor.choose?.(confirm); if (signal.aborted) return; continue }

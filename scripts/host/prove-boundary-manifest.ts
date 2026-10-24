@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
+import { boxScriptText } from './bankDownloadFixture.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -29,7 +30,7 @@ if (childMode) {
   await runHostJob(bank.id, bank.generation!, {
     pauseMs: 5,
     runner: {
-      async run(_command, args) { downloadScript = args.join(' '); return '' },
+      async run(command, args) { downloadScript = boxScriptText(command, args); return '' },
       tunnel() { throw new Error('a Bank job must not open a tunnel') },
     },
   })
@@ -68,7 +69,8 @@ if (childMode) {
   try {
     const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
     const { queueHostSetup, queueHostWatch, queueHostBank } = await import('../../src/services/host/jobs.ts')
-    const { bankModelFolder, readBankRegistry } = await import('../../src/services/host/bank.ts')
+    const { bankDownloadScript, bankModelFolder, readBankRegistry } = await import('../../src/services/host/bank.ts')
+    const { runBoxScript } = await import('../../src/services/host/boxExecution.ts')
     const bytes = Buffer.from('trusted model bytes')
     const recipe = { ...HOST_RECIPES[0]!, id: 'manifest-private', label: 'Private manifest model', model: 'Fixture/Manifest', weightsGb: bytes.length / 1e9, include: '*.gguf', weightFile: 'model.gguf', mmproj: undefined }
     const manifest = { model: recipe.model, include: recipe.include, revision: 'a'.repeat(40), files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
@@ -88,7 +90,10 @@ if (childMode) {
       check(row.kind + ' job retains the exact manifest when its private-file environment is absent', isDeepStrictEqual(row.manifest, manifest))
       check(row.kind + ' worker retains the immutable download revision and exact file list', row.plan.revision === manifest.revision && isDeepStrictEqual(row.plan.include, ['model.gguf']))
     }
-    check('the spawned Bank worker sends the saved revision to the downloader', result.downloadScript.includes(manifest.revision))
+    check('the spawned Bank worker sends the saved revision to the downloader', result.downloadScript.includes("--revision '" + manifest.revision + "'"))
+    let windowsCall: { command: string; args: string[] } | undefined
+    await runBoxScript({ os: 'windows', target: undefined }, bankDownloadScript(recipe, path, true), { async run(command, args) { windowsCall = { command, args }; return '' }, tunnel() { throw new Error('a Bank job must not open a tunnel') } }, new AbortController().signal)
+    check('the Windows Bank road carries the saved revision inside its encoded PowerShell command', windowsCall?.command === 'powershell.exe' && windowsCall.args[2] === '-EncodedCommand' && boxScriptText(windowsCall.command, windowsCall.args).includes("--revision '" + manifest.revision + "'"))
     check('the actual Bank seal verifies good bytes against trusted hashes rather than against itself', readBankRegistry().models[recipe.model + '\n' + recipe.include]?.check === 'manifest' || Object.values(readBankRegistry().models).some(row => row.path === path && row.check === 'manifest'))
     writeFileSync(join(path, 'model.gguf'), Buffer.alloc(bytes.length, 120))
     queueHostBank(record('bank'))

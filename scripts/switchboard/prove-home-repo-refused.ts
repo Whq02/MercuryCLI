@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
 import { waitForRow } from './lib/waitForRow.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'home-repo-refused-')))
@@ -181,7 +182,7 @@ console.log('\nR7 non-recreation — a home repository removed by the operator i
   g('init', '-q')
   g('commit', '-q', '--allow-empty', '-m', wt.FORK_BASE_COMMIT_SUBJECT)
   check('the fixture home is a repository (the shape the box had)', existsSync(join(HOME_FX, '.git')))
-  rmSync(join(HOME_FX, '.git'), { recursive: true, force: true })
+  removeScratch(join(HOME_FX, '.git'))
   check('… removed', !existsSync(join(HOME_FX, '.git')))
   const minted = asks.mintGitInitAsk(HOME_FX)
   const init = wt.initGitRepository(HOME_FX)
@@ -192,6 +193,6 @@ console.log('\nR7 non-recreation — a home repository removed by the operator i
   check('the home has no .git again', !existsSync(join(HOME_FX, '.git')))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-home-repo-refused: ALL LAWS HOLD' : `\nprove-home-repo-refused: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

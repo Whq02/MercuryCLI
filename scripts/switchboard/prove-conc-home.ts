@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -23,6 +23,7 @@ const { buildConcourseSnapshot, writeConcourseSeedOverride } = await import('../
 const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')
@@ -180,9 +181,9 @@ console.log('§4 — THE NEVER-AGAIN INVARIANT: no board classes one folder\'s r
   check('THE WALK-UP ARM: an ordinary subdir\'s session is a BOARD ROW of the enclosing project (one law on every surface — the picker/board split is retired)', flat.some(r => r.sessionId === sid('a5')) && !(snap.elsewhere ?? []).some(p => oracle(p.dir) === oracle(SUB)), flat.map(r => r.sessionId.slice(-2)).join(','))
   check('THE CARVE: a subdir that is ITSELF a cataloged ground stays legally elsewhere (nearest root wins — its sessions are its own)', !flat.some(r => r.sessionId === sid('a8')) && (snap.elsewhere ?? []).some(p => oracle(p.dir) === oracle(CARVED)))
   check('POSITIVE CONTROL: a different real folder wearing the SAME leaf name is legally elsewhere (two projects may share a name)', (snap.elsewhere ?? []).some(p => oracle(p.dir) === oracle(SAME_NAME)) && oracle(SAME_NAME) !== currentOracle)
-  rmSync(SCRATCH2, { recursive: true, force: true })
+  removeScratch(SCRATCH2)
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\n ✅ ALL CONC-HOME PROOFS PASS' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -244,7 +244,7 @@ export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
   if (parkedByOperator !== null) return parkedByOperator.gate
   if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
   if (!facts.running && facts.paused !== null) return pauseStatusWords(facts.paused, nowMs)
-  return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
+  return crewStateLabel(facts)
 }
 
 export function crewParkedAsks<T extends ParkedAskFacts>(facts: Pick<CrewAgentFacts, 'id' | 'running'>, asks: readonly T[]): T[] {

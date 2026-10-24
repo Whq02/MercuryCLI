@@ -293,7 +293,7 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
-import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
+import { getAllBaseTools, getTools, mcpToolPartition, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
 import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
 import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
@@ -1069,10 +1069,7 @@ export async function runHeadless(
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
   const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? initializeJsonSchema ?? options.jsonSchema
   const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
-    const mcpPartition = filterToolsByDenyRules(
-      state.mcp.tools as Tool[],
-      state.toolPermissionContext,
-    ).filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked')
+    const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
     const pool: Tool[] = [
       ...getTools(state.toolPermissionContext),
       ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),

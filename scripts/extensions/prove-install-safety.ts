@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-safety-'))
 const home = join(scratch, 'home')
@@ -126,6 +127,6 @@ console.log('[3] update: the same pair refuses; the running version is untouched
   check('the running goodc 1.0.0 stays', existsSync(cDir) && existsSync(join(cDir, 'mercury-extension.json')))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ INSTALL SAFETY — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

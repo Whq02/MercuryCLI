@@ -518,7 +518,7 @@ export function hostRecipeVerificationWord(recipe: HostRecipe): HostRecipeVerifi
 }
 
 export function formatHostOfferLabel(recipe: HostRecipe, detail: string): string {
-  return `${recipe.label} · ${detail} · ${recipe.verified.by}`
+  return `${recipe.label} · ${detail}`
 }
 
 export function recipeFits(recipe: HostRecipe, name: string, memoryGb: number, count: number, nodes = 1): boolean {

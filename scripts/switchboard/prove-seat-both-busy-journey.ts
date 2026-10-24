@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -227,7 +228,7 @@ try {
   daemon?.kill('SIGTERM')
   await api.close()
   if (process.env.SWITCH_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? `\nprove-seat-both-busy-journey (${COLS}x${ROWS}): ALL LAWS HOLD` : `\nprove-seat-both-busy-journey (${COLS}x${ROWS}): ${failures} FAILURE(S)`)

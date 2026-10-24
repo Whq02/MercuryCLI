@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -148,7 +149,7 @@ section('§4 — the contract: leave it out, never upgrade, ask when it matters'
 }
 
 try {
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 } catch {
 }
 console.log(

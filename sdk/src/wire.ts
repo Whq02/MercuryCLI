@@ -292,6 +292,8 @@ export type SessionFactsResult = {
     capture: boolean
     source?: 'seat' | 'interactive' | 'initialize' | 'setting' | 'headless'
     restorable: string[]
+    files?: string[]
+    undo?: string
   }
   stream_idle_timeout_ms?: number
   spawn_switches?: {
@@ -454,6 +456,16 @@ export interface MethodParams {
   "session/rewind": {
   user_message_id: string
   mode: 'code' | 'conversation' | 'both'
+  dry_run?: boolean
+}
+  "session/file_restore": {
+  action: 'restore'
+  user_message_id: string
+  file_path: string
+  dry_run?: boolean
+} | {
+  action: 'undo'
+  user_message_id: string
   dry_run?: boolean
 }
   "session/pause_gate": {
@@ -656,6 +668,7 @@ export interface MethodResults {
   errors: Record<string, string>
 }
   "session/rewind": SessionRewindResult
+  "session/file_restore": Record<string, unknown>
   "session/pause_gate": {
   paused: boolean
   parked: number
@@ -795,7 +808,7 @@ export interface MethodResults {
 export type MethodName = keyof MethodParams
 export type ParamsOf<M extends MethodName> = MethodParams[M]
 export type ResultOf<M extends MethodName> = MethodResults[M]
-export type HostRequestName = "initialize" | "session/claim" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "schedule/roster"
+export type HostRequestName = "initialize" | "session/claim" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "schedule/roster"
 export type HostNotificationName = "credentials/changed" | "$/cancel_request"
 export type RunnerRequestName = "schedule/edit" | "permission/request" | "elicitation/request" | "fs/read_text_file" | "fs/write_text_file" | "terminal/create" | "terminal/output" | "terminal/wait_for_exit" | "terminal/kill" | "terminal/release"
 export type RunnerNotificationName = "$/cancel_request" | "row" | "session/applied" | "elicitation/complete"
@@ -1377,6 +1390,66 @@ export const METHODS: Record<MethodName, MethodSchema> = {
       "required": [
         "user_message_id",
         "mode"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "session/file_restore": {
+    "from": "host",
+    "kind": "request",
+    "scope": "session",
+    "deadlineMs": 30000,
+    "params": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "restore"
+            },
+            "user_message_id": {
+              "type": "string"
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dry_run": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "user_message_id",
+            "file_path"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "undo"
+            },
+            "user_message_id": {
+              "type": "string"
+            },
+            "dry_run": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "user_message_id"
+          ]
+        }
       ]
     },
     "result": {

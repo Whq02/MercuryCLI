@@ -56,7 +56,7 @@ const h = React.createElement
 
 const TITLE = 'Mercury · health'
 const COMPOSER = 'Type a prompt'
-const VERDICT = /(CERTIFIED|CAUTION|FAULT)/
+const VERDICT = /(OK|ATTENTION|FAILED)/
 const DOWN = '\x1b[B'
 const UP = '\x1b[A'
 const LEFT = '\x1b[D'
@@ -69,7 +69,7 @@ const ENTER = '\r'
 const ESC = '\x1b'
 const CLICK_OUTSIDE = '\x1b[<0;3;3M\x1b[<0;3;3m'
 const SIZES: Array<[number, number]> = [[178, 51], [80, 24], [100, 30], [64, 20]]
-const LEGEND = 'every claim names its evidence'
+const LEGEND = '↵ details'
 const DESTRUCTIVE = 'DESTRUCTIVE — this discards state'
 const FIX_KEY = 'f'
 const DEEP_KEY = 'd'
@@ -250,10 +250,7 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window))
   check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!))
   const expected = certificate.healthPopupLayout(window.height, 0, 1000)
-  const legendRow = window.rows.map(inner).find(row => row.startsWith(LEGEND))
-  const legendFloor = certificate.HEALTH_POPUP_LEGEND_MIN_ROWS
-  check(`${label}: the provenance legend ${window.height >= legendFloor ? `is painted (the popup has ${legendFloor} rows or more)` : `is absent (the popup has fewer than ${legendFloor} rows: the first line shed)`}`, (legendRow !== undefined) === (window.height >= legendFloor && !expected.compact), legendRow ?? '(no legend row)')
-  if (legendRow !== undefined) check(`${label}: the legend sits right above the footer, under the rows`, window.rows.map(inner).indexOf(legendRow) === window.height - 3, String(window.rows.map(inner).indexOf(legendRow)))
+  check(`${label}: no provenance lecture or duplicate detail hint`, !window.rows.some(row => row.includes('every claim names its evidence') || inner(row) === LEGEND))
   const countsRow = window.rows.map(inner).find(row => /^\d+ checks/.test(row))
   check(`${label}: the ${expected.compact ? 'compact' : 'full'} chrome (${window.height} rows: ${expected.compact ? 'the provenance and counts lines yield to the rows' : 'provenance line, counts line, a blank, then the rows'})`, (countsRow !== undefined) === !expected.compact, countsRow ?? '(no counts row)')
   const footer = inner(window.rows[window.height - 2]!)

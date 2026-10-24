@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -182,7 +183,7 @@ try {
   }
 } finally {
   blackHole.kill('SIGKILL')
-  rmSync(SCRATCH, { recursive: true, force: true })
+  removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? 'CLI VERBS EXIT LAWS HOLD' : `${failures} FAILURE(S)`)

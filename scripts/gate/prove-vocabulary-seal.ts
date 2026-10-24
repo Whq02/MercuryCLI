@@ -213,6 +213,8 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/daemon/runnerScript.ts', 'run-short', 'POSIX process inspection (ps -p reads the runner command line)'],
   ['src/services/host/ssh.ts', 'run-short', "ssh's port flag"],
   ['src/services/host/vendors/lambda.ts', 'run-short', "mkdir -p in the vendor's cloud-init runcmd"],
+  ['src/services/host/vendors/verda.ts', 'run-short', "mkdir -p in the vendor's startup script"],
+  ['src/extensions/bundled/', 'run-short', 'POSIX process inspection in the Craft adapters (ps -p, lsof -p); the generated payload mirrors them'],
   ['scripts/interview/baselines/', 'enter-glyph', 'frozen journey capture records keep their recorded bytes by design'],
   ['scripts/visual-contract/baselines/', 'enter-glyph', 'frozen capture records of earlier screens — diff anchors, deliberately never regenerated'],
   ['assets/vulcan/', 'words', "Godot's editor addon API (EditorPlugin, plugin.cfg, plugin.gd) — the engine's own vocabulary"],

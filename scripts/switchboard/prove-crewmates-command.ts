@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-crewmates-command-')))
 const HOME = join(SCRATCH, 'home')
@@ -68,6 +69,6 @@ for (const [label, text] of doors) {
   check(`${label} says /crewmates and never /teammates`, text.includes('/crewmates') && !text.includes('/teammates'), text)
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(`\nprove-crewmates-command: ${failures === 0 ? 'green' : `${failures} failed`}`)
 process.exit(failures === 0 ? 0 : 1)

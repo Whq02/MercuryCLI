@@ -47,9 +47,9 @@ try {
   ssh.state.log += 'engine still serving requests\nlast request finished\n'
   down = true; closeHostTunnel(first.pod.id); await first.job
   const paused = readHostRecord(first.pod.id)!
-  const posted = notices(first.pod.id).filter(words => !words.includes('is ready'))
+  const posted = notices(first.pod.id).filter(words => !words.includes('ready · /model'))
   check('B: a lost ready tunnel pauses with no terminate and the machine still running', paused.jobState === 'paused' && paused.status === 'RUNNING' && rp.state.deletes === 0 && rp.state.pods.has(first.pod.id), JSON.stringify(paused))
-  check('B: one pause names the machine, five reconnects, rate and actions', posted.length === 1 && posted[0]!.includes('<status>stopped') && posted[0]!.includes('Runpod pod ' + first.pod.id) && posted[0]!.includes('5 reconnects') && posted[0]!.includes('stays up and bills $' + first.pod.cost.toFixed(2) + '/hr while paused') && posted[0]!.includes('Resume reconnects, Terminate stops the bill'), posted.join('\n'))
+  check('B: one pause names the machine, five reconnects, rate and actions', posted.length === 1 && posted[0]!.includes('<status>stopped') && posted[0]!.includes('Runpod pod ' + first.pod.id) && posted[0]!.includes('5 reconnects') && posted[0]!.includes('$' + first.pod.cost.toFixed(2) + '/hr still billing') && posted[0]!.includes('Resume or Terminate in /llmhost'), posted.join('\n'))
   check('B: the pause detail carries the last engine lines from the pre-reconnect read', posted[0]?.includes('Last engine lines:\nengine still serving requests\nlast request finished') && !posted[0]?.includes('engine log unread'), posted.join('\n'))
   if (posted[0]) await captureHostNotice(posted[0], 'link-pause-engine-tail')
   const before = ssh.commands.length

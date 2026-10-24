@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { cp, lstat, mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { zipSync, strToU8 } from 'fflate'
 import { z } from 'zod'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }
 const root = resolve(import.meta.dir, '../..')
@@ -128,7 +129,13 @@ try {
     try {
       const tools = await client.listTools()
       assert.deepEqual(tools.tools.map(t => t.name), ['craft_status', 'craft_install', 'craft_connect'])
+      const connect = tools.tools.find(t => t.name === 'craft_connect')!
+      assert.deepEqual((connect.inputSchema.properties!.mode as { enum: string[] }).enum, ['attach', 'launch', 'headless'])
+      assert(!tools.tools.find(t => t.name === 'craft_install')!.description!.includes('bytes'))
       const status = await client.callTool({ name: 'craft_status', arguments: {} }); assert(!status.isError)
+      const { adapter: film } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
+      const plan = shared.planInstall(film, { dataDir: missingData })
+      assert.deepEqual(JSON.parse((status.content as Array<{ text: string }>)[0]!.text), { app: film.title, version: film.version, state: 'absent', destination: plan.destination, bytes: plan.bytes })
       assert(await absent(missingData))
       const denied = await client.callTool({ name: 'craft_install', arguments: {} }); assert(denied.isError)
       assert(await absent(missingData))
@@ -152,4 +159,4 @@ try {
     } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
   })
   console.log(`Craft shared: ${passed} checks passed`)
-} finally { await rm(temp, { recursive: true, force: true }) }
+} finally { removeScratch(temp) }

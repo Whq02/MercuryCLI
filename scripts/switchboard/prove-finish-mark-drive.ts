@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-finishmark-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -408,7 +409,7 @@ if (failures > 0) {
   if (existsSync(daemonLog)) console.log(`\n── daemon log tail ──\n${readFileSync(daemonLog, 'utf8').slice(-1500)}`)
 }
 reapHome(home)
-if (failures === 0) rmSync(SCRATCH, { recursive: true, force: true })
+if (failures === 0) removeScratch(SCRATCH)
 else console.log(`scratch kept at ${SCRATCH}`)
 console.log(failures === 0 ? '\nprove-finish-mark-drive: ALL LAWS HOLD' : `\nprove-finish-mark-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

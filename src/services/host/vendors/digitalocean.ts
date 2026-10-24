@@ -8,8 +8,8 @@ import { VendorApi, HostCreateError, HostVendorHttpError, HostVendorShapeError, 
 import { sortVmOffers, validateVmCreate, verifyVmAbsent, vmKeyName, VmPlacements } from './vm.js'
 
 const BASE = 'https://api.digitalocean.com/v2'
-export const DIGITALOCEAN_STORAGE_NOTICE = '/workspace uses included local disk; termination deletes it. Compute bills per second, five-minute minimum, even while powered off. Mercury creates no separate volume. Initial new-account quotas are not published; check the console.'
-export const DIGITALOCEAN_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to your DigitalOcean account as mercury-host- plus its fingerprint. Only new instances selected with that key receive it. Remove the key in the console when finished.'
+export const DIGITALOCEAN_STORAGE_NOTICE = 'Local disk included; Terminate deletes it. Compute bills per second, five-minute minimum, even while powered off.'
+export const DIGITALOCEAN_KEY_NOTICE = 'Adds an SSH key to your DigitalOcean account for new rentals. Remove it in the console when finished.'
 const idSchema = z.number().int().positive()
 const units = z.object({ amount: z.number().nonnegative(), unit: z.string() })
 const sizeSchema = z.object({

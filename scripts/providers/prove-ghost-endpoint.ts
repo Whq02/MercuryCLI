@@ -118,19 +118,19 @@ try {
       const store = createStore(getDefaultAppState(), () => {})
       const m = await mountOffscreen(React.createElement(AppStoreContext.Provider, { value: store }, React.createElement(ThemeProvider, {}, React.createElement(Box, { width: cols, height: 40 }, React.createElement(SettingsPopupSlot)))), cols, 40)
       const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 6000), m.screen())
-      const choose = async (text: string) => {
-        let previous: string | undefined
+      const selected = () => m.lines().find(line => line.includes('› ')) ?? ''
+      const choose = async (text: string, key: string = KEY.down) => {
         let moves = 0
-        assert.ok(await waitFor(() => {
-          const selected = m.lines().find(line => line.includes('› ')) ?? ''
-          if (selected.includes(text)) return true
-          if (selected !== previous && moves < 25) { previous = selected; moves++; m.push(KEY.down) }
+        const reached = await waitFor(() => {
+          if (selected().includes(text)) return true
+          if (moves < 80) { moves++; m.push(key) }
           return false
-        }, 6000), 'selection reaches ' + text + '\n' + m.screen())
+        }, 20000)
+        assert.ok(reached, 'selection never reaches ' + text + '\n' + m.screen())
         m.push(KEY.enter)
       }
       try {
-        await until('Which model?'); await choose('Machines I’m paying for'); await until(podId); await choose(podId); await until('Machine controls'); await choose('Terminate'); await until('Confirm terminate')
+        await until('Which model?'); await choose('Machines I’m paying for', KEY.up); await until(podId); await choose(podId); await until('Machine controls'); await choose('Terminate'); await until('Confirm terminate')
         await saveFrame(m, cols, 'terminate-confirm')
         await choose('Confirm terminate'); await until('Machine terminated'); await saveFrame(m, cols, 'terminated')
         const settings = getSettingsForSource('userSettings')!

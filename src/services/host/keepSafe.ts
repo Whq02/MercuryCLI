@@ -34,7 +34,7 @@ function bankCopyEstimate(bytes: number): string {
 }
 export function bankUploadEstimate(recipe: HostRecipe): string {
   const preference = bankUploadPreference(recipe)
-  return preference ? minutes(recipe.weightsGb * 1e9 / preference.bytesPerSecond) + ' at ' + (preference.bytesPerSecond * 8 / 1e6).toFixed(1) + ' Mbps (' + (preference.source === 'transfer' ? 'last transfer' : 'your measured upload speed') + ', ' + preference.measuredAt.slice(0, 10) + '); verification and engine loading are additional' : 'upload time not measured yet'
+  return preference ? '~' + minutes(recipe.weightsGb * 1e9 / preference.bytesPerSecond) + ' at ' + (preference.bytesPerSecond * 8 / 1e6).toFixed(1) + ' Mbps' : ''
 }
 export function bankUploadBudget(recipe: HostRecipe | undefined): number {
   if (!recipe) return 0

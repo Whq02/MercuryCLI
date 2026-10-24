@@ -8,12 +8,11 @@ import { checkGgufAgainstEngine, type GgufEngineCheck } from './ggufHeader.js'
 
 export const HF_SEARCH_PLACEHOLDER = 'model name — e.g. deepseek, qwen, glm'
 export const HF_SEARCH_LIMIT = 20
-export const HF_OFFLINE_WORDS = 'Hugging Face is unreachable · the verified list is shown'
-export const HF_PROOF_WORDS = 'Hugging Face search is off in this environment · the verified list is shown'
+export const HF_OFFLINE_WORDS = 'Hugging Face is unreachable'
+export const HF_PROOF_WORDS = 'Hugging Face search is off in this environment'
 export const HF_GATED_WORDS = 'gated · sign in with /logins huggingface'
 export const HF_RATE_LIMIT_WORDS = 'Hugging Face rate limit reached'
 export const HF_NOT_CHAT_WORDS = '— not a chat model'
-const HF_FOUND_WORDS = 'found on Hugging Face · not booted by Mercury'
 const HF_HUB = 'https://huggingface.co'
 const HF_TIMEOUT_MS = 5000
 const HF_SHAPES = [{ gpu: 'H100', vramGb: 80 }, { gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }, { gpu: 'B300', vramGb: 288 }] as const
@@ -225,12 +224,12 @@ export function hfRowLabel(model: HfModel, width = 0): string {
   const chat = hfModelChat(model)
   const head = model.id.padEnd(width)
   if (!chat.ok) return head + ' · ' + HF_NOT_CHAT_WORDS + ' (' + chat.reason + ') · ↓ ' + shortCount(model.downloads)
-  return [head, hfParamWords(model.params), HF_FOUND_WORDS, hfFormatWords(model), '↓ ' + shortCount(model.downloads), model.license ?? 'licence unknown', ...(model.gated ? ['gated'] : []), ...(model.private ? ['private'] : []), 'unverified'].join(' · ')
+  return [head, ...(model.params ? [hfParamWords(model.params)] : []), hfFormatWords(model), '↓ ' + shortCount(model.downloads), ...(model.license ? [model.license] : []), ...(model.gated ? ['gated'] : []), ...(model.private ? ['private'] : [])].join(' · ')
 }
 export function hfRecipeSourceWords(recipe: HostRecipe): string | undefined {
   if (recipe.verified.by !== 'unverified' || !recipe.id.startsWith('hf-') && !/derived from the repo/.test(recipe.verification + ' ' + (recipe.verified.note ?? ''))) return
   const format = recipe.label.split(' · ').slice(1).filter(word => word !== 'found on Hugging Face' && word !== 'not booted by Mercury').join(' · ')
-  return HF_FOUND_WORDS + (format ? ' · ' + format : '')
+  return format || 'Hugging Face'
 }
 const smallestShape = (needGb: number): { gpu: string; vramGb: number; count: number } | undefined => HF_SHAPES.flatMap(shape => HF_COUNTS.map(count => ({ ...shape, count }))).filter(shape => shape.vramGb * shape.count >= needGb).sort((a, b) => a.vramGb * a.count - b.vramGb * b.count || a.count - b.count)[0]
 const diskFor = (weightsGb: number): number => Math.max(50, Math.ceil((weightsGb * 1.25 + 40) / 50) * 50)
@@ -276,7 +275,7 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
     const first = paths.find(path => /-00001-of-\d{5}\.gguf$/i.test(path)) ?? paths[0]!
     const format = 'GGUF ' + gguf.quant
     const recipe: HostRecipe = {
-      id: 'hf-' + slug(model.id), label: model.id + ' · ' + HF_FOUND_WORDS + ' · ' + format, model: model.id, gpu: shape.gpu, count: shape.count, vramGb: shape.vramGb, diskGb: diskFor(weightsGb), weightsGb,
+      id: 'hf-' + slug(model.id), label: model.id + ' · ' + format, model: model.id, gpu: shape.gpu, count: shape.count, vramGb: shape.vramGb, diskGb: diskFor(weightsGb), weightsGb,
       engine: 'llamacpp', image: shipped.image, cuda: shipped.cuda, ...(shipped.imageSource ? { imageSource: shipped.imageSource } : {}), install: shipped.install!, source,
       verification: 'unverified · derived from the repo · llama.cpp (' + format + ') · not booted', verified,
       context: slot, contextPerSlot: slot,
@@ -299,7 +298,7 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
   const context = Number.isSafeInteger(maxPositions) && maxPositions > 0 ? maxPositions : undefined
   const format = hfFormatWords({ ...model, config: { ...model.config, ...config } })
   const recipe: HostRecipe = {
-    id: 'hf-' + slug(model.id), label: model.id + ' · ' + HF_FOUND_WORDS + ' · ' + format, model: model.id, gpu: shape.gpu, count: shape.count, vramGb: shape.vramGb, diskGb: diskFor(Math.max(weightsGb, repoBytes / 1e9)), weightsGb,
+    id: 'hf-' + slug(model.id), label: model.id + ' · ' + format, model: model.id, gpu: shape.gpu, count: shape.count, vramGb: shape.vramGb, diskGb: diskFor(Math.max(weightsGb, repoBytes / 1e9)), weightsGb,
     engine: 'vllm', image: 'vllm/vllm-openai:latest', cuda: '13.0', source,
     verification: 'unverified · derived from the repo · vLLM (' + format + ') · not booted', verified,
     ...(context ? { context, contextPerSlot: context } : {}),
@@ -318,12 +317,9 @@ function derivedHfRecipeOf(recipe: HostRecipe): DerivedHfRecipe | undefined {
 export function forgetDerivedHfRecipes(): void {
   derived.clear()
 }
-export function derivedRecipeWords(recipe: HostRecipe, now = Date.now()): string | undefined {
+export function derivedRecipeWords(recipe: HostRecipe, _now = Date.now()): string | undefined {
   const row = derivedHfRecipeOf(recipe)
-  if (!row) return undefined
-  const minutes = Math.floor((now - row.derivedAt) / 60_000)
-  const when = minutes < 1 ? 'a moment ago' : minutes + ' min ago'
-  return 'RECIPE · unverified — recipe derived from the repo’s config and file list ' + when + ' (engine ' + row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB); nobody has booted this exact recipe yet. ' + (row.engineCheck ? row.engineCheck + '. ' : '') + 'The price is confirmed before anything is rented; a pod that never answers is terminated automatically.'
+  return row ? row.engine + ' · ' + row.format + ' · ' + Math.round(row.weightsGb) + ' GB' : undefined
 }
 
 export async function pickHuggingFaceModel(model: HfModel, options: HfHubOptions & { fetchRepo?: (id: string, options: HfHubOptions) => Promise<HfRepoOutcome>; checkEngine?: HfEngineCheck } = {}): Promise<{ ok: true; row: DerivedHfRecipe } | { ok: false; words: string }> {

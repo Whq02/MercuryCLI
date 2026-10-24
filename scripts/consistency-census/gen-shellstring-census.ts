@@ -38,6 +38,7 @@ const walk = (dir: string): void => {
     if (!/\.(ts|tsx|mjs)$/.test(name)) continue
     const rel = relative(ROOT, full)
     if (rel.startsWith('scripts/consistency-census/gen-') || rel === 'scripts/consistency-census/prove-census-comment-invariance.ts') continue
+    if (rel === 'src/extensions/bundled/content.generated.ts') continue
     const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
     for (const text of lines) {
       const push = (mechanism: Hit['mechanism']): void => {
@@ -70,6 +71,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     test: f => f.startsWith('scripts/lib/git.ts'),
     cls: 'fixed-tool-argv',
     why: 'the typed executor itself',
+  },
+  {
+    test: (f, m) => m === 'exec-string' && (f.startsWith('src/extensions/bundled/') || /^scripts\/extensions\/prove-[^/]*-drive\.ts$/.test(f)),
+    cls: 'fixed-tool-argv',
+    why: 'exec here is promisify(execFile): a program and its argv array, no shell parses a line',
   },
   {
     test: (f, m) => f.startsWith('scripts/ui/') && (m === 'hardcoded-interpreter' || m === 'hardcoded-tmp'),

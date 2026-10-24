@@ -2,6 +2,7 @@
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-health-'))
 const home = join(scratch, 'home')
@@ -57,7 +58,7 @@ console.log('[1] broken: each probe with its reason')
   const root = installed.ok ? installed.root : ''
 
   const record = records.installedOrEmpty()[id]!
-  rmSync(root, { recursive: true, force: true })
+  removeScratch(root)
   let h = health.computeHealth(entryFor(id), {}, { probes })
   check('folder gone ⇒ broken with the path', h.health.outcome === 'broken' && h.health.reasons[0]!.includes('folder missing'), h.health.reasons.join('; '))
 
@@ -92,14 +93,14 @@ console.log('[1] broken: each probe with its reason')
     rosterMod.setActiveSnapshot(null)
     activeMod.publishActiveSet(null)
   }
-  rmSync(paths.getInstalledIdDir(id), { recursive: true, force: true })
+  removeScratch(paths.getInstalledIdDir(id))
   records.updateInstalled(current => { const next = { ...current }; delete next[id]; return next })
   const again = await install.installFromSource('fixture-source', 'kitchen-sink')
   check('reinstall repairs', again.ok && install.approve(id).ok)
 
   const scratchExt = (name: string, m: Record<string, unknown>): ReturnType<typeof health.computeHealth> => {
     const dir = join(scratch, `probe-${name}`)
-    rmSync(dir, { recursive: true, force: true })
+    removeScratch(dir)
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'mercury-extension.json'), JSON.stringify(m))
     const entry = {
@@ -201,6 +202,6 @@ console.log('[4] one owner: the row, /health and readiness derive from the same 
   check('/health fails naming the file', failRow.problems.length === 1 && failRow.problems[0]!.includes('installed.json'))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ HEALTH READOUT — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

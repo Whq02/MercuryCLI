@@ -8,9 +8,9 @@ export const HOST_VENDOR_INFO: Readonly<Record<'runpod' | 'vast' | 'lambda' | 'h
   vast: { label: 'Vast.ai', keyHelp: 'Create a Vast.ai API key at https://cloud.vast.ai/manage-keys/.' },
   lambda: { label: 'Lambda', keyHelp: 'Create a Lambda Cloud API key at https://cloud.lambda.ai/api-keys.' },
   huggingface: { label: 'Hugging Face', keyHelp: 'Use the Hugging Face account saved by /logins huggingface, with Inference Endpoints management permission.' },
-  hyperstack: { label: 'Hyperstack', keyHelp: 'Create a key at https://console.hyperstack.cloud/api-keys. Renting registers Mercury’s SSH public key in the selected environment. Initial new-account quotas are not published; check the console.' },
-  verda: { label: 'Verda', keyHelp: 'In https://console.verda.com, open API Credentials and paste Client ID:Client Secret here. Initial new-account quotas are not published; check the console. Network egress price is not published.' },
-  digitalocean: { label: 'DigitalOcean', keyHelp: 'Create a token at https://cloud.digitalocean.com/account/api/tokens with Droplet, size, image, region and SSH-key access. Initial new-account quotas are not published; check the console.' },
+  hyperstack: { label: 'Hyperstack', keyHelp: 'Create a key at https://console.hyperstack.cloud/api-keys.' },
+  verda: { label: 'Verda', keyHelp: 'API Credentials at https://console.verda.com · paste Client ID:Client Secret.' },
+  digitalocean: { label: 'DigitalOcean', keyHelp: 'Create a token at https://cloud.digitalocean.com/account/api/tokens with Droplet, size, image, region and SSH-key access.' },
 }
 export interface HostVendor extends Pick<RunpodClient, 'offers' | 'watchOffer' | 'create' | 'pods' | 'get' | 'stop' | 'logs' | 'rateLimitPolicy' | 'shapes'> {
   terminate(id: string, readOnly?: HostReadOnly): Promise<void>

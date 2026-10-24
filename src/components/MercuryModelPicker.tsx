@@ -407,25 +407,21 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       setContext1m(big)
       setCtxNotice(
         big
-          ? `${fmtCtx(focusedGptWindow.ceiling)} ctx active · the source-declared max (served default ${fmtCtx(focusedGptWindow.served)}) · ${MODEL_PICKER_CONTEXT_CHORD} toggles`
-          : `${fmtCtx(focusedGptWindow.served)} ctx active · the source's served default (declared max ${fmtCtx(focusedGptWindow.ceiling)}) · ${MODEL_PICKER_CONTEXT_CHORD} toggles`,
+          ? `${fmtCtx(focusedGptWindow.ceiling)} ctx active · default ${fmtCtx(focusedGptWindow.served)} · ${MODEL_PICKER_CONTEXT_CHORD} toggles`
+          : `${fmtCtx(focusedGptWindow.served)} ctx active · max ${fmtCtx(focusedGptWindow.ceiling)} · ${MODEL_PICKER_CONTEXT_CHORD} toggles`,
       )
       return
     }
     if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedGptWindow) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
-      setCtxNotice(
-        focusedGptWindow.observed !== undefined
-          ? `${fmtCtx(focusedGptWindow.served)} ctx · model-page figure as observed ${focusedGptWindow.observed} — the live account catalogue decides at dispatch · not a toggle`
-          : `${fmtCtx(focusedGptWindow.served)} ctx · set by the GPT account source · not a toggle`,
-      )
+      setCtxNotice(`${fmtCtx(focusedGptWindow.served)} ctx · no alternate window`)
       return
     }
     if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedNative1m) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
-      setCtxNotice('1M ctx · native to this model · not a toggle')
+      setCtxNotice('1M ctx · no alternate window')
       return
     }
     if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedLocal !== undefined && focusedLocalCycles) {

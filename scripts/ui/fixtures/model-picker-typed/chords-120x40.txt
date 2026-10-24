@@ -27,7 +27,7 @@ VITALS                  │ │ ╭───────────────
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
-                        │ │ 1M ctx · native to this model · not a toggle                                             │ │
+                        │ │ 1M ctx · no alternate window                                                             │ │
                         │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · esc or click outside closes           │ │
                         │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

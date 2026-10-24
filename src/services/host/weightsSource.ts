@@ -57,29 +57,29 @@ function neededFiles(recipe: HostRecipe): { paths: { path: string; size?: number
 }
 export const weightsSourceDefault = (context: Pick<WeightsSourceContext, 'recipe' | 'vendor' | 'volume' | 'managed'>): WeightsSource => context.volume ? { kind: 'volume', volumeId: context.volume.id } : !context.managed && (context.vendor === 'vast' || context.vendor === 'lambda') && bankUploadPreference(context.recipe) ? { kind: 'bank', folder: bankUploadPreference(context.recipe)!.folder } : { kind: 'huggingface' }
 export function weightsSourceWords(source: WeightsSource, recipe: HostRecipe, volume = source.kind === 'volume' ? readKeptVolume(source.volumeId) : undefined): string {
-  if (source.kind === 'huggingface') return 'Hugging Face download · ' + sizeWords(recipe.weightsGb) + ' · ~' + bootMinutes(recipe) + ' min to ready'
-  if (source.kind === 'private-repo') return 'private repository ' + source.repo + ' · ' + (source.bytes ? sizeWords(source.bytes / 1e9) + ' in ' + source.files + (source.files === 1 ? ' file · ' : ' files · ') : '') + 'downloads on the machine with your Hugging Face sign-in · ~' + bootMinutes({ ...recipe, weightsGb: source.bytes ? source.bytes / 1e9 : recipe.weightsGb }) + ' min to ready'
-  if (source.kind === 'bank') return 'this computer’s bank on ' + shortFolder(source.folder) + ' · uploads first · ' + bankUploadEstimate(recipe) + ' · the machine bills throughout'
-  if (!volume) return 'kept volume ' + source.volumeId + ' · not readable now'
-  if (volume.kind === 'vast') return 'Vast.ai volume ' + volume.id + ' on machine ' + volume.machineId + (volume.state === 'kept' ? ' · boots in ~' + vastBootMinutes(recipe, volume) + ' min' : ' · ' + volume.state + ' · this rental downloads onto it and verifies there (~' + bootMinutes(recipe) + ' min)') + ' · bills ' + vastVolumeBilling(volume)
-  return 'weights disk ' + volume.id + ' in ' + volume.dataCenter + (volume.state === 'kept' ? ' · boots in ~' + bootMinutes(recipe, volume) + ' min' : ' · ' + volume.state + ' · this rental downloads onto it and verifies there (~' + bootMinutes(recipe) + ' min)') + ' · bills ' + keptDiskPrice(volume)
+  if (source.kind === 'huggingface') return 'Hugging Face · ' + sizeWords(recipe.weightsGb) + ' · ~' + bootMinutes(recipe) + ' min'
+  if (source.kind === 'private-repo') return source.repo + (source.bytes ? ' · ' + sizeWords(source.bytes / 1e9) : '') + ' · private'
+  if (source.kind === 'bank') return 'Bank · ' + shortFolder(source.folder) + ' · upload ' + bankUploadEstimate(recipe)
+  if (!volume) return 'volume ' + source.volumeId
+  if (volume.kind === 'vast') return 'Vast.ai volume ' + volume.id + ' · machine ' + volume.machineId + (volume.state === 'kept' ? ' · ~' + vastBootMinutes(recipe, volume) + ' min' : ' · downloads first') + ' · ' + vastVolumeBilling(volume)
+  return 'weights disk ' + volume.id + ' · ' + volume.dataCenter + (volume.state === 'kept' ? ' · ~' + bootMinutes(recipe, volume) + ' min' : ' · downloads first') + ' · ' + keptDiskPrice(volume)
 }
 export function weightsSourceChoices(context: WeightsSourceContext): WeightsSourceChoice[] {
   const { recipe, vendor, managed } = context
   const token = context.token ?? huggingFaceToken()
   const unavailable = (value: WeightsSourceKind, label: string, reason: string): WeightsSourceChoice => ({ value, label: label + ' · unavailable · ' + reason, reason })
-  const huggingface: WeightsSourceChoice = { value: 'huggingface', source: { kind: 'huggingface' }, label: 'Hugging Face · ' + recipe.model + ' · ' + (managed ? 'the endpoint loads the weights from this repository' : sizeWords(recipe.weightsGb) + ' downloaded on the machine · ~' + bootMinutes(recipe) + ' min to ready') }
-  const privateRepo: WeightsSourceChoice = managed ? unavailable('private-repo', 'An existing private repository', 'HF endpoints are created from the recipe’s repository, not another one')
-    : !token ? unavailable('private-repo', 'An existing private repository', 'no Hugging Face sign-in · /logins huggingface')
-    : { value: 'private-repo', label: 'An existing private repository · ' + (context.remembered ? context.remembered + ' · ' : 'name one your sign-in can read · ') + 'its file list is checked before anything is rented · download on the machine ~' + bootMinutes(recipe) + ' min to ready when it holds the same files' }
+  const huggingface: WeightsSourceChoice = { value: 'huggingface', source: { kind: 'huggingface' }, label: 'Hugging Face · ' + recipe.model + ' · ' + sizeWords(recipe.weightsGb) }
+  const privateRepo: WeightsSourceChoice = managed ? unavailable('private-repo', 'Private repository', 'use the endpoint’s repository')
+    : !token ? unavailable('private-repo', 'Private repository', '/logins huggingface')
+    : { value: 'private-repo', label: 'Private repository' + (context.remembered ? ' · ' + context.remembered : '') }
   const state = bankState(recipe)
-  const bank: WeightsSourceChoice = managed ? unavailable('bank', 'This computer’s Bank', 'HF endpoints have no SSH; nothing can be uploaded to them')
-    : !state.banked ? unavailable('bank', 'This computer’s Bank', 'not banked' + (state.folder ? ' in ' + shortFolder(state.folder) : '') + ' · /llmhost → Bank → b banks the weights')
-    : state.error ? unavailable('bank', 'This computer’s Bank', 'verification failed' + (state.failedAt ? ' ' + state.failedAt.slice(0, 10) : '') + ' · /llmhost → Bank → v verifies again')
-    : { value: 'bank', source: { kind: 'bank', folder: state.folder! }, label: 'This computer’s Bank · ' + bytesWords(state.bytes) + ' on ' + shortFolder(state.folder!) + (state.verifiedAt ? ' · verified ' + state.verifiedAt.slice(0, 10) : ' · not verified yet; every file is hashed before the upload') + ' · upload ' + bankUploadEstimate(recipe) + ' · the machine bills throughout' }
-  const volume: WeightsSourceChoice = managed ? unavailable('volume', 'Kept volume', 'HF endpoints cannot mount a weights disk')
-    : vendor === 'lambda' ? unavailable('volume', 'Kept volume', vendorLabel(vendor) + ' has no kept weights volumes')
-    : !context.volume ? unavailable('volume', 'Kept volume', context.volumeReason ?? 'no kept volume for this model · /llmhost → Bank → m mirrors to one')
+  const bank: WeightsSourceChoice = managed ? unavailable('bank', 'This computer’s Bank', 'no SSH on HF endpoints')
+    : !state.banked ? unavailable('bank', 'This computer’s Bank', 'bank this model first · b in Bank')
+    : state.error ? unavailable('bank', 'This computer’s Bank', 'check failed · v in Bank')
+    : { value: 'bank', source: { kind: 'bank', folder: state.folder! }, label: 'This computer’s Bank · ' + bytesWords(state.bytes) + ' · upload ' + bankUploadEstimate(recipe) }
+  const volume: WeightsSourceChoice = managed ? unavailable('volume', 'Kept volume', 'not supported by HF endpoints')
+    : vendor === 'lambda' ? unavailable('volume', 'Kept volume', 'not supported by ' + vendorLabel(vendor))
+    : !context.volume ? unavailable('volume', 'Kept volume', context.volumeReason ?? 'mirror this model first · m in Bank')
     : { value: 'volume', source: { kind: 'volume', volumeId: context.volume.id }, label: 'Kept volume · ' + weightsSourceWords({ kind: 'volume', volumeId: context.volume.id }, recipe, context.volume) }
   return [huggingface, privateRepo, bank, volume]
 }
@@ -107,14 +107,14 @@ export async function chooseWeightsSource(context: WeightsSourceContext, current
   const { recipe } = context
   for (;;) {
     const choices = weightsSourceChoices(context)
-    const choice = await ask({ step: WEIGHTS_SOURCE_STEP, title: 'Weights · ' + modelTitle(recipe), found: 'Where the rented machine gets its weights. Each row says its estimate, and why it cannot be used when it cannot. Nothing is rented here.', willRun: current ? 'Now: ' + weightsSourceWords(current, recipe) + ' · Escape keeps it' : 'Escape goes back', initial: current?.kind ?? weightsSourceDefault(context).kind, rows: [...choices.map(row => ({ value: row.value, label: row.label })), { value: 'back', label: 'Back' }] })
+    const choice = await ask({ step: WEIGHTS_SOURCE_STEP, title: 'Weights · ' + modelTitle(recipe), found: '', willRun: '', initial: current?.kind ?? weightsSourceDefault(context).kind, rows: [...choices.map(row => ({ value: row.value, label: row.label })), { value: 'back', label: 'Back' }] })
     if (!choice || choice === 'back' || signal.aborted) return
     const picked = choices.find(row => row.value === choice)
     if (!picked) continue
     if (picked.reason) { emit({ title: 'Weights', words: picked.label.split(' · unavailable · ')[0] + ' cannot be used: ' + picked.reason + ' · nothing was rented' }); continue }
     if (picked.value !== 'private-repo') return picked.source
     const needed = neededFiles(recipe)
-    const entered = await ask({ step: WEIGHTS_PRIVATE_REPO_STEP, title: 'Private Hugging Face repository', found: 'namespace/name of a repository your Hugging Face sign-in can read that holds this recipe’s files (' + needed.words + '). Nothing is published or uploaded.', willRun: 'Mercury reads its file list now with your sign-in; the rented machine downloads from it with the same sign-in. Nothing is rented here.', initial: context.remembered })
+    const entered = await ask({ step: WEIGHTS_PRIVATE_REPO_STEP, title: 'Private Hugging Face repository', found: 'namespace/name · needs ' + needed.words, willRun: 'The machine downloads with your Hugging Face sign-in. Nothing is uploaded.', initial: context.remembered })
     if (entered === null || signal.aborted) continue
     const read = await readPrivateRepo(context, entered.trim(), signal)
     if (signal.aborted) return

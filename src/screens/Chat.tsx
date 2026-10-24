@@ -38,10 +38,9 @@ import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
-import { FocusedSessionStatusRow, statusLine, waitingStatusWords } from '../components/SwitchboardTagBar.js';
+import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
-import { useFocusedWorkRows } from '../components/tasks/useFocusedWork.js';
 import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableSovereignIfNeeded,
@@ -52,8 +51,7 @@ import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
-import { delegationWaitWords } from '../services/engine-connector/workCounts.js';
-import { activeToolCall, activeToolVerb } from '../utils/cockpit/toolVerb.js';
+import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
@@ -1561,7 +1559,7 @@ export function Chat({
       if (notice.interruptedTools > 0) {
         addNotification({
           key: 'resume-run-fold',
-          text: `resumed run: ${notice.interruptedTools} tool call(s) interrupted mid-flight — inspect their real state before claiming completion · /run for the reconciled record`,
+          text: `${notice.interruptedTools} tool call(s) interrupted — /run for details`,
           priority: 'high',
           timeoutMs: 60_000,
         });
@@ -1569,7 +1567,7 @@ export function Chat({
       if (notice.blocker) {
         addNotification({
           key: 'resume-run-blocker',
-          text: `resumed run is blocked: ${notice.blocker.description} (resume condition: ${notice.blocker.resumeCondition})`,
+          text: `${notice.blocker.description} — ${notice.blocker.resumeCondition}`,
           priority: 'high',
           timeoutMs: 60_000,
         });
@@ -2031,9 +2029,6 @@ export function Chat({
   const viewStreamMode: SpinnerMode =
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
-  const viewAgentWait = seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null;
-  const viewWorkRows = useFocusedWorkRows();
-  const viewDelegationWait = viewAgentWait ?? delegationWaitWords(activeToolCall(messages, viewInProgressToolUseIDs)?.name, viewWorkRows);
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2081,7 +2076,8 @@ export function Chat({
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
   const hookWaitKeys = useMemo(() => [...viewInProgressToolUseIDs], [viewInProgressToolUseIDs]);
-  const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, { ...focusedConnector.status(), wait: null }, null, true) : '';
+  const compactSeatStatus = isCompact && hasSeatLive(focusedConnector) ? { ...focusedConnector.status(), wait: null } : null;
+  const compactStatus = compactSeatStatus !== null && statusRowWarns(seatLive, compactSeatStatus) ? statusLine(seatLive, compactSeatStatus, null, true) : '';
   const workingStatusStrip = <Box flexDirection="column">
     {showSpinner || (isCompact && spinnerSlotReserved) ? (
       <SpinnerWithVerb compact={isCompact} compactWarning={compactStatus !== '' && compactStatus !== 'ready'} mode={viewStreamMode}
@@ -2094,7 +2090,7 @@ export function Chat({
         liveTurnFactsRef={liveTurnFactsRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewDelegationWait}
+        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : null}
         still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         hookWaitKeys={hookWaitKeys}

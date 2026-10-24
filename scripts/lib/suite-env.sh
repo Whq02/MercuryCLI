@@ -145,12 +145,32 @@ suite_scratch_init() {
   fi
   export TMPDIR="$MERCURY_SUITE_TMPDIR"
   export MERCURY_TMPDIR="$MERCURY_SUITE_TMPDIR"
-  local preload="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/proofScratch.cjs"
+  local preload="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/proofScratch.cjs" option
+  option="$(suite_node_require_option "$preload")"
   case "${NODE_OPTIONS:-}" in
-    *"$preload"*) ;;
-    *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require=\"$preload\"" ;;
+    *"$option"*) ;;
+    *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }$option" ;;
   esac
   export -f mktemp
+}
+
+suite_node_require_option() {
+  local file="$1" os="${2:-$(uname -s)}" native drive
+  case "$os" in
+    MINGW* | MSYS* | CYGWIN*)
+      if native="$(cygpath -m "$file" 2>/dev/null)" && [ -n "$native" ]; then
+        file="$native"
+      else
+        case "$file" in
+          /cygdrive/[A-Za-z]/*) file="${file#/cygdrive/}"; drive="${file%%/*}"; file="$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]'):${file#?}" ;;
+          /[A-Za-z]/*) drive="${file:1:1}"; file="$(printf '%s' "$drive" | tr '[:lower:]' '[:upper:]'):${file:2}" ;;
+        esac
+        file="${file//\\//}"
+      fi ;;
+  esac
+  file="${file//\\/\\\\}"
+  file="${file//\"/\\\"}"
+  printf '%s' "--require=\"$file\""
 }
 
 mktemp() {

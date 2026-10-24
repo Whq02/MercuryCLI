@@ -133,8 +133,8 @@ try {
   await close()
 
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await until('live Runpod stock'); await choose('Qwen3.8-27B'); await heading('Confirm the hourly price'); await choose('keep things as they are')
-  await until('stopped'); capture('11-no-confirm')
+  await until('live Runpod stock'); await choose('Qwen3.8-27B'); await heading('Confirm the hourly price'); await choose('Cancel')
+  await until('Cancelled'); capture('11-no-confirm')
   check('no confirmation means no pod', rp.state.creates === 1)
   await close()
 

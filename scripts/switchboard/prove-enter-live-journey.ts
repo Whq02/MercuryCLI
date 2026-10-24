@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'enter-live-')))
 const home = join(SCRATCH, 'home')
@@ -194,7 +195,7 @@ try {
   daemon?.kill('SIGTERM')
   await api.close()
   if (process.env.ENTER_LIVE_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-  else rmSync(SCRATCH, { recursive: true, force: true })
+  else removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? '\nprove-enter-live-journey: ALL LAWS HOLD' : `\nprove-enter-live-journey: ${failures} FAILURE(S)`)

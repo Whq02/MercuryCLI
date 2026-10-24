@@ -2,6 +2,7 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-perm-'))
 const home = join(scratch, 'home')
@@ -211,6 +212,6 @@ console.log('[6] allowed-tools authorises only the expansion, on a COPY of the s
 }
 
 if (connection.type === 'connected') await (connection as unknown as { cleanup?: () => Promise<void> }).cleanup?.()
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ PERMISSION OBEDIENCE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

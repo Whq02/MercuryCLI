@@ -6,6 +6,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { lock } from '../../../utils/lockfile.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
+import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { presentedNousClient } from './nousClientContract.js'
@@ -64,6 +65,7 @@ function readAuth(): AuthFile {
 }
 
 function writeAuth(file: AuthFile): void {
+  refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), 'the auth file .nous-auth.json')
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   durableAtomicPublishSync(nousAuthPathForDisplay(), JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
   noteCredentialChange()

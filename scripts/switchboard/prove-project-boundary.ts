@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const REAL_GIT = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
@@ -152,6 +153,6 @@ console.log('\nB3 the same probes from a real project carry no pathspec tail (no
   check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-project-boundary: ALL LAWS HOLD' : `\nprove-project-boundary: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ROW = readFileSync(join(root, 'src/components/Spinner/SpinnerAnimationRow.tsx'), 'utf-8')
 const HUD = readFileSync(join(root, 'src/components/Spinner/spinnerHud.ts'), 'utf-8')
-const SRC = `${ROW}\n${HUD}`
+const RATE = readFileSync(join(root, 'src/components/Spinner/useOutputRate.ts'), 'utf-8')
+const SRC = `${ROW}\n${HUD}\n${RATE}`
 
 let failures = 0
 const check = (label: string, cond: boolean): void => {
@@ -20,26 +21,13 @@ console.log('============================================================')
 
 check('INC-4549 floor: an unstamped turn clock is floored to the spinner mount frame',
   /if \(loadingStartTimeRef\.current === 0\) \{\s*loadingStartTimeRef\.current = now/.test(SRC))
-check('imports getLiveContextUsage (the live MercuryFrame-published seam)',
-  /import\s*\{\s*getLiveContextUsage\s*\}\s*from\s*'\.\.\/\.\.\/utils\/cockpit\/contextUsageLive\.js'/.test(SRC))
-check('reads getLiveContextUsage().usedPct into ctxPct', /getLiveContextUsage\(\)\.usedPct/.test(SRC))
+check('the quiet HUD reads no extra context gauge', !ROW.includes('getLiveContextUsage'))
 
-check('imports the SPARK ramp + gaugeColor from the kit',
-  /import\s*\{[^}]*\bgaugeColor\b[^}]*\}\s*from\s*'\.\.\/mercury-ui\/theme\.js'/.test(SRC) &&
-  /import\s*\{[^}]*\bSPARK\b[^}]*\}\s*from\s*'\.\.\/mercury-ui\/glyphs\.js'/.test(SRC))
-check('the gauge fill is ramp-colored via gaugeColor(ctxPct)', /gaugeColor\(ctxPct\)/.test(SRC))
-check('the spark cell is selected off the SPARK ramp by fill %',
-  /SPARK\[Math\.min\(SPARK\.length\s*-\s*1,\s*Math\.floor\(\(ctxPct\s*\/\s*100\)\s*\*\s*SPARK\.length\)\)\]/.test(SRC))
+check('the quiet HUD has only elapsed, tokens and attention segments', HUD.includes("const HUD_ORDER = ['timer', 'tokens', 'attention']"))
 check('the gauge introduces NO raw hex (tokens only)', !/#[0-9a-fA-F]{3,6}\b/.test(HUD))
 
-check('showCtx is present ', /const showCtx\s*=/.test(SRC))
-check('showCtx is WIDTH-gated last (availableSpace > usedAfterTokens + ctxWidth)',
-  /availableSpace\s*>\s*usedAfterTokens\s*\+\s*ctxWidth/.test(SRC))
-check('HONEST: gauge self-omits when usedPct is null (ctxPct != null guard)',
-  /ctxPct\s*!=\s*null/.test(SRC) && /ctxPctRaw\s*!=\s*null\s*\?\s*Math\.round\(ctxPctRaw\)\s*:\s*null/.test(SRC))
-check("the 'ctx' label rides the adaptive secondary meta token", /<Text color=\{tokens\.textSecondary\}>\{' ctx'\}<\/Text>/.test(SRC))
-check('rendered only when showCtx && ctxPct != null (no NaN/null leak)',
-  /showCtx\s*&&\s*ctxPct\s*!=\s*null/.test(ROW))
+check('context and tool gauges stay off the quiet HUD', !HUD.includes('showCtx') && !HUD.includes('showWif'))
+check('the metadata remains dimmed in its existing placement', ROW.includes('<Text dimColor>') && ROW.includes('metaNodes.map'))
 
 const SPIN = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf-8')
 const Chat = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
@@ -48,28 +36,16 @@ check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinn
   /activeToolCount=\{viewInProgressToolUseIDs\.size\}/.test(Chat))
 check('Spinner.tsx forwards activeToolCount to SpinnerAnimationRow',
   /activeToolCount=\{activeToolCount\}/.test(SPIN))
-check('wif lights up only on PARALLEL tools (activeToolCount >= 2)',
-  /activeToolCount\s*>=\s*2/.test(SRC))
-check('wif carries the in-progress spine glyph (GLYPH.inProgress = ◐)',
-  /GLYPH\.inProgress.*tools/.test(SRC))
-check('wif rides the success spine (tokens.success — TEAL on dark)', /color=\{tokens\.success\}/.test(SRC))
-check('showWif is present ', /const showWif\s*=/.test(SRC))
-check('showWif is WIDTH-gated AFTER the ctx group (sheds first)',
-  /availableSpace\s*>\s*usedAfterCtx\s*\+\s*wifWidth/.test(SRC))
+check('the active tool label remains the head instead of another tool counter', SPIN.includes('chosenVerb = activeToolLabel') && !HUD.includes(' tools'))
 
 console.log('\n  -- streaming-cadence (tok/s) instrument --')
-check('throughput sampled off the RAW response-length delta over the clock',
-  /currentResponseLength\s*-\s*rateSampleRef\.current\.len/.test(SRC))
-check('EMA-smoothed (steady gauge, not jitter)',
-  /smoothedOtpsRef\.current\s*=\s*smoothedOtpsRef\.current\s*\*\s*0\.6\s*\+\s*instant\s*\*\s*0\.4/.test(SRC))
-check('sampled every ~250ms (stable cadence read)', /dtMs\s*>=\s*250/.test(SRC))
-check('shown ONLY while text streams (responding / tool-input)',
-  /mode === 'responding' \|\| mode === 'tool-input'/.test(SRC) && /tok\/s/.test(SRC))
-check('zeroed under reducedMotion (no live clock → no rate)',
-  /reducedMotion\)\s*\{\s*smoothedOtpsRef\.current\s*=\s*0/.test(SRC))
-check('showOtps is WIDTH-gated last (after the wif group; the stamp locals folded away)',
-  /const showOtps\s*=/.test(SRC) &&
-  /availableSpace\s*>\s*usedAfterWif\s*\+\s*otpsWidth/.test(SRC))
+check('the response rate reads reply characters, not combined thinking characters', ROW.includes('liveTurnFactsRef?.current.replyChars ?? currentResponseLength'))
+check('EMA smoothing keeps the existing coefficients', RATE.includes('sample.current.rate * 0.6 + instant * 0.4'))
+check('rate sampling keeps its 250 ms cadence', RATE.includes('dtMs >= 250'))
+check('rate only shows in response/tool-input modes', HUD.includes("mode === 'responding' || mode === 'tool-input'"))
+check('rate resets when inactive or the counter resets', RATE.includes('!active') && RATE.includes('chars < sample.current.chars'))
+check('reduced motion does not invent a rate', ROW.includes('!reducedMotion'))
+check('rate remains width gated after the primary counters', HUD.includes('availableSpace > used + otpsWidth'))
 check('the rate rides the adaptive secondary meta token', /<Text key="otps"[\s\S]*?color=\{tokens\.textSecondary\}>/.test(SRC))
 
 console.log('\n  -- the strip height latch: within a turn the working card only grows --')

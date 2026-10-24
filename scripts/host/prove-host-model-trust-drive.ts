@@ -87,23 +87,23 @@ try {
     assert.ok(question!.rows![2]!.label.includes('no stock'))
     assert.equal(question!.initial, measured.label)
     await select(foundName)
-    assert.ok(flat().includes('found on Hugging Face · not booted by Mercury · EXL3'), 'saved search-derived rows name their source and keep the format after the warning\n' + screen())
+    assert.ok(flat().includes('EXL3') && !flat().includes('not booted by Mercury'), 'saved rows retain format without provenance\n' + screen())
     await capture('saved-search')
     mounted!.push('deepseek')
     assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000))
     const rows = question!.rows!
     assert.ok(rows.findIndex(row => row.value === privateName) < rows.findIndex(row => row.value === 'hf:' + fixtureRepos.gguf.id))
     await select('hf:' + fixtureRepos.gguf.id)
-    assert.ok(flat().includes('found on Hugging Face · not booted by Mercury · GGUF Q4_K_M'))
+    assert.ok(flat().includes('GGUF Q4_K_M') && !flat().includes('not booted by Mercury'))
     await capture('live-search')
     mounted!.push(KEY.enter); await step('door-model')
-    assert.ok(derivedHfRecipe(fixtureRepos.gguf.id)!.recipe.label.includes('found on Hugging Face · not booted by Mercury · GGUF Q4_K_M'))
+    assert.equal(derivedHfRecipe(fixtureRepos.gguf.id)!.recipe.label, fixtureRepos.gguf.id + ' · GGUF Q4_K_M')
     await choose('rent:0'); await step('rent-confirm')
-    assert.ok(question!.found.includes('found on Hugging Face · not booted by Mercury · GGUF Q4_K_M'))
+    assert.ok(question!.found.includes('GGUF Q4_K_M') && !question!.found.includes('not booted by Mercury'))
     assert.equal(rp.state.creates, 0)
     await capture('rental-confirm')
     mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)); mounted.unmount(); mounted = undefined
-    console.log('PASS source labels at ' + width + ': saved, live search, derived recipe and rental confirmation distinguish the unbooted Hugging Face model; nothing rented')
+    console.log('PASS format labels and unchanged tier ordering at ' + width + '; no provenance stamp; nothing rented')
   }
   assert.equal(escaped.length, 0)
 } finally { mounted?.unmount(); await rp.close(); await hf.close(); f.close(); globalThis.fetch = fetchBefore }

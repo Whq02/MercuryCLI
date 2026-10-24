@@ -8,7 +8,7 @@ import { HOST_VENDOR_INFO, type HostOffer, type HostPod, type HostVendor } from 
 import { HostCreateError, HostVendorHttpError, VendorApi, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 
-export const HF_ENDPOINTS_STORAGE_NOTICE = 'HF-managed · per hour · no SSH · downloads the weights first. One replica, billed by the minute while initializing or running. Pause ends compute billing; Resume starts it again. No weights disk is attached.'
+export const HF_ENDPOINTS_STORAGE_NOTICE = 'One replica · billed by the minute during setup and use. Pause ends compute billing. No SSH or weights disk.'
 export const HF_ENDPOINTS_KEY_NOTICE = 'Uses your Hugging Face sign-in (/logins huggingface)'
 const official = 'https://api.endpoints.huggingface.cloud/v2'
 const nameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
@@ -64,7 +64,7 @@ export class HuggingfaceClient implements HostVendor {
   }
   rateLimitPolicy(): string { return this.api.policy() ?? 'HF does not publish a fixed endpoint API quota here. Reads honor Retry-After; creates are never retried.' }
   shapes(): readonly HostOffer[] { return this.lastShapes }
-  offersNote(): string { return 'HF-managed · per hour · no SSH · personal namespace · live catalogue and quota, placement not guaranteed' }
+  offersNote(): string { return '' }
   private async account(signal?: AbortSignal): Promise<string> {
     const credential = await this.credential?.(false)
     if (this.credential && !credential) throw new HostHuggingfaceSignInRequired()

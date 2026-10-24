@@ -59,8 +59,18 @@ const fileC = join(docs, 'c.md')
 writeFileSync(fileA, 'export const a = 1\n')
 writeFileSync(fileB, 'export const b = 2\n')
 writeFileSync(fileC, '# c\n')
+function linkFolder(target: string, path: string): boolean {
+  try {
+    symlinkSync(target, path, process.platform === 'win32' ? 'junction' : null)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error
+    console.log(`  [SKIP] ${path} -> ${target}: this account may not create folder links (EPERM), so the link legs are not read on this run`)
+    return false
+  }
+}
 const link = join(root, 'link-to-src')
-symlinkSync(src, link)
+const linked = linkFolder(src, link)
 
 const MODEL = 'claude-opus-4-8'
 function makeCtx(tools: unknown[]): Record<string, unknown> {
@@ -121,8 +131,13 @@ section('1 — the claims of the real tools: an edit or a write claims its file 
 
 section('2 — the canonical path: a symlink resolves to its target, a missing file resolves under its real parent, and the comparison folds case where the file system does')
 {
-  check('a path through a symlinked folder equals the real path', canonicalPath(join(link, 'a.ts')) === canonicalPath(fileA), `${canonicalPath(join(link, 'a.ts'))} vs ${canonicalPath(fileA)}`)
-  check('a file that does not exist resolves under its real parent', canonicalPath(join(link, 'ghost', 'x.ts')) === canonicalPath(join(src, 'ghost', 'x.ts')), canonicalPath(join(link, 'ghost', 'x.ts')))
+  if (linked) {
+    check('a path through a symlinked folder equals the real path', canonicalPath(join(link, 'a.ts')) === canonicalPath(fileA), `${canonicalPath(join(link, 'a.ts'))} vs ${canonicalPath(fileA)}`)
+    check('a file that does not exist resolves under its real parent', canonicalPath(join(link, 'ghost', 'x.ts')) === canonicalPath(join(src, 'ghost', 'x.ts')), canonicalPath(join(link, 'ghost', 'x.ts')))
+  } else {
+    console.log('  [SKIP] the two link spellings of section 2 (no folder link on this account)')
+    check('a file that does not exist resolves under its real parent', canonicalPath(join(src, 'ghost', 'x.ts')) === join(canonicalPath(src), 'ghost', 'x.ts'), canonicalPath(join(src, 'ghost', 'x.ts')))
+  }
   if (process.platform === 'darwin' || process.platform === 'win32') {
     check('on a case-folding platform two spellings of one file are one claim', canonicalPath(fileA.toUpperCase()) === canonicalPath(fileA), canonicalPath(fileA.toUpperCase()))
   } else {
@@ -262,9 +277,9 @@ section('4 — two edits of different files run beside each other')
 section('5 — two edits of ONE file keep their order: the second starts only after the first has finished')
 {
   await drive(
-    [{ name: 'Edit', input: { file_path: fileA } }, { name: 'Edit', input: { file_path: join(link, 'a.ts') } }],
+    [{ name: 'Edit', input: { file_path: fileA } }, { name: 'Edit', input: { file_path: linked ? join(link, 'a.ts') : fileA } }],
     async ids => {
-      check('only the first edit has started (the second names the same file through a symlink)', started.length === 1 && started[0] === ids[0], JSON.stringify(started))
+      check(`only the first edit has started (the second names the same file${linked ? ' through a symlink' : ''})`, started.length === 1 && started[0] === ids[0], JSON.stringify(started))
       await release(ids[0]!)
       check('after the first finished, the second started', finished[0] === ids[0] && started[1] === ids[1], `started=${JSON.stringify(started)} finished=${JSON.stringify(finished)}`)
     },
@@ -366,14 +381,19 @@ section('9 — a mixed reply: [Write a, Write b, Edit a, Read c] runs as {Write 
 section('refusals — traversal and symlink-escape spellings resolve to their canonical host target; read-before-edit and deny rules hold on concurrent writes')
 {
   const escapeLink = join(src, 'escape-to-docs')
-  symlinkSync(docs, escapeLink)
+  const escapeLinked = linked && linkFolder(docs, escapeLink)
   const tools = [FileEditTool, FileWriteTool, FileReadTool, GrepTool, GlobTool, BashTool, NotebookEditTool]
   const ctx = makeCtx(tools) as never
   const claim = (name: string, input: Record<string, unknown>) => batchClaimOf({ type: 'tool_use', id: `tu_ref_${name}`, name, input } as never, ctx)
   const viaTraversal = await claim('Edit', { file_path: join(src, 'sub', '..', '..', 'docs', 'c.md'), old_string: '# c', new_string: '# c2' })
-  const viaSymlinkOut = await claim('Write', { file_path: join(escapeLink, 'c.md'), content: '# c3' })
   const direct = await claim('Edit', { file_path: fileC, old_string: '# c', new_string: '# c4' })
-  check('a ../ traversal spelling and a symlink-out spelling resolve to the exact same canonical write claim as the direct host path', viaTraversal.kind === 'writes' && viaSymlinkOut.kind === 'writes' && direct.kind === 'writes' && viaTraversal.path === direct.path && viaSymlinkOut.path === direct.path && !claimsCompatible(viaTraversal, viaSymlinkOut), JSON.stringify({ viaTraversal, viaSymlinkOut, direct }))
+  if (escapeLinked) {
+    const viaSymlinkOut = await claim('Write', { file_path: join(escapeLink, 'c.md'), content: '# c3' })
+    check('a ../ traversal spelling and a symlink-out spelling resolve to the exact same canonical write claim as the direct host path', viaTraversal.kind === 'writes' && viaSymlinkOut.kind === 'writes' && direct.kind === 'writes' && viaTraversal.path === direct.path && viaSymlinkOut.path === direct.path && !claimsCompatible(viaTraversal, viaSymlinkOut), JSON.stringify({ viaTraversal, viaSymlinkOut, direct }))
+  } else {
+    console.log('  [SKIP] the symlink-out spelling (no folder link on this account)')
+    check('a ../ traversal spelling resolves to the exact same canonical write claim as the direct host path', viaTraversal.kind === 'writes' && direct.kind === 'writes' && viaTraversal.path === direct.path && !claimsCompatible(viaTraversal, direct), JSON.stringify({ viaTraversal, direct }))
+  }
   const nulClaim = await claim('Edit', { file_path: `${fileA}\0evil`, old_string: 'a', new_string: 'b' })
   check('a path carrying a NUL byte degrades to an exclusive claim, never batched', nulClaim.kind === 'exclusive', JSON.stringify(nulClaim))
   const realCtx = makeCtx([FileEditTool, FileWriteTool, FileReadTool])

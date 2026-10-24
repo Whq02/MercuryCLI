@@ -128,7 +128,7 @@ try {
     await capture('llmhost-oauth-' + width)
     await close()
     await logins(() => {}, { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never, 'huggingface')
-    await until(() => normal().includes('Hugging Face — device-code sign-in'), 'Hugging Face menu row')
+    await until(() => normal().includes('Hugging Face — sign-in or Hub token'), 'Hugging Face menu row')
     mounted!.push(KEY.enter)
     await until(() => normal().includes('Sign in / re-login'), 'Hugging Face account card')
     mounted!.push(KEY.enter)

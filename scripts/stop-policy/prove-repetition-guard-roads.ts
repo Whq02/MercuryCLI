@@ -130,7 +130,7 @@ if (import.meta.main) {
   const execution = src('src/services/tools/toolExecution.ts')
   check('unavailable calls are observed after their error result; known calls after the transaction settles', execution.includes('yield unavailable') && execution.includes('recordToolCall(') && execution.includes('await body') && execution.indexOf('recordToolCall(') > execution.indexOf('yield unavailable') && execution.lastIndexOf('recordToolCall(') > execution.indexOf('await body'))
   const guard = src('src/services/tools/loopGuard.ts')
-  check('successful cycles remain behind the key while crewmates and headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes('getIsNonInteractiveSession() || parseOwnerKey(owner).lane !== MAIN_LANE') && guard.includes('state.failureRun >= FAILED_CALL_LIMIT'))
+  check('successful cycles remain behind the key while crewmates and headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes("(getIsNonInteractiveSession() && getSessionKind() !== 'oculus') || parseOwnerKey(owner).lane !== MAIN_LANE") && guard.includes('state.failureRun >= FAILED_CALL_LIMIT'))
   const schema = src('src/rows/vocabulary.ts')
   check('the row vocabulary carries no repetition-breaker word and does carry the loop-stopped terminal', !schema.includes('repetition') && schema.includes("'loop_stopped'"))
   const agent = src('src/tools/AgentTool/agentToolUtils.ts')
@@ -261,12 +261,12 @@ if (import.meta.main) {
     const err = await stderr
     server.closeAllConnections()
     await new Promise<void>(done => server.close(() => done()))
-    const stopped = 'stopped: the tool call Skill failed the same way 8 times in a row:'
-    check('the ninth failing request is never sent', calls === 8, 'calls=' + calls)
+    const stopped = 'Stopped after 3 failed Skill calls with the same arguments ({"skill":"missing-proof-skill"}):'
+    check('the fourth failing request is never sent', calls === 3, 'calls=' + calls)
     check('text mode exits 1 and names the call, count and failure', code === 1 && err.includes(stopped) && err.includes('Unknown skill: missing-proof-skill'), 'exit=' + code + ' stderr=' + err)
     check('the stop is also recorded in the debug log', existsSync(debug) && readFileSync(debug, 'utf8').includes(stopped))
     check('the fixture cannot turn the failure into successful final text', !out.includes('the fixture ended itself'), out)
-    if (code === 1 && calls === 8 && err.includes(stopped)) await removeWorld(home)
+    if (code === 1 && calls === 3 && err.includes(stopped)) await removeWorld(home)
     else console.log('  [forensics] the world stays at ' + home)
   }
 

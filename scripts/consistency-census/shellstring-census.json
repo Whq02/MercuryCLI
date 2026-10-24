@@ -3,6 +3,104 @@
   "note": "GENERATED — regenerate, never hand-edit. UN-44/49 ratchet input.",
   "sites": [
     {
+      "file": "src/extensions/bundled/filmcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const running = await exec('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', \"@(Get-Process -Name filmcraft -ErrorAction Silen",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/filmcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "try { await exec('pgrep', ['-x', process.platform === 'darwin' ? 'FilmCraft' : 'filmcraft'], { signal }); throw new Error('FilmCraft is alre",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/lightcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const { stdout } = await exec('/usr/sbin/lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpun'], { signal, timeout: 10000 })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/lightcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "exec('/usr/sbin/lsof', ['-a', '-p', String(pid), '-d', 'txt', '-Fn'], { signal, timeout: 10000 }),",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/lightcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "exec('/bin/ps', ['-p', String(pid), '-o', 'lstart='], { signal, timeout: 10000 }),",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/lightcraft/server/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "await exec('/usr/bin/pgrep', ['-x', process.platform === 'darwin' ? 'LightCraft' : 'lightcraft'], { signal, timeout: 10000 })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const result = JSON.parse((await exec('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { signal })).stdout)",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const listener = await exec('/usr/sbin/lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fp'], { signal })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const binary = await exec('/usr/sbin/lsof', ['-a', '-p', String(pid), '-d', 'txt', '-Fn'], { signal })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "start = (await exec('/bin/ps', ['-p', String(pid), '-o', 'lstart='], { signal })).stdout.trim()",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "const sockets = (await exec('ss', ['-lptn', `sport = :${port}`], { signal })).stdout",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/control.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "start = (await exec('ps', ['-p', String(pid), '-o', 'lstart='], { signal })).stdout.trim()",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "await exec('/usr/bin/hdiutil', ['attach', '-readonly', '-nobrowse', '-noautoopen', '-mountpoint', mount, archive], { signal })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "src/extensions/bundled/shared/install.mjs",
+      "mechanism": "exec-string",
+      "excerpt": "if (mounted) await exec('/usr/bin/hdiutil', ['detach', mount])",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
       "file": "src/services/dap/debugpyResolver.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "if (process.platform === 'darwin') out.push('/usr/bin/python3')",
@@ -556,6 +654,20 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/extensions/prove-filmcraft-drive.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const media = await exec('ffprobe', ['-v', 'error', '-show_format', '-show_streams', '-of', 'json', output], { env: environment })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
+      "file": "scripts/extensions/prove-filmcraft-drive.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const decoded = await exec('ffmpeg', ['-v', 'error', '-i', output, '-frames:v', '2', '-f', 'framemd5', '-'], { env: environment })",
+      "cls": "fixed-tool-argv",
+      "why": "exec here is promisify(execFile): a program and its argv array, no shell parses a line"
+    },
+    {
       "file": "scripts/formal-models/prove-flag-interactions.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
@@ -580,6 +692,27 @@
       "file": "scripts/gate/prove-hermetic-shard.ts",
       "mechanism": "shell-dash-c",
       "excerpt": "spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' }",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/gate/prove-node-preload-path.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_node_require_option \"$2\" \"$3\"', 'bash', suiteEnv, file, os], { encoding: 'utf8', env: { ",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/gate/prove-node-preload-path.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const probe = \"const fs = require('node:fs'); const made = fs.mkdtempSync('/tmp/mw/probe-'); process.stdout.write(made); fs.rmdirSync(made)\"",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
+      "file": "scripts/gate/prove-node-preload-path.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf %s \"$NODE_OPTIONS\"', 'bash', suiteEnv, join(wo",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
@@ -687,6 +820,13 @@
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/host/prove-llamacpp-engine-upkeep.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const stage = (version: string): number => { stub('bin/llama-server', version); return spawnSync('bash', ['-c', line], { cwd: sandbox, env: ",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
       "file": "scripts/ide/prove-closed-loop.ts",
@@ -2351,6 +2491,13 @@
       "file": "scripts/ui/prove-old-transcript-rows.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-quiet-spinner-drive.tsx",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const capture = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), `${stem}.cfg.json`], { cwd: ROOT, env: process.env, encodi",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },

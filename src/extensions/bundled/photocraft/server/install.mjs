@@ -8,6 +8,7 @@ import desktopLock from './photocraft.lock.json' with { type: 'json' }
 import cliLock from './photocraft-cli.lock.json' with { type: 'json' }
 import notices from './notices.json' with { type: 'json' }
 import { verifyListener } from '../shared/control.mjs'
+import { powershellEnvironment } from '../shared/powershell.mjs'
 
 const VERSION = '0.14.0'
 const REMEDY = 'Save your work, then restart PhotoCraft with control enabled and the selected project folders. The open window has not been changed.'
@@ -36,8 +37,7 @@ function windowsPrivate(path, create) {
   const script = create
     ? '$p=$env:PHOTOCRAFT_PRIVATE_PATH;$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User;$acl=[Security.AccessControl.DirectorySecurity]::new();$acl.SetOwner($sid);$acl.SetAccessRuleProtection($true,$false);$rule=[Security.AccessControl.FileSystemAccessRule]::new($sid,"FullControl","ContainerInherit,ObjectInherit","None","Allow");$acl.AddAccessRule($rule);Set-Acl -LiteralPath $p -AclObject $acl'
     : '$p=$env:PHOTOCRAFT_PRIVATE_PATH;$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;$acl=Get-Acl -LiteralPath $p;if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid){throw "Control file has another owner"};foreach($r in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){if($r.AccessControlType -eq "Allow" -and $r.IdentityReference.Value -ne $sid){throw "Control file grants another identity access"}}'
-  try { execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop';${script}`], { env: { ...process.env, PHOTOCRAFT_PRIVATE_PATH: path }, stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }) }
-  catch { throw new Error('PhotoCraft control credentials require a user-only Windows ACL.') }
+  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop';${script}`], { env: { ...powershellEnvironment(), PHOTOCRAFT_PRIVATE_PATH: path }, stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 })
 }
 
 export function prepareControl(dataDir) {
@@ -119,7 +119,7 @@ function versionOf(binary) {
 function runningCommand(pid) {
   if (!Number.isSafeInteger(pid) || pid < 1) throw new Error('PhotoCraft instance record has no valid process.')
   try {
-    if (process.platform === 'win32') return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], { encoding: 'utf8', timeout: 10000 }).trim()
+    if (process.platform === 'win32') return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], { env: powershellEnvironment(), encoding: 'utf8', timeout: 10000 }).trim()
     if (process.platform === 'linux') return readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').filter(Boolean).join(' ')
     return execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 10000 }).trim()
   } catch { throw new Error(`The recorded PhotoCraft process is no longer running. ${REMEDY}`) }
@@ -157,7 +157,7 @@ export async function probe({ endpoint, dataDir, signal, installation, input = {
 
 export function otherPhotoCraftRunning() {
   try {
-    if (process.platform === 'win32') return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "@(Get-CimInstance Win32_Process -Filter \"Name='photocraft.exe'\").Count"], { encoding: 'utf8', timeout: 10000 }).trim() !== '0'
+    if (process.platform === 'win32') return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "@(Get-CimInstance Win32_Process -Filter \"Name='photocraft.exe'\").Count"], { env: powershellEnvironment(), encoding: 'utf8', timeout: 10000 }).trim() !== '0'
     return execFileSync('pgrep', ['-i', '-x', 'photocraft'], { encoding: 'utf8', timeout: 10000 }).trim() !== ''
   } catch (error) {
     if (process.platform !== 'win32' && error.status === 1) return false

@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-cmd-pure-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -150,7 +151,7 @@ if (sendRecs.length === sends.length) {
   check('NO transcript byte carries the unknown line or either refusal spelling', !transcriptBytes.includes('frobnicate') && !transcriptBytes.includes('Unknown skill'))
   check('the wire never saw the name', api.requests.every((r: { raw: string }) => !r.raw.includes('frobnicate')))
 }
-rmSync(home, { recursive: true, force: true })
-rmSync(cwd, { recursive: true, force: true })
+removeScratch(home)
+removeScratch(cwd)
 console.log(failures === 0 ? '\nprove-unknown-command-honesty: ALL LAWS HOLD' : `\nprove-unknown-command-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

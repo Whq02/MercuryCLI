@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 70 built-in production tools · 182 operations · 70 with a declared capability contract.
+Census version 1 — 70 built-in production tools · 184 operations · 70 with a declared capability contract.
 
 ## Summary
 

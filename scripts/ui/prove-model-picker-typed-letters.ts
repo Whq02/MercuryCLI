@@ -207,7 +207,7 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   const scene = await openPicker(120, 40)
   check('no effort is saved before the chord', engineOf().effort === undefined, JSON.stringify(engineOf()))
   scene.m.push(CTRL_W)
-  const contextAnswered = await waitFor(() => popupLines(scene.m).some(l => /ctx.*toggle/.test(l)), 6000)
+  const contextAnswered = await waitFor(() => popupLines(scene.m).some(l => /ctx · no alternate window/.test(l)), 6000)
   check('ctrl+w is the context key: the focused row answers with its window', contextAnswered, popupLines(scene.m).filter(l => l.includes('ctx')).join(' | '))
   check('ctrl+w typed nothing into the search', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   scene.m.push(CTRL_E)

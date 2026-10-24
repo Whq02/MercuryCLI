@@ -10,8 +10,8 @@ import { sortVmOffers, validateVmCreate, verifyVmAbsent, vmKeyName, VmPlacements
 
 const BASE = 'https://infrahub-api.nexgencloud.com/v1'
 const PUBLIC_IP_HOURLY = 0.00672043
-export const HYPERSTACK_STORAGE_NOTICE = '/workspace uses included local disk; termination deletes it, and hibernation loses ephemeral data. Compute bills per minute, even while shut down. The price includes one public IP at $0.00672043/hr. Mercury creates no separate volume. Initial new-account quotas are not published; check the console.'
-export const HYPERSTACK_KEY_NOTICE = 'Renting adds Mercury’s SSH public key to the selected Hyperstack environment, creating that environment if needed. Its name contains mercury-host- and the key fingerprint. Remove the key in the console when finished.'
+export const HYPERSTACK_STORAGE_NOTICE = 'Local disk included; Terminate deletes it. Hibernation loses ephemeral data. Compute bills per minute even while shut down; price includes the $0.00672043/hr public IP.'
+export const HYPERSTACK_KEY_NOTICE = 'Adds an SSH key to the selected Hyperstack environment; creates the environment if needed. Remove the key in the console when finished.'
 const GPUs: Readonly<Record<string, { id: string; memory: number }>> = {
   'RTX-PRO6000-SE': { id: 'NVIDIA RTX PRO 6000 Blackwell', memory: 96 },
   'H100-80G-PCIe': { id: 'NVIDIA H100', memory: 80 }, 'H100-80G-PCIe-NVLink': { id: 'NVIDIA H100', memory: 80 }, 'H100-80G-SXM5': { id: 'NVIDIA H100', memory: 80 },

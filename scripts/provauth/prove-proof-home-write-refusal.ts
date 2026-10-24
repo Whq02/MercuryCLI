@@ -23,6 +23,7 @@ type Outcome = {
   login?: { ok: boolean; stored: boolean; receipt: string }
   host?: { threw: boolean; message: string }
   auth?: { threw: boolean; message: string }
+  oauth?: Record<string, { threw: boolean; message: string }>
   readBack?: string
   proof: string | null
 }
@@ -51,6 +52,19 @@ if (mode === 'all') {
   const home = process.env.MERCURY_CONFIG_DIR || (process.env.HOME + '/.mercury')
   try { secrets.writeHostCredential(home, '0f9e8d7c-6b5a-4321-8f9e-0f9e8d7c6b5a', key); out.host = { threw: false, message: '' } } catch (error) { out.host = { threw: true, message: String(error && error.message || error) } }
   try { secrets.publishAuthScopedJson('.huggingface-auth.json', file => ({ ...file, accessToken: key })); out.auth = { threw: false, message: '' } } catch (error) { out.auth = { threw: true, message: String(error && error.message || error) } }
+  out.oauth = {}
+  const stores = {
+    '.huggingface-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/huggingface/huggingfaceAccounts.ts'))})).writeHuggingfaceTokens({ accessToken: key }),
+    '.openai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/openai/openaiAccounts.ts'))})).writePreferredOpenaiSource('api-key'),
+    '.openrouter-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/openrouter/openrouterAccounts.ts'))})).disconnectOpenrouterOauthKey(),
+    '.gemini-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/gemini/geminiAccounts.ts'))})).writePreferredGeminiSource('api-key'),
+    '.moonshot-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/moonshot/moonshotAccounts.ts'))})).writeMoonshotTokens({ accessToken: key }),
+    '.xai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/xai/xaiOauth.ts'))})).writeXaiTokens({ accessToken: key, refreshToken: key }),
+    '.nous-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/nous/nousOauth.ts'))})).writeNousTokens({ accessToken: key, refreshToken: key }),
+  }
+  for (const [file, write] of Object.entries(stores)) {
+    try { await write(); out.oauth[file] = { threw: false, message: '' } } catch (error) { out.oauth[file] = { threw: true, message: String(error && error.message || error) } }
+  }
 }
 console.log(JSON.stringify(out))
 `
@@ -86,6 +100,8 @@ try {
     check('the login driver reports the refusal honestly: not stored, the receipt names the proof and carries no token bytes', r.login?.ok === false && r.login.stored === false && r.login.receipt.includes('prove-child-writer.ts') && !r.login.receipt.includes('SECRETBYTES'), r.login?.receipt)
     check('the host-credential writer refuses the same home', r.host?.threw === true && r.host.message.includes('a host credential'), r.host?.message)
     check('the auth-file writer refuses the same home', r.auth?.threw === true && r.auth.message.includes('.huggingface-auth.json'), r.auth?.message)
+    const oauth = Object.entries(r.oauth ?? {})
+    check('the seven OAuth token stores refuse the same home, each naming its file and the proof, never the token', oauth.length === 7 && oauth.every(([file, outcome]) => outcome.threw && outcome.message.includes(`the auth file ${file}`) && outcome.message.includes('prove-child-writer.ts') && !outcome.message.includes('SECRETBYTES')), JSON.stringify(r.oauth))
     check('the account home holds no store, no host credential and no auth file', !existsSync(join(r.account, '.mercury')))
   }
   {

@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -141,7 +142,7 @@ if (POISON_DIST === undefined) {
     const receipt = sup.parkAllConcourseSessions('operator:probe', undefined, dir)
     const rec = sup.readSessionWorkers(dir)['concourse-w1']
     check('C4 park-all (the quit sweep, the orphan reap) SKIPS a stopped record: it stands stopped, never parked, never ended', receipt.skipped.includes('concourse-w1') && receipt.parked.length === 0 && rec?.parkedAt === undefined && rec?.endedAt === undefined && rec?.stoppedAt !== undefined, JSON.stringify(receipt))
-    rmSync(dir, { recursive: true, force: true })
+    removeScratch(dir)
   }
 
   section('§3 the wiring, at its source seams')
@@ -423,8 +424,8 @@ if (sendRecs.length === sends.length) {
 if (process.env.MERCURY_CLOSE_CHORD_KEEP === '1') {
   console.log(`  kept for inspection: ${drive} (frames beside it under frames/)`)
 } else {
-  rmSync(home, { recursive: true, force: true })
-  rmSync(cwd, { recursive: true, force: true })
+  removeScratch(home)
+  removeScratch(cwd)
 }
 console.log(failures === 0 ? '\nprove-close-chord: ALL LAWS HOLD' : `\nprove-close-chord: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

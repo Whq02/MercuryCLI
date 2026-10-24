@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -65,7 +66,7 @@ const { CONTROL_NOTE_REFUSED_MS } = await import('../../src/components/concourse
 }
 
 const scratch = join(tmpdir(), `park-refusal-look-${process.pid}-home`)
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 seedFirstRun(scratch, [REPO])
 {
   const cfgPath = join(scratch, '.mercury.json')

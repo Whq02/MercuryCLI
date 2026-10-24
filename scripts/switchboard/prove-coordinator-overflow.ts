@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 let checks = 0
@@ -223,7 +224,7 @@ section('§8 — the deadline owner: an expired budget is named as the budget, a
 }
 
 await fixture.close()
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log('\n' + '═'.repeat(60))
 console.log(failures ? `❌ COORDINATOR-OVERFLOW RED (${checks} checks)` : `✅ COORDINATOR-OVERFLOW GREEN (${checks} checks)`)
 process.exit(failures)

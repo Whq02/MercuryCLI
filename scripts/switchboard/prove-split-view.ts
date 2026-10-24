@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 const scratch = join(tmpdir(), `split-view-prove-${process.pid}`)
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 mkdirSync(scratch, { recursive: true })
 process.env['MERCURY_CONFIG_DIR'] = scratch
 
@@ -274,6 +275,6 @@ console.log('G — legend continuity: the way back survives the split-width shed
   )
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\nsplit-view: GREEN' : `\nsplit-view: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

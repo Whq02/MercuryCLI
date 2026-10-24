@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -279,7 +280,7 @@ section('§6 — the daemon preview refuses keyless typed and passes credentiale
   )
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log('\n' + '═'.repeat(60))
 console.log(failures ? '❌ CROSS-MODEL-LAUNCH-MATRIX RED' : '✅ CROSS-MODEL-LAUNCH-MATRIX GREEN')
 process.exit(failures)

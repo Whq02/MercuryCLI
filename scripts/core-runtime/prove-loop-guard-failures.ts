@@ -106,8 +106,9 @@ function context(agentId?: string): never {
   } as never
 }
 const repeats = (count: number, name = 'Bash'): Step[] => Array.from({ length: count }, (_, index) => ({ name, input: index % 2 ? { description: INPUT.description, command: INPUT.command } : INPUT }))
-async function run(steps: Step[], options: { headless?: boolean; agent?: boolean; mode?: Mode; loopGuard?: boolean } = {}) {
+async function run(steps: Step[], options: { headless?: boolean; oculus?: boolean; agent?: boolean; mode?: Mode; loopGuard?: boolean } = {}) {
   bootstrap.setIsInteractive(!options.headless)
+  bootstrap.setSessionKind(options.oculus ? 'oculus' : 'headless')
   queue.resetCommandQueue()
   mode = options.mode ?? 'error'
   executions = 0
@@ -157,6 +158,10 @@ check('first identical failure repeat is reminded before request three, not befo
 check('the reminder carries the complete tool error and arguments', notices(same).some(row => 'content' in row && row.content.includes(ERROR) && row.content.includes(INPUT.command)), notices(same))
 const headless = await run(repeats(4), { headless: true })
 check('headless stops on the third failure without requesting a fourth', headless.calls.length === 3 && (headless.terminal as { reason?: string })?.reason === 'loop_stopped', headless.terminal)
+const cockpit = await run(repeats(9), { headless: true, oculus: true })
+check('the daemon-hosted runner behind a screen (non-interactive process, oculus session) runs all nine failed calls and is never stopped', cockpit.calls.length === 10 && !stopped(cockpit) && notices(cockpit).length > 0, { calls: cockpit.calls.length, stop: stopped(cockpit) })
+const cockpitCrew = await run(repeats(4), { headless: true, oculus: true, agent: true })
+check('a crewmate of that same screen session still stops on three', cockpitCrew.calls.length === 3 && Boolean(stopped(cockpitCrew)), { calls: cockpitCrew.calls.length })
 check('the stopped sentence carries the tool, count, arguments and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless))
 const crew = await run(repeats(4), { agent: true })
 check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) })

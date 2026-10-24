@@ -114,15 +114,13 @@ try {
   const modelLines = [...new Set(pages.flatMap(page => page.split('\n')).filter(line => distinctModels.some(name => line.includes(modelLabel(name)))).map(plain))]
   check('model list shows one row per distinct model across recipes', modelLines.length === distinctModels.length && distinctModels.every(name => modelLines.filter(line => line.includes(modelLabel(name))).length === 1) && selected() === openingLine)
   check('model rows show cheapest in-stock price or no stock now', listText.includes(modelLabel('Nemotron 3.5 Super VL 120B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && listText.includes(modelLabel('Qwen3.8-27B') + 'Runpod 1× RTX PRO 6000 · $2.49/hr · in stock') && listText.includes(modelLabel('GLM-5.3-Flash') + 'no stock on Runpod · watch →'))
-  const stamps = ['measured', 'documented', 'community']
-  const ranks = modelLines.map(line => stamps.findIndex(stamp => line.includes(' · ' + stamp)))
-  check('every model row carries one of the stamp words', ranks.every(rank => rank >= 0))
+  check('model rows omit verification stamps', modelLines.every(line => !/ · (measured|documented|community|unverified)\b/.test(line)))
   check('stocked models sort before no-stock models and by price, whatever their stamp (the stamp only breaks ties)', (() => {
     const prices = modelLines.map(line => line.includes('no stock') ? Infinity : Number(/\$([\d.]+)\/hr/.exec(line)![1]))
     return prices.every((price, index) => !index || price >= prices[index - 1]!)
   })())
   check('cursor starts on the cheapest model in stock', selected().includes('in stock') && selected().includes('$2.49/hr'))
-  check('a pre-chosen cursor says it starts on a suggestion, never that nothing is pre-chosen', m.screen().includes('↑↓ then ↵ · the cursor starts on a suggestion') && !m.screen().includes('nothing is pre-chosen'))
+  check('the suggested model remains selected without cursor narration', selected().length > 0 && !m.screen().includes('the cursor starts on a suggestion'))
 
   rp.state.customGpus = [
     { ...liveCatalogue.gpus.find((g: any) => g.id === 'NVIDIA H200'), availability: 'HIGH', price: { secure: 5.29 } },
@@ -139,9 +137,9 @@ try {
   await heading('Confirm the hourly price')
   await until('1× RTX PRO 6000 · $2.49/hr')
   check('the model’s WHERE row opens confirm with the chosen shape named', !m.screen().includes('Choose a GPU shape') && m.screen().includes('1× RTX PRO 6000'))
-  check('the price confirmation pre-chooses nothing and says so', m.screen().includes('↑↓ then ↵ · nothing is pre-chosen') && !selected())
+  check('rental consent preselects no paid action', !selected())
   for (let n = 0; n < 5; n++) { const before = selected(); m.push(KEY.down); await waitFor(() => selected() !== before, 300) }
-  check('pressing ↓ repeatedly on the price confirmation settles on keep things as they are, never back on Confirm', selected().includes('keep things as they are') && rp.state.creates === 0)
+  check('repeated Down stops on Cancel instead of wrapping to Confirm', selected().includes('Cancel') && rp.state.creates === 0)
   m.push(KEY.enter)
   await close()
 
@@ -347,13 +345,13 @@ try {
   await heading('Confirm the hourly price')
   await until('Watch for stock and rent at this price or less ($7.50/hr)')
   check('the entered ceiling is what the watch would rent at', m.screen().includes('ceiling $7.50/hr (no catalogue price now)'))
-  await choose('keep things as they are')
+  await choose('Cancel')
   await close()
   rp.state.customGpus = null
 
   if (bundlePath) {
     const bundleText = readFileSync(resolve(bundlePath), 'utf8')
-    check('built bundle carries model-first, watch-and-rent and money-safety words', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', 'one catalogue read', ' per provider (', 'the cursor starts on a suggestion', ' may exist: ', ' gave no clear answer to the create'].every(part => bundleText.includes(part)))
+    check('built bundle carries rental consent and ambiguous-create actions', ['Watch for stock and rent at this price or less', 'Choose a GPU shape · live Runpod stock', ' may exist: ', ' gave no clear answer to the create'].every(part => bundleText.includes(part)))
   }
 
   await Promise.all(images)

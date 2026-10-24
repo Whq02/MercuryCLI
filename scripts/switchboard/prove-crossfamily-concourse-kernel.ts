@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'cma-kernel-')))
 const home = join(SCRATCH, 'home')
@@ -400,7 +401,7 @@ try {
 daemon.kill('SIGTERM')
 await fixture.close()
 if (process.env.CMA_KEEP === '1') console.log(`[keep] ${SCRATCH}`)
-else rmSync(SCRATCH, { recursive: true, force: true })
+else removeScratch(SCRATCH)
 
 console.log(failures === 0 ? `\nprove-crossfamily-concourse-kernel: ALL LAWS HOLD (${checks} checks)` : `\nprove-crossfamily-concourse-kernel: ${failures} FAILURE(S) of ${checks}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'swift-repaint-')))
 const home = join(SCRATCH, 'home')
@@ -184,6 +185,6 @@ console.log('\n§4 warmth covers the slow fold; the landed truth replaces it')
   w.settleEntryWarmth()
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-swift-fold-repaint: ALL LAWS HOLD' : `\nprove-swift-fold-repaint: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

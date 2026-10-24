@@ -98,7 +98,7 @@ async function main(): Promise<void> {
     const planAt = tagBar.indexOf('const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })')
     const heldAt = tagBar.indexOf('const held = receipt')
     check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes("const fitted = columns - fixedWidth < STATUS_ROW_WORDS_FLOOR ? '' : fitStatusWords(rest, samples, columns, fixedWidth)") && planAt >= 0 && heldAt >= 0 && planAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
-    check('the working strip speaks the shared wait composer and no sample of its own — the row under it is the owner', repl.includes("seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null") && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'))
+    check('the working strip adds neither a wait sentence nor sample metadata', !repl.includes('viewDelegationWait') && repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}') && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'))
     check('statusLine and the wait composer carry no sample of their own', /export function statusLine\(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 \| null = null, compact = false\): string/.test(tagBar) && /export function waitingStatusWords\(live: SessionLiveV1\): string/.test(tagBar))
   }
 

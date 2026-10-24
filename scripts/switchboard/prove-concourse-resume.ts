@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
@@ -29,6 +29,7 @@ const { switchboardGeometry } = await import('../../src/components/concourse/Con
 const { paneWindow } = await import('../../src/components/mercury-ui/paneWindow.ts')
 const state = await import('../../src/bootstrap/state.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')
@@ -427,6 +428,6 @@ console.log('C — the renames: the idle knob speaks the session estate; the acc
   check('C3 the dead organ stays dead', !existsSync(join(process.cwd(), 'src/state/transcriptStore.ts')))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-concourse-resume: ALL LAWS HOLD' : `\nprove-concourse-resume: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

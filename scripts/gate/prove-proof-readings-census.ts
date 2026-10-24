@@ -89,9 +89,9 @@ for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !
   for (const line of result.lent) failures.push(`${path}:${line}: a historical build must not borrow the current node_modules`)
 }
 assert.ok(runners.length > 100 && historical >= 3, `the census saw ${runners.length} runners and ${historical} historical builds`)
-for (const path of ['scripts/edit-tools/prove-write-preserves-file-shape.ts', 'scripts/core-runtime/prove-loop-guard-cycle.ts']) {
+for (const [path, seconds] of [['scripts/edit-tools/prove-write-preserves-file-shape.ts', 120], ['scripts/core-runtime/prove-loop-guard-cycle.ts', 300]] as const) {
   const source = read(path)
-  if (!/const budgetMs = vshotBudgetMs\(120_000\)/.test(source) || !/\}, budgetMs\)/.test(source)) failures.push(`${path}: the outer watchdog must honor the runner's pace, not a fixed 120-second wall`)
+  if (!new RegExp(`const budgetMs = vshotBudgetMs\\(${seconds}_000\\)`).test(source) || !/\}, budgetMs\)/.test(source)) failures.push(`${path}: the outer watchdog must honor the runner's pace, not a fixed ${seconds}-second wall`)
 }
 const fastLoad = readFileSync(resolve(ROOT, 'scripts/host/prove-fast-load-drive.ts'), 'utf8')
 const fastLoadSource = ts.createSourceFile('fast-load.ts', fastLoad, ts.ScriptTarget.Latest, true)

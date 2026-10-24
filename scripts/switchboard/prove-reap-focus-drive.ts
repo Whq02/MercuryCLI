@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -270,7 +271,7 @@ try {
   await new Promise(r => setTimeout(r, 1500))
   if (daemon.exitCode === null) daemon.kill('SIGKILL')
   await api.close()
-  rmSync(join(SCRATCH, 'home', 'daemon'), { recursive: true, force: true })
+  removeScratch(join(SCRATCH, 'home', 'daemon'))
 }
 
 console.log(`captures under ${OUT_DIR}`)

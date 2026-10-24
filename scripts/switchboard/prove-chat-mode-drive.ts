@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-chatmode-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -349,6 +350,6 @@ console.log('P4 — --chat: /crewmates answers the sentence, /sessions opens, /c
   reapHome(home)
 }
 
-if (process.env.MERCURY_CHATMODE_KEEP !== '1') rmSync(SCRATCH, { recursive: true, force: true })
+if (process.env.MERCURY_CHATMODE_KEEP !== '1') removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-chat-mode-drive: ALL LAWS HOLD' : `\nprove-chat-mode-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

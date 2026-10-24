@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -216,6 +217,6 @@ section("§4 — the contrast: a side question on the same model mints 'primary'
 }
 
 server.close()
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n✅ prove-coordinator-role-mint — all checks pass' : '\n❌ prove-coordinator-role-mint — FAILED')
 process.exit(failures)

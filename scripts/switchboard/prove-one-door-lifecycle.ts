@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'one-door-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -153,6 +154,6 @@ console.log('F — the two switches (the amendment)')
   check('F5 the concourse row stays enterable with the switch off and says what it is (live view only)', face.includes('live view only — ${facts.why}${count}') && face.includes('ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount })'))
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-one-door-lifecycle: ALL LAWS HOLD' : `\nprove-one-door-lifecycle: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

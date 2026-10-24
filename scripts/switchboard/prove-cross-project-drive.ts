@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-crossproj-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -333,6 +334,6 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
   reapHome(home)
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
+removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nprove-cross-project-drive: ALL LAWS HOLD' : `\nprove-cross-project-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-uninstall-'))
 const home = join(scratch, 'home')
@@ -30,6 +31,7 @@ const sources = await import('../../src/extensions/sources.ts')
 const install = await import('../../src/extensions/install.ts')
 const options = await import('../../src/extensions/options.ts')
 const reloadMod = await import('../../src/extensions/reload.ts')
+const { bundledPayloads } = await import('../../src/extensions/bundled/content.generated.ts')
 const bootstrapState = await import('../../src/bootstrap/state.ts')
 const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')
 
@@ -146,12 +148,14 @@ await reloadMod.reloadExtensions({ cwd })
   const diff = diffSnapshots(before, after)
   const tolerated = diff.filter(d => {
     if (d === 'new: extensions/installed.json') {
-      const parsed = JSON.parse(readFileSync(paths.getInstalledFile(), 'utf8')) as Record<string, unknown>
-      return Object.keys(parsed).length !== 0
+      const parsed = JSON.parse(readFileSync(paths.getInstalledFile(), 'utf8')) as Record<string, { label?: string }>
+      return Object.entries(parsed).some(([id, row]) => row.label !== 'mercury' || id !== `${id.split('@')[0]}@mercury` || !Object.hasOwn(bundledPayloads, id.split('@')[0]!))
     }
     if (d === 'new: schema/settings.schema.json') {
       return false
     }
+    const shipped = /^new: extensions\/bundled\/([^/]+)\/[^/]+\//.exec(d)
+    if (shipped && Object.hasOwn(bundledPayloads, shipped[1]!)) return false
     return true
   })
   check('the home is byte-identical except the source cache and the log', tolerated.length === 0, tolerated.slice(0, 6).join(' · '))
@@ -169,7 +173,7 @@ console.log('[3] --keep-data: the data folder alone survives')
   check('uninstall with keep-data lands', kept.ok && kept.dataKept)
   check('the data folder survives', existsSync(join(dataDir, 'hook.log')))
   check('everything else is gone', !existsSync(paths.getInstalledIdDir('kitchen-sink@fixture-source')))
-  rmSync(dataDir, { recursive: true, force: true })
+  removeScratch(dataDir)
 }
 
 console.log('[4] bundled: x is refused')
@@ -217,6 +221,6 @@ console.log('[7] a $schema-only user file the extension never wrote survives a p
   check('the project-local file the switch write created leaves the disk', !existsSync(localFile))
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(failures === 0 ? '\n ✅ UNINSTALL CLEAN — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

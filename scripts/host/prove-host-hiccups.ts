@@ -63,16 +63,18 @@ try {
     const stopped = await api.create(offer, 'ssh-ed25519 fixture', 'permanent-' + status)
     rp.state.failNext = { route: 'GET /v2/pods/' + stopped.id, status, times: 10 }
     const failed = (await run(queue(stopped)))!
-    check(status + ' stops the setup on the first read without retry words', failed.jobState === 'failed' && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')))
+    const pausesUp = status !== 404
+    check(status + (pausesUp ? ' pauses the setup on the first read without retry words, the pod left up and billing' : ' stops the setup on the first read without retry words'), failed.jobState === (pausesUp ? 'paused' : 'failed') && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')) && (!pausesUp || String(failed.error).includes('/hr still billing') && String(failed.error).includes('Resume or Terminate in /llmhost')) && rp.state.deletes === 0)
   }
   const failing = await api.create(offer, 'ssh-ed25519 fixture', 'budget-reading')
   rp.state.failNext = { route: 'GET /v2/pods/' + failing.id, status: 503, times: 1000 }
   const beforeBudget = Date.now()
   const paused = (await run(queue(failing), 350))!
   const count = podReads(failing.id).length
-  const counted = 'Runpod did not answer pod reads for 1 s (HTTP 503 ×' + count + ') · setup paused · Mercury did not terminate the pod; it bills $' + paused.price.toFixed(2) + '/hr while it runs · Resume retries, Terminate stops the bill'
-  check('the read spends its budget, then pauses with the exact failed-read count and says the pod still bills', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'failed' && paused.error === counted && paused.step === counted && paused.price > 0)
-  check('one counted pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(counted)))
+  const counted = 'paused at Runpod read failed (HTTP 503) · retrying in 1 s · attempt ' + count
+  const billing = failing.id + ' · $' + paused.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
+  check('the read spends its budget, then pauses with the exact failed-read count on the step and says the pod stays up and bills', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'paused' && String(paused.error).startsWith('setup paused · ') && String(paused.error).includes(billing) && paused.step === counted && paused.price > 0 && rp.state.deletes === 0)
+  check('one pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(billing)))
   const original = new RunpodHttpError('original vendor error', 503, 'fixture')
   await assert.rejects(readOnly(100)('pod', async () => { throw original }), error => error === original && Boolean(hostReadFailureWords(error)))
   check('exhaustion throws the original error, not an invented replacement')
@@ -127,7 +129,8 @@ try {
   const cleanupDeletes = rp.state.deletes
   await run(queue(failedCleanup, { prepareWeightsOnly: true }))
   ssh.state.failEngine = false
-  check('worker cleanup retries its listing and confirms without another terminate', !readHostRecord(failedCleanup.id) && rp.state.deletes === cleanupDeletes + 1 && notices().some(words => words.includes('worker-cleanup') || words.includes(failedCleanup.id) && words.includes('terminated and verified absent')))
+  rp.state.failNext = null
+  check('a weights preparation whose install fails pauses with the pod up and billing; no terminate is sent', readHostRecord(failedCleanup.id)?.jobState === 'paused' && rp.state.deletes === cleanupDeletes && notices().some(words => words.includes('worker-cleanup') && words.includes(failedCleanup.id + ' · $' + failedCleanup.cost.toFixed(2) + '/hr still billing') && words.includes('Resume or Terminate in /llmhost')))
 
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { LLM_HOST_WORDS } = await import('../../src/commands/llmhost/words.ts')
@@ -152,7 +155,7 @@ try {
     const deletes = rp.state.deletes
     const stops = rp.state.stops
     const { result, events, steps } = await manual(manualPod.id, action, 5000, () => { rp.state.failNext = { route: action === 'stop' ? 'GET /v2/pods/' + manualPod.id : 'GET /v2/pods', status: 503, times: 2 } })
-    const waiting = action === 'terminate' ? 'terminating · waiting for Runpod to drop it from the account list' : 'stopping · waiting for Runpod to report it stopped'
+    const waiting = action === 'terminate' ? 'terminating' : 'stopping'
     check('manual ' + action + ' shows the wait on the pod row and retries two listing 503s with words, then confirms', steps.some(step => step === waiting) && steps.filter(step => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(step)).length === 2 && rp.state.failNext.times === 0 && (action === 'terminate'
       ? result.ok && result.words === LLM_HOST_WORDS.terminatedPod && rp.state.deletes === deletes + 1 && !rp.state.pods.has(manualPod.id) && !readHostRecord(manualPod.id)
       : result.ok && rp.state.stops === stops + 1 && rp.state.pods.get(manualPod.id)?.status === 'EXITED' && readHostRecord(manualPod.id)?.status === 'EXITED' && !events.some(words => words.includes('compute may still bill'))))
@@ -219,8 +222,8 @@ try {
       : [{ route: 'GET /v2/clusters/' + family.id, status: 503, times: 2 }, { route: 'GET /v2/clusters/' + family.id + '/pods', status: 503, times: 2 }]
     const deletes = rp.state.clusterDeletes
     const settled = await run(clusterRecord, 10000)
-    check(failNode ? 'cluster failure retries its logs and termination listing without repeating delete' : 'cluster metadata and node-list hiccups recover to READY', failNode
-      ? !settled && !rp.state.clusters.has(family.id) && rp.state.clusterDeletes === deletes + 1
+    check(failNode ? 'a lost node pauses the cluster, which stays listed with no delete sent' : 'cluster metadata and node-list hiccups recover to READY', failNode
+      ? settled?.jobState !== 'ready' && rp.state.clusters.has(family.id) && rp.state.clusterDeletes === deletes && readHostRecord(clusterRecord.id)?.jobState === 'paused'
       : settled?.jobState === 'ready' && settled.steps?.filter(row => row.step.includes('retrying')).length === 4 && rp.state.clusterDeletes === deletes)
   }
   for (const retryAfter of [undefined, 90]) {

@@ -7,6 +7,7 @@ import { appendFileSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempS
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -686,7 +687,7 @@ const cleanup = async (): Promise<void> => {
     } catch {}
   }
   await new Promise<void>(resolve => fixture.close(() => resolve()))
-  if (!KEEP && failures === 0) rmSync(SCRATCH, { recursive: true, force: true })
+  if (!KEEP && failures === 0) removeScratch(SCRATCH)
   else console.log(`[forensics] world kept: ${SCRATCH}`)
 }
 

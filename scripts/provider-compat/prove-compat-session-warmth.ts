@@ -105,7 +105,7 @@ try {
     const { hostPaidPodWords } = await import(`${root}/src/commands/llmhost/words.ts`)
     const pod = { id: 'fixture-pod', name: 'Fixture', status: 'RUNNING', cost: 1, createdAt: new Date().toISOString() }
     const record = { provider: 'llamacpp', step: 'ready', startedAt: pod.createdAt }
-    check('the paid-pod row displays the engine reading from the completed turn', hostPaidPodWords(pod, record).includes(compatPrefixCacheWords(endpoint)))
+    check('the paid-pod row keeps to identity, state, rate and spend; the engine reading lives in the endpoint words', !hostPaidPodWords(pod, record).includes(compatPrefixCacheWords(endpoint)) && /\$[\d.]+\/hr/.test(hostPaidPodWords(pod, record)))
     check('stopped or reloading pods never show an old cache reading', !hostPaidPodWords({ ...pod, status: 'EXITED' }, record).includes('prefix cached') && !hostPaidPodWords(pod, { ...record, step: 'reloading' }).includes('prefix cached'))
     check('an expired cache reading is not displayed as current', compatPrefixCacheWords(endpoint, Date.now() + 16 * 60_000) === '')
     engine.state.report = false

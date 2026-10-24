@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ReactNode } from 'react'
@@ -15,7 +15,8 @@ const framesArg = arg('--frames')
 const FRAMES = framesArg === undefined ? undefined : resolve(framesArg)
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const SCRATCH = mkdtempSync(join(tmpdir(), 'live-counter-row-'))
+const SCRATCH = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'live-counter-row-'))
+delete process.env.MERCURY_HOME
 mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 mkdirSync(join(SCRATCH, 'project'), { recursive: true })
 process.chdir(join(SCRATCH, 'project'))
@@ -66,28 +67,30 @@ console.log('the words function — the live facts become the row\'s words in on
 check('the row has ONE words function (src/components/Spinner/liveCounterWords.ts) turning sent-at, first-byte-at, reply chars, thinking chars, the wire count and the promise into its words', words !== null)
 if (words !== null) {
   const reading = line(facts({ wait: localPromise }))
-  check(`sent, no byte, the local promise ⇒ reading with the clock and the promise: ${reading}`, reading === 'reading the prompt · 12s · first byte expected within 4m 31s', reading)
+  check(`a known empty prefill counter and its clock: ${reading}`, reading === '12s · ↓ 0', reading)
   const extended = line(facts({ wait: { ...localPromise, budgetMs: 331_000, checkedMs: 271_000 } }), T + 260_000)
-  check(`the liveness probe extended the promise ⇒ the row promises the extended budget: ${extended}`, extended === 'reading the prompt · 4m 32s · first byte expected within 5m 31s', extended)
+  check(`an extended budget adds no narration: ${extended}`, extended === '4m 32s · ↓ 0', extended)
   const cloud = line(facts({ wait: { ...localPromise, model: 'Opus 5.5', promise: undefined, budgetMs: 120_000 } }))
-  check(`a cloud road's first-byte wait reads the prompt with its own budget: ${cloud}`, cloud === 'reading the prompt · 12s · first byte expected within 2m', cloud)
+  check(`the cloud road uses the same quiet row: ${cloud}`, cloud === '12s · ↓ 0', cloud)
   const thinking = line(facts({ sentAtMs: T - 40_000, firstByteAtMs: T - 38_000, thinkingChars: 3_000 }))
-  check(`thinking 3,000 chars, no reply ⇒ the thinking tokens counted beside the clock: ${thinking}`, thinking === '↓ ~750 thinking tokens · thinking · 40s', thinking)
+  check(`thinking tokens are counted once: ${thinking}`, thinking === '40s · ↓ ~750', thinking)
   const both = line(facts({ phase: 'writing', sentAtMs: T - 45_000, firstByteAtMs: T - 38_000, thinkingChars: 4_800, replyChars: 1_360 }))
-  check(`thinking then reply ⇒ both counts in the shortest form: ${both}`, both === '↓ ~1.2k thinking · 340 tokens · writing · 45s', both)
+  check(`thinking and reply become one total: ${both}`, both === '45s · ↓ ~1.5k', both)
   const silence = line(facts({ sentAtMs: T - 271_000, firstByteAtMs: T - 270_000 }))
-  check(`a withheld-thinking silence ⇒ the clock only, never a still 0: ${silence}`, silence === 'thinking · 4m 31s', silence)
+  check(`unknown withheld output has no fabricated zero: ${silence}`, silence === '4m 31s', silence)
   const wire = line(facts({ phase: 'working', sentAtMs: T - 90_000, firstByteAtMs: T - 88_000, thinkingChars: 4_800, replyChars: 1_360, wireOutputTokens: 8_400 }))
-  check(`the wire count once known and larger ⇒ the exact figure, no ~: ${wire}`, wire === '↓ 8.4k tokens · working · 1m 30s', wire)
+  check(`the wire count once known and larger is exact: ${wire}`, wire === '1m 30s · ↓ 8.4k', wire)
   const sweep: Facts[] = []
   for (const thinkingChars of [0, 1, 3, 4, 7])
     for (const replyChars of [0, 1, 3, 4])
       for (const wireOutputTokens of [null, 0])
         for (const wait of [null, localPromise]) sweep.push(facts({ thinkingChars, replyChars, wireOutputTokens, wait }))
-  const zeros = sweep.map(f => line(f)).filter(text => /↓ ~?0\b/.test(text) || /\b0 tokens?\b/.test(text))
-  check(`never a ↓ 0: ${sweep.length} planted fact sets paint no zero count`, zeros.length === 0, zeros.join(' | '))
+  const badZeros = sweep.filter(f => /↓ 0\b/.test(line(f)) && !(f.wireOutputTokens === 0 || f.replyChars === 0 && f.thinkingChars === 0 && f.firstByteAtMs === null))
+  check(`${sweep.length} counter combinations only show zero when known`, badZeros.length === 0, JSON.stringify(badZeros))
+  check('hidden thinking blocks are not a token count', line(facts({ thinkingBlocks: 1 })) === '12s')
+  check('nonfinite counters do not create a zero', line(facts({ replyChars: NaN, thinkingChars: NaN })) === '12s')
   const oneToken = line(facts({ firstByteAtMs: T - 1_000, replyChars: 4 }))
-  check(`the count appears the moment a token exists: ${oneToken}`, oneToken === '↓ ~1 token · thinking · 12s', oneToken)
+  check(`the count appears as soon as one token is estimated: ${oneToken}`, oneToken === '12s · ↓ ~1', oneToken)
   const sequence: Facts[] = [
     facts({ wait: localPromise }),
     facts({ firstByteAtMs: T - 1_000 }),
@@ -100,26 +103,21 @@ if (words !== null) {
     facts({ phase: 'writing', firstByteAtMs: T + 3_000, thinkingChars: 30_000, replyChars: 4_000, wireOutputTokens: 8_400 }),
   ]
   const totals = sequence.map(f => words.liveCounterWords(f, T + 5_000).figure.total)
-  check(`after the first byte the count only grows across a turn (reading → thinking → reply → wire → next request): ${totals.join(' → ')}`, totals.every((total, index) => index === 0 || total >= totals[index - 1]!))
+  check(`the total only grows across the same turn: ${totals.join(' → ')}`, totals.every((total, index) => index === 0 || total >= totals[index - 1]!))
   const secondRead = line(sequence[6]!, T + 2_000)
-  check(`a later request in the same turn reads the prompt with the count it already has: ${secondRead}`, secondRead === '↓ 8.4k tokens · reading the prompt · 14s · first byte expected within 4m 31s', secondRead)
+  check(`a later request keeps the turn count: ${secondRead}`, secondRead === '14s · ↓ 8.4k', secondRead)
   const loading = line(facts({ wait: { ...localPromise, phase: 'loading', sizeGb: 6.2 } }))
-  check(`the local road's model load speaks its own phase: ${loading}`, loading === 'loading the model · 12s · qwen3.5:9b (6.2 GB)', loading)
+  check(`model loading does not add metadata: ${loading}`, loading === '12s · ↓ 0', loading)
   const overdue = line(facts({ wait: localPromise }), T + 300_000)
-  check(`past the first-byte budget the promise says so instead of promising: ${overdue}`, overdue === 'reading the prompt · 5m 12s · past the 4m 31s first-byte budget', overdue)
+  check(`past a first-byte budget the clock still speaks alone: ${overdue}`, overdue === '5m 12s · ↓ 0', overdue)
   const retry = line(facts({ wait: { kind: 'retry', attempt: 2, of: 5, reason: 'a 529', delayMs: 3_000, sinceMs: T - 1_000 } }))
-  check(`a reissue on its way speaks the retry, never a dead 0: ${retry}`, retry === 'retrying · 12s · attempt 2 of 5 after a 529 · in 3s', retry)
+  check(`an actual retry keeps its concise indication: ${retry}`, retry === '12s · ↓ 0 · retrying 2 of 5', retry)
   const full = words.liveCounterWords(facts({ phase: 'writing', sentAtMs: T - 45_000, firstByteAtMs: T - 38_000, thinkingChars: 4_800, replyChars: 1_360, wait: { kind: 'silence', model: 'qwen3.5:9b', silentMs: 45_000, sinceMs: T - 45_000, answered: true } }), T)
-  const wide = words.liveCounterLine(full, 173)
-  const tight = words.liveCounterLine(full, 40)
-  const tighter = words.liveCounterLine(full, 22)
-  const phaseOnly = words.liveCounterLine(full, 7)
-  const tightest = words.liveCounterLine(full, 6)
-  check(`the width law at 178 columns keeps every segment: ${wide}`, wide === '↓ ~1.2k thinking · 340 tokens · writing · 45s · no bytes for 45s — the server still answers', wide)
-  check(`a tight row sheds the promise first and the long count next: ${tight}`, tight === '↓ ~1.5k tokens · writing · 45s', tight)
-  check(`tighter keeps the phase and the clock: ${tighter}`, tighter === 'writing · 45s', tighter)
-  check(`the phase is the last word to go: ${phaseOnly}`, phaseOnly === 'writing', phaseOnly)
-  check(`a row too narrow for the phase prints no partial word or bare clock: ${tightest}`, tightest === '', tightest)
+  check('wide and narrow rows contain the same concise total', words.liveCounterLine(full, 173) === '45s · ↓ ~1.5k' && words.liveCounterLine(full, 40) === '45s · ↓ ~1.5k')
+  check('when the total cannot fit, elapsed remains', words.liveCounterLine(full, 7) === '45s')
+  check('nothing partial is painted at a width below the clock', words.liveCounterLine(full, 2) === '')
+  const reconnect = words.liveCounterWords(facts({ wait: { kind: 'retry', attempt: 2, of: 5, reason: 'closed', delayMs: 0, sinceMs: T, reconnecting: true } }), T)
+  check('an actual reconnection outranks counters on the narrow ladder', words.liveCounterLine(reconnect, 19) === 'reconnecting 2 of 5')
 }
 
 class Output extends EventEmitter {
@@ -176,21 +174,19 @@ console.log('\nthe rendered rows — the compact status row and the full spinner
 for (const columns of [178, 80]) {
   const reading = await mountRow(columns, compactRow(rowFacts.reading, now - 12_000))
   frames.push(`# compact row · reading · ${columns} columns\n${reading}`)
-  check(`@${columns} compact, sent and no byte: no dead ↓ 0 tokens on the row (${reading.replace(/\n/g, ' ↵ ')})`, !/↓ ~?0 tokens/.test(reading), reading)
-  check(`@${columns} compact, sent and no byte: the row says it is reading the prompt with the clock ticking`, /reading the prompt · \d+s/.test(reading), reading)
-  check(`@${columns} compact, sent and no byte: the local road's promise rides the row`, /first byte expected within 4m 31s/.test(reading), reading)
+  check(`@${columns} compact prefill keeps elapsed and known zero`, /\d+s · ↓ 0/.test(reading) && !/reading|first byte|waiting/.test(reading), reading)
   const thinking = await mountRow(columns, compactRow(rowFacts.thinking, now - 40_000))
   frames.push(`# compact row · thinking 3,000 chars · ${columns} columns\n${thinking}`)
-  check(`@${columns} compact, thinking 3,000 chars and no reply: the thinking tokens are counted (${thinking.replace(/\n/g, ' ↵ ')})`, /↓ ~750 thinking tokens · thinking · (39|4\d)s/.test(thinking), thinking)
+  check(`@${columns} compact thinking keeps one estimated count`, /(?:39|4\d)s · ↓ ~750/.test(thinking) && !/thinking tokens/.test(thinking), thinking)
   const silence = await mountRow(columns, compactRow(rowFacts.silence, now - 40_000))
   frames.push(`# compact row · withheld thinking · ${columns} columns\n${silence}`)
-  check(`@${columns} compact, a withheld-thinking silence: the clock alone moves, never a still 0 (${silence.replace(/\n/g, ' ↵ ')})`, /thinking · (39|4\d)s/.test(silence) && !/↓ ~?0 tokens/.test(silence), silence)
+  check(`@${columns} compact withheld output keeps elapsed, never an invented zero`, /(?:39|4\d)s/.test(silence) && !silence.includes('↓'), silence)
   const fullReading = await mountRow(columns, fullRow(rowFacts.reading, now - 12_000, columns))
   frames.push(`# full row · reading · ${columns} columns\n${fullReading}`)
-  check(`@${columns} full row, sent and no byte: reading the prompt, no dead ↓ 0 tokens (${fullReading.replace(/\n/g, ' ↵ ')})`, /reading the prompt/.test(fullReading) && !/↓ ~?0 tokens/.test(fullReading) && !/thinking \(max\)/.test(fullReading), fullReading)
+  check(`@${columns} full prefill keeps known zero without phase or effort words`, fullReading.includes('↓ 0') && !/reading|waiting|thinking \(max\)/.test(fullReading), fullReading)
   const fullThinking = await mountRow(columns, fullRow(rowFacts.thinking, now - 40_000, columns))
   frames.push(`# full row · thinking 3,000 chars · ${columns} columns\n${fullThinking}`)
-  check(`@${columns} full row, thinking 3,000 chars: the thinking tokens are counted beside the thinking label (${fullThinking.replace(/\n/g, ' ↵ ')})`, /↓ ~750 thinking tokens/.test(fullThinking) && /thinking \(max\)/.test(fullThinking), fullThinking)
+  check(`@${columns} full thinking keeps the total without a phase label`, fullThinking.includes('↓ ~750') && !/thinking tokens|thinking \(max\)/.test(fullThinking), fullThinking)
 }
 if (FRAMES !== undefined) {
   mkdirSync(FRAMES, { recursive: true })
@@ -198,5 +194,6 @@ if (FRAMES !== undefined) {
   console.log(`frames written to ${join(FRAMES, 'live-counter-rows.txt')}`)
 }
 
-console.log(failures === 0 ? '\n✅ live counter GREEN — reading ticks, thinking counts, never a dead 0' : `\n❌ live counter RED — ${failures} failure(s)`)
+rmSync(SCRATCH, { recursive: true, force: true })
+console.log(failures === 0 ? '\nPASS live counter: quiet rows, honest counts' : `\nFAIL live counter: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

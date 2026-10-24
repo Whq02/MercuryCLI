@@ -265,11 +265,8 @@ export function assembleToolPool(
   mcpTools: Tools,
 ): Tools {
   const builtins = [...getTools(permissionContext)]
-  const mcp = filterToolsByDenyRules(mcpTools, permissionContext).filter(
-    tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked',
-  )
   builtins.sort((a, b) => a.name.localeCompare(b.name))
-  const sortedMcp = mcp.map(withBundledAppInstallConsent).sort((a, b) => a.name.localeCompare(b.name))
+  const sortedMcp = mcpToolPartition(mcpTools, permissionContext)
   const seen = new Set<string>()
   const pool: Tool[] = []
   for (const tool of [...builtins, ...sortedMcp]) {
@@ -278,4 +275,11 @@ export function assembleToolPool(
     pool.push(tool)
   }
   return pool
+}
+
+export function mcpToolPartition(mcpTools: Tools, permissionContext: ToolPermissionContext): Tool[] {
+  return filterToolsByDenyRules(mcpTools, permissionContext)
+    .filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked')
+    .map(withBundledAppInstallConsent)
+    .sort((a, b) => a.name.localeCompare(b.name))
 }

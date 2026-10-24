@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 }
 
 import { execFileSync } from 'node:child_process'
-import { writeFileSync, existsSync } from 'node:fs'
+import { writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveProofHome } from '../lib/proofHome.ts'
@@ -111,6 +111,7 @@ if (process.env.WIF_RENDER_CHILD) {
   void render(h(OtpsHarness))
   setTimeout(() => process.exit(0), 5000)
 } else {
+  const captureHome = mkdtempSync(join(CONFIG_HOME, 'spinner-render-'))
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
@@ -123,14 +124,14 @@ if (process.env.WIF_RENDER_CHILD) {
   const EMOJI = /[\u{1F000}-\u{1FAFF}\u{FE0F}]/u
 
   const capture = (cols: number): string => {
-    const cfg = `/tmp/vs-wif-${cols}.json`
+    const cfg = join(captureHome, `vs-wif-${cols}.json`)
     writeFileSync(cfg, JSON.stringify({
       argv: [process.execPath, 'run', SELF],
       sends: [],
       total: 15,
       cols,
       rows: 8,
-      out: `/tmp/wif-${cols}.json`,
+      out: join(captureHome, `wif-${cols}.json`),
     }))
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
@@ -147,25 +148,25 @@ if (process.env.WIF_RENDER_CHILD) {
   for (const cols of [120, 80]) {
     console.log(`\n  ── byline @ ${cols} ──`)
     const grid = capture(cols)
-    const line = grid.split('\n').find(l => /tools/.test(l)) ?? ''
+    const line = grid.split('\n').find(l => /Scuttling/.test(l)) ?? ''
     console.log(`  byline @${cols}: ${line.trim().slice(0, 78) || '(none)'}`)
-    check(`@${cols}: work-in-flight gauge present ("N tools")`, /\d+ tools?\b/.test(grid))
-    check(`@${cols}: the in-progress glyph (◐) rides the gauge`, /◐/.test(grid))
-    check(`@${cols}: context-burn gauge present ("NN% ctx")`, /\d+% ctx/.test(grid))
-    check(`@${cols}: token-burn counter present ("tokens")`, /tokens/.test(grid))
+    check(`@${cols}: no duplicate work-in-flight counter`, !/\d+ tools?\b/.test(grid))
+    check(`@${cols}: spinner and head remain`, /Scuttling/.test(grid) && /●/.test(grid))
+    check(`@${cols}: no context gauge`, !/\d+% ctx/.test(grid))
+    check(`@${cols}: one estimated output counter`, /↓ ~1k/.test(grid))
     check(`@${cols}: elapsed timer present`, /\d+s\b|\d+:\d\d/.test(grid))
     check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid))
   }
 
   const otpsCapture = (cols: number): string => {
-    const cfg = `/tmp/vs-otps-${cols}.json`
+    const cfg = join(captureHome, `vs-otps-${cols}.json`)
     writeFileSync(cfg, JSON.stringify({
       argv: [process.execPath, 'run', SELF],
       sends: [],
       total: 30,
       cols,
       rows: 8,
-      out: `/tmp/otps-${cols}.json`,
+      out: join(captureHome, `otps-${cols}.json`),
     }))
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
@@ -183,9 +184,10 @@ if (process.env.WIF_RENDER_CHILD) {
     check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid))
   }
 
+  rmSync(captureHome, { recursive: true, force: true })
   console.log('\n' + '='.repeat(60))
   if (failures === 0) {
-    console.log(' ✅ cockpit HUD byline — work-in-flight + ctx + streaming-cadence gauges render @80 + @120')
+    console.log('PASS quiet cockpit HUD: elapsed, one count and reply rate render at 80 and 120 columns')
     process.exit(0)
   } else {
     console.log(` ❌ cockpit HUD byline — ${failures} check(s) failed`)

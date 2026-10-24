@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -44,7 +45,7 @@ const DOWN = `${ESC}[B`
 
 function newScratch(tag: string): string {
   const scratch = join(tmpdir(), `concflow-${tag}-${process.pid}`)
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
   seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>

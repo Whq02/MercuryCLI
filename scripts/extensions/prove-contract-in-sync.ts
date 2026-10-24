@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
@@ -81,7 +82,7 @@ check('the skill states the two operator-act rules', /never add a source/i.test(
     rmSync(join(root, 'skills', 'fixture', MANIFEST_FILE))
     check('a changed need re-asks — the canonical blocks are in the hash too', contributionsHash({ ...manifest, needs: { ...manifest.needs, tools: ['Bash'] } } as never, root) !== approved)
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    removeScratch(root)
   }
 }
 

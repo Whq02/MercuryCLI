@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { READING_PHASE_WORD } from '../../src/components/Spinner/liveCounterWords.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -108,7 +109,7 @@ const hoppedLeg = async (
   }
   ;(daemon as ReturnType<typeof spawn> | null)?.kill('SIGTERM')
   await api.close()
-  rmSync(SCRATCH, { recursive: true, force: true })
+  removeScratch(SCRATCH)
 }
 
 console.log('leg A — hopped seat, THINKING phase (no deltas yet), 120x40')
@@ -155,7 +156,7 @@ console.log('leg B — the born session, mid-thinking, 120x40')
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }
-  rmSync(SCRATCH, { recursive: true, force: true })
+  removeScratch(SCRATCH)
 }
 
 console.log(failures === 0 ? '\nprove-esc-interrupts-drive: ALL LAWS HOLD' : `\nprove-esc-interrupts-drive: ${failures} FAILURE(S)`)

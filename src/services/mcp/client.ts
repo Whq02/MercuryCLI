@@ -1361,8 +1361,12 @@ async function callToolOnce(
       logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
       throw unknownOutcome()
     }
-    if (isAbortError(err) || (err as { name?: string } | null)?.name === 'AbortError') {
-      return { content: undefined }
+    if (signal.aborted || isAbortError(err) || (err as { name?: string } | null)?.name === 'AbortError') {
+      if (!couldHaveExecuted) return { content: undefined }
+      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        `MCP tool "${tool}" on server "${connected.name}": interrupted before it answered; if it has side effects, check them before calling again.`,
+        'MCP tool call interrupted',
+      )
     }
     const status = (err as { status?: unknown } | null)?.status
     if (status === 401 || err instanceof UnauthorizedError) {
