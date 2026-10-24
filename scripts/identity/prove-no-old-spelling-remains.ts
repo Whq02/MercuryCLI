@@ -58,6 +58,7 @@ const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|I
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
+  [new RegExp(J('rot', 'eamento'), 'i'), 'Portuguese for routing, in the Brazilian Portuguese README', rel => rel === 'docs/translations/README.pt-BR.md'],
   [new RegExp(J('(?:\\b', 'team', ": ')?[Cc]laude[ _]", 'Team'), ''), 'the Claude Team plan, the provider\'s name for it, and the plan table row keyed by its wire value'],
   [new RegExp(J('claude_', 'team'), ''), 'the plan on the wire'],
   [new RegExp(J("'", 'team', "'"), ''), 'the plan tier or the memory scope as a wire value'],
@@ -104,6 +105,10 @@ check('the API billing possessive stays scoped to its documented account',
   !OLD.test(crewRemainder('docs/ENGINES.md', "an optional management key for the API team's")) &&
     OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', "an optional management key for the API team's")) &&
     OLD.test(crewRemainder('docs/ENGINES.md', 'an optional management key for the API teammate')))
+check('the Portuguese routing word is excused only in the Brazilian Portuguese README, and the old word beside it still trips',
+  !OLD.test(crewRemainder('docs/translations/README.pt-BR.md', 'deixar o ' + J('rot', 'eamento') + ' com o OpenRouter')) &&
+    OLD.test(crewRemainder('docs/translations/README.pt-BR.md', 'o ' + J('rot', 'eamento') + ' da team')) &&
+    OLD.test(crewRemainder('docs/README.md', 'deixar o ' + J('rot', 'eamento') + ' com o OpenRouter')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md'].includes(f))

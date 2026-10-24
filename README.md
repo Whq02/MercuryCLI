@@ -1,6 +1,47 @@
-# Mercury CLI
+<h1 align="center">
+  <a href="https://mercury-cli.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/media/wordmark-cli-dark.png">
+      <img src="docs/media/wordmark-cli-light.png" alt="Mercury CLI" width="420">
+    </picture>
+  </a>
+</h1>
 
-Mercury CLI (mercury-cli.ai, npm package `mercury-tech-cli`) runs AI coding agents in your terminal, inside your own git repositories on macOS, Linux and Windows.
+<p align="center">
+  Runs AI coding agents in your terminal, inside your own git repositories on macOS, Linux and Windows.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/mercury-tech-cli"><img alt="npm version" src="https://img.shields.io/npm/v/mercury-tech-cli?style=flat"></a>
+  <a href="https://github.com/Whq02/MercuryCLI/actions/workflows/private-release.yml"><img alt="release workflow status" src="https://img.shields.io/github/actions/workflow/status/Whq02/MercuryCLI/private-release.yml?style=flat&label=release"></a>
+  <a href="LICENSE.md"><img alt="licence BUSL-1.1" src="https://img.shields.io/badge/licence-BUSL--1.1-blue?style=flat"></a>
+  <a href="https://github.com/Whq02/MercuryCLI"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Whq02/MercuryCLI?style=flat"></a>
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> |
+  <a href="docs/translations/README.zh-CN.md">简体中文</a> |
+  <a href="docs/translations/README.zh-TW.md">繁體中文</a> |
+  <a href="docs/translations/README.ko.md">한국어</a> |
+  <a href="docs/translations/README.de.md">Deutsch</a> |
+  <a href="docs/translations/README.es.md">Español</a> |
+  <a href="docs/translations/README.fr.md">Français</a> |
+  <a href="docs/translations/README.it.md">Italiano</a> |
+  <a href="docs/translations/README.da.md">Dansk</a> |
+  <a href="docs/translations/README.ja.md">日本語</a> |
+  <a href="docs/translations/README.pl.md">Polski</a> |
+  <a href="docs/translations/README.ru.md">Русский</a> |
+  <a href="docs/translations/README.bs.md">Bosanski</a> |
+  <a href="docs/translations/README.ar.md">العربية</a> |
+  <a href="docs/translations/README.no.md">Norsk</a> |
+  <a href="docs/translations/README.pt-BR.md">Português (Brasil)</a> |
+  <a href="docs/translations/README.th.md">ไทย</a> |
+  <a href="docs/translations/README.tr.md">Türkçe</a> |
+  <a href="docs/translations/README.uk.md">Українська</a> |
+  <a href="docs/translations/README.bn.md">বাংলা</a> |
+  <a href="docs/translations/README.el.md">Ελληνικά</a> |
+  <a href="docs/translations/README.vi.md">Tiếng Việt</a>
+</p>
 
 Website: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Whq02/MercuryCLI](https://github.com/Whq02/MercuryCLI) (`Whq02/MercuryCLI`) · npm: `mercury-tech-cli`
 

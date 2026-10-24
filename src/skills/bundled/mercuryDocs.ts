@@ -27,10 +27,17 @@ export function mercuryDocPages(): Readonly<Record<string, string>> {
   return PAGES
 }
 
+function htmlHeadingTitle(lines: readonly string[], start: number): string {
+  const end = lines.findIndex((line, index) => index >= start && /<\/h1>/i.test(line))
+  const heading = lines.slice(start, end === -1 ? start + 1 : end + 1).join(' ')
+  const alt = /<img\b[^>]*\balt="([^"]*)"/i.exec(heading)?.[1]
+  return (alt ?? heading.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()
+}
+
 export function describeDocPage(text: string): { title: string; summary: string } {
   const lines = text.split('\n')
-  const h1 = lines.findIndex(line => line.startsWith('# '))
-  const title = h1 === -1 ? '' : lines[h1]!.slice(2).trim()
+  const h1 = lines.findIndex(line => line.startsWith('# ') || /^<h1[\s>]/i.test(line))
+  const title = h1 === -1 ? '' : lines[h1]!.startsWith('# ') ? lines[h1]!.slice(2).trim() : htmlHeadingTitle(lines, h1)
   const h2 = lines.findIndex((line, index) => index > h1 && line.startsWith('## '))
   const opening = lines.slice(0, h2 === -1 ? undefined : h2)
   const answers = /<!--\s*answers:\s*([\s\S]*?)-->/i.exec(opening.join('\n'))?.[1]?.trim()

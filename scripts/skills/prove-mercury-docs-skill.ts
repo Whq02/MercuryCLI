@@ -170,6 +170,8 @@ for (const [label, page, holds] of SHAPES) {
   check(`describeDocPage on an ordinary page: ${label}`, holds(summary), summary)
 }
 check('describeDocPage honours an explicit <!-- answers: … --> line when a page carries one', docsSkill.describeDocPage('# Sample\n\n<!-- answers: custom routing line for the page -->\n\nA first paragraph that is over sixty characters long so the fallback would have chosen it.').summary === 'custom routing line for the page')
+const htmlHeaded = docsSkill.describeDocPage('<h1 align="center">\n  <a href="https://mercury-cli.ai">\n    <img src="mark.png" alt="Foo Tool" width="420">\n  </a>\n</h1>\n\n<p align="center">\n  Foo Tool does one clear thing for the user on every machine it runs on.\n</p>\n\n## Install\n')
+check('describeDocPage titles a page that opens on an HTML heading by its image alt text and summarises the prose past the markup', htmlHeaded.title === 'Foo Tool' && htmlHeaded.summary === 'Foo Tool does one clear thing for the user on every machine it runs on.', JSON.stringify(htmlHeaded))
 check('the question rides last under its own heading', text.endsWith('## The question\nhow do i schedule a prompt in mercury'))
 const bare = await promptText(docs!, '')
 check('no question ⇒ no question heading', !bare.includes('## The question'))
