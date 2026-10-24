@@ -1,5 +1,7 @@
 [English](../../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Dansk](README.da.md) | [日本語](README.ja.md) | [Polski](README.pl.md) | [Русский](README.ru.md) | [Bosanski](README.bs.md) | [العربية](README.ar.md) | [Norsk](README.no.md) | [Português (Brasil)](README.pt-BR.md) | [ไทย](README.th.md) | [Türkçe](README.tr.md) | [Українська](README.uk.md) | [বাংলা](README.bn.md) | [Ελληνικά](README.el.md) | [Tiếng Việt](README.vi.md)
 
+<div dir="rtl">
+
 # Mercury CLI
 
 Mercury CLI (mercury-cli.ai، وحزمة npm باسم `mercury-tech-cli`) يُشغّل وكلاء برمجة بالذكاء الاصطناعي في الطرفية لديك، داخل مستودعات git الخاصة بك على macOS و Linux و Windows.
@@ -28,6 +30,8 @@ Mercury متاح بشيفرته المصدرية بموجب Business Source Lice
 
 اختر طريقة تثبيت واحدة:
 
+<div dir="ltr">
+
 ```sh
 curl -fsSL https://mercury-cli.ai/install | sh     # macOS و Linux (x64 و arm64)
 irm https://mercury-cli.ai/install.ps1 | iex        # Windows (x64 و arm64)، في PowerShell 7
@@ -35,6 +39,8 @@ brew install Whq02/mercury/mercury                 # Homebrew: macOS و Linux x6
 npm install -g mercury-tech-cli                    # npm؛ `bun install -g mercury-tech-cli` هي الحزمة نفسها
 mise use -g npm:mercury-tech-cli                   # mise، عبر حزمة npm
 ```
+
+</div>
 
 تحتفظ عناوين التثبيت بأعداد تقريبية لطلبات السكربتات حسب المصدر وحسب اليوم بتوقيت UTC (لا تُحتسب عمليات التثبيت المكتملة)؛ ولا يخزّن العدّاد أي عنوان IP أو سلسلة user-agent أو ملف تعريف ارتباط (cookie).
 
@@ -121,13 +127,19 @@ mise use -g npm:mercury-tech-cli                   # mise، عبر حزمة npm
 
 يُبنى Mercury باستخدام bun ويعمل على Node 24 LTS. ثبّت [متطلبات البناء من المصدر](#المتطلبات)، بما فيها bun 1.3.x:
 
+<div dir="ltr">
+
 ```sh
 curl -fsSL https://bun.sh/install | bash           # macOS و Linux
 powershell -c "irm bun.sh/install.ps1 | iex"       # Windows، في PowerShell 7
 bun --version                                      # 1.3.x
 ```
 
+</div>
+
 ثم، داخل نسخة محلية (clone) من هذا المستودع:
+
+<div dir="ltr">
 
 ```sh
 bun run setup                      # مرة واحدة؛ bun install + الحزم المُضمَّنة (vendored packs)
@@ -136,6 +148,8 @@ node dist/mercury.mjs --version
 node dist/mercury.mjs
 node dist/mercury.mjs health --json
 ```
+
+</div>
 
 ### دعم الطرفية
 
@@ -159,9 +173,13 @@ node dist/mercury.mjs health --json
 
 ينشر `scripts/ops/deploy-runtime.sh` بناءً من شجرة مصدر نظيفة إلى مجلد جديد `<config home>/runtime/builds/<build>` ويُشير `runtime/current` إليه (`runtime/dist` هو الاسم الأقدم للرابط نفسه). ويثبّت `scripts/ops/deploy-launcher.sh` المُشغِّل في `<config home>/bin/mercury`. أضِف هذا المجلد إلى PATH؛ وفي zsh:
 
+<div dir="ltr">
+
 ```sh
 echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 ```
+
+</div>
 
 يتوقف المُشغِّل بخطأ إذا كانت بيئة التشغيل مفقودة، ولا ينتقل إلى بناء آخر. ويتبع اختيار Node الترتيب الوارد في [المتطلبات](#المتطلبات). وبالنسبة إلى تثبيت إصدار، شغّل `mercury install` أو `mercury update`، وهما يتركان نسخ المصدر دون تغيير؛ راجع [التحديثات](#التحديثات).
 
@@ -262,11 +280,15 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 يشغّل `mercury run "<prompt>"` موجّهًا دون واجهة طرفية:
 
+<div dir="ltr">
+
 ```sh
 mercury run "Summarise this repository." --format text
 mercury run "Summarise this repository." --format json
 mercury run "Summarise this repository." --format rows
 ```
+
+</div>
 
 - `text` يطبع الإجابة؛ ويذهب سبب الدور الفاشل إلى stderr.
 - `json` يطبع آخر صف `outcome` ككائن JSON واحد.
@@ -303,9 +325,13 @@ mercury run "Summarise this repository." --format rows
 
 يتطلب `--input rows` وجود `--format rows`، ويقرأ كائن إدخال واحدًا في كل سطر:
 
+<div dir="ltr">
+
 ```sh
 printf '%s\n' '{"type":"prompt","content":"Summarise this repository."}' | mercury run --input rows --format rows
 ```
+
+</div>
 
 أنواع الإدخال هي `prompt` مع `content` (كتل نصية، أو كتل نص وصورة)، و `shell` مع `command`، و `note` مع `to` (معرّف وكيل) و `content`. ويقبل كلٌّ منها `id` اختياريًا؛ وتقبل صفوف prompt و shell أيضًا `priority` (`now` أو `next` أو `later`) و `sent_at` و `origin`. يُنتج شكل الإدخال المرفوض `notice` بالرمز `input_refused`؛ وينهي JSON المعطوب التشغيل. وتحمل هذه الصفوف الإدخال فقط؛ أما إجابات الإذن فتستخدم بروتوكول runner المذكور أدناه.
 
@@ -319,11 +345,15 @@ printf '%s\n' '{"type":"prompt","content":"Summarise this repository."}' | mercu
 
 يبني `Dockerfile` في جذر المستودع صورة Linux x64 لبيئات CI والخوادم. نقطة دخولها هي `mercury` وفعلها الافتراضي هو `run`، لذلك تُشغّل الصورة موجّهًا واحدًا على شجرة ملفات مُركّبة (mounted) وتخرج برمز تشغيل ذلك الموجّه:
 
+<div dir="ltr">
+
 ```sh
 docker build -t mercury .
 docker run --rm -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" -v "$PWD":/work mercury run "Summarise this repository." --format text
 docker run --rm mercury --version
 ```
+
+</div>
 
 تحمل الصورة الحزمة، وبيئة تشغيل Node 24 الخاصة بها (على `PATH`)، وأدوات البحث والصدفة ومصحّح الأخطاء واللغات والصور المُضمَّنة، و `git` ومخزن الشهادات؛ دون شاشة دخول وبلا تدفّق لتسجيل الدخول. تعمل الصورة بوصفها المستخدم غير الجذري `mercury` ومجلد الإعدادات الخاص بها داخل الحاوية (`MERCURY_CONFIG_DIR`)، و `/work` هو مجلد عملها. ويتبع اللون والفأرة اكتشاف الطرفية الخاص بالمنتج، ويعمل `--user 0` بصلاحيات root مع إشعار sovereign الواحد المذكور أعلاه.
 
@@ -333,9 +363,13 @@ docker run --rm mercury --version
 
 يُتيح `mercury runner` جلسةً لمضيف عبر stdio: بروتوكول JSON-RPC 2.0، رسالة واحدة في كل سطر. يُرسل المضيف `initialize` أولًا، وينتظر الإجابة قبل إرسال أي عمل:
 
+<div dir="ltr">
+
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"host":{"name":"my-host","version":"1.0.0"},"capabilities":{"holds_asks":true,"elicitation":false,"partial_rows":false}}}
 ```
+
+</div>
 
 يحمل اسم المضيف وإصداره ضمن `host`، ويُعلن `capabilities` عن `holds_asks` و `elicitation` و `partial_rows`. ويجب أن يكون كل `id` لطلب عددًا صحيحًا موجبًا: فالطلب الذي يكون `id` فيه أي شيء آخر يُجاب عليه بالرمز `-32600` مع `id: null`، لذا فرقّم الطلبات ابتداءً من 1.
 
@@ -438,3 +472,5 @@ Mercury متاح بشيفرته المصدرية بموجب Business Source Lice
 يتحوّل كل إصدار إلى Apache License 2.0 في Change Date (تاريخ التغيير) الخاص به، أي بعد ثلاث سنوات من تاريخ إصداره.
 
 للترخيص التجاري وإذن استخدام العلامة التجارية، زُر [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). وتُدرج تراخيص الأطراف الثالثة المرفقة في [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+
+</div>
