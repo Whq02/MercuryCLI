@@ -542,7 +542,7 @@ for (const { lane, model, dialect } of LANES) {
     check('P4 three identical failing calls end the turn: terminal loop_stopped naming FailTool, three model calls, never the fourth', r.threw === undefined && r.terminal.reason === 'loop_stopped' && cycle === 'FailTool' && r.wire.length === 3, `terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length} threw=${r.threw ?? 'no'}`)
     check("P4 each of the three calls answered with the tool's own error", toolResultsYielded(r.yields).filter(t => t.isError).length === 3 && toolResultsYielded(r.yields).every(t => t.text.includes('FailTool exploded on again')))
     const stopWords = systemNotices(r.yields).filter(t => t.startsWith('Stopped after 3 failed'))
-    check("P4 the screen carries the tool, count, arguments and error", stopWords.length === 1 && /^Stopped after 3 failed FailTool calls with the same arguments.*again.*\n.*FailTool exploded on again/.test(stopWords[0]!), stopWords.join(' | ').slice(0, 300))
+    check("P4 the screen carries the tool, count, arguments and error", stopWords.length === 1 && /^Stopped after 3 failed FailTool calls with the same arguments \(\{"text": <5 chars>\}\):\n.*FailTool exploded on again/.test(stopWords[0]!), stopWords.join(' | ').slice(0, 300))
   }
 }
 

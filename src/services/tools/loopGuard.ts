@@ -188,8 +188,25 @@ function isUnchangedReadAnswer(block: ToolResultBlockParam | undefined): boolean
   return block?.is_error !== true && block?.content === FILE_UNCHANGED_STUB
 }
 
+const ADDRESS_KEYS = new Set(['file_path', 'path', 'notebook_path', 'cwd', 'directory', 'name', 'tool', 'skill', 'task_id', 'shell_id'])
+
+function valueShape(value: unknown): string {
+  if (typeof value === 'string') return `<${value.length} chars>`
+  if (Array.isArray(value)) return `<${value.length} items>`
+  if (value === null || value === undefined) return String(value)
+  if (typeof value === 'object') return `<object ${Object.keys(value as Record<string, unknown>).length} keys>`
+  return String(value)
+}
+
 function argumentPreview(args: unknown): string {
-  const whole = canonicalArguments(args)
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) return valueShape(args)
+  const record = args as Record<string, unknown>
+  const parts = Object.keys(record).sort().map(key => {
+    const value = record[key]
+    const shown = ADDRESS_KEYS.has(key) && typeof value === 'string' && value.length <= 200 ? JSON.stringify(value) : valueShape(value)
+    return `${JSON.stringify(key)}: ${shown}`
+  })
+  const whole = `{${parts.join(', ')}}`
   if (whole.length <= ARGUMENT_PREVIEW_CHARS) return whole
   return `${whole.slice(0, ARGUMENT_PREVIEW_CHARS)}...`
 }

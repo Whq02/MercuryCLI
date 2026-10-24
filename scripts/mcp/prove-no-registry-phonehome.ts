@@ -131,6 +131,16 @@ const childEnv = (home: string): NodeJS.ProcessEnv => ({
 const PROMPT = 'Reply with the single word pong.'
 type Boot = { code: number; signal: string | null; stdout: string; stderr: string; lines: string[]; leftovers: string; refused: string }
 
+function leavingWithinGrace(pid: number, graceMs: number): boolean {
+  const deadline = Date.now() + graceMs
+  for (;;) {
+    let state = ''
+    try { state = execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() } catch { return true }
+    if (state === '' || state.startsWith('Z')) return true
+    if (Date.now() >= deadline) return false
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  }
+}
 function sweepOwned(): { swept: string; refused: string } {
   const roster = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').filter(line => line !== '') : []
   const alive: string[] = []
@@ -141,6 +151,7 @@ function sweepOwned(): { swept: string; refused: string } {
     if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) continue
     const liveStart = getProcessStartToken(pid)
     if (liveStart === null || liveStart === '') continue
+    if (leavingWithinGrace(pid, 1000)) continue
     if (recordedStart === undefined || recordedStart === '' || liveStart !== recordedStart) {
       refused.push(`${pid} recorded=${recordedStart ?? '(none)'} live=${liveStart}`)
       continue

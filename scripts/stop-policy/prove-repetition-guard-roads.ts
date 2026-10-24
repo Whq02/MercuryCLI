@@ -261,7 +261,7 @@ if (import.meta.main) {
     const err = await stderr
     server.closeAllConnections()
     await new Promise<void>(done => server.close(() => done()))
-    const stopped = 'Stopped after 3 failed Skill calls with the same arguments ({"skill":"missing-proof-skill"}):'
+    const stopped = 'Stopped after 3 failed Skill calls with the same arguments ({"skill": "missing-proof-skill"}):'
     check('the fourth failing request is never sent', calls === 3, 'calls=' + calls)
     check('text mode exits 1 and names the call, count and failure', code === 1 && err.includes(stopped) && err.includes('Unknown skill: missing-proof-skill'), 'exit=' + code + ' stderr=' + err)
     check('the stop is also recorded in the debug log', existsSync(debug) && readFileSync(debug, 'utf8').includes(stopped))

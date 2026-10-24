@@ -156,21 +156,21 @@ function stopped(result: Awaited<ReturnType<typeof run>>) {
 const same = await run(repeats(9))
 check('foreground runs all nine failed calls and completes', same.calls.length === 10 && !stopped(same), same.terminal)
 check('first identical failure repeat is reminded before request three, not before request two', JSON.stringify(same.calls[2]).includes(AGAIN) && !JSON.stringify(same.calls[1]).includes(AGAIN))
-check('the reminder carries the complete tool error and arguments', notices(same).some(row => 'content' in row && row.content.includes(ERROR) && row.content.includes(INPUT.command)), notices(same))
+check('the reminder carries the complete tool error and the call shape, never the argument values', notices(same).some(row => 'content' in row && row.content.includes(ERROR) && row.content.includes('"command": <') && !row.content.includes(INPUT.command)), notices(same))
 const headless = await run(repeats(4), { headless: true })
 check('headless stops on the third failure without requesting a fourth', headless.calls.length === 3 && (headless.terminal as { reason?: string })?.reason === 'loop_stopped', headless.terminal)
 const cockpit = await run(repeats(9), { headless: true, oculus: true })
 check('the daemon-hosted runner behind a screen (non-interactive process, oculus session) runs all nine failed calls and is never stopped', cockpit.calls.length === 10 && !stopped(cockpit) && notices(cockpit).length > 0, { calls: cockpit.calls.length, stop: stopped(cockpit) })
 const cockpitCrew = await run(repeats(4), { headless: true, oculus: true, agent: true })
 check('a crewmate of that same screen session still stops on three', cockpitCrew.calls.length === 3 && Boolean(stopped(cockpitCrew)), { calls: cockpitCrew.calls.length })
-check('the stopped sentence carries the tool, count, arguments and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless))
+check('the stopped sentence carries the tool, count, call shape and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes('"command": <') && !stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless))
 const crew = await run(repeats(4), { agent: true })
 check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) })
 const final = finalizeAgentTool(crew.yields, crew.agentId, { prompt: 'fixture', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true })
 const failure = final.outcome?.status === 'failed' ? final.outcome : undefined
 check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome)
 const parent = AgentTool.mapToolResultToToolResultBlockParam({ ...final, status: 'failed', prompt: 'fixture', error: failure?.error } as never, 'parent-fixture')
-check('the parent tool result is an error with the repeated call and cause', parent.is_error === true && JSON.stringify(parent.content).includes(INPUT.command) && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent)
+check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent)
 
 for (const kind of ['permission', 'hook'] as const) {
   const result = await run(repeats(4), { agent: true, mode: kind })
@@ -200,7 +200,7 @@ queue.resetCommandQueue()
 let appState = { ...getDefaultAppState(), tasks: { [crew.agentId]: { id: crew.agentId, type: 'local_agent', status: 'failed', notified: false, endTime: Date.now() } } } as unknown as AppState
 enqueueAgentNotification({ taskId: crew.agentId, description: 'failure fixture', status: 'failed', error: failure?.error, setAppState: update => { appState = update(appState) } })
 const completion = String(queue.getCommandQueue()[0]?.value ?? '')
-check('the real completion notification carries the cause instead of silence', completion.includes(INPUT.command) && completion.includes(ERROR), completion)
+check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion)
 queue.resetCommandQueue()
 
 const frameArg = process.argv.indexOf('--frames')
