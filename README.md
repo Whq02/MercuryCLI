@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://mercury-cli.ai"><img alt="website mercury-cli.ai" src="https://img.shields.io/badge/website-mercury--cli.ai-4d7ae2?style=flat"></a>
   <a href="https://www.npmjs.com/package/mercury-tech-cli"><img alt="npm version" src="https://img.shields.io/npm/v/mercury-tech-cli?style=flat"></a>
   <a href="https://github.com/Whq02/MercuryCLI/actions/workflows/private-release.yml"><img alt="release workflow status" src="https://img.shields.io/github/actions/workflow/status/Whq02/MercuryCLI/private-release.yml?style=flat&label=release"></a>
   <a href="LICENSE.md"><img alt="licence BUSL-1.1" src="https://img.shields.io/badge/licence-BUSL--1.1-blue?style=flat"></a>
@@ -42,8 +43,6 @@
   <a href="docs/translations/README.el.md">Ελληνικά</a> |
   <a href="docs/translations/README.vi.md">Tiếng Việt</a>
 </p>
-
-Website: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Whq02/MercuryCLI](https://github.com/Whq02/MercuryCLI) (`Whq02/MercuryCLI`) · npm: `mercury-tech-cli`
 
 An agent reads and edits files, runs shell commands, steps through tests and debuggers, and checks the results. You choose the model provider, the model, and what the agent is allowed to do:
 
