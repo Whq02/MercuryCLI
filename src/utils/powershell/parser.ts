@@ -201,15 +201,12 @@ function asArray<T>(value: unknown): T[] {
 const NULL_TARGET_RE = /^\$\{?null\}?$/i
 
 function transformRedirection(raw: RawRedirection): ParsedRedirection {
+  const streams: Record<string, string> = { All: '*', Output: '1', Error: '2', Warning: '3', Verbose: '4', Debug: '5', Information: '6' }
   if (raw.type === 'MergingRedirectionAst') {
-    return { operator: '2>&1', target: '', isMerging: true }
+    return { operator: `${streams[raw.stream as string] ?? '2'}>&${streams[raw.toStream as string] ?? '1'}`, target: '', isMerging: true }
   }
-  const append = raw.append === true
-  const stream = (raw.stream as string) ?? 'Output'
-  let operator: string
-  if (stream === 'Error') operator = append ? '2>>' : '2>'
-  else if (stream === 'All') operator = append ? '*>>' : '*>'
-  else operator = append ? '>>' : '>'
+  const stream = streams[raw.stream as string] ?? '1'
+  const operator = `${stream === '1' ? '' : stream}${raw.append === true ? '>>' : '>'}`
   return { operator, target: (raw.target as string) ?? '', isMerging: false }
 }
 
@@ -496,11 +493,13 @@ function buildAnalysisProgramBody(): string {
     "if(-not $c){ConvertTo-Json @{valid=$false;statements=@();variables=@();errors=@(@{message='No input';errorId='NoInput'});hasStopParsing=$false;command=''} -Compress -Depth 10;exit 0}",
     "$src=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($c))",
     "$t=$null;$e=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($src,[ref]$t,[ref]$e)",
-    "function Deep($n,$type){$ast.FindAll({param($x) $x -is $type},$true)}",
-    "$cmds=@();$vars=@()",
-    "foreach($v in ($ast.FindAll({param($x) $x -is [Management.Automation.Language.VariableExpressionAst]},$true))){$vars+=@{path=$v.VariablePath.UserPath;splatted=$v.Splatted}}",
+    "function Deep($n,$type){$n.FindAll({param($x) $x -is $type},$true)}",
+    "function Redirs($ns){foreach($n in $ns){$r=@{type=$n.GetType().Name;stream=$n.FromStream.ToString()};if($n -is [Management.Automation.Language.MergingRedirectionAst]){$r.toStream=$n.ToStream.ToString()}else{$r.target=$n.Location.Extent.Text;$r.append=$n.Append};$r}}",
+    "function Elem($n){$r=@{type=$n.GetType().Name;text=$n.Extent.Text};if($n -is [Management.Automation.Language.StringConstantExpressionAst] -or $n -is [Management.Automation.Language.ExpandableStringExpressionAst]){$r.value=$n.Value};if($n -is [Management.Automation.Language.CommandParameterAst] -and $n.Argument){$r.child=Elem $n.Argument};if($n -is [Management.Automation.Language.CommandExpressionAst]){$r.wrappedType=$n.Expression.GetType().Name};$r}",
+    "function Cmd($n){$r=Elem $n;$r.redirections=@(Redirs $n.Redirections);if($n -is [Management.Automation.Language.CommandAst]){$r.elements=@($n.CommandElements|%{Elem $_});$name=$n.GetCommandName();if($null -ne $name){$r.elements[0].value=$name}};$r}",
+    "$vars=@(Deep $ast ([Management.Automation.Language.VariableExpressionAst])|%{@{path=$_.VariablePath.UserPath;splatted=$_.Splatted}})",
     "$stmts=@()",
-    "foreach($s in $ast.EndBlock.Statements){$stmts+=@{type=$s.GetType().Name;text=$s.Extent.Text;redirections=@()}}",
+    "foreach($s in $ast.EndBlock.Statements){$direct=@();$r=Elem $s;if($s -is [Management.Automation.Language.PipelineAst]){$direct=@($s.PipelineElements);$r.elements=@($direct|%{Cmd $_})};$r.nestedCommands=@(Deep $s ([Management.Automation.Language.CommandAst])|?{$_ -notin $direct}|%{Cmd $_});$r.redirections=@(Redirs (Deep $s ([Management.Automation.Language.RedirectionAst])));$p=@{};foreach($x in $s.FindAll({$true},$true)){switch -Regex ($x.GetType().Name){'^(Invoke)?MemberExpressionAst$'{$p.hasMemberAccess=$true}'^(Sub|Array|Paren)ExpressionAst$'{$p.hasSubExpression=$true}'^ExpandableStringExpressionAst$'{$p.hasExpandableString=$true}'^ScriptBlockExpressionAst$'{$p.hasScriptBlock=$true}}};$r.securityPatterns=$p;$stmts+=$r}",
     "$sp=$ast.Extent.Text -match '--%'",
     "ConvertTo-Json @{valid=($e.Count -eq 0);statements=$stmts;variables=$vars;errors=@($e|%{@{message=$_.Message;errorId=$_.ErrorId}});hasStopParsing=$sp;command=$src} -Compress -Depth 10",
   ].join(';')

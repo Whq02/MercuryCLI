@@ -314,7 +314,7 @@ export function isAllowlistedPipelineTail(element: ParsedCommandElement, origina
 }
 
 export function isProvablySafeStatement(statement: ParsedStatement): boolean {
-  if (statement.statementType !== 'pipeline') return false
+  if (statement.statementType !== 'PipelineAst') return false
   if (statement.commands.length === 0) return false
   return statement.nestedCommands.length === 0
 }
