@@ -72,12 +72,13 @@ check('the server connects (its own child process over stdio)', connection.type 
 const tools = connection.type === 'connected' ? (connection as unknown as { tools: Array<{ name: string; isReadOnly: () => boolean }> }).tools ?? [] : []
 let readTool: { name: string } | undefined
 let writeTool: { name: string } | undefined
+const realToolName = (t: { name: string; mcpInfo?: { toolName?: string } }): string => t.mcpInfo?.toolName ?? t.name.replace(/^mcp__[^_]+(?:_[^_]+)*__/, '')
 if (connection.type === 'connected') {
   const { fetchToolsForClient } = await import('../../src/services/mcp/client.ts') as unknown as { fetchToolsForClient?: (c: unknown) => Promise<Array<{ name: string; isReadOnly: () => boolean }>> }
   let wrapped: Array<{ name: string; isReadOnly: () => boolean }> = tools
   if (wrapped.length === 0 && fetchToolsForClient) wrapped = await fetchToolsForClient(connection)
-  readTool = wrapped.find(t => t.name.endsWith('fixture_read'))
-  writeTool = wrapped.find(t => t.name.endsWith('fixture_write'))
+  readTool = wrapped.find(t => realToolName(t) === 'fixture_read')
+  writeTool = wrapped.find(t => realToolName(t) === 'fixture_write')
   check('both tools arrive wrapped with the server-qualified names', readTool !== undefined && writeTool !== undefined, wrapped.map(t => t.name).join(','))
   check('the annotations survive: read-only vs mutating', readTool !== undefined && writeTool !== undefined && (readTool as { isReadOnly: () => boolean }).isReadOnly() === true && (writeTool as { isReadOnly: () => boolean }).isReadOnly() === false)
 }
@@ -91,8 +92,8 @@ if (readTool && writeTool && config) {
   const { fetchToolsForClient: fetchTwin } = await import('../../src/services/mcp/client.ts') as unknown as { fetchToolsForClient?: (c: unknown) => Promise<Array<{ name: string }>> }
   let twinTools = twin.type === 'connected' ? ((twin as unknown as { tools?: Array<{ name: string }> }).tools ?? []) : []
   if (twinTools.length === 0 && twin.type === 'connected' && fetchTwin) twinTools = await fetchTwin(twin)
-  const twinRead = twinTools.find(t => t.name.endsWith('fixture_read'))
-  const twinWrite = twinTools.find(t => t.name.endsWith('fixture_write'))
+  const twinRead = twinTools.find(t => realToolName(t) === 'fixture_read')
+  const twinWrite = twinTools.find(t => realToolName(t) === 'fixture_write')
   check('the twin tools arrive', twinRead !== undefined && twinWrite !== undefined, twinTools.map(t => t.name).join(','))
   const decide = async (tool: unknown, mode: string): Promise<{ behavior: string; message?: string; decisionReason?: { type?: string } }> =>
     hasPermissionsToUseTool(tool as never, {}, makeContext(mode).context as never, ASSISTANT, 'toolu_perm') as never
