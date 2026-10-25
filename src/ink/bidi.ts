@@ -54,25 +54,28 @@ export function reorderBidi<T extends BidiChar>(characters: T[]): T[] {
   }
 
   const out = characters.slice()
-  const outLevels = entryLevels.slice()
-  let maxLevel = 0
-  for (const level of outLevels) if (level > maxLevel) maxLevel = level
 
+  reorderByLevels(out, entryLevels.slice())
+  return out
+}
+
+function reorderByLevels<T>(items: T[], levels: number[]): void {
+  let maxLevel = 0
+  for (const level of levels) if (level > maxLevel) maxLevel = level
   for (let level = maxLevel; level >= 1; level--) {
     let i = 0
-    while (i < out.length) {
-      if (outLevels[i]! < level) {
+    while (i < items.length) {
+      if (levels[i]! < level) {
         i++
         continue
       }
       let j = i
-      while (j < out.length && outLevels[j]! >= level) j++
-      reverseRange(out, i, j - 1)
-      reverseRange(outLevels, i, j - 1)
+      while (j < items.length && levels[j]! >= level) j++
+      reverseRange(items, i, j - 1)
+      reverseRange(levels, i, j - 1)
       i = j
     }
   }
-  return out
 }
 
 function reverseRange<T>(array: T[], from: number, to: number): void {
@@ -155,18 +158,6 @@ export function shapeBidiForTerminal<T extends BidiChar>(characters: T[]): T[] {
     levels.push(level)
     pointIndex += count
   }
-  let maxLevel = 0
-  for (const level of levels) maxLevel = Math.max(maxLevel, level)
-  for (let level = maxLevel; level >= 1; level--) {
-    let i = 0
-    while (i < out.length) {
-      if (levels[i]! < level) { i++; continue }
-      let j = i
-      while (j < out.length && levels[j]! >= level) j++
-      reverseRange(out, i, j - 1)
-      reverseRange(levels, i, j - 1)
-      i = j
-    }
-  }
+  reorderByLevels(out, levels)
   return out
 }

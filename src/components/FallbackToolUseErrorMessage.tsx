@@ -4,16 +4,12 @@ import stripAnsi from 'strip-ansi'
 import { extractTag } from 'src/utils/messages.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
-import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { classifyToolError } from '../utils/errors/classifyToolError.js'
 import { isDenialResultText } from '../utils/messages/rejectionText.js'
-import { countCharInString } from '../utils/stringUtils.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { MessageResponse } from './MessageResponse.js'
-
-const MAX_RENDERED_LINES = 10
 
 type Props = {
   result: ToolResultBlockParam['content']
@@ -60,16 +56,13 @@ export function isToolErrorResultTruncated(
   if (contentText(result) === null) return false
   const collapsed = deriveDisplayedError(result, false)
   if (collapsed !== deriveDisplayedError(result, true)) return true
-  {
-    const stripped = collapsed
-    const classified = classifyToolError(stripped)
-    const fullBodyLines = classifyToolError(stripped, Number.MAX_SAFE_INTEGER)
-      .bodyLines.length
-    return (
-      fullBodyLines - classified.bodyLines.length > 0 ||
-      classified.stackFrameCount > 0
-    )
-  }
+  const classified = classifyToolError(collapsed)
+  const fullBodyLines = classifyToolError(collapsed, Number.MAX_SAFE_INTEGER)
+    .bodyLines.length
+  return (
+    fullBodyLines - classified.bodyLines.length > 0 ||
+    classified.stackFrameCount > 0
+  )
 }
 
 export function FallbackToolUseErrorMessage({
@@ -77,22 +70,15 @@ export function FallbackToolUseErrorMessage({
   verbose,
 }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
-  const transcriptShortcut = useShortcutDisplay(
-    'app:toggleTranscript',
-    'Global',
-    'ctrl+o',
-  )
   const error = deriveDisplayedError(result, verbose)
   const rawText = contentText(result)
   const isDenied = rawText !== null && isDenialResultText(rawText)
   const headGlyph = isDenied ? GLYPH.fail : GLYPH.warn
 
-  const plusLines = countCharInString(error, '\n') + 1 - MAX_RENDERED_LINES
   if (!verbose) {
-    const stripped = error
-    const classified = classifyToolError(stripped)
+    const classified = classifyToolError(error)
     const hiddenLines =
-      classifyToolError(stripped, Number.MAX_SAFE_INTEGER).bodyLines.length -
+      classifyToolError(error, Number.MAX_SAFE_INTEGER).bodyLines.length -
       classified.bodyLines.length
     return (
       <MessageResponse>
@@ -127,29 +113,13 @@ export function FallbackToolUseErrorMessage({
     )
   }
 
-  const body = verbose ? error : error.split('\n').slice(0, MAX_RENDERED_LINES).join('\n')
-
   return (
     <MessageResponse>
       <Box flexDirection="column">
         <Text color={isDenied ? 'error' : 'warning'}>
           {`${headGlyph} `}
-          {body}
+          {error}
         </Text>
-        {!verbose && plusLines > 0 && (
-          <Box>
-            <Text color={'subtle'} dimColor={false}>
-              … +{plusLines} {plusLines === 1 ? 'line' : 'lines'} (
-            </Text>
-            <Text color={'subtle'} dimColor={false} bold>
-              {transcriptShortcut}
-            </Text>
-            <Text> </Text>
-            <Text color={'subtle'} dimColor={false}>
-              to see all)
-            </Text>
-          </Box>
-        )}
       </Box>
     </MessageResponse>
   )

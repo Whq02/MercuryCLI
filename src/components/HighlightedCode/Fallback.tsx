@@ -7,8 +7,8 @@ import {
 } from '../../utils/cliHighlight.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { hashPair } from '../../utils/hash.js'
-
 import { linkifyCodeUrls } from '../../utils/hyperlink.js'
+
 const highlightCache = new Map<string, string>()
 const HIGHLIGHT_CACHE_LIMIT = 500
 

@@ -7,7 +7,6 @@ import { usePopupCompact } from '../../context/popupFormContext.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { closeSettingsPopup, openSettingsPopup, type SettingsPopupGeometry } from '../../utils/cockpit/settingsPopup.js'
 import { resetCostState } from '../../bootstrap/state.js'
-import { useAppState } from '../../state/AppState.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -33,12 +32,11 @@ export function Login({
 }: {
   geometry: SettingsPopupGeometry
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
-  onDone: (success: boolean, engineModel: string) => void
+  onDone: (success: boolean) => void
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
   startingMessage?: string
   initialFocus?: LoginFamilyFocus
 }): React.ReactNode {
-  const engineModel = useAppState(state => state.engineModel)
   const settledRef = useRef(false)
   const accountReceipt = useRef<string | null>(null)
   const [receipt, setReceipt] = useState<{ ok: boolean; receipt: string } | null>(null)
@@ -49,7 +47,7 @@ export function Login({
     }
     if (settledRef.current) return
     settledRef.current = true
-    onDone(success, engineModel ?? '')
+    onDone(success)
   }
   const settleOpenai = (result: { ok: boolean; receipt: string }): void => {
     if (settledRef.current) return
@@ -171,7 +169,7 @@ export async function call(
       ? { nextInput: returnCommand, submitNextInput: true as const }
       : {}
   const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
-  const complete = (success: boolean, engineModel: string): void => {
+  const complete = (success: boolean): void => {
     void (async () => {
       if (success) {
         context.onChangeAPIKey()
@@ -183,7 +181,6 @@ export async function call(
       } else {
         onDone('/logins closed — no credential changed', chain)
       }
-      void engineModel
     })()
   }
   const completeOpenai = (result: { ok: boolean; receipt: string }): void => {
@@ -203,9 +200,9 @@ export async function call(
       <Login
         geometry={geometry}
         scrollRef={scrollRef}
-        onDone={(success, model) => {
+        onDone={success => {
           closeSettingsPopup()
-          complete(success, model)
+          complete(success)
         }}
         onOpenaiDone={result => {
           closeSettingsPopup()

@@ -4,10 +4,10 @@ import { Ansi, Box, NoSelect, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
 import { useAppState } from '../state/AppState.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
+import { linkifyCodeUrls } from '../utils/hyperlink.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
 import { Suspense } from 'react'
 
-import { linkifyCodeUrls } from '../utils/hyperlink.js'
 export const HighlightedCode = memo(function HighlightedCode({
   code,
   filePath,

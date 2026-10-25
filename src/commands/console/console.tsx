@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { CommandCenter } from '../../components/mercury-ui/components.js'
+import { CommandCenter, useNowTick } from '../../components/mercury-ui/components.js'
 import { GLYPH, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { CursorCell, WorkingGlyph } from '../../components/mercury-ui/LiveGlyphs.js'
@@ -31,7 +31,6 @@ import { currentInterviewRef } from '../../services/interview/store.js'
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { renderModelName } from '../../utils/model/model.js'
 import { consoleModelOverride, resolveSubModel } from '../../utils/model/subModelSlots.js'
-import { useNowTick } from '../../components/mercury-ui/components.js'
 
 
 const LIST_ROWS = 5

@@ -26,14 +26,12 @@ import {
   CommandCenter,
   EmptyState,
   SectionHeader,
-  StateBadge,
 } from '../components.js'
-import { padTo, truncateToWidth } from '../glyphs.js'
+import { truncateToWidth } from '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { critterForKey } from '../../../utils/cockpit/critterVariant.js'
 import { Spinner } from '../../Spinner.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
-import { useInteractiveList } from '../useInteractiveList.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { decodeNavKey } from '../navSemantics.js'
 import { InteractiveRow } from '../InteractiveRow.js'

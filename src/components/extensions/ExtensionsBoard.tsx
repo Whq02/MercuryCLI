@@ -645,7 +645,7 @@ export function ExtensionsBoard({
 
   const onSlotInput = (input: string, key: Record<string, boolean>): void => {
     if (slot === null || key['ctrl'] || key['meta'] || key['super']) return
-    const typed = input && !key['ctrl'] && !key['meta'] && !key['tab'] && !key['return'] ? input : ''
+    const typed = input && !key['tab'] && !key['return'] ? input : ''
     switch (slot.mode) {
       case 'add': {
         if (slot.busy) return

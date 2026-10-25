@@ -182,7 +182,7 @@ section('§K2 the stop chord — x twice within the window on the same agent')
   check('the window is the ruled two seconds and the hint names the agent', CREW_STOP_WINDOW_MS === 2000 && crewStopHint('crew-one') === 'x again within 2 s stops crew-one')
   const view = src('src/components/mercury-ui/screens/CrewView.tsx')
   check('the crew view takes x through the chord and sends the stop through the connector, on the list and the card', view.includes('pressCrewStop(stopArm, target.id, Date.now())') && view.includes('.stopAgent(target.id)') && view.includes("mode.view === 'card' && !listMode"))
-  check('the crew view takes r as the resume door', view.includes("input === 'r' && target !== null && !target.running") && view.includes('.resumeAgent(target.id)'))
+  check('the crew view takes r as the resume door', view.includes("input === 'r' && plain && target !== null && !target.running") && view.includes('.resumeAgent(target.id)'))
   const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
   check('the /tasks board stops a roster row (an agent or a workflow of the session\'s runner) through the same chord and door', board.includes('pressCrewStop(') && board.includes('.stopAgent(work.id)'))
 }

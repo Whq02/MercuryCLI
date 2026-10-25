@@ -16,7 +16,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
+import { getOriginalCwd, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
@@ -999,7 +999,6 @@ export function Chat({
     if (isLoading) tipPickedThisTurnRef.current = false;
     wasLoadingRef.current = isLoading;
   }, [isLoading, pickTurnTip]);
-  const [generatedTitle] = useState<string | null>(null);
 
   const resume = useCallback(async (sessionId: UUID, log: ResumableLog, entrypoint: ResumeEntrypoint): Promise<void> => {
     void entrypoint;
@@ -1605,7 +1604,7 @@ export function Chat({
   const sessionTitleSetting = useAppState(state => (state.settings as { terminalTitle?: { sessionTitle?: boolean } }).terminalTitle?.sessionTitle);
   const sessionTitle = sessionTitleSetting === false ? undefined : getCurrentSessionTitle(asSessionId(focusedConnector.sessionId()));
   const agentTitle = store.getState().standaloneAgentContext?.name;
-  const title = sessionTitle ?? agentTitle ?? generatedTitle ?? 'Mercury';
+  const title = sessionTitle ?? agentTitle ?? 'Mercury';
   const titleAnimating = isLoading && !isWaitingForApproval && !showingLocalDialog;
   useEffect(() => {
     if (!titleAnimating) return;

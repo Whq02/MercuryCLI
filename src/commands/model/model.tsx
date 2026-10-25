@@ -21,9 +21,8 @@ import {
 } from '../../utils/model/modelTransition.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
-import { isModelFromDisabledProvider } from '../../services/providers/disabledProviders.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { BARE_FAMILY_WORDS } from '../../utils/model/bareFamilyWords.js'
-import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { validateModel } from '../../utils/model/validateModel.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js'
 import {

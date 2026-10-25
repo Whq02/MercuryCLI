@@ -816,8 +816,8 @@ function RentalUsageSection({ rental }: { rental: NonNullable<ReturnType<typeof 
 
 function EngineUsageSection({ section, width }: { section: UsageSection; width?: number }): React.ReactNode {
   const usage = useOwnerUsage(section.id, section.family.credentialed)
-  const model = useFocusedServedModel() ?? getEngineModel()
-  const rental = section.id === 'openai-compat' ? hostRentalUsage(model) : undefined
+  const served = useFocusedServedModel()
+  const rental = section.id === 'openai-compat' && section.family.credentialed ? hostRentalUsage(served ?? getEngineModel()) : undefined
   if (!section.family.credentialed) {
     return (
       <Box flexDirection="column">
@@ -1393,9 +1393,9 @@ export function usageCompactLines(
 ): UsageCompactLine[] {
   const lines: UsageCompactLine[] = []
   for (const section of plan) {
-    const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
-    const endpoint = section.id === 'openai-compat' ? compatModelEndpoint(model)?.endpoint : undefined
-    const rental = endpoint ? hostRentalUsage(model) : undefined
+    const model = section.id === 'openai-compat' && section.family.credentialed ? focusedSessionModelFacts()?.effective ?? getEngineModel() : undefined
+    const endpoint = model === undefined ? undefined : compatModelEndpoint(model)?.endpoint
+    const rental = model !== undefined && endpoint !== undefined ? hostRentalUsage(model) : undefined
     if (rental) {
       lines.push({ text: section.title, heading: true }, ...rentalUsageLines(rental).map(text => ({ text: `  ${text}`, heading: false })))
       continue

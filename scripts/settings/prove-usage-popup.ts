@@ -241,10 +241,12 @@ for (const fixture of ['absent', 'signed-in']) {
   check(`${fixture}: the Google sign-in slot asks the owner's door once on mount with the open reason${rich ? '' : ' — not at all without a plan'}`, (counts.get('gemini:open') ?? 0) - geminiBefore === (rich ? 1 : 0), String((counts.get('gemini:open') ?? 0) - geminiBefore))
   check(`${fixture}: the section text runs equal the original tab byte for byte`, JSON.stringify(wordRecords[fixture]) === JSON.stringify(baseline[fixture]))
   const headings = board.frame().split('\n')[0] ?? ''
-  check(`${fixture}: columns start at exactly 0, 50 and 100`, headings.indexOf('Anthropic usage') === 0 && headings.indexOf('OpenAI usage') === 50 && headings.indexOf('Gemini usage') === 100)
+  const order = rich ? ['Gemini usage', 'Anthropic usage', 'OpenAI usage'] : ['Anthropic usage', 'OpenAI usage', 'Gemini usage']
+  check(`${fixture}: columns start at exactly 0, 50 and 100 (${rich ? "the seated model's family leads" : 'catalogue order'}: ${order.join(' · ')})`, order.every((title, index) => headings.indexOf(title) === index * 50), headings)
   if (rich) {
     const bars = board.meters()
-    const painted = (): string[] => bars.filter(bar => board.frame().split('\n').some(line => line.slice(0, 42).padEnd(42) === bar))
+    const anthropicX = board.sizes().find(section => section.title === 'Anthropic usage')?.x ?? 0
+    const painted = (): string[] => bars.filter(bar => board.frame().split('\n').some(line => line.slice(anthropicX, anthropicX + 42).padEnd(42) === bar))
     const top = painted()
     check('the four meters are 42 cells and the top frame paints three of them byte-exact (the JEV row costs the viewport one row, so the last weekly pool waits one step below)', bars.length === 4 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3, `${bars.length} bars · ${top.length} painted`)
     await board.key('down')
@@ -302,7 +304,7 @@ delayed.close()
   const before = counts.get('anthropic:operator') ?? 0
   const board = await mount(58, 4, 64, token++, true)
   const frameLines = () => board.frame().split('\n')
-  check('compact 58×4: four single-line rows fill the body, the first the Anthropic heading under the cursor', frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Anthropic usage') && frameLines()[1]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), board.frame())
+  check("compact 58×4: four single-line rows fill the body, the first the Gemini heading (the seated model's family) under the cursor, its figures line under it, then the Anthropic heading and its first window", frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Gemini usage') && frameLines()[1]!.includes('Google AI Pro tier Google reports') && frameLines()[2]!.startsWith('  Anthropic usage') && frameLines()[3]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), board.frame())
   const painted = lines.length - 1
   check('compact: the marker reads 1 of the line count — the mounted board, in a home with no evaluator key and no chat, paints every line but the Jev row', marker === `1 of ${painted}`, String(marker))
   let consumed = true
@@ -311,7 +313,7 @@ delayed.close()
   consumed &&= await board.key('down')
   check('compact: the bottom clamps', consumed && marker === `${painted} of ${painted}`)
   for (let step = 0; step < painted; step++) consumed &&= await board.key('up')
-  check('compact: up arrows return to the first line', consumed && marker === `1 of ${painted}` && frameLines()[0]!.startsWith('› Anthropic usage'))
+  check('compact: up arrows return to the first line', consumed && marker === `1 of ${painted}` && frameLines()[0]!.startsWith('› Gemini usage'))
   check('compact: the operator ask ran once for the open', (counts.get('anthropic:operator') ?? 0) - before === 1)
   if (frameDir) writeFileSync(join(frameDir, 'compact-58x4.txt'), board.frame() + '\n')
   board.close()

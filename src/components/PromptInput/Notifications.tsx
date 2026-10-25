@@ -26,7 +26,6 @@ import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '..
 import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
-import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -109,7 +108,6 @@ function NotificationsColumn({
   alignStart?: boolean
   compact?: boolean
 }): React.ReactNode {
-  void isInputWrapped
   const tokens = useMercuryTokens()
   const { addNotification, removeNotification } = useNotifications()
   const current = useAppState(

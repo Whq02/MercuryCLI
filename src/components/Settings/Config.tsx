@@ -56,7 +56,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   PERMISSION_MODES,
   permissionModeTitle,
-  type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { getEngineModel, modelDisplayString, renderModelName } from '../../utils/model/model.js'
 import { glmThinkingLocked } from '../../services/providers/zai/glmPins.js'
@@ -595,7 +594,6 @@ export function Config({
     change: () => {
       const next = merged.activity?.tips?.enabled === false
       if (writeSource('localSettings', { activity: { tips: { enabled: next ? undefined : false } } })) {
-        dirtyRef.current = true
         recordToggle('tips', `set tips to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -610,7 +608,6 @@ export function Config({
     change: () => {
       const next = merged.view?.reducedMotion !== true
       if (writeSource('localSettings', { view: { reducedMotion: next ? true : undefined } })) {
-        dirtyRef.current = true
         recordToggle('reducedMotion', `set reduced motion to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -627,7 +624,6 @@ export function Config({
     change: () => {
       const next = merged.view?.ping === false
       if (writeSource('userSettings', { view: { ping: next ? undefined : false } })) {
-        dirtyRef.current = true
         recordToggle('ping', `set the ping to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -648,7 +644,6 @@ export function Config({
     change: () => {
       const next = merged.view?.accountIdentity === false
       if (writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })) {
-        dirtyRef.current = true
         recordToggle('accountIdentity', `set account identity to ${next ? 'shown' : 'hidden'}`)
         bump()
       }
@@ -735,7 +730,6 @@ export function Config({
       const current = validated(profiles, merged.briefs?.profile, 'auto')
       const next = cycleIn(profiles, current, direction)
       if (writeSource('localSettings', { briefs: { profile: next } })) {
-        dirtyRef.current = true
         setSessionInstructionProfile(next === 'auto' ? null : isInstructionProfile(next) ? next : null)
         clearInstructionFileCaches()
         recordSet('briefs.profile', `set instruction profile to ${next}`)
@@ -766,7 +760,6 @@ export function Config({
         const engines = ['system', 'brush'] as const
         const next = cycleIn(engines, engineSetting, direction)
         if (writeSource('localSettings', { shell: { engine: next === 'system' ? undefined : next } })) {
-          dirtyRef.current = true
           recordSet('shell.engine', `set shell engine to ${next}`)
           resetShellEngineResolution()
           void endEngineSession()
@@ -801,7 +794,6 @@ export function Config({
         const value =
           next === 'normal' ? undefined : next === 'patient' ? 'patient' : customPatienceSetting(patience.numbers)
         if (writeSource('userSettings', { patience: value })) {
-          dirtyRef.current = true
           recordSet('patience', `set patience with a quiet model to ${next}`)
           bump()
         }
@@ -833,7 +825,6 @@ export function Config({
           zeroDataRetention: next === 'strict',
         }
         if (writeSource('userSettings', { routing: { openrouter: value } })) {
-          dirtyRef.current = true
           recordSet('routing.openrouter', `set OpenRouter routing policy to ${next}`)
           bump()
         }
@@ -858,7 +849,6 @@ export function Config({
       change: direction => {
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
         if (writeSource('localSettings', { shell: { sessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next } })) {
-          dirtyRef.current = true
           recordSet('shell.sessions', `set shell engine sessions to ${next}`)
           bump()
         }
@@ -884,7 +874,6 @@ export function Config({
         if (!thinkingApplicability.applies) return
         const next = !thinkingOn
         if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
-          dirtyRef.current = true
           recordToggle('thinking', `set thinking to ${next ? 'on' : 'off'}`)
           if (conversationHasAssistantTurn) {
             const initial = initialThinking.current
@@ -906,7 +895,6 @@ export function Config({
     change: () => {
       const next = merged.engine?.usageNotice !== true
       if (writeSource('userSettings', { engine: { usageNotice: next ? true : undefined } })) {
-        dirtyRef.current = true
         recordToggle('usageNotice', `set usage notice to the model to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -922,7 +910,6 @@ export function Config({
       const levels = ['compact', 'full'] as const
       const next = cycleIn(levels, appState.verbose === true ? 'full' : 'compact', direction)
       undoRef.current.push({ source: 'app', path: ['verbose'], previous: appState.verbose })
-      dirtyRef.current = true
       setAppState(prev => ({ ...prev, verbose: next === 'full' }))
       recordToggle('toolOutput', `set tool output to ${next}`)
     },
@@ -945,7 +932,6 @@ export function Config({
     change: () => {
       if (progressPin !== undefined) {
         if (writeSource('userSettings', { activity: { progress: progressPin ? false : undefined } })) {
-          dirtyRef.current = true
           recordToggle('terminalProgressBar', `set activity.progress to ${progressPin ? 'false' : 'unset'}`)
           bump()
         }
@@ -985,7 +971,6 @@ export function Config({
       if (
         writeSource('userSettings', { guardrails: { mode: next } })
       ) {
-        dirtyRef.current = true
         recordSet('defaultPermissionMode', `set default permission mode to ${permissionModeTitle(next)}`)
         bump()
       }
@@ -1183,7 +1168,6 @@ export function Config({
       const next = nextLocalWindowSetting(localWindowSettingOf(localMain), direction)
       writeLocalWindowSetting(localMain, next, writeGlobal)
       recordSet('localModelWindow', `set the local model window for ${localMain.id} to ${localWindowSettingWords(next)}`)
-      dirtyRef.current = true
       bump()
     },
   })
@@ -1207,7 +1191,6 @@ export function Config({
       tokens,
       onSet: (id, value, words) => {
         if (writeSource('userSettings', { local: { server: { [id]: value } } })) {
-          dirtyRef.current = true
           recordSet(`localServer.${id}`, words)
           bump()
         }
@@ -1669,7 +1652,6 @@ export function Config({
         initialLanguage={merged.voice?.language}
         onComplete={language => {
           if (writeSource('userSettings', { voice: { language: language } })) {
-            dirtyRef.current = true
             recordSet('language', `set language to ${language ?? 'auto'}`)
           }
           setSubMenu(null)

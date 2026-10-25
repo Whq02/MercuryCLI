@@ -105,10 +105,13 @@ console.log("§5 A7 — the exit-grammar pair (c/d) is never eaten by a letter-v
   const offenders: string[] = []
   for (const rel of files) {
     const lines = readFileSync(join(ROOT, rel), 'utf8').split('\n')
+    const guards = lines.flatMap(line => /^\s*const (\w+) = .*key\.ctrl/.exec(line)?.[1] ?? [])
     lines.forEach((line, i) => {
       if (!/input === '[cd]'/.test(line)) return
       const windowText = lines.slice(Math.max(0, i - 4), i + 4).join('\n')
-      if (!/key\.ctrl/.test(windowText)) offenders.push(`${rel}:${i + 1}`)
+      if (/key\.ctrl/.test(windowText)) return
+      if (guards.some(guard => new RegExp(`\\b${guard}\\b`).test(line))) return
+      offenders.push(`${rel}:${i + 1}`)
     })
   }
   check('no bare c/d letter-verb survives under src (key.ctrl absent from its condition window)', offenders.length === 0, offenders.join(' · '))

@@ -6,7 +6,6 @@ import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import {
   CREW_EMPTY_DOOR,
   CREW_EMPTY_LINE,
-  CREW_MODEL_UNKNOWN,
   crewAskWaitDetail,
   crewCostLabel,
   crewCountLabel,
@@ -51,8 +50,6 @@ import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedW
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
-import { getCwd } from '../../../utils/cwd.js'
-import { pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
 
 type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
