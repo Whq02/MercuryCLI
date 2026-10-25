@@ -88,6 +88,16 @@ section('XC-3 — interrupted is Mercury-kill-derived, never exit-code-derived')
   check("kill status is 'killed'", cmd.status === 'killed', `status=${cmd.status}`)
   cmd.cleanup()
 }
+{
+  const aborted = new AbortController()
+  aborted.abort()
+  const child = spawn('sleep', ['600'])
+  const cmd = wrapSpawn(child, aborted.signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
+  const t0 = Date.now()
+  const result = await cmd.result
+  check('a signal already aborted at spawn kills the command at once', result.interrupted === true && result.code === 137 && Date.now() - t0 < 1_500, `interrupted=${result.interrupted} code=${result.code} after ${Date.now() - t0}ms`)
+  cmd.cleanup()
+}
 
 section('Drain law — bytes written before exit are in the result (pipe mode)')
 {

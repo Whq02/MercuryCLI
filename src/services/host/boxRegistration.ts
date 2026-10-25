@@ -15,7 +15,7 @@ function boxTunnelHome(box: HostBox): HostBox {
 function boxTunnelScript(box: HostBox, record: BoxServiceRecord, local: HostBox): string {
   if (!box.target || !record.localPort) throw new Error('A remote computer and a local tunnel port are required.')
   const args = ['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + record.localPort + ':127.0.0.1:' + record.port, ...sshArguments(box.target)]
-  return local.os === 'windows' ? "$ErrorActionPreference='Stop'\n& ssh.exe " + args.map(psQuote).join(' ') + '\nexit $LASTEXITCODE\n' : 'exec ssh ' + args.map(shQuote).join(' ') + '\n'
+  return local.os === 'windows' ? "$ErrorActionPreference='Stop'\n& ssh.exe " + args.map(arg => psQuote(arg.replaceAll('"', '\\"'))).join(' ') + '\nexit $LASTEXITCODE\n' : 'exec ssh ' + args.map(shQuote).join(' ') + '\n'
 }
 export async function registerBoxServer(box: HostBox, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal, tunnelHome?: HostBox): Promise<string> {
   const record = readBoxService(box.name)

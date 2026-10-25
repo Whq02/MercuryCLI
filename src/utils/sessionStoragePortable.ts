@@ -5,7 +5,6 @@ import { basename, dirname, join } from 'node:path'
 
 import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
-import { getWorktreePathsPortable } from './getWorktreePathsPortable.js'
 import { djb2Hash } from './hash.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 
@@ -337,8 +336,9 @@ export async function findProjectDir(projectPath: string): Promise<string | unde
   try {
     const { readdir } = await import('node:fs/promises')
     const prefix = `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-`
+    const suffix = candidate.slice(candidate.lastIndexOf('-'))
     for (const entry of await readdir(getProjectsDir())) {
-      if (entry.startsWith(prefix)) return join(getProjectsDir(), entry)
+      if (entry.startsWith(prefix) && entry.endsWith(suffix)) return join(getProjectsDir(), entry)
     }
   } catch {
     return undefined
@@ -454,6 +454,7 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
             append(full)
           } else {
             resetAtBoundary(carriedStartOffset)
+            append(full)
           }
         } else {
           append(full)
@@ -476,6 +477,7 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
             append(withNewline)
           } else {
             resetAtBoundary(chunkStart + (bytesRead - data.length) + lineStart)
+            append(withNewline)
           }
         } else {
           append(withNewline)
@@ -493,6 +495,7 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
         lastSnapshot = Buffer.from(carried)
       } else if (disposition.kind === 'boundary' && !disposition.preserved) {
         resetAtBoundary(fileSize - carried.length)
+        append(carried)
       } else if (disposition.kind === 'boundary') {
         hasPreservedSegment = true
         append(carried)

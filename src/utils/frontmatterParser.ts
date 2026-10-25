@@ -32,9 +32,9 @@ type ParsedMarkdown = {
   parseError?: { message: string }
 }
 
-export const FRONTMATTER_REGEX = /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)---[ \t]*\r?\n?(?:[ \t]*\r?\n)?/
+export const FRONTMATTER_REGEX = /^\uFEFF?---[ \t]*\r?\n((?:[\s\S]*?\r?\n)??)[ \t]*---[ \t]*\r?\n?(?:[ \t]*\r?\n)?/
 
-const YAML_SPECIAL = /[{}[\]*&#!|>%@`]|: /
+const YAML_SPECIAL = /[{}[\]*&#!|>%@`]|: |---/
 
 function quoteSpecialValues(block: string): string {
   return block

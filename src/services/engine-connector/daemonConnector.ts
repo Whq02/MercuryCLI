@@ -2545,10 +2545,15 @@ export function registerLiveTitleDeriver(deriver: LiveTitleDeriver): void {
   liveTitleDeriver = deriver
 }
 
+let latestHop: { epoch: number; connector: DaemonSessionConnector } | null = null
+
 export async function focusDaemonSession(record: DaemonSessionRecordV1): Promise<DaemonSessionConnector> {
   const connector = daemonSessionConnectorFor(record)
   const epoch = claimHopEpoch()
+  latestHop = { epoch, connector }
   await connector.attach()
+  const wanted = connector === getFocusedSessionConnector() || (latestHop?.connector === connector && hopEpochIsCurrent(latestHop.epoch))
+  if (!wanted) connector.detach()
   if (!hopEpochIsCurrent(epoch)) return connector
   setFocusedSessionConnector(connector)
   return connector

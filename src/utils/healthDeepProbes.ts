@@ -656,7 +656,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
       evidence: 'anchor stale→reread→verify round trip + exactly-one receipt at the observer seam',
     }
   } finally {
-    disposeOwner(fixtureOwnerKey(ownerMod, 'anchor'))
+    await disposeOwner(owner)
     sweepProbeDir(dir)
   }
 }
@@ -670,6 +670,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
     '../services/projectServices/serviceManager.js'
   )
   const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-svc-'))
+  let running = false
   try {
     const started = await startService({
       sessionId: 'health-probe',
@@ -688,6 +689,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
       },
     })
     if ('error' in started) return { status: 'fail', evidence: `start failed: ${started.error}` }
+    running = true
     const wait = await waitForReady(dir, 'health-probe', 10_000)
     if (!wait.ready) {
       return { status: 'fail', evidence: `readiness never met: ${wait.statuses.filter(s => !s.met).map(s => s.detail).join('; ')}` }
@@ -695,12 +697,14 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
     const logs = await readLogs(dir, 'health-probe', {})
     const sawLog = !('error' in logs) && logs.lines.some(l => l.includes('health service up'))
     const stopped = await stopService(dir, 'health-probe')
+    running = false
     if ('error' in stopped || stopped.record.state !== 'stopped') {
       return { status: 'fail', evidence: 'stop did not settle as stopped' }
     }
     if (!sawLog) return { status: 'fail', evidence: 'the cursored log read missed the boot line' }
     return { status: 'ok', evidence: 'start → log+stable readiness → cursored logs → explicit stop, all observed' }
   } finally {
+    if (running) await stopService(dir, 'health-probe').catch(() => undefined)
     sweepProbeDir(dir)
   }
 }
@@ -749,7 +753,7 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
       evidence: 'declared summary honored, observed path from the receipt ring, unverified check read unknown',
     }
   } finally {
-    disposeOwner(owner)
+    await disposeOwner(owner)
   }
 }
 

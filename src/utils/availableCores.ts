@@ -31,7 +31,7 @@ export function coresFromCgroupQuota(input: {
 }
 
 export function resolveAvailableCores(facts: { hostCores: number; affinityCores?: number | null; quotaCores: number | null }): number {
-  let cores = Math.max(1, Math.floor(facts.hostCores) || 1)
+  let cores = Math.max(1, Math.floor(facts.hostCores) || Math.floor(facts.affinityCores ?? 0) || 1)
   if (facts.affinityCores !== undefined && facts.affinityCores !== null && facts.affinityCores > 0) {
     cores = Math.min(cores, Math.floor(facts.affinityCores))
   }

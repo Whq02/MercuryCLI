@@ -22,7 +22,7 @@ export async function verifyBoxBank(box: HostBox, recipe: BoxRecipe, destination
   boxAbsolutePath(box, destination)
   let manifest = ''
   for (const name of ['SHA256SUMS', 'SHA256SUMS.txt', 'SHA256SUMS.manifest', 'SHA256SUMS.verified']) {
-    try { manifest = await readBankText(box, boxJoin(box, destination, name), runner, signal); if (/^[a-f0-9]{64}\s/im.test(manifest)) break } catch (error) { signal.throwIfAborted() }
+    try { manifest = await readBankText(box, boxJoin(box, destination, name), runner, signal); if (/^[a-f0-9]{64}\s/im.test(manifest)) break } catch { signal.throwIfAborted() }
   }
   const hashes = parseBankSums(manifest)
   let required = recipe.files ?? []

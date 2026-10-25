@@ -2369,6 +2369,13 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
+      "file": "scripts/ui/prove-field-findings-sessions.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const back = spawnSync('bash', ['-c', `printf '%s' ${arg}`], { encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/ui/prove-file-open.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",

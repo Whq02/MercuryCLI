@@ -4,8 +4,6 @@ import { scheduleMnemeMaintenance } from '../mneme/mnemeMaintenance.js'
 import { initMagicDocs } from '../services/MagicDocs/magicDocs.js'
 import { getMercuryHome } from './envUtils.js'
 
-const registerProtocolModule: typeof import('./deepLink/registerProtocol.js') | null = null
-
 import { getIsInteractive, getLastInteractionTime } from '../bootstrap/state.js'
 import { runLifecyclePass } from '../substrate/stateLifecycle.js'
 import { cleanupOldMessageFilesInBackground } from './cleanup.js'

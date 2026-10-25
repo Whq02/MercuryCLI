@@ -28,7 +28,7 @@ function resolveCredential(config: {
   }
 
   const fd = Number(fdRaw)
-  if (!Number.isInteger(fd)) {
+  if (fdRaw.trim() === '' || !Number.isInteger(fd)) {
     logForDebugging(`${config.tokenName}: ${config.envVar} is not an integer: ${fdRaw}`)
     config.setSlot(null)
     return null

@@ -147,7 +147,7 @@ export class RunpodClient {
     try {
       const response = await this.response('/pods/' + encodeURIComponent(id) + '/logs?tail=12', 'GET', undefined, signal ? AbortSignal.any([signal, controller.signal]) : controller.signal)
       const reader = response.body?.getReader()
-      if (reader) try { while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += new TextDecoder().decode(part.value) } } finally { await reader.cancel().catch(() => {}) }
+      if (reader) try { const decoder = new TextDecoder(); while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(() => {}) }
     } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
     const lines = /^(?:data|id|event):/m.test(text) ? podLogLines(text) : text.split('\n')
     return lines.map(line => line.split(this.key).join('[redacted]')).filter(Boolean).slice(-12).join('\n')

@@ -289,6 +289,7 @@ export function wrapSpawn(
       kill()
     }
   }, timeout)
+  if (abortSignal.aborted) onAbort()
 
   const command: ShellCommand = {
     background,

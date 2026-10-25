@@ -49,11 +49,3 @@ export async function* all<A>(
     }
   }
 }
-
-async function toArray<A>(gen: AsyncGenerator<A, unknown, unknown>): Promise<A[]> {
-  const values: A[] = []
-  for await (const value of gen) {
-    values.push(value)
-  }
-  return values
-}

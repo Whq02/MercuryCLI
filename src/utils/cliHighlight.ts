@@ -6,11 +6,8 @@ export type CliHighlight = {
   supportsLanguage: typeof import('cli-highlight').supportsLanguage
 }
 
-type LanguageLookup = (name: string) => { name?: string } | undefined
-
 type LoadedBundle = {
   api: CliHighlight | null
-  getLanguage: LanguageLookup | null
 }
 
 export const MAX_HIGHLIGHT_LINE_CHARS = 2_000
@@ -34,9 +31,6 @@ function loadBundle(): Promise<LoadedBundle> {
     sharedLoadPromise = (async (): Promise<LoadedBundle> => {
       try {
         const cliHighlight = await import('cli-highlight')
-        const hljsNamespace = await import('highlight.js')
-        const getLanguage =
-          (hljsNamespace as unknown as { getLanguage?: LanguageLookup }).getLanguage ?? null
         const guardedHighlight = ((code: string, options?: Parameters<typeof cliHighlight.highlight>[1]) =>
           shouldSkipHighlight(code) || colorStripped() ? code : cliHighlight.highlight(code, options)) as CliHighlight['highlight']
         return {
@@ -44,10 +38,9 @@ function loadBundle(): Promise<LoadedBundle> {
             highlight: guardedHighlight,
             supportsLanguage: cliHighlight.supportsLanguage,
           },
-          getLanguage,
         }
       } catch {
-        return { api: null, getLanguage: null }
+        return { api: null }
       }
     })()
   }

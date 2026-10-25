@@ -134,6 +134,18 @@ section('§4 a mode-only change — detected (mode is part of the facts)')
   check('the facts caught up after the file was still', hasFacts(latest()[k]!) && latest()[k]!.version === 2)
 }
 
+section('§4b a same-size edit whose mtime sits BEFORE the blob’s (a timestamp-preserving copy or archive restore) — the bytes decide, never the clock')
+{
+  const f = files[2]!
+  const k = names[2]!
+  writeFileSync(f, readFileSync(f, 'utf8').replace('content 2', 'CONTENT 2'))
+  still(f, 60)
+  const t = await turn()
+  const rec = latest()[k]!
+  check('the edit took a new backup (version 2) although the source mtime is older than the backup blob’s', rec.version === 2 && rec.backupFileName !== null, JSON.stringify(rec))
+  check('the bytes decided it: the backup-side stat, two reads, one copy', t.stats === N + 2 && t.reads === 2 && t.copies === 1, JSON.stringify(t))
+}
+
 section('§5 persistence — the facts survive the snapshot round trip')
 {
   const persisted = JSON.parse(JSON.stringify(state.snapshots)) as FileHistoryState['snapshots']

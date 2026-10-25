@@ -32,10 +32,7 @@ export function hasConsoleBillingAccess(): boolean {
   )
 }
 
-let mockBillingAccessOverride: boolean | null = null
-
 export function hasClaudeAiBillingAccess(): boolean {
-  if (mockBillingAccessOverride !== null) return mockBillingAccessOverride
   if (!isClaudeAISubscriber()) return false
   const subscriptionType = getSubscriptionType()
   if (subscriptionType === 'max' || subscriptionType === 'pro') return true

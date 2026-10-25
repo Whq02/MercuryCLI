@@ -21,8 +21,6 @@ type Property = {
   value: React.ReactNode | string[]
 }
 
-type Diagnostic = React.ReactNode
-
 export function propertyValueToText(value: React.ReactNode | string[]): string {
   if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value.join(', ')
   return nodeText(value as React.ReactNode)

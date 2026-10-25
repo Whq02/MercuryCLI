@@ -9,7 +9,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { getProjectDir, projectSlug, sanitizePath } = await import(
+const { canonicalizePath, findProjectDir, getProjectDir, MAX_SANITIZED_LENGTH, projectSlug, sanitizePath, shortProjectHash } = await import(
   join(ROOT, 'src/utils/sessionStoragePortable.ts')
 )
 const { getMercuryHome } = await import(join(ROOT, 'src/utils/envUtils.ts'))
@@ -55,6 +55,23 @@ section('§3 A HASH-LESS DIRECTORY HOLDING A TRANSCRIPT IS NOT READ')
   mkdirSync(hashless, { recursive: true })
   writeFileSync(join(hashless, '11111111-1111-1111-1111-111111111111.jsonl'), '')
   check('the project keys to its hashed store, never the hash-less directory', getProjectDir(proj) !== hashless && getProjectDir(proj) === join(projectsDir, projectSlug(proj)), getProjectDir(proj))
+}
+
+section('§4 AN OVERLONG PATH ADOPTS ONLY A STORE CARRYING ITS OWN HASH SUFFIX')
+{
+  const long = join(scratch, ...Array.from({ length: 40 }, () => 'segment'))
+  const projA = join(long, 'alpha')
+  const projB = join(long, 'beta')
+  mkdirSync(projA, { recursive: true })
+  mkdirSync(projB, { recursive: true })
+  check('fixture: both paths sanitise past the cap and share the scanned prefix', sanitizePath(projA).length > MAX_SANITIZED_LENGTH && sanitizePath(projA).slice(0, MAX_SANITIZED_LENGTH) === sanitizePath(projB).slice(0, MAX_SANITIZED_LENGTH))
+  const storeB = getProjectDir(projB)
+  mkdirSync(storeB, { recursive: true })
+  check("A, with no store yet, never adopts B's store", (await findProjectDir(projA)) === undefined, String(await findProjectDir(projA)))
+  check('B finds its own store', (await findProjectDir(projB)) === storeB)
+  const otherRuntime = join(projectsDir, `${sanitizePath(projA).slice(0, MAX_SANITIZED_LENGTH)}-zz9-${shortProjectHash(await canonicalizePath(projA))}`)
+  mkdirSync(otherRuntime, { recursive: true })
+  check("A still finds a store another runtime hashed, by its own sha8 tail", (await findProjectDir(projA)) === otherRuntime, String(await findProjectDir(projA)))
 }
 
 rmSync(HOME, { recursive: true, force: true })

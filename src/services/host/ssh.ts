@@ -51,14 +51,15 @@ const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + 
 export function sshArguments(target: SshTarget): string[] {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9.:%_-]*$/.test(target.host) || target.user && !/^[a-zA-Z0-9_][a-zA-Z0-9_-]*$/.test(target.user)) throw new Error('Give a host or SSH config alias, and a separate user; not a command or URL.')
   if (target.port !== undefined && (!Number.isInteger(target.port) || target.port < 1 || target.port > 65535)) throw new Error('SSH port must be 1–65535.')
-  return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'UserKnownHostsFile=' + join(hostDirectory(), 'known_hosts'), ...(target.key ? ['-i', target.key] : []), ...(target.port ? ['-p', String(target.port)] : []), ...(target.user ? ['-l', target.user] : []), target.host]
+  const knownHosts = join(hostDirectory(), 'known_hosts')
+  return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'UserKnownHostsFile=' + (/[\s']/.test(knownHosts) ? '"' + knownHosts + '"' : knownHosts), ...(target.key ? ['-i', target.key] : []), ...(target.port ? ['-p', String(target.port)] : []), ...(target.user ? ['-l', target.user] : []), target.host]
 }
 export function sshAliases(): string[] {
   try { return [...readFileSync(join(homedir(), '.ssh/config'), 'utf8').matchAll(/^\s*Host\s+([^#\n]+)/gmi)].flatMap(match => match[1]!.trim().split(/\s+/)).filter(name => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) } catch { return [] }
 }
 export function localKeyPath(value: string): string | undefined {
   if (!value.trim()) return undefined
-  const path = value.startsWith('~/') ? join(homedir(), value.slice(2)) : resolve(value)
+  const path = value.startsWith('~/') || value.startsWith('~\\') ? join(homedir(), value.slice(2)) : resolve(value)
   if (!existsSync(path)) throw new Error('SSH key not found: ' + path)
   return path
 }

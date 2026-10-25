@@ -206,7 +206,7 @@ async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null;
   if (r.status !== 0) return { value: false, fault: null }
   const meaningful = r.stdout
     .split('\n')
-    .map(line => line.trim())
+    .map(line => line.trimEnd())
     .filter(line => line !== '')
     .filter(line => {
       const path = line.replace(/^..\s+/, '').replace(/^"|"$/g, '')

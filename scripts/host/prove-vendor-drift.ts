@@ -97,6 +97,8 @@ try {
   ]
   const spend = typeof hostSpendSoFar === 'function' ? hostSpendSoFar(billed, now) : undefined
   check('the spend estimate counts every status the vendors bill — STARTING, ERROR, BOOTING and TERMINATING included — and never EXITED or TERMINATED', spend === 63 && typeof hostPodBills === 'function' && !hostPodBills({ status: 'EXITED' }) && !hostPodBills({ status: 'TERMINATED' }) && hostPodBills({ status: 'STARTING' }), spend)
+  const unknownStart = hostSpendSoFar([{ status: 'BOOTING', cost: 2, startedAt: null, createdAt: '' }, ...billed], now)
+  check('a billing machine with no start time yet adds 0, never NaN', unknownStart === 63, unknownStart)
 
   const lambdaApi = new LambdaClient(lambda.key, lambda.baseUrl, { pollMs: 10, readyTimeoutMs: 2000 })
   const lambdaOffers = await lambdaApi.offers(signal())

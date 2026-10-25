@@ -65,5 +65,5 @@ export function removeHostRecord(id: string): void {
 }
 export function hostRecords(): HostRecord[] {
   const dir = podsDirectory()
-  try { return readdirSync(dir).filter(name => name.endsWith('.json')).map(name => ({ vendor: 'runpod', ...JSON.parse(readFileSync(join(dir, name), 'utf8')) }) as HostRecord) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw new Error('Host records could not be read. The paid-pods list still shows the connected vendors’ account resources.') }
+  try { return readdirSync(dir).filter(name => name.endsWith('.json')).flatMap(name => { try { return [{ vendor: 'runpod', ...JSON.parse(readFileSync(join(dir, name), 'utf8')) } as HostRecord] } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error } }) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw new Error('Host records could not be read. The paid-pods list still shows the connected vendors’ account resources.') }
 }

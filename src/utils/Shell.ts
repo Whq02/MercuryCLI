@@ -161,10 +161,6 @@ function recordShellCwd(path: string, base: string): void {
   writeShellCwd(getFsImplementation().realpathSync(resolved).normalize('NFC'))
 }
 
-function __resetShellCwdForTest(): void {
-  writeShellCwd(null)
-}
-
 function directoryResolves(path: string): boolean {
   try {
     getFsImplementation().realpathSync(path)
@@ -384,7 +380,7 @@ export async function exec(
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
     try {
-      if (result && !options.preventCwdChanges && cwdOverride === undefined && shellCommand.status !== 'backgrounded') {
+      if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
         const record = readFileSync(cwdFilePath, 'utf8')
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }

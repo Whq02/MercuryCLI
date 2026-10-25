@@ -8,6 +8,7 @@ type CacheEntry = {
   content: string
   encoding: BufferEncoding
   mtimeMs: number
+  size: number
 }
 
 const entries = new Map<string, CacheEntry>()
@@ -15,14 +16,15 @@ const entries = new Map<string, CacheEntry>()
 function readFile(path: string): { content: string; encoding: BufferEncoding } {
   const fsImpl = getFsImplementation()
   let mtimeMs: number
+  let size: number
   try {
-    mtimeMs = fsImpl.statSync(path).mtimeMs
+    ;({ mtimeMs, size } = fsImpl.statSync(path))
   } catch (err) {
     entries.delete(path)
     throw err
   }
   const cached = entries.get(path)
-  if (cached && cached.mtimeMs === mtimeMs) {
+  if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
     return { content: cached.content, encoding: cached.encoding }
   }
   const encoding = detectFileEncoding(path)
@@ -30,7 +32,7 @@ function readFile(path: string): { content: string; encoding: BufferEncoding } {
   if (needsPowerShellBom(path) && content.startsWith('\uFEFF')) {
     content = content.slice(1)
   }
-  entries.set(path, { content, encoding, mtimeMs })
+  entries.set(path, { content, encoding, mtimeMs, size })
   if (entries.size > MAX_ENTRIES) {
     const oldest = entries.keys().next().value
     if (oldest !== undefined) entries.delete(oldest)

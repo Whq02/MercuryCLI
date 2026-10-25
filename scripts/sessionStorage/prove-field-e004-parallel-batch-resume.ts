@@ -141,5 +141,34 @@ section('§D the on-disk shape is untouched')
   check('the headless --resume door loads through the same resume road', headless.includes('loadConversationForResume('))
 }
 
+section('§E a compacted session loads the same chain on both roads — the compact boundary row (divider + compactMetadata) heads it past 5 MB too')
+{
+  const ids = { p0: uid(), pa: uid(), pr: uid(), summary: uid(), boundary: uid(), q1: uid(), qa: uid(), qr: uid(), qz: uid() }
+  const compacted = (bytes: number): Row[] => [
+    userText(ids.p0, null, 'before compaction'),
+    toolUseRow(ids.pa, ids.p0, 'msg_pre', 'toolu_pre', '/shots/pre.png'),
+    toolResultRow(ids.pr, ids.pa, 'toolu_pre', 4, bytes),
+    userText(ids.summary, ids.pr, 'compact summary text'),
+    { ...base(ids.boundary, ids.summary), type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', level: 'info', compactMetadata: { trigger: 'auto', preTokens: 1000 } },
+    userText(ids.q1, ids.boundary, 'after compaction'),
+    toolUseRow(ids.qa, ids.q1, 'msg_post', 'toolu_post', '/shots/post.png'),
+    toolResultRow(ids.qr, ids.qa, 'toolu_post', 5, bytes),
+    textRow(ids.qz, ids.qr, 'msg_post_done', 'done after'),
+  ]
+  const chainOf = async (file: string, bytes: number): Promise<string[]> => {
+    writeFileSync(file, compacted(bytes).map(r => encodeTranscriptLine(file, r).line).join(''))
+    _resetTranscriptReaderForTesting()
+    const loaded = await loadTranscriptFile(file, { keepAllLeaves: true })
+    return buildConversationChain(loaded.messages, loaded.messages.get(ids.qz as never)!).map(m => `${(m as { subtype?: string }).subtype ?? m.type}:${m.uuid}`)
+  }
+  const small = await chainOf(join(scratch, 'compacted-small.jsonl'), 10)
+  const bigFile = join(scratch, 'compacted-big.jsonl')
+  const big = await chainOf(bigFile, 3 * FAT)
+  check(`the big file crosses the big-file gate (${readFileSync(bigFile).length} > ${SKIP_PRECOMPACT_THRESHOLD})`, readFileSync(bigFile).length > SKIP_PRECOMPACT_THRESHOLD)
+  const boundaryAt = small.indexOf(`compact_boundary:${ids.boundary}`)
+  check('the full read carries the compact boundary row in the chain', boundaryAt > 0, small.join(' '))
+  check('the big-file road hands back that chain from the boundary row on — the row itself first (base: the boundary line was reset away and never appended)', JSON.stringify(big) === JSON.stringify(small.slice(boundaryAt)), `big=${big.join(' ')}`)
+}
+
 console.log(failures === 0 ? '\n ✅ PARALLEL BATCH RESUME PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

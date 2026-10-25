@@ -80,7 +80,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
       } else if (token.type === 'control') {
         rawPos += token.code.length
       } else {
-        visiblePos++
+        visiblePos += token.value.length
         rawPos += token.value.length
       }
       tokenIndex++

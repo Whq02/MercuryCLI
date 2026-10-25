@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,7 +19,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 await import('../../src/tasks.js')
-const { createTask, resetTaskList, getTaskListId } = await import('../../src/utils/tasks.js')
+const { createTask, getTasksDir, resetTaskList, getTaskListId } = await import('../../src/utils/tasks.js')
 const { TaskListTool } = await import('../../src/tools/TaskListTool/TaskListTool.js')
 type Output = { tasks: { id: string; subject: string; status: string; owner?: string; blockedBy: string[] }[] }
 const LIST = getTaskListId()
@@ -58,6 +58,11 @@ try {
   check('a pending row blocked by one', lines[2] === `#${waiting} [pending] Ship it [blocked by #${open}]`, lines[2])
   const two = text({ tasks: [{ id: '9', subject: 'Two blockers', status: 'pending', blockedBy: ['1', '2'] }] })
   check('several blockers are joined with a comma', two === '#9 [pending] Two blockers [blocked by #1, #2]', two)
+
+  section('§4 A TORN TASK BODY IS SKIPPED, NOT THE WHOLE LIST')
+  writeFileSync(join(getTasksDir(LIST), '99.json'), '{"id":"99","subject":"torn')
+  const torn = await call()
+  check('the three readable tasks still list; the unparseable body is skipped (base: the whole list threw a SyntaxError)', j(torn.tasks.map(row => row.id)) === j([done, open, waiting]), j(torn.tasks))
 } finally {
   await resetTaskList(LIST).catch(() => false)
   rmSync(HOME, { recursive: true, force: true })

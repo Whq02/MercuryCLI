@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { symlinkSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
@@ -21,13 +23,17 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const secrets = await import('../../src/services/providers/providerSecrets.ts')
-  const { writeHostRecord } = await import('../../src/services/host/store.ts')
+  const { hostDirectory, hostRecords, writeHostRecord } = await import('../../src/services/host/store.ts')
   const { runModelDoor } = await import('../../src/services/host/door.ts')
   secrets.writeStoredRunpodApiKey(rp.key)
   secrets.writeStoredVastApiKey(vast.key)
   const record = { name: 'Never created', recipe: 'gpt-oss-120b-h100', status: 'ERROR', price: 9, startedAt: new Date().toISOString(), vendor: 'vast' as const }
   writeHostRecord({ ...record, id: 'failed-create', jobKind: 'setup', jobState: 'failed', creating: 'never-confirmed' })
   writeHostRecord({ ...record, id: 'dead-watch', jobKind: 'watch', jobState: 'failed' })
+  const vanished = join(hostDirectory(), 'pods', 'vanished.json')
+  symlinkSync(join(hostDirectory(), 'pods', 'never-written.json'), vanished)
+  assert.deepEqual(hostRecords().map(row => row.id).sort(), ['dead-watch', 'failed-create'], 'a record file that vanished between readdir and read is skipped, not the whole list')
+  unlinkSync(vanished)
   const road = createHostRoad({ vendorApiBaseUrls: { runpod: rp.baseUrl, vast: vast.baseUrl, huggingface: hf.baseUrl }, sessionId: 'paid-count' })
   const inspect = async (paid = false) => {
     const questions: LlmHostQuestion[] = []

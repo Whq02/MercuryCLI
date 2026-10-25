@@ -506,8 +506,8 @@ function writeKeychainHexStdin(key: string): boolean {
   try {
     const hex = Buffer.from(key, 'utf-8').toString('hex')
     const commandLine = `add-generic-password -U -a "${getUsername()}" -s "${getMacOsKeychainStorageServiceName()}" -X ${hex}\n`
-    spawnSync('security', ['-i'], { windowsHide: true, input: commandLine, encoding: 'utf-8', timeout: 10_000, env: { ...subprocessEnv() } })
-    return true
+    const result = spawnSync('security', ['-i'], { windowsHide: true, input: commandLine, encoding: 'utf-8', timeout: 10_000, env: { ...subprocessEnv() } })
+    return result.status === 0
   } catch {
     return false
   }

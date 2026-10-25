@@ -175,34 +175,6 @@ function rasterizeStrokes(polylines: StrokeGlyph): Uint8Array {
   return cell
 }
 
-function packFontContainer(glyphs: Array<[number, Uint8Array]>): Uint8Array {
-  const packed = new Uint8Array(2 + glyphs.length * (4 + CELL_BYTES))
-  const view = new DataView(packed.buffer)
-  view.setUint16(0, glyphs.length, true)
-  let offset = 2
-  for (const [codepoint, cell] of glyphs) {
-    view.setUint32(offset, codepoint, true)
-    offset += 4
-    packed.set(cell, offset)
-    offset += CELL_BYTES
-  }
-  return packed
-}
-
-function parseFontContainer(packed: Uint8Array): Map<number, Uint8Array> {
-  const view = new DataView(packed.buffer, packed.byteOffset, packed.byteLength)
-  const count = view.getUint16(0, true)
-  const glyphs = new Map<number, Uint8Array>()
-  let offset = 2
-  for (let i = 0; i < count; i++) {
-    const codepoint = view.getUint32(offset, true)
-    offset += 4
-    glyphs.set(codepoint, packed.subarray(offset, offset + CELL_BYTES))
-    offset += CELL_BYTES
-  }
-  return glyphs
-}
-
 let fontCache: Map<number, Uint8Array> | null = null
 
 function getFont(): Map<number, Uint8Array> {
@@ -210,7 +182,7 @@ function getFont(): Map<number, Uint8Array> {
     const rasterized: Array<[number, Uint8Array]> = Object.entries(STROKE_GLYPHS).map(
       ([char, strokes]) => [char.codePointAt(0) as number, rasterizeStrokes(strokes)],
     )
-    fontCache = parseFontContainer(packFontContainer(rasterized))
+    fontCache = new Map(rasterized)
   }
   return fontCache
 }
@@ -331,7 +303,8 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
 
   let columns = 1
   for (const line of lines) {
-    const cells = stringWidth(line.map(span => span.text).join(''))
+    let cells = 0
+    for (const span of line) for (const char of span.text) cells += stringWidth(char)
     if (cells > columns) columns = cells
   }
   const rows = lines.length

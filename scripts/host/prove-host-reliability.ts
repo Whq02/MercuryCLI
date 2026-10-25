@@ -216,6 +216,24 @@ try {
     const rowB = rentRows.find(row => row.label.includes('machine 9103'))
     check('the model picker lists B before cheaper A and keeps both machine rows selectable without outage narration', Boolean(rowA && rowB) && rentRows.indexOf(rowB!) < rentRows.indexOf(rowA!) && rentRows.every(row => !/link dropped|reconnects/.test(row.label)), rentRows.map(row => row.label).join('\n'))
   }
+
+  console.log('§6 every SSH step reads one known_hosts file whatever the config home is spelled')
+  {
+    const { sshArguments, localKeyPath }: typeof import('../../src/services/host/ssh.ts') = await import(f.root + '/src/services/host/ssh.ts')
+    const { homedir } = await import('node:os')
+    const knownHostsValue = (): string => sshArguments({ host: 'rented.example' }).find(arg => arg.startsWith('UserKnownHostsFile='))!.slice('UserKnownHostsFile='.length)
+    check('a plain home passes the known_hosts path bare', knownHostsValue() === join(hostDirectory(), 'known_hosts'), knownHostsValue())
+    const plainHome = process.env.MERCURY_CONFIG_DIR!
+    process.env.MERCURY_CONFIG_DIR = join(plainHome, "John O'Brien Smith")
+    try {
+      const quoted = knownHostsValue()
+      check('a home with a space or apostrophe is handed to ssh as one quoted file', quoted === '"' + join(hostDirectory(), 'known_hosts') + '"', quoted)
+      const probe = spawnSync('ssh', ['-G', '-o', 'UserKnownHostsFile=' + quoted, 'rented.example'], { encoding: 'utf8' })
+      check('ssh -G reads that value as the one file', probe.status === 0 && probe.stdout.includes('userknownhostsfile ' + join(hostDirectory(), 'known_hosts') + '\n'), probe.stderr || probe.stdout)
+    } finally { process.env.MERCURY_CONFIG_DIR = plainHome }
+    assert.throws(() => localKeyPath('~\\.ssh\\no-such-review-key'), { message: 'SSH key not found: ' + join(homedir(), '.ssh\\no-such-review-key') }, 'a ~\\ key spelling resolves under the home folder, not the working directory')
+    checks++; console.log('PASS a ~\\ key spelling resolves under the home folder, not the working directory')
+  }
   check('reliability proof makes no public requests', escaped.length === 0)
   console.log('HOST RELIABILITY GREEN — ' + checks + ' checks; loopback fixtures and fake runners only, no key, no machine, no network')
 } finally {

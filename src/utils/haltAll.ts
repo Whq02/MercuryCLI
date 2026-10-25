@@ -1,7 +1,7 @@
 import { daemonControlRpc } from '../daemon/controlSocket.js'
 import { markDaemonHaltStanddown } from './daemonStanddown.js'
 import { stopTask } from '../tasks/stopTask.js'
-import { runningTaskIds, summarizeHalt, type HaltResult } from './haltDecide.js'
+import { runningTaskIds, type HaltResult } from './haltDecide.js'
 
 export { runningTaskIds, summarizeHalt, type HaltResult } from './haltDecide.js'
 

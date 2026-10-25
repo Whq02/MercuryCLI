@@ -976,6 +976,7 @@ export class DapSession {
       env: pythonSpawnEnv(),
     })
     this.#child = child
+    child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
     if (spec.connect === 'tcp' && tcpPort !== undefined) {
       child.stdout.on('data', (chunk: Buffer) => {
         this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)

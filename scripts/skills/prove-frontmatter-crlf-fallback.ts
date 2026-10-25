@@ -92,6 +92,20 @@ for (const [label, shape] of endings) {
   )
 }
 
+console.log('[1b] parseFrontmatter: a value holding --- stays in the block; only a line-start --- closes it')
+for (const [label, shape] of endings) {
+  const parsed = parseFrontmatter(shape('---\nname: probe\ndescription: Split on --- markers\nallowed-tools: Bash\nnote: a---b\n---\n\nBody.\n'))
+  check(
+    `${label}: description and note keep their dashes, allowed-tools is read, the body is the body`,
+    parsed.parseError === undefined &&
+      parsed.frontmatter.description === 'Split on --- markers' &&
+      parsed.frontmatter.note === 'a---b' &&
+      parsed.frontmatter['allowed-tools'] === 'Bash' &&
+      parsed.content.replaceAll('\r\n', '\n') === 'Body.\n',
+    JSON.stringify(parsed),
+  )
+}
+
 console.log('[2] parseFrontmatterPaths: a rule glob that starts with * keeps its paths')
 for (const [label, shape] of endings) {
   const rule = parseFrontmatterPaths(shape(RULE))

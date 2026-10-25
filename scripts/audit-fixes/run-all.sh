@@ -31,6 +31,11 @@ has src/utils/effort.ts 'String(v).trim().toLowerCase()' 'parseEffortValue trims
 res=$("$bun" -e "import('$root/src/utils/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "parseEffortValue('  high ') === 'high' (behavioral)" || { [ "$res" = "LOADERR" ] && ok "effort behavioral skipped (unloadable)" || no "effort trim behavioral: $res"; }
 has src/utils/argumentSubstitution.ts 'escapeForRegExp(name)' 'argument name regex-escaped before new RegExp'
+has src/utils/argumentSubstitution.ts 'result.replace(/\$ARGUMENTS/g, () => args)' 'bare $ARGUMENTS inserts the raw argument literally (function replacer)'
+has src/utils/argumentSubstitution.ts 'result.replace(pattern, () => value)' 'a named argument inserts literally (function replacer)'
+has src/utils/api.ts 'text.startsWith(prefix) ? text.slice(prefix.length) : text' 'the cwd prefix strip is anchored at the start of the command'
+lacks src/utils/api.ts 'command.replace(`cd ${cwd} && `' 'the unanchored replace of the cwd prefix is gone'
+has src/utils/browser.ts "process.env.BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')" 'an empty BROWSER falls back to open/xdg-open'
 __t=$SECONDS; __rc=0; "$bun" "$here/prove-reversed-mention-range.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reversed-mention-range.ts" "$__t" "$__rc"
 
 has src/daemon/roster.ts 'this.reapSettled(32)' 'roster dispatch reaps settled handles (32-tail); reapSettled had ZERO callers'

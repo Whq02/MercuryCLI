@@ -79,9 +79,9 @@ export function safeJoinLines(lines: string[], delimiter: string = ',', maxSize:
       result += joiner + line
       continue
     }
-    const room = maxSize - result.length - delimiter.length - TRUNCATION_MARKER.length
+    const room = maxSize - result.length - joiner.length - TRUNCATION_MARKER.length
     if (room > 0) {
-      return result + delimiter + line.slice(0, room) + TRUNCATION_MARKER
+      return result + joiner + line.slice(0, room) + TRUNCATION_MARKER
     }
     return result + TRUNCATION_MARKER
   }

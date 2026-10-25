@@ -13,7 +13,7 @@ import { vastRentalVolume } from './vastVolumes.js'
 import { linkLlmHostPod, runLlmHost } from '../llmHost/index.js'
 import { hostMachineName, hostReadyWords, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { RunpodHttpError, cents, type HostOffer, type HostPod } from './runpod.js'
-import { HostClusterEnded, createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
+import { createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostShape, startHostCluster } from './cluster.js'
 import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
@@ -604,12 +604,9 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const wasReady = current.jobState === 'ready'
       const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
       const at = Date.now()
-      const record = patchHostRecord(id, { jobState: retried ? 'paused' : 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(retried ? { advancedAt: at, steps: [...(current.steps ?? []), { step: detail, at }] } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
+      const record = patchHostRecord(id, { jobState: retried ? 'paused' : 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(retried ? { advancedAt: at, steps: [...(current.steps ?? []), { step: detail, at }] } : {}) })!
       log(detail)
-      if (error instanceof HostClusterEnded) {
-        hostNotice(record, 'failed', record.name + ' · ' + detail)
-        removeHostRecord(id)
-      } else if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
+      if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
       else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
       else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
     }

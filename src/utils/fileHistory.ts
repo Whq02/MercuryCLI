@@ -164,7 +164,6 @@ async function checkOriginFileChanged(
   if ((sourceStats === null) !== (backupStats === null)) return true
   if (sourceStats === null || backupStats === null) return false
   if (sourceStats.mode !== backupStats.mode || sourceStats.size !== backupStats.size) return true
-  if (sourceStats.mtimeMs < backupStats.mtimeMs) return false
   try {
     const [source, backup] = await Promise.all([readCounted(originalFile), readCounted(backupPath(backupFileName))])
     return !source.equals(backup)
@@ -351,9 +350,12 @@ function cachedSpelling(text: string): string {
   return stripBOM(text).replaceAll('\r\n', '\n')
 }
 
+function decodeSpelling(bytes: Buffer): string {
+  return bytes.toString(bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf16le' : 'utf8')
+}
+
 function decodeAsCached(bytes: Buffer): string {
-  const encoding = bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf16le' : 'utf8'
-  return cachedSpelling(bytes.toString(encoding))
+  return cachedSpelling(decodeSpelling(bytes))
 }
 
 async function driftedSinceLastTouch(entry: RestoreDriftEntry, filePath: string, current: Buffer): Promise<boolean> {
@@ -529,7 +531,7 @@ export async function fileHistoryRestore(
           timestamp = Math.floor((await stat(target.canonicalPath)).mtimeMs)
         } catch {
         }
-        opts.drift?.set?.(target.canonicalPath, { content: target.plannedBytes.toString('utf8'), timestamp, offset: undefined, limit: undefined })
+        opts.drift?.set?.(target.canonicalPath, { content: decodeSpelling(target.plannedBytes).replaceAll('\r\n', '\n'), timestamp, offset: undefined, limit: undefined })
       }
       opts.updateState?.(prev => {
         const { rewindUndo: _prior, ...next } = prev

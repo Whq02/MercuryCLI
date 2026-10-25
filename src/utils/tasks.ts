@@ -4,12 +4,9 @@ import * as fs from 'node:fs'
 import { z } from 'zod'
 
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
-import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { groupCommitLane, type GroupCommitLane } from '../substrate/groupCommit.js'
 import { acquirePidLockWithRetry, noteLockRelease } from '../substrate/pidLock.js'
-import { uniq } from './array.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { lazySchema } from './lazySchema.js'
@@ -156,7 +153,7 @@ async function listTaskIdsOnDisk(taskListId: string): Promise<string[]> {
   try {
     const names = await fs.promises.readdir(getTasksDir(taskListId))
     return names
-      .filter(name => name.endsWith('.json'))
+      .filter(isTaskBodyName)
       .map(name => name.slice(0, -'.json'.length))
       .sort(byCreationOrder)
   } catch {
@@ -309,7 +306,12 @@ export async function getTask(taskListId: string, taskId: string, preloadedEpoch
     logError(error)
     return null
   }
-  const parsed = jsonParse(raw)
+  let parsed: unknown
+  try {
+    parsed = jsonParse(raw)
+  } catch {
+    parsed = undefined
+  }
   if (parsed === undefined) {
     logForDebugging(`task body unparseable: ${taskListId}/${taskId}`)
     logError(new Error(`task body unparseable: ${taskListId}/${taskId}`))

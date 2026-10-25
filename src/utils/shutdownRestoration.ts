@@ -81,6 +81,9 @@ export function cleanupTerminalModes(): void {
 
 let resumeHintPrinted = false
 
+const POSIX_BACKSLASHED = /[\\"]/g
+const POSIX_SPLICED = /[$`!]/g
+
 export function resumeHintArgument(
   title: string | null | undefined,
   sessionId: string,
@@ -89,7 +92,7 @@ export function resumeHintArgument(
   if (!title) return sessionId
   return platform === 'win32'
     ? `'${title.replace(/'/g, "''")}'`
-    : `"${title.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    : `"${title.replace(POSIX_BACKSLASHED, '\\$&').replace(POSIX_SPLICED, "\"'$&'\"")}"`
 }
 
 export function printResumeHint(): void {

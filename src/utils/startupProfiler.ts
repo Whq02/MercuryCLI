@@ -40,9 +40,7 @@ export function getStartupPerfLogPath(): string {
 function buildReport(): string {
   const marks = getPerformance().getEntriesByType('mark')
   const lines: string[] = [BANNER, 'STARTUP PROFILING REPORT', BANNER, '']
-  if (!detailed) {
-    lines.push('Detailed startup profiling is not enabled.')
-  } else if (marks.length === 0) {
+  if (marks.length === 0) {
     lines.push('No checkpoints were recorded.')
   } else {
     let previous = 0

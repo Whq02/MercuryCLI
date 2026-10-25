@@ -59,7 +59,7 @@ export function substituteArguments(
       if (!name) continue
       const value = parsedArgs[i] ?? ''
       const pattern = new RegExp(`\\$${escapeForRegExp(name)}(?![\\w\\[])`, 'g')
-      result = result.replace(pattern, value)
+      result = result.replace(pattern, () => value)
     }
   }
 
@@ -71,7 +71,7 @@ export function substituteArguments(
     return parsedArgs[Number(index)] ?? ''
   })
 
-  result = result.replace(/\$ARGUMENTS/g, args)
+  result = result.replace(/\$ARGUMENTS/g, () => args)
 
   if (result === content && appendIfNoPlaceholder && args !== '') {
     return `${content}\n\n${ARGUMENTS_LABEL}${args}`

@@ -1,5 +1,6 @@
 
 import sliceAnsi from './sliceAnsi.js'
+import { stringWidth } from '../ink/stringWidth.js'
 import { ctrlOToExpand } from '../components/CtrlOToExpand.js'
 
 const VISIBLE_LINES = 3
@@ -32,7 +33,7 @@ export function renderTruncatedContent(
     while (rest.length > 0) {
       const chunk = sliceAnsi(rest, 0, wrapWidth)
       lines.push(chunk.replace(/\s+$/, ''))
-      const after = sliceAnsi(rest, wrapWidth)
+      const after = sliceAnsi(rest, stringWidth(chunk))
       if (after === rest) break
       rest = after
     }

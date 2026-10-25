@@ -36,7 +36,7 @@ export async function openBrowser(url: string): Promise<boolean> {
       const result = await execFileNoThrow('rundll32', ['url,OpenURL', url], {})
       return result.code === 0
     }
-    const handler = process.env.BROWSER ?? (process.platform === 'darwin' ? 'open' : 'xdg-open')
+    const handler = process.env.BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')
     const result = await execFileNoThrow(handler, [url])
     return result.code === 0
   } catch {

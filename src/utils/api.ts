@@ -217,9 +217,10 @@ function reparse<T>(tool: Tool, input: unknown): T {
 
 function stripCwdChangePrefix(command: string): string {
   const cwd = getCwd()
-  let result = command.replace(`cd ${cwd} && `, '')
+  const strip = (text: string, prefix: string): string => (text.startsWith(prefix) ? text.slice(prefix.length) : text)
+  let result = strip(command, `cd ${cwd} && `)
   if (getPlatform() === 'windows') {
-    result = result.replace(`cd ${windowsPathToPosixPath(cwd)} && `, '')
+    result = strip(result, `cd ${windowsPathToPosixPath(cwd)} && `)
   }
   return result
 }

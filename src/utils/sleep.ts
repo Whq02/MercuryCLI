@@ -25,20 +25,3 @@ export function sleep(ms: number, signal?: AbortSignal, opts: SleepOptions = {})
     signal?.addEventListener('abort', onAbort, { once: true })
   })
 }
-
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms)
-    timer.unref()
-    promise.then(
-      value => {
-        clearTimeout(timer)
-        resolve(value)
-      },
-      err => {
-        clearTimeout(timer)
-        reject(err)
-      },
-    )
-  })
-}

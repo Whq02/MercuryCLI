@@ -55,6 +55,7 @@ section('§2 the provider chain and the engine consumer')
   check('the engine consumer routes the record through nativeCwdFromShellRecord', /nativeCwdFromShellRecord\(/.test(shell))
   check('a refusal is logged with its reason, not swallowed', /bash cwd tracking:.*refused/.test(shell) || /cwd tracking[^\n]*\$\{[^\n]*refused/.test(shell))
   check('the old blind conversion of the recorded line is gone', !/recorded = posixPathToWindowsPath\(recorded\)/.test(shell))
+  check('only a foreground result moves the session directory: the guard reads the settled result’s backgroundTaskId (the status is already completed when the result resolves, so it cannot tell a backgrounded command apart)', /cwdOverride === undefined && result\.backgroundTaskId === undefined\)/.test(shell) && !/shellCommand\.status !== 'backgrounded'/.test(shell))
 }
 
 if (failures > 0) {

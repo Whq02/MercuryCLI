@@ -10,7 +10,6 @@ import { patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostJobReadOnly, HostTerminationUnconfirmed, type HostReadOnly } from './retry.js'
 
-export class HostClusterEnded extends Error {}
 const clusterPlacementMs = 30 * 60_000
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 
@@ -81,16 +80,15 @@ function privateIp(value?: string): value is string {
   return parts[0] === 10 || parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31 || parts[0] === 192 && parts[1] === 168
 }
 
-async function endHostCluster(api: RunpodClient, record: HostRecord, cluster: HostCluster, reason: string, detail: string, cleanupRead: HostReadOnly): Promise<never> {
+async function endHostCluster(record: HostRecord, reason: string, detail: string): Promise<never> {
   throw new Error('Cluster ' + record.id + ' ' + reason + (detail ? ' · ' + detail : ''))
 }
 
 export async function startHostCluster(api: RunpodClient, record: HostRecord, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, pauseMs: number, timeoutMs: number, onStep: (step: string) => void, onHead: (target: SshTarget) => void = () => {}): Promise<SshTarget> {
   const deadline = Date.now() + timeoutMs
   const readOnly = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, deadline, mark: onStep })
-  const cleanupRead = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, mark: onStep })
   const cluster = await readOnly('cluster', readSignal => api.getCluster(record.id, readSignal))
-  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) return endHostCluster(api, record, cluster, 'shape does not match the saved recipe', '', cleanupRead)
+  if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) return endHostCluster(record, 'shape does not match the saved recipe', '')
   const placementMs = Math.min(timeoutMs, clusterPlacementMs)
   const placed = Date.now() + placementMs
   let last = 'Cluster nodes have not all received private addresses and SSH access.'
@@ -99,7 +97,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
     const nodes = (await readOnly('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
     patchHostRecord(record.id, { nodes, cluster })
     const failed = nodes.find(node => ['ERROR', 'EXITED', 'TERMINATED'].includes(node.status))
-    if (failed) await endHostCluster(api, record, cluster, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)), cleanupRead)
+    if (failed) await endHostCluster(record, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)))
     if (nodes.length === recipe.nodes && nodes.every((node, rank) => node.cluster.id === cluster.id && node.cluster.rank === rank && privateIp(node.cluster.ip) && node.status === 'RUNNING' && node.ssh?.direct)) {
       const billed = nodes.reduce((sum, node) => sum + node.cost, 0)
       const confirmed = readHostRecord(record.id)
@@ -112,7 +110,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
       const floor = recipe.cuda.split('.').map(Number)
       for (const node of nodes) {
         const cuda = node.cudaVersion?.split('.').map(Number)
-        if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(api, record, cluster, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '', cleanupRead)
+        if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(record, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '')
       }
       try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); await delay(pauseMs, undefined, { signal }); continue }
       const head = nodes[0]!.cluster.ip!
@@ -137,11 +135,11 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
         }
       } catch (error) {
         signal.throwIfAborted()
-        return endHostCluster(api, record, cluster, 'failed during engine setup', error instanceof Error ? error.message : String(error), cleanupRead)
+        return endHostCluster(record, 'failed during engine setup', error instanceof Error ? error.message : String(error))
       }
     }
     await delay(pauseMs, undefined, { signal })
   }
   signal.throwIfAborted()
-  return endHostCluster(api, record, cluster, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last, cleanupRead)
+  return endHostCluster(record, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last)
 }

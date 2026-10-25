@@ -1,7 +1,5 @@
 import { getIsInteractive } from '../bootstrap/state.js'
-import { logForDebugging } from './debug.js'
 import { getPerformance } from './profilerBase.js'
-import { jsonStringify } from './slowOperations.js'
 
 
 const MARK_PREFIX = 'mercury_headless:'
