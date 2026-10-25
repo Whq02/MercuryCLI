@@ -167,7 +167,7 @@ console.log('§B the self-wake rule: the model, a one-shot, a fire, a wake spell
   seedRecord()
   const applied = applyConcourseScheduleOp(SESSION, edit as never, `model:${SESSION}`, okDeps, DAEMON_DIR)
   const landed = ((rawRecord().schedules ?? []) as Schedule[]).find(s => s.id === applied.scheduleId)
-  check('B9 applied through the one writer as the model, the landed row IS a self-wake', applied.outcome === 'applied' && landed !== undefined && isSaturnSelfWake(landed), JSON.stringify({ applied, landed }))
+  check('B9 applied through the one writer as the model, the landed row IS a self-wake that wakes a parked session', applied.outcome === 'applied' && landed !== undefined && isSaturnSelfWake(landed) && landed.action.kind === 'fire' && landed.action.onParked === 'wake', JSON.stringify({ applied, landed }))
   bridge._resetScheduleBridgeForTesting()
 
   const wakeOf = async (delaySeconds: number): Promise<{ before: number; after: number; atMs: number; delay: number; human: string }> => {
@@ -234,7 +234,7 @@ console.log('§C the drop: the self-wake and its held fire leave, everything els
   check('C12 a mangled sibling row is kept, never healed or dropped', withJunk.dropped.length === 1 && JSON.stringify(rawRecord().schedules) === JSON.stringify([{ id: 'junk-row' }]), JSON.stringify(rawRecord().schedules))
 }
 
-console.log("§D the ticker: a parked record's self-wake is dropped on the walk, never held")
+console.log("§D the ticker: parking preserves pending and held self-wakes; stopping cancels them")
 {
   type Delivered = { clientMessageId: string; prompt: string; parked: boolean; sessionId: string }
   const delivered: Delivered[] = []
@@ -263,22 +263,20 @@ console.log("§D the ticker: a parked record's self-wake is dropped on the walk,
   seedRecord({ parkedAt: NOW - 25 * 60 * MIN, parkedBy: 'operator:test', schedules: [wake], heldFires: [heldFor(wake, 'parked-queued')] })
   const before = removeReceipts().length
   const r1 = await tickSaturnOnce(ports)
-  check('D1 the walk drops the held self-wake: one dropped, nothing fired, held or replayed', r1.dropped === 1 && r1.fired === 0 && r1.held === 0 && r1.replayed === 0 && r1.missed === 0 && delivered.length === 0, JSON.stringify(r1))
-  check('D2 the row and its hold are gone from the record (both fields dropped whole)', !('schedules' in rawRecord()) && !('heldFires' in rawRecord()), JSON.stringify(rawRecord()))
-  check('D3 the walk saw nothing pending after the drop (the change gate rests)', r1.pending === 0, String(r1.pending))
-  const rows = removeReceipts()
-  const row = rows[rows.length - 1]
-  check("D4 the receipt is the ticker's, naming the parked reason and the dropped hold", rows.length === before + 1 && row !== undefined && row.by === 'saturn:aaaa1111' && row.details.why === 'parked' && row.details.droppedHolds === 1 && row.summary.includes('the session was parked'), JSON.stringify(row))
+  check('D1 the walk preserves an explicitly queued held self-wake: nothing dropped, fired or replayed', r1.dropped === 0 && r1.fired === 0 && r1.held === 0 && r1.replayed === 0 && r1.missed === 0 && delivered.length === 0, JSON.stringify(r1))
+  check('D2 the schedule and its held fire both remain on the record', scheduleIds().join(',') === wake.id && heldRows().length === 1, JSON.stringify(rawRecord()))
+  check('D3 the walk still sees the pending schedule and hold', r1.pending === 2, String(r1.pending))
+  check('D4 parking emits no schedule-remove receipt', removeReceipts().length === before)
   const glanceAfter = saturnWakeGlanceOf(ports.records())
-  check('D5 the glance over the record now shows nothing (the rail row disappears with the board row)', glanceAfter.count === 0 && glanceAfter.held === 0)
+  check('D5 the glance still counts the schedule and hold', glanceAfter.count === 1 && glanceAfter.held === 1)
   const r2 = await tickSaturnOnce(ports)
-  check('D6 a later tick finds nothing to drop', r2.dropped === 0 && r2.pending === 0, JSON.stringify(r2))
+  check('D6 a later parked tick preserves the same queued wake without duplicating it', r2.dropped === 0 && r2.pending === 2 && heldRows().length === 1, JSON.stringify(r2))
 
   delivered.length = 0
   seedRecord({ parkedAt: NOW - 5 * MIN, parkedBy: 'operator:test', schedules: [selfWake('bbbb2222', NOW + 10 * MIN), operatorOneShot('cccc3333', NOW - MIN)] })
   const r3 = await tickSaturnOnce(ports)
-  check("D7 the pending self-wake is dropped, the operator's due one-shot fires on the wake arm", r3.dropped === 1 && r3.fired === 1 && delivered.length === 1 && delivered[0]!.parked === true && delivered[0]!.prompt === 'the nightly audit', JSON.stringify({ r3, delivered }))
-  check("D8 the operator's spent one-shot left through the stamp; the self-wake through the drop — no field remains", !('schedules' in rawRecord()) && !('heldFires' in rawRecord()), JSON.stringify(rawRecord()))
+  check("D7 the future self-wake stays pending while the operator's due one-shot fires on the wake arm", r3.dropped === 0 && r3.fired === 1 && delivered.length === 1 && delivered[0]!.parked === true && delivered[0]!.prompt === 'the nightly audit', JSON.stringify({ r3, delivered }))
+  check("D8 only the operator's spent one-shot leaves; the pending self-wake stays", scheduleIds().join(',') === 'bbbb2222' && !('heldFires' in rawRecord()), JSON.stringify(rawRecord()))
 
   seedRecord({ stoppedAt: NOW - 5 * MIN, stoppedBy: 'operator:test', schedules: [selfWake('dddd4444', NOW + 10 * MIN)] })
   const r4 = await tickSaturnOnce(ports)
@@ -293,27 +291,34 @@ console.log("§D the ticker: a parked record's self-wake is dropped on the walk,
   delivered.length = 0
   seedRecord({ parkRequestedAt: NOW - MIN, parkRequestedBy: 'operator:test', schedules: [selfWake('ffff6666', NOW + 10 * MIN)] })
   const r6 = await tickSaturnOnce(ports)
-  check('D11 a draining (park-requested, not yet parked) record keeps its self-wake until the flip', r6.dropped === 0 && JSON.stringify(scheduleIds()) === JSON.stringify(['ffff6666']), JSON.stringify(r6))
+  check('D11 a draining (park-requested, not yet parked) record keeps its self-wake', r6.dropped === 0 && JSON.stringify(scheduleIds()) === JSON.stringify(['ffff6666']), JSON.stringify(r6))
+
+  delivered.length = 0
+  seedRecord({ parkedAt: NOW - 5 * MIN, schedules: [{ ...selfWake('aaaa3333', NOW - MIN), action: { kind: 'fire', prompt: 'carry on with the next unit', onParked: 'wake' } }] })
+  const r7 = await tickSaturnOnce(ports)
+  check('D12 a due self-wake wakes the parked session, spends once and is never dropped', r7.dropped === 0 && r7.fired === 1 && delivered.length === 1 && delivered[0]!.parked && !('schedules' in rawRecord()), JSON.stringify({ r7, delivered }))
+  const r8 = await tickSaturnOnce(ports)
+  check('D13 the spent wake is not delivered twice', r8.fired === 0 && delivered.length === 1, JSON.stringify(r8))
 }
 
-console.log('§E the doors drop at the flip; the surfaces paint the glance words')
+console.log('§E only interrupt and stop cancel self-wakes; parking preserves them')
 {
   const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
   const main = read('src/daemon/main.ts')
   const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
   check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
   const parkArm = main.slice(main.indexOf("if (action === 'park')"), main.indexOf("if (action === 'set-title')"))
-  check('E2 the park door drops on both arms that flip the close state (retire · park) and never on a released newborn', parkArm.includes("if (retired.outcome === 'parked') dropSelfWakesAtFlip(sessionId, by, 'parked')") && parkArm.includes("if (out.outcome === 'applied' && !out.released) dropSelfWakesAtFlip(sessionId, by, 'parked')"))
+  check('E2 both park doors preserve self-wakes', parkArm.includes('retireConcourseSession(sessionId, by, roster)') && parkArm.includes('parkConcourseSession(sessionId, by, roster ?? undefined)') && !parkArm.includes('dropSelfWakesAtFlip'))
   const stopArm = main.slice(main.indexOf("if (action === 'stop')"), main.indexOf("if (action === 'attach')"))
   check('E3 the stop door drops once the stop applied', stopArm.includes("if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')"))
   const parkAllArm = main.slice(main.indexOf("if (action === 'park-all')"), main.indexOf("if (action === 'park')"))
-  check('E4 park-all drops for every session it parked now (draining ones flip at their idle edge)', parkAllArm.includes('for (const short of all.parked)') && parkAllArm.includes("dropSelfWakesAtFlip(parkedRec.sessionId, by, 'parked')"))
+  check('E4 park-all preserves self-wakes for every parked session', parkAllArm.includes('parkAllConcourseSessions(') && !parkAllArm.includes('dropSelfWakesAtFlip'))
   const idleEdge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('onIdle: short => {') + 900)
-  check('E5 the idle-edge park completion drops with the park stamp', idleEdge.includes('if (completeRequestedPark(short, roster)) {') && idleEdge.includes("dropSelfWakesAtFlip(parkedRec.sessionId, parkedRec.parkedBy ?? 'daemon', 'parked')"))
+  check('E5 the idle-edge park completion preserves self-wakes', idleEdge.includes('if (completeRequestedPark(short, roster)) {') && !idleEdge.includes('dropSelfWakesAtFlip'))
   check('E6 the door helper rides the one writer, fail-soft, and names the drop in the daemon log', main.includes('function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy): void') && main.includes('const gone = dropSaturnSelfWakes(sessionId, by, why)') && main.includes('self-paced wake') )
 
   const ticker = read('src/daemon/saturnTicker.ts')
-  check("E7 the ticker's walk drops a parked record's self-wakes through the pen before the ladder runs, and counts them", ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, rec.parkedAt !== undefined ? 'parked' : 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && ticker.indexOf('if (parked && scheduleList.some(isSaturnSelfWake))') < ticker.indexOf('if (heldList.length > 0) {'))
+  check("E7 the ticker drops only a stopped record's self-wakes before the ladder runs", ticker.includes('if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && !ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))'))
 
   const rail = read('src/components/HelmLanesRail.tsx')
   const railModel = read('src/utils/cockpit/helmLanesModel.ts')

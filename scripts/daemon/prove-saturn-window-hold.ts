@@ -176,7 +176,7 @@ console.log('§H a due self-wake dispatches despite the window note, exactly onc
   check('nothing fires twice', r4.fired + r4.replayed + r4.held === 0 && delivered.length === 1, JSON.stringify(r4))
 }
 
-console.log('§P a parked session is never woken by a held self-wake: it waits for the resume')
+console.log('§P an explicitly queued fire waits for the parked session to resume')
 {
   delivered.length = 0
   clearSchedules()
@@ -223,7 +223,7 @@ console.log('§N nothing armed, nothing woken')
   check('a session with no schedule and no hold gets no fire, no hold, no replay', r.fired + r.held + r.replayed + r.missed === 0 && r.pending === 0 && delivered.length === 0, JSON.stringify(r))
 }
 
-console.log('§T the self-paced wake tool arms the queue arm')
+console.log('§T the self-paced wake tool arms the wake arm')
 {
   bridge._resetScheduleBridgeForTesting()
   bridge.markScheduleSeatObserved()
@@ -231,7 +231,7 @@ console.log('§T the self-paced wake tool arms the queue arm')
   const edits = bridge.takePendingScheduleEdits()
   const edit = edits[0] as { op?: string; schedule?: { action?: { kind?: string; onParked?: string } } } | undefined
   check('the tool rides the seat road', (out as { data?: { road?: string } }).data?.road === 'session', JSON.stringify(out))
-  check("the submitted schedule's fire waits for a parked session's own resume (onParked 'queue')", edit?.op === 'add' && edit.schedule?.action?.kind === 'fire' && edit.schedule.action.onParked === 'queue', JSON.stringify(edit))
+  check("the submitted schedule wakes a parked session (onParked 'wake')", edit?.op === 'add' && edit.schedule?.action?.kind === 'fire' && edit.schedule.action.onParked === 'wake', JSON.stringify(edit))
   bridge._resetScheduleBridgeForTesting()
 }
 

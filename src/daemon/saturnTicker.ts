@@ -215,14 +215,14 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       logForDebugging(`[saturn] session ${sessionId}: ${mangledCount} mangled schedule/hold entr${mangledCount === 1 ? 'y' : 'ies'} skipped (record surgery?) — healthy rows proceed`)
     }
 
-    if (parked && scheduleList.some(isSaturnSelfWake)) {
-      const gone = dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, rec.parkedAt !== undefined ? 'parked' : 'stopped', ports.dir)
+    if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake)) {
+      const gone = dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)
       if (gone.dropped.length > 0) {
         report.dropped += gone.dropped.length
         const ids = new Set(gone.dropped)
         scheduleList = scheduleList.filter(s => !ids.has(s.id))
         heldList = heldList.filter(h => !ids.has(h.scheduleId))
-        logForDebugging(`[saturn] session ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${gone.droppedHolds} held) — the session is ${rec.parkedAt !== undefined ? 'parked' : 'stopped'}`)
+        logForDebugging(`[saturn] session ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${gone.droppedHolds} held) — the session is stopped`)
       }
     }
     report.pending += heldList.length + scheduleList.length

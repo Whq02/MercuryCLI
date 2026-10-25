@@ -32,7 +32,7 @@ export function decideSessionlessExit(state: SessionlessStateV1, facts: Sessionl
   if (!hosted) return { exit: false, state: { hosted, emptySince: null }, hold: 'never hosted a session' }
   if (facts.superseded) return { exit: true, state: { hosted, emptySince: facts.now }, why: 'the plane is served by a newer daemon and the last session this daemon held has exited' }
   if (facts.persist) return { exit: false, state: { hosted, emptySince: null }, hold: 'persists by its own posture' }
-  if (facts.scheduled) return { exit: false, state: { hosted, emptySince: null }, hold: 'a session schedule waits on this daemon' }
+  if (facts.scheduled) return { exit: false, state: { hosted, emptySince: null }, hold: 'a session schedule or held wake waits on this daemon' }
   const emptySince = state.emptySince ?? facts.now
   if (facts.now - emptySince < graceMs) {
     return { exit: false, state: { hosted, emptySince }, hold: `empty for ${Math.round((facts.now - emptySince) / 1000)}s of the ${Math.round(graceMs / 1000)}s grace` }
