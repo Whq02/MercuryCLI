@@ -145,14 +145,13 @@ export function recordSeenLines(
   }
   entry.cuts = [...keptCuts].map(([line, visibleChars]) => ({ line, visibleChars }))
   entry.ranges = coalesce([...entry.ranges, ...withoutCutLines([{ start: startLine, end: endLine }], cuts)])
-  while (entry.ranges.length > SEEN_LINES_BOUNDS.rangeCap) {
-    let smallest = 0
-    for (let i = 1; i < entry.ranges.length; i++) {
-      const a = entry.ranges[i]!
-      const b = entry.ranges[smallest]!
-      if (a.end - a.start < b.end - b.start) smallest = i
-    }
-    entry.ranges.splice(smallest, 1)
+  if (entry.ranges.length > SEEN_LINES_BOUNDS.rangeCap) {
+    entry.ranges = entry.ranges
+      .map((range, index) => ({ range, index }))
+      .sort((a, b) => (b.range.end - b.range.start) - (a.range.end - a.range.start) || b.index - a.index)
+      .slice(0, SEEN_LINES_BOUNDS.rangeCap)
+      .sort((a, b) => a.index - b.index)
+      .map(({ range }) => range)
   }
   files.set(path, entry)
   while (files.size > SEEN_LINES_BOUNDS.fileCap) {
@@ -163,11 +162,25 @@ export function recordSeenLines(
 }
 
 function withoutCutLines(ranges: readonly SeenRange[], cuts: readonly ColumnCut[]): SeenRange[] {
-  let kept = [...ranges]
-  for (const { line } of cuts) kept = kept.flatMap(range => line < range.start || line > range.end ? [range] : [
-    ...(line > range.start ? [{ start: range.start, end: line - 1 }] : []),
-    ...(line < range.end ? [{ start: line + 1, end: range.end }] : []),
-  ])
+  if (cuts.length === 0 || ranges.length === 0) return [...ranges]
+  const lines = [...new Set(cuts.map(cut => cut.line))].sort((a, b) => a - b)
+  const kept: SeenRange[] = []
+  for (const range of ranges) {
+    let lo = 0
+    let hi = lines.length
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (lines[mid]! < range.start) lo = mid + 1
+      else hi = mid
+    }
+    let start = range.start
+    for (let i = lo; i < lines.length && lines[i]! <= range.end; i++) {
+      const line = lines[i]!
+      if (line > start) kept.push({ start, end: line - 1 })
+      start = line + 1
+    }
+    if (start <= range.end) kept.push({ start, end: range.end })
+  }
   return kept
 }
 

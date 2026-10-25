@@ -55,14 +55,14 @@ const PRED = {
     /^\d{4}-\d\d-\d\d[T ]/.test(l) || /^\[\w+\]/.test(l) || /^\d\d:\d\d:\d\d/.test(l),
 }
 
-function classify(text: string): ContentClass {
-  const nonEmpty = text.split('\n').filter(l => l.trim().length > 0)
-  const n = nonEmpty.length
-  if (n === 0) return 'text'
+function classify(text: string, lines: readonly string[]): ContentClass {
+  let n = 0
   const c = { pathLike: 0, jsonStruct: 0, diffLike: 0, errLike: 0, stackLike: 0, tabular: 0, logLike: 0 }
   let brackets = 0
-  for (const raw of nonEmpty) {
+  for (const raw of lines) {
     const l = raw.trim()
+    if (l.length === 0) continue
+    n++
     if (PRED.pathLike(l)) c.pathLike++
     if (PRED.jsonStruct(l)) c.jsonStruct++
     if (PRED.diffLike(l)) c.diffLike++
@@ -71,6 +71,7 @@ function classify(text: string): ContentClass {
     if (PRED.tabular(raw)) c.tabular++
     if (PRED.logLike(l)) c.logLike++
   }
+  if (n === 0) return 'text'
   for (const ch of text) if (ch === '{' || ch === '}' || ch === '[' || ch === ']') brackets++
   const r = (x: number) => x / n
   const bracketDensity = text.length > 0 ? brackets / text.length : 0
@@ -92,8 +93,8 @@ export function digestClearedToolResult(content: DigestableContent): string {
   const text = extractText(content)
   if (!text.trim()) return MC_CLEARED_PLACEHOLDER
 
-  const lineCount = text.split('\n').length
+  const lines = text.split('\n')
   const approxTokens = Math.round(text.length / 4 / 10) * 10
-  const cls = classify(text)
-  return `${MC_DIGEST_PREFIX} ${lineCount} lines, ~${approxTokens} tok, ${cls}]`
+  const cls = classify(text, lines)
+  return `${MC_DIGEST_PREFIX} ${lines.length} lines, ~${approxTokens} tok, ${cls}]`
 }

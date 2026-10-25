@@ -128,13 +128,26 @@ function alignReplacedLines(rawNormalized: string[], updated: string[]): number[
   return owner
 }
 
+function linesWithEndings(text: string): string[] {
+  const lines: string[] = []
+  let start = 0
+  let end: number
+  while ((end = text.indexOf('\n', start)) !== -1) {
+    lines.push(text.slice(start, end + 1))
+    start = end + 1
+  }
+  if (start < text.length || lines.length === 0) lines.push(text.slice(start))
+  return lines
+}
+
 export function preserveUntouchedLineEndings(
   raw: string,
   updated: string,
   majority: LineEndingType,
 ): string {
-  const rawLines = raw.split(/(?<=\n)/)
-  const updatedLines = updated.split(/(?<=\n)/)
+  if (majority === 'LF' && !raw.includes('\r\n')) return updated
+  const rawLines = linesWithEndings(raw)
+  const updatedLines = linesWithEndings(updated)
   const normalize = (line: string): string => line.replace(/\r\n$/, '\n')
   let top = 0
   while (

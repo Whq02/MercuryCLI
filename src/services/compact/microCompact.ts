@@ -160,7 +160,11 @@ function persistedReferenceOf(content: unknown): string | undefined {
       : Array.isArray(content)
         ? content.map(item => ((item as { type?: string }).type === 'text' ? String((item as { text?: unknown }).text ?? '') : '')).join('\n')
         : ''
-  return text.split('\n').find(line => line.includes(PERSISTED_PATH_PHRASE))
+  const at = text.indexOf(PERSISTED_PATH_PHRASE)
+  if (at === -1) return undefined
+  const start = text.lastIndexOf('\n', at) + 1
+  const end = text.indexOf('\n', at)
+  return text.slice(start, end === -1 ? undefined : end)
 }
 
 export function projectTimeBasedMicrocompact(
