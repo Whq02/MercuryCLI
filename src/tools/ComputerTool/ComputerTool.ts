@@ -868,7 +868,7 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Coordinates are pixels of the last screenshot; renew after compaction/frame changes. target:{role?,name?,text?}: exact role/name, text substring, unique match. Acts use tree caps unless depth/limit is given.
+    return `Call Computer directly, not through Eval; coordinates are pixels of its last screenshot in the conversation, renewed after compaction/frame changes. target:{role?,name?,text?}: exact role/name, text substring, unique match. Acts use tree caps unless depth/limit is given.
 
 ask for a screenshot when you need to see; an act returns words.
 screenshot: front window; full:true or display:N for a display. region:{x,y,width,height}: last screenshot pixels. screenshot/wait/sequence take scale:0.25–1 of native pixels (window default 0.5, region/display 1). Results name px/pt and origin.

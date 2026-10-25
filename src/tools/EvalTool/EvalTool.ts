@@ -1,9 +1,12 @@
 
+import { readFileSync } from 'node:fs'
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import {
   evalEnabled,
   EVAL_DEFAULT_TIMEOUT_SECONDS,
@@ -14,7 +17,7 @@ import {
 } from '../../services/eval/contracts.js'
 import { evalAvailability } from '../../services/eval/interpreters.js'
 import { evalKernelManager } from '../../services/eval/kernelManager.js'
-import { makeEvalBridgeServer } from '../../services/eval/evalBridge.js'
+import { makeEvalBridgeServer, type BridgeScreenshot } from '../../services/eval/evalBridge.js'
 import type { EvalToolProgress } from '../../types/tools.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 import { buildEvalPrompt, EVAL_DESCRIPTION } from './prompt.js'
@@ -42,7 +45,7 @@ const inputSchema = () => {
 type InputSchema = ReturnType<typeof inputSchema>
 type EvalToolInput = z.infer<InputSchema>
 
-export type EvalToolOutput = EvalCellOutcome & { language: EvalLanguage; title?: string }
+export type EvalToolOutput = EvalCellOutcome & { language: EvalLanguage; title?: string; screenshot?: BridgeScreenshot }
 
 const PROGRESS_THROTTLE_MS = 300
 const RUNNING_TICK_MS = 1000
@@ -72,6 +75,17 @@ function composeResultText(output: EvalToolOutput): string {
   for (const note of output.annotations) parts.push(`[note] ${note}`)
   if (parts.length === 0) parts.push('(the cell produced no output)')
   return parts.join('\n')
+}
+
+function screenshotImageOf(screenshot: BridgeScreenshot | undefined): { mediaType: 'image/png' | 'image/jpeg'; data: string } | null {
+  if (screenshot === undefined || !modelReceivesImageBlocks(getEngineModel())) return null
+  try {
+    const bytes = readFileSync(screenshot.inlinePath ?? screenshot.imagePath)
+    const mediaType = screenshot.inlinePath !== undefined && screenshot.inlineMediaType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
+    return { mediaType, data: bytes.toString('base64') }
+  } catch {
+    return null
+  }
 }
 
 const evalToolDef = buildTool({
@@ -126,12 +140,16 @@ const evalToolDef = buildTool({
     const emit = (data: EvalToolProgress): void => {
       onProgress?.({ toolUseID: toolUseId, data })
     }
+    let screenshot: BridgeScreenshot | undefined
     const serveBridge = makeEvalBridgeServer({
       owner: ownerFromToolUseContext(context),
       context,
       canUseTool: canUseTool as never,
       cellAbort,
       onNested: message => emit({ type: 'eval_progress', kind: 'nested', message }),
+      onScreenshot: captured => {
+        screenshot = captured
+      },
     })
 
     let pendingTail = ''
@@ -205,6 +223,7 @@ const evalToolDef = buildTool({
         ...outcome,
         language: input.language,
         ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(screenshot !== undefined ? { screenshot } : {}),
       }
       return { data }
     } finally {
@@ -218,7 +237,9 @@ const evalToolDef = buildTool({
     const text = composeResultText(output)
     const images = output.displays.filter(
       d => (d.mime === 'image/png' || d.mime === 'image/jpeg') && d.b64 === true,
-    )
+    ).map(image => ({ mediaType: image.mime as 'image/png' | 'image/jpeg', data: image.data }))
+    const screenshot = screenshotImageOf(output.screenshot)
+    if (screenshot !== null) images.unshift(screenshot)
     if (images.length === 0) {
       return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status !== 'ok' ? { is_error: true } : {}) }
     }
@@ -232,7 +253,7 @@ const evalToolDef = buildTool({
           type: 'image' as const,
           source: {
             type: 'base64' as const,
-            media_type: image.mime as 'image/png' | 'image/jpeg',
+            media_type: image.mediaType,
             data: image.data,
           },
         })),

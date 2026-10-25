@@ -23,6 +23,8 @@ import { logForDebugging } from '../../utils/debug.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { handleSampleCall } from '../samples/bridge.js'
+import { rekeyScreenshot } from '../desktop/desktopSession.js'
+import { COMPUTER_TOOL_NAME } from '../desktop/toolName.js'
 
 const toolPayload = z.object({ name: z.string(), input: z.record(z.string(), z.unknown()).default({}) })
 const agentPayload = z.object({
@@ -47,6 +49,13 @@ interface EvalBridgeDeps {
   canUseTool: CanUseToolFn
   cellAbort: AbortController
   onNested?: (message: AssistantMessage | NormalizedUserMessage) => void
+  onScreenshot?: (screenshot: BridgeScreenshot) => void
+}
+
+export interface BridgeScreenshot {
+  imagePath: string
+  inlinePath?: string
+  inlineMediaType?: string
 }
 
 interface BridgeAnswer {
@@ -57,9 +66,13 @@ interface BridgeAnswer {
   code?: number | null
 }
 
+const IMAGE_NOTE = '[image result — view it in the transcript; binary does not cross the bridge]'
+const SCREENSHOT_NOTE = "[screenshot attached to this cell's result]"
+
 function extractToolResult(
   message: UserMessage,
   toolUseId: string,
+  imageNote: string,
 ): { text: string; isError: boolean } | null {
   const content = (message as { message?: { content?: unknown } }).message?.content
   if (!Array.isArray(content)) return null
@@ -73,7 +86,7 @@ function extractToolResult(
         .map(part => {
           const p = part as { type?: string; text?: string }
           if (p.type === 'text' && typeof p.text === 'string') return p.text
-          if (p.type === 'image') return '[image result — view it in the transcript; binary does not cross the bridge]'
+          if (p.type === 'image') return imageNote
           return ''
         })
         .filter(Boolean)
@@ -82,6 +95,16 @@ function extractToolResult(
     return { text, isError: b.is_error === true }
   }
   return null
+}
+
+function screenshotOf(message: UserMessage): BridgeScreenshot | null {
+  const output = (message as { toolUseResult?: unknown }).toolUseResult as { imagePath?: unknown; inlinePath?: unknown; inlineMediaType?: unknown } | undefined
+  if (typeof output?.imagePath !== 'string' || output.imagePath === '') return null
+  return {
+    imagePath: output.imagePath,
+    ...(typeof output.inlinePath === 'string' ? { inlinePath: output.inlinePath } : {}),
+    ...(typeof output.inlineMediaType === 'string' ? { inlineMediaType: output.inlineMediaType } : {}),
+  }
 }
 
 function toNormalizedUser(message: UserMessage): NormalizedUserMessage {
@@ -153,20 +176,27 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     const block = { type: 'tool_use' as const, id: toolUseId, name, input }
     const assistant = createAssistantMessage({ content: [block as never], isVirtual: true })
     deps.onNested?.(assistant)
+    const carriesScreenshot = deps.onScreenshot !== undefined && toolMatchesName({ name: COMPUTER_TOOL_NAME }, name)
     let result: { text: string; isError: boolean } | null = null
+    let screenshot: BridgeScreenshot | null = null
     let shellRun: ShellRunFact | undefined
     let permissionDenied = false
     for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), nestedContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
-      const extracted = extractToolResult(message as UserMessage, toolUseId)
+      const extracted = extractToolResult(message as UserMessage, toolUseId, carriesScreenshot ? SCREENSHOT_NOTE : IMAGE_NOTE)
       if (extracted) {
         result = extracted
+        if (carriesScreenshot) screenshot = screenshotOf(message as UserMessage)
         shellRun = update.shellRun
         deps.onNested?.(toNormalizedUser(message as UserMessage))
       }
     }
     if (!result) return { ok: false, error: `the ${name} call produced no result` }
+    if (screenshot !== null) {
+      const carrier = context.toolUseId
+      if (carrier === undefined || carrier === '' || rekeyScreenshot(deps.owner ?? ownerFromToolUseContext(context), toolUseId, carrier)) deps.onScreenshot?.(screenshot)
+    }
     if (shellRun !== undefined) return { ok: true, value: shellCallValue(shellRun, result.text), code: shellRun.code }
     if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed`, errorKind: cellAbort.signal.aborted ? 'cancelled' : permissionDenied ? 'permission' : 'error' }
     return { ok: true, value: result.text }

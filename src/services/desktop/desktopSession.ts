@@ -151,6 +151,15 @@ export function screenshotPathForToolUse(toolUseId: string): string | null {
   return screenshotRegistry.get(toolUseId)?.path ?? null
 }
 
+export function rekeyScreenshot(owner: OwnerKey, from: string, to: string): boolean {
+  const state = ownerStates.peek(owner)
+  if (!state || state.screen === null || state.screen.toolUseId !== from) return false
+  state.screen = { ...state.screen, toolUseId: to }
+  const path = screenshotRegistry.get(from)?.path
+  if (path !== undefined) noteScreenshot(owner, to, path)
+  return true
+}
+
 
 export function forgetDesktopOwner(owner: OwnerKey): void {
   ownerStates.dispose(owner)

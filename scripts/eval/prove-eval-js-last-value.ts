@@ -25,6 +25,9 @@ try {
     const mapped = EvalTool.mapToolResultToToolResultBlockParam({ ...out, language: 'js' }, 'last-value-proof')
     check(`final expression: ${code}`, mapped.content === expected && !mapped.is_error, String(mapped.content))
   }
+  const empty = await run('undefined')
+  const mappedEmpty = EvalTool.mapToolResultToToolResultBlockParam({ ...empty, language: 'js' }, 'empty-cell-proof')
+  check('undefined plainly reports no output', mappedEmpty.content === '(the cell produced no output)' && !mappedEmpty.is_error, String(mappedEmpty.content))
   const continuation = 'const a = [1]\n[0]'
   check('an array continuation without a semicolon is not captured', !transformJsCell(continuation).capturesResult)
   const continued = await run(continuation)

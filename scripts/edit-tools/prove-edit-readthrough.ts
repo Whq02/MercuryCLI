@@ -142,8 +142,8 @@ tally.section('C. a same-path change does not merge old and current read knowled
 show('the anchored Edit after the file changed and Grep showed another range', seen.knowledge)
 const knowledge = seen.knowledge?.text ?? ''
 tally.check('C1 the actual Read supplied the range anchor and the Edit was refused', knowledgeAnchor.startsWith('ra:') && seen.knowledge?.isError === true)
-tally.check('C2 the refusal does not claim every refused line was read', !knowledge.includes('read this session: 1-10;') && knowledge.includes('read this session: 6-10'), knowledge.slice(0, 1200))
-tally.check('C3 the words name the failed anchor and generation checks', knowledge.includes('Anchor check failed:') && knowledge.includes('File generation check failed:'), knowledge.slice(0, 1200))
+tally.check('C2 the refusal does not claim every refused line was read: the changed window is no longer read knowledge, and the stale anchor names the window to re-read', !knowledge.includes('read this session: 1-10') && knowledge.includes('Stale anchor:') && knowledge.includes('re-read lines 1-5 of'), knowledge.slice(0, 1200))
+tally.check('C3 the words name the stale anchor and the current one', knowledge.includes(`expected_anchor: ${knowledgeAnchor}`) && /current_anchor: ra:[0-9a-f]{12}:L1\+5/.test(knowledge), knowledge.slice(0, 1200))
 tally.check('C4 the refused edit writes nothing', readFileSync(knowledgeFile, 'utf8') === knowledgeOriginal.replace('const k1 = 1', 'const k1 = 1000'))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })

@@ -65,6 +65,9 @@ assert.match(crewPrompt, /Implementation briefs carry the known target and accep
 assert.match(crewPrompt, /Investigation briefs carry the unresolved question, evidence already checked, boundaries and required evidence in the answer/)
 assert.match(crewPrompt, /Keep ownership of the overall task; delegate reasoning inside a well-scoped question/)
 assert.ok(!crewPrompt.includes('Never hand the synthesis'))
+const computerDefinition = definitions.find(definition => definition.name === 'Computer')!
+assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string')
+assert.match(computerDefinition.description, /Call Computer directly, not through Eval; coordinates are pixels of its last screenshot in the conversation/)
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)
