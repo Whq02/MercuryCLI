@@ -193,7 +193,7 @@ console.log('entering a provider key has one home: /logins')
     } catch (e) {
       zaiThrow = e instanceof Error ? e.message : String(e)
     }
-    check('buildProviderSnapshot resolves opus (xhigh), sonnet (high) and fable (high) without a posture argument, reaches max on Opus, and non-seat buildLaunchPatch throws seat: …', snap.providers.length === 23 && snap.providers.some(provider => provider.id === 'melious') && anthropicAdapter.resolveAnthropicModel.length === 1 && opusRef?.effort === 'xhigh' && sonnetRef?.effort === 'high' && fableRef?.effort === 'high' && anthropicAdapter.routeEffortsFor(opusRef.model).includes('max') && zaiThrow.startsWith('seat:'))
+    check('buildProviderSnapshot resolves opus (xhigh), sonnet (high) and fable (high) without a posture argument, reaches max on Opus, and non-seat buildLaunchPatch throws seat: …', snap.providers.length === 24 && ['melious', 'orcarouter'].every(id => snap.providers.some(provider => provider.id === id)) && anthropicAdapter.resolveAnthropicModel.length === 1 && opusRef?.effort === 'xhigh' && sonnetRef?.effort === 'high' && fableRef?.effort === 'high' && anthropicAdapter.routeEffortsFor(opusRef.model).includes('max') && zaiThrow.startsWith('seat:'))
   }
   const { configureEffortParams } = await import('../../src/services/providers/anthropic/requestParams.ts')
   const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')

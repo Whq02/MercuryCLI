@@ -1819,6 +1819,8 @@ export function attachYieldConcourseSession(
         }
         return
       }
+    } else {
+      roster?.kill(rec.runnerId)
     }
     rec.attachedAt = Date.now()
     rec.attachedBy = by
@@ -2351,6 +2353,7 @@ export function stopConcourseSession(
       out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: false }
       return
     }
+    roster?.kill(rec.runnerId)
     stampStopped(rec, by, retired)
     out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: true }
   }, dir)
@@ -2452,6 +2455,8 @@ export function parkConcourseSession(
         }
         return
       }
+    } else {
+      roster?.kill(rec.runnerId)
     }
     if (isNewbornRecord(rec)) {
       releaseNewborn = rec.runnerId

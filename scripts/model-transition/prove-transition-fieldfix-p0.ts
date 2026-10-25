@@ -83,6 +83,7 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
   check('plain GUI editors still classify', classifyGuiEditor('code -w') === 'code')
   check('terminal editors still classify as terminal', classifyGuiEditor('nano') === undefined && classifyGuiEditor('vi -u none') === undefined)
   check('path components never false-match', classifyGuiEditor('/home/alice/code/bin/nvim') === undefined)
+  check('a terminal editor stays a terminal editor whatever its arguments (F43A-C5-22)', classifyGuiEditor('vim -u ~/.vimrc-code') === undefined && classifyGuiEditor("nvim -c 'set noatomic'") === undefined && classifyGuiEditor('/usr/bin/vim.basic +42 notes.md') === undefined && classifyGuiEditor('emacs -nw --file code.ts') === undefined)
   const promptSrc = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
   check('the waiting banner exists for the GUI-paused state', promptSrc.includes('if (externalEditorActive)') && promptSrc.includes('save and close to continue'))
 

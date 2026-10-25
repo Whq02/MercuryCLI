@@ -683,29 +683,26 @@ export async function markManagerPlanState(
 ): Promise<boolean> {
   try {
     const conv = await import('./coordinatorConversation.js')
-    const entries = await conv.readCoordinatorConversation(dir)
-    const entry = entries.find(e => e.id === entryId) as
-      | (import('./coordinatorConversation.js').CoordinatorConversationEntryV1 & { plan?: unknown })
-      | undefined
-    if (entry === undefined) return false
-    const plan = entry.plan !== undefined ? decodeManagerPlan(entry.plan) : null
-    if (plan === null) return false
-    const { laneWaiting: standingWaiting, ...rest } = plan
-    const laneWaiting = next.laneWaiting ?? standingWaiting
-    await conv.appendCoordinatorConversation(
-      {
-        ...entry,
-        plan: {
-          ...rest,
-          state: next.state,
-          ...(next.laneSessionIds !== undefined ? { laneSessionIds: next.laneSessionIds } : {}),
-          ...(laneWaiting !== undefined && laneWaiting.length > 0 ? { laneWaiting } : {}),
-          ...(next.workspaceRoot !== undefined ? { workspaceRoot: next.workspaceRoot } : {}),
-        },
-      } as never,
+    return await conv.updateCoordinatorConversationEntry(
+      entryId,
+      entry => {
+        const plan = (entry as { plan?: unknown }).plan !== undefined ? decodeManagerPlan((entry as { plan?: unknown }).plan) : null
+        if (plan === null) return null
+        const { laneWaiting: standingWaiting, ...rest } = plan
+        const laneWaiting = next.laneWaiting ?? standingWaiting
+        return {
+          ...entry,
+          plan: {
+            ...rest,
+            state: next.state,
+            ...(next.laneSessionIds !== undefined ? { laneSessionIds: next.laneSessionIds } : {}),
+            ...(laneWaiting !== undefined && laneWaiting.length > 0 ? { laneWaiting } : {}),
+            ...(next.workspaceRoot !== undefined ? { workspaceRoot: next.workspaceRoot } : {}),
+          },
+        } as never
+      },
       dir,
     )
-    return true
   } catch {
     return false
   }

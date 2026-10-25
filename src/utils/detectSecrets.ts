@@ -1,13 +1,15 @@
 type SecretMatch = { kind: string; redacted: string }
 
-const SECRET_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp }> = [
+const ANTHROPIC_KEY = /\bsk-ant-[A-Za-z0-9_-]{20,}\b/
+
+const SECRET_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; unless?: RegExp }> = [
   { kind: 'aws-access-key-id', re: /\bAKIA[0-9A-Z]{16}\b/ },
   { kind: 'private-key-block', re: /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/ },
   { kind: 'github-token', re: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/ },
   { kind: 'github-pat', re: /\bgithub_pat_[A-Za-z0-9_]{40,}\b/ },
   { kind: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
-  { kind: 'anthropic-key', re: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/ },
-  { kind: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/ },
+  { kind: 'anthropic-key', re: ANTHROPIC_KEY },
+  { kind: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/, unless: ANTHROPIC_KEY },
   { kind: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
   { kind: 'jwt', re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/ },
   { kind: 'bearer-token', re: /\bBearer\s+[A-Za-z0-9._-]{20,}\b/i },
@@ -21,9 +23,11 @@ const SECRET_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp }> = [
 export function detectSecrets(text: string): SecretMatch[] {
   if (!text) return []
   const out: SecretMatch[] = []
-  for (const { kind, re } of SECRET_PATTERNS) {
-    const m = text.match(re)
-    if (m) out.push({ kind, redacted: '[redacted]' })
+  for (const { kind, re, unless } of SECRET_PATTERNS) {
+    const hit = unless === undefined
+      ? text.match(re) !== null
+      : Array.from(text.matchAll(new RegExp(re.source, `${re.flags}g`))).some(m => !unless.test(m[0]))
+    if (hit) out.push({ kind, redacted: '[redacted]' })
   }
   return out
 }

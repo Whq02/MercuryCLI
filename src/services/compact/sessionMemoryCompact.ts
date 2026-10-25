@@ -165,6 +165,7 @@ export async function trySessionMemoryCompaction(
   agentId?: string,
   autoCompactThreshold?: number,
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId'>,
+  trigger: 'auto' | 'manual' = 'auto',
 ): Promise<CompactionResult | null> {
   try {
     if (!shouldUseSessionMemoryCompaction()) return null
@@ -188,7 +189,7 @@ export async function trySessionMemoryCompaction(
 
     const preTokens = tokenCountFromLastAPIResponse(messages)
     const lastMessage = messages[messages.length - 1]
-    const boundary = createCompactBoundaryMessage('auto', preTokens, lastMessage?.uuid)
+    const boundary = createCompactBoundaryMessage(trigger, preTokens, lastMessage?.uuid)
     const discovered = extractDiscoveredToolNames(messages)
     if (discovered.size > 0) {
       boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
@@ -218,7 +219,7 @@ export async function trySessionMemoryCompaction(
     if (autoCompactThreshold !== undefined && landed >= autoCompactThreshold) return null
     const after = await fireHooks(
       'compaction.after',
-      { method: 'notes', trigger: 'auto', tokens_before: preTokens, tokens_after: landed },
+      { method: 'notes', trigger, tokens_before: preTokens, tokens_after: landed },
       { scope: { sessionId: String(getSessionId()), ...(rosterContext?.agentId !== undefined ? { crewmateId: rosterContext.agentId } : {}) } },
     )
     const hookResults: Message[] = hookRowsOfResult(after).map(row => createAttachmentMessage(row))

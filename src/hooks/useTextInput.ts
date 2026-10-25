@@ -484,6 +484,10 @@ export function useTextInput({
     inlineGhostText && dim && inlineGhostText.insertPosition === offset
       ? { text: inlineGhostText.text, dim }
       : undefined
+  const localViewportStartRef = useRef<number | undefined>(undefined)
+  const bandRef = viewportStartRef ?? localViewportStartRef
+  const viewportStartLine = renderCursor.getViewportStartLine(maxVisibleLines, bandRef.current)
+  bandRef.current = viewportStartLine
   const renderedValue = renderCursor.render(
     cursorChar ?? '',
     mask,
@@ -491,12 +495,9 @@ export function useTextInput({
     ghost,
     maxVisibleLines,
     selectionPaint ?? undefined,
+    viewportStartLine,
   )
   const position = renderCursor.getPosition()
-  const localViewportStartRef = useRef<number | undefined>(undefined)
-  const bandRef = viewportStartRef ?? localViewportStartRef
-  const viewportStartLine = renderCursor.getViewportStartLine(maxVisibleLines, bandRef.current)
-  bandRef.current = viewportStartLine
 
   return {
     onInput,

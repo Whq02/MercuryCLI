@@ -59,6 +59,10 @@ export function startBackgroundHook(hook: Omit<BackgroundHook, 'startedAt' | 'so
   })
 }
 
+export function bankHookOutcomes(outcomes: readonly HookOutcome[]): void {
+  settled.push(...outcomes)
+}
+
 export function takeBackgroundHookOutcomes(): HookOutcome[] {
   if (settled.length === 0) return []
   return settled.splice(0, settled.length)

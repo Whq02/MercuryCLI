@@ -128,9 +128,10 @@ try {
     console.log('NOT RUN: runtime confinement cases on this platform; refusal verified')
   }
   symlinkSync(source, join(frozen, 'scripts', 'checks', 'prove-link.ts'))
-  for (const command of ['bun -e "1"', 'bun install', `bun "${source}"`, 'bun scripts/checks/prove-link.ts', 'bash -c "true"', `cd "${scratch}" && bun scripts/checks/prove-read.ts`, 'bun scripts/checks/prove-read.ts > output.txt', `bash "${lock}" check bash -c "true"`, `bun scripts/checks/prove-read.ts && printf changed > '${other}'`]) {
+  for (const command of ['bun -e "1"', 'bun install', `bun "${source}"`, 'bun scripts/checks/prove-link.ts', `bash -c "printf changed > '${other}'"`, `bash -c "bun scripts/checks/prove-read.ts"`, `cd "${scratch}" && bun scripts/checks/prove-read.ts`, 'bun scripts/checks/prove-read.ts > output.txt', `bash "${lock}" check bash -c "true"`, `bun scripts/checks/prove-read.ts && printf changed > '${other}'`]) {
     check('inline programs, installs, outside scripts, redirects and wrapper escapes refuse', await reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) !== null)
   }
+  check('a bash -c script is judged as its inner command: a read-only script is admitted exactly as the bare command is', await reviewerRefusal(BashTool as Tool, { command: 'bash -c "true"' }, canonical, frozen) === await reviewerRefusal(BashTool as Tool, { command: 'true' }, canonical, frozen))
   await assert.rejects(() => shell.call({ command: 'pwd', _simulatedSedEdit: { filePath: other, newContent: 'changed' } }, shellContext), /write protection/)
   writeFileSync(report, '# Report\n\n## Scope\nuntouched\n')
   await edit.call({ file_path: report, append: '## Review\n\n- Initial review.\n' }, context())

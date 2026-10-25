@@ -6,6 +6,7 @@ import { MAX_LINES_TO_READ } from 'src/tools/FileReadTool/prompt.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../constants/apiLimits.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/FileReadTool/FileReadTool.js'
+import { isDirectoryTarget } from '../../tools/FileReadTool/readTarget.js'
 import { isENOENT } from '../errors.js'
 import { getFileModificationTimeAsync, isFileWithinReadSizeLimit } from '../file.js'
 import { cacheKeys, type FileState } from '../fileStateCache.js'
@@ -132,6 +133,10 @@ async function changedFile(key: string, context: ToolUseContext, state: ReturnTy
   if (isFileReadDenied(path, state.toolPermissionContext)) return []
   try {
     if (await getFileModificationTimeAsync(path) <= previous.timestamp) return []
+    if (isDirectoryTarget(path)) {
+      context.readFileState.delete(key)
+      return []
+    }
     const input = { file_path: path }
     if (!(await FileReadTool.validateInput(input, context)).result) return []
     const read = await FileReadTool.call(input, context)

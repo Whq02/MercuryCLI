@@ -89,7 +89,7 @@ export function foldAnswers(event: HookEvent, outcomes: readonly HookOutcome[]):
     if (answer.notice !== undefined) folded.notices.push(answer.notice)
     if (answer.permission !== undefined) folded.permission = folded.permission === 'ask' ? 'ask' : answer.permission
     if (answer.rules !== undefined) folded.rules = [...(folded.rules ?? []), ...answer.rules]
-    if (answer.watch !== undefined) folded.watch = answer.watch
+    if (answer.watch !== undefined) folded.watch = [...new Set([...(folded.watch ?? []), ...answer.watch])]
     for (const field of SINGLE_SETTER_FIELDS) {
       if (answer[field] === undefined) continue
       const earlier = setters[field]

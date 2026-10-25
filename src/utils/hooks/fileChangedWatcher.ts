@@ -7,6 +7,7 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { invalidateSessionEnvCache } from '../sessionEnvironment.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
+import { bankHookOutcomes } from './background.js'
 import { fireHooks } from './fire.js'
 import { hooksFor } from './matching.js'
 
@@ -43,6 +44,7 @@ function handleWatchEvent(event: keyof typeof CHANGE_WORDS, path: string): void 
   void fireHooks('file.changed', { path: shown, change: CHANGE_WORDS[event] }, { scope: scope() })
     .then(result => {
       if (result.outcomes.length > 0) invalidateSessionEnvCache()
+      bankHookOutcomes(result.outcomes)
       if (result.answer.watch !== undefined && result.answer.watch.length > 0) updateWatchPaths(result.answer.watch.map(entry => (isAbsolute(entry) ? entry : resolve(currentCwd, entry))))
     })
     .catch(error => {

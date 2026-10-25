@@ -23,8 +23,10 @@ import {
   filterUnresolvedToolUses,
   filterWhitespaceOnlyAssistantMessages,
   isToolUseResultMessage,
+  isTurnCutText,
   NO_RESPONSE_REQUESTED,
   normalizeMessages,
+  SYNTHETIC_MESSAGES,
 } from './messages.js'
 import {
   accumulateOpenToolUses,
@@ -225,7 +227,6 @@ type TurnAccumulator = {
   tools: OpenToolUses
   lastPromptMs: number | null
   lastAssistantMs: number | null
-  hasAssistant: boolean
   lastAssistantKind: 'thinking' | 'tool' | 'responding' | null
 }
 
@@ -233,7 +234,6 @@ const freshTurnAccumulator = (): TurnAccumulator => ({
   tools: freshOpenToolUses(),
   lastPromptMs: null,
   lastAssistantMs: null,
-  hasAssistant: false,
   lastAssistantKind: null,
 })
 
@@ -241,7 +241,6 @@ const cloneTurnAccumulator = (acc: TurnAccumulator): TurnAccumulator => ({
   tools: cloneOpenToolUses(acc.tools),
   lastPromptMs: acc.lastPromptMs,
   lastAssistantMs: acc.lastAssistantMs,
-  hasAssistant: acc.hasAssistant,
   lastAssistantKind: acc.lastAssistantKind,
 })
 
@@ -258,6 +257,13 @@ const isLocalShellEcho = (content: UserMessage['message']['content']): boolean =
   return first !== undefined && first.type === 'text' && typeof first.text === 'string' && first.text.trimStart().startsWith(SHELL_ECHO_MARK)
 }
 
+const isSyntheticUserRow = (content: UserMessage['message']['content']): boolean => {
+  const only = typeof content === 'string' ? content : content.length === 1 && content[0]?.type === 'text' ? content[0].text : undefined
+  if (typeof only !== 'string') return false
+  const text = only.trim()
+  return SYNTHETIC_MESSAGES.has(text) || isTurnCutText(text)
+}
+
 function accumulateTurn(acc: TurnAccumulator, message: Message): void {
   if (message.type === 'user') {
     accumulateOpenToolUses(acc.tools, message)
@@ -268,15 +274,14 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
         const record = block as { type?: string; tool_use_id?: string }
         if (record.type === 'tool_result' && record.tool_use_id) carriedToolResult = true
       }
-      if (!carriedToolResult && !message.isMeta && !isLocalShellEcho(content)) {
+      if (!carriedToolResult && !message.isMeta && !isLocalShellEcho(content) && !isSyntheticUserRow(content)) {
         acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
       }
-    } else if (!message.isMeta && !isLocalShellEcho(content)) {
+    } else if (!message.isMeta && !isLocalShellEcho(content) && !isSyntheticUserRow(content)) {
       acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
     }
   } else if (message.type === 'assistant') {
     accumulateOpenToolUses(acc.tools, message)
-    acc.hasAssistant = true
     acc.lastAssistantMs = parseTurnTime(message.timestamp) ?? acc.lastAssistantMs
     const content = message.message.content
     if (Array.isArray(content)) {
@@ -292,11 +297,11 @@ function settleTurn(acc: TurnAccumulator): LiveTurnState {
   const unresolved = openToolUseIDs(acc.tools)
   const promptOpen =
     acc.lastPromptMs !== null &&
-    (acc.lastAssistantMs === null || acc.lastAssistantMs >= acc.lastPromptMs - 1)
+    (acc.lastAssistantMs === null || acc.lastAssistantMs < acc.lastPromptMs - 1)
   const inFlight =
     unresolved.size > 0 ||
     acc.lastAssistantKind === 'thinking' ||
-    (promptOpen && !acc.hasAssistant)
+    promptOpen
   let phase: 'thinking' | 'tool' | 'responding' | 'idle' = 'idle'
   if (inFlight) {
     if (unresolved.size > 0) phase = 'tool'

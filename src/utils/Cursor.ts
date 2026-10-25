@@ -813,11 +813,12 @@ export class Cursor {
     ghostText?: { text: string; dim: (s: string) => string },
     maxVisibleLines?: number,
     selection?: SelectionPaint,
+    viewportStart?: number,
   ): string {
     const doc = this.measuredText
     const lines = doc.getWrappedLines()
     const { line: caretLine, column: caretColumn } = this.getPosition()
-    const start = this.getViewportStartLine(maxVisibleLines)
+    const start = viewportStart ?? this.getViewportStartLine(maxVisibleLines)
     const end =
       !maxVisibleLines || maxVisibleLines <= 0
         ? lines.length

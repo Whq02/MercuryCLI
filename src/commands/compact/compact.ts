@@ -152,7 +152,7 @@ async function callUnderFoldStatus(
   try {
     if (!customInstructions) {
       if (shouldUseSessionMemoryCompaction()) context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-      const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context)
+      const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context, 'manual')
       if (sessionMemoryResult !== null) {
         getUserContext.cache?.clear?.()
         runPostCompactCleanup(undefined, buildPostCompactMessages(sessionMemoryResult))

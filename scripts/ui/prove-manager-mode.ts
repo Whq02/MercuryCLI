@@ -328,6 +328,30 @@ check('no watcher machinery of its own (no timers, no loops — the existing sna
   !mgrSource.includes('setInterval') && !mgrSource.includes('setTimeout'));
 check('the screen walker rides the EXISTING snapshot revision, reduced stage excluded',
   /useEffect\(\(\) => \{\s*if \(reducedStage\) return\s*const rows = sessionRows\.map[\s\S]{0,500}?appendManagerSupervisionRows/.test(screen));
+{
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const conv = await import('../../src/services/concourse/coordinatorConversation.js');
+  const dir = mkdtempSync(join(tmpdir(), 'manager-plan-state-'));
+  await conv.appendCoordinatorConversation({ id: 'op:1', role: 'operator', text: 'ship it', ts: 100 }, dir);
+  await conv.appendCoordinatorConversation({ id: 'plan:1', role: 'coordinator', text: 'the plan', ts: 200, plan: twoLanes } as never, dir);
+  await conv.appendCoordinatorConversation({ id: 'op:2', role: 'operator', text: 'and then', ts: 300 }, dir);
+  const marked = await Promise.all([
+    mgr.markManagerPlanState('plan:1', { state: 'dispatched', laneSessionIds: ['sid-a', null] }, dir),
+    mgr.markManagerPlanState('plan:1', { state: 'dispatched', laneWaiting: [1] }, dir),
+  ]);
+  const after = await conv.readCoordinatorConversation(dir);
+  const plan = after.find(e => e.id === 'plan:1') as { ts: number; plan?: { state?: string; laneSessionIds?: unknown[]; laneWaiting?: number[] } } | undefined;
+  check('marking a plan\'s state rewrites its entry IN PLACE — same seat, same ts, the rows around it untouched (F43A-C4-16)',
+    marked.every(Boolean) && after.map(e => e.id).join(',') === 'op:1,plan:1,op:2' && plan?.ts === 200 && plan.plan?.state === 'dispatched',
+    JSON.stringify({ marked, order: after.map(e => e.id), ts: plan?.ts }));
+  check('…and two marks landing together both land (the rewrite runs inside the store\'s mutate, never read-then-append)',
+    JSON.stringify(plan?.plan?.laneSessionIds) === JSON.stringify(['sid-a', null]) && JSON.stringify(plan?.plan?.laneWaiting) === JSON.stringify([1]),
+    JSON.stringify(plan?.plan));
+  check('a mark on an entry that carries no plan changes nothing and says so', (await mgr.markManagerPlanState('op:1', { state: 'declined' }, dir)) === false && (await mgr.markManagerPlanState('missing', { state: 'declined' }, dir)) === false);
+  rmSync(dir, { recursive: true, force: true });
+}
 
 check('the manager send threads manager:true through the ONE conversation door',
   screen.includes('managerOnRef.current ? { manager: true } : undefined'));

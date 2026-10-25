@@ -1,6 +1,7 @@
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { checkHasTrustDialogAccepted } from '../../utils/config.js'
-import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { getCwd } from '../../utils/cwd.js'
+import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
 import type { McpServerConfig, ScopedMcpServerConfig } from './types.js'
@@ -35,12 +36,9 @@ async function getMcpHeadersFromHelper(
   }
 
   logMCPDebug(serverName, `running headersHelper: ${helper}`)
-  const [shellFile, shellArgs] =
-    process.platform === 'win32'
-      ? ['cmd.exe', ['/c', helper]]
-      : ['/bin/sh', ['-c', helper]]
-  const result = await execFileNoThrow(shellFile as string, shellArgs as string[], {
-    useCwd: true,
+  const result = await execFileNoThrowWithCwd(helper, [], {
+    cwd: getCwd(),
+    shell: process.platform === 'win32' ? true : '/bin/sh',
     timeout: HELPER_TIMEOUT_MS,
     env: {
       ...subprocessEnv(),

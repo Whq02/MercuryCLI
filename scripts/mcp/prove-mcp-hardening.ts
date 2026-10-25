@@ -162,6 +162,17 @@ await (async () => {
     'production hands each call its discovered tool definition',
     clientSrc.includes('toolDefinition: sdkTool') && clientSrc.includes('...(toolDefinition ? { toolDefinition } : {})'),
   )
+  const { loggedHeadersOf } = await import('../../src/services/mcp/client.js')
+  const logged = loggedHeadersOf({ 'User-Agent': 'mercury/1', Authorization: 'Bearer tok-1', 'X-API-Key': 'key-2', Cookie: 'sid=3', 'Proxy-Authorization': 'Basic 4', 'X-Custom-Token': 'tok-5' })
+  check(
+    'no credential header VALUE reaches the MCP log: every configured or helper-supplied header is logged by name with its value redacted, whatever its name; only our own User-Agent stays readable (F43A-C7-18)',
+    logged['User-Agent'] === 'mercury/1' && Object.entries(logged).filter(([key]) => key !== 'User-Agent').every(([, value]) => value === '[REDACTED]') && Object.keys(logged).length === 6,
+    JSON.stringify(logged),
+  )
+  check(
+    'both connect lines ride the one redaction (ws and http), and no per-name mask remains',
+    clientSrc.includes('headers: loggedHeadersOf(wsHeaders)') && clientSrc.includes('headers: loggedHeadersOf(requestInit.headers)') && !clientSrc.includes("headers.authorization ? { authorization: '[REDACTED]' }"),
+  )
 })()
 
 section('(4) the lease verbs — outputSchema declared + conforming structured results')

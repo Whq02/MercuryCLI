@@ -342,11 +342,12 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   const quietSilence = (text: string): boolean => /^silence,\s*'info'\)/.test(text)
   check('exactly one silence notice is detail-only, guarded by the silence outcome', parts.filter(quietSilence).length === 1 && /emptyReplyKindOf\(lastMessage\) === 'silence'[\s\S]{0,300}createSystemMessage\(silence, 'info'\)/.test(src))
   for (let i = 1; i < parts.length; i++) {
-    const window = parts[i]!.slice(0, 300)
+    const level = /'(info|warning|error|suggestion)',?\s*\)/.exec(parts[i]!)
+    const window = parts[i]!.slice(0, Math.min(level === null ? 300 : level.index + level[0].length, 600))
     const line = src.slice(0, src.indexOf('createSystemMessage(') + parts.slice(1, i).join('createSystemMessage(').length).split('\n').length
     check(
       `notice #${i} is the detail-only silence notice or carries an operator-visible level`,
-      quietSilence(window) || /'(warning|error|suggestion)'/.test(window),
+      quietSilence(window) || /'(warning|error|suggestion)',?\s*\)/.test(window),
       `near line ${line}: ${window.slice(0, 80).replace(/\n/g, ' ')}`,
     )
   }

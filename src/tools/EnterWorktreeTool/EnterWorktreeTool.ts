@@ -79,12 +79,9 @@ export const EnterWorktreeTool = buildTool({
     }
 
     const gitRoot = findCanonicalGitRoot(getCwd())
-    if (gitRoot && gitRoot !== getCwd()) {
-      chdir(gitRoot)
-    }
 
     const slug = input.name ?? getPlanSlug()
-    const session = await createWorktreeForSession(getSessionId(), slug)
+    const session = await createWorktreeForSession(getSessionId(), slug, undefined, gitRoot !== null ? { gitRoot } : undefined)
 
     chdir(session.worktreePath)
     setCwd(session.worktreePath)

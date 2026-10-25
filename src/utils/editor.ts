@@ -73,6 +73,7 @@ export function editorDisplayName(editor: string | null | undefined): string {
 }
 
 const PLUS_LINE_EDITORS = /\b(vi|vim|nvim|nano|emacs|pico|micro|helix|hx)\b/
+const TERMINAL_EDITORS = /^(?:vi|vim|nvim|nano|emacs|pico|micro|helix|hx|kak)(?![a-z])/
 
 export const getExternalEditor = memoize((): string | undefined => {
   const visual = process.env.VISUAL?.trim()
@@ -143,6 +144,7 @@ export function editorRefusalLine(refusal: EditorRefusal): string {
 export function classifyGuiEditor(editor: string): string | undefined {
   for (const token of editor.split(' ')) {
     const tokenBase = basename(token)
+    if (TERMINAL_EDITORS.test(editorBaseName(token))) return undefined
     for (const gui of GUI_EDITORS) {
       if (tokenBase.includes(gui)) return gui
     }

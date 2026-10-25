@@ -264,44 +264,58 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         const taken = takeSaturnHeldFires(sessionId, releasable, ports.dir)
         for (const h of taken) {
           const by = `saturn:${h.scheduleId}`
-          if (h.envelope.kind === 'fire' && parked && h.envelope.onParked === 'queue') {
-            const banked = holdSaturnFire(sessionId, { scheduleId: h.scheduleId, dueAt: h.dueAt, reason: 'parked-queued', envelope: h.envelope, heldAt: h.heldAt }, ports.dir)
-            if (banked === 'held') {
-              report.held++
-              rowSaturnTickReceipt(rec, by, 'schedule-held', heldLine('parked-queued', 1), {
-                reason: 'parked-queued',
+          let delivered = false
+          try {
+            if (h.envelope.kind === 'fire' && parked && h.envelope.onParked === 'queue') {
+              const banked = holdSaturnFire(sessionId, { scheduleId: h.scheduleId, dueAt: h.dueAt, reason: 'parked-queued', envelope: h.envelope, heldAt: h.heldAt }, ports.dir)
+              if (banked === 'held') {
+                report.held++
+                rowSaturnTickReceipt(rec, by, 'schedule-held', heldLine('parked-queued', 1), {
+                  reason: 'parked-queued',
+                  scheduleId: h.scheduleId,
+                  dueAt: h.dueAt,
+                  releasedFrom: h.reason,
+                })
+              }
+              continue
+            }
+            const rearm = refreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
+            if (rearm !== undefined) {
+              refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
+            }
+            const heldSchedule = scheduleList.find(s => s.id === h.scheduleId)
+            const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by, now, {
+              schedule: heldSchedule,
+              heldAt: h.heldAt,
+              heldReason: h.reason,
+            })
+            if (outcome.ok) {
+              delivered = true
+              report.replayed++
+              markSaturnFired(sessionId, h.scheduleId, now, ports.dir)
+              rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})${reasonClause(heldSchedule)}`, {
+                outcome: 'fired-late',
                 scheduleId: h.scheduleId,
                 dueAt: h.dueAt,
+                firedAt: now,
+                heldMs: now - h.heldAt,
                 releasedFrom: h.reason,
+                ...(heldSchedule?.note !== undefined ? { note: heldSchedule.note } : {}),
               })
+            } else {
+              holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
+              report.held++
             }
-            continue
-          }
-          const rearm = refreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
-          if (rearm !== undefined) {
-            refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
-          }
-          const heldSchedule = scheduleList.find(s => s.id === h.scheduleId)
-          const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by, now, {
-            schedule: heldSchedule,
-            heldAt: h.heldAt,
-            heldReason: h.reason,
-          })
-          if (outcome.ok) {
-            report.replayed++
-            markSaturnFired(sessionId, h.scheduleId, now, ports.dir)
-            rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})${reasonClause(heldSchedule)}`, {
-              outcome: 'fired-late',
-              scheduleId: h.scheduleId,
-              dueAt: h.dueAt,
-              firedAt: now,
-              heldMs: now - h.heldAt,
-              releasedFrom: h.reason,
-              ...(heldSchedule?.note !== undefined ? { note: heldSchedule.note } : {}),
-            })
-          } else {
-            holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
-            report.held++
+          } catch (error) {
+            logForDebugging(`[saturn] session ${sessionId}: held fire ${h.scheduleId} replay threw (${error instanceof Error ? error.message : String(error)}) — ${delivered ? 'delivered; its fired stamp did not land' : 'banked again'}`)
+            if (!delivered) {
+              try {
+                holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
+                report.held++
+              } catch {
+                logForDebugging(`[saturn] session ${sessionId}: held fire ${h.scheduleId} could not be banked again`)
+              }
+            }
           }
         }
       }
@@ -514,7 +528,13 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           continue
         }
         const by = `saturn:box:${h.scheduleId}`
-        const landed = await ports.birth(h.envelope.birth, { scheduleId: h.scheduleId, dueAt: h.dueAt, by, owner: 'box' })
+        let landed: { ok: boolean; sessionId?: string }
+        try {
+          landed = await ports.birth(h.envelope.birth, { scheduleId: h.scheduleId, dueAt: h.dueAt, by, owner: 'box' })
+        } catch (error) {
+          logForDebugging(`[saturn] box held fire ${h.scheduleId} replay threw (${error instanceof Error ? error.message : String(error)}) — banked again`)
+          landed = { ok: false }
+        }
         if (landed.ok) {
           report.replayed++
           markBoxScheduleFired(h.scheduleId, now, ports.dir)

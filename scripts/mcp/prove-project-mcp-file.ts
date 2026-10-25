@@ -82,6 +82,22 @@ console.log('\n§3 mcp add/remove --scope project write that file')
   await config.removeMcpConfig('added', 'project')
   const after = JSON.parse(readFileSync(projectFile, 'utf8')) as { mcpServers: Record<string, unknown> }
   check('remove takes it out again', !('added' in after.mcpServers) && 'in-home' in after.mcpServers, j(Object.keys(after.mcpServers)))
+  const handWritten = { $schema: 'https://example.invalid/mcp.json', mcpServers: { 'in-home': { ...stdio('in-home-cmd'), note: 'kept as written' }, 'odd-shape': { type: 'carrier-pigeon', coop: 'north' } } }
+  writeFileSync(projectFile, JSON.stringify(handWritten, null, 2) + '\n')
+  await config.addMcpConfig('beside', stdio('beside-cmd'), 'project')
+  const kept = JSON.parse(readFileSync(projectFile, 'utf8')) as { $schema?: string; mcpServers: Record<string, Record<string, unknown>> }
+  check('a project add changes only the named key: unknown top-level keys, unknown fields and an entry of another shape stay as the operator wrote them (F43A-C7-21)', kept.$schema === handWritten.$schema && kept.mcpServers['in-home']?.note === 'kept as written' && j(kept.mcpServers['odd-shape']) === j(handWritten.mcpServers['odd-shape']) && 'beside' in kept.mcpServers, j(kept))
+  await config.removeMcpConfig('beside', 'project')
+  check('…and a project remove takes out only the named key', j(JSON.parse(readFileSync(projectFile, 'utf8'))) === j(handWritten), readFileSync(projectFile, 'utf8'))
+  writeFileSync(projectFile, '{ "mcpServers": { "in-home": ')
+  let broken = ''
+  try {
+    await config.addMcpConfig('onto-broken', stdio('x'), 'project')
+  } catch (error) {
+    broken = String(error)
+  }
+  check('an add onto a file that is not valid JSON refuses with the scope reader\'s own words and rewrites nothing', broken.includes('MCP configuration file is not valid JSON') && readFileSync(projectFile, 'utf8') === '{ "mcpServers": { "in-home": ', broken)
+  writeFileSync(projectFile, JSON.stringify({ mcpServers: { 'in-home': stdio('in-home-cmd') } }))
   const fresh = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-fresh-')))
   await setCwd(fresh)
   await config.addMcpConfig('first', stdio('first-cmd'), 'project')

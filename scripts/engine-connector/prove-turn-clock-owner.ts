@@ -43,6 +43,15 @@ section('§1 the fold hands a start for an in-flight turn only')
   const fresh = [prompt('the first words', '2026-09-05T09:00:00.000Z')]
   const t = liveTurnStateOf(fresh as never)
   check('a record of one unanswered prompt (a fresh session) is in flight from THAT prompt\'s clock', t.inFlight === true && t.turnStartedAtMs === Date.parse('2026-09-05T09:00:00.000Z'), j(t))
+  const followUp = [...settled, prompt('and now this', '2026-06-20T10:01:00.000Z')]
+  const f = liveTurnStateOf(followUp as never)
+  check('an unanswered FOLLOW-UP prompt after an answered turn is in flight from its own clock, phase thinking (F43A-C5-20)', f.inFlight === true && f.phase === 'thinking' && f.turnStartedAtMs === Date.parse('2026-06-20T10:01:00.000Z'), j(f))
+  const answeredAgain = [...followUp, assistant([{ type: 'text', text: 'here' }], '2026-06-20T10:01:04.000Z')]
+  check('…and its text-only answer settles it idle with no start', liveTurnStateOf(answeredAgain as never).inFlight === false && liveTurnStateOf(answeredAgain as never).turnStartedAtMs === null)
+  const interrupted = [...settled, prompt('go on', '2026-06-20T10:02:00.000Z'), assistant([{ type: 'text', text: 'star' }], '2026-06-20T10:02:01.000Z'), prompt('[Request interrupted by user]', '2026-06-20T10:02:02.000Z')]
+  check('an interrupt marker is not an open prompt: the cut turn reads idle', liveTurnStateOf(interrupted as never).inFlight === false, j(liveTurnStateOf(interrupted as never)))
+  const cutOff = [...settled, prompt('go on', '2026-06-20T10:03:00.000Z'), assistant([{ type: 'text', text: 'star' }], '2026-06-20T10:03:01.000Z'), prompt('[Request cut off by the no-progress timeout: 10 minutes]', '2026-06-20T10:03:02.000Z')]
+  check('a typed cut line is not an open prompt either', liveTurnStateOf(cutOff as never).inFlight === false, j(liveTurnStateOf(cutOff as never)))
 }
 
 section("§2 the seat reads the roster's clock through the facts — never one it minted")

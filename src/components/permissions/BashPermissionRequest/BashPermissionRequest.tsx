@@ -17,8 +17,8 @@ import { getDestructiveCommandWarning } from '../../../tools/BashTool/destructiv
 import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
-import { toTildePath } from '../../../utils/path.js'
-import { getFocusedWorkspaceOriginalCwd, useFocusedWorkspaceCwd, useFocusedWorkspaceOriginalCwd } from '../../../hooks/useFocusedWorkspaceCwd.js'
+import { expandPath, toTildePath } from '../../../utils/path.js'
+import { getFocusedWorkspaceCwd, getFocusedWorkspaceOriginalCwd, useFocusedWorkspaceCwd, useFocusedWorkspaceOriginalCwd } from '../../../hooks/useFocusedWorkspaceCwd.js'
 import type { Message } from '../../../types/message.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import { PermissionDialog } from '../PermissionDialog.js'
@@ -58,7 +58,8 @@ export function BashPermissionRequest(props: PermissionRequestProps): React.Reac
 
   const sedEditInfo = parseSedEditCommand(input.command)
   if (sedEditInfo !== null) {
-    const resolved = input.cwd === undefined ? sedEditInfo : { ...sedEditInfo, filePath: resolve(toolUseConfirm.cwd ?? resolve(getFocusedWorkspaceOriginalCwd(), input.cwd), sedEditInfo.filePath) }
+    const shellCwd = toolUseConfirm.cwd ?? (input.cwd === undefined ? getFocusedWorkspaceCwd() : resolve(getFocusedWorkspaceOriginalCwd(), input.cwd))
+    const resolved = { ...sedEditInfo, filePath: expandPath(sedEditInfo.filePath, shellCwd) }
     return <SedEditPermissionRequest {...props} sedEditInfo={resolved} />
   }
   return <BashCommandPermissionRequest {...props} command={input.command} cwd={input.cwd} />

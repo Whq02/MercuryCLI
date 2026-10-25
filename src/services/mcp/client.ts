@@ -284,6 +284,10 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
   }
 }
 
+export function loggedHeadersOf(headers: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, key.toLowerCase() === 'user-agent' ? value : '[REDACTED]']))
+}
+
 
 export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
   return async (input, init) => {
@@ -590,19 +594,15 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     } else if (type === 'ws') {
       const wsHeaders: Record<string, string> = { 'User-Agent': getMCPUserAgent() }
       Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
-      const logged = { ...wsHeaders }
-      for (const key of Object.keys(logged)) if (key.toLowerCase() === 'authorization') logged[key] = '[REDACTED]'
-      logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: logged, tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
+      logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: loggedHeadersOf(wsHeaders), tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
       transport = await createWsTransport(config.url as string, wsHeaders)
     } else if (type === 'http') {
       const headers = await getMcpServerHeaders(name, config as never)
       const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
       const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
-      const logged = { ...headers }
-      for (const key of Object.keys(logged)) if (key.toLowerCase() === 'authorization') logged[key] = '[REDACTED]'
       const proxyUrl = getProxyUrl()
       logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
-      logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: logged, tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
+      logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: loggedHeadersOf(requestInit.headers), tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
       void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
       transport = new StreamableHTTPClientTransport(new URL(config.url as string), {
         authProvider: provider as never,

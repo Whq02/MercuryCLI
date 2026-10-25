@@ -109,6 +109,25 @@ export async function appendCoordinatorConversation(
   }))
 }
 
+export async function updateCoordinatorConversationEntry(
+  id: string,
+  rewrite: (entry: CoordinatorConversationEntryV1) => CoordinatorConversationEntryV1 | null,
+  dir?: string,
+): Promise<boolean> {
+  let rewritten = false
+  await conversationStore(dir).mutate(prev => {
+    const at = prev.entries.findIndex(e => e.id === id)
+    if (at < 0) return prev
+    const next = rewrite(prev.entries[at]!)
+    if (next === null) return prev
+    rewritten = true
+    const entries = prev.entries.slice()
+    entries[at] = { ...next, id, ts: prev.entries[at]!.ts }
+    return { ...prev, entries }
+  })
+  return rewritten
+}
+
 export async function stampCoordinatorGauge(gauge: CoordinatorContextGaugeV1, dir?: string): Promise<void> {
   await conversationStore(dir).mutate(prev => ({ ...prev, gauge }))
 }

@@ -553,12 +553,12 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number },
+  options?: { prNumber?: number; gitRoot?: string },
 ): Promise<WorktreeSession> {
   validateWorktreeSlug(slug)
   const originalCwd = getCwd()
 
-  const gitRoot = findGitRoot(originalCwd)
+  const gitRoot = options?.gitRoot ?? findGitRoot(originalCwd)
   if (!gitRoot) {
     throw new Error('Cannot create a worktree: this is not a git repository.')
   }

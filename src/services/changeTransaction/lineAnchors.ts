@@ -47,7 +47,7 @@ export function addAnchoredLineNumbers({
   const unmarked =
     startLine === 1 && content.charCodeAt(0) === 0xfeff ? content.slice(1) : content
   return unmarked
-    .split(/\r\n|\r|\n/)
+    .split(/\r?\n/)
     .map((line, index) => `${startLine + index}#${mintLineHash(line)}\t${line}`)
     .join('\n')
 }

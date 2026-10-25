@@ -109,6 +109,7 @@ console.log('L2 the park verb')
   seed([
     { runnerId: 'concourse-w1', sessionId: sid('1'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5, crash: { at: now - T, reason: 'crashed mid-run', respawning: false }, pausedAt: now - T, pausedBy: 'operator', focusedAt: now - T, focusedBy: `operator:${process.pid}` },
     { runnerId: 'concourse-w2', sessionId: sid('2'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
+    { runnerId: 'concourse-w22', sessionId: sid('22'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
     { runnerId: 'concourse-w3', sessionId: sid('3'), pid: process.pid, lastDeliveryAt: now - 1000, lastTurnSettledAt: now - 5000 },
     { runnerId: 'concourse-w4', sessionId: sid('4'), pid: process.pid, bornBlankAt: now - T },
     { runnerId: 'concourse-w5', sessionId: sid('5'), pid: process.pid, lastDeliveryAt: now - 1000, lastTurnSettledAt: now - 5000 },
@@ -124,7 +125,8 @@ console.log('L2 the park verb')
   check('an unknown session is refused typed', sup.parkConcourseSession(sid('99'), 'operator:test', roster, dir).outcome === 'refused')
   killed.length = 0
   const deadOut = sup.parkConcourseSession(sid('2'), 'operator:test', roster, dir)
-  check('a dead runner parks with no kill (nothing to kill)', deadOut.outcome === 'applied' && killed.length === 0 && rec('concourse-w2')?.parkedAt !== undefined)
+  check('a dead runner parks at once, and the roster is told to drop any pending crash-respawn under it (F43A-C1-21)', deadOut.outcome === 'applied' && killed.join(',') === 'concourse-w2' && rec('concourse-w2')?.parkedAt !== undefined, JSON.stringify({ deadOut, killed }))
+  check('…and a dead runner the roster does not know parks all the same (nothing to wait for)', sup.parkConcourseSession(sid('22'), 'operator:test', noKill, dir).outcome === 'applied' && rec('concourse-w22')?.parkedAt !== undefined)
   const busyOut = sup.parkConcourseSession(sid('3'), 'operator:test', roster, dir)
   const w3 = rec('concourse-w3')
   check("a MID-TURN runner is asked, not killed: 'draining', the request stamped, no parkedAt", busyOut.outcome === 'draining' && !killed.includes('concourse-w3') && w3?.parkRequestedAt !== undefined && w3.parkRequestedBy === 'operator:test' && w3.parkedAt === undefined, JSON.stringify(busyOut))
@@ -149,6 +151,16 @@ console.log('L2 the park verb')
   check("a live child the kill does not reach is refused 'no-kill-channel' and the record stays live (parkedAt's contract)", refused.outcome === 'refused' && refused.reason === 'no-kill-channel' && rec('concourse-w7')?.parkedAt === undefined)
   const stopped = sup.stopConcourseSession(sid('1'), 'operator', roster, dir)
   check('a stop on a parked record is a noop (never a second state over parked)', stopped.outcome === 'noop' && rec('concourse-w1')?.stoppedAt === undefined && rec('concourse-w1')?.parkedAt !== undefined, JSON.stringify({ stopped, stoppedAt: rec('concourse-w1')?.stoppedAt, parkedAt: rec('concourse-w1')?.parkedAt }))
+  seed([
+    { runnerId: 'concourse-w12', sessionId: sid('12'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
+    { runnerId: 'concourse-w13', sessionId: sid('13'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
+  ])
+  killed.length = 0
+  const stoppedDead = sup.stopConcourseSession(sid('12'), 'operator:test', roster, dir)
+  check('a stop on a dead-pid runner acknowledges at once and tells the roster to drop any pending crash-respawn (F43A-C1-21)', stoppedDead.outcome === 'applied' && stoppedDead.acknowledged === true && killed.join(',') === 'concourse-w12' && rec('concourse-w12')?.stoppedAt !== undefined, JSON.stringify({ stoppedDead, killed }))
+  killed.length = 0
+  const attachedDead = sup.attachYieldConcourseSession(sid('13'), `operator:${process.pid}`, roster, dir)
+  check('an attach on a dead-pid runner hands over at once and tells the roster to drop any pending crash-respawn (F43A-C1-21)', attachedDead.outcome === 'applied' && killed.join(',') === 'concourse-w13' && rec('concourse-w13')?.attachedAt !== undefined, JSON.stringify({ attachedDead, killed }))
 }
 
 console.log('L2c the retirement handshake — prepare, commit, observed exit, then parked')

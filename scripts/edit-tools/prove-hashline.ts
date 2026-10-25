@@ -94,6 +94,8 @@ section('L. pure line-anchor math')
 
   const stripHashes = (s: string): string => s.replace(/#[0-9a-f]{4}\t/g, '\t')
   check('L4 anchored minus hashes == plain', stripHashes(anchored) === addLineNumbers({ content, startLine: 1 }))
+  const loneCr = 'one\rtwo\nthree\r\nfour'
+  check('L4d a lone CR is a character inside its line, CRLF one break: both numberers count the lines the hunk engine and readFileInRange count (F43A-C5-19)', addLineNumbers({ content: loneCr, startLine: 1 }).split('\n').length === 3 && anchorDomainLines(loneCr).length === 3 && stripHashes(addAnchoredLineNumbers({ content: loneCr, startLine: 1 })) === addLineNumbers({ content: loneCr, startLine: 1 }) && addLineNumbers({ content: loneCr, startLine: 1 }).startsWith('1\tone\rtwo\n2\tthree'), JSON.stringify(addLineNumbers({ content: loneCr, startLine: 1 })))
   const wide = addAnchoredLineNumbers({ content, startLine: 999998 }).split('\n')
   check(
     'L4b one prefix format at every width: the number (and hash) then a tab, never padded, never an arrow',

@@ -473,7 +473,7 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
 export function addLineNumbers({ content, startLine }: { content: string; startLine: number }): string {
   if (content === '') return ''
   return content
-    .split(/\r\n|\r|\n/)
+    .split(/\r?\n/)
     .map((line, index) => `${startLine + index}\t${line}`)
     .join('\n')
 }

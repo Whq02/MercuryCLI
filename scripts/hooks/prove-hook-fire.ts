@@ -102,6 +102,26 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
 }
 
 {
+  install({ 'file.changed': [{ name: 'watch a', run: say({ watch: ['src/a.ts', 'src/shared.ts'] }) }, { name: 'watch b', run: say({ watch: ['src/shared.ts', 'docs/b.md'] }) }] })
+  const result = await fireHooks('file.changed', { path: 'src/a.ts', change: 'changed' }, { scope })
+  check('two hooks answering watch in one firing are merged as rules are, each file once, neither list dropped (F43A-C8-10)', JSON.stringify(result.answer.watch) === JSON.stringify(['src/a.ts', 'src/shared.ts', 'docs/b.md']) && result.answer.conflicts.length === 0, JSON.stringify(result.answer))
+}
+
+{
+  const { bankHookOutcomes } = await import('../../src/utils/hooks/background.ts')
+  const { getBackgroundHookAttachments } = await import('../../src/utils/attachments/taskStatus.ts')
+  resetBackgroundHooksForTesting()
+  install({ 'file.changed': [{ name: 'noticer', run: say({ notice: 'the schema file moved' }) }, { name: 'broken watcher', run: 'echo lost the plot >&2; exit 1' }, { name: 'quiet watch', run: say({ watch: ['src/x.ts'] }) }] })
+  const result = await fireHooks('file.changed', { path: 'src/schema.ts', change: 'changed' }, { scope })
+  bankHookOutcomes(result.outcomes)
+  const rows = getBackgroundHookAttachments() as Array<{ type: string; outcome: string; name: string; words: string }>
+  check("a file.changed hook's notice and a failed hook's line are banked for the operator's next turn as hook rows, and an answer that only sets watch adds no row (F43A-C8-07)", rows.length === 2 && rows.some(r => r.outcome === 'notice' && r.name === 'noticer' && r.words === 'the schema file moved') && rows.some(r => r.outcome === 'failed' && r.name === 'broken watcher' && r.words.includes('lost the plot')), JSON.stringify(rows))
+  check('the bank empties once taken', getBackgroundHookAttachments().length === 0)
+  const watcherSrc = readFileSync(join(import.meta.dir, '../../src/utils/hooks/fileChangedWatcher.ts'), 'utf8')
+  check('the watcher banks every file.changed outcome on the one off-turn road, beside its watch update', watcherSrc.includes('bankHookOutcomes(result.outcomes)') && watcherSrc.indexOf('bankHookOutcomes(result.outcomes)') < watcherSrc.indexOf('updateWatchPaths(result.answer.watch'))
+}
+
+{
   install({ 'turn.start': [{ name: 'only once', run: 'echo once-ran >> ' + q(join(root, 'once.log')), once: true }, { name: 'every time', run: 'echo every-ran >> ' + q(join(root, 'every.log')) }] })
   await turnStart()
   await turnStart()

@@ -42,17 +42,14 @@ type InnerOptions = {
 export async function execFileNoThrow(
   file: string,
   args: string[],
-  options: OuterOptions = {
-    timeout: DEFAULT_TIMEOUT_MS,
-    preserveOutputOnError: true,
-    useCwd: true,
-  },
+  options: OuterOptions = {},
 ): Promise<ExecOutcome> {
+  const { timeout = DEFAULT_TIMEOUT_MS, preserveOutputOnError = true, useCwd = true } = options
   return execFileNoThrowWithCwd(file, args, {
     abortSignal: options.abortSignal,
-    timeout: options.timeout,
-    preserveOutputOnError: options.preserveOutputOnError,
-    cwd: options.useCwd ? getCwd() : undefined,
+    timeout,
+    preserveOutputOnError,
+    cwd: useCwd ? getCwd() : undefined,
     env: options.env,
     stdin: options.stdin,
     input: options.input,

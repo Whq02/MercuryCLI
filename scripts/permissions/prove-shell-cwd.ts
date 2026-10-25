@@ -113,6 +113,11 @@ try {
     check('a crewmate resolves relative cwd from its own starting folder', resolveShellCwd('../two') === other)
     await decide('Bash', { command: 'pwd', cwd: '../two' })
     check('a crewmate permission check does not move its shell or workspace', getShellCwd() === sub && getCwd() === sub)
+    const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.js')
+    const cwdProbe = ['-e', 'console.log(process.cwd())']
+    const partial = (await execFileNoThrow(process.execPath, cwdProbe, { timeout: 20_000 })).stdout.trim()
+    const optedOut = (await execFileNoThrow(process.execPath, cwdProbe, { timeout: 20_000, useCwd: false })).stdout.trim()
+    check('execFileNoThrow with a partial options object runs in getCwd (the crewmate override); useCwd: false alone opts out to the process cwd (F43A-C5-18)', realpathSync(partial) === sub && realpathSync(optedOut) === realpathSync(process.cwd()), { partial, optedOut })
   })
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()

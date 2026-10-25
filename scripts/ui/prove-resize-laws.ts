@@ -130,10 +130,19 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
   check('a there-and-back lands on the same start (no drift)', at(16).getViewportStartLine(MAX, at(17).getViewportStartLine(MAX, held)) === 11)
   check('the ends clamp', at(0).getViewportStartLine(MAX, held) === 0 && at(29).getViewportStartLine(MAX, held) === 30 - MAX)
   check('a window taller than the text is 0 either way', at(5).getViewportStartLine(40, 3) === 0)
+  const identity = (s: string): string => s
+  const paintedFrom = (cursor: InstanceType<typeof Cursor>, start?: number): string => cursor.render('', '', identity, undefined, MAX, undefined, start).split('\n')[0]!
+  check(
+    'the paint follows the band: with the window held at 10 and the caret on line 12, the first painted row is line 10 (the centred paint began at 8), and without a band the centred paint stands (F43A-C5-17)',
+    paintedFrom(at(12), at(12).getViewportStartLine(MAX, held)) === 'line 10' && paintedFrom(at(12)) === 'line 8' && at(12).render('', '', identity, undefined, MAX, undefined, held).split('\n').length === MAX,
+    `${paintedFrom(at(12), held)} / ${paintedFrom(at(12))}`,
+  )
   const hook = read('src/hooks/useTextInput.ts')
   check(
-    'the hook threads ONE banded start into every derived offset',
+    'the hook threads ONE banded start into the paint and every derived offset',
     hook.includes('getViewportStartLine(maxVisibleLines, bandRef.current)') &&
+      hook.indexOf('bandRef.current = viewportStartLine') < hook.indexOf('renderCursor.render(') &&
+      /renderCursor\.render\([\s\S]{0,200}?viewportStartLine,\s*\)/.test(hook) &&
       hook.includes('getViewportCharOffset(maxVisibleLines, viewportStartLine)') &&
       hook.includes('getViewportCharEnd(maxVisibleLines, viewportStartLine)'),
   )

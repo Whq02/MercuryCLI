@@ -476,6 +476,7 @@ console.log('§F the ticker')
   const delivered: Delivered[] = []
   const births: Array<{ scheduleId: string; presence: string }> = []
   let deliverOk = true
+  let deliverThrows = false
   let birthOk = true
   let liveFactsState: 'ready' | 'signed-out' | 'rate-limited' = 'ready'
   let screenOpen = true
@@ -490,6 +491,7 @@ console.log('§F the ticker')
           ? { credentialed: false, stranded: false, expiresAt: null, refreshable: false }
           : { credentialed: true, stranded: false, expiresAt: null, refreshable: false, rateLimitedUntil: Date.now() + 120_000 },
     deliver: async (d: Delivered) => {
+      if (deliverThrows) throw new Error('fixture: the runner hung up mid-delivery')
       delivered.push(d)
       return { ok: deliverOk }
     },
@@ -583,6 +585,21 @@ console.log('§F the ticker')
   const r5d = await tickSaturnOnce(ports)
   check('F5 the wake replays the held fire WHOLE (prompt byte-equal, live arm) and drops the hold', r5d.replayed === 1 && delivered.length === 1 && delivered[0]!.parked === false && delivered[0]!.prompt === 'run the nightly audit' && !('heldFires' in rawRecord()))
   check("F5 the replay rows 'fired late' with its origin", ((receiptTail('schedule-fire')?.details as Record<string, unknown> | undefined)?.releasedFrom === 'parked-queued'))
+  clearSchedules()
+
+  delivered.length = 0
+  park(true)
+  addVia({ ...dueNow, action: { ...goodFire, onParked: 'queue' } })
+  await tickSaturnOnce(ports)
+  check('F5b (F43A-C1-22) the queued hold stands before the wake', heldRows().length === 1)
+  park(false)
+  deliverThrows = true
+  let tickRejected = false
+  const r5e = await tickSaturnOnce(ports).catch(() => { tickRejected = true; return { replayed: 0, held: 0 } })
+  check('F5b a thrown replay rejects no tick, delivers nothing and banks the same fire again (dueAt kept, one row)', !tickRejected && r5e.replayed === 0 && r5e.held === 1 && delivered.length === 0 && heldRows().length === 1 && heldRows()[0]!.reason === 'parked-queued', JSON.stringify({ tickRejected, r5e, held: heldRows() }))
+  deliverThrows = false
+  const r5f = await tickSaturnOnce(ports)
+  check('F5b the next tick replays the banked fire whole', r5f.replayed === 1 && delivered.length === 1 && delivered[0]!.prompt === 'run the nightly audit' && !('heldFires' in rawRecord()), JSON.stringify({ r5f, delivered }))
   clearSchedules()
 
   delivered.length = 0

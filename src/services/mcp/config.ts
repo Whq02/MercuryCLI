@@ -773,9 +773,21 @@ function stripScope(config: McpServerConfig | ScopedMcpServerConfig): McpServerC
   return rest as McpServerConfig
 }
 
-async function writeProjectMcpFile(
-  servers: Record<string, McpServerConfig | ScopedMcpServerConfig>,
-): Promise<void> {
+type ProjectMcpDocument = Record<string, unknown> & { mcpServers: Record<string, unknown> }
+
+function readProjectMcpDocument(mcpJsonPath: string): ProjectMcpDocument {
+  const read = readConfigFile(mcpJsonPath)
+  if (read.kind === 'absent') return { mcpServers: {} }
+  if (read.kind === 'unreadable') throw new Error(`Failed to read MCP configuration file: ${read.message}`)
+  if (read.kind === 'invalid-json') throw new Error(`MCP configuration file is not valid JSON: ${read.message}`)
+  const value = read.value
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${mcpJsonPath} ${SCHEMA_MISMATCH}`)
+  const servers = (value as { mcpServers?: unknown }).mcpServers
+  if (servers !== undefined && (servers === null || typeof servers !== 'object' || Array.isArray(servers))) throw new Error(`${mcpJsonPath} ${SCHEMA_MISMATCH}`)
+  return { ...(value as Record<string, unknown>), mcpServers: { ...((servers ?? {}) as Record<string, unknown>) } }
+}
+
+async function writeProjectMcpFile(document: ProjectMcpDocument): Promise<void> {
   const mcpJsonPath = projectMcpFilePath(getCwd())
   const fs = getFsImplementation()
   let mode = 0o644
@@ -784,11 +796,6 @@ async function writeProjectMcpFile(
       mode = fs.statSync(mcpJsonPath).mode & 0o777
     }
   } catch {
-  }
-  const document = {
-    mcpServers: Object.fromEntries(
-      Object.entries(servers).map(([name, config]) => [name, stripScope(config)]),
-    ),
   }
   try {
     await durableAtomicPublish(mcpJsonPath, `${JSON.stringify(document, null, 2)}\n`, { mode })
@@ -847,11 +854,11 @@ export async function addMcpConfig(
       const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
-        const existing = flat(parseMcpConfigFromFilePath({ filePath: mcpJsonPath, expandVars: false, scope: 'project' })).servers
-        if (name in existing) {
+        const document = readProjectMcpDocument(mcpJsonPath)
+        if (name in document.mcpServers) {
           throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
         }
-        await writeProjectMcpFile({ ...existing, [name]: effective })
+        await writeProjectMcpFile({ ...document, mcpServers: { ...document.mcpServers, [name]: stripScope(effective) } })
       })
       return
     }
@@ -893,12 +900,12 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
       }
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
-        const existing = flat(parseMcpConfigFromFilePath({ filePath: mcpJsonPath, expandVars: false, scope: 'project' })).servers
-        if (!(name in existing)) {
+        const document = readProjectMcpDocument(mcpJsonPath)
+        if (!(name in document.mcpServers)) {
           throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
         }
-        const { [name]: _removed, ...rest } = existing
-        await writeProjectMcpFile(rest)
+        const { [name]: _removed, ...rest } = document.mcpServers
+        await writeProjectMcpFile({ ...document, mcpServers: rest })
       })
       break
     }
