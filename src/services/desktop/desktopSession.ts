@@ -75,12 +75,6 @@ export function approvedAppList(owner: OwnerKey): string[] {
   return [...(ownerStates.peek(owner)?.approvedApps.keys() ?? [])]
 }
 
-function approvedApps(owner: OwnerKey): DesktopJudgedApp[] {
-  const state = ownerStates.peek(owner)
-  if (!state) return []
-  return [...state.approvedApps].map(([identity, name]) => ({ identity, name }))
-}
-
 export function noteCheckedActApp(owner: OwnerKey, action: string, app: DesktopJudgedApp, viaGrant = false): void {
   ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name }, viaGrant }
 }

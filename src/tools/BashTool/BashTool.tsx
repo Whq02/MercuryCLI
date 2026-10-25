@@ -210,10 +210,6 @@ function isSilentCommand(command: string): boolean {
   return sawReal
 }
 
-function commandChangesDirectory(command: string): boolean {
-  return pinnedCommandAnalysis.splitCommand(command).some(sub => /^\s*(?:cd|pushd|popd)\b/.test(sub))
-}
-
 function isBashReadOnly(input: BashToolInput): boolean {
   return preparedBashReadsOnly(input)
 }

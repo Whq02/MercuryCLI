@@ -13,7 +13,6 @@ import { getDisplayedEffortLevel, getInitialEffortSetting, isEffortLevel, parseE
 import { renderModelChip } from '../../utils/model/model.js'
 import { bootBirthFacts, nextBirthModel } from '../switchboard/bootBirthFacts.js'
 import { sessionDefaultsKeyOn } from '../switchboard/sessionDefaultsKey.js'
-import { workspaceKindOf } from '../../daemon/concourseWorktrees.js'
 import { saturnSoonestFireMs } from '../../daemon/saturn.js'
 import {
   currentProject,

@@ -19,7 +19,6 @@ import {
 import {
   extractDescriptionFromMarkdown,
   getProjectDirsUpToHome,
-  loadMarkdownFilesForSubdir,
   clearMarkdownFileCache,
   parseSlashCommandToolsFromFrontmatter,
 } from '../utils/markdownConfigLoader.js'
@@ -29,10 +28,9 @@ import {
   PROJECT_CONFIG_DIR_NAMES,
   projectConfigCandidatePaths,
 } from '../utils/projectConfig.js'
-import { getMercuryHome, isBareMode, isEnvDefinedFalsy, isEnvTruthy } from '../utils/envUtils.js'
+import { getMercuryHome, isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { getManagedFilePath } from '../utils/settings/managedPath.js'
 import {
-  getEnabledSettingSources,
   isSettingSourceEnabled,
   type SettingSource,
 } from '../utils/settings/constants.js'

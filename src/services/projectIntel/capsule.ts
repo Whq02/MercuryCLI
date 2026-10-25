@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, normalize, relative, resolve } from 'node:path'
 import { safeParseJSONC } from '../../utils/json.js'
+import { loadTs, resolveStructureTypescript } from '../structure/tsFacility.js'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
@@ -83,6 +84,8 @@ function existsFile(workspace: string, rel: string): boolean {
   }
 }
 
+export const SCAN_FILE_CAP = 400
+
 export function collectCodeFiles(workspace: string): { files: string[]; capped: boolean } {
   const files: string[] = []
   let capped = false
@@ -97,7 +100,7 @@ export function collectCodeFiles(workspace: string): { files: string[]; capped: 
       const child = rel ? `${rel}/${entry.name}` : entry.name
       if (entry.isDirectory() && !skipped.has(entry.name)) walk(child, depth + 1)
       else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs|py)$/.test(entry.name)) {
-        if (files.length >= 400) { capped = true; return }
+        if (files.length >= SCAN_FILE_CAP) { capped = true; return }
         files.push(child)
       }
     }
@@ -167,8 +170,9 @@ export function pathTokens(task: string, workspace: string): string[] {
       const matches = scan.files.filter(file => basename(file) === name)
       if (!scan.capped && matches.length === 1) seen.add(matches[0]!)
     }
-    if (symbols.size && !scan.capped) {
-      const ts = require('typescript') as typeof import('typescript')
+    const compiler = symbols.size && !scan.capped ? resolveStructureTypescript(workspace) : null
+    if (compiler !== null && compiler.state === 'ok') {
+      const ts = loadTs(compiler.modulePath)
       const definitions = new Map<string, string[]>()
       for (const file of scan.files) {
         if (!/\.[cm]?[jt]sx?$/.test(file)) continue

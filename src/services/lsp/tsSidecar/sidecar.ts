@@ -18,7 +18,6 @@ import {
   createFrameReader,
   createFrameWriter,
   type JsonRpcId,
-  type JsonRpcMessage,
 } from '../sidecarFraming.js'
 
 

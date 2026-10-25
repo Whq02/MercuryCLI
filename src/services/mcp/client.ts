@@ -41,8 +41,7 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { restoreRenamedArgumentKeys } from '../../utils/normalizeToolSchema.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { getMercuryHome, isEnvTruthy } from '../../utils/envUtils.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { isShuttingDown } from '../../utils/gracefulShutdown.js'
 import { getMCPUserAgent } from '../../utils/http.js'
@@ -73,7 +72,6 @@ import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
-  McpServerConfig,
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'

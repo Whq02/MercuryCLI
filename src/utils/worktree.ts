@@ -1169,11 +1169,6 @@ export async function createTmuxSessionForWorktree(
   return { created: true }
 }
 
-async function killTmuxSession(sessionName: string): Promise<boolean> {
-  const result = await execFileNoThrowWithCwd('tmux', ['kill-session', '-t', sessionName], {})
-  return result.code === 0
-}
-
 export function generateTmuxSessionName(repoPath: string, branch: string): string {
   return `${basename(repoPath)}_${branch}`.replace(/[/.]/g, '_')
 }

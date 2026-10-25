@@ -870,10 +870,10 @@ export const ComputerTool = buildTool({
   async prompt() {
     return `Call Computer directly, not through Eval; coordinates are pixels of its last screenshot in the conversation, renewed after compaction/frame changes. target:{role?,name?,text?}: exact role/name, text substring, unique match. Acts use tree caps unless depth/limit is given.
 
-ask for a screenshot when you need to see; an act returns words.
+ask for a screenshot when you need to see.
 screenshot: front window; full:true or display:N for a display. region:{x,y,width,height}: last screenshot pixels. screenshot/wait/sequence take scale:0.25–1 of native pixels (window default 0.5, region/display 1). Results name px/pt and origin.
 Terminal bundle IDs: screenshot/tree return AX text (visible range when available, else whole; cut at 15000 chars). pixels:true bypasses text. No clipboard or input.
-click(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX,toY OR toTarget; scroll adds dx/dy wheel notches, positive down/right. Modifiers: Shift/Control/Alt/Meta.
+click(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX,toY OR toTarget; scroll adds dx/dy wheel notches, positive down/right.
 type(text) ≤${TYPE_TEXT_CAP} chars; newline/tab only controls. key(key); hold(key,durationMs) 50–${HOLD_CAP_MS}ms. Keys: ${KEY_CHORD_VOCABULARY}.
 tree(depth?,limit?,scope?): roles, titles, values, frames, focus; budgets ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}. scope:window default; app includes other windows/menus. find(target) filters.
 wait(durationMs?,until?) pauses/polls for a tree target (${WAIT_DEFAULT_MS} default, ${WAIT_CAP_MS} max). Image only with capture:true or a matched until; capture:false overrides. cursor/displays/frontmost read facts.

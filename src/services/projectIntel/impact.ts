@@ -2,12 +2,11 @@
 import { statSync } from 'node:fs'
 import { join, normalize } from 'node:path'
 import { git } from '../gitGraph/observe.js'
-import { collectCodeFiles, importNeighbours, pathTokens } from './capsule.js'
+import { collectCodeFiles, importNeighbours, pathTokens, SCAN_FILE_CAP } from './capsule.js'
 export { collectCodeFiles } from './capsule.js'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
 
-const SCAN_FILE_CAP = 400
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
 
 interface ImpactProjection {

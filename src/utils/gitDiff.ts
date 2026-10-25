@@ -1,6 +1,5 @@
 import { join } from 'node:path'
 
-import { getCwd } from './cwd.js'
 import type { StructuredPatchHunk } from './diff.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getDefaultBranch, getIsGit, gitExe } from './git.js'

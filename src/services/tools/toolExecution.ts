@@ -8,13 +8,11 @@ import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesN
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
-import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
-import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
-import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
+import type { PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -35,8 +33,6 @@ import { emitInvocationTrace } from '../../utils/observability/invocationTrace.j
 import type { HermesKillInfo } from '../../utils/permissions/capabilityGate.js'
 import { isToolKilled, toolKillReason } from '../../utils/permissions/capabilityGate.js'
 import { McpAuthError } from '../mcp/client.js'
-import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
-import { normalizeNameForMCP } from '../mcp/normalization.js'
 import { observeToolStart, observeToolTerminal } from '../run/effectObserver.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { ambientRound, closeRound, openRoundCall, recordToolCall, repeatedResultPointer, toolResultBlockOf, withResultContent } from './loopGuard.js'
@@ -67,15 +63,6 @@ import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, pe
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { hookWaitWords } from '../../utils/hooks/wait.js'
 
-
-type McpServerType =
-  | 'stdio'
-  | 'sse'
-  | 'http'
-  | 'ws'
-  | 'sdk'
-  | 'claudeai-proxy'
-  | undefined
 
 export type MessageUpdateLazy<M = Message> = {
   message: M
@@ -804,7 +791,6 @@ async function runTransactionBody(args: {
     } catch {
     }
     const effect = result.effect
-    const changeIntent = result.changeIntent
     const structuredOutput = (result as { structured_output?: unknown }).structured_output
     if (structuredOutput !== undefined) {
       push({
@@ -817,13 +803,6 @@ async function runTransactionBody(args: {
     success = effect?.outcome === 'failed' ? false : true
     outputMismatch = outputSchemaMismatch(tool, result.data)
     if (outputMismatch !== undefined) logForDebugging(`tool output mismatch for ${tool.name}: ${outputMismatch}`)
-    const dataRecord =
-      typeof result.data === 'object' && result.data !== null
-        ? (result.data as { backgroundTaskId?: unknown })
-        : undefined
-    const isLaunch =
-      (tool.name === 'Bash' || tool.name === 'PowerShell') &&
-      typeof dataRecord?.backgroundTaskId === 'string'
 
     let mappedBlock = tool.mapToolResultToToolResultBlockParam(
       result.data as never,
@@ -1071,36 +1050,4 @@ function flipMcpClientToNeedsAuth(tool: Tool, context: ToolUseContext): void {
     clients[index] = { ...clients[index]!, type: 'needs-auth' }
     return { ...prevState, mcp: { ...mcp, clients } } as typeof prevState
   })
-}
-
-
-function mcpServerConnectionFacts(
-  tool: Pick<Tool, 'name'> & { mcpInfo?: { serverName: string } },
-  clients: readonly unknown[],
-): { serverType: string | undefined; serverUrl: string | undefined } {
-  const absent = { serverType: undefined, serverUrl: undefined }
-  try {
-    const toolName = tool.name
-    const known = tool.mcpInfo?.serverName
-    if (known === undefined && !toolName.startsWith('mcp__')) return absent
-    const info = known !== undefined ? { serverName: normalizeNameForMCP(known) } : (mcpInfoFromString(toolName) as { serverName?: string } | null | undefined)
-    const serverName = info?.serverName
-    if (!serverName) return absent
-    for (const raw of clients) {
-      const client = raw as {
-        name?: unknown
-        type?: unknown
-        config?: McpServerConfig
-      }
-      if (client?.type !== 'connected') continue
-      if (typeof client.name !== 'string') continue
-      if (normalizeNameForMCP(client.name) !== serverName) continue
-      const kind = typeof client.config?.type === 'string' ? client.config.type : 'stdio'
-      const url = client.config !== undefined ? getLoggingSafeMcpBaseUrl(client.config) : undefined
-      return { serverType: kind, serverUrl: url }
-    }
-    return absent
-  } catch {
-    return absent
-  }
 }
