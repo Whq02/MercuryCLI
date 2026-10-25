@@ -98,7 +98,7 @@ const NOVA = 'gpt-5.7-nova'
 const KNOWN = [SOL, TERRA, NOVA]
 const KNOWN_NAMES: Record<string, string> = { [SOL]: 'GPT-5.6 Sol', [TERRA]: 'GPT-5.6 Terra', [NOVA]: 'GPT-5.7 Nova' }
 const BARE = ['whisper-1', 'tts-1', 'dall-e-3', 'text-embedding-3-large', 'omni-moderation-latest', 'babbage-002', 'gpt-image-1']
-const UNSERVED = ['GPT-6 Astra', 'GPT-5.6 Luna', 'GPT-5.5']
+const UNSERVED = ['GPT-6 Astra', 'GPT-6.1 Sol', 'GPT-6 Sol', 'GPT-6 Luna', 'GPT-5.6 Luna', 'GPT-5.6 Cyber', 'GPT-5.5', 'GPT-5.5 Pro', 'GPT-5.5 Cyber', 'GPT-5.4', 'GPT-5.4 Pro', 'GPT-5.4 Mini', 'GPT-5.4 nano']
 const bareRow = (id: string): Record<string, unknown> => ({ id, object: 'model', created: 1_700_000_000, owned_by: 'system' })
 const OPENAI_LIST = { object: 'list', data: [...KNOWN, ...BARE].map(bareRow) }
 const MOONSHOT_LIST = { object: 'list', data: [
