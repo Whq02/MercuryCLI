@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'host-ready-switch-'))
 delete process.env.MERCURY_HOME
 const home = process.env.MERCURY_CONFIG_DIR
-mkdirSync(home, { recursive: true })
 const settingsPath = join(home, 'settings.json')
 writeFileSync(settingsPath, JSON.stringify({ compatProvider: { before: { baseUrl: 'http://127.0.0.1:9/before/v1' } } }, null, 2) + '\n')
 

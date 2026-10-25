@@ -90,7 +90,7 @@ section('§5 the callers read the outcome, never the words')
 {
   const picker = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
   const verb = readFileSync(join(ROOT, 'src/commands/model/model.tsx'), 'utf8')
-  check('the default picker decides on the outcome', picker.includes("if (saved.outcome !== 'saved') {") && picker.includes('setNotice(saved.sentence)'))
+  check('the default picker decides on the outcome', picker.includes("if (saved.outcome !== 'saved' && saved.outcome !== 'session') {") && picker.includes('setNotice(saved.sentence)'))
   check('the receipt words live in the owner alone', !picker.includes('saved as your default') && !verb.includes('saved as your default'))
   check('the effort ladder saves through the owner and the seat receipt takes its sentence', picker.includes('const kept = persistEffortChoice(persistable)') && picker.includes('settleOnSeat(persistable, kept.sentence,') && picker.includes("this session's next request runs it${standing}"))
   const sentenceReads = (src: string, arg: string): number => (src.match(new RegExp(`persistModelChoice\\(${arg}\\)\\.sentence|choice\\.sentence`, 'g')) ?? []).length

@@ -104,10 +104,11 @@ export function straightenQuoteArgs(
 }
 
 export function repairToolInput<Input extends Record<string, unknown>>(
-  tool: { inputSchema: unknown; inputJSONSchema?: unknown; keepEmptyInputs?: readonly string[] },
+  tool: { inputSchema: unknown; inputJSONSchema?: unknown; keepEmptyInputs?: readonly string[]; isMcp?: boolean },
   input: Input,
 ): Input {
   const declared = declaredInputSchema(tool)
+  if (tool.isMcp === true) return repairArgumentsBySchema(input, declared) as Input
   const stripped = stripNullArgs(input, declared) as Record<string, unknown>
   const dropped = dropEmptyOptionalArgs(stripped, tool)
   return repairArgumentsBySchema(dropped, declared) as Input

@@ -106,7 +106,7 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   return { reference, fold, error, result }
 }
 
-function compare(label: string, reference: Body | undefined, fold: Body | undefined, messagesRef: any[], expectSameTail: boolean): void {
+function compare(label: string, reference: Body | undefined, fold: Body | undefined, messagesRef: any[], expectSameTail: boolean, ownRowsAfter = false): void {
   check(`${label}: a request was built on both sides`, reference !== undefined && fold !== undefined, { reference: reference !== undefined, fold: fold !== undefined })
   if (reference === undefined || fold === undefined) return
   const refPosture = posture(reference)
@@ -115,7 +115,8 @@ function compare(label: string, reference: Body | undefined, fold: Body | undefi
   check(`${label}: the output ceiling is the session request's, or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, ceilingFollows(ceilingOf(fold), ceilingOf(reference)), { session: ceilingOf(reference), fold: ceilingOf(fold) })
   const refRows = assistantRows(reference)
   const foldRows = assistantRows(fold)
-  check(`${label}: every preserved thinking block rides byte-identically at its original position`, JSON.stringify(refRows) === JSON.stringify(foldRows), { session: refRows, fold: foldRows })
+  check(`${label}: every preserved thinking block rides byte-identically at its original position`, JSON.stringify(refRows) === JSON.stringify(ownRowsAfter ? foldRows.slice(0, refRows.length) : foldRows), { session: refRows, fold: foldRows })
+  if (ownRowsAfter) check(`${label}: the fold's own turn rides after the session's rows, never among them`, foldRows.length > refRows.length && foldRows.slice(refRows.length).every(row => row.at > (refRows.at(-1)?.at ?? -1)), { session: refRows, fold: foldRows })
   const wire = JSON.stringify(fold)
   const refWire = JSON.stringify(reference)
   const count = (text: string, needle: RegExp): number => (text.match(needle) ?? []).length
@@ -149,12 +150,14 @@ try {
   {
     const road = roads.find(r => r.lane === 'anthropic-adaptive')!
     for (const thinkingConfig of [{ type: 'adaptive' }, { type: 'enabled' }] as const) {
-      const label = `${road.lane} · thinking ${thinkingConfig.type} · fork hands over to the direct lane`
+      const label = `${road.lane} · thinking ${thinkingConfig.type} · fork spends its turn on a tool call and answers on its tool-free closing turn`
       const driven = await drive(road, 'max', thinkingConfig, { continued: true, redacted: true, script: [{ calls: [{ id: 'toolu_fixture_fork', name: 'Read', args: '{"file_path":"/tmp/x"}' }] }, { text: summary }] })
-      check(`${label}: two requests, the fork's then the direct lane's`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error })
+      check(`${label}: two requests, the fork's then its closing turn — no direct-lane request`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error })
       compare(`${label} (fork)`, driven.reference, driven.fold[0], [], true)
-      compare(`${label} (direct)`, driven.reference, driven.fold[1], [], true)
-      check(`${label}: the fork and the direct lane carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), direct: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] })
+      compare(`${label} (closing turn)`, driven.reference, driven.fold[1], [], true, true)
+      const closing = driven.fold[1] as any
+      check(`${label}: the closing turn forbids tool calls and settles the wasted call as spent`, closing?.tool_choice?.type === 'none' && JSON.stringify(closing?.messages ?? []).includes('The turn budget is spent'), { tool_choice: closing?.tool_choice })
+      check(`${label}: the fork and its closing turn carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), closing: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] })
     }
   }
   {
