@@ -3,8 +3,9 @@ import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { preserveUntouchedLineEndings } from '../../utils/file.js'
-import { detectLineEndingsForString } from '../../utils/fileRead.js'
+import { detectLineEndingsForString, LOSSY_DECODE_MESSAGE } from '../../utils/fileRead.js'
 import { expandPath } from '../../utils/path.js'
+import type { OwnerKey } from '../run/ownerKey.js'
 import {
   CHANGESET_BOUNDS,
   CHANGESET_CONTRACT_VERSION,
@@ -17,15 +18,19 @@ import {
   type ChangeSetTargetPlan,
 } from './changeSetContracts.js'
 import { buildDiffHunks } from './diffBudget.js'
-import { applyHunks, planHunks } from './hunks.js'
+import { applyHunks, planHunks, type EditHunkInput } from './hunks.js'
 import { checkAnchor, mintFileAnchor } from './snapshotAnchor.js'
+import { relocateStaleHunksFromRing } from './stalePatchRecovery.js'
 
 interface ChangeSetPlanContext {
   ownerKey: string
-  readEvidence?: (
-    canonicalPath: string,
-    requestedPath: string,
-  ) => { ok: true } | { ok: false; message: string }
+  readEvidence?: (target: {
+    canonicalPath: string
+    requestedPath: string
+    expectedAnchor: string
+    content: string
+    hunks: readonly EditHunkInput[]
+  }) => { ok: true } | { ok: false; message: string }
   scopeCheck?: (canonicalPath: string) => string | null
   validateTarget?: (target: ChangeSetTargetPlan, plannedContent: string) => string | null
   seenLinesCheck?: (
@@ -117,7 +122,8 @@ export function planChangeSet(
   let totalHunks = 0
   for (const m of members) {
     const op = m.op ?? 'edit'
-    if (op === 'delete' && m.hunks.length > 0) {
+    const hunks = m.hunks ?? []
+    if (op === 'delete' && hunks.length > 0) {
       return refusal('schema', `${m.file_path}: a delete member carries hunks — deleting a file discards its edits`, 'Drop the hunks or split the edit into its own member.')
     }
     if (op === 'delete' && m.new_path !== undefined) {
@@ -129,17 +135,17 @@ export function planChangeSet(
     if (op === 'edit' && m.new_path !== undefined) {
       return refusal('schema', `${m.file_path}: new_path is only meaningful on a move member`, 'Set op: "move" or drop new_path.')
     }
-    if (op === 'edit' && m.hunks.length === 0) {
+    if (op === 'edit' && hunks.length === 0) {
       return refusal('schema', `${m.file_path}: hunks is empty — every member needs at least one hunk`, 'Drop the empty member or give it a hunk.')
     }
-    if (m.hunks.length > CHANGESET_BOUNDS.maxHunksPerFile) {
+    if (hunks.length > CHANGESET_BOUNDS.maxHunksPerFile) {
       return refusal(
         'bounds',
-        `${m.file_path}: ${m.hunks.length} hunks — the limit is ${CHANGESET_BOUNDS.maxHunksPerFile} hunks per file`,
+        `${m.file_path}: ${hunks.length} hunks — the limit is ${CHANGESET_BOUNDS.maxHunksPerFile} hunks per file`,
         'Merge adjacent hunks into range hunks, or split the file across two change sets.',
       )
     }
-    totalHunks += m.hunks.length
+    totalHunks += hunks.length
   }
   if (totalHunks > CHANGESET_BOUNDS.maxHunksTotal) {
     return refusal(
@@ -281,14 +287,6 @@ export function planChangeSet(
         }
       }
     }
-    if (ctx.readEvidence) {
-      const ev = ctx.readEvidence(canonical, member.file_path)
-      if (!ev.ok) {
-        failures.push({ path: member.file_path, code: 'not-read', message: ev.message })
-        continue
-      }
-    }
-
     let raw: Buffer
     let mode: number
     try {
@@ -309,32 +307,62 @@ export function planChangeSet(
       continue
     }
     const rawText = raw.toString(encoding)
+    if (!Buffer.from(rawText, encoding).equals(raw)) {
+      failures.push({ path: member.file_path, code: 'encoding', message: LOSSY_DECODE_MESSAGE })
+      continue
+    }
     const lineEndings = detectLineEndingsForString(rawText.slice(0, 4096))
     const content = rawText.replaceAll('\r\n', '\n')
     const bom = content.charCodeAt(0) === 0xfeff ? content.charAt(0) : ''
     const body = content.slice(bom.length)
+    let memberHunks = member.hunks ?? []
+    let memberAnchor = member.expected_anchor
+    let staleRecovery: string | undefined
+
+    if (ctx.readEvidence) {
+      const ev = ctx.readEvidence({
+        canonicalPath: canonical,
+        requestedPath: member.file_path,
+        expectedAnchor: member.expected_anchor,
+        content,
+        hunks: memberHunks,
+      })
+      if (!ev.ok) {
+        failures.push({ path: member.file_path, code: 'not-read', message: ev.message })
+        continue
+      }
+    }
 
     const anchorCheck = checkAnchor(member.expected_anchor, content, member.file_path)
     if (!anchorCheck.ok) {
-      failures.push({
-        path: member.file_path,
-        code: anchorCheck.reason === 'malformed' ? 'malformed-anchor' : 'stale-anchor',
-        message:
-          anchorCheck.reason === 'malformed'
-            ? `expected_anchor '${member.expected_anchor}' is invalid: pass the bare fa:… or ra:… value without the surrounding "(anchor: …)" text`
-            : `stale anchor (current: ${anchorCheck.currentAnchor ?? 'unknown'}) — ${anchorCheck.rereadHint}`,
-      })
-      continue
+      const recovery =
+        anchorCheck.reason !== 'malformed' && memberHunks.length > 0
+          ? relocateStaleHunksFromRing(ctx.ownerKey as OwnerKey, member.expected_anchor, body, memberHunks, member.file_path)
+          : null
+      if (recovery === null) {
+        failures.push({
+          path: member.file_path,
+          code: anchorCheck.reason === 'malformed' ? 'malformed-anchor' : 'stale-anchor',
+          message:
+            anchorCheck.reason === 'malformed'
+              ? `expected_anchor '${member.expected_anchor}' is invalid: pass the bare fa:… or ra:… value without the surrounding "(anchor: …)" text`
+              : `stale anchor (current: ${anchorCheck.currentAnchor ?? 'unknown'}) — ${anchorCheck.rereadHint}`,
+        })
+        continue
+      }
+      memberHunks = recovery.hunks
+      memberAnchor = recovery.freshAnchor
+      staleRecovery = recovery.note
     }
 
     let hunkSpans: ChangeSetTargetPlan['hunkSpans'] = []
     let plannedContent: string
     if (memberOp === 'delete') {
       plannedContent = ''
-    } else if (member.hunks.length === 0) {
+    } else if (memberHunks.length === 0) {
       plannedContent = content
     } else {
-      const hunkPlan = planHunks(body, member.hunks, member.expected_anchor)
+      const hunkPlan = planHunks(body, memberHunks, memberAnchor)
       if (!hunkPlan.ok) {
         failures.push({ path: member.file_path, code: 'hunks', message: hunkPlan.message })
         continue
@@ -366,7 +394,7 @@ export function planChangeSet(
     const target: ChangeSetTargetPlan = {
       requestedPath: member.file_path,
       canonicalPath: canonical,
-      expectedAnchor: member.expected_anchor,
+      expectedAnchor: memberAnchor,
       observedAnchor: mintFileAnchor(content),
       originalDigest: sha256Hex(raw),
       plannedDigest: sha256Hex(plannedBytes),
@@ -382,6 +410,7 @@ export function planChangeSet(
       changed: memberOp !== 'edit' || plannedContent !== content,
       ...(memberOp !== 'edit' ? { fileOp: memberOp } : {}),
       ...(destination !== undefined ? { newPath: destination } : {}),
+      ...(staleRecovery !== undefined ? { staleRecovery } : {}),
     }
     if (ctx.validateTarget) {
       const domainErr = ctx.validateTarget(target, plannedContent)

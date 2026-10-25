@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -32,6 +32,10 @@ const {
 const { processMainOwner, processOwnerForLane } = await import(
   '../../src/services/run/resolveOwner.ts'
 )
+const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
+  '../../src/services/changeTransaction/snapshotRing.ts'
+)
+const { LOSSY_DECODE_MESSAGE } = await import('../../src/utils/fileRead.ts')
 
 const root = mkdtempSync(join(tmpdir(), 'fulcrum-plan-'))
 mkdirSync(join(root, 'sub'))
@@ -105,6 +109,30 @@ console.log('── §1 planning across sets, encodings, modes ──')
 
   const exec = planChangeSet([member(execPath, [{ lines: '2', replace: 'echo bye' }])], ctx)
   check('executable mode captured for preservation', exec.ok === true && (exec.plan.targets[0]!.mode & 0o111) !== 0)
+
+  const gone = write('gone.txt', 'bye\n')
+  const from = write('from.txt', 'carried\n')
+  const shapes = planChangeSet(
+    [
+      { file_path: gone, expected_anchor: anchorOf(gone), op: 'delete' as const },
+      { file_path: from, expected_anchor: anchorOf(from), hunks: [], op: 'move' as const, new_path: join(root, 'to.txt') },
+      member(aPath, [{ lines: '1', replace: 'alpha one' }]),
+    ],
+    ctx,
+  )
+  check('delete and move members plan beside an edit in one set', shapes.ok === true, shapes.ok ? '' : (shapes as { message: string }).message)
+  if (shapes.ok) {
+    const realRoot = realpathSync(root)
+    const del = shapes.plan.targets.find(t => t.canonicalPath === join(realRoot, 'gone.txt'))
+    const mv = shapes.plan.targets.find(t => t.canonicalPath === join(realRoot, 'from.txt'))
+    check('a delete member needs no hunks and plans empty content', del?.fileOp === 'delete' && del.plannedContent === '' && del.changed === true)
+    check('a move member carries its destination and unchanged content', mv?.fileOp === 'move' && mv.newPath === join(realRoot, 'to.txt') && mv.plannedContent === 'carried\n' && mv.changed === true)
+    check('changedPaths names source and destination', shapes.plan.changedPaths.includes(join(realRoot, 'from.txt')) && shapes.plan.changedPaths.includes(join(realRoot, 'to.txt')))
+  }
+  const taken = planChangeSet([{ file_path: from, expected_anchor: anchorOf(from), op: 'move' as const, new_path: bPath }], ctx)
+  check('a move onto an existing path refuses by name', taken.ok === false && taken.code === 'destination')
+  const deleteWithHunks = planChangeSet([{ file_path: gone, expected_anchor: anchorOf(gone), op: 'delete' as const, hunks: [{ lines: '1', replace: 'x' }] }], ctx)
+  check('a delete member carrying hunks refuses as a schema error', deleteWithHunks.ok === false && deleteWithHunks.code === 'schema')
 }
 
 console.log('── §2 bounds name the limit + smallest recovery ──')
@@ -174,6 +202,52 @@ console.log('── §3 duplicates, anchors, hunks — ALL failures collected �
   check('out-of-bounds hunk refuses naming the file size', oob.ok === false && /out of bounds/.test(oob.failures?.[0]?.message ?? ''))
 }
 
+console.log('── §3b a stale anchor relocates through the ring exactly as Edit does ──')
+{
+  const block = ['function target() {', "  return 'before'", '}'].join('\n')
+  const v1 = ['// head 1', '// head 2', '// head 3', '// head 4', '', block, '', '// tail'].join('\n') + '\n'
+  const banner = ['// gen 1', '// gen 2', '// gen 3', '// gen 4', '// gen 5'].join('\n')
+  const shifted = write('shift.ts', v1)
+  const staleAnchor = mintFileAnchor(v1)
+  rememberAnchoredSnapshot(ctx.ownerKey as never, staleAnchor, v1, shifted)
+  writeFileSync(shifted, banner + '\n' + v1)
+  const moved = planChangeSet(
+    [member(shifted, [{ lines: '7', replace: "  return 'after'" }], staleAnchor), member(bPath, [{ lines: '1', replace: 'BETA' }])],
+    ctx,
+  )
+  check('a pure line shift plans with the stale anchor', moved.ok === true, moved.ok ? '' : (moved as { message: string }).message)
+  if (moved.ok) {
+    const t = moved.plan.targets.find(x => x.canonicalPath === realpathSync(shifted))
+    check('the hunk landed at the MOVED position (line 12)', t?.hunkSpans[0]?.start === 12 && t.plannedContent.split('\n')[11] === "  return 'after'")
+    check('the target names the relocation with the line offset', /stale anchor recovered: lines 7 → 12/.test(t?.staleRecovery ?? ''), t?.staleRecovery ?? '')
+    check('the target carries the fresh anchor of the content it edits', t?.expectedAnchor === mintFileAnchor(banner + '\n' + v1))
+    check('the untouched member rides the same plan', moved.plan.changedPaths.length === 2)
+  }
+  const inside = write('inside.ts', v1)
+  rememberAnchoredSnapshot(ctx.ownerKey as never, staleAnchor, v1, inside)
+  writeFileSync(inside, v1.replace("  return 'before'", "  return 'REWRITTEN by someone else'"))
+  const changed = planChangeSet([member(inside, [{ lines: '7', replace: "  return 'after'" }], staleAnchor)], ctx)
+  check('a change INSIDE the hunk window refuses stale-anchor', changed.ok === false && changed.failures?.[0]?.code === 'stale-anchor')
+  const twice = write('twice.ts', v1)
+  rememberAnchoredSnapshot(ctx.ownerKey as never, staleAnchor, v1, twice)
+  writeFileSync(twice, '// banner\n' + v1 + '\n' + v1)
+  const ambiguous = planChangeSet([member(twice, [{ lines: '7', replace: "  return 'after'" }], staleAnchor)], ctx)
+  check('two matching positions refuse rather than guess', ambiguous.ok === false && ambiguous.failures?.[0]?.code === 'stale-anchor')
+  _resetSnapshotRingForTesting()
+  const miss = write('ringmiss.ts', '// pad\n' + v1)
+  const ringMiss = planChangeSet([member(miss, [{ lines: '7', replace: 'x' }], staleAnchor)], ctx)
+  check('a ring miss refuses with the stale-anchor message', ringMiss.ok === false && ringMiss.failures?.[0]?.code === 'stale-anchor' && /current: fa:/.test(ringMiss.failures[0].message))
+  rememberAnchoredSnapshot(ctx.ownerKey as never, staleAnchor, v1, miss)
+  process.env.MERCURY_EDIT_STALE_RECOVERY = '0'
+  const offArm = planChangeSet([member(miss, [{ lines: '7', replace: 'x' }], staleAnchor)], ctx)
+  delete process.env.MERCURY_EDIT_STALE_RECOVERY
+  check('MERCURY_EDIT_STALE_RECOVERY=0 refuses the recoverable case', offArm.ok === false && offArm.failures?.[0]?.code === 'stale-anchor')
+  const onArm = planChangeSet([member(miss, [{ lines: '7', replace: 'x' }], staleAnchor)], ctx)
+  check('the same input relocates once the flag is back on', onArm.ok === true && onArm.plan.targets[0]!.hunkSpans[0]?.start === 8)
+  const deleteStale = planChangeSet([{ file_path: miss, expected_anchor: staleAnchor, op: 'delete' as const }], ctx)
+  check('a stale whole-file op (delete) never relocates', deleteStale.ok === false && deleteStale.failures?.[0]?.code === 'stale-anchor')
+}
+
 console.log('── §4 target-class refusals BY NAME ──')
 {
   const missing = planChangeSet([member(aPath, [{ lines: '1', replace: 'x' }]), { file_path: join(root, 'ghost.ts'), expected_anchor: 'fa:000000000000', hunks: [{ lines: '1', replace: 'x' }] }], ctx)
@@ -184,6 +258,11 @@ console.log('── §4 target-class refusals BY NAME ──')
   check('a notebook refuses NAMING NotebookEdit', nb.ok === false && nb.failures?.[0]?.code === 'notebook' && /NotebookEdit/.test(nb.failures[0].message))
   const bin = planChangeSet([{ file_path: binPath, expected_anchor: 'fa:000000000000', hunks: [{ lines: '1', replace: 'x' }] }], ctx)
   check('binary content refuses by name', bin.ok === false && bin.failures?.[0]?.code === 'binary')
+  const cp1252 = Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x20, 0x97, 0x20, 0x6e, 0x61, 0xef, 0x76, 0x65, 0x0a, 0x6f, 0x6b, 0x0a])
+  const ansiPath = join(root, 'ansi.txt')
+  writeFileSync(ansiPath, cp1252)
+  const lossy = planChangeSet([{ file_path: ansiPath, expected_anchor: mintFileAnchor(cp1252.toString('utf8')), hunks: [{ lines: '2', replace: 'OK' }] }], ctx)
+  check('a lossy decode (cp1252) refuses with the Edit words, never rewriting the bytes', lossy.ok === false && lossy.failures?.[0]?.code === 'encoding' && lossy.failures[0].message === LOSSY_DECODE_MESSAGE && readFileSync(ansiPath).equals(cp1252))
   const notRead = planChangeSet([member(aPath, [{ lines: '1', replace: 'x' }])], { ...ctx, readEvidence: () => ({ ok: false, message: 'file has not been read' }) })
   check('missing read evidence refuses (read-before-edit law)', notRead.ok === false && notRead.failures?.[0]?.code === 'not-read')
   const scoped = planChangeSet([member(aPath, [{ lines: '1', replace: 'x' }])], { ...ctx, scopeCheck: () => 'outside the write scope' })

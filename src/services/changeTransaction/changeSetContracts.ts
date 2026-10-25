@@ -48,7 +48,7 @@ export const CHANGESET_BOUNDS = {
 export interface ChangeSetMemberInput {
   file_path: string
   expected_anchor: string
-  hunks: EditHunkInput[]
+  hunks?: EditHunkInput[]
   op?: 'edit' | 'delete' | 'move'
   new_path?: string
 }
@@ -73,6 +73,7 @@ export interface ChangeSetTargetPlan {
   changed: boolean
   fileOp?: 'delete' | 'move'
   newPath?: string
+  staleRecovery?: string
 }
 
 export interface ChangeSetTargetBytes {
@@ -120,6 +121,7 @@ type ChangeSetRefusalCode =
   | 'directory'
   | 'notebook'
   | 'binary'
+  | 'encoding'
   | 'not-read'
   | 'stale-anchor'
   | 'malformed-anchor'

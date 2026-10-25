@@ -53,7 +53,10 @@ console.log('§2 both edit doors refuse a lossy decode (the write never runs)')
     "the atomic write door has its own belt (throw before any write)",
     tool.includes('if (!metadata.losslessDecode) {') && tool.includes('Nothing was written.'),
   )
-  check('the refusal names the destruction and the move', tool.includes('destroying content the edit never touches') && tool.includes('iconv -f cp1252 -t utf-8'))
+  const words = readFileSync(join(import.meta.dir, '../../src/utils/fileRead.ts'), 'utf8')
+  check('the refusal names the destruction and the move', words.includes('destroying content the edit never touches') && words.includes('iconv -f cp1252 -t utf-8') && tool.includes('LOSSY_DECODE_MESSAGE'))
+  const planner = readFileSync(join(import.meta.dir, '../../src/services/changeTransaction/changeSetPlan.ts'), 'utf8')
+  check('the ChangeSet planner refuses a lossy decode with the same words', planner.includes('Buffer.from(rawText, encoding).equals(raw)') && planner.includes("code: 'encoding', message: LOSSY_DECODE_MESSAGE"))
 }
 
 process.exit(failures === 0 ? 0 : 1)

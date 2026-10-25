@@ -5,6 +5,9 @@ import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOpe
 
 export type LineEndingType = 'CRLF' | 'LF'
 
+export const LOSSY_DECODE_MESSAGE =
+  'File is not valid UTF-8 (or UTF-16LE): editing would rewrite the undecodable bytes as replacement characters (U+FFFD), destroying content the edit never touches. Convert it first (for example `iconv -f cp1252 -t utf-8`), or change it with a shell command that preserves its encoding.'
+
 const SNIFF_BYTES = 4096
 
 class NotARegularFileError extends Error {

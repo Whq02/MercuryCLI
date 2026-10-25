@@ -195,6 +195,9 @@ section('§6 the wiring, structural')
   check('the read-side ring gate arms for the default lane', readTool.includes('anchorPatchEnabled() || staleEditRecoveryEnabled()'))
   const registry = readFileSync(join(import.meta.dir, '../../src/substrate/flagRegistry.ts'), 'utf8')
   check('the flag row stands with its off arm', registry.includes("env: 'MERCURY_EDIT_STALE_RECOVERY'") && registry.includes('pre-law build exactly'))
+  const editTool = readFileSync(join(import.meta.dir, '../../src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
+  const planner = readFileSync(join(import.meta.dir, '../../src/services/changeTransaction/changeSetPlan.ts'), 'utf8')
+  check('Edit and the ChangeSet planner relocate through the one ring-backed helper', editTool.includes('relocateStaleHunksFromRing(ownerFromToolUseContext(context)') && planner.includes('relocateStaleHunksFromRing(ctx.ownerKey as OwnerKey'))
 }
 
 console.log('\n' + '='.repeat(60))

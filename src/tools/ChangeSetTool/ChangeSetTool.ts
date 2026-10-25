@@ -60,6 +60,7 @@ import {
   addSkillDirectories,
   discoverSkillDirsForPaths,
 } from '../../skills/loadSkillsDir.js'
+import { linesOfHunks, readKnowledgeRefusal } from '../FileEditTool/FileEditTool.js'
 import { syncServersAfterWrite } from '../LSPTool/mercuryOps.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -109,8 +110,16 @@ const baseShape = () => ({
                 .describe('Insert relative to the single anchor line instead of replacing it'),
             }),
           )
-          .min(1)
-          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary)'),
+          .optional()
+          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); required for op "edit" (the default), optional for a move, none for a delete'),
+        op: z
+          .enum(['edit', 'delete', 'move'])
+          .optional()
+          .describe('"edit" (default) applies the hunks; "delete" removes the file (no hunks); "move" renames it to new_path after any hunks'),
+        new_path: z
+          .string()
+          .optional()
+          .describe('move: the absolute destination path, which must not exist'),
       }),
     )
     .optional()
@@ -221,17 +230,15 @@ function planContext(
   const permCtx = context.getAppState().toolPermissionContext
   return {
     ownerKey: owner,
-    readEvidence: (canonicalPath: string, requestedPath: string) => {
-      const entry =
-        context.readFileState.get(canonicalPath) ??
-        context.readFileState.get(expandPath(requestedPath))
-      if (!entry || entry.isPartialView) {
-        return {
-          ok: false as const,
-          message: 'file has not been read (fully) this session — Read it first, then carry its anchor',
-        }
+    readEvidence: target => {
+      const touched = linesOfHunks(target.hunks)
+      let refused: string | null = null
+      for (const path of new Set([target.canonicalPath, expandPath(target.requestedPath)])) {
+        const verdict = readKnowledgeRefusal(context, path, target.requestedPath, target.content, target.expectedAnchor, touched)
+        if (verdict === null) return { ok: true as const }
+        refused ??= verdict
       }
-      return { ok: true as const }
+      return refused === null ? { ok: true as const } : { ok: false as const, message: refused }
     },
     scopeCheck: (canonicalPath: string) => {
       const decision = checkWritePermissionForTool(pathShim, { file_path: canonicalPath }, permCtx)
@@ -373,6 +380,10 @@ function loweredNotes(lowered: LoweredPatch | undefined): string[] {
   return lines
 }
 
+function recoveryNotes(plan: ChangeSetPlan): string[] {
+  return plan.targets.flatMap(t => (t.staleRecovery !== undefined ? [`note: ${t.staleRecovery}`] : []))
+}
+
 function runPreview(input: Input, context: ToolUseContext): OpResult {
   const owner = ownerFromToolUseContext(context)
   let members = input.changes as ChangeSetMemberInput[]
@@ -412,6 +423,7 @@ function runPreview(input: Input, context: ToolUseContext): OpResult {
       ? [`already satisfied (will not be written): ${plan.noChangePaths.map(displayPath).join(', ')}`]
       : []),
     ...loweredNotes(lowered),
+    ...recoveryNotes(plan),
     `Nothing was written. Apply with { op: "apply", plan_id: "${plan.id}" } within ${mins} minutes; the plan refuses if any file drifts.`,
   ]
   return {
@@ -895,6 +907,7 @@ async function runApply(
     .join('\n')
   const patchNotes = [
     ...loweredNotes(lowered),
+    ...recoveryNotes(plan),
     ...(publishedRegisters.length > 0
       ? [`registers published: ${publishedRegisters.join(', ')}`]
       : []),
@@ -1079,8 +1092,8 @@ Operations:
 4. { op: "discard", plan_id } — retire a prepared plan.
 
 Each changes[] member targets one existing text file with the Edit hunk vocabulary:
-  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] }
-Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line.
+  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }], op?: "edit" | "delete" | "move", new_path? }
+Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line. op "delete" removes the file (no hunks); op "move" renames it to new_path, which must not exist, after any hunks. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.
 
 The contract:
 · any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;
@@ -1092,7 +1105,7 @@ Already-satisfied members are not failures: they are omitted from writes and rep
 
 Bounds (an exceeded bound names the limit and the smallest recovery): ${CHANGESET_BOUNDS.maxFiles} files/set · ${CHANGESET_BOUNDS.maxHunksPerFile} hunks/file · ${CHANGESET_BOUNDS.maxHunksTotal} hunks/set · 4MB staged content/set · ${CHANGESET_BOUNDS.planRing} retained plans · ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)}-minute plan lifetime.
 
-Not this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash)${anchorPatchEnabled() ? ' · deletion/moves outside a patch (the patch dialect carries delete-file and move-to; the JSON changes[] form does not)' : ' · deletion/moves (Bash / lsp.pathRename)'}.${
+Not this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).${
       anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
     }`
   },
@@ -1165,7 +1178,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
     return { result: true as const }
   },
   async checkPermissions(input: Input, context): Promise<PermissionDecision> {
-    const remotePaths = input.changes?.map(change => change.file_path) ?? []
+    const remotePaths = input.changes?.flatMap(change => (change.new_path !== undefined ? [change.file_path, change.new_path] : [change.file_path])) ?? []
     if (input.patch) {
       const parsed = parseAnchorPatch(input.patch)
       if (parsed.ok) for (const section of parsed.sections) {
@@ -1200,7 +1213,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       }
       paths = [...set]
     } else if (input.changes !== undefined) {
-      paths = input.changes.map(c => expandPath(c.file_path))
+      paths = [...new Set(input.changes.flatMap(c => (c.new_path !== undefined ? [expandPath(c.file_path), expandPath(c.new_path)] : [expandPath(c.file_path)])))]
     } else {
       const owner = ownerFromToolUseContext(context)
       const plan = input.plan_id ? getChangeSetPlan(owner, input.plan_id) : undefined

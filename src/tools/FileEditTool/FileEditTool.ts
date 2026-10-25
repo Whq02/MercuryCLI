@@ -3,8 +3,8 @@ import { isAbsolute } from 'node:path'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
-import { recallAnchoredSnapshot, rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
-import { recoverStaleHunks, staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
+import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
+import { relocateStaleHunksFromRing } from '../../services/changeTransaction/stalePatchRecovery.js'
 import {
   applyHunks,
   editHunksEnabled,
@@ -54,7 +54,7 @@ import {
   writeTextContent,
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
+import { LOSSY_DECODE_MESSAGE, readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
@@ -152,9 +152,6 @@ function decodeFileBuffer(buffer: Buffer): { content: string; encoding: BufferEn
     lossless: Buffer.from(raw, encoding).equals(buffer),
   }
 }
-
-const LOSSY_DECODE_MESSAGE =
-  'File is not valid UTF-8 (or UTF-16LE): editing would rewrite the undecodable bytes as replacement characters (U+FFFD), destroying content the edit never touches. Convert it first (for example `iconv -f cp1252 -t utf-8`), or change it with a shell command that preserves its encoding.'
 
 async function notFoundSuggestionSentence(expandedPath: string): Promise<string> {
   let suggestion: string | undefined
@@ -465,7 +462,7 @@ function withoutReadPrefixes(input: FileEditInput, referenceText: string): FileE
   }
 }
 
-function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
+export function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
   if (hunks === undefined || hunks.length === 0) return null
   const ranges: LineRange[] = []
   for (const hunk of hunks) {
@@ -653,7 +650,7 @@ function rangeAnchorWindow(anchor: string | undefined): LineRange | null {
   return count > 0 ? { start, end: start + count - 1 } : null
 }
 
-function readKnowledgeRefusal(
+export function readKnowledgeRefusal(
   context: ToolUseContext,
   expandedPath: string,
   displayPath: string,
@@ -673,24 +670,8 @@ function attemptStaleHunkRecovery(
   hunks: EditHunkInput[],
   displayPath: string,
 ): { hunks: EditHunkInput[]; freshAnchor: string; note: string } | null {
-  if (!staleEditRecoveryEnabled()) return null
   try {
-    const owner = ownerFromToolUseContext(context)
-    const recalled = recallAnchoredSnapshot(owner, staleAnchor)
-    if (!recalled) return null
-    const outcome = recoverStaleHunks({
-      staleAnchor,
-      snapshotContent: recalled.content,
-      currentContent: currentBody,
-      hunks,
-      displayPath,
-    })
-    if (!outcome.ok) return null
-    return {
-      hunks: outcome.hunks,
-      freshAnchor: mintFileAnchor(currentBody),
-      note: outcome.warnings.join('; '),
-    }
+    return relocateStaleHunksFromRing(ownerFromToolUseContext(context), staleAnchor, currentBody, hunks, displayPath)
   } catch {
     return null
   }

@@ -1,8 +1,10 @@
 
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import type { OwnerKey } from '../run/ownerKey.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { EditHunkInput } from './hunks.js'
-import { parseAnchor } from './snapshotAnchor.js'
+import { mintFileAnchor, parseAnchor } from './snapshotAnchor.js'
+import { recallAnchoredSnapshot } from './snapshotRing.js'
 
 export function staleEditRecoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_EDIT_STALE_RECOVERY'))
@@ -111,5 +113,34 @@ export function recoverStaleHunks(opts: {
     ok: true,
     hunks: relocated.map(r => r.hunk),
     warnings: relocated.map(r => `stale anchor recovered: ${r.note} (${opts.displayPath})`),
+  }
+}
+
+export function relocateStaleHunksFromRing(
+  owner: OwnerKey,
+  staleAnchor: string,
+  currentBody: string,
+  hunks: EditHunkInput[],
+  displayPath: string,
+): { hunks: EditHunkInput[]; freshAnchor: string; note: string } | null {
+  if (!staleEditRecoveryEnabled()) return null
+  try {
+    const recalled = recallAnchoredSnapshot(owner, staleAnchor)
+    if (!recalled) return null
+    const outcome = recoverStaleHunks({
+      staleAnchor,
+      snapshotContent: recalled.content,
+      currentContent: currentBody,
+      hunks,
+      displayPath,
+    })
+    if (!outcome.ok) return null
+    return {
+      hunks: outcome.hunks,
+      freshAnchor: mintFileAnchor(currentBody),
+      note: outcome.warnings.join('; '),
+    }
+  } catch {
+    return null
   }
 }
