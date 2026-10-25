@@ -56,7 +56,7 @@ and may carry:
   `permission.decided`) a permission rule reads the call's arguments as well:
   `Bash(git *)` and `PowerShell(…)` the command, `Read(…)`, `Edit(…)`,
   `Write(…)`, `NotebookEdit(…)`, `NotebookRead(…)`, `Glob(…)` and `Grep(…)`
-  the path, with the patterns a permission rule takes (`Edit(src/**)`);
+  the path, with the patterns a permission rule takes (`Edit(*.ts)`);
   clauses join with `|` (`Edit(*.rs)|Write(*.rs)`). A command is read whole:
   `Bash(git push *)` does not match `cd x && git push`. An entry whose match
   is not a valid regular expression is a named fault and does not load; so is
