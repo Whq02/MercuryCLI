@@ -1468,7 +1468,7 @@ export const FileEditTool = buildTool({
     const lspManager = getLspServerManager()
     if (lspManager) {
       try {
-        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? freshContent : null, finalStateContent, lspManager.getDocumentVersion(expandedPath))
+        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? freshContent : null, finalStateContent, lspManager.getDocumentVersion(expandedPath), owner)
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
         await lspManager.changeAndSaveFile(expandedPath, finalStateContent)
       } catch (err) {

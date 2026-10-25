@@ -167,6 +167,7 @@ export async function getAttachments(
       ),
     ),
     maybe('changed_files', () => getChangedFiles(context)),
+    maybe('lsp_diagnostics', () => getLSPDiagnosticAttachments(toolUseContext), { inputScoped: true }),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
@@ -207,9 +208,6 @@ export async function getAttachments(
 
   const mainThreadAttachments = isMainThread
     ? [
-        maybe('lsp_diagnostics', async () =>
-          getLSPDiagnosticAttachments(toolUseContext),
-        ),
         maybe('unified_tasks', async () =>
           getUnifiedTaskAttachments(toolUseContext),
         ),
@@ -407,7 +405,6 @@ export async function* getAttachmentMessages(
   if (attachments.length === 0) {
     return
   }
-
 
   for (const attachment of attachments) {
     yield createAttachmentMessage(attachment)

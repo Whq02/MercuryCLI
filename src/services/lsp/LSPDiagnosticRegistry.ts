@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
 
 import { structuredPatch } from 'diff'
 import { LRUCache } from 'lru-cache'
@@ -6,13 +7,17 @@ import { LRUCache } from 'lru-cache'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
+import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 
+
+type Lane = OwnerKey | null
 
 type PendingLSPDiagnostic = {
   serverName: string
   files: DiagnosticFile[]
   timestamp: number
   attachmentSent: boolean
+  owner: Lane
 }
 
 type PublishListener = (event: { serverName: string; files: DiagnosticFile[] }) => void
@@ -23,6 +28,8 @@ const MAX_TRACKED_FILES = 500
 const MAX_WRITE_BASELINES = 256
 const MAX_BASELINE_TEXT_CHARS = 10_000_000
 const BASELINE_DIFF_TIMEOUT_MS = 5_000
+const MAX_ROOT_CLAIMS = 64
+const AWAITING_WRITE_MAX_AGE_MS = 60_000
 export const MAX_PENDING_PUBLISHES = 500
 
 export function foldDriveCase(path: string): string {
@@ -80,7 +87,143 @@ function remapThroughWrites(diagnostic: Diagnostic, steps: LineShiftStep[]): Dia
 
 const pending = new Map<string, PendingLSPDiagnostic>()
 const publishListeners = new Set<PublishListener>()
-const delivered = new LRUCache<string, Set<string>>({ max: MAX_TRACKED_FILES })
+const delivered = new LRUCache<string, Map<string, Set<string>>>({ max: MAX_TRACKED_FILES })
+
+type AwaitingWrite = { owner: Lane; docVersion: number | undefined; at: number }
+
+const awaitingWrites = new Map<string, AwaitingWrite>()
+
+function laneOf(owner: OwnerKey | undefined): Lane {
+  if (owner === undefined) return null
+  try {
+    return parseOwnerKey(owner).lane === MAIN_LANE ? null : owner
+  } catch {
+    return owner
+  }
+}
+
+const laneKey = (lane: Lane): string => lane ?? ''
+
+const writers = new LRUCache<string, OwnerKey>({ max: MAX_TRACKED_FILES })
+const roots = new Map<OwnerKey, string>()
+const ended = new Set<OwnerKey>()
+
+function normaliseRoot(root: string): string {
+  const folded = foldDriveCase(resolve(root))
+  return folded.length > 1 && /[\\/]$/.test(folded) ? folded.slice(0, -1) : folded
+}
+
+function underRoot(fileKey: string, root: string): boolean {
+  return fileKey === root || fileKey.startsWith(root + '/') || fileKey.startsWith(root + '\\')
+}
+
+function laneForFile(fileKey: string): Lane | 'sunk' {
+  const writer = writers.peek(fileKey)
+  if (writer !== undefined) return ended.has(writer) ? 'sunk' : writer
+  for (const [owner, root] of roots) {
+    if (underRoot(fileKey, root)) return ended.has(owner) ? 'sunk' : owner
+  }
+  return null
+}
+
+function claimWriter(lane: Lane, fileKey: string): void {
+  if (lane === null) {
+    writers.delete(fileKey)
+    return
+  }
+  writers.set(fileKey, lane)
+  ended.delete(lane)
+}
+
+export function claimDiagnosticsRoot(owner: OwnerKey, root: string): void {
+  const lane = laneOf(owner)
+  if (lane === null) return
+  roots.delete(lane)
+  roots.set(lane, normaliseRoot(root))
+  ended.delete(lane)
+  boundRootClaims()
+}
+
+function boundRootClaims(): void {
+  if (roots.size <= MAX_ROOT_CLAIMS) return
+  for (const owner of roots.keys()) {
+    if (!ended.has(owner)) continue
+    roots.delete(owner)
+    ended.delete(owner)
+    if (roots.size <= MAX_ROOT_CLAIMS) return
+  }
+}
+
+export function releaseDiagnosticsWriter(owner: OwnerKey, worktree?: string): void {
+  const lane = laneOf(owner)
+  if (lane === null) return
+  const root = worktree !== undefined ? normaliseRoot(worktree) : roots.get(lane)
+  let dropped = 0
+  let handed = 0
+  for (const [pendingId, entry] of pending) {
+    if (entry.owner !== lane) continue
+    const kept = root === undefined ? entry.files : entry.files.filter(file => !underRoot(plainPathKey(file.uri), root))
+    dropped += entry.files.length - kept.length
+    if (kept.length === 0) {
+      pending.delete(pendingId)
+      continue
+    }
+    entry.files = kept
+    entry.owner = null
+    handed += kept.length
+  }
+  for (const [fileKey, writer] of writers.entries()) if (writer === lane) writers.delete(fileKey)
+  for (const [fileKey, entry] of awaitingWrites) if (entry.owner === lane) awaitingWrites.delete(fileKey)
+  if (root !== undefined) {
+    roots.delete(lane)
+    roots.set(lane, root)
+    ended.add(lane)
+    boundRootClaims()
+  } else {
+    roots.delete(lane)
+    ended.delete(lane)
+  }
+  logForDebugging(`LSP diagnostics: lane ${lane} handed back — ${dropped} worktree file publish${dropped === 1 ? '' : 'es'} dropped, ${handed} shared-tree file publish${handed === 1 ? '' : 'es'} returned to the main lane${root !== undefined ? ` (root ${root} sunk)` : ''}`)
+}
+
+function armAwaitingWrite(lane: Lane, fileKey: string, docVersion: number | undefined): void {
+  awaitingWrites.delete(fileKey)
+  awaitingWrites.set(fileKey, { owner: lane, docVersion, at: Date.now() })
+  while (awaitingWrites.size > MAX_TRACKED_FILES) {
+    const oldest = awaitingWrites.keys().next().value
+    if (oldest === undefined) break
+    awaitingWrites.delete(oldest)
+  }
+}
+
+function settleAwaitingWrite(fileKey: string, version: number | undefined): void {
+  const entry = awaitingWrites.get(fileKey)
+  if (entry === undefined) return
+  if (version !== undefined && entry.docVersion !== undefined && version <= entry.docVersion) return
+  awaitingWrites.delete(fileKey)
+}
+
+export function writesAwaitingReport(owner?: OwnerKey): string[] {
+  const lane = laneOf(owner)
+  const now = Date.now()
+  const paths: string[] = []
+  for (const [fileKey, entry] of awaitingWrites) {
+    if (now - entry.at > AWAITING_WRITE_MAX_AGE_MS) {
+      awaitingWrites.delete(fileKey)
+      continue
+    }
+    if (entry.owner === lane) paths.push(fileKey)
+  }
+  return paths
+}
+
+export function settleWritesAwaitingReport(owner: OwnerKey | undefined, paths: readonly string[]): void {
+  const lane = laneOf(owner)
+  for (const path of paths) {
+    const fileKey = plainPathKey(path)
+    if (awaitingWrites.get(fileKey)?.owner === lane) awaitingWrites.delete(fileKey)
+  }
+}
 
 function diagnosticKey(diagnostic: Diagnostic): string {
   return JSON.stringify([
@@ -119,26 +262,43 @@ export function registerPendingLSPDiagnostic({
   const files = published.filter(file => !staleAgainstWriteBaseline(serverName, file.uri, version))
   if (files.length < published.length) logForDebugging(`LSP diagnostics: ${serverName} published document version ${version} for a file written since — no data until it publishes the written version`)
   if (files.length === 0) return
-  const uris = new Set(files.map(file => file.uri))
-  for (const [pendingId, entry] of pending) {
-    if (entry.attachmentSent || entry.serverName !== serverName) continue
-    const kept = entry.files.filter(file => !uris.has(file.uri))
-    if (kept.length === entry.files.length) continue
-    if (kept.length === 0) pending.delete(pendingId)
-    else entry.files = kept
+  const byLane = new Map<string, { owner: Lane; files: DiagnosticFile[] }>()
+  let sunk = 0
+  for (const file of files) {
+    const lane = laneForFile(plainPathKey(file.uri))
+    if (lane === 'sunk') {
+      sunk++
+      continue
+    }
+    const group = byLane.get(laneKey(lane))
+    if (group === undefined) byLane.set(laneKey(lane), { owner: lane, files: [file] })
+    else group.files.push(file)
   }
-  const id = randomUUID()
-  pending.set(id, { serverName, files, timestamp: Date.now(), attachmentSent: false })
-  let evicted = 0
-  while (pending.size > MAX_PENDING_PUBLISHES) {
-    const oldest = pending.keys().next().value
-    if (oldest === undefined) break
-    pending.delete(oldest)
-    evicted++
+  if (sunk > 0) logForDebugging(`LSP diagnostics: ${serverName} published for ${sunk} file${sunk === 1 ? '' : 's'} of a handed-back worktree — dropped`)
+  if (byLane.size > 0) {
+    const uris = new Set(files.map(file => file.uri))
+    for (const [pendingId, entry] of pending) {
+      if (entry.attachmentSent || entry.serverName !== serverName) continue
+      const kept = entry.files.filter(file => !uris.has(file.uri))
+      if (kept.length === entry.files.length) continue
+      if (kept.length === 0) pending.delete(pendingId)
+      else entry.files = kept
+    }
+    for (const { owner, files: laneFiles } of byLane.values()) {
+      const id = randomUUID()
+      pending.set(id, { serverName, files: laneFiles, timestamp: Date.now(), attachmentSent: false, owner })
+      const count = laneFiles.reduce((total, file) => total + file.diagnostics.length, 0)
+      logForDebugging(`LSP diagnostics: registered ${count} from ${serverName} (${id}${owner === null ? '' : `, lane ${owner}`})`)
+    }
+    let evicted = 0
+    while (pending.size > MAX_PENDING_PUBLISHES) {
+      const oldest = pending.keys().next().value
+      if (oldest === undefined) break
+      pending.delete(oldest)
+      evicted++
+    }
+    if (evicted > 0) logForDebugging(`LSP diagnostics: pending table full — dropped ${evicted} oldest publish${evicted === 1 ? '' : 'es'}`)
   }
-  if (evicted > 0) logForDebugging(`LSP diagnostics: pending table full — dropped ${evicted} oldest publish${evicted === 1 ? '' : 'es'}`)
-  const count = files.reduce((total, file) => total + file.diagnostics.length, 0)
-  logForDebugging(`LSP diagnostics: registered ${count} from ${serverName} (${id})`)
   for (const listener of publishListeners) {
     try {
       listener({ serverName, files })
@@ -164,6 +324,7 @@ const reportListeners = new Set<ReportListener>()
 
 export function recordPublishedReport(serverName: string, file: DiagnosticFile, version?: number): void {
   if (staleAgainstWriteBaseline(serverName, file.uri, version)) return
+  settleAwaitingWrite(plainPathKey(file.uri), version)
   lastReports.set(`${serverName}::${foldFileKey(file.uri)}`, { file, at: Date.now() })
   for (const listener of reportListeners) {
     try {
@@ -216,8 +377,11 @@ function introducedSinceWrite(serverName: string, file: DiagnosticFile): Diagnos
   }
 }
 
-export function snapshotDiagnosticsBeforeWrite(path: string, before: string | null, after: string, docVersion: number | undefined): void {
+export function snapshotDiagnosticsBeforeWrite(path: string, before: string | null, after: string, docVersion: number | undefined, owner?: OwnerKey): void {
   const fileKey = plainPathKey(path)
+  const lane = laneOf(owner)
+  claimWriter(lane, fileKey)
+  armAwaitingWrite(lane, fileKey, docVersion)
   for (const [pendingId, entry] of pending) {
     const kept = entry.files.filter(file => plainPathKey(file.uri) !== fileKey)
     if (kept.length === entry.files.length) continue
@@ -281,15 +445,19 @@ export function _writeBaselineForTesting(path: string): Array<{ serverName: stri
   return [...baselines].map(([serverName, baseline]) => ({ serverName, steps: baseline.steps.length, docVersion: baseline.docVersion }))
 }
 
-export function _pendingForTesting(): Array<{ serverName: string; uris: string[] }> {
-  return [...pending.values()].filter(entry => !entry.attachmentSent).map(entry => ({ serverName: entry.serverName, uris: entry.files.map(file => file.uri) }))
+export function _pendingForTesting(): Array<{ serverName: string; uris: string[]; owner: OwnerKey | null }> {
+  return [...pending.values()].filter(entry => !entry.attachmentSent).map(entry => ({ serverName: entry.serverName, uris: entry.files.map(file => file.uri), owner: entry.owner }))
+}
+
+export function _writerForTesting(path: string): OwnerKey | null {
+  return writers.peek(plainPathKey(path)) ?? null
 }
 
 export function _publishListenerCountForTesting(): number {
   return publishListeners.size
 }
 
-function dedupe(files: DiagnosticFile[]): DiagnosticFile[] {
+function dedupe(files: DiagnosticFile[], lane: Lane): DiagnosticFile[] {
   const byFile = new Map<string, { file: DiagnosticFile; seen: Set<string>; kept: Diagnostic[] }>()
   for (const file of files) {
     const fileKey = foldFileKey(file.uri)
@@ -298,7 +466,7 @@ function dedupe(files: DiagnosticFile[]): DiagnosticFile[] {
       entry = { file, seen: new Set(), kept: [] }
       byFile.set(fileKey, entry)
     }
-    const already = delivered.get(fileKey)
+    const already = delivered.get(fileKey)?.get(laneKey(lane))
     for (const diagnostic of file.diagnostics) {
       let key: string
       try {
@@ -321,16 +489,21 @@ function dedupe(files: DiagnosticFile[]): DiagnosticFile[] {
   return out
 }
 
-function recordDelivered(files: DiagnosticFile[]): void {
+function recordDelivered(files: DiagnosticFile[], lane: Lane): void {
   for (const file of files) {
     for (const diagnostic of file.diagnostics) {
       try {
         const key = diagnosticKey(diagnostic)
         const fileKey = foldFileKey(file.uri)
-        let set = delivered.get(fileKey)
+        let lanes = delivered.get(fileKey)
+        if (lanes === undefined) {
+          lanes = new Map()
+          delivered.set(fileKey, lanes)
+        }
+        let set = lanes.get(laneKey(lane))
         if (set === undefined) {
           set = new Set()
-          delivered.set(fileKey, set)
+          lanes.set(laneKey(lane), set)
         }
         set.add(key)
       } catch (err) {
@@ -340,12 +513,13 @@ function recordDelivered(files: DiagnosticFile[]): void {
   }
 }
 
-export function checkForLSPDiagnostics(): Array<{ serverName: string; files: DiagnosticFile[] }> {
+export function checkForLSPDiagnostics(owner?: OwnerKey): Array<{ serverName: string; files: DiagnosticFile[] }> {
+  const lane = laneOf(owner)
   const gatheredIds: string[] = []
   const gatheredFiles: DiagnosticFile[] = []
   const serverNames = new Set<string>()
   for (const [id, entry] of pending) {
-    if (entry.attachmentSent) continue
+    if (entry.attachmentSent || entry.owner !== lane) continue
     gatheredIds.push(id)
     gatheredFiles.push(...entry.files.map(file => introducedSinceWrite(entry.serverName, file)))
     serverNames.add(entry.serverName)
@@ -355,7 +529,7 @@ export function checkForLSPDiagnostics(): Array<{ serverName: string; files: Dia
   const before = gatheredFiles.reduce((total, file) => total + file.diagnostics.length, 0)
   let deduped: DiagnosticFile[]
   try {
-    deduped = dedupe(gatheredFiles)
+    deduped = dedupe(gatheredFiles, lane)
   } catch (err) {
     logForDebugging(`LSP diagnostics: dedup failed, delivering undeduplicated: ${String(err)}`)
     deduped = gatheredFiles
@@ -387,7 +561,7 @@ export function checkForLSPDiagnostics(): Array<{ serverName: string; files: Dia
       `LSP diagnostics: truncated ${truncated} (caps: ${MAX_PER_FILE} per file, ${MAX_TOTAL} total)`,
     )
   }
-  recordDelivered(capped)
+  recordDelivered(capped, lane)
   if (capped.length === 0) {
     logForDebugging('LSP diagnostics: nothing survives dedup/capping')
     return []
@@ -416,6 +590,10 @@ export function resetAllLSPDiagnosticState(): void {
   delivered.clear()
   lastReports.clear()
   writeBaselines.clear()
+  writers.clear()
+  roots.clear()
+  ended.clear()
+  awaitingWrites.clear()
 }
 
 export function getPendingLSPDiagnosticCount(): number {

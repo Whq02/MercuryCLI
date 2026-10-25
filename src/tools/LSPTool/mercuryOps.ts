@@ -34,6 +34,7 @@ import {
   type NormalizedFileEdits,
   type WorkspaceEditLike,
 } from '../../services/lsp/workspaceEditApply.js'
+import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { noteRunEvent } from '../../services/run/runCoordinator.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildDiffHunks } from '../../services/structure/transform.js'
@@ -498,9 +499,10 @@ export async function syncServersAfterWrite(
   absolutePath: string,
   newText: string,
   before: string | null = null,
+  owner?: OwnerKey,
   deadlineMs: number = SERVER_SYNC_DEADLINE_MS,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
-  snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath))
+  snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath), owner)
   clearDeliveredDiagnosticsForFile(absolutePath)
   let timer: NodeJS.Timeout | undefined
   try {
@@ -1188,7 +1190,7 @@ async function applyPrepared(
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
     }
-    const sync = await syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText)
+    const sync = await syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText, owner)
     if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)
     try {
       rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)

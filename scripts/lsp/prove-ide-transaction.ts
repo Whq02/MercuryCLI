@@ -103,7 +103,7 @@ async function main(): Promise<void> {
     const ops = readFileSync(join(root, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
     check(
       'post-write sync is AWAITED with a bounded deadline (syncServersAfterWrite)',
-      /await syncServersAfterWrite\(manager, w\.abs, w\.newText, w\.create \? null : w\.originalText\)/.test(ops) &&
+      /await syncServersAfterWrite\(manager, w\.abs, w\.newText, w\.create \? null : w\.originalText, owner\)/.test(ops) &&
         !/manager\.changeAndSaveFile\(absolutePath, newText\)\.catch/.test(ops),
     )
     check(

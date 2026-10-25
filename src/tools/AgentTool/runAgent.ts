@@ -30,6 +30,7 @@ import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
+import { claimDiagnosticsRoot, releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
@@ -1002,6 +1003,7 @@ export async function* runAgent(
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
     childContextRef.current = childContext
+    if (worktreePath !== undefined) claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)
     childContext.agentKind = agentKind
     childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
     if (onWait !== undefined) childContext.onSeatWait = onWait
@@ -1320,6 +1322,7 @@ export async function* runAgent(
       )
       await endEngineSessionFor(agentId)
       await disposeOwnerProcesses(processOwnerForLane(agentId))
+      releaseDiagnosticsWriter(processOwnerForLane(agentId), worktreePath)
     }
   }
 }

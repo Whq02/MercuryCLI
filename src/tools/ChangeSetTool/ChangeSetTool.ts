@@ -843,7 +843,7 @@ async function runApply(
     })
     if (lspManager) {
       const before = t.fileOp === 'move' ? null : (bytes.get(t.canonicalPath)?.originalBytes.toString(t.encoding) ?? null)
-      const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before)
+      const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)
       if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)
     }
     const anchor = mintFileAnchor(t.plannedContent)

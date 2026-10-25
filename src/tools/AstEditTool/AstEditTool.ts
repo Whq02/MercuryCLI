@@ -466,7 +466,7 @@ export const AstEditTool = buildTool({
         limit: undefined,
       })
       if (lspManager) {
-        const sync = await syncServersAfterWrite(lspManager, f.abs, f.after, f.before)
+        const sync = await syncServersAfterWrite(lspManager, f.abs, f.after, f.before, owner)
         if (!sync.ok) syncFailures.push(`${f.rel}: ${sync.reason}`)
       }
       const anchor = mintFileAnchor(f.after)

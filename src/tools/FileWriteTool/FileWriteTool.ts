@@ -362,7 +362,7 @@ export const FileWriteTool = buildTool({
     const lspManager = getLspServerManager()
     if (lspManager) {
       try {
-        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? normalizedContent : null, writtenContent, lspManager.getDocumentVersion(expandedPath))
+        snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? normalizedContent : null, writtenContent, lspManager.getDocumentVersion(expandedPath), ownerFromToolUseContext(context))
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
         await lspManager.changeAndSaveFile(expandedPath, writtenContent)
       } catch (err) {

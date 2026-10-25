@@ -9,6 +9,7 @@ import type { SystemPrompt } from '../utils/systemPromptType.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { judgeTurnEnd } from '../guards/guards.js'
 import { createAttachmentMessage } from '../utils/attachments.js'
+import { settleWriterDiagnosticsAtTurnEnd } from '../utils/attachments/diagnostics.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isBareMode } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
@@ -20,7 +21,7 @@ import { createUserInterruptionMessage, createUserMessage } from '../utils/messa
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 
 type StopHookOutcome = {
-  blockingErrors: UserMessage[]
+  blockingErrors: Message[]
   preventContinuation: boolean
 }
 
@@ -66,13 +67,25 @@ export async function* handleStopHooks(
     }
   }
 
-  const settlementBlocks: UserMessage[] = []
+  const settlementBlocks: Message[] = []
   const holds = await judgeTurnEnd(agentId ?? String(getSessionId()), { messages: history }, toolUseContext.abortController.signal)
   for (const hold of holds) {
     const message = createUserMessage({ content: hold.words, isMeta: true })
     settlementBlocks.push(message)
     yield message
     if (!hold.silent) yield createSystemMessage(`${hold.guard} held the turn: ${hold.words.split('\n')[0]}`, 'info')
+  }
+
+  if (!isBareMode()) {
+    try {
+      for (const row of await settleWriterDiagnosticsAtTurnEnd(toolUseContext)) {
+        const message = createAttachmentMessage(row)
+        yield message
+        if (stopHookActive !== true) settlementBlocks.push(message)
+      }
+    } catch (error) {
+      logForDebugging(`turn-end diagnostics settlement failed: ${errorMessage(error)}`)
+    }
   }
 
   try {

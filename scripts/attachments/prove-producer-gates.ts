@@ -15,19 +15,20 @@ const { getTaskReminderAttachments } = await import(join(root, 'src/utils/attach
 const events: string[] = []
 let pending: Array<{ files: unknown[] }> = [{ files: [] }]
 const spies = [
-  spyOn(manager, 'getLspServerManager').mockImplementation(() => ({ async revalidateOpenDocuments() { events.push('refresh'); throw new Error('fixture refresh failure') } }) as never),
-  spyOn(registry, 'checkForLSPDiagnostics').mockImplementation(() => { events.push('read'); return pending as never }),
+  spyOn(manager, 'getLspServerManager').mockImplementation(() => ({ async revalidateOpenDocuments() { events.push('refresh'); throw new Error('fixture refresh failure') }, isFileOpen() { return false } }) as never),
+  spyOn(registry, 'checkForLSPDiagnostics').mockImplementation(() => { events.push('read'); const rows = pending; pending = []; return rows as never }),
   spyOn(registry, 'clearAllLSPDiagnostics').mockImplementation(() => { events.push('clear'); pending = [] }),
 ]
 try {
   assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [] } } as never), [])
   assert.deepEqual(events, [])
   assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [{ type: 'diagnostics', files: [], isNew: true }])
-  assert.deepEqual(events, ['refresh', 'read', 'clear'])
+  assert.deepEqual(events, ['refresh', 'read'])
   events.length = 0
   assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [])
   assert.deepEqual(events, ['refresh', 'read'])
-  console.log('PASS diagnostics gate, refresh failure isolation, delivery order and clear-once')
+  assert.equal(events.includes('clear'), false)
+  console.log('PASS diagnostics gate, refresh failure isolation, delivery order and no table-wide clear behind a lane read')
   let enabled = true
   let lists = 0
   const content = [{ id: '1', subject: 'fixture task' }]
