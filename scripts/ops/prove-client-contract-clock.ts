@@ -99,6 +99,8 @@ try {
   writeFileSync(join(notes, '1.0.0-beta.10.md'), releaseFixture('1.0.0-beta.10', afterDate))
   writeFileSync(join(notes, '1.0.0-beta.11.md'), '# 1.0.0-beta.11 — queued\n')
   check('the latest published note is selected in version order, skipping the queued page and index', latestReleaseNote(noteRoot) === releaseFixture('1.0.0-beta.10', afterDate))
+  writeFileSync(join(notes, '1.0.0-beta.11.md'), '# 1.0.0-beta.11 — ready for the tag\n')
+  check('a page that is ready for the tag is skipped like the queued page (the release in flight has no published day yet)', latestReleaseNote(noteRoot) === releaseFixture('1.0.0-beta.10', afterDate))
   writeFileSync(join(notes, '1.0.0-beta.11.md'), releaseFixture('1.0.0-beta.11', fixtureToday))
   check('publishing the queued page advances the clock', latestReleaseNote(noteRoot) === releaseFixture('1.0.0-beta.11', fixtureToday))
   writeFileSync(join(notes, '1.0.0-beta.11.md'), releaseFixture('1.0.0-beta.10', afterDate))

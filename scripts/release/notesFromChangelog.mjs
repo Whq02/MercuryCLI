@@ -14,7 +14,7 @@ export function latestReleaseNote(rootDir) {
   const versions = readdirSync(dir).filter(name => name.endsWith('.md')).map(name => name.slice(0, -3)).filter(version => valid(version)).sort(rcompare)
   for (const version of versions) {
     const text = readFileSync(join(dir, `${version}.md`), 'utf8')
-    if (text.startsWith(`# ${version} — queued\n`)) continue
+    if (text.startsWith(`# ${version} — queued\n`) || text.startsWith(`# ${version} — ready for the tag\n`)) continue
     return readReleaseNoteParameters(text).version === `v${version}` ? text : ''
   }
   return ''
