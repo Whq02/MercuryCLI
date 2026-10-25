@@ -425,6 +425,12 @@ async function main(): Promise<void> {
       JSON.stringify(willRename),
     )
 
+    for (const newline of ['\n', '\r\n', '\r']) {
+      client.notify('textDocument/didChange', { textDocument: { uri: uriOf(appPath), version: 2 }, contentChanges: [{ text: 'const boundaryValue = 1;' + newline + 'boundaryValue' + newline }] })
+      const pastEnd = await client.request('textDocument/hover', { textDocument: { uri: uriOf(appPath) }, position: { line: 0, character: 999 } })
+      check('an overlong column stays on its line ' + JSON.stringify(newline), pastEnd === null, JSON.stringify(pastEnd))
+    }
+
     await client.request('shutdown', null, 5000)
     client.notify('exit', null)
     const code = await client.waitForExit()

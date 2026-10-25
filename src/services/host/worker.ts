@@ -535,7 +535,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const failedSetup = readHostRecord(id)
     if (error instanceof HostEngineDeath && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
       const machine = hostMachineName(vendor, id)
-      const words = machine + ' · ' + clean(error.message) + ' · paused, $' + initial.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
+      const words = machine + ' · ' + clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
       log(words)
       const at = error.facts.at
       const step = 'paused · the engine died after setup'
@@ -545,7 +545,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       return
     }
     if (error instanceof HostLinkLost && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
-      const words = clean(error.message) + ' · paused, $' + initial.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
+      const words = clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
       log(words)
       const at = Date.now()
       const step = 'paused · the link dropped after setup'
@@ -586,7 +586,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         return
       }
       const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
-      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' · stopped; disk still bills until Terminate' : machine + ' · $' + initial.price.toFixed(2) + '/hr still billing'
+      const billing = /^Pod is EXITED\b/.test(detail) ? machine + ' · stopped; disk still bills until Terminate' : machine + ' · $' + failedSetup.price.toFixed(2) + '/hr still billing'
       const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + ' · Resume or Terminate in /llmhost'
       log(words)
       const at = Date.now()
@@ -600,10 +600,11 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (current && current.generation === generation && current.jobState !== 'stopped') {
       const retried = hostReadFailureWords(failure)
       const resource = initial.cluster ? 'cluster' : 'pod'
-      const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + initial.price.toFixed(2) + '/hr while it runs'
+      const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + current.price.toFixed(2) + '/hr while it runs'
       const wasReady = current.jobState === 'ready'
       const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
-      const record = patchHostRecord(id, { jobState: 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
+      const at = Date.now()
+      const record = patchHostRecord(id, { jobState: retried ? 'paused' : 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(retried ? { advancedAt: at, steps: [...(current.steps ?? []), { step: detail, at }] } : {}), ...(error instanceof HostClusterEnded ? { status: 'TERMINATED' } : {}) })!
       log(detail)
       if (error instanceof HostClusterEnded) {
         hostNotice(record, 'failed', record.name + ' · ' + detail)

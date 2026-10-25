@@ -26,11 +26,11 @@ try {
   const recipe = HOST_RECIPES.find(row => row.nodes === 2 && row.gpu === 'B200')!
   assert.ok(recipe)
   const notices = (id: string): string[] => readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === id).map(row => row.words)
-  for (const mode of ['shape-mismatch', 'node-lost', 'cuda', 'placement', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused'] as const) {
+  for (const mode of ['shape-mismatch', 'node-lost', 'cuda', 'placement', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused', 'repriced'] as const) {
     const id = 'cluster-' + mode
     const at = new Date().toISOString()
     const cluster = { id, name: id, type: 'APPLICATION', compute: { podCount: mode === 'shape-mismatch' ? 3 : 2, gpuCountPerPod: recipe.count, gpuTypeId: 'NVIDIA B200' }, primary: { podId: id + '-0', status: 'RUNNING' }, createdAt: at }
-    const nodes = [0, 1].map(rank => ({ id: id + '-' + rank, name: id + '-' + rank, cost: 10, status: mode === 'node-lost' && rank === 1 ? 'EXITED' : 'RUNNING', cudaVersion: mode === 'cuda' ? '12.0' : '13.0', createdAt: at, cluster: { id, rank, ip: mode === 'placement' ? undefined : '10.65.0.' + (rank + 2) }, ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
+    const nodes = [0, 1].map(rank => ({ id: id + '-' + rank, name: id + '-' + rank, cost: mode === 'repriced' ? 13 : 10, status: mode === 'node-lost' && rank === 1 ? 'EXITED' : 'RUNNING', cudaVersion: mode === 'cuda' ? '12.0' : '13.0', createdAt: at, cluster: { id, rank, ip: mode === 'placement' ? undefined : '10.65.0.' + (rank + 2) }, ssh: { direct: { host: '127.0.0.1', port: 22000 + rank, username: 'root' } } }))
     rp.state.clusters.set(id, cluster)
     rp.state.clusterNodes.set(id, nodes)
     rp.state.holdClusterDelete = mode.endsWith('delete-held')
@@ -57,13 +57,22 @@ try {
     const deletes = calls.filter(row => row.method === 'DELETE')
     const words = notices(id)
     if (mode === 'read-paused') {
-      check('transient vendor-read exhaustion pauses the cluster without terminating it', deletes.length === 0 && rp.state.clusters.has(id) && readHostRecord(id)?.jobState === 'failed' && words.length === 1 && words[0]!.includes('setup paused'))
+      const record = readHostRecord(id)!
+      const { hostIdleVerdict, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
+      check('transient vendor-read exhaustion pauses the cluster without terminating it', deletes.length === 0 && rp.state.clusters.has(id) && record.jobState === 'paused' && words.length === 1 && words[0]!.includes('setup paused'))
+      check('the exhausted-read pause starts its unanswered timer at the failure', record.advancedAt! >= queued.advancedAt! && record.steps?.at(-1)?.at === record.advancedAt && hostIdleVerdict(record, record.advancedAt! + HOST_IDLE_LIMIT_MS - 1) === undefined && hostIdleVerdict(record, record.advancedAt! + HOST_IDLE_LIMIT_MS)?.kind === 'paused')
     } else {
       const record = readHostRecord(id)
       const cause = mode === 'shape-mismatch' ? 'shape does not match' : mode === 'node-lost' ? 'lost node' : mode === 'cuda' ? 'below the recipe' : mode === 'placement' ? 'did not bring all' : mode.startsWith('tunnel-') ? 'fixture tunnel failed' : mode === 'node-launch' ? 'failed to load model' : 'out of memory'
       check(mode + ' never terminates the cluster or a node', deletes.length === 0 && rp.state.clusters.has(id) && rp.state.clusterNodes.has(id))
-      check(mode + ' keeps the paused rental and cause', record?.jobState === 'paused' && record.status === 'RUNNING' && record.error?.includes(cause))
-      check(mode + ' posts one pause with billing and both actions', words.length === 1 && words[0]!.includes('setup paused') && words[0]!.includes(cause) && words[0]!.includes('$20.00/hr') && words[0]!.includes('Resume') && words[0]!.includes('Terminate') && !words[0]!.includes(rp.key))
+      assert.equal(record?.jobState, 'paused', mode + ' keeps the paused rental')
+      assert.equal(record.status, 'RUNNING', mode + ' leaves the rental running')
+      assert.ok(record.error?.includes(cause), mode + ' keeps the cause: ' + record.error)
+      check(mode + ' keeps the paused rental and cause', true)
+      const pauses = words.filter(word => word.includes('setup paused'))
+      const rate = mode === 'repriced' ? '$26.00/hr' : '$20.00/hr'
+      check(mode + ' posts one pause with billing and both actions', words.length === (mode === 'repriced' ? 2 : 1) && pauses.length === 1 && pauses[0]!.includes(cause) && pauses[0]!.includes(rate) && pauses[0]!.includes('Resume') && pauses[0]!.includes('Terminate') && !words.some(word => word.includes(rp.key)))
+      if (mode === 'repriced') check('the pause uses the observed cluster bill rather than the original quote', record?.price === 26 && record.error?.includes(rate) && !record.error.includes('$20.00/hr'))
       if (['shape-mismatch', 'node-lost', 'cuda', 'placement'].includes(mode)) check(mode + ' launches no engine', launches === 0)
       check(mode + ' settles promptly', health < 30)
     }

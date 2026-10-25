@@ -71,6 +71,10 @@ console.log('prove-lsp-lifecycle-config — restartOnCrash + shutdownTimeout are
     shutdownTimeout: 1234,
   })
   check('schema accepts restartOnCrash + shutdownTimeout', parsed.success)
+  for (const command of ['C:\\Program Files\\LLVM\\bin\\clangd.exe', '\\\\server\\Program Files\\clangd.exe']) {
+    check('schema accepts absolute Windows executable paths containing spaces', LspServerConfigSchema().safeParse({ command, extensionToLanguage: { '.x': 'x' } }).success, command)
+  }
+  check('schema still refuses a command with appended arguments', !LspServerConfigSchema().safeParse({ command: 'clangd --stdio', extensionToLanguage: { '.x': 'x' } }).success)
 }
 
 {

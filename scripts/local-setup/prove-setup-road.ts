@@ -824,6 +824,14 @@ section('§12 the choice: a server with two models and a session on the 27B — 
 
 section('§13 the seams never reach the machine: the scratch home holds the only writes')
 {
+  let requests = 0
+  const io = machineIo(bareMachine(), undefined, {
+    signal: AbortSignal.abort(),
+    fetchImpl: Object.assign(async () => { requests++; return new Response('{"status":"success"}\n') }, fetch),
+  })
+  const version = await setup.readOllamaVersion('http://127.0.0.1:11434', io)
+  const cancelledPull = await setup.pullModel('http://127.0.0.1:11434', TAG, () => {}, io)
+  check('already-cancelled setup reads and pulls make no request', requests === 0 && version === undefined && !cancelledPull.success && cancelledPull.error === 'cancelled', JSON.stringify({ requests, version, cancelledPull }))
   check('the serve log path is under the scratch home', !existsSync('/fixture') && join(proofHome, 'local-setup', 'ollama-serve.log').startsWith(proofHome))
   check('shellArgv: sh -c on posix, cmd /c on windows', setup.shellArgv('darwin', 'x').join(' ') === '/bin/sh -c x' && setup.shellArgv('win32', 'x').join(' ') === 'cmd.exe /d /s /c x')
 }

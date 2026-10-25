@@ -6,6 +6,7 @@ import {
   resetAllLSPDiagnosticState,
 } from '../../src/services/lsp/LSPDiagnosticRegistry.js'
 
+import { registerLSPNotificationHandlers } from '../../src/services/lsp/passiveFeedback.js'
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
@@ -54,6 +55,13 @@ clearDeliveredDiagnosticsForFile(FILE)
 push()
 check('clear via plain path re-arms delivery', deliveredCount() === 1)
 
+resetAllLSPDiagnosticState()
+
+let publish: (params: unknown) => void = () => {}
+registerLSPNotificationHandlers({ getAllServers: () => new Map([['fake', { onNotification: (_method: string, handler: (params: unknown) => void) => { publish = handler } }]]) } as never)
+publish({ uri: FILE, diagnostics: [{ ...diag, severity: 1 }] })
+publish({ uri: FILE, diagnostics: [] })
+check('a clean publish supersedes an undelivered error from the same server and file', deliveredCount() === 0)
 resetAllLSPDiagnosticState()
 
 if (failures > 0) {

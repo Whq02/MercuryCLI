@@ -182,7 +182,7 @@ try {
   const secret = 'hf_fixture_secret_value_never_on_a_command_line'
   const tokenPath = '/workspace/mercury-host/source-fixture/hf-token'
   type Call = { command: string; remote: string; aborted: boolean }
-  const attempt = async (script: { rsync?: 'abort' | 'fail'; download?: 'abort' | 'fail'; cleanup?: 'fail' }) => {
+  const attempt = async (script: { rsync?: 'abort' | 'fail' | 'echo'; download?: 'abort' | 'fail' | 'echo'; cleanup?: 'fail' }) => {
     const calls: Call[] = []
     const controller = new AbortController()
     const hubBefore = hub.requests.length
@@ -194,11 +194,13 @@ try {
       if (command === 'rsync') {
         if (script.rsync === 'abort') { controller.abort(); throw new Error('Stopped') }
         if (script.rsync === 'fail') throw new Error('rsync exited 12. Connection unexpectedly closed')
+        if (script.rsync === 'echo') throw new Error('rsync exited 12. rejected ' + secret)
         return ''
       }
       if (command === 'ssh' && remote.includes('MERCURY_PRIVATE_WEIGHTS ')) {
         if (script.download === 'abort') { controller.abort(); throw new Error('Stopped') }
         if (script.download === 'fail') throw new Error('ssh exited 1. MERCURY_PARTIAL {"bytes":0}')
+        if (script.download === 'echo') throw new Error('ssh exited 1. denied ' + secret)
         return 'MERCURY_PRIVATE_WEIGHTS {"repo":"' + MIRROR + '"}\n'
       }
       return ''
@@ -211,6 +213,7 @@ try {
     const cleanup = calls.find(call => call.command === 'ssh' && call.remote === "rm -f '" + tokenPath + "' && test ! -e '" + tokenPath + "'")
     const download = calls.find(call => call.command === 'ssh' && call.remote.includes('MERCURY_PRIVATE_WEIGHTS '))
     assert.ok(calls.filter(call => call.command === 'ssh').every(call => !call.remote.includes(secret)) && !message.includes(secret), 'the token value never travels on a command line or in words')
+    if (error instanceof Error && error.cause instanceof Error) assert.ok(!error.cause.message.includes(secret), 'the failure cause also redacts the token')
     assert.equal(hub.requests.length, hubBefore, 'the machine road never touches the hub')
     assert.ok(!readdirSync(join(f.home, 'host')).some(name => name.startsWith('hf-token-')), 'the local copy of the token is gone')
     return { calls, steps, error, message, directory, cleanup, download }
@@ -227,6 +230,12 @@ try {
   check('an unconfirmed removal after a failed download keeps the download words and says the file may remain', run.message.includes('Download failed') && run.message.includes(MIRROR) && run.message.includes('could not be confirmed removed'))
   run = await attempt({ cleanup: 'fail' })
   check('a finished download with an unconfirmed removal is not reported as clean: no directory, no started engine, the uncertainty named', run.directory === undefined && run.message.includes('finished, but') && run.message.includes('could not be confirmed removed') && run.message.includes(tokenPath) && !run.steps.some(step => step.includes('removed from the machine')))
+  run = await attempt({ rsync: 'echo' })
+  check('an echoed token in a failed transfer is redacted after successful cleanup', run.message.includes('[redacted]') && run.message.includes('rsync exited 12'))
+  run = await attempt({ download: 'echo' })
+  check('an echoed token in a failed download is redacted after successful cleanup', run.message.includes('[redacted]') && run.message.includes('Download failed'))
+  run = await attempt({ rsync: 'echo', cleanup: 'fail' })
+  check('a cleanup failure keeps a redacted cause for a transfer that echoed the token', run.message.includes('[redacted]') && run.message.includes('could not be confirmed removed'))
   run = await attempt({})
   check('the ordinary road removes the file, confirms it, and the script unlinks the token before it downloads', run.directory === '/workspace/mercury-host/source-fixture/private-weights' && run.cleanup !== undefined && run.steps.at(-1)?.includes('sign-in file removed from the machine') && run.download !== undefined && run.download.remote.includes('token_path.unlink()') && run.download.remote.includes('snapshot_download(') && run.download.remote.indexOf('token_path.unlink()') < run.download.remote.indexOf('snapshot_download('))
   check('none of the cleanup roads published or mutated anything on Hugging Face', hubWrites() === 0 && endpoints.state.creates === 0)

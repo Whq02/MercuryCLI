@@ -113,6 +113,12 @@ function check(name: string, ok: boolean, detail?: string): void {
       offsetAtPosition(text, { line: 0, character: 99 }) === 3,
   )
 }
+for (const newline of ['\n', '\r\n', '\r']) {
+  const text = 'abc' + newline + 'def'
+  check('offsetAtPosition clamps before the line ending ' + JSON.stringify(newline), offsetAtPosition(text, { line: 0, character: 99 }) === 3)
+  const applied = applyEditsToText(text, [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 99 } }, newText: 'ABC' }])
+  check('an overlong edit column preserves the line ending ' + JSON.stringify(newline), applied.ok && applied.text === 'ABC' + newline + 'def')
+}
 {
   const text = 'ab'
   const r = applyEditsToText(text, [

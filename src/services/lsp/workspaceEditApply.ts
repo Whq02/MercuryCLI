@@ -118,9 +118,9 @@ export function offsetAtPosition(text: string, pos: LspPositionLike): number {
   if (pos.line < 0) return 0
   if (pos.line >= starts.length) return text.length
   const lineStart = starts[pos.line] ?? text.length
-  const nextStart =
-    pos.line + 1 < starts.length ? (starts[pos.line + 1] ?? text.length) : text.length
-  return Math.min(lineStart + Math.max(0, pos.character), nextStart)
+  let lineEnd = pos.line + 1 < starts.length ? (starts[pos.line + 1] ?? text.length) : text.length
+  while (lineEnd > lineStart && (text[lineEnd - 1] === '\n' || text[lineEnd - 1] === '\r')) lineEnd--
+  return Math.min(lineStart + Math.max(0, pos.character), lineEnd)
 }
 
 type ApplyResult =

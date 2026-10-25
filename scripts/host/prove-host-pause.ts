@@ -123,6 +123,14 @@ try {
   for (let n = 0; n < 3; n++) { const poll = await fetch('http://127.0.0.1:' + port + '/v1/models'); await poll.body?.cancel() }
   check('the keep-alive /models poll does not count as activity', hostIdleSince(readHostRecord(oomPod.id)!) === readySince)
   check('a ready rental is not idle at 1 h 59 min and is idle at 2 h', hostIdleVerdict(ready, readySince + HOST_IDLE_LIMIT_MS - 60_000) === undefined && hostIdleVerdict(ready, readySince + HOST_IDLE_LIMIT_MS)?.kind === 'idle')
+  let staleReleases = 0
+  patchHostRecord(ready.id, { advancedAt: readySince + 1 })
+  const refreshed = await sweepHostIdle({ now: readySince + HOST_IDLE_LIMIT_MS, records: [ready], release: async () => { staleReleases++ } })
+  check('a stale sweep snapshot cannot terminate a rental whose activity clock advanced', refreshed.length === 0 && staleReleases === 0)
+  patchHostRecord(ready.id, { advancedAt: ready.advancedAt, status: 'EXITED' })
+  const stoppedSnapshot = await sweepHostIdle({ now: readySince + HOST_IDLE_LIMIT_MS, records: [ready], release: async () => { staleReleases++ } })
+  check('a stale sweep snapshot cannot terminate a rental that has since stopped', stoppedSnapshot.length === 0 && staleReleases === 0)
+  patchHostRecord(ready.id, { status: ready.status })
   const turn = await f.run('compat/' + ready.provider + '/' + f.model)
   assert.ok(turn.some(row => row.message?.stop_reason), 'the fixture answers one model request through the registered entry')
   const turnAt = hostEndpointLastTurnAt(ready)!

@@ -1,6 +1,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { getEventListeners } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -123,6 +124,11 @@ section('§4 a healthy server still answers, and one budget covers the retry lad
   await server.start()
   const answer = await server.sendRequest('textDocument/documentSymbol', {})
   check('a normal request still resolves through the bounded road', answer === null, JSON.stringify(answer))
+  const controller = new AbortController()
+  await lspAbort!.runWithLspAbortSignal(controller.signal, async () => {
+    for (let index = 0; index < 5; index++) await server.sendRequest('textDocument/documentSymbol', {})
+  })
+  check('successful requests leave no abort listeners on the operation signal', getEventListeners(controller.signal, 'abort').length === 0)
   const src = readFileSync(path.join(repo, 'src/services/lsp/LSPServerInstance.ts'), 'utf8')
   const fn = src.slice(src.indexOf('async function sendRequest'), src.indexOf('async function sendNotification'))
   check('the ContentModified retry ladder still exists', /TRANSIENT_RETRIES/.test(fn))

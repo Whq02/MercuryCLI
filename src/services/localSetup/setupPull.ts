@@ -55,6 +55,7 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
   try {
     let response: Response
     try {
+      io.signal?.throwIfAborted()
       response = await io.fetchImpl(`${root}/api/pull`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' },

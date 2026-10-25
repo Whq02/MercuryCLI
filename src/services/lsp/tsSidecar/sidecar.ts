@@ -86,7 +86,8 @@ function offsetAt(text: string, pos: LspPosition): number {
   const starts = lineStartsOf(text)
   if (pos.line >= starts.length) return text.length
   const lineStart = starts[pos.line] ?? text.length
-  const lineEnd = pos.line + 1 < starts.length ? (starts[pos.line + 1] ?? text.length) : text.length
+  let lineEnd = pos.line + 1 < starts.length ? (starts[pos.line + 1] ?? text.length) : text.length
+  while (lineEnd > lineStart && (text[lineEnd - 1] === '\n' || text[lineEnd - 1] === '\r')) lineEnd--
   return Math.min(lineStart + Math.max(0, pos.character), lineEnd)
 }
 

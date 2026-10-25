@@ -108,7 +108,6 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
           }
           if (files.length === 0 || (files[0] as DiagnosticFile).diagnostics.length === 0) {
             logForDebugging(`passiveFeedback: ${serverName} published an empty diagnostic set for ${payload.uri}`)
-            return
           }
           try {
             registerPendingLSPDiagnostic({ serverName, files, ...(version !== undefined ? { version } : {}) })

@@ -196,6 +196,7 @@ export async function readJson(io: ResolvedSetupIo, url: string, body?: unknown,
   const onOuterAbort = () => controller.abort()
   io.signal?.addEventListener('abort', onOuterAbort, { once: true })
   try {
+    io.signal?.throwIfAborted()
     const response = await io.fetchImpl(url, {
       method: body === undefined ? 'GET' : 'POST',
       headers: { accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },

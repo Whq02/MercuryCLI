@@ -136,6 +136,7 @@ export function bankFree(folder: string): number | undefined {
 export const sizeWords = (gb: number): string => gb >= 1000 ? (gb / 1000).toFixed(1) + ' TB' : gb >= 1 ? (gb >= 10 ? Math.round(gb) : Math.round(gb * 10) / 10) + ' GB' : gb >= 0.001 ? +(gb * 1000).toFixed(1) + ' MB' : +(gb * 1e6).toFixed(1) + ' KB'
 export const bytesWords = (bytes: number): string => sizeWords(bytes / 1e9)
 async function hashFile(path: string, signal: AbortSignal): Promise<{ sha256: string; git: string; size: number }> {
+  signal.throwIfAborted()
   const stat = lstatSync(path)
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('Not a regular file: ' + path)
   const strong = createHash('sha256')

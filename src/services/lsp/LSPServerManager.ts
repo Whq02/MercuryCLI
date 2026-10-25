@@ -176,7 +176,7 @@ export function createLSPServerManager(): LSPServerManager {
   ): Promise<void> {
     const claimants = getServersForFile(path)
     if (claimants.length === 0) return
-    const primary = claimants[0] as LSPServerInstance
+    const primary = getServerForFile(path)!
     try {
       await action(primary, true)
     } catch (err) {
@@ -190,7 +190,7 @@ export function createLSPServerManager(): LSPServerManager {
       logError(wrapped)
       throw wrapped
     }
-    const companions = claimants.slice(1)
+    const companions = claimants.filter(server => server !== primary)
     if (companions.length === 0) return
     await Promise.all(
       companions.map(async server => {

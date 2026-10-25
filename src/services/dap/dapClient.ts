@@ -1044,7 +1044,7 @@ export class DapSession {
   treeStopped(sinceStamp = 0): DapSession | null {
     let best: DapSession | null = null
     for (const s of this.treeSessions()) {
-      if (s.lastStopped && s.lastStoppedAt > sinceStamp && (best === null || s.lastStoppedAt > best.lastStoppedAt)) {
+      if (s.alive && s.lastStopped && s.lastStoppedAt > sinceStamp && (best === null || s.lastStoppedAt > best.lastStoppedAt)) {
         best = s
       }
     }

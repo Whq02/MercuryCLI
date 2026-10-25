@@ -85,10 +85,10 @@ export async function sweepHostIdle(options: { now?: number; records?: HostRecor
     const marker = (row.generation ?? '') + ':' + (row.jobState ?? '')
     const seen = options.watched?.get(row.id)
     if (options.watched && seen?.marker !== marker) options.watched.set(row.id, { marker, at: now })
-    const verdict = hostIdleVerdict(row, now, { watchedSince: options.watched ? (seen?.marker === marker ? seen.at : now) : undefined, lastTurnAt: options.lastTurnAt })
-    if (!verdict) continue
     const current = readHostRecord(row.id)
     if (!current || current.generation !== row.generation || current.jobState !== row.jobState) continue
+    const verdict = hostIdleVerdict(current, now, { watchedSince: options.watched ? (seen?.marker === marker ? seen.at : now) : undefined, lastTurnAt: options.lastTurnAt })
+    if (!verdict) continue
     verdicts.push(verdict)
     await (options.release ?? releaseIdleRental)(current, verdict)
   }

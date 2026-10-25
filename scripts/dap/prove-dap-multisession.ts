@@ -150,6 +150,8 @@ async function main(): Promise<void> {
     })
     check('re-launch on the alias replaces the whole tree (old root dead)', held.terminated === true)
     check('…and the old CHILD died with it', heldChild !== undefined && heldChild.terminated === true)
+    check('a disposed stopped tree no longer routes to its dead child', held.treeStopped() === null)
+    check('waiting on a disposed stopped tree reports termination, not its old stop', (await held.waitForStopOutcome(100)).state === 'terminated')
     check('the replacement is registered', getDapSession(OWNER, 'rep') === replacement)
     await removeDapSession(OWNER, 'rep')
   }

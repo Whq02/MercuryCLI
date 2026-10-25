@@ -161,7 +161,8 @@ export async function downloadPrivateRepoForRental(source: WeightsSource & { kin
   const directory = base + '/private-weights'
   const tokenPath = base + '/hf-token'
   const args = sshArguments(target)
-  const plain = (error: unknown): string => (error instanceof Error ? error.message : String(error)).split(token).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
+  const scrub = (error: unknown): string => (error instanceof Error ? error.message : String(error)).split(token).join('[redacted]')
+  const plain = (error: unknown): string => scrub(error).replace(/\s+/g, ' ').trim().slice(0, 240)
   const unconfirmed = (error: unknown): string => 'the Hugging Face sign-in file ' + tokenPath + ' could not be confirmed removed from the machine (' + plain(error) + ') · ' + TOKEN_REVOKE_WORDS
   const removeToken = async (): Promise<unknown> => {
     try { await runner.run('ssh', [...args, 'rm -f ' + shQuote(tokenPath) + ' && test ! -e ' + shQuote(tokenPath)], AbortSignal.timeout(TOKEN_CLEANUP_MS), TOKEN_CLEANUP_MS); return undefined } catch (error) { return error ?? new Error('cleanup failed') }
@@ -183,10 +184,10 @@ export async function downloadPrivateRepoForRental(source: WeightsSource & { kin
       output = await runner.run('ssh', [...args, privateRepoDownloadCommand(source, recipe, directory, tokenPath, execution)], signal, keptRunMs(recipe))
     } catch (error) {
       if (signal.aborted) throw error
-      throw new Error(downloadFailure(error, { ...recipe, weightsGb: source.bytes ? source.bytes / 1e9 : recipe.weightsGb }).words + ' · from ' + source.repo)
+      throw new Error(downloadFailure(scrub(error), { ...recipe, weightsGb: source.bytes ? source.bytes / 1e9 : recipe.weightsGb }).words + ' · from ' + source.repo)
     }
   } catch (error) {
-    failure = error ?? new Error('private repository download failed')
+    failure = new Error(scrub(error ?? new Error('private repository download failed')))
   } finally {
     const cleanup = await removeToken()
     if (failure !== undefined) {

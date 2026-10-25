@@ -414,7 +414,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       }
       const source = new CancellationTokenSource()
       let timer: ReturnType<typeof setTimeout> | undefined
-      const onAbort = (): void => source.cancel()
+      let onAbort: (() => void) | undefined
       try {
         return await new Promise<T>((resolve, reject) => {
           timer = setTimeout(() => {
@@ -422,8 +422,8 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
             reject(timedOutRequest(method, name, budgetMs))
           }, remaining)
           if (signal !== undefined) {
+            onAbort = () => { source.cancel(); reject(abortedRequest(method, name)) }
             signal.addEventListener('abort', onAbort, { once: true })
-            signal.addEventListener('abort', () => reject(abortedRequest(method, name)), { once: true })
           }
           client!.sendRequest<T>(method, params, source.token).then(resolve, reject)
         })
@@ -441,7 +441,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
         break
       } finally {
         if (timer !== undefined) clearTimeout(timer)
-        signal?.removeEventListener('abort', onAbort)
+        if (onAbort) signal?.removeEventListener('abort', onAbort)
         source.dispose()
       }
     }

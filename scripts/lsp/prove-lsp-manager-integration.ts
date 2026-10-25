@@ -41,6 +41,10 @@ enableConfigs()
 }
 
 process.env.MERCURY_LSP_SIDECAR_ENTRY = sidecarEntry
+process.env.MERCURY_LSP_SERVERS = JSON.stringify({
+  brokenLinter: { command: path.join(repo, 'missing-linter-fixture'), diagnosticsOnly: true, extensionToLanguage: { '.syncproof': 'syncproof' } },
+  semantic: { command: process.execPath, args: [path.join(repo, 'scripts/lsp/fixtures/fake-lsp-server.mjs')], extensionToLanguage: { '.syncproof': 'syncproof' } },
+})
 const mgrModule = await import('../../src/services/lsp/manager.js')
 mgrModule.initializeLspServerManager()
 await mgrModule.waitForInitialization()
@@ -98,6 +102,12 @@ check('isLspConnected() is true with the server running', mgrModule.isLspConnect
   await manager.openFile(appPath, appText)
   check('re-open after release works', manager.isFileOpen(appPath) === true)
 }
+
+const syncPath = path.join(process.env.MERCURY_CONFIG_DIR!, 'priority.syncproof')
+let syncError: unknown
+try { await manager.openFile(syncPath, 'fixture') } catch (error) { syncError = error }
+check('a broken diagnostics-only first claimant does not block the semantic primary from opening', syncError === undefined && manager.getServerForFile(syncPath)?.name === 'env:semantic' && manager.isFileOpen(syncPath), String(syncError ?? ''))
+await manager.closeFile(syncPath).catch(() => {})
 
 await mgrModule.shutdownLspServerManager()
 check(

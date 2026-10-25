@@ -1,3 +1,4 @@
+import { isAbsolute, win32 } from 'node:path'
 import { z } from 'zod'
 import { lazySchema } from '../../utils/lazySchema.js'
 
@@ -7,7 +8,7 @@ export const LspServerConfigSchema = lazySchema(() =>
       .string()
       .min(1, 'LSP server "command" cannot be empty')
       .refine(
-        command => !command.includes(' ') || command.startsWith('/'),
+        command => !command.includes(' ') || isAbsolute(command) || win32.isAbsolute(command),
         'LSP server "command" must be a single executable — move arguments into the "args" array (an absolute path may contain spaces)',
       )
       .describe('The executable to spawn (a bare name is looked up on PATH; an absolute path may contain spaces).'),
