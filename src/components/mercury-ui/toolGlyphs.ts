@@ -111,6 +111,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Blender: 'external',
   Godot: 'external',
   Unity: 'external',
+  Video: 'external',
   ListMcpResources: 'external',
 }
 

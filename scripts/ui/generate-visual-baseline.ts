@@ -8,7 +8,7 @@ import {
   refusedDir, runWorkers, timingLine, timingTable, vshotSlotsFor, workerHome, writeJobList, writeJobResult,
   type CaptureTiming, type JobsRun,
 } from '../lib/captureJobs.ts'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { HELM_BOTH_RAILS_MIN, HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import { DEFAULT_CRITTER_KEY } from '../../src/utils/cockpit/critterData.ts'
 
@@ -183,6 +183,8 @@ function captureSpec(
         env: {
           ...process.env,
           MERCURY_CONFIG_DIR: home,
+          ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+          ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
           MERCURY_AWAY_SUMMARY: '0',
           MERCURY_THEME_PIN: spec.theme,
           TERM_PROGRAM: 'kitty',

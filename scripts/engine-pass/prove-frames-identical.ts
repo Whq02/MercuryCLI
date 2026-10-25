@@ -136,6 +136,7 @@ families.push(
   { id: 'settings-popup-header', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/settings-popup-header/')), script: 'scripts/ui/prove-settings-popup-header.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'file-cards', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/file-cards/')), script: 'scripts/ui/prove-file-card-truth-drive.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'exit-note', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/exit-note/')), script: 'scripts/ui/prove-exit-note-drive.ts', args: ['--frames', '$OUT'], output: file },
+  { id: 'shell-live-tail', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/shell-live-tail/')), script: 'scripts/ui/prove-shell-live-tail-drive.ts', args: ['--capture-dir', '$OUT'], output: file },
   { id: 'model-picker-typed', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/model-picker-typed/')), script: 'scripts/ui/prove-model-picker-typed-letters.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'config-thinking', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/config-thinking/')), script: 'scripts/ui/prove-config-thinking-row.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'appearance-digit', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/appearance-digit/')), script: 'scripts/ui/prove-appearance-digit-and-config-theme.ts', args: ['--frames', '$OUT'], output: file },

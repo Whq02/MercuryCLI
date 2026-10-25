@@ -80,6 +80,7 @@ for (const cols of [120, 80]) {
     check(`${cols}: both output lines are in CHAT within two seconds, before exit`, live.some(row => row.includes('CODE-1234')) && live.some(row => row.includes('open https://example.invalid')) && !live.some(row => row.includes('exit 0')), live.join(' | '))
     check(`${cols}: the live row carries a ticking running clock`, live.some(row => /running ·/.test(row)) && chatOutput(screens[1]!, '! sh').some(row => /running ·/.test(row)) && live.join('\n') !== chatOutput(screens[1]!, '! sh').join('\n'))
     const exited = chatOutput(screens[2]!, '! sh').map(row => row.replace(/(exit 0 · )\d+(?:\.\d+)?s/, '$1<TIME>'))
+    save(`exited-${cols}`, exited)
     const pin = join(fixtures, `exited-${cols}.txt`)
     if (recordBase) writeFileSync(pin, exited.join('\n') + '\n')
     check(`${cols}: exited output and exit words match the frozen base`, exited.length > 0 && exited.join('\n') + '\n' === readFileSync(pin, 'utf8'), exited.join(' | '))

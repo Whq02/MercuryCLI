@@ -395,7 +395,9 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
     }
     const gridLines = (label: string): string[] =>
       (payload.marks?.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join(''))
-    const hintRows = (lines: string[]): number => lines.filter(l => /\/[a-z]+ — /.test(l)).length
+    const hintRows = (lines: string[]): number => lines.filter(l => /^\s*· \/[a-z]+(?:…| — )/.test(l)).length
+    t.check('hint counting keeps whole-word rail clips', hintRows(['  · /workflows…          │', '  · /health — health…    │', '  · /memory — memory    │', '  · /mission — set a…   │']) === 4, 'four commands')
+    t.check('hint counting excludes commands outside the rail', hintRows(['NEXT                    │ /health — health cert', '                        │  ❯ /workflows /health']) === 0, 'rail rows only')
 
     const calm = gridLines('calm')
     const active = gridLines('active')

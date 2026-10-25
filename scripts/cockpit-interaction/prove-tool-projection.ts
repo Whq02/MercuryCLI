@@ -141,6 +141,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check('Grep is search', toolFamilyFor('Grep') === 'search', toolFamilyFor('Grep'))
     t.check('Edit is edit', toolFamilyFor('Edit') === 'edit', toolFamilyFor('Edit'))
     t.check('Agent is delegation', toolFamilyFor('Crewmate') === 'agent', toolFamilyFor('Crewmate'))
+    t.check('Video shares the media integrations family', toolFamilyFor('Video') === 'external' && toolFamilyFor('Video') === toolFamilyFor('Blender') && toolFamilyFor('Video') === toolFamilyFor('Aseprite'), toolFamilyFor('Video'))
     t.check(
       'and an MCP tool is external BY CONSTRUCTION — it is somebody else\'s integration',
       toolFamilyFor('mcp__chrome-devtools__click') === 'external',
