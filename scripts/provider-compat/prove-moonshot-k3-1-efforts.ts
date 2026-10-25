@@ -6,7 +6,8 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'moonshot-k3-1-efforts-'))
 const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
-for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
+process.env.MERCURY_CONFIG_DIR = home
+process.env.MERCURY_HOME = home
 for (const key of [
   'MERCURY_MODEL',
   'MERCURY_EFFORT_LEVEL',

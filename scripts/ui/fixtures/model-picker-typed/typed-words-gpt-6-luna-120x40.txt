@@ -2,7 +2,7 @@
 WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-NEXT                    │ │ Mercury · model · 0 of 22 match                                                          │ │
+NEXT                    │ │ Mercury · model · 0 of 24 match                                                          │ │
   · /workflows…         │ │ / gpt 6 luna                                                                             │ │
   · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │                                                                                          │ │

@@ -115,3 +115,6 @@ prove-task-transcript-settle.tsx
 prove-memory-toggle-receipt.tsx
 prove-workflow-liveness-refresh.tsx
 prove-sessions-command-routing.ts
+prove-diff-hunk-coordinates.ts
+prove-hardening-consent-chords.ts
+prove-hardening-input-ownership.ts

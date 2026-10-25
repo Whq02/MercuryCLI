@@ -2,7 +2,7 @@
   ▄▄▄▄▄▄▄▄▄   project
 
  ╭────────────────────────────────────────────────────────────────────────────╮
- │ Mercury · model · 5 of 22 match                                            │
+ │ Mercury · model · 5 of 24 match                                            │
  │ / opus                                                                     │
  │ ▾ ANTHROPIC · API key · …-key · 5 of 12                                    │
  │   ❯ Opus 5.5         claude-opus-5-5     current      1M ctx               │

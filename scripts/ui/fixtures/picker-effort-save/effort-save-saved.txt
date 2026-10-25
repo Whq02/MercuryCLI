@@ -30,7 +30,7 @@
                              │ │   Hugging Face — sign in                                                                       │ │
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
                              │ │   Z.AI — attach a key                                                                          │ │
-                             │ │   ↓ 68 more                                                                                    │ │
+                             │ │   ↓ 70 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —  · tier API billing                                                                  │ │

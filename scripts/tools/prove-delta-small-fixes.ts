@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import '../builtin-tools/webfetchFixtureDns.ts'
+
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'delta-small-fixes-'))
+delete process.env.MERCURY_HOME
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
