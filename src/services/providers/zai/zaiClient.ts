@@ -1,6 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
+import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import {
@@ -179,31 +180,6 @@ interface ZaiStreamOptions {
   baseUrl?: string
 }
 
-interface ToolCallAccumulator {
-  index: number
-  id?: string
-  name?: string
-  argumentsRaw: string
-}
-
-function toolCallSlot(
-  acc: Map<number, ToolCallAccumulator>,
-  index: number | undefined,
-  id: string | undefined,
-  name: string | undefined,
-): number {
-  if (index !== undefined) return index
-  const slots = [...acc.values()]
-  const fresh = (): number => (slots.length === 0 ? 0 : Math.max(...slots.map(s => s.index)) + 1)
-  if (id !== undefined) {
-    const owner = slots.find(s => s.id === id)
-    return owner ? owner.index : fresh()
-  }
-  const last = slots.at(-1)
-  if (!last) return 0
-  if (name !== undefined && last.name !== undefined && last.name !== name) return fresh()
-  return last.index
-}
 
 function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): ZaiCompletedToolCall[] {
   const out: ZaiCompletedToolCall[] = []
@@ -241,6 +217,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
   let idleWatchdog: StreamIdleWatchdog | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
+  const activeSlotByRawIndex = new Map<number, number>()
   let usageSeen: ZaiUsage | undefined
   let finished = false
 
@@ -403,7 +380,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
           }
           continue
         }
-        for (const event of decodeChunk(parsed, toolAcc)) {
+        for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex)) {
           if (event.type === 'usage') usageSeen = event.usage
           if (event.type === 'finish') {
             finished = true
@@ -465,7 +442,7 @@ const FINISH_REASONS: readonly ZaiFinishReason[] = [
   'network_error',
 ]
 
-function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>): ZaiStreamEvent[] {
+function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>): ZaiStreamEvent[] {
   const out: ZaiStreamEvent[] = []
   const o = asRecord(parsed)
   const choices = Array.isArray(o?.choices) ? o!.choices : []
@@ -485,9 +462,9 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
     const tc = asRecord(raw)
     const fn = asRecord(tc?.function)
     const fragment = typeof fn?.arguments === 'string' ? fn.arguments : ''
-    const id = typeof tc?.id === 'string' && tc.id !== '' ? tc.id : undefined
+    const id = toolCallId(tc?.id)
     const name = typeof fn?.name === 'string' && fn.name !== '' ? fn.name : undefined
-    const index = toolCallSlot(toolAcc, typeof tc?.index === 'number' ? tc.index : undefined, id, name)
+    const index = toolCallSlot(toolAcc, activeSlotByRawIndex, typeof tc?.index === 'number' && Number.isFinite(tc.index) ? tc.index : undefined, id, name)
     const existing = toolAcc.get(index) ?? { index, argumentsRaw: '' }
     if (id && !existing.id) existing.id = id
     if (name && !existing.name) existing.name = name
@@ -496,8 +473,8 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
     out.push({
       type: 'tool-call-fragment',
       index,
-      ...(id !== undefined ? { id } : {}),
-      ...(name !== undefined ? { name } : {}),
+      ...(existing.id !== undefined ? { id: existing.id } : {}),
+      ...(existing.name !== undefined ? { name: existing.name } : {}),
       argumentsFragment: fragment,
     })
   }

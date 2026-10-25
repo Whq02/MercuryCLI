@@ -5,6 +5,7 @@ import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
+import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
@@ -349,31 +350,6 @@ export function startLocalSilenceWatch(args: {
   }
 }
 
-interface ToolCallAccumulator {
-  index: number
-  id?: string
-  name?: string
-  argumentsRaw: string
-}
-
-function toolCallSlot(
-  acc: Map<number, ToolCallAccumulator>,
-  index: number | undefined,
-  id: string | undefined,
-  name: string | undefined,
-): number {
-  if (index !== undefined) return index
-  const slots = [...acc.values()]
-  const fresh = (): number => (slots.length === 0 ? 0 : Math.max(...slots.map(s => s.index)) + 1)
-  if (id !== undefined) {
-    const owner = slots.find(s => s.id === id)
-    return owner ? owner.index : fresh()
-  }
-  const last = slots.at(-1)
-  if (!last) return 0
-  if (name !== undefined && last.name !== undefined && last.name !== name) return fresh()
-  return last.index
-}
 
 function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): CompatCompletedToolCall[] {
   const out: CompatCompletedToolCall[] = []
@@ -422,6 +398,7 @@ export async function* streamCompatChat(
   let ingestMs: number | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
+  const activeSlotByRawIndex = new Map<number, number>()
   let finished = false
   let sawDone = false
   let servedSeen: string | undefined
@@ -804,7 +781,7 @@ export async function* streamCompatChat(
           continue
         }
         try { options.onResponseChunk?.(parsed) } catch {}
-        for (const event of decodeChunk(parsed, toolAcc)) {
+        for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             if (tokenWait) { tokenWait = false; publish(null) }
             chunkNotedEvent = true
@@ -929,7 +906,7 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
   }
 }
 
-function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>): CompatStreamEvent[] {
+function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>): CompatStreamEvent[] {
   const out: CompatStreamEvent[] = []
   const o = asRecord(parsed)
   const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
@@ -1002,9 +979,9 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
     const tc = asRecord(raw)
     const fn = asRecord(tc?.function)
     const fragment = typeof fn?.arguments === 'string' ? fn.arguments : asRecord(fn?.arguments) !== undefined ? JSON.stringify(fn!.arguments) : ''
-    const id = typeof tc?.id === 'string' && tc.id !== '' ? tc.id : undefined
+    const id = toolCallId(tc?.id)
     const name = typeof fn?.name === 'string' && fn.name !== '' ? fn.name : undefined
-    const index = toolCallSlot(toolAcc, typeof tc?.index === 'number' ? tc.index : undefined, id, name)
+    const index = toolCallSlot(toolAcc, activeSlotByRawIndex, typeof tc?.index === 'number' && Number.isFinite(tc.index) ? tc.index : undefined, id, name)
     const existing = toolAcc.get(index) ?? { index, argumentsRaw: '' }
     if (id && !existing.id) existing.id = id
     if (name && !existing.name) existing.name = name

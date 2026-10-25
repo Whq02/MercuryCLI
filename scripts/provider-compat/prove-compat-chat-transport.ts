@@ -433,6 +433,46 @@ section('3 · stream decode')
   )
 }
 
+section('3b · reused tool indices and numeric call ids')
+{
+  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
+  const cases = [
+    { label: 'same-name calls reuse zero after closed nested JSON', deltas: [
+      { index: 0, id: 0, function: { name: 'alpha', arguments: '{"x":{"s":"}\\\"["}}' } },
+      { index: 0, id: 1, function: { name: 'alpha', arguments: '{"x":' } },
+      { index: 0, id: 999, function: { arguments: '2}' } },
+      { index: 1, id: 'third', function: { name: 'beta', arguments: '{}' } },
+    ], ids: ['0', '1', 'third'], args: [{ x: { s: '}"[' } }, { x: 2 }, {}] },
+    { label: 'different-name calls reuse zero before closure', deltas: [
+      { index: 0, id: 'a', function: { name: 'alpha', arguments: '{"x":' } },
+      { index: 0, id: 'b', function: { name: 'beta', arguments: '{"y":true}' } },
+      { index: 0, id: 'a', function: { arguments: '1}' } },
+    ], ids: ['a', 'b'], args: [{ x: 1 }, { y: true }] },
+    { label: 'indexless changing fragment ids stay with open arguments', deltas: [
+      { id: 0, function: { name: 'alpha', arguments: '{"x":' } },
+      { id: 1, function: { arguments: '1}' } },
+      { id: 2, function: { name: 'beta', arguments: '{}' } },
+    ], ids: ['0', '2'], args: [{ x: 1 }, {}] },
+    { label: 'same name and changing id cannot split unclosed quoted JSON', deltas: [
+      { index: 0, id: 'a', function: { name: 'alpha', arguments: '{"x":"}' } },
+      { index: 0, id: 'b', function: { name: 'alpha', arguments: 'tail"}' } },
+    ], ids: ['a'], args: [{ x: '}tail' }] },
+  ]
+  for (const fixture of cases) {
+    const chunks = [...fixture.deltas.map(call => sseChunk({ choices: [{ delta: { tool_calls: [call] } }] })), sseChunk({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }), 'data: [DONE]\n\n']
+    for (const lane of ['compat', 'zai'] as const) {
+      const options = { apiKey: 'fixture', request: { model: 'fixture', messages: [] }, fetchImpl: capturingFetch(byteSplit(chunks.join('')), []) }
+      const events = []
+      for await (const event of lane === 'compat' ? streamCompatChat({ ...options, url: 'http://127.0.0.1/fixture' }) : streamZaiChat(options)) events.push(event)
+      const finish = events.find(e => e.type === 'finish')
+      const calls = finish?.type === 'finish' ? finish.toolCalls : []
+      check(`${lane}: ${fixture.label}`, JSON.stringify(calls.map(c => c.id)) === JSON.stringify(fixture.ids) && JSON.stringify(calls.map(c => c.arguments)) === JSON.stringify(fixture.args) && calls.every(c => !c.malformed), JSON.stringify(calls))
+      const fragments = events.filter(e => e.type === 'tool-call-fragment')
+      check(`${lane}: fragment identity agrees with its settled slot`, fragments.every(e => e.type === 'tool-call-fragment' && calls.some(c => c.index === e.index && c.id === e.id && c.name === e.name)))
+    }
+  }
+}
+
 section('4 · usage decode across the documented spellings')
 {
   const deepseek = decodeCompatUsage({

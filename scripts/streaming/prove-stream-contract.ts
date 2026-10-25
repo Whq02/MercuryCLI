@@ -210,6 +210,34 @@ console.log('── FLUX S0 stream-contract characterization ──')
   check('post-dispose update never resurrects the sink', sunk.length === 1 && b.current === 'partial fin late')
 }
 
+{
+  const { StreamChantWatch, trimChantedReplyMessages, detectChant } = await import('../../src/services/tools/chantGuard.ts')
+  const feed = (watch: InstanceType<typeof StreamChantWatch>, text: string, thinking = false) => watch.feed({ type: 'content_block_delta', index: 0, delta: thinking ? { type: 'thinking_delta', thinking: text } : { type: 'text_delta', text } })
+  const loop = 'An exact recurring stretch of output that makes no forward progress. '
+  const watch = new StreamChantWatch()
+  check('the stream reader does not check a short reply', feed(watch, loop.repeat(10)) === null)
+  const detection = feed(watch, loop.repeat(120))
+  check('the periodic run trips across delta boundaries', detection !== null && detection.at === 0)
+  const lines = new StreamChantWatch()
+  check('whitespace-normalized lines trip inside a fence', feed(lines, '```\n' + Array.from({ length: 400 }, (_, n) => n % 2 ? '  repeated   log entry again\n' : 'repeated log entry again\n').join('')) !== null)
+  const code = '```ts\n' + Array.from({ length: 600 }, (_, n) => `const value${n} = ${n} * ${n + 1};\n`).join('') + '```'
+  check('varied long code is not repetition', feed(new StreamChantWatch(), code) === null)
+  check('long whitespace is not a token loop', feed(new StreamChantWatch(), ' '.repeat(20_000)) === null)
+  const late = new StreamChantWatch()
+  check('varied output passes the first stride', feed(late, code) === null)
+  check('a loop beginning after varied output trips at the next stride', feed(late, loop.repeat(700), true) !== null)
+  const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const signed = { type: 'thinking' as const, thinking: 'Earlier useful reasoning.', signature: 'unchanged-signature' }
+  const prefix = 'A useful prefix.\n```\nnot a repeat\n```\n'
+  const text = prefix + loop.repeat(30)
+  const post = detectChant(text)
+  const original = createAssistantMessage({ content: [signed, { type: 'text', text, citations: null }] })
+  const cleaned = post ? trimChantedReplyMessages([original], post) : []
+  check('post-stream offsets point into the original text, not fence-stripped text', post?.at === prefix.length)
+  check('clean replay keeps the useful prefix and signed thinking byte-for-byte', cleaned[0]?.message.content[0] === signed && JSON.stringify(cleaned).includes('A useful prefix.') && !JSON.stringify(cleaned).includes(loop.repeat(2)))
+  check('trimming does not mutate the provider reply', original.message.content[1]?.type === 'text' && original.message.content[1].text === text)
+}
+
 if (failures > 0) {
   console.error(`❌ FLUX stream-contract: ${failures} failure(s)`)
   process.exit(1)

@@ -99,5 +99,29 @@ check('the step does not reset the in-flight turn', tail()?.turnChars === expect
 feed([{ type: 'outcome', session_id: sid, turn: 1, schema: 1, turn_id: 't-lc', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: [], denials: [] }])
 check('the outcome clears the full count', (tail()?.turnChars ?? 0) === 0)
 
+{
+  const { StreamChantWatch } = await import('../../src/services/tools/chantGuard.ts')
+  const { requestWaitLine } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const watch = new StreamChantWatch()
+  const repeated = 'A recurring output line with no useful progress in the current task.\n'
+  ev('msg_loop', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })
+  let cut = false
+  for (let n = 0; n < 400; n++) {
+    const event = { type: 'content_block_delta' as const, index: 0, delta: { type: 'text_delta' as const, text: repeated } }
+    if (watch.feed(event)) { cut = true; break }
+    ev('msg_loop', event)
+  }
+  await cadence()
+  check('the streamed loop reaches the seat counter before the reader cuts it', cut && (tail()?.turnChars ?? 0) >= 7900)
+  feed([{ type: 'retracted', message_id: 'msg_loop' }])
+  check('the cut retracts the poisoned live tail without ending the seat', tail()?.text === null && tail()?.withdrawn === 'msg_loop', JSON.stringify(tail()))
+  const row = requestWaitLine({ kind: 'retry', attempt: 1, of: 1, reason: 'the reply repeated itself', delayMs: 0, sinceMs: Date.now() })
+  check('the retry uses the existing row vocabulary', row === 'retrying — attempt 1 of 1 after the reply repeated itself', row)
+  ev('msg_retry', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })
+  ev('msg_retry', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'A fresh answer.' } })
+  await cadence()
+  check('the retry owns the tail, with none of the repeated bytes', tail()?.text === 'A fresh answer.' && tail()?.withdrawn === undefined, JSON.stringify(tail()))
+}
+
 console.log(failures === 0 ? '\n✅ seat live counter GREEN' : `\n❌ seat live counter RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

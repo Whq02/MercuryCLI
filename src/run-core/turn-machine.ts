@@ -131,6 +131,9 @@ import {
   chantStopText,
   decideChantRecovery,
   detectChant,
+  StreamChantWatch,
+  trimChantedReplyMessages,
+  type ChantDetection,
 } from '../services/tools/chantGuard.js'
 import { isLoopGuardStopEnabled, LOOP_GUARD_STOP_SETTING } from '../services/tools/loopGuard.js'
 import {
@@ -173,7 +176,7 @@ import { getContextEpoch } from '../services/run/contextEpochs.js'
 import { ERROR_MESSAGE_USER_ABORT } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
-import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
+import { requestWaitLine, streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/toolEconomy.js'
@@ -304,6 +307,7 @@ type IterationState = {
   callOrdinal: number
   replyTo: ReplyMark[]
   early: EarlyStarts
+  streamChant?: ChantDetection
 }
 
 
@@ -558,6 +562,17 @@ function toolUpdateEvent(message: Message, emit: EventMint): RunEvent {
 }
 
 
+function* trimChantedIteration(iter: IterationState, detection: ChantDetection, emit: EventMint): Generator<RunEvent> {
+  const cleaned = trimChantedReplyMessages(iter.assistantMessages, detection)
+  for (const message of iter.assistantMessages) {
+    if (!cleaned.includes(message)) yield emit({ kind: 'assistant_retracted', message })
+  }
+  for (const message of cleaned) {
+    if (!iter.assistantMessages.includes(message)) yield emit({ kind: 'assistant_settled', callId: `${iter.turnId}.c${iter.callOrdinal}`, message, withheld: false })
+  }
+  iter.assistantMessages.splice(0, iter.assistantMessages.length, ...cleaned)
+}
+
 type StreamOutcome =
   | { kind: 'streamed' }
   | { kind: 'terminal'; terminal: Terminal }
@@ -635,6 +650,12 @@ async function* streamModel(
           yield emit({ kind: 'notice', message: createSystemMessage(receipt.text, 'suggestion') })
         }
       }
+      const streamController = new AbortController()
+      const parentSignal = toolUseContext.abortController.signal
+      const onAbort = (): void => streamController.abort(parentSignal.reason)
+      parentSignal.addEventListener('abort', onAbort, { once: true })
+      if (parentSignal.aborted) onAbort()
+      let chantWatch = new StreamChantWatch()
       try {
         let streamingFallbackOccured = false
         const requestMessages =
@@ -675,7 +696,7 @@ async function* streamModel(
           systemPrompt: iter.fullSystemPrompt,
           thinkingConfig: toolUseContext.options.thinkingConfig,
           tools: toolUseContext.options.tools,
-          signal: toolUseContext.abortController.signal,
+          signal: streamController.signal,
           options: {
             async getToolPermissionContext() {
               const appState = toolUseContext.getAppState()
@@ -718,6 +739,14 @@ async function* streamModel(
             }
 
             iter.needsFollowUp = resetForRetry(iter).needsFollowUp
+            chantWatch = new StreamChantWatch()
+          }
+          if (message.type === 'stream_event' && iter.streamChant === undefined) {
+            const detection = chantWatch.feed(message.event)
+            if (detection !== null) {
+              iter.streamChant = detection
+              streamController.abort('stream-chant')
+            }
           }
           const yieldMessage: typeof message = backfillCloneForYield(
             message,
@@ -748,6 +777,7 @@ async function* streamModel(
               callId,
               message: yieldMessage,
               withheld:
+                iter.streamChant !== undefined ||
                 isWithheldMaxOutputTokens(message) ||
                 (overflowSignalOf(message) !== null && overflowLadderArmed(run.querySource)),
             })
@@ -816,7 +846,7 @@ async function* streamModel(
               iter.needsFollowUp = true
             }
           } else {
-            yield emit({ kind: 'stream_delta', callId, raw: yieldMessage })
+            if (iter.streamChant === undefined || message.type !== 'stream_event') yield emit({ kind: 'stream_delta', callId, raw: yieldMessage })
           }
         }
         for (const settled of iter.assistantMessages) {
@@ -872,6 +902,7 @@ async function* streamModel(
         }
         throw innerError
       } finally {
+        parentSignal.removeEventListener('abort', onAbort)
         releaseModelPermitByCall(permitKey)
       }
     }
@@ -1392,6 +1423,7 @@ async function* runEventMachine(
       return streamOutcome.terminal
     }
     if (deadThinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...deadThinkingRecords]
+    if (iter.streamChant !== undefined && !toolUseContext.abortController.signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
     const { assistantMessages, toolResults, toolUseBlocks } = iter
     const refusedToolCalls = collectRefusedToolCalls(assistantMessages)
 
@@ -1571,7 +1603,7 @@ async function* runEventMachine(
         })
       }
 
-      const chant = lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null
+      const chant = iter.streamChant ?? (lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null)
 
       const reasoningOnly = chant === null ? reasoningOnlyTurnOf(assistantMessages, refusedToolCalls.length) : null
       if (reasoningOnly !== null) {
@@ -1848,12 +1880,15 @@ async function* runEventMachine(
       if (chant !== null) {
         const chantRecoveryCount = state.chantRecoveryCount ?? 0
         const decision = decideChantRecovery({ recoveryCount: chantRecoveryCount })
+        if (iter.streamChant === undefined) yield* trimChantedIteration(iter, chant, emit)
         const replyMessages = assistantMessages.filter(m => m.isApiErrorMessage !== true)
         if (decision.kind === 'continue') {
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              chantNoticeLine(chant, `asked the model to continue past it (continuation ${decision.attempt} of ${CHANT_RECOVERY_LIMIT})`),
+              iter.streamChant !== undefined
+                ? requestWaitLine({ kind: 'retry', attempt: decision.attempt, of: CHANT_RECOVERY_LIMIT, reason: 'the reply repeated itself', delayMs: 0, sinceMs: Date.now() })
+                : chantNoticeLine(chant, `asked the model to continue past it (continuation ${decision.attempt} of ${CHANT_RECOVERY_LIMIT})`),
               'warning',
             ),
           })

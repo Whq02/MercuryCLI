@@ -31,13 +31,15 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 type ScriptedCall = { id: string; name: string; args: string }
-type Turn = { calls: ScriptedCall[] } | { text: string }
+type Turn = { calls: ScriptedCall[]; reuseIndex?: boolean; numericIds?: boolean } | { text: string; repeatChannel?: 'text' | 'thinking' }
 type Body = Record<string, unknown>
 type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
 
 let script: { turns: Turn[]; repeat?: boolean } = { turns: [{ text: 'idle' }] }
 let requestOrdinal = 0
 const captured: Array<{ dialect: Dialect; path: string; body: Body }> = []
+let loopClosed = 0
+let loopSent = 0
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const evt = (name: string, obj: unknown): string => `event: ${name}\n${sse(obj)}`
@@ -85,7 +87,7 @@ function chatSse(turn: Turn): string {
   const out: string[] = []
   if ('calls' in turn) {
     turn.calls.forEach((call, index) => {
-      out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { ...(index === 0 ? { role: 'assistant' } : {}), tool_calls: [{ index, id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }] }, finish_reason: null }] }))
+      out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { ...(index === 0 ? { role: 'assistant' } : {}), tool_calls: [{ index: turn.reuseIndex ? 0 : index, id: turn.numericIds ? Number(call.id) : call.id, type: 'function', function: { name: call.name, arguments: call.args } }] }, finish_reason: null }] }))
     })
     out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 8, completion_tokens: 3, total_tokens: 11 } }))
   } else {
@@ -155,6 +157,41 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const address = server.address()
 const port = typeof address === 'object' && address ? address.port : 0
 const base = `http://127.0.0.1:${port}`
+const runaway = Bun.serve({
+  port: 0,
+  hostname: '127.0.0.1',
+  async fetch(req) {
+    const url = new URL(req.url)
+    const turn = script.repeat ? script.turns[0] : script.turns[requestOrdinal]
+    if (req.method !== 'POST' || !url.pathname.endsWith('/chat/completions') || turn === undefined || !('text' in turn) || turn.repeatChannel === undefined) {
+      return fetch(`${base}${url.pathname}${url.search}`, { method: req.method, headers: req.headers, ...(req.method === 'GET' || req.method === 'HEAD' ? {} : { body: await req.arrayBuffer() }) })
+    }
+    captured.push({ dialect: 'chat', path: url.pathname, body: (await req.json()) as Body })
+    requestOrdinal++
+    const encoder = new TextEncoder()
+    let timer: ReturnType<typeof setInterval> | undefined
+    return new Response(new ReadableStream<Uint8Array>({
+      start(sink) {
+        let chunks = 0
+        timer = setInterval(() => {
+          chunks++
+          loopSent += turn.text.length
+          sink.enqueue(encoder.encode(sse({ choices: [{ delta: turn.repeatChannel === 'thinking' ? { reasoning_content: turn.text } : { content: turn.text } }] })))
+          if (chunks === 400) {
+            clearInterval(timer)
+            sink.enqueue(encoder.encode(sse({ choices: [{ delta: {}, finish_reason: 'stop' }] }) + 'data: [DONE]\n\n'))
+            sink.close()
+          }
+        }, 2)
+      },
+      cancel() {
+        clearInterval(timer)
+        loopClosed++
+      },
+    }), { headers: { 'content-type': 'text/event-stream' } })
+  },
+})
+const runawayBase = `http://127.0.0.1:${runaway.port}`
 
 Object.assign(process.env, {
   ANTHROPIC_BASE_URL: base,
@@ -546,9 +583,41 @@ for (const { lane, model, dialect } of LANES) {
   }
 }
 
+section('reused zero indices and numeric identities through execution and replay')
+for (const { lane, model, dialect } of LANES.filter(lane => lane.dialect === 'chat')) {
+  const r = await drive(model, { turns: [{ calls: [
+    { id: '0', name: 'EchoTool', args: '{"text":"first"}' },
+    { id: '1', name: 'EchoTool', args: '{"text":"second"}' },
+    { id: '2', name: 'EchoTool', args: '{"text":"third"}' },
+  ], reuseIndex: true, numericIds: true }, { text: 'all three settled' }] })
+  const round = r.wire[1] ? readRound(dialect, r.wire[1].body) : undefined
+  check(`${lane}: three calls run once and replay three correctly paired results`, r.wire.length === 2 && r.terminal.reason === 'completed' && JSON.stringify(round?.toolUseIds) === '["0","1","2"]' && JSON.stringify(round?.answers) === JSON.stringify([{ id: '0', text: 'echo:first' }, { id: '1', text: 'echo:second' }, { id: '2', text: 'echo:third' }]), JSON.stringify(round))
+}
+
+section('runaway streams close their socket and retry without poisoned context')
+process.env.MERCURY_COMPAT_BASE_URL = `${runawayBase}/v1`
+process.env.MERCURY_ZAI_API_BASE = `${runawayBase}/zai/v4`
+for (const model of ['compat/fixture-model', 'glm-5.2']) {
+  for (const repeatChannel of ['text', 'thinking'] as const) {
+    const repeated = 'The same useless line repeats instead of moving to the next step in the task.\n'
+    const closedBefore = loopClosed
+    const sentBefore = loopSent
+    const r = await drive(model, { turns: [{ text: repeated, repeatChannel }, { text: 'A fresh useful answer.' }] })
+    const second = r.wire[1]?.body
+    check(`${model}/${repeatChannel}: the socket closes before the fixture finishes`, loopClosed === closedBefore + 1 && loopSent - sentBefore < repeated.length * 400, String(loopSent - sentBefore))
+    check(`${model}/${repeatChannel}: clean retry reaches completion`, r.wire.length === 2 && r.terminal.reason === 'completed' && JSON.stringify(second).includes('[repeated text omitted]') && !JSON.stringify(second).includes(repeated.repeat(2)), JSON.stringify(r.terminal))
+    const knobs = (body: Body | undefined) => JSON.stringify(body && { model: body.model, tools: body.tools, max_tokens: body.max_tokens, max_completion_tokens: body.max_completion_tokens, thinking: body.thinking, reasoning_effort: body.reasoning_effort })
+    check(`${model}/${repeatChannel}: the request keeps its model, tools, thinking, effort and ceiling`, knobs(r.wire[0]?.body) === knobs(second))
+    check(`${model}/${repeatChannel}: one existing retry row names the repetition`, systemNotices(r.yields).filter(text => text === 'retrying — attempt 1 of 1 after the reply repeated itself').length === 1, JSON.stringify(systemNotices(r.yields)))
+  }
+}
+process.env.MERCURY_COMPAT_BASE_URL = `${base}/v1`
+process.env.MERCURY_ZAI_API_BASE = `${base}/zai/v4`
+
 section('cross-lane facts')
 check('every model call left through the loopback fixture', captured.every(c => c.path.startsWith('/')), String(captured.length))
 
 server.close()
+runaway.stop(true)
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -71,7 +71,7 @@ const MODEL = 'claude-opus-4-8'
 function makeCtx(agentId?: string): Record<string, unknown> {
   let appState: Record<string, unknown> = {
     ...(getDefaultAppState() as unknown as Record<string, unknown>),
-    effortValue: 'high',
+    effortValue: 'max',
   }
   return {
     abortController: new AbortController(),
@@ -126,15 +126,30 @@ function cappedTurn(text: string): unknown[] {
   return [m, cap]
 }
 
-type Run = { calls: unknown[][]; yields: AnyMsg[]; terminal: Record<string, unknown> }
+type Run = { calls: unknown[][]; yields: AnyMsg[]; terminal: Record<string, unknown>; streamed: number[]; knobs: string[] }
 
-async function runReplies(replies: string[], agentId?: string): Promise<Run> {
+async function runReplies(replies: string[], agentId?: string, channel?: 'text' | 'thinking'): Promise<Run> {
   const calls: unknown[][] = []
-  async function* callModel(req: { messages: unknown[] }): AsyncGenerator<never, void> {
+  const streamed: number[] = []
+  const knobs: string[] = []
+  async function* callModel(req: { messages: unknown[]; signal: AbortSignal; thinkingConfig: unknown; tools: unknown; options: { effortValue?: string; maxOutputTokensOverride?: number } }): AsyncGenerator<never, void> {
     const idx = calls.length
     calls.push([...req.messages])
+    knobs.push(JSON.stringify([req.thinkingConfig, req.tools, req.options.effortValue, req.options.maxOutputTokensOverride]))
     const reply = replies[idx] ?? 'the script is exhausted'
-    const turn = reply.endsWith(CAPPED) ? cappedTurn(reply.slice(0, -CAPPED.length)) : reply.endsWith(REFUSED) ? refusedTurn(reply.slice(0, -REFUSED.length)) : textTurn(reply)
+    if (idx > 0 && channel !== undefined) channel = 'text'
+    let text = reply
+    if (channel !== undefined) {
+      text = ''
+      yield { type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: channel === 'text' ? { type: 'text', text: '' } : { type: 'thinking', thinking: '', signature: '' } } } as never
+      for (let at = 0; at < reply.length && !req.signal.aborted; at += 100) {
+        const part = reply.slice(at, at + 100)
+        text += part
+        yield { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: channel === 'text' ? { type: 'text_delta', text: part } : { type: 'thinking_delta', thinking: part } } } as never
+      }
+    }
+    streamed.push(text.length)
+    const turn = channel === 'thinking' ? [createAssistantMessage({ content: [{ type: 'thinking', thinking: text, signature: 'fixture-signature' }] })] : text.endsWith(CAPPED) ? cappedTurn(text.slice(0, -CAPPED.length)) : text.endsWith(REFUSED) ? refusedTurn(text.slice(0, -REFUSED.length)) : textTurn(text)
     for (const m of turn) yield m as never
   }
   const gen = query({
@@ -161,7 +176,7 @@ async function runReplies(replies: string[], agentId?: string): Promise<Run> {
     yields.push(r.value)
     r = await gen.next()
   }
-  return { calls, yields, terminal: r.value }
+  return { calls, yields, terminal: r.value, streamed, knobs }
 }
 
 const requestText = (run: Run, i: number): string => JSON.stringify(run.calls[i] ?? [])
@@ -254,6 +269,24 @@ section('P6 — a chanting reply that also carries a wire-refused tool call take
   const rowTexts = rows(chantThenRefused).map(r => String(r.content))
   check('chant, then chant plus a refused call: the correction follows and a third request is made', chantThenRefused.calls.length === 3 && /refused/.test(requestText(chantThenRefused, 2)), `calls=${chantThenRefused.calls.length}`)
   check('no operator row claims that the turn ends on the model\'s own words while the turn carries on', rowTexts.every(t => !/turn ends on the model/.test(t)), JSON.stringify(rowTexts))
+}
+
+section('P7 — streamed repetition is cut and retried without its poisoned partial')
+{
+  setStopKey(null)
+  const poison = 'The model repeats this exact sentence instead of taking the next useful step. '
+  for (const channel of ['text', 'thinking'] as const) {
+    const repeated = `A useful prefix.\n${channel === 'text' ? '```\n' : ''}${poison.repeat(1000)}`
+    const run = await runReplies([repeated, HONEST], undefined, channel)
+    check(`${channel}: the stream is cut at the first check, before all fixture bytes arrive`, (run.streamed[0] ?? repeated.length) <= 8100, String(run.streamed))
+    check(`${channel}: the next request carries no repeated span`, run.calls.length === 2 && !requestText(run, 1).includes(poison.repeat(2)) && requestText(run, 1).includes('[repeated text omitted]'), requestText(run, 1).slice(-500))
+    check(`${channel}: retry uses identical thinking, tools, effort and output settings`, run.knobs.length === 2 && run.knobs[0] === run.knobs[1], JSON.stringify(run.knobs))
+    check(`${channel}: the cut is not an operator interruption`, !run.yields.some(m => m.type === 'user' && JSON.stringify(m).includes('Request interrupted by user')))
+  }
+  const trimmed = await runReplies([CHANT, HONEST])
+  check('post-stream recovery also drops the loop before replay', !requestText(trimmed, 1).includes(SENTENCE.repeat(2)) && requestText(trimmed, 1).includes('Here is what I found so far.'))
+  const spent = await runReplies([poison.repeat(1000), poison.repeat(1000)], undefined, 'text')
+  check('a second streamed loop names its own stretch on the existing row and the reply stands', spent.calls.length === 2 && rows(spent).length === 1 && String(rows(spent)[0]?.content).startsWith(`Loop guard: the reply repeated the same ${poison.length}-character stretch`) && /the reply stands/.test(String(rows(spent)[0]?.content)), JSON.stringify(rows(spent).map(r => r.content)))
 }
 
 console.log('\n' + '='.repeat(76))
