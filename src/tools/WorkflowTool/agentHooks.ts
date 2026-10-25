@@ -46,6 +46,7 @@ import {
   createAgentWorktree,
   settleAgentWorktree,
 } from '../../utils/worktree.js'
+import { buildWorktreePrepareNotice } from '../AgentTool/worktreePrepareNotice.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { observedFamilyWindow } from '../../services/capFailover.js'
@@ -812,7 +813,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
     }
     const worktreePath = worktree?.worktreePath
     const effectivePrompt = worktree
-      ? `${prompt}\n\n---\nYou work in an isolated git worktree at ${worktree.worktreePath}, a separate working copy of the repository: nothing you change here reaches the main working directory or another agent. An untouched worktree is removed when you finish; one with changes is kept for review.`
+      ? `${prompt}\n\n---\nYou work in an isolated git worktree at ${worktree.worktreePath}, a separate working copy of the repository: nothing you change here reaches the main working directory or another agent. An untouched worktree is removed when you finish; one with changes is kept for review.${worktree.prepareFailure !== undefined ? ` ${buildWorktreePrepareNotice(worktree.prepareFailure)}` : ''}`
       : prompt
 
     const carryover: CallFrameStatics['carryover'] = { tokens: 0, toolCalls: 0, durationMs: 0, usage: EMPTY_WORKFLOW_USAGE }
@@ -1841,6 +1842,7 @@ interface WorktreeHandle {
   worktreeBranch?: string
   headCommit?: string
   gitRoot?: string
+  prepareFailure?: string
 }
 interface HookContextView {
   abortController?: AbortController

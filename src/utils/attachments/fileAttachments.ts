@@ -110,10 +110,10 @@ export async function tryGetPDFReference(filename: string): Promise<PDFReference
   }
 }
 
-async function changedContent(filename: string, previous: string, output: ReadOutput): Promise<Attachment[]> {
+async function changedContent(filename: string, previous: string, output: ReadOutput, startLine = 1): Promise<Attachment[]> {
   switch (output.type) {
     case 'text': {
-      const snippet = getSnippetForTwoFileDiff(previous, output.file.content)
+      const snippet = getSnippetForTwoFileDiff(previous, output.file.content, startLine)
       return snippet ? [{ type: 'edited_text_file', filename, snippet }] : []
     }
     case 'image':
@@ -128,7 +128,9 @@ async function changedContent(filename: string, previous: string, output: ReadOu
 
 async function changedFile(key: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
   const previous = context.readFileState.get(key)
-  if (!previous || (previous.offset ?? 0) !== 0 || previous.limit !== undefined) return []
+  if (!previous) return []
+  const windowed = (previous.offset ?? 0) !== 0 || previous.limit !== undefined
+  if (windowed && previous.isPartialView) return []
   const path = expandPath(key)
   if (isFileReadDenied(path, state.toolPermissionContext)) return []
   try {
@@ -137,12 +139,15 @@ async function changedFile(key: string, context: ToolUseContext, state: ReturnTy
       context.readFileState.delete(key)
       return []
     }
-    const input = { file_path: path }
+    const input = { file_path: path, ...(windowed && previous.offset ? { offset: previous.offset } : {}), ...(windowed && previous.limit !== undefined ? { limit: previous.limit } : {}) }
     if (!(await FileReadTool.validateInput(input, context)).result) return []
     const read = await FileReadTool.call(input, context)
-    const now = context.readFileState.get(path)
-    if (now !== undefined) context.readFileState.set(path, { ...now, offset: undefined })
-    return await changedContent(path, previous.content, read.data)
+    if (windowed) context.readFileState.delete(path)
+    else {
+      const now = context.readFileState.get(path)
+      if (now !== undefined) context.readFileState.set(path, { ...now, offset: undefined })
+    }
+    return await changedContent(path, previous.content, read.data, Math.max(1, previous.offset ?? 1))
   } catch (failure) {
     if (isENOENT(failure)) context.readFileState.delete(key)
     return []

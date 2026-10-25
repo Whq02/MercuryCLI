@@ -10,7 +10,9 @@ import {
 } from '../../services/projectServices/contracts.js'
 import { readableTerminalLines } from '../../services/projectServices/terminalText.js'
 import {
+  awaitOutput,
   evaluateReadiness,
+  logEnd,
   readLogs,
   reconcileAll,
   reconcileRecord,
@@ -40,6 +42,9 @@ const OPS = ['start', 'list', 'describe', 'wait', 'logs', 'input', 'stop', 'rest
 const WAIT_DEFAULT_MS = 30_000
 const WAIT_MIN_MS = 100
 const WAIT_MAX_MS = 300_000
+const INPUT_WAIT_DEFAULT_MS = 500
+const INPUT_WAIT_MIN_MS = 100
+const INPUT_WAIT_MAX_MS = 30_000
 
 const readinessSchema = () =>
   z.union([
@@ -70,9 +75,9 @@ const inputSchema = lazySchema(() =>
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
     pty: z.boolean().optional().describe('start: run the command inside a pseudo-terminal, so a program that needs a terminal (an interactive interpreter, an interactive CLI, a prompt that asks) sees one; its screen bytes land in the log and op:"input" types to it (default false: a plain pipe)'),
     mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write = the text exactly as given (keystrokes, control bytes such as \u0003); submit = the text with Enter after it (default); eof = end of input (the text is ignored)'),
-    timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}; a value outside the bounds is clamped to them and the result says so)`),
+    timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}); input: how long to wait for the service's reply in ms (default ${INPUT_WAIT_DEFAULT_MS}, min ${INPUT_WAIT_MIN_MS}, max ${INPUT_WAIT_MAX_MS}); a value outside the bounds is clamped to them and the result says so`),
     cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from a previous read (omit for the tail)'),
-    limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs: max lines (default 100)'),
+    limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs, input: max lines (default 100)'),
     filterRegex: z.string().optional().describe('logs: keep only matching lines'),
     text: z.string().optional().describe('input: the line to write to the service stdin'),
   }),
@@ -215,12 +220,26 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       if (!input.name) need('name')
       const mode: ServiceInputMode = input.mode ?? 'submit'
       if (input.text === undefined && mode !== 'eof') need('text')
+      const cursor = logEnd(project, input.name!)
       const sent = sendInput(project, input.name!, input.text ?? '', sessionId, mode)
       if ('error' in sent) return { op: 'input', result: sent.error, name: input.name }
       const where = sent.pty ? 'terminal' : 'stdin'
+      const ack = mode === 'eof' ? `sent end of input to '${input.name}' ${where}` : `${mode === 'write' ? 'wrote' : 'submitted'} ${input.text!.length} chars to '${input.name}' ${where}${mode === 'submit' ? ' with Enter' : ''}`
+      const wait = clampWait('timeoutMs', input.timeoutMs ?? INPUT_WAIT_DEFAULT_MS, INPUT_WAIT_MIN_MS, INPUT_WAIT_MAX_MS, 'ms')
+      const said = wait.clause === null ? '' : `\n${wait.clause}`
+      const answered = await awaitOutput(project, input.name!, cursor, wait.value)
+      const logs = await readLogs(project, input.name!, { cursor, limitLines: input.limitLines })
+      const record = answered.record
+      const exit = record !== null && record.pid === null && record.lastExitCode !== null ? ` (exit ${record.lastExitCode})` : ''
+      const state = record === null ? 'absent' : `${record.state}${exit}`
+      if ('error' in logs) return { op: 'input', result: `${ack}\n${logs.error}\n[${state}]${said}`, name: input.name }
+      const lines = sent.pty ? readableTerminalLines(logs.lines) : logs.lines
       return {
         op: 'input',
-        result: mode === 'eof' ? `sent end of input to '${input.name}' ${where}` : `${mode === 'write' ? 'wrote' : 'submitted'} ${input.text!.length} chars to '${input.name}' ${where}${mode === 'submit' ? ' with Enter' : ''}`,
+        result:
+          `${ack}\n` +
+          (lines.length > 0 ? lines.join('\n') : `(nothing printed within ${wait.value} ms)`) +
+          `\n[cursor: ${logs.nextCursor}${logs.eof ? '' : ' — more available: pass cursor to op:"logs"'} · ${logs.totalBytes} bytes total · ${state}]${said}`,
         name: input.name,
       }
     }
@@ -276,7 +295,7 @@ Operations:
 · wait — block until ready or the deadline; a timeout names exactly the unmet conditions.
 · logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.
 · describe / list — reconciled truth (a dead pid is never reported live).
-· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input.
+· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input. The answer carries what the service printed in reply — it waits up to timeoutMs (default 500 ms) for the output to settle or the process to end — with the cursor for op:"logs" and the service's state.
 · start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.
 · stop / restart — explicit lifecycle; restart reuses the retained spec.
 

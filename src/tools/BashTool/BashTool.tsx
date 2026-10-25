@@ -763,13 +763,11 @@ function backgroundNoticeFor(output: Out): string {
     return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}; it was not stopped. ${soFar} It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout (${deadline} from now), after which it will be killed.${stopNow}${until} Next time, pass a larger \`timeout\` if it needs longer, or \`run_in_background\` for a command meant to keep running.`
   }
   const pid = output.backgroundPid !== undefined ? ` Process id ${output.backgroundPid}.` : ''
-  const wait = output.backgroundPid !== undefined
-    ? ` If you need its result, wait for it before you finish: one Bash call with a \`timeout\` longer than the wait, such as \`while kill -0 ${output.backgroundPid} 2>/dev/null; do sleep 1; done\`.`
-    : ' If you need its result, wait for it before you finish: one Bash call with a `timeout` longer than the wait.'
+  const wait = ' If you need its result, wait for it before you finish: Sleep returns as soon as this command ends (its seconds are the ceiling), and the notice with its exit code follows.'
   const serviceRoad = servicesEnabled() ? ' A process that must stay up after this run (a server something checks once the run has ended) is a Service with lifecycle project, not a background shell.' : ''
   const lifetime =
     output.backgroundLifetime === 'turn'
-      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${serviceRoad}${wait} Sleep runs its full time for a shell command.`
+      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${serviceRoad}${wait}`
       : output.backgroundLifetime === 'crewmate'
         ? ` It is stopped when you finish, so its notice reaches you only while you are still working.${wait}`
         : ' When it ends, a notice with its exit code reaches you after your next tool result, or in a new turn once yours is over; do not poll it.'

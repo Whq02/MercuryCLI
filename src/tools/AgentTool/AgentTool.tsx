@@ -92,6 +92,7 @@ import {
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
 import { buildFrozenWorktreeNotice } from './frozenWorktreeNotice.js'
+import { buildWorktreePrepareNotice } from './worktreePrepareNotice.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { getPrompt } from './prompt.js'
@@ -579,6 +580,12 @@ export const AgentTool = buildTool({
           createUserMessage({
             content: buildFrozenWorktreeNotice(worktreeInfo.worktreePath, worktreeInfo.headCommit),
           }),
+        ]
+      }
+      if (worktreeInfo.prepareFailure !== undefined) {
+        promptMessages = [
+          ...promptMessages,
+          createUserMessage({ content: buildWorktreePrepareNotice(worktreeInfo.prepareFailure) }),
         ]
       }
     } else if (input.worktree_at !== undefined) {

@@ -3,6 +3,7 @@ import { semanticNumber } from '../../utils/semanticNumber.js'
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
+import { isRunInputClosed } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -30,12 +31,12 @@ export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
 ])
 
 export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', 'the follow-up scopes the redirect to CREWMATE work; shell waits are a different contract'],
+  ['local_bash', "an open session's main thread leaves shells out: a background shell's notice arrives between turns on its own; a waiter's OWN shells are the exception, SUBAGENT_TRACKED_TASK_TYPES"],
   ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
 ])
 
 export const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', "a crewmate's wait ends when the background shells it launched settle; a shell task carries the spawning crewmate's id, so only the crewmate's own shells count"],
+  ['local_bash', "a waiter's own background shells: a crewmate's wait ends when the shells it launched settle (a shell task carries the spawning crewmate's id), and a one-prompt run's wait — its input closed, so the run ends with the turn and no notice could reach it between turns — ends when the run's own shells settle"],
 ])
 
 export const TERMINAL_TASK_STATUSES: ReadonlySet<string> = new Set([
@@ -55,7 +56,7 @@ export function countTrackedRunningAgents(
       if (typeof t.status === 'string' && TERMINAL_TASK_STATUSES.has(t.status)) continue
       if (selfTaskId !== undefined && t.id === selfTaskId) continue
       if (typeof t.type === 'string' && TRACKED_AGENT_TASK_TYPES.has(t.type)) running++
-      else if (selfTaskId !== undefined && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
+      else if ((selfTaskId !== undefined || isRunInputClosed()) && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
     }
   } catch {
     return 0
@@ -205,7 +206,7 @@ export const SleepTool = buildTool({
             : `Sleep interrupted after ${sleptSeconds}s`
           : settledEarly
             ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished. ` +
-              'Mercury tracks crewmate tasks for you; their completion arrives on its own, so a wait ' +
+              'Mercury tracks crewmate tasks and your own background commands for you; their completion arrives on its own, so a wait ' +
               'never needs to run its full duration to poll one.'
             : `Slept for ${sleptSeconds}s`,
         slept_seconds: sleptSeconds,

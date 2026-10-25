@@ -89,8 +89,8 @@ tally.section("§1 both helpers answered and each receipt names its own worktree
 tally.check('the clean helper answered without error', seen.clean !== undefined && !seen.clean.isError, cleanReceipt.slice(0, 300) || stderr.slice(-400))
 tally.check('the dirty helper answered without error', seen.dirty !== undefined && !seen.dirty.isError, dirtyReceipt.slice(0, 300) || stderr.slice(-400))
 tally.check('two agent lanes are registered after the turn, both still on disk', lanes.length === 2 && lanes.every(lane => existsSync(lane.path)), JSON.stringify(lanes))
-tally.check("the clean receipt names its worktree's path and branch", cleanLane !== undefined && cleanLane.branch !== null && cleanReceipt.includes(`(branch ${cleanLane.branch})`), cleanReceipt.slice(0, 400))
-tally.check("the dirty receipt names its worktree's path and branch and what it holds", dirtyLane !== undefined && dirtyLane.branch !== null && dirtyReceipt.includes(`(branch ${dirtyLane.branch})`) && /notes\.txt/.test(dirtyReceipt) && /never removed by the machine/.test(dirtyReceipt), dirtyReceipt.slice(0, 400))
+tally.check("the clean receipt names its worktree's path and branch", cleanLane !== undefined && cleanLane.branch !== null && new RegExp(`\\(branch ${cleanLane.branch}( @ [0-9a-f]{7,})?\\)`).test(cleanReceipt), cleanReceipt.slice(0, 400))
+tally.check("the dirty receipt names its worktree's path and branch and what it holds", dirtyLane !== undefined && dirtyLane.branch !== null && new RegExp(`\\(branch ${dirtyLane.branch}( @ [0-9a-f]{7,})?\\)`).test(dirtyReceipt) && /notes\.txt/.test(dirtyReceipt) && /never removed by the machine/.test(dirtyReceipt), dirtyReceipt.slice(0, 400))
 tally.check('the dirty lane still holds the file the helper left', dirtyLane !== undefined && existsSync(join(dirtyLane.path, 'notes.txt')))
 
 tally.section("§2 the creation lock ends with the crewmate: a finished lane is not locked, so the lead's own git worktree remove is not refused")

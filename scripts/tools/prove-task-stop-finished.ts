@@ -48,12 +48,18 @@ const fixture = await startScriptedFixture(req => {
     case 5: {
       launches.agent = last?.text ?? ''
       agentId = /\b(a[0-9a-z]{8})\b/.exec(launches.agent)?.[1] ?? null
-      return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${PANEL_GRACE_SECONDS + GRACE_MARGIN_SECONDS}`, description: 'a pause past the panel grace' } }]
+      return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 3', description: 'a pause for the crewmate to finish' } }]
     }
     case 6:
       return [{ type: 'tool_use', name: 'TaskStop', input: { task_id: agentId ?? NEVER_MINTED } }]
+    case 7: {
+      if (last) stops.agentInGrace = last
+      return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${PANEL_GRACE_SECONDS + GRACE_MARGIN_SECONDS}`, description: 'a pause past the panel grace' } }]
+    }
+    case 8:
+      return [{ type: 'tool_use', name: 'TaskStop', input: { task_id: agentId ?? NEVER_MINTED } }]
     default: {
-      if (req.step === 7 && last) stops.agent = last
+      if (req.step === 9 && last) stops.agent = last
       return [{ type: 'text', text: 'done' }]
     }
   }
@@ -79,6 +85,7 @@ show('the background launch', launches.shell === undefined ? undefined : { toolU
 show('TaskStop on the finished shell task', stops.shell)
 show('TaskStop on an id never minted', stops.never)
 show('the agent launch', launches.agent === undefined ? undefined : { toolUseId: '', text: launches.agent, isError: false })
+show('TaskStop on the finished agent, within the panel grace', stops.agentInGrace)
 show('TaskStop on the finished agent, past the panel grace', stops.agent)
 
 function parsed(r: SeenResult | undefined): Record<string, unknown> | null {
@@ -103,9 +110,20 @@ tally.check('the structured answer carries the task id and the finished mark', s
 tally.section('an id that never existed keeps the bare miss')
 tally.check('the stop is an error naming the miss', stops.never !== undefined && stops.never.isError && /No task found with id/.test(stops.never.text), stops.never?.text)
 
-tally.section('a finished agent past the panel grace — unchanged')
+tally.section('a finished crewmate still in the registry (within the panel grace)')
 tally.check('the agent was launched and answered its id', agentId !== null, launches.agent ?? '(no launch)')
-tally.check('the stop is an error naming the transcript end and the resume door', stops.agent !== undefined && stops.agent.isError && /No running task with id/.test(stops.agent.text) && /transcript on disk ends/.test(stops.agent.text) && /ResumeCrewmate/.test(stops.agent.text), stops.agent?.text)
+const inGrace = parsed(stops.agentInGrace)
+const inGraceMessage = String(inGrace?.message ?? stops.agentInGrace?.text ?? '')
+tally.check('the stop is not an error outcome', stops.agentInGrace !== undefined && !stops.agentInGrace.isError, stops.agentInGrace?.text)
+tally.check('the answer says the crewmate had already completed, when, that nothing was stopped, and names the resume door', /had already completed at \d{4}-\d{2}-\d{2}T/.test(inGraceMessage) && /nothing was stopped/.test(inGraceMessage) && /ResumeCrewmate to that id resumes it/.test(inGraceMessage), inGraceMessage)
+tally.check('the structured answer carries the id, the type, the description, the finished mark and the output file', inGrace?.task_id === agentId && inGrace?.task_type === 'local_agent' && inGrace?.command === 'sub work' && inGrace?.already_finished === 'completed' && typeof inGrace?.finished_at === 'string' && typeof inGrace?.output_path === 'string' && (inGrace.output_path as string).includes(`${agentId}.output`), JSON.stringify(inGrace))
+
+tally.section('a finished crewmate past the panel grace — its record evicted, its transcript on disk')
+const evicted = parsed(stops.agent)
+const evictedMessage = String(evicted?.message ?? stops.agent?.text ?? '')
+tally.check('the stop is not an error outcome', stops.agent !== undefined && !stops.agent.isError, stops.agent?.text)
+tally.check("the answer names the transcript's end, the resume door, and that nothing was stopped", /No running task with id/.test(evictedMessage) && /transcript on disk ends completed/.test(evictedMessage) && /ResumeCrewmate to that id resumes it/.test(evictedMessage) && /nothing was stopped$/.test(evictedMessage), evictedMessage)
+tally.check("the structured answer carries the id, the type, the transcript's end word, when it was last written, and the transcript as its output", evicted?.task_id === agentId && evicted?.task_type === 'local_agent' && evicted?.already_finished === 'completed' && typeof evicted?.finished_at === 'string' && typeof evicted?.output_path === 'string' && (evicted.output_path as string).includes(agentId ?? NEVER_MINTED), JSON.stringify(evicted))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)

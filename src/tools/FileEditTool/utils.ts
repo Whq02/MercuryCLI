@@ -479,7 +479,7 @@ const TWO_FILE_SNIPPET_CONTEXT_LINES = 8
 const TWO_FILE_SNIPPET_MAX_BYTES = 8192
 const HUNK_SEPARATOR = '...'
 
-export function getSnippetForTwoFileDiff(a: string, b: string): string {
+export function getSnippetForTwoFileDiff(a: string, b: string, startLine = 1): string {
   const patch = structuredPatch('a', 'b', a, b, undefined, undefined, {
     context: TWO_FILE_SNIPPET_CONTEXT_LINES,
     timeout: DIFF_TIMEOUT_MS,
@@ -492,7 +492,7 @@ export function getSnippetForTwoFileDiff(a: string, b: string): string {
       .filter(line => !line.startsWith('-') && !line.startsWith('\\'))
       .map(line => line.slice(1))
     if (kept.length === 0) continue
-    parts.push(addLineNumbers({ content: kept.join('\n'), startLine: hunk.oldStart }))
+    parts.push(addLineNumbers({ content: kept.join('\n'), startLine: hunk.oldStart + startLine - 1 }))
   }
   const full = parts.join(`\n${HUNK_SEPARATOR}\n`)
   if (Buffer.byteLength(full, 'utf8') <= TWO_FILE_SNIPPET_MAX_BYTES) return full

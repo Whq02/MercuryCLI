@@ -237,7 +237,7 @@ section('T. the Service tool end-to-end')
     op: 'start',
     name: 'tool-web',
     command: NODE,
-    args: ['-e', "console.log('tool web up'); setInterval(() => {}, 1000)"],
+    args: ['-e', "console.log('tool web up'); process.stdin.on('data', d => { const line = String(d).trim(); if (line === 'quit') process.exit(7); console.log('echo:', line) }); setInterval(() => {}, 1000)"],
     cwd: workDir,
     readiness: [{ kind: 'log', regex: 'tool web up' }],
   })
@@ -264,8 +264,29 @@ section('T. the Service tool end-to-end')
   check('T2d a negative deadline has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
   const t3 = await call({ op: 'logs', name: 'tool-web', cwd: workDir })
   check('T3 tool logs carry the cursor line', /\[cursor: \d+/.test(t3.data.result))
+  const typedAt = Date.now()
+  const t3b = await call({ op: 'input', name: 'tool-web', text: 'ping-from-tool', cwd: workDir })
+  const typedMs = Date.now() - typedAt
+  check("T3b the input answer opens with the acknowledgement and carries what the service printed in reply, with the cursor and the service's state",
+    t3b.data.result.startsWith("submitted 14 chars to 'tool-web' stdin with Enter\n") && t3b.data.result.includes('echo: ping-from-tool') && /\n\[cursor: \d+ · \d+ bytes total · ready\]$/.test(t3b.data.result) && t3b.effect.outcome === 'succeeded', t3b.data.result)
+  check('T3c the reply came back without waiting out the default 500 ms (the output settled first)', typedMs < 500, `${typedMs} ms`)
+  const t3d = await call({ op: 'input', name: 'tool-web', text: 'again', cwd: workDir, timeoutMs: 50 })
+  check('T3d a reply wait under the floor is clamped up to 100 ms and the result says so, the echo still inside it',
+    t3d.data.result.includes('echo: again') && !t3d.data.result.includes('echo: ping-from-tool') && t3d.data.result.endsWith('\ntimeoutMs clamped to 100 ms (the minimum)'), t3d.data.result)
+  await call({ op: 'start', name: 'tool-quiet', command: NODE, args: ['-e', "process.stdin.on('data', () => {}); setInterval(() => {}, 1000)"], cwd: workDir })
+  const quietAt = Date.now()
+  const t3e = await call({ op: 'input', name: 'tool-quiet', text: 'anyone', cwd: workDir, timeoutMs: 150 })
+  const quietMs = Date.now() - quietAt
+  check('T3e a service that prints nothing in reply: the answer says so after the wait, with the state',
+    t3e.data.result.includes('(nothing printed within 150 ms)') && /· (starting|running|ready)\]$/.test(t3e.data.result) && quietMs >= 150 && quietMs < 1500, `${quietMs} ms · ${t3e.data.result}`)
+  await call({ op: 'stop', name: 'tool-quiet', cwd: workDir })
+  const quitAt = Date.now()
+  const t3f = await call({ op: 'input', name: 'tool-web', text: 'quit', cwd: workDir, timeoutMs: 5_000 })
+  const quitMs = Date.now() - quitAt
+  check('T3f an input that ends the process returns as soon as it is gone, naming the state',
+    /· failed( \(exit 7\))?\]$/.test(t3f.data.result) && quitMs < 2_500, `${quitMs} ms · ${t3f.data.result}`)
   const t4 = await call({ op: 'list', cwd: workDir })
-  check('T4 list shows reconciled truth', t4.data.result.includes('tool-web — ready'))
+  check('T4 list shows reconciled truth', t4.data.result.includes('tool-web — failed'))
   const t5 = await call({ op: 'stop', name: 'tool-web', cwd: workDir })
   check('T5 tool stop succeeds', t5.effect.outcome === 'succeeded' && t5.data.state === 'stopped')
   const t5b = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 50 })

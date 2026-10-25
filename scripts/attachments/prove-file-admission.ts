@@ -60,10 +60,19 @@ try {
   assert.equal((clipped as any).truncated, true)
   assert.deepEqual(calls.at(-1), { file_path: path, offset: 3, limit: MAX_LINES_TO_READ })
   overflow = false
-  context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2 })
+  context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2, limit: 3, isPartialView: true })
   const before = calls.length
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert.equal(calls.length, before)
+  assert(context.readFileState.has(path))
+  context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2 })
+  const windowed = await files.getChangedFiles(context as never)
+  assert.equal(calls.length, before + 1)
+  assert.deepEqual(calls.at(-1), { file_path: path, offset: 2 })
+  assert.equal(windowed.length, 1)
+  assert.equal(windowed[0].type, 'edited_text_file')
+  assert.match(windowed[0].snippet, /^\s*2\tnew$/)
+  assert(!context.readFileState.has(path))
   context.readFileState.set(path, { content: 'old\n', timestamp: 1 })
   ioFailure = 'EACCES'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
@@ -71,5 +80,5 @@ try {
   ioFailure = 'ENOENT'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert(!context.readFileState.has(path))
-  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy and ENOENT-only eviction')
+  console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the windowed refresh and ENOENT-only eviction')
 } finally { for (const spy of spies) spy.mockRestore() }

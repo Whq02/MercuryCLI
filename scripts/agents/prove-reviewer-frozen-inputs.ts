@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -100,6 +100,18 @@ const again = await createAgentWorktree('agent-frozen01', { at: first })
 check('the same slug at the same commit resumes it', again.existed !== false && again.worktreePath === frozen.worktreePath && again.headCommit === first)
 const settled = await settleAgentWorktree({ ...frozen })
 check('a clean frozen worktree settles (removed)', settled.outcome === 'settled' && !existsSync(frozen.worktreePath), JSON.stringify(settled))
+const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { buildWorktreePrepareNotice } = await import('../../src/tools/AgentTool/worktreePrepareNotice.ts')
+mkdirSync(join(repo, '.mercury'), { recursive: true })
+writeFileSync(join(repo, '.mercury', 'settings.json'), JSON.stringify({ workspace: { worktree: { prepare: 'echo "codegen missing" >&2; exit 3' } } }))
+resetSettingsCache()
+const unprepared = await createAgentWorktree('agent-prep01')
+check('a failing workspace.worktree.prepare comes back on the handle with its exit code and stderr, the worktree still made', unprepared.prepareFailure === 'workspace.worktree.prepare failed with exit 3: codegen missing' && existsSync(unprepared.worktreePath), JSON.stringify(unprepared.prepareFailure))
+const prepareNotice = buildWorktreePrepareNotice(unprepared.prepareFailure ?? '')
+check('the notice a crewmate gets carries the failure and says the worktree is used anyway', prepareNotice.startsWith('workspace.worktree.prepare failed with exit 3: codegen missing; the worktree is used anyway') && prepareNotice.includes('may be missing'), prepareNotice)
+await settleAgentWorktree({ ...unprepared })
+rmSync(join(repo, '.mercury'), { recursive: true, force: true })
+resetSettingsCache()
 process.chdir(ROOT)
 state.setOriginalCwd(ROOT)
 state.setCwdState(ROOT)
@@ -111,6 +123,9 @@ check('the pin reaches the worktree owner', agentTool.includes("input.worktree_a
 check('the pin without isolation is refused at the call', agentTool.includes("throw new Error(\"worktree_at needs isolation: 'worktree'"))
 const notice = buildFrozenWorktreeNotice('/w/agent-1', first)
 check('the frozen notice names the path and the commit', notice.includes('/w/agent-1') && notice.includes(first) && notice.includes('frozen'))
+check('a prepare failure reaches the crewmate as its own opening message', agentTool.includes('if (worktreeInfo.prepareFailure !== undefined) {') && agentTool.includes('createUserMessage({ content: buildWorktreePrepareNotice(worktreeInfo.prepareFailure) })'))
+const agentHooks = readFileSync(join(ROOT, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
+check("a workflow crewmate's worktree paragraph carries the same notice", agentHooks.includes("${worktree.prepareFailure !== undefined ? ` ${buildWorktreePrepareNotice(worktree.prepareFailure)}` : ''}"))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

@@ -101,6 +101,39 @@ tally.section('E — the unchanged stub is sent only when its words are true')
   tally.check('5c. the file on disk is as written', readFileSync(file, 'utf8') === changed)
 }
 
+tally.section('W — a windowed Read is refreshed too: the notice carries the window\'s own line numbers, the next Read of the window is real, the edit stands')
+{
+  const windowFile = join(fixtures, 'windowed.txt')
+  const rows = Array.from({ length: 30 }, (_, i) => `row ${i + 1} of the windowed file`).join('\n') + '\n'
+  writeFileSync(windowFile, rows)
+  const window = { file_path: windowFile, offset: 11, limit: 5 }
+  const first = await ownRead(window)
+  const recorded = readFileState.get(windowFile)
+  tally.check('W0. the windowed Read records its window', first.type === 'text' && first.text.includes('13\trow 13 of the windowed file') && recorded?.offset === 11 && recorded.limit === 5, JSON.stringify({ offset: recorded?.offset, limit: recorded?.limit }))
+  const rewritten = rows.replace('row 13 of the windowed file', 'row 13 was FORMATTED outside the session')
+  writeFileSync(windowFile, rewritten)
+  const moved = new Date(statSync(windowFile).mtimeMs + 2000)
+  utimesSync(windowFile, moved, moved)
+  const attachments = await getChangedFiles(context)
+  const notice = attachments.filter((row: { type: string }) => row.type === 'edited_text_file') as Array<{ snippet: string }>
+  tally.check('W1. the harness notice reports the outside edit inside the window once, numbered from the window (line 13, not line 3)', notice.length === 1 && /(^|\n)\s*13\trow 13 was FORMATTED outside the session/.test(notice[0]!.snippet) && !/(^|\n)\s*3\trow 13/.test(notice[0]!.snippet), JSON.stringify(notice.map(n => n.snippet)).slice(0, 300))
+  tally.check('W2. the window entry is dropped after the notice — the model saw a notice, not a Read', readFileState.get(windowFile) === undefined, JSON.stringify(readFileState.get(windowFile) ?? null)?.slice(0, 120))
+  const again = await ownRead(window)
+  tally.check('W3. the next Read of the same window returns the changed line, never the unchanged stub', again.type === 'text' && again.text.includes('13\trow 13 was FORMATTED outside the session') && !again.text.startsWith(FILE_UNCHANGED_STUB), again.text.slice(0, 160))
+  const edit = await (FileEditTool as { validateInput: Function }).validateInput({ file_path: windowFile, old_string: 'row 13 was FORMATTED outside the session', new_string: 'row 13 edited after the notice' }, context)
+  tally.check('W4. an Edit of the formatted line inside the window is admitted', edit.result === true, JSON.stringify(edit).slice(0, 240))
+  const cleanRows = Array.from({ length: 30 }, (_, i) => `clean ${i + 1}`).join('\n') + '\n'
+  const cleanFile = join(fixtures, 'ranges.txt')
+  writeFileSync(cleanFile, cleanRows)
+  await ownRead({ file_path: cleanFile, ranges: ['2-3', '20-21'] })
+  const partial = readFileState.get(cleanFile)
+  writeFileSync(cleanFile, cleanRows.replace('clean 20', 'clean 20 CHANGED'))
+  const movedAgain = new Date(statSync(cleanFile).mtimeMs + 2000)
+  utimesSync(cleanFile, movedAgain, movedAgain)
+  const partialRows = await getChangedFiles(context)
+  tally.check('W5. a multi-range read (a partial view no single window reproduces) is left as it was: no notice, entry kept', partial?.isPartialView === true && partialRows.length === 0 && readFileState.get(cleanFile) === partial, JSON.stringify({ partial: partial?.isPartialView, rows: partialRows.length }))
+}
+
 tally.section('6 — the dedup-delivery pins stay green')
 {
   const dedup = join(import.meta.dir, '..', 'edit-tools', 'prove-read-dedup-delivery.ts')

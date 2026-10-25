@@ -35,6 +35,7 @@ const { ensurePtyHost, PTY_HOST_COLS, PTY_HOST_ROWS, PTY_HOST_SOURCE, ptyHostUna
 const { readableTerminalLines, readableTerminalText } = await import('../../src/services/projectServices/terminalText.ts')
 const { primeEvalAvailability } = await import('../../src/services/eval/interpreters.ts')
 const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
+const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -200,6 +201,22 @@ section('§7 — the tool\'s surface')
   check('start takes pty and input takes mode', 'pty' in shape && 'mode' in shape, Object.keys(shape).join(','))
   const words = await ServiceTool.prompt({} as never)
   check('the prompt names pty:true and the three input modes', words.includes('pty:true') && words.includes('submit') && words.includes('write') && words.includes('eof'))
+  check("the prompt says an input's answer carries the service's reply, the cursor and its state", words.includes('The answer carries what the service printed in reply') && words.includes('default 500 ms') && words.includes("the cursor for op:\"logs\" and the service's state"))
+  const ctx = { abortController: new AbortController(), getAppState: () => ({ sessionId: SESSION }), setAppState: () => {}, options: { tools: [], isNonInteractiveSession: true } } as never
+  const toolTty = await ServiceTool.call({ op: 'start', name: 'tool-tty', command: python.interpreterPath!, args: ['-c', 'import sys\nname = input("name? ")\nprint("hello", name, flush=True)\nsys.stdin.readline()'], cwd: workDir, pty: true } as never, ctx)
+  check('a pty service starts through the tool', toolTty.data.state === 'starting', toolTty.data.result)
+  const toolProject = getOriginalCwd()
+  await until('the tool pty prompt', () => {
+    const record = readRecord(toolProject, 'tool-tty')
+    try {
+      return record !== null && readFileSync(record.logFile, 'utf8').includes('name? ')
+    } catch {
+      return false
+    }
+  }, 15_000)
+  const typed = await ServiceTool.call({ op: 'input', name: 'tool-tty', text: 'Mercury' } as never, ctx)
+  check("through the tool, the input answer carries the terminal's reply as plain lines with the cursor and the state", typed.data.result.startsWith("submitted 7 chars to 'tool-tty' terminal with Enter\n") && typed.data.result.includes('hello Mercury') && !typed.data.result.includes('\r') && /\n\[cursor: \d+ · \d+ bytes total · starting\]$/.test(typed.data.result), JSON.stringify(typed.data.result))
+  await ServiceTool.call({ op: 'stop', name: 'tool-tty' } as never, ctx)
   const valid = await ServiceTool.validateInput({ op: 'input', name: 'x', mode: 'eof' } as never, {} as never)
   const invalid = await ServiceTool.validateInput({ op: 'input', name: 'x' } as never, {} as never)
   check('eof needs no text; submit still does', valid.result === true && invalid.result === false)

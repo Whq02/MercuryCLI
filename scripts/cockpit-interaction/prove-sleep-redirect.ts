@@ -20,6 +20,7 @@ import {
   UNTRACKED_TASK_TYPES,
 } from '../../src/tools/SleepTool/SleepTool.tsx'
 import { isTerminalTaskStatus, type TaskStatus } from '../../src/Task.ts'
+import { setRunInputClosed } from '../../src/bootstrap/state.ts'
 import type { AppState } from '../../src/state/AppState.js'
 
 const t = checker()
@@ -137,6 +138,31 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
     "a settled owned shell no longer counts",
     countTrackedRunningAgents(stateWith({ s: { id: 'shell-1', type: 'local_bash', status: 'completed', agentId: 'agent-self' } }), 'agent-self') === 0,
     'zero',
+  )
+  setRunInputClosed(true)
+  try {
+    t.check(
+      "a one-prompt run (input closed): the main thread's wait counts the run's own background shell",
+      countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 1,
+      'one owned shell',
+    )
+    t.check(
+      "…and a crewmate's shell still does not count for it",
+      countTrackedRunningAgents(stateWith(ownedShell)) === 0,
+      'not its own',
+    )
+    t.check(
+      "…and the run's settled shell no longer counts",
+      countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'completed' } })) === 0,
+      'zero',
+    )
+  } finally {
+    setRunInputClosed(false)
+  }
+  t.check(
+    "with the input open again the main thread's wait leaves its shells out",
+    countTrackedRunningAgents(stateWith({ b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
+    'local_bash excluded for an open session',
   )
 }
 

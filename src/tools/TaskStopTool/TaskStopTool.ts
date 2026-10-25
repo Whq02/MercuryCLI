@@ -1,8 +1,8 @@
 import { z } from 'zod/v4'
 
 import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
-import { isTerminalTaskStatus } from '../../Task.js'
-import { bareMissWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, resolveStopTargetId, stopTask, type FinishedShell } from '../../tasks/stopTask.js'
+import { isTerminalTaskStatus, type TaskStateBase } from '../../Task.js'
+import { bareMissWords, finishedAgentFromRow, finishedAgentWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, resolveStopTargetId, stopTask, type FinishedAgent, type FinishedShell } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
@@ -49,7 +49,7 @@ const outputSchema = lazySchema(() =>
     already_finished: z
       .string()
       .optional()
-      .describe('Present when nothing was stopped because the task had already ended: how it ended (completed · failed · been stopped · timed out · been ended by policy)'),
+      .describe("Present when nothing was stopped because the task had already ended: how it ended (completed · failed · been stopped · timed out · been ended by policy; for a crewmate no longer in the registry, its transcript's end: completed · failed · stopped · cut off …)"),
     finished_at: z.string().optional().describe('When the already-finished task ended (ISO 8601)'),
     output_path: z.string().optional().describe("Where the already-finished task's output file is"),
   }),
@@ -70,6 +70,10 @@ function isFinishedShellRow(task: unknown): task is LocalShellTaskState {
   return isLocalShellTask(task) && isTerminalTaskStatus(task.status)
 }
 
+function isFinishedAgentRow(task: unknown): task is TaskStateBase & { type: 'local_agent' } {
+  return typeof task === 'object' && task !== null && (task as { type?: unknown }).type === 'local_agent' && isTerminalTaskStatus((task as TaskStateBase).status)
+}
+
 function alreadyFinishedOutput(shell: FinishedShell): Output {
   return {
     message: finishedShellWords(shell),
@@ -80,6 +84,18 @@ function alreadyFinishedOutput(shell: FinishedShell): Output {
     finished_at: new Date(shell.endedAt).toISOString(),
     ...(shell.outputPath !== undefined ? { output_path: shell.outputPath } : {}),
     ...(shell.exitCode !== undefined ? { exit_code: shell.exitCode } : {}),
+  }
+}
+
+function alreadyFinishedAgentOutput(agent: FinishedAgent, message: string): Output {
+  return {
+    message,
+    task_id: agent.taskId,
+    task_type: 'local_agent',
+    ...(agent.description !== undefined ? { command: agent.description } : {}),
+    already_finished: agent.ended,
+    ...(agent.endedAt !== undefined ? { finished_at: new Date(agent.endedAt).toISOString() } : {}),
+    output_path: agent.outputPath,
   }
 }
 
@@ -120,11 +136,11 @@ export const TaskStopTool = buildTool({
     if (refused !== null) return { result: false, message: refused, errorCode: 4 }
     if (!task) {
       const finished = await finishedTaskOnDisk(taskId)
-      if (finished?.kind === 'shell') return { result: true }
-      return { result: false, message: finished?.words ?? bareMissWords(taskId), errorCode: 1 }
+      if (finished !== null) return { result: true }
+      return { result: false, message: bareMissWords(taskId), errorCode: 1 }
     }
     if (task.status !== 'running') {
-      if (isFinishedShellRow(task)) return { result: true }
+      if (isFinishedShellRow(task) || isFinishedAgentRow(task)) return { result: true }
       return {
         result: false,
         message: `Task ${taskId} is not running (status: ${task.status})`,
@@ -142,8 +158,12 @@ export const TaskStopTool = buildTool({
     if (!task) {
       const finished = await finishedTaskOnDisk(taskId)
       if (finished?.kind === 'shell') return { data: alreadyFinishedOutput(finished.shell) }
+      if (finished?.kind === 'agent') return { data: alreadyFinishedAgentOutput(finished.agent, `${finished.words}; nothing was stopped`) }
     } else if (isFinishedShellRow(task)) {
       return { data: alreadyFinishedOutput(finishedShellFromRow(task)) }
+    } else if (isFinishedAgentRow(task)) {
+      const agent = finishedAgentFromRow(task)
+      return { data: alreadyFinishedAgentOutput(agent, finishedAgentWords(agent)) }
     }
     const result = await stopTask(taskId, {
       getAppState: context.getAppState,

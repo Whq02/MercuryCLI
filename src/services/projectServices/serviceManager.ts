@@ -39,6 +39,8 @@ const RESTART_BACKOFF_BASE_MS = 500
 const RESTART_BACKOFF_MAX_MS = 15_000
 const MAX_AUTO_RESTARTS = 5
 const WAIT_REGISTRATION_GRACE_MS = 2_000
+const OUTPUT_POLL_MS = 25
+const OUTPUT_QUIET_MS = 100
 
 
 function projectSlug(cwd: string): string {
@@ -671,6 +673,40 @@ export function sendInput(
   return { ok: true, pty: false }
 }
 
+
+export function logEnd(cwd: string, name: string): number {
+  const record = readRecord(cwd, name)
+  if (!record) return 0
+  try {
+    return statSync(record.logFile).size
+  } catch {
+    return 0
+  }
+}
+
+export async function awaitOutput(
+  cwd: string,
+  name: string,
+  cursor: number,
+  timeoutMs: number,
+): Promise<{ record: ServiceRecord | null; grew: boolean }> {
+  const deadline = Date.now() + timeoutMs
+  let lastGrowth: number | null = null
+  let seen = cursor
+  for (;;) {
+    const record = reconcileRecord(cwd, name)
+    const size = logEnd(cwd, name)
+    if (size > seen) {
+      seen = size
+      lastGrowth = Date.now()
+    }
+    const now = Date.now()
+    if (record === null || record.pid === null) return { record, grew: seen > cursor }
+    if (lastGrowth !== null && now - lastGrowth >= OUTPUT_QUIET_MS) return { record, grew: true }
+    if (now >= deadline) return { record, grew: seen > cursor }
+    await new Promise(r => setTimeout(r, Math.min(OUTPUT_POLL_MS, Math.max(1, deadline - now))))
+  }
+}
 
 export async function readLogs(
   cwd: string,

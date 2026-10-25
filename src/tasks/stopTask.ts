@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { getSessionId } from '../bootstrap/state.js'
-import type { SetAppState, TaskKillReceipt, TaskType } from '../Task.js'
+import type { SetAppState, TaskKillReceipt, TaskStateBase, TaskType } from '../Task.js'
 import type { AppState } from '../state/AppState.js'
 import { getTaskByType } from '../tasks.js'
 import { readAgentTranscript } from '../tools/WorkflowTool/agentTranscriptReader.js'
@@ -47,8 +47,16 @@ export type FinishedShell = {
   outputPath?: string
 }
 
+export type FinishedAgent = {
+  taskId: string
+  description?: string
+  ended: string
+  endedAt?: number
+  outputPath: string
+}
+
 type FinishedTaskOnDisk =
-  | { kind: 'agent'; words: string }
+  | { kind: 'agent'; words: string; agent: FinishedAgent }
   | { kind: 'shell'; words: string; shell: FinishedShell }
 
 function endedWord(state: TaskOutcomeState): string {
@@ -96,6 +104,22 @@ export function finishedShellWords(shell: FinishedShell): string {
   return `Task ${shell.taskId} (${shell.command}) had already ${shell.ended}${exit} at ${new Date(shell.endedAt).toISOString()}; nothing was stopped${where}`
 }
 
+export function finishedAgentFromRow(task: TaskStateBase): FinishedAgent {
+  return {
+    taskId: task.id,
+    description: task.description,
+    ended: task.status === 'killed' ? 'been stopped' : task.status === 'failed' ? 'failed' : 'completed',
+    endedAt: task.endTime ?? task.startTime,
+    outputPath: task.outputFile,
+  }
+}
+
+export function finishedAgentWords(agent: FinishedAgent): string {
+  const when = agent.endedAt !== undefined ? ` at ${new Date(agent.endedAt).toISOString()}` : ''
+  const named = agent.description !== undefined ? ` (${agent.description})` : ''
+  return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
+}
+
 export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOnDisk | null> {
   let transcriptPath: string | null = null
   try {
@@ -105,9 +129,16 @@ export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOn
   }
   if (transcriptPath !== null && existsSync(transcriptPath)) {
     const view = await readAgentTranscript(transcriptPath)
+    let endedAt: number | undefined
+    try {
+      endedAt = Math.floor(statSync(transcriptPath).mtimeMs)
+    } catch {
+      endedAt = undefined
+    }
     return {
       kind: 'agent',
       words: `No running task with id ${taskId} in this session's registry — its transcript on disk ends ${view?.end.words ?? 'unreadable'}; ResumeCrewmate to that id resumes it`,
+      agent: { taskId, ended: view?.end.words ?? 'ended', ...(endedAt !== undefined ? { endedAt } : {}), outputPath: transcriptPath },
     }
   }
   const outcome = await findTaskOutcome(getSessionId(), taskId)
