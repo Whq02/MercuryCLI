@@ -47,13 +47,20 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
   if (verb === 'install') {
     const { installManagedBrowser, planBrowserInstall, persistInstallPlan, readPersistedInstallPlan, clearPersistedInstallPlan } =
       await import('../../services/browser/browserInstall.js')
-    const rest = parts.slice(1)
-    const confirming = rest.includes('confirm')
-    const buildArg = rest.find(t => t !== 'confirm')
-    if (buildArg !== undefined && !/^\d+(\.\d+)*$/.test(buildArg)) {
+    let confirming = false
+    let buildArg: string | undefined
+    for (const token of parts.slice(1)) {
+      if (token === 'confirm' && !confirming) {
+        confirming = true
+        continue
+      }
+      if (buildArg === undefined && /^\d+(\.\d+)*$/.test(token)) {
+        buildArg = token
+        continue
+      }
       return {
         type: 'text',
-        value: `unrecognized install argument '${buildArg}' — usage: /browser install [build-id] [confirm]`,
+        value: `unrecognized install argument '${token}' — usage: /browser install [build-id] [confirm]`,
       }
     }
     if (confirming) {

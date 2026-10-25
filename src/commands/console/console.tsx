@@ -23,7 +23,6 @@ import {
   consoleClear,
   getConsoleEntries,
   getConsolePending,
-  getConsoleVersion,
   subscribeConsole,
   type ConsoleEntry,
 } from '../../utils/cockpit/helmConsole.js'

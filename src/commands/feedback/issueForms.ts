@@ -153,7 +153,8 @@ export function fullIssueTitle(form: IssueForm, drafted: string): string {
   let text = drafted.replace(/\s+/g, ' ').trim()
   while (/^\[[^\]]*\]\s*/.test(text)) text = text.replace(/^\[[^\]]*\]\s*/, '')
   if (text === '') text = `${form.name} from Mercury`
-  if (text.length > TITLE_CAP) text = `${text.slice(0, TITLE_CAP - 1).trimEnd()}…`
+  const characters = Array.from(text)
+  if (characters.length > TITLE_CAP) text = `${characters.slice(0, TITLE_CAP - 1).join('').trimEnd()}…`
   return `${form.titlePrefix}${text}`
 }
 
@@ -169,7 +170,9 @@ interface IssueBodyInput {
 }
 
 function fence(text: string): string {
-  const ticks = text.includes('```') ? '````' : '```'
+  let width = 3
+  for (const match of text.matchAll(/`+/g)) width = Math.max(width, match[0].length + 1)
+  const ticks = '`'.repeat(width)
   return `${ticks}text\n${text}\n${ticks}`
 }
 
@@ -239,10 +242,13 @@ export const URL_CUT_NOTE = ' … (cut to fit the link; the local draft has the 
 
 function percentSafeCut(encoded: string, budget: number): string {
   if (encoded.length <= budget) return encoded
-  let cut = encoded.slice(0, Math.max(0, budget))
-  const lastPercent = cut.lastIndexOf('%')
-  if (lastPercent > cut.length - 3) cut = cut.slice(0, lastPercent)
-  return cut
+  let length = 0
+  for (const character of decodeURIComponent(encoded)) {
+    const size = encodeURIComponent(character).length
+    if (length + size > budget) break
+    length += size
+  }
+  return encoded.slice(0, length)
 }
 
 export function healthPointer(bodyPath: string | null): string {

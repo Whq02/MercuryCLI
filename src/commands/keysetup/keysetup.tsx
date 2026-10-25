@@ -3,7 +3,6 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import chalk from 'chalk'
-import React from 'react'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { colorize } from '../../ink/colorize.js'
 import { supportsHyperlinks } from '../../ink/session/capabilities.js'
@@ -15,7 +14,7 @@ import {
 } from '../../utils/appleTerminalBackup.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { env } from '../../utils/env.js'
-import { isFsInaccessible } from '../../utils/errors.js'
+import { getErrnoCode } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
 import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js'
@@ -75,11 +74,13 @@ function isRemoteVscodeSession(): boolean {
   return markers.some(marker => askpass.includes(marker) || pathVar.includes(marker))
 }
 
-async function installVscodeFamily(terminal: string, paint: Paint): Promise<string> {
+type TerminalSetupResult = { message: string; installed: boolean }
+
+async function installVscodeFamily(terminal: string, paint: Paint): Promise<TerminalSetupResult> {
   const editorDir = VSCODE_FAMILY[terminal]!
   try {
     if (isRemoteVscodeSession()) {
-      return paint.warn(
+      return { installed: false, message: paint.warn(
         [
           'Keybindings cannot be installed from a remote session — they belong on the local machine.',
           'To add the binding manually:',
@@ -88,7 +89,7 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<stri
           '3. Add this entry (the file must be a JSON array):',
           '   { "key": "shift+enter", "command": "workbench.action.terminal.sendSequence", "args": { "text": "\\u001b\\r" }, "when": "terminalFocus" }',
         ].join('\n'),
-      )
+      ) }
     }
     const home = homedir()
     const userDir =
@@ -105,18 +106,19 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<stri
       content = await readFile(filePath, 'utf8')
       existed = true
     } catch (error) {
-      if (!isFsInaccessible(error)) throw error
+      if (getErrnoCode(error) !== 'ENOENT') throw error
     }
     const parsed = safeParseJSONC(content)
-    const entries = Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : []
+    if (!Array.isArray(parsed)) throw new Error(`Failed to install the ${editorDir} Shift+Enter binding`)
+    const entries = parsed as Record<string, unknown>[]
     if (existed) {
       const backupPath = `${filePath}${backupSuffix()}`
       try {
         await copyFile(filePath, backupPath)
       } catch {
-        return paint.warn(
+        return { installed: false, message: paint.warn(
           `Could not back up ${filePath} to ${backupPath} — nothing was written.`,
-        )
+        ) }
       }
     }
     const duplicate = entries.some(
@@ -126,9 +128,9 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<stri
         entry.when === 'terminalFocus',
     )
     if (duplicate) {
-      return paint.warn(
+      return { installed: false, message: paint.warn(
         `A Shift+Enter terminal binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
-      )
+      ) }
     }
     const updated = addItemToJSONCArray(content, {
       key: 'shift+enter',
@@ -137,10 +139,10 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<stri
       when: 'terminalFocus',
     })
     await writeFile(filePath, updated, 'utf8')
-    return [
+    return { installed: true, message: [
       paint.ok(`Installed the Shift+Enter binding for newlines.`),
       chalk.dim(linkedPath(filePath)),
-    ].join('\n')
+    ].join('\n') }
   } catch (error) {
     logError(error)
     throw new Error(`Failed to install the ${editorDir} Shift+Enter binding`)
@@ -189,13 +191,13 @@ async function installAppleTerminal(paint: Paint): Promise<string> {
     const startupProfile = await readTerminalDefault('Startup Window Settings')
     const profiles = [defaultProfile]
     if (startupProfile !== defaultProfile) profiles.push(startupProfile)
-    let anyUpdated = false
+    let allUpdated = true
     for (const profile of profiles) {
       const optionUpdated = await setProfileProperty(profile, 'useOptionAsMetaKey', 'true')
       const bellUpdated = await setProfileProperty(profile, 'Bell', 'false')
-      if (optionUpdated || bellUpdated) anyUpdated = true
+      if (!optionUpdated || !bellUpdated) allUpdated = false
     }
-    if (!anyUpdated) {
+    if (!allUpdated) {
       throw new Error('No Terminal profile property could be updated')
     }
     await execFileNoThrow('killall', ['cfprefsd'])
@@ -215,6 +217,7 @@ async function installAppleTerminal(paint: Paint): Promise<string> {
       backupPath,
     ])
     if (restore.code === 0) {
+      markTerminalSetupComplete()
       throw new Error('Terminal setup failed; your preferences were restored from backup.')
     }
     if (backupPath) {
@@ -229,7 +232,7 @@ async function installAppleTerminal(paint: Paint): Promise<string> {
 
 const ALACRITTY_TABLE = `[[keyboard.bindings]]\nkey = "Return"\nmods = "Shift"\nchars = "\\u001b\\r"\n`
 
-async function installAlacritty(paint: Paint): Promise<string> {
+async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
   try {
     const candidates: string[] = []
     if (process.env.XDG_CONFIG_HOME) {
@@ -251,7 +254,7 @@ async function installAlacritty(paint: Paint): Promise<string> {
         existed = true
         break
       } catch (error) {
-        if (!isFsInaccessible(error)) throw error
+        if (getErrnoCode(error) !== 'ENOENT') throw error
       }
     }
     if (target === null) {
@@ -259,29 +262,29 @@ async function installAlacritty(paint: Paint): Promise<string> {
       await mkdir(dirname(target), { recursive: true })
     }
     if (existed && content.includes('mods = "Shift"') && content.includes('key = "Return"')) {
-      return paint.warn(
+      return { installed: false, message: paint.warn(
         `A Shift+Return binding already exists in ${linkedPath(target)} — remove it first if you want it reinstalled.`,
-      )
+      ) }
     }
     if (existed) {
       const backupPath = `${target}${backupSuffix()}`
       try {
         await copyFile(target, backupPath)
       } catch {
-        return paint.warn(
+        return { installed: false, message: paint.warn(
           `Could not back up ${target} to ${backupPath} — nothing was written.`,
-        )
+        ) }
       }
     }
     let updated = content
     if (updated !== '' && !updated.endsWith('\n')) updated += '\n'
     updated += `\n${ALACRITTY_TABLE}`
     await writeFile(target, updated, 'utf8')
-    return [
+    return { installed: true, message: [
       paint.ok('Installed the Shift+Enter binding for Alacritty.'),
       paint.ok('A restart of Alacritty may be needed.'),
       chalk.dim(linkedPath(target)),
-    ].join('\n')
+    ].join('\n') }
   } catch (error) {
     logError(error)
     throw new Error('Failed to install the Alacritty Shift+Enter binding')
@@ -289,7 +292,7 @@ async function installAlacritty(paint: Paint): Promise<string> {
 }
 
 
-async function installZed(paint: Paint): Promise<string> {
+async function installZed(paint: Paint): Promise<TerminalSetupResult> {
   try {
     const filePath = join(homedir(), '.config', 'zed', 'keymap.json')
     await mkdir(dirname(filePath), { recursive: true })
@@ -299,34 +302,35 @@ async function installZed(paint: Paint): Promise<string> {
       content = await readFile(filePath, 'utf8')
       existed = true
     } catch (error) {
-      if (!isFsInaccessible(error)) throw error
+      if (getErrnoCode(error) !== 'ENOENT') throw error
     }
     if (existed && content.includes('shift-enter')) {
-      return paint.warn(
+      return { installed: false, message: paint.warn(
         `A shift-enter binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
-      )
+      ) }
     }
     if (existed) {
       const backupPath = `${filePath}${backupSuffix()}`
       try {
         await copyFile(filePath, backupPath)
       } catch {
-        return paint.warn(
+        return { installed: false, message: paint.warn(
           `Could not back up ${filePath} to ${backupPath} — nothing was written.`,
-        )
+        ) }
       }
     }
     const parsed = safeParseJSONC(content)
-    const entries = Array.isArray(parsed) ? (parsed as unknown[]) : []
+    if (!Array.isArray(parsed)) throw new Error('Failed to install the Zed shift-enter binding')
+    const entries = parsed as unknown[]
     entries.push({
       context: 'Terminal',
       bindings: { 'shift-enter': ['terminal::SendText', ESC_CR] },
     })
     await writeFile(filePath, `${JSON.stringify(entries, null, 2)}\n`, 'utf8')
-    return [
+    return { installed: true, message: [
       paint.ok('Installed the shift-enter binding for Zed.'),
       chalk.dim(linkedPath(filePath)),
-    ].join('\n')
+    ].join('\n') }
   } catch (error) {
     logError(error)
     throw new Error('Failed to install the Zed shift-enter binding')
@@ -337,7 +341,7 @@ async function installZed(paint: Paint): Promise<string> {
 export async function setupTerminal(theme: ThemeName): Promise<string> {
   const paint = paintFor(theme)
   const terminal = env.terminal
-  let result = ''
+  let result: TerminalSetupResult = { message: '', installed: false }
   switch (terminal) {
     case 'vscode':
     case 'cursor':
@@ -345,7 +349,7 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
       result = await installVscodeFamily(terminal, paint)
       break
     case 'Apple_Terminal':
-      result = await installAppleTerminal(paint)
+      result = { message: await installAppleTerminal(paint), installed: true }
       break
     case 'alacritty':
       result = await installAlacritty(paint)
@@ -358,16 +362,17 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
   }
   const config = getGlobalConfig()
   if (
+    result.installed &&
     ['vscode', 'cursor', 'windsurf', 'alacritty', 'zed'].includes(terminal ?? '') &&
     config.shiftEnterKeyBindingInstalled !== true
   ) {
     saveGlobalConfig(current => ({ ...current, shiftEnterKeyBindingInstalled: true }))
   }
-  if (terminal === 'Apple_Terminal' && config.optionAsMetaKeyInstalled !== true) {
+  if (result.installed && terminal === 'Apple_Terminal' && config.optionAsMetaKeyInstalled !== true) {
     saveGlobalConfig(current => ({ ...current, optionAsMetaKeyInstalled: true }))
   }
   maybeMarkProjectOnboardingComplete()
-  return result
+  return result.message
 }
 
 function unsupportedTerminalMessage(terminal: string | null): string {

@@ -83,7 +83,13 @@ console.log('§3 pinned plans need no network; bad tokens refuse by name')
   const pinned = await browserCommand('install 142.0.7444.99', ctx)
   const persisted = readPersistedInstallPlan()
   check('/browser install <buildId> plans and persists THAT build', pinned.type === 'text' && pinned.value.includes('142.0.7444.99') && persisted?.buildId === '142.0.7444.99', JSON.stringify(persisted))
+  for (const args of ['install 142.0.7444.99 unexpected', 'install 142.0.7444.99 143.0.7000.0', 'install confirm 142.0.7444.99 unexpected']) {
+    const refused = await browserCommand(args, ctx)
+    check('extra install arguments refuse without replacing the pending plan', refused.type === 'text' && refused.value.includes('unrecognized install argument') && JSON.stringify(readPersistedInstallPlan()) === JSON.stringify(persisted), refused.type === 'text' ? refused.value : refused.type)
+  }
   clearPersistedInstallPlan()
+  const repeatedConfirm = await browserCommand('install confirm confirm', ctx)
+  check('repeated confirmation is an invalid argument, not permission to install', repeatedConfirm.type === 'text' && repeatedConfirm.value.includes("unrecognized install argument 'confirm'"))
   const noPlan = await browserCommand('install confirm', ctx)
   check('confirm with nothing recorded says "no plan recorded", not "expired"', noPlan.type === 'text' && noPlan.value.includes('no install plan recorded'), noPlan.type === 'text' ? noPlan.value : noPlan.type)
 }
