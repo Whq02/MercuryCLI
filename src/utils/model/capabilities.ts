@@ -66,6 +66,7 @@ import {
   DEEPSEEK_EFFORTS,
   isDeepseekModelId,
 } from '../../services/providers/deepseek/deepseekPins.js'
+import { deepseekLiveModel, deepseekModelFacts } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { isHuggingfaceModelId } from '../../services/providers/huggingface/huggingfacePins.js'
 import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../services/providers/routeLaw.js'
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
@@ -805,6 +806,10 @@ function baseResolveContextWindow(
     })
   }
 
+  if (carrierRoute === 'deepseek') {
+    const window = deepseekLiveModel(normalizeForEnginePins(model))?.contextWindow
+    if (window !== undefined) return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
+  }
   if (isXaiModelId(model)) {
     const live = getCachedXaiCatalogue()?.models.find(row => row.id.toLowerCase() === normalizeForEnginePins(model))
     if (live?.contextWindow !== undefined) {
@@ -897,6 +902,8 @@ function baseGetModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
+  const deepseekOut = declaredRouteOf(model) === 'deepseek' ? deepseekModelFacts(normalizeForEnginePins(model))?.outputMax : undefined
+  if (deepseekOut !== undefined) return statedOutputTokens(deepseekOut)
   const metaOut = metaDisplayPin(model)?.outputMax
   if (metaOut !== undefined) return statedOutputTokens(metaOut)
   const zenOut = isZenModelId(model) ? zenDisplayPin(model)?.outputMax : undefined
@@ -1145,6 +1152,8 @@ function modalitiesAdmitImages(modalities: readonly string[] | undefined): boole
 
 function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean {
   switch (route) {
+    case 'deepseek':
+      return deepseekModelFacts(normalizeForEnginePins(model))?.images ?? true
     case 'xai':
       return xaiModelFacts(model)?.images === true
     case 'meta':

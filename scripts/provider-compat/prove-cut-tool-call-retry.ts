@@ -269,7 +269,7 @@ const userRows = (msgs: unknown[]): unknown[] => (msgs as AnyMsg[]).filter(m => 
 {
   const model = 'deepseek-v4-pro'
   const limits = getModelMaxOutputTokens(model)
-  check(`the lane's stated output limit stands above the cut (${limits.upperLimit})`, limits.upperLimit === 64_000)
+  check(`the lane's stated output limit stands above the cut (${limits.upperLimit})`, limits.upperLimit === 393_216)
   const r = await run(model, [cutTurn(model, 4_096), cutTurn(model, 8_192), cutTurn(model, 16_384), toolTurn(model), textTurn(model, 'listed')])
   check('five model calls: the cut, two re-asks, the correction road, the answer', r.calls.length === 5, String(r.calls.length))
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))

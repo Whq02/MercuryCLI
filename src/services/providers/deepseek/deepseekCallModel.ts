@@ -32,6 +32,7 @@ export const deepseekLaneProfile: CompatLaneProfile = {
   requestUrl: () => deepseekChatCompletionsUrl(),
   wireModelId: modelId => deepseekCurrentModelId(modelId),
   buildExtras: buildDeepseekExtras,
+  keepsReasoningHistory: (_wireModel, thinkingEnabled) => thinkingEnabled === true,
 }
 
 export function deepseekLiveProofState(): { at: number; model: string } | null {

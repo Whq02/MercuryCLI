@@ -10,6 +10,7 @@ import {
   DEEPSEEK_DISPLAY_PINS,
   deepseekCurrentModelId,
   deepseekDisplayName,
+  deepseekDisplayPin,
   type DeepseekDisplayPin,
 } from './deepseekPins.js'
 
@@ -21,23 +22,37 @@ export interface DeepseekLiveModel {
   id: string
   ownedBy?: string
   displayName?: string
+  contextWindow?: number
+  outputMax?: number
+  images?: boolean
 }
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() !== '' ? v : undefined
 }
 
+function capacity(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined
+}
 export function decodeDeepseekModel(raw: unknown): DeepseekLiveModel | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
   const r = raw as Record<string, unknown>
   const id = str(r.id)
   if (!id) return undefined
   const ownedBy = str(r.owned_by)
-  const displayName = str(r.display_name)
+  const displayName = str(r.name) ?? str(r.display_name)
+  const contextWindow = capacity(r.context_window)
+  const outputMax = capacity(r.max_output_tokens)
+  const images = Array.isArray(r.input_modalities) && r.input_modalities.every(value => typeof value === 'string')
+    ? r.input_modalities.includes('image')
+    : undefined
   return {
     id: id.trim(),
     ...(ownedBy !== undefined ? { ownedBy } : {}),
     ...(displayName !== undefined ? { displayName: displayName.trim() } : {}),
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
+    ...(outputMax !== undefined ? { outputMax } : {}),
+    ...(images !== undefined ? { images } : {}),
   }
 }
 
@@ -101,6 +116,16 @@ export function getCachedDeepseekCatalogue(env: NodeJS.ProcessEnv = process.env)
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
 
+export function deepseekLiveModel(id: string, env: NodeJS.ProcessEnv = process.env): DeepseekLiveModel | undefined {
+  const current = deepseekCurrentModelId(id.trim().toLowerCase())
+  return getCachedDeepseekCatalogue(env)?.models.find(model => deepseekCurrentModelId(model.id.trim().toLowerCase()) === current)
+}
+
+export function deepseekModelFacts(id: string): DeepseekLiveModel | undefined {
+  const live = deepseekLiveModel(id)
+  const pin = deepseekDisplayPin(id)
+  return live ? { ...pin, ...live } : pin
+}
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
 const liveIdSets = new WeakMap<DeepseekCatalogueSnapshot, ReadonlySet<string>>()
 
@@ -176,11 +201,9 @@ export function kickDeepseekCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImp
   return true
 }
 
-export interface DeepseekCatalogueRow {
-  id: string
+export interface DeepseekCatalogueRow extends DeepseekLiveModel {
   displayName: string
   observedAt: string
-  contextWindow?: number
   listedLive: boolean
 }
 
@@ -194,6 +217,8 @@ function pinRow(pin: DeepseekDisplayPin, listedLive: boolean): DeepseekCatalogue
     displayName: pin.displayName,
     observedAt: pin.observedAt,
     ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
+    ...(pin.outputMax !== undefined ? { outputMax: pin.outputMax } : {}),
+    ...(pin.images !== undefined ? { images: pin.images } : {}),
     listedLive,
   }
 }
@@ -214,13 +239,17 @@ export function deepseekCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
     }
   }
   const listed = new Set(snapshot.models.map(m => deepseekCurrentModelId(m.id.trim().toLowerCase())))
-  const rows: DeepseekCatalogueRow[] = DEEPSEEK_DISPLAY_PINS.filter(pin => listed.has(pin.id)).map(pin => pinRow(pin, true))
+  const rows: DeepseekCatalogueRow[] = DEEPSEEK_DISPLAY_PINS.filter(pin => listed.has(pin.id)).map(pin => {
+    const live = deepseekLiveModel(pin.id, env)!
+    const hasFacts = live.displayName !== undefined || live.contextWindow !== undefined || live.outputMax !== undefined || live.images !== undefined
+    return { ...pinRow(pin, true), ...live, id: pin.id, observedAt: hasFacts ? dateOf(snapshot.fetchedAtMs) : pin.observedAt }
+  })
   const taken = new Set(rows.map(row => row.id))
   for (const model of snapshot.models) {
     const id = deepseekCurrentModelId(model.id.trim().toLowerCase())
     if (taken.has(id)) continue
     taken.add(id)
-    rows.push({ id, displayName: model.displayName ?? deepseekDisplayName(id), observedAt: dateOf(snapshot.fetchedAtMs), listedLive: true })
+    rows.push({ ...model, id, displayName: model.displayName ?? deepseekDisplayName(id), observedAt: dateOf(snapshot.fetchedAtMs), listedLive: true })
   }
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }

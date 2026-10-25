@@ -35,7 +35,7 @@ const ROUTE_MODELS: Record<string, string> = {
   openai: 'gpt-5.6-sol',
   zai: 'glm-5.3',
   moonshot: 'kimi-for-coding',
-  deepseek: 'deepseek-v4-pro',
+  deepseek: 'deepseek-flash',
   'openai-compat': 'compat/qwen-max',
   openrouter: 'openrouter/qwen/qwen3-coder',
   gemini: 'gemini-3-pro',
@@ -54,7 +54,7 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
   check("the openai row is the provider's own form ('openai-native' — the model floor and the endpoint decide per request)", wire.DEFERRAL_WIRE_CAPABILITY.openai === 'openai-native')
   check("the openrouter row is the provider's own native form (openrouter:tool_search + defer_loading on the Responses API)", wire.DEFERRAL_WIRE_CAPABILITY.openrouter === 'openrouter-native', String(wire.DEFERRAL_WIRE_CAPABILITY.openrouter))
-  const TEXT_APPEND_ROUTES = new Set(['moonshot', 'local'])
+  const TEXT_APPEND_ROUTES = new Set(['moonshot', 'deepseek', 'local'])
   check('every other row is a client-side text form (text, or text-append where the docs place an admission at the end of the messages)', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai' && r !== 'openrouter').every(([r, c]) => (TEXT_APPEND_ROUTES.has(r) ? c === 'text-append' : c === 'text')))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
@@ -67,6 +67,8 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   const olderKimi = wire.deferralWireFormFor('kimi-k2.6')
   check('a Kimi model without dynamic tool loading (kimi-k2.6) reads the text form, and says why', olderKimi.form === 'text' && olderKimi.why === 'model-without-dynamic-tools' && wire.supportsToolDeferral('kimi-k2.6') === false, `${olderKimi.form}/${olderKimi.why}`)
   check('the append form defers (supportsToolDeferral) on kimi-k3; the zai row stays text and does not defer (the live measurement ruled: the cache held but GLM never called a text-declared tool)', wire.supportsToolDeferral('kimi-k3') === true && wire.deferralWireFormFor('glm-5.3').form === 'text' && wire.supportsToolDeferral('glm-5.3') === false)
+  check('DeepSeek V4 Pro and unknown models stay leading-only', ['deepseek-v4-pro', 'deepseek-future'].every(model => wire.deferralWireFormFor(model).form === 'text' && !wire.supportsToolDeferral(model)))
+  check('the retired Flash alias follows the current Flash append form', wire.deferralWireFormFor('deepseek-v4-flash').form === 'text-append')
   const { writeFileSync } = await import('node:fs')
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ compatProvider: {

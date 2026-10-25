@@ -97,7 +97,7 @@ const FAMILIES: Array<{ label: string; model: string; window: number }> = [
   { label: 'Gemini (live inputTokenLimit)', model: 'gemini-fixture-pro', window: 1_048_576 },
   { label: 'Kimi (dated pin)', model: 'kimi-k3', window: 1_048_576 },
   { label: 'GLM (dated pin)', model: 'glm-5.3', window: 1_000_000 },
-  { label: 'DeepSeek (dated pin)', model: 'deepseek-v4-pro', window: 1_000_000 },
+  { label: 'DeepSeek (dated pin)', model: 'deepseek-v4-pro', window: 1_048_576 },
   { label: 'Hugging Face (live provider context_length)', model: 'huggingface/Qwen/Qwen3.8-2.4T-A95B', window: 1_010_000 },
   { label: 'compat slot (labelled fallback)', model: 'compat/my-model', window: 200_000 },
 ]

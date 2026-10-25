@@ -36,7 +36,15 @@ try {
         assert.equal(actual.get(rename(name)), undefined, `${to}: ${rename(name)} is not invented — the DeepSeek rate pins have no xAI counterpart`)
         continue
       }
-      assert.equal(actual.get(rename(name)), rename(signature), `${to}: ${rename(name)} preserves the mirrored signature`)
+      if (name === 'deepseekLiveModel') {
+        assert.equal(signature, '(string,NodeJS.ProcessEnv=):DeepseekLiveModel|undefined')
+        assert.equal(actual.get('xaiLiveModel'), undefined)
+      } else if (name === 'deepseekModelFacts') {
+        assert.equal(signature, '(string):DeepseekLiveModel|undefined')
+        assert.equal(actual.get('xaiModelFacts'), '(string,NodeJS.ProcessEnv=):XaiDisplayPin|undefined')
+      } else {
+        assert.equal(actual.get(rename(name)), rename(signature), `${to}: ${rename(name)} preserves the mirrored signature`)
+      }
       count++
       mirrored++
     }

@@ -201,7 +201,7 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
     live.indexOf('deepseek-fixture-next') > live.indexOf('deepseek-flash') &&
     live.indexOf('deepseek-flash') > live.indexOf('deepseek-v4-pro'), nextRow)
   check('live: the unrecorded id states no provider context window rather than presenting an internal budget as a provider fact', nextRow !== '' && !/\d+[kM]? ctx/.test(nextRow), nextRow)
-  check('live: both pinned rows keep their pinned window', proRow.includes('1M ctx') && flashRow.includes('1M ctx'), proRow + '\n' + flashRow)
+  check('live: both pinned rows keep their pinned window', proRow.includes('1.05M ctx') && flashRow.includes('1.05M ctx'), proRow + '\n' + flashRow)
   check('live: the group line names the key and three live rows, never a frontier row', /DEEPSEEK · API key · …0001 · 3 live$/.test(groupLine(live, 'DEEPSEEK ·')) && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK ·'))
   check('live: the focused Flash row keeps its exact current id beside its pin label', /│ │ DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(lines(flash, 'deepseek-flash')), lines(flash, 'deepseek-flash'))
   check('live: the retired id is nowhere on the screen', !live.includes('deepseek-v4-flash') && !flash.includes('deepseek-v4-flash'))
@@ -226,7 +226,7 @@ console.log('\n[2] the pins stand in: the fixture refuses the list (HTTP 503)')
   check('refuse: the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${res.stderr.slice(-300)}`)
   const rows = res.marks.get('rows') ?? ''
   check('refuse: the list was asked for (the ledger records the refused request)', ledgerHits(ledger) >= 1, `hits ${ledgerHits(ledger)}`)
-  check('refuse: the two dated pins stand in with their exact ids and windows', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(rows) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(rows) && lines(rows, 'deepseek-v4-pro').includes('1M ctx') && lines(rows, 'deepseek-flash').includes('1M ctx'), lines(rows, 'DeepSeek'))
+  check('refuse: the two dated pins stand in with their exact ids and windows', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(rows) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(rows) && lines(rows, 'deepseek-v4-pro').includes('1.05M ctx') && lines(rows, 'deepseek-flash').includes('1.05M ctx'), lines(rows, 'DeepSeek'))
   check('refuse: no fixture row is invented', !rows.includes('deepseek-fixture-next'))
   check(`refuse: the group names the key and its two selectable pins, never a frontier row or date (${PIN_DATE})`, /DEEPSEEK · API key · …0001 · 2 live$/.test(groupLine(rows, 'DEEPSEEK ·')) && !rows.includes('frontier:') && !groupLine(rows, 'DEEPSEEK ·').includes(PIN_DATE), groupLine(rows, 'DEEPSEEK ·'))
   dumpOnRed('refuse', before, res)

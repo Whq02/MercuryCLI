@@ -83,7 +83,7 @@ section('W1 · unfetched: pins ride, everything else is the LABELLED conservativ
   }
   check('the OpenRouter fallback names the unfetched catalogue', /OpenRouter catalogue states no context length/.test(resolveContextWindow('openrouter/stealth/ox-alpha').fallbackReason ?? ''))
   check('the Gemini fallback names the unfetched catalogue', /Gemini catalogue states no context length/.test(resolveContextWindow('gemini-fixture-pro').fallbackReason ?? ''))
-  const pins: Array<[string, number]> = [['kimi-k3', 1_048_576], ['deepseek-v4-pro', 1_000_000], ['glm-5.3', 1_000_000], ['claude-opus-5', 1_000_000], ['huggingface/deepseek-ai/DeepSeek-V4-Pro-0813', 1_048_576]]
+  const pins: Array<[string, number]> = [['kimi-k3', 1_048_576], ['deepseek-v4-pro', 1_048_576], ['glm-5.3', 1_000_000], ['claude-opus-5', 1_000_000], ['huggingface/deepseek-ai/DeepSeek-V4-Pro-0813', 1_048_576]]
   for (const [id, window] of pins) {
     const r = resolveContextWindow(id)
     check(`${id}: dated pin ${window.toLocaleString()} · source static-pin`, r.effectiveWindow === window && r.source === 'static-pin', JSON.stringify({ w: r.effectiveWindow, s: r.source }))

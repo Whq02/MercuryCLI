@@ -183,7 +183,7 @@ export interface CompatLaneProfile {
     cacheDomainKey?: string
     crewmate?: boolean
   }): Record<string, unknown>
-  keepsReasoningHistory?(wireModel: string): boolean
+  keepsReasoningHistory?(wireModel: string, thinkingEnabled?: boolean): boolean
   keepsReasoningOnContinuations?(wireModel: string): boolean
   noteServedModel?(requested: string, served: string, credential: CompatCredential): void
   toolDeclarationRow?: ToolDeclarationRowBuilder
@@ -550,7 +550,7 @@ export async function* compatChatCallModel(
   const fittedOutputOverride = outputFit?.tokens
   const wireTools = mapToolsToZai(apiTools)
   const mappedMessages = mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(preparedMessages), {
-    keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+    keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel, thinkingEnabled) ?? false,
     keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
     imagesSupported,
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),

@@ -26,6 +26,7 @@ export interface DeepseekDisplayPin {
   observedAt: string
   contextWindow?: number
   outputMax?: number
+  images?: boolean
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
@@ -36,8 +37,9 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
     id: 'deepseek-v4-pro',
     displayName: 'DeepSeek V4 Pro',
     observedAt: '2026-09-17',
-    contextWindow: 1_000_000,
+    contextWindow: 1_048_576,
     outputMax: 393_216,
+    images: false,
     costInPerMtok: 1.32,
     costOutPerMtok: 3.96,
     cachedInPerMtok: 0.044,
@@ -46,8 +48,9 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
     id: 'deepseek-flash',
     displayName: 'DeepSeek V4.1 Flash',
     observedAt: '2026-09-17',
-    contextWindow: 1_000_000,
+    contextWindow: 1_048_576,
     outputMax: 393_216,
+    images: true,
     costInPerMtok: 0.3,
     costOutPerMtok: 1.2,
     cachedInPerMtok: 0.006,

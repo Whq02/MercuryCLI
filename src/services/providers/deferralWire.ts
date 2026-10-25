@@ -4,6 +4,7 @@ import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
 import { OPENAI_FIRST_PARTY_PROBE_KEY, openaiGatewayProbeKey, readGatewayProbeVerdict } from './deferralProbe.js'
 import { kimiSupportsDynamicToolLoading } from './moonshot/kimiPins.js'
 import { parseGptModelId } from './openai/gptPins.js'
+import { deepseekCurrentModelId } from './deepseek/deepseekPins.js'
 
 export type DeferralWireForm =
   | 'block'
@@ -19,7 +20,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   openai: 'openai-native',
   zai: 'text',
   moonshot: 'text-append',
-  deepseek: 'text',
+  deepseek: 'text-append',
   xai: 'text',
   meta: 'text',
   'openai-compat': 'text',
@@ -104,6 +105,7 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
 }
 
 function textAppendAccepted(route: CallModelRoute, model: string): boolean {
+  if (route === 'deepseek') return deepseekCurrentModelId(model.trim().toLowerCase()) === 'deepseek-flash'
   return route === 'moonshot' ? kimiSupportsDynamicToolLoading(model) : true
 }
 

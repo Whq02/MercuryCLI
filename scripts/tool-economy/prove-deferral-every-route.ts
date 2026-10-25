@@ -47,7 +47,7 @@ const ROUTE_MODELS: Record<string, string> = {
   openai: 'gpt-5.6-sol',
   zai: 'glm-5.3',
   moonshot: 'kimi-for-coding',
-  deepseek: 'deepseek-v4-pro',
+  deepseek: 'deepseek-flash',
   'openai-compat': 'compat/qwen-max',
   openrouter: 'openrouter/qwen/qwen3-coder',
   gemini: 'gemini-3-pro',
@@ -85,7 +85,7 @@ const DEFERRED_NAMES = [...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B].map(t => t.nam
 const TEXT_DEFERRING = new Set<string>([])
 const NATIVE_DEFERRING = new Set(['openai'])
 const OLDER_GPT = 'gpt-5.3-codex'
-const TEXT_APPEND = new Set(['moonshot', 'local'])
+const TEXT_APPEND = new Set(['moonshot', 'deepseek', 'local'])
 const SERVER_SEARCH = new Set(['openai', 'openrouter'])
 const permissionContext = getEmptyToolPermissionContext()
 const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; hasPendingMcpServers?: boolean; latchKey?: string } = {}) =>

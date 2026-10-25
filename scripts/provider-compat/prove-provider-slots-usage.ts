@@ -334,7 +334,8 @@ section('5 · reasoning-history contracts (documented per model, wired per lane)
   check('kimi-k2.7-code returns reasoning history (doc-mandatory)', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code') === true)
   check('kimi-k2.7-code-highspeed matches its base model', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code-highspeed') === true)
   check('kimi-k2.6 stays omit (opt-in model; no thinking.keep sent; https://platform.kimi.ai/docs/api/models-overview.md, 2026-10-25)', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.6') === false)
-  check('deepseek declares NO reasoning-history flag (absent = omit, the documented constraint)', deepseekLaneProfile.keepsReasoningHistory === undefined)
+  check('deepseek returns reasoning with thinking on', deepseekLaneProfile.keepsReasoningHistory?.('deepseek-flash', true) === true)
+  check('deepseek omits reasoning with thinking off', deepseekLaneProfile.keepsReasoningHistory?.('deepseek-flash', false) === false)
   check('compat slot declares NO reasoning-history flag (unknown servers, conservative)', compatSlotLaneProfile.keepsReasoningHistory === undefined)
 }
 

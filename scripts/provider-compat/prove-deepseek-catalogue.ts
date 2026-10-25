@@ -252,7 +252,7 @@ if (catalogue) {
   check('the frontier fact carries the pin\'s date and no live words', fact?.modelId === 'deepseek-v4-pro' && fact?.observedAt === PIN_DATE && fact?.source === undefined, JSON.stringify(fact))
   check('the group line paints the date', providerFrontierLine('deepseek') === `frontier: DeepSeek V4 Pro · ${PIN_DATE}`, String(providerFrontierLine('deepseek')))
   const options = getModelOptions().filter(o => o.group === DEEPSEEK_MODEL_GROUP)
-  check('the picker paints the pins with their windows', options.map(o => o.value).join(',') === `deepseek-v4-pro,${CURRENT_FLASH}` && options.every(o => o.statedContextWindow === 1_000_000), options.map(o => o.value).join(','))
+  check('the picker paints the pins with their windows', options.map(o => o.value).join(',') === `deepseek-v4-pro,${CURRENT_FLASH}` && options.every(o => o.statedContextWindow === 1_048_576), options.map(o => o.value).join(','))
   await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: statusFetch(503) })
   const failedRows = catalogue.deepseekCatalogueRows()
   check('a failed fetch with no rows leaves the pins standing in', failedRows.source.kind === 'pin' && failedRows.rows.length === 2)
