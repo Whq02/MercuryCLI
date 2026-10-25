@@ -24,6 +24,7 @@ import {
   shiftRows,
 } from './cell-grid.js'
 import { lineWidth } from './line-width-cache.js'
+import { terminalTextCells } from './session/terminalTextCells.js'
 import { stringWidth } from './stringWidth.js'
 import { widestLine } from './widest-line.js'
 
@@ -425,7 +426,13 @@ function clusterStyledLine(line: string, pool: StylePool): ClusteredChar[] {
       runStyles.some(s => s.code.length >= OSC8_PREFIX.length && s.code.startsWith(OSC8_PREFIX))
     const styleId = pool.intern(hasOsc8 ? filterOutHyperlinkStyles(runStyles) : runStyles)
     for (const { segment } of getGraphemeSegmenter().segment(buffer)) {
-      out.push({ value: segment, width: stringWidth(segment), styleId, hyperlink })
+      const width = stringWidth(segment)
+      const parts = width > 2 && /[\u200C\u200D]/.test(segment) && terminalTextCells().joinerCells > 0
+        ? segment.split(/([\u200C\u200D])/).filter(Boolean)
+        : [segment]
+      for (const value of parts) {
+        out.push({ value, width: parts.length === 1 ? width : stringWidth(value), styleId, hyperlink })
+      }
     }
     runChars = []
   }

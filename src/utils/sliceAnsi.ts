@@ -14,7 +14,7 @@ export default function sliceAnsi(str: string, start: number, end?: number): str
 
   const widthOf = (token: (typeof tokens)[number]): number => {
     if (token.type === 'ansi' || token.type === 'control') return 0
-    if (token.fullWidth) return 2
+    if (token.fullWidth && !/[\u200C\u200D]/.test(token.value)) return 2
     return stringWidth(token.value)
   }
 

@@ -1,11 +1,17 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import stripAnsi from 'strip-ansi'
+import presentationData from '../../src/ink/arabicPresentationForms.json'
+import unicodeRows from './fixtures/arabic-presentation-forms.json'
 
 process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'rtl-row-border-home-')))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
+const appleTerminal = process.argv.includes('--apple')
+process.env.TERM_PROGRAM = appleTerminal ? 'Apple_Terminal' : 'xterm'
 process.env['FORCE_COLOR'] = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -35,9 +41,10 @@ const ROWS = [
   'שלום עולם — a Hebrew line with niqqud: שָׁלוֹם, and Persian with the joiner: می\u200Cخواهم که این متن درست بماند.',
   'مُحَمَّدٌ رَسُولُ اللهِ — harakat on every letter, then a lam-alef: لا إله إلا الله, then letters that never join: د ا ر و ز.',
   'Arabic digits ١٢٣٤٥ and presentation forms ﻻ ﷲ and the word تفلسف again, mixed with Latin 123 and a ZWJ\u200d joiner.',
+  'Multiple joiners a\u200c\u200db and a wide base 漢\u200d next to Latin.',
 ]
 
-console.log('§1 the oracle: one cell per letter, none for a mark or the joiner, on both paths')
+console.log(`§1 the oracle: letters, marks and ${process.env.TERM_PROGRAM} joiners agree on both paths`)
 {
   const samples: Array<[string, number]> = [
     ['تفلسف', 5],
@@ -45,7 +52,7 @@ console.log('§1 the oracle: one cell per letter, none for a mark or the joiner,
     ['نعم، هل هذا صحيح؟', 17],
     ['שלום עולם', 9],
     ['שָׁלוֹם', 4],
-    ['می\u200Cخواهم', 7],
+    ['می\u200Cخواهم', appleTerminal ? 8 : 7],
     ['مُحَمَّدٌ', 4],
     ['لا إله إلا الله', 15],
     ['د ا ر و ز', 9],
@@ -56,7 +63,14 @@ console.log('§1 the oracle: one cell per letter, none for a mark or the joiner,
     ['\ufefb', 1],
     ['\ufdf2', 1],
     ['\u0627\u0653', 1],
-    ['a\u200db', 2],
+    ['a\u200db', appleTerminal ? 3 : 2],
+    ['a\u200cb', appleTerminal ? 3 : 2],
+    ['a\u200c\u200db', appleTerminal ? 4 : 2],
+    ['\u200c', appleTerminal ? 1 : 0],
+    ['\u200d', appleTerminal ? 1 : 0],
+    ['\u2068تفلسف\u2069', 5],
+    ['\u2066\u2067\u2068\u2069', 0],
+    ['👨\u200d👩\u200d👧\u200d👦', 2],
   ]
   for (const [text, cells] of samples) {
     check(`"${text}" is ${cells} cells on the bun path and the node path`, stringWidth(text) === cells && nodeWidth(text) === cells, `${stringWidth(text)} / ${nodeWidth(text)}`)
@@ -67,10 +81,12 @@ console.log('§2 the wrapper never packs a line wider than its columns')
 {
   let sound = true
   const faults: string[] = []
-  for (const row of ROWS) {
+  for (const row of [...ROWS, 'می\u200cخواهم '.repeat(24), `\x1b[31m${'a\u200db '.repeat(40)}\x1b[0m`]) {
     for (const cols of [40, 76, 106]) {
-      for (const line of wrapAnsi(row, cols, { hard: true, trim: false }).split('\n')) {
-        if (stringWidth(line) > cols || nodeWidth(line) > cols) { sound = false; faults.push(`${cols}: "${line}"`) }
+      const lines = wrapAnsi(row, cols, { hard: true, trim: false }).split('\n')
+      if (stripAnsi(lines.join('')) !== stripAnsi(row)) { sound = false; faults.push(`${cols}: wrapping changed source text`) }
+      for (const line of lines) {
+        if (stringWidth(line) > cols || nodeWidth(stripAnsi(line)) > cols) { sound = false; faults.push(`${cols}: "${line}"`) }
       }
     }
   }
@@ -177,13 +193,75 @@ console.log('§4 the live path: the frame writer addresses every row of the bord
     const bytes = serialize(optimizePatches(writer.render(empty, frame, true, true)))
     const { grid, overflow } = replayCells(bytes, cols, rows)
     const framed = grid.map(row => row.join('')).filter(row => /[│╮╯]/.test(row))
-    const rtl = framed.filter(row => /[\u0590-\u06FF]/.test(row))
+    const rtl = framed.filter(row => /[\u0590-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(row))
     check(`${cols}: the writer paints right-to-left rows inside the frame`, rtl.length >= 6, String(rtl.length))
     check(`${cols}: no write addresses a cell beyond the last column`, overflow.length === 0, overflow.slice(0, 3).join(' | '))
     const borderCells = grid.filter(row => row.some(c => /[│╮╯]/.test(c))).map(row => row[cols - 1])
     check(`${cols}: every framed row holds its border in the last column`, borderCells.length >= 8 && borderCells.every(c => /^[│╮╯]/.test(c ?? '')), JSON.stringify(borderCells))
-    check(`${cols}: the owner's word sits inside the frame`, rtl.some(row => row.includes('تفلسف') && /│$/.test(row)), rtl.filter(row => row.includes('تفلسف')).join(' | '))
+    const ownerWord = appleTerminal ? '\u2068\uFED2\u2069\u2068\uFEB4\u2069\u2068\uFEE0\u2069\u2068\uFED4\u2069\u2068\uFE97\u2069' : 'تفلسف'
+    check(`${cols}: the owner's word sits inside the frame`, rtl.some(row => row.includes(ownerWord) && /│$/.test(row)))
+    check(`${cols}: terminal bytes carry isolation only on Apple_Terminal`, bytes.includes('\u2068') === appleTerminal)
+    const plain = writer.fullFrameText(frame)
+    check(`${cols}: the transcript projection stays logical and unshaped`, plain.includes('تفلسف') && !/[\u2066-\u2069]/.test(plain))
+    check(`${cols}: an unchanged frame emits no bytes`, writer.render(frame, frame, true, true).length === 0)
+    const latin = composeScene({ name: 'latin', cols, rows, root: { kind: 'text', text: 'Only Latin text, 123.' } }, ctx, undefined, { altScreen: true })
+    const latinBytes = serialize(optimizePatches(writer.render(empty, latin, true, true)))
+    check(`${cols}: a row without RTL carries no isolates`, !/[\u2066-\u2069]/.test(latinBytes))
+    const terminal: string | undefined = process.env.TERM_PROGRAM
+    process.env.TERM_PROGRAM = 'xterm'
+    check(`${cols}: non-RTL terminal bytes remain identical across profiles`, latinBytes === serialize(optimizePatches(writer.render(empty, latin, true, true))))
+    process.env.TERM_PROGRAM = terminal
   }
+}
+
+console.log('§5 contextual forms come from the Unicode source rows')
+{
+  const forms: Record<string, Record<string, number>> = {}
+  const ligatures: Record<string, Record<string, number>> = {}
+  for (const row of unicodeRows.unicodeData) {
+    const fields = row.split(';')
+    const [tag, ...points] = fields[5]!.split(' ')
+    const form = tag!.slice(1, -1)
+    const target = points.length === 1 ? forms : ligatures
+    const key = points[points.length - 1]!
+    ;(target[key] ??= {})[form] = Number.parseInt(fields[0]!, 16)
+  }
+  const joining: Record<string, string> = {}
+  for (const row of unicodeRows.arabicShaping) {
+    const fields = row.split(';').map(s => s.trim())
+    joining[fields[0]!] = fields[2]!
+  }
+  check('every generated letter/form pair matches its Unicode decomposition', JSON.stringify(forms) === JSON.stringify(presentationData.forms))
+  check('every generated lam-alef pair matches its Unicode decomposition', JSON.stringify(ligatures) === JSON.stringify(presentationData.lamAlef))
+  check('every joining type matches ArabicShaping', JSON.stringify(joining) === JSON.stringify(presentationData.joining))
+  const { terminalTextCells } = await import('../../src/ink/session/terminalProfile.js')
+  check('only the named Apple profile enables shaping and spacing joiners', ['xterm', 'iTerm.app', 'constructor', 'toString', ''].every(name => {
+    const profile = terminalTextCells({ TERM_PROGRAM: name })
+    return profile.joinerCells === 0 && !profile.shapeRtl
+  }) && terminalTextCells({ TERM_PROGRAM: 'Apple_Terminal' }).shapeRtl)
+  const { shapeBidiForTerminal } = await import('../../src/ink/bidi.js')
+  const { getGraphemeSegmenter } = await import('../../src/utils/intl.js')
+  const paint = (text: string): string => shapeBidiForTerminal(Array.from(getGraphemeSegmenter().segment(text), ({ segment }) => ({ value: segment, width: stringWidth(segment), styleId: 0, hyperlink: undefined }))).map(c => c.value).join('')
+  const isolated = (text: string): string => Array.from(text, ch => `\u2068${ch}\u2069`).join('')
+  const phrase = '**بلا تفلسف** — no tfalsif.'
+  const expected = '**' + isolated('\uFED2\uFEB4\uFEE0\uFED4\uFE97  \uFEFC\uFE91') + '** — no tfalsif.'
+  check('the owner phrase has the exact joined visual forms, mirrored order and zero-width isolates', paint(phrase) === expected, JSON.stringify(paint(phrase)))
+  check('the shaped owner phrase keeps every source cell', stringWidth(paint(phrase)) === stringWidth(phrase))
+  check('ZWNJ breaks joining and retains its cell without emitting the control', paint('ب\u200cب').replace(/[\u2068\u2069]/g, '') === '\uFE8F\uFE8F ')
+  check('ZWJ joins and retains its cell without emitting the control', paint('ب\u200dب').replace(/[\u2068\u2069]/g, '') === '\uFE90\uFE91 ')
+  check('shaping never changes an ASCII row', paint('Latin 123 [brackets]') === 'Latin 123 [brackets]')
+  check('an emoji cluster beside Arabic keeps its own joiners and code points', paint('ب 👨\u200d👩\u200d👧\u200d👦 ب').includes('👨\u200d👩\u200d👧\u200d👦'))
+  const pointed = paint('مُحَمَّدٌ שָׁלוֹם')
+  check('a combining mark never shares an isolate with its base', Array.from(pointed.matchAll(/\u2068([^\u2069]*)\u2069/g), match => match[1]!).every(value => Array.from(value).length === 1))
+  const persian = paint('می\u200cخواهم')
+  check('a joiner replacement never shares an isolate with its Arabic base', Array.from(persian.matchAll(/\u2068([^\u2069]*)\u2069/g), match => match[1]!).every(value => stringWidth(value) === 1))
+}
+
+if (!appleTerminal) {
+  const apple = spawnSync(process.execPath, [import.meta.filename, '--apple'], { env: process.env, encoding: 'utf8' })
+  process.stdout.write(apple.stdout ?? '')
+  process.stderr.write(apple.stderr ?? '')
+  check('Apple_Terminal width and border arm', apple.status === 0, String(apple.status))
 }
 
 console.log(failures === 0 ? '\nrtl-row-border: GREEN' : `\nrtl-row-border: ${failures} RED`)

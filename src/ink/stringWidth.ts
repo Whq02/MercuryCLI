@@ -3,6 +3,7 @@ import emojiRegexFactory from 'emoji-regex'
 import { eastAsianWidth } from 'get-east-asian-width'
 import stripAnsi from 'strip-ansi'
 import { getGraphemeSegmenter } from '../utils/intl.js'
+import { terminalTextCells } from './session/terminalTextCells.js'
 
 type NativeStringWidth = (
   input: string,
@@ -32,13 +33,14 @@ export function isHebrewArabicCombiningMark(codePoint: number): boolean {
 const HEBREW_ARABIC_MARK_RE =
   /[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u064B-\u065F\u0670]/
 
-const DIRECTIONAL_FORMAT_RE = /[\u061C\u180E\u200E\u200F\u202A-\u202E\u2066-\u2069]/
+const DIRECTIONAL_FORMAT_RE = /[\u061C\u180E\u200C-\u200F\u202A-\u202E\u2066-\u2069]/
 
 function isZeroWidthCodePoint(codePoint: number): boolean {
   if (codePoint >= 0x20 && codePoint <= 0x7e) return false
   if (codePoint <= 0x1f) return true
   if (codePoint >= 0x7f && codePoint <= 0x9f) return true
   if (codePoint >= 0xa0 && codePoint <= 0x2ff) return codePoint === 0xad
+  if (codePoint === 0x200c || codePoint === 0x200d) return terminalTextCells().joinerCells === 0
   if (codePoint >= 0x200b && codePoint <= 0x200f) return true
   if (codePoint === 0xfeff) return true
   if (codePoint >= 0x2060 && codePoint <= 0x2069) return true

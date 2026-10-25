@@ -13,6 +13,8 @@ import {
 
 export const TERMINAL_PROFILE_VERSION = 1
 
+export { terminalTextCells } from './terminalTextCells.js'
+
 type ProfileRequirement = 'required' | 'recommended'
 
 interface ProfileCheckResult {

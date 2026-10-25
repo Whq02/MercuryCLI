@@ -26,6 +26,7 @@ import {
 import { LINK_END, link as oscLink } from './termio/osc.js'
 import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-table.js'
 import { readTerminalWidthMeasurements } from './session/widthProbe.js'
+import { terminalBidiFrame } from './terminalBidiFrame.js'
 
 
 type Options = {
@@ -360,6 +361,8 @@ export class FrameWriter {
   render(prev: Frame, next: Frame, altScreen = false, decstbmSafe = true): Diff {
     if (!this.options.isTTY) return this.renderFullFrameString(next)
     const started = performance.now()
+    prev = terminalBidiFrame(prev)
+    next = terminalBidiFrame(next)
     const diff = altScreen
       ? this.renderAlt(prev, next, decstbmSafe)
       : this.renderInline(prev, next)
@@ -432,6 +435,7 @@ export class FrameWriter {
   }
 
   holdingClipPaint(frame: Frame, cols: number, rows: number): Diff {
+    frame = terminalBidiFrame(frame)
     const { width, height, cells, charPool, hyperlinkPool } = frame.screen
     if (width === 0 || height === 0 || cols <= 0 || rows <= 0) return []
     const out: Diff = [{ type: 'cursorHide' }]
