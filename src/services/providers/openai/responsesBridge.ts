@@ -333,6 +333,7 @@ interface BuildOpenaiRequestInput {
   deferredToolNames?: ReadonlySet<string>
   toolSearch?: boolean
   maxOutputTokens?: number
+  toolChoice?: 'auto' | 'none'
 }
 
 function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
@@ -362,7 +363,7 @@ export function buildOpenaiResponsesRequest(
     input: mapMessagesToOpenaiInput(i.messages, {
       imagesSupported: i.imagesSupported !== false,
     }),
-    ...(tools ? { tools, tool_choice: 'auto' as const, parallel_tool_calls: true } : {}),
+    ...(tools ? { tools, tool_choice: i.toolChoice ?? ('auto' as const), parallel_tool_calls: true } : {}),
     reasoning: {
       ...(i.reasoningEffort ? { effort: i.reasoningEffort } : {}),
       summary: 'auto' as const,

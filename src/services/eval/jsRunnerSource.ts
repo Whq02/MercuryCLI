@@ -295,15 +295,16 @@ async function runCell(id, code, names) {
     globalThis.require = require
     globalThis.__mercuryPersistedNames = []
     const fn = new AsyncFunction(code)
-    await Promise.race([
+    const returned = await Promise.race([
       fn.call(globalThis),
       new Promise((_resolve, reject) => {
         if (signal.aborted) reject(new KernelInterrupt())
         else signal.addEventListener('abort', () => reject(new KernelInterrupt()), { once: true })
       }),
     ])
-    if (globalThis.__mercuryResult !== undefined) {
-      emit({ t: 'result', id, repr: inspect(globalThis.__mercuryResult, { depth: 4 }).slice(0, 10000) })
+    const result = globalThis.__mercuryResult !== undefined ? globalThis.__mercuryResult : returned
+    if (result !== undefined) {
+      emit({ t: 'result', id, repr: inspect(result, { depth: 4 }).slice(0, 10000) })
     }
   } catch (error) {
     if (error instanceof KernelInterrupt) {

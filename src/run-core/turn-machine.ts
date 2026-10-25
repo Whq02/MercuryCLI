@@ -177,7 +177,7 @@ import { ERROR_MESSAGE_USER_ABORT } from '../services/compact/compact.js'
 import { toolToAPISchema } from '../utils/api.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { requestWaitLine, streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
-import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
+import { interruptedToolsLine, turnCutOf, turnCutResultText, type TurnCut } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/toolEconomy.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
@@ -213,6 +213,11 @@ const OUTPUT_LIMIT_STOP_WORDS = {
   repeat: 'the reply hit the output ceiling and the continuation repeated what already stood; the turn ends here',
   budget: "the reply hit the output ceiling and the run's budget is spent; the turn ends here",
 } as const
+
+export const MAX_TURNS_CLOSING_TEXT =
+  'The turn budget is spent: no further tool call will run. Answer in text only — what was done, what was found, and what remains.'
+
+const MAX_TURNS_CUT: TurnCut = { kind: 'cut', detail: 'the turn budget was spent' }
 
 function continuationAdded(previous: string | undefined, next: string): boolean {
   if (previous === undefined) return true
@@ -304,6 +309,7 @@ type IterationState = {
   deadThinkingRecords: AttachmentMessage[]
   toolUseBlocks: ToolUseBlock[]
   needsFollowUp: boolean
+  closingTurn: boolean
   callOrdinal: number
   replyTo: ReplyMark[]
   early: EarlyStarts
@@ -703,7 +709,7 @@ async function* streamModel(
               return appState.toolPermissionContext
             },
             model: iter.currentModel,
-            toolChoice: undefined,
+            toolChoice: iter.closingTurn ? { type: 'none' } : undefined,
             isNonInteractiveSession:
               toolUseContext.options.isNonInteractiveSession,
             fallbackModel: backups.next(iter.currentModel),
@@ -842,7 +848,7 @@ async function* streamModel(
             ) as ToolUseBlock[]
             if (msgToolUseBlocks.length > 0) {
               iter.toolUseBlocks.push(...msgToolUseBlocks)
-              for (const block of msgToolUseBlocks) iter.early.offer(block, message, iter.toolUseBlocks.indexOf(block))
+              if (!iter.closingTurn) for (const block of msgToolUseBlocks) iter.early.offer(block, message, iter.toolUseBlocks.indexOf(block))
               iter.needsFollowUp = true
             }
           } else {
@@ -1038,6 +1044,7 @@ async function* runEventMachine(
       pendingOverflow,
     } = state
     let overflowEpisode = state.overflowEpisode
+    const closingTurn = maxTurns !== undefined && budgetGuard.maxTurnsExceeded(turnCount, maxTurns)
 
     const ordinal = ++iterationOrdinal
     const turnId = `t${ordinal}`
@@ -1412,6 +1419,7 @@ async function* runEventMachine(
       deadThinkingRecords,
       toolUseBlocks: [],
       needsFollowUp: false,
+      closingTurn,
       callOrdinal: 0,
       replyTo: awaitingReply,
       early: new EarlyStarts(toolUseContext, canUseTool),
@@ -1948,6 +1956,18 @@ async function* runEventMachine(
         }
       }
 
+      if (closingTurn && maxTurns !== undefined) {
+        yield emit({
+          kind: 'attachment',
+          message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount }),
+        })
+        const lostAtCap = memoryWriteLostEvent()
+        if (lostAtCap !== null) yield lostAtCap
+        const terminal: Terminal = { reason: 'max_turns', turnCount }
+        yield emit({ kind: 'run_terminal', terminal })
+        return terminal
+      }
+
       if (lastMessage?.isApiErrorMessage) {
         const sizeWarning = requestSizeWarning(messagesForQuery, iter.currentModel)
         if (sizeWarning !== null) {
@@ -2073,6 +2093,20 @@ async function* runEventMachine(
       const lostAtEnd = memoryWriteLostEvent()
       if (lostAtEnd !== null) yield lostAtEnd
       const terminal: Terminal = { reason: 'completed' }
+      yield emit({ kind: 'run_terminal', terminal })
+      return terminal
+    }
+
+    if (closingTurn && maxTurns !== undefined) {
+      iter.early.reset()
+      yield* emitSyntheticSettlements(assistantMessages, turnCutResultText(MAX_TURNS_CUT), 'aborted', emit)
+      yield emit({
+        kind: 'attachment',
+        message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount }),
+      })
+      const lostAtCap = memoryWriteLostEvent()
+      if (lostAtCap !== null) yield lostAtCap
+      const terminal: Terminal = { reason: 'max_turns', turnCount }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
     }
@@ -2320,27 +2354,13 @@ async function* runEventMachine(
 
     const nextTurnCount = turnCount + 1
 
-    if (
-      maxTurns !== undefined &&
-      budgetGuard.maxTurnsExceeded(nextTurnCount, maxTurns)
-    ) {
-      yield emit({
-        kind: 'attachment',
-        message: createAttachmentMessage({
-          type: 'max_turns_reached',
-          maxTurns,
-          turnCount: nextTurnCount,
-        }),
-      })
-      const lostAtCap = memoryWriteLostEvent()
-      if (lostAtCap !== null) yield lostAtCap
-      const terminal: Terminal = { reason: 'max_turns', turnCount: nextTurnCount }
-      yield emit({ kind: 'run_terminal', terminal })
-      return terminal
-    }
+    const closingNext =
+      maxTurns !== undefined && budgetGuard.maxTurnsExceeded(nextTurnCount, maxTurns)
+        ? [createUserMessage({ content: MAX_TURNS_CLOSING_TEXT, isMeta: true })]
+        : []
 
     const next: TurnState = {
-      messages: [...messagesForQuery, ...assistantMessages, ...toolResults],
+      messages: [...messagesForQuery, ...assistantMessages, ...toolResults, ...closingNext],
       toolUseContext: contextForNextTurn,
       autoCompactTracking: tracking,
       turnCount: nextTurnCount,

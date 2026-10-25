@@ -95,7 +95,7 @@ export interface OpenaiResponsesRequest {
   instructions?: string
   input: OpenaiInputItem[]
   tools?: Array<OpenaiFunctionTool | OpenaiWebSearchTool | OpenaiToolSearchTool>
-  tool_choice?: 'auto'
+  tool_choice?: 'auto' | 'none'
   parallel_tool_calls?: boolean
   reasoning?: { effort?: string; summary?: 'auto' | 'concise' | 'detailed' }
   store: boolean

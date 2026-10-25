@@ -32,9 +32,10 @@ const { FallbackTriggeredError } = await import('../../src/services/api/withRetr
 const { ImageSizeError } = await import('../../src/utils/imageValidation.ts')
 const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import(
+const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, turnCutResultText } = await import(
   '../../src/utils/messages/rejectionText.ts'
 )
+const { MAX_TURNS_CLOSING_TEXT } = await import('../../src/run-core/turn-machine.ts')
 const qm = await import('../../src/utils/messageQueueManager.ts')
 const lifecycle = await import('../../src/utils/commandLifecycle.ts')
 const sessionHooks = await import('../../src/utils/hooks/sessionHooks.ts')
@@ -153,6 +154,8 @@ type CallRecord = {
   effort: unknown
   override: unknown
   taskBudget: unknown
+  toolChoice: unknown
+  toolCount: number
   messages: unknown[]
 }
 type ModelStep =
@@ -168,6 +171,7 @@ function makeModel(script: ModelStep[][]): {
   const calls: CallRecord[] = []
   async function* callModel(req: {
     messages: unknown[]
+    tools?: unknown[]
     signal: AbortSignal
     options: Record<string, unknown>
   }): AsyncGenerator<never, void> {
@@ -177,6 +181,8 @@ function makeModel(script: ModelStep[][]): {
       effort: req.options.effortValue,
       override: req.options.maxOutputTokensOverride,
       taskBudget: req.options.taskBudget,
+      toolChoice: req.options.toolChoice,
+      toolCount: Array.isArray(req.tools) ? req.tools.length : 0,
       messages: [...req.messages],
     })
     const steps = script[idx]
@@ -1257,27 +1263,56 @@ section('L18 STEERING DRAIN — scoping, slash exclusion, drained-keyword nudge'
   qm.resetCommandQueue()
 }
 
-section('L19 MAX TURNS — attachment + typed terminal')
+section('L19 MAX TURNS — one tool-free closing call, then attachment + typed terminal')
 {
   const r = record(
     await run({
       maxTurns: 1,
-      script: [[y(asstToolUse('tu_mx', 'EchoTool', { text: 'x' }))]],
+      script: [[y(asstToolUse('tu_mx', 'EchoTool', { text: 'x' }))], [y(asstText('CLOSING WORDS: x was echoed; nothing remains.'))]],
     }),
   )
   check('terminal max_turns', r.terminal.reason === 'max_turns', JSON.stringify(r.terminal))
   check('terminal carries the turn count', r.terminal.turnCount === 2, String(r.terminal.turnCount))
-  check('exactly one model call', r.calls.length === 1)
-  check(
-    'the max_turns_reached attachment is yielded',
-    r.yields.some(
-      m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'max_turns_reached',
-    ),
-  )
+  check('two model calls: the capped tool round, then ONE closing call', r.calls.length === 2, String(r.calls.length))
+  check('the first call offered the tools with no forced choice', r.calls[0]!.toolChoice === undefined && r.calls[0]!.toolCount === 1, JSON.stringify({ choice: r.calls[0]!.toolChoice, tools: r.calls[0]!.toolCount }))
+  check("the closing call rides tool_choice none WITH the tools still on the wire (the cached prefix stays)", JSON.stringify(r.calls[1]!.toolChoice) === JSON.stringify({ type: 'none' }) && r.calls[1]!.toolCount === 1, JSON.stringify({ choice: r.calls[1]!.toolChoice, tools: r.calls[1]!.toolCount }))
+  check("the closing call's input carries the last round's tool_result", toolResultBlocks(r.calls[1]!.messages).some(b => b.tool_use_id === 'tu_mx'))
+  check("…and the closing nudge as a meta user message", userTextMessages(r.calls[1]!.messages).includes(MAX_TURNS_CLOSING_TEXT) && (r.calls[1]!.messages.at(-1) as AnyMsg).isMeta === true, JSON.stringify(userTextMessages(r.calls[1]!.messages)))
+  const closingIndex = r.yields.findIndex(m => (m as AnyMsg).type === 'assistant' && JSON.stringify(m).includes('CLOSING WORDS'))
+  const attachmentIndex = r.yields.findIndex(m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'max_turns_reached')
+  check('the closing answer is yielded BEFORE the max_turns_reached attachment (the rows layer ends the turn on the attachment)', closingIndex >= 0 && attachmentIndex > closingIndex, `${closingIndex} < ${attachmentIndex}`)
+  check('the attachment is yielded exactly once', r.yields.filter(m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'max_turns_reached').length === 1)
   check(
     'the tool_result still settled before the cap (pairing law)',
     toolResultBlocks(r.yields).filter(b => b.tool_use_id === 'tu_mx').length === 1,
   )
+  const closingTexts = userTextMessages(r.yields).filter(t => t === MAX_TURNS_CLOSING_TEXT)
+  check('the nudge is model-facing only: it never rides the yield stream', closingTexts.length === 0, String(closingTexts.length))
+
+  let echoRuns = 0
+  const counting = makeTool('EchoTool', { onCall: () => { echoRuns++ } })
+  const r2 = record(
+    await run({
+      maxTurns: 1,
+      tools: [counting],
+      script: [[y(asstToolUse('tu_a', 'EchoTool', { text: 'a' }))], [y(asstToolUse('tu_b', 'EchoTool', { text: 'b' }))]],
+    }),
+  )
+  check('a closing reply that still calls a tool (a lane that ignores tool_choice none): terminal max_turns', r2.terminal.reason === 'max_turns' && r2.terminal.turnCount === 2, JSON.stringify(r2.terminal))
+  check('…the tool ran ONCE — the closing call\u2019s tool never runs (the cap is not raised)', echoRuns === 1, String(echoRuns))
+  const unrun = toolResultBlocks(r2.yields).filter(b => b.tool_use_id === 'tu_b')
+  check('…the unrun call is settled synthetically with the cut text, so no tool_use is left unpaired', unrun.length === 1 && unrun[0]!.is_error === true && String(unrun[0]!.content) === turnCutResultText({ kind: 'cut', detail: 'the turn budget was spent' }), JSON.stringify(unrun))
+  check('…exactly two model calls, no third', r2.calls.length === 2, String(r2.calls.length))
+  check('…the attachment is yielded', r2.yields.some(m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'max_turns_reached'))
+
+  const r3 = record(
+    await run({
+      maxTurns: 2,
+      script: [[y(asstToolUse('tu_under', 'EchoTool', { text: 'u' }))], [y(asstText('done under the cap'))]],
+    }),
+  )
+  check('under the cap nothing changes: terminal completed, two calls, no tool_choice', r3.terminal.reason === 'completed' && r3.calls.length === 2 && r3.calls[1]!.toolChoice === undefined, JSON.stringify({ terminal: r3.terminal, calls: r3.calls.length, choice: r3.calls[1]!.toolChoice }))
+  check('…and no max_turns_reached attachment', !r3.yields.some(m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'max_turns_reached'))
 }
 
 section('L20 NO TERMINAL TOOL — a courier-only round recurses like any other tool round')

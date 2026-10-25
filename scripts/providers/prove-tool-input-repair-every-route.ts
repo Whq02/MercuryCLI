@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/services/providers/local/schemaTyping.ts src/services/providers/toolCallGate.ts src/services/tools/toolExecution.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/zai/zaiCallModel.ts
+import { readFileSync } from 'node:fs'
 import { z } from 'zod/v4'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -16,10 +17,8 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const typing = (await import('../../src/services/providers/local/schemaTyping.ts')) as Record<string, unknown>
-const repairArgumentsBySchema = (typing.repairArgumentsBySchema ?? typing.typeStringArgumentsBySchema) as (args: Record<string, unknown>, schema: unknown) => Record<string, unknown>
-const repairToolInput = (typing.repairToolInput ?? ((_tool: unknown, input: Record<string, unknown>) => input)) as (tool: unknown, input: Record<string, unknown>) => Record<string, unknown>
-const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
+const { repairArgumentsBySchema } = await import('../../src/services/providers/local/schemaTyping.ts')
+const { gateToolCall, repairToolInput } = await import('../../src/services/providers/toolCallGate.ts')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -193,6 +192,15 @@ section('E1 · the executor road every wire takes: a tool_use whose input arrive
   check('a refused input never ran the tool', seen.length === 1)
   const direct = repairToolInput(tool, { count: '9' })
   check('repairToolInput reads the tool\u2019s own schema', j(direct) === j({ count: 9 }), j(direct))
+  const malformed = { count: '4', labels: null, nested: { on: 'false' } } as Record<string, unknown>
+  const viaGate = gateToolCall([tool] as never, { id: 'call_both', name: tool.name, argumentsRaw: JSON.stringify(malformed), malformed: false })
+  const viaExecutor = repairToolInput(tool, malformed)
+  check('ONE PIPELINE: the text-wire gate and the executor road repair the same malformed call identically (nulls in optional slots dropped, strings typed)', viaGate.ok && j(viaGate.input) === j(viaExecutor) && j(viaExecutor) === j({ count: 4, nested: { on: false } }), j({ viaGate, viaExecutor }))
+  const nullOnAnthropicRoad = await run({ count: '5', labels: null })
+  check('a null in an optional slot on the executor road (the Anthropic wire) is dropped and the call runs, as the text-wire gate already did', nullOnAnthropicRoad.length === 1 && nullOnAnthropicRoad[0]!.is_error !== true && j(seen[1]) === j({ count: 5 }), j({ nullOnAnthropicRoad, seen }))
+  const toolSource = readFileSync(new URL('../../src/services/tools/toolExecution.ts', import.meta.url), 'utf8')
+  const gateSource = readFileSync(new URL('../../src/services/providers/toolCallGate.ts', import.meta.url), 'utf8')
+  check('the executor imports the gate\u2019s repairToolInput and the gate calls the same function before its own validation (one owner, two callers)', toolSource.includes("import { repairToolInput } from '../providers/toolCallGate.js'") && gateSource.includes('const input = repairToolInput(tool, straightened)'))
 }
 
 section('refusals · what the repair must never do with arguments it does not trust')

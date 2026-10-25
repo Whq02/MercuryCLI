@@ -588,6 +588,7 @@
     "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
+    "MAX_TURNS_CLOSING_TEXT",
     "PAUSE_TURN_CONTINUATION_LIMIT",
     "decideCutToolCallRecovery",
     "decideEmptyReplyRecovery",

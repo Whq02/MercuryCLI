@@ -600,7 +600,7 @@ The output row types, by their `type` field:
 The settled text or tool row is the complete value.
 
 The outcome carries `schema`, `turn_id`, `status`, `steps`, `wall_ms`,
-`usage`, `models` and `denials`, with `answer` on completion and `error`
+`usage`, `models` and `denials`, with `answer` on completion or a turn limit and `error`
 (`message`, `class`, optional `detail`) on failure. `stop`, `api_ms`,
 `cost_usd`, requested `structured` output and `notices` are included when
 available. `wall_ms` is the turn's elapsed time. `api_ms` is the sum of the

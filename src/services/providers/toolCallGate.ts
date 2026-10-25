@@ -103,6 +103,16 @@ export function straightenQuoteArgs(
   return out ?? input
 }
 
+export function repairToolInput<Input extends Record<string, unknown>>(
+  tool: { inputSchema: unknown; inputJSONSchema?: unknown; keepEmptyInputs?: readonly string[] },
+  input: Input,
+): Input {
+  const declared = declaredInputSchema(tool)
+  const stripped = stripNullArgs(input, declared) as Record<string, unknown>
+  const dropped = dropEmptyOptionalArgs(stripped, tool)
+  return repairArgumentsBySchema(dropped, declared) as Input
+}
+
 function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string, offered?: string[]): ToolCallVerdict {
   return {
     ok: false,
@@ -151,18 +161,15 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   if (call.malformed && (call.id.trim() === '' || PLACEHOLDER_ID.test(call.id))) {
     return refused(call, 'missing-id', 'the provider delivered the call without a call id, so its result could not be paired')
   }
-  const declared = declaredInputSchema(tool)
-  const stripped = stripNullArgs(parsed, declared)
-  if (typeof stripped !== 'object' || stripped === null || Array.isArray(stripped)) {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     return refused(
       call,
       'not-an-object',
-      `the arguments must be a JSON object, not ${Array.isArray(stripped) ? 'an array' : stripped === null ? 'null' : `a ${typeof stripped}`}`,
+      `the arguments must be a JSON object, not ${Array.isArray(parsed) ? 'an array' : parsed === null ? 'null' : `a ${typeof parsed}`}`,
     )
   }
-  const dropped = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
-  const straightened = hints?.straightenQuotes === true ? straightenQuoteArgs(dropped, tool) : dropped
-  const input = repairArgumentsBySchema(straightened, declared)
+  const straightened = hints?.straightenQuotes === true ? straightenQuoteArgs(parsed as Record<string, unknown>, tool) : (parsed as Record<string, unknown>)
+  const input = repairToolInput(tool, straightened)
   try {
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {

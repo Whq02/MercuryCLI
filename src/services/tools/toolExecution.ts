@@ -53,7 +53,7 @@ import {
 } from '../../utils/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
-import { repairToolInput } from '../providers/local/schemaTyping.js'
+import { repairToolInput } from '../providers/toolCallGate.js'
 import { outputSchemaMismatch } from './toolOutputCheck.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'

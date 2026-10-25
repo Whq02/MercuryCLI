@@ -47,7 +47,11 @@ export function splitTopLevelSegments(source: string): Segment[] {
   return segments
 }
 
-function* topLevelCodePositions(source: string): Generator<number> {
+function topLevelCodePositions(source: string): Generator<number> {
+  return codePositions(source, false)
+}
+
+function* codePositions(source: string, everyDepth: boolean): Generator<number> {
   let depth = 0
   let i = 0
   const n = source.length
@@ -155,6 +159,7 @@ function* topLevelCodePositions(source: string): Generator<number> {
     }
     if (c === '(' || c === '[' || c === '{') {
       depth++
+      if (everyDepth) yield i
       i++
       continue
     }
@@ -170,24 +175,47 @@ function* topLevelCodePositions(source: string): Generator<number> {
         i++
         continue
       }
-      if (depth === 0) yield i
+      if (everyDepth || depth === 0) yield i
       i++
       continue
     }
-    if (depth === 0) yield i
+    if (everyDepth || depth === 0) yield i
     i++
   }
 }
 
 function patternNames(region: string): string[] {
   const names: string[] = []
-  const idRe = /[A-Za-z_$][\w$]*/g
-  let match: RegExpExecArray | null
-  while ((match = idRe.exec(region)) !== null) {
-    const name = match[0]
+  const code = new Set(codePositions(region, true))
+  let depth = 0
+  let defaultDepth: number | null = null
+  for (let i = 0; i < region.length; i++) {
+    if (!code.has(i)) continue
+    const c = region[i]!
+    if (c === '(' || c === '[' || c === '{') {
+      depth++
+      continue
+    }
+    if (c === ')' || c === ']' || c === '}') {
+      depth--
+      if (defaultDepth !== null && depth < defaultDepth) defaultDepth = null
+      continue
+    }
+    if (defaultDepth !== null) {
+      if (c === ',' && depth === defaultDepth) defaultDepth = null
+      continue
+    }
+    if (c === '=') {
+      defaultDepth = depth
+      continue
+    }
+    if (!/[A-Za-z_$]/.test(c)) continue
+    let end = i + 1
+    while (end < region.length && /[\w$]/.test(region[end]!)) end++
+    const name = region.slice(i, end)
+    i = end - 1
     if (name === 'const' || name === 'let' || name === 'var') continue
-    const after = region.slice(match.index + name.length).match(/^\s*:/)
-    if (after) continue
+    if (/^\s*:/.test(region.slice(end))) continue
     names.push(name)
   }
   return names
@@ -208,6 +236,89 @@ function declarationNames(statement: string): string[] {
   }
   flush(body.length)
   return names
+}
+
+function nestedVarNames(segment: string): string[] {
+  const names: string[] = []
+  const code = [...codePositions(segment, true)]
+  let depth = 0
+  let pendingFunctionDepth: number | null = null
+  const functionDepths: number[] = []
+  for (let k = 0; k < code.length; k++) {
+    const i = code[k]!
+    const c = segment[i]!
+    if (c === '(' || c === '[' || c === '{') {
+      if (c === '{' && pendingFunctionDepth === depth) {
+        functionDepths.push(depth + 1)
+        pendingFunctionDepth = null
+      }
+      depth++
+      continue
+    }
+    if (c === ')' || c === ']' || c === '}') {
+      if (functionDepths[functionDepths.length - 1] === depth) functionDepths.pop()
+      depth--
+      continue
+    }
+    if (c === '=' && segment[i + 1] === '>') {
+      if (/^=>\s*\{/.test(segment.slice(i))) pendingFunctionDepth = depth
+      continue
+    }
+    if (!/[A-Za-z_$]/.test(c) || (i > 0 && /[\w$.]/.test(segment[i - 1]!))) continue
+    let end = i + 1
+    while (end < segment.length && /[\w$]/.test(segment[end]!)) end++
+    const word = segment.slice(i, end)
+    k += end - i - 1
+    if (word === 'function' || word === 'class') {
+      pendingFunctionDepth = depth
+      continue
+    }
+    if (word !== 'var' || functionDepths.length > 0) continue
+    let stop = segment.length
+    let inner = depth
+    let assigned = false
+    for (let m = k + 1; m < code.length; m++) {
+      const p = code[m]!
+      const ch = segment[p]!
+      if (ch === '(' || ch === '[' || ch === '{') inner++
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        if (inner === depth) {
+          stop = p
+          break
+        }
+        inner--
+      } else if (inner !== depth) continue
+      else if (ch === ';' || ch === '\n') {
+        stop = p
+        break
+      } else if (ch === '=') assigned = true
+      else if (!assigned && /^(?:of|in)(?![\w$])/.test(segment.slice(p, p + 3)) && !/[\w$]/.test(segment[p - 1] ?? '')) {
+        stop = p
+        break
+      }
+    }
+    names.push(...declarationNames(`var ${segment.slice(end, stop)}`))
+  }
+  return names
+}
+
+function rewriteDynamicImports(source: string): string {
+  const starts: number[] = []
+  for (const i of codePositions(source, true)) {
+    if (source[i] !== 'i' || !source.startsWith('import', i)) continue
+    if (i > 0 && /[\w$.]/.test(source[i - 1]!)) continue
+    let end = i + 'import'.length
+    while (end < source.length && /\s/.test(source[end]!)) end++
+    if (source[end] === '(') starts.push(i)
+  }
+  if (starts.length === 0) return source
+  let out = ''
+  let last = 0
+  for (const i of starts) {
+    out += `${source.slice(last, i)}__mercuryImport`
+    last = i + 'import'.length
+  }
+  return out + source.slice(last)
 }
 
 function findTopLevelAssign(text: string): number {
@@ -323,7 +434,8 @@ function directivePrologue(source: string): string {
 }
 
 export function transformJsCell(source: string): TransformedCell {
-  const segments = splitTopLevelSegments(source)
+  const base = rewriteDynamicImports(source)
+  const segments = splitTopLevelSegments(base)
   const names: string[] = []
   const out: string[] = []
   let lastCodeIndex = -1
@@ -382,6 +494,7 @@ export function transformJsCell(source: string): TransformedCell {
       out.push(text)
       continue
     }
+    names.push(...nestedVarNames(effective))
     if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective, prevCodeIndex < 0 || prev.endsWith(';') || previousBlock)) {
       const expr = effective.replace(/;+\s*$/, '')
       out.push(`${leading}globalThis.__mercuryResult = (${expr}\n);`)
@@ -400,9 +513,10 @@ export function transformJsCell(source: string): TransformedCell {
   const stamp = Math.abs(hashCode(source))
   const save = `__mercuryPersist${stamp}`
   const threw = `__mercuryThrew${stamp}`
-  const code = `${directivePrologue(source)}\nlet ${save}, ${threw} = false;\ntry {\n${save} = (__mercuryThrew) => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} catch (__mercuryError) { ${threw} = true; throw __mercuryError } finally { ${save}(${threw}); }`
-  if (!parsesCell(code) && parsesCell(source)) {
-    return { code: source, persistedNames: [], capturesResult: false }
+  const code = `${directivePrologue(base)}\nlet ${save}, ${threw} = false;\ntry {\n${save} = (__mercuryThrew) => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} catch (__mercuryError) { ${threw} = true; throw __mercuryError } finally { ${save}(${threw}); }`
+  if (!parsesCell(code)) {
+    if (parsesCell(base)) return { code: base, persistedNames: [], capturesResult: false }
+    if (parsesCell(source)) return { code: source, persistedNames: [], capturesResult: false }
   }
   return { code, persistedNames: unique, capturesResult }
 }

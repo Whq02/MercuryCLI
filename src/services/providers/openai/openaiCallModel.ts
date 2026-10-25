@@ -648,6 +648,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
     ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),
+    ...(options.toolChoice?.type === 'none' ? { toolChoice: 'none' as const } : {}),
   }), ...openaiCacheRetention(modelId, cacheSourceKind) })
   let request = buildRequest(profile.wireEffort)
   const effortOnWire = (): EffortStampV1 => effortStampOf(effortTruth.requested, openaiEffortWireFact(request, effortTruth.supportsEffort))

@@ -18,6 +18,7 @@ import type { AnthropicStream } from './anthropicStream.js'
 type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
 type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
 type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
+type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
 import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
@@ -236,7 +237,7 @@ export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
 export type Options = {
   getToolPermissionContext: () => Promise<ToolPermissionContext>
   model: string
-  toolChoice?: BetaToolChoiceTool | BetaToolChoiceAuto | undefined
+  toolChoice?: BetaToolChoiceTool | BetaToolChoiceAuto | BetaToolChoiceNone | undefined
   isNonInteractiveSession: boolean
   extraToolSchemas?: ApiToolUnion[]
   nativeWebSearch?: NativeWebSearchRequest

@@ -256,20 +256,28 @@ section('Q3 — a non-allow canUseTool lands in the outcome\'s denials')
   check('denials carries the denied call', denials.length === 1 && denials[0]?.tool === 'QeProbeTool' && denials[0]?.call_id === 'toolu_qe_deny', j(denials))
 }
 
-section('Q4 — the maxTurns attachment settles the turn as turn_limit')
+section('Q4 — the maxTurns attachment settles the turn as turn_limit, after one tool-free closing call')
 {
   const tool = makeFakeTool()
-  const { out } = await runAsk({
+  const { api, out } = await runAsk({
     turns: [
       { kind: 'tool_use', name: 'QeProbeTool', input: {}, id: 'toolu_qe_turns' },
-      { kind: 'text', text: 'Q4 never reached?' },
+      { kind: 'text', text: 'Q4 CLOSING ANSWER: the probe ran; nothing remains.' },
     ],
     tools: [tool],
     maxTurns: 1,
   })
-  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
+  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string }; answer?: string }
   check('the outcome is turn_limit', result?.type === 'outcome' && result?.status === 'turn_limit', j({ t: result?.type, s: result?.status }))
   check('the error names the limit in its own class', result?.error?.class === 'turn_limit' && String(result?.error?.message).includes('maximum number of turns'), j(result?.error))
+  check('two model calls: the capped tool round, then one closing call', api.messageRequests().length === 2, `${api.messageRequests().length}`)
+  const closing = api.messageRequests().at(-1)?.body as { tool_choice?: unknown; tools?: unknown[]; messages?: Array<{ role?: string; content?: unknown }> } | undefined
+  check('the closing request rides tool_choice none on the wire', j(closing?.tool_choice) === j({ type: 'none' }), j(closing?.tool_choice))
+  check('…with the tools still on the wire', Array.isArray(closing?.tools) && closing!.tools!.length >= 1, j(closing?.tools?.length))
+  check("…and the tool_result of the capped round in its messages", j(closing?.messages ?? []).includes('toolu_qe_turns'))
+  check('the closing answer is the turn_limit outcome\u2019s answer', result?.answer === 'Q4 CLOSING ANSWER: the probe ran; nothing remains.', j(result?.answer))
+  const text = out.find(m => m.type === 'text' && (m as { text?: string }).text?.startsWith('Q4 CLOSING ANSWER'))
+  check('the closing answer streamed as a text row before the outcome', text !== undefined)
 }
 
 section('Q5 — a met budget ceiling settles the turn as budget_limit')

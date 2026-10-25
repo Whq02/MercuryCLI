@@ -90,4 +90,41 @@ for (const [label, source, expected] of lexicalCells) {
   check('the regex-start decision reads back from the slash (a postfix ++/-- is division) instead of re-scanning the whole prefix at every slash', scanner.includes("if (c === '/' && regexCanStart(source, i))") && !scanner.includes('source.slice(0, i)'))
 }
 
+section('dynamic import(): rewritten to __mercuryImport at any depth, never inside a string, a comment or an identifier')
+{
+  const t = transformJsCell("const mod = await import('./lib.mjs')\nconst lazy = async () => (await import ('zod')).z\nmod.x")
+  check('a top-level dynamic import becomes __mercuryImport', t.code.includes("await __mercuryImport('./lib.mjs')"), t.code)
+  check('a nested dynamic import (inside an arrow body, with a space before the paren) is rewritten too', t.code.includes("__mercuryImport ('zod')"), t.code)
+  check('the declared names still persist', JSON.stringify(t.persistedNames) === JSON.stringify(['mod', 'lazy']), JSON.stringify(t.persistedNames))
+  check('the transformed cell parses', parsesAsCellBody(t.code), t.code)
+  const untouched = transformJsCell("const s = 'import(x)' // import(y)\nconst imports = () => 1\nconst r = imports() + s.length + obj.import(1)")
+  check('import inside a string, a comment, an identifier prefix or a member access is left alone', !untouched.code.includes('__mercuryImport'), untouched.code)
+}
+
+section('destructuring with defaults: only the bound names persist, never the default expressions')
+{
+  const t = transformJsCell("const raw = '{\"a\":1}'\nconst { a = defaultVal, b = JSON.parse(raw).a, c: { d = f(x, y) } = {}, ...rest } = { a: 1 }\nconst [p = g(), , q = [1, 2].length] = []\na + b")
+  check('the bound identifiers persist', ['raw', 'a', 'b', 'd', 'rest', 'p', 'q'].every(n => t.persistedNames.includes(n)), JSON.stringify(t.persistedNames))
+  check('no identifier from a default-value expression persists', ['defaultVal', 'JSON', 'parse', 'f', 'x', 'y', 'g', 'length', 'c'].every(n => !t.persistedNames.includes(n)), JSON.stringify(t.persistedNames))
+  check('the transformed cell parses', parsesAsCellBody(t.code), t.code)
+}
+
+section('var inside a top-level control block persists; var inside a nested function does not')
+{
+  const t = transformJsCell("try { var parsed = JSON.parse('{\"x\":5}') } catch (e) { var failed = true }\nif (parsed) { var inIf = 7, alsoIf = 8 } else { var inElse = 9 }\nfor (var i = 0; i < 2; i++) { var inLoop = i }\nfunction helper() { var local = 1; return local }\nconst run = () => { var inArrow = 2; return inArrow }\nparsed.x + inIf")
+  check('block-nested vars persist', ['parsed', 'failed', 'inIf', 'alsoIf', 'inElse', 'i', 'inLoop'].every(n => t.persistedNames.includes(n)), JSON.stringify(t.persistedNames))
+  check('function-local vars do not', !t.persistedNames.includes('local') && !t.persistedNames.includes('inArrow'), JSON.stringify(t.persistedNames))
+  const heads = transformJsCell('for (var key in { a: 1 }) { var seenKey = key }\nfor (var item of [1]) { var seenItem = item in globalThis }\nseenKey')
+  check('for-in and for-of heads bind the loop variable, never the of/in keyword, and an in-expression after = is read whole', JSON.stringify(heads.persistedNames) === JSON.stringify(['key', 'seenKey', 'item', 'seenItem']), JSON.stringify(heads.persistedNames))
+  check('the function and the arrow binding persist as before', t.persistedNames.includes('helper') && t.persistedNames.includes('run'))
+  check('the transformed cell parses', parsesAsCellBody(t.code), t.code)
+  const scope: Record<string, unknown> = {}
+  try {
+    await runInNewContext(`(async () => {\n${t.code}\n})()`, scope)
+    check('the block-nested values reach the persistence ledger', scope.parsed !== undefined && scope.inIf === 7 && scope.alsoIf === 8 && scope.inLoop === 1 && scope.i === 2 && scope.local === undefined && scope.inArrow === undefined, JSON.stringify(scope.__mercuryPersistedNames))
+  } catch (error) {
+    check('the nested-var cell executes', false, String(error))
+  }
+}
+
 finish('JS-TRANSFORM')

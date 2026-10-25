@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { check, cleanup, finish, loadEval, refusingBridge, setup, within } from './lib.js'
 
 const { work } = setup()
@@ -33,6 +35,26 @@ try {
   check('a call continuation is not captured as a new statement', !transformJsCell(callContinuation).capturesResult)
   const measuredShape = 'const r = await tool.attempt.Glob({ pattern: "**/package.json", path: "/fixture" });\nglobResult = r;\nconst v = r.ok ? r.value : r.error;\nconst kind = typeof v;\nconst preview = kind === "string" ? v.slice(0, 600) : JSON.stringify(v, null, 1).slice(0, 600);\n({ ok: r.ok, kind, isArray: Array.isArray(v), length: kind === "string" ? v.length : (Array.isArray(v) ? v.length : Object.keys(v ?? {})), preview });'
   check('the measured lost-object cell captures its final value', transformJsCell(measuredShape).capturesResult)
+
+  writeFileSync(join(work, 'eval-shape-module.mjs'), 'export const answer = 42\n')
+  const dynamic = await run("const shapeModule = await import('./eval-shape-module.mjs')\nshapeModule.answer")
+  check('a dynamic import() of a relative module resolves against the cell cwd and its binding persists', dynamic.status === 'ok' && dynamic.resultRepr === '42', JSON.stringify(dynamic.error ?? dynamic.resultRepr))
+  const dynamicNext = await run('shapeModule.answer + 1')
+  check('…and the next cell still reads it', dynamicNext.resultRepr === '43', JSON.stringify(dynamicNext.error ?? dynamicNext.resultRepr))
+  const defaults = await run("const shapeRaw = '{\"a\":1}'\nconst { shapeKey: shapeA = 10, shapeB = JSON.parse(shapeRaw).a + 1 } = { shapeKey: undefined }\nshapeA + shapeB")
+  check('a destructuring declaration with default values runs and captures its value', defaults.status === 'ok' && defaults.resultRepr === '12', JSON.stringify(defaults.error ?? defaults.resultRepr))
+  const defaultsNext = await run('JSON.stringify([shapeA, shapeB, typeof JSON === "object", "parse" in globalThis, Object.hasOwn(globalThis, "shapeKey")])')
+  check('…the bound names persist and neither the pattern key nor anything from the default expressions was exported', defaultsNext.resultRepr === "'[10,2,true,false,false]'", JSON.stringify(defaultsNext.error ?? defaultsNext.resultRepr))
+  const nested = await run("try { var shapeParsed = JSON.parse('{\"x\":5}') } catch {}\nif (shapeParsed) { var shapeInIf = 7 }\nshapeParsed.x + shapeInIf")
+  check('var declared inside try and if blocks runs and captures its value', nested.status === 'ok' && nested.resultRepr === '12', JSON.stringify(nested.error ?? nested.resultRepr))
+  const nestedNext = await run('JSON.stringify([shapeParsed, shapeInIf])')
+  check('…and both block-nested vars persist to the next cell', nestedNext.resultRepr === "'[{\"x\":5},7]'", JSON.stringify(nestedNext.error ?? nestedNext.resultRepr))
+  const returned = await run('const shapeN = 41\nreturn shapeN + 1')
+  check('a top-level return hands its value back as the cell result', returned.status === 'ok' && returned.resultRepr === '42', JSON.stringify(returned.error ?? returned.resultRepr))
+  const returnedNext = await run('shapeN')
+  check('…and the declaration before the return still persisted', returnedNext.resultRepr === '41', JSON.stringify(returnedNext.error ?? returnedNext.resultRepr))
+  const returnedNothing = await run('const shapeSilent = 1\nreturn')
+  check('a bare return yields no result frame', returnedNothing.status === 'ok' && returnedNothing.resultRepr === undefined, JSON.stringify(returnedNothing))
 } finally {
   await evalKernelManager.disposeAll()
   cleanup()

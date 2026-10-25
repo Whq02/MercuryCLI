@@ -816,6 +816,16 @@ export class Conversation {
       await this.recordDelta(turnMessages)
     }
     const messages = this.mutableMessages
+    const latestAnswer = (): string => {
+      for (let i = turnMessages.length - 1; i >= 0; i--) {
+        const message = turnMessages[i]!
+        if (message.type !== 'assistant') continue
+        if ((message as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) continue
+        const answer = lastTextBlockOf(message as AssistantMessage)
+        if (answer !== '') return answer
+      }
+      return ''
+    }
     const maxTimeReached = (): boolean => config.maxTime !== undefined && Date.now() >= config.maxTime.at
     const timeLimitFacts = (): Partial<OutcomeFacts> => ({ error: { message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }), class: 'time_limit' } })
     if (maxTimeReached()) {
@@ -935,7 +945,8 @@ export class Conversation {
               if (eagerFlush) await flushSessionStorage()
               const open = steps.flush()
               if (open !== null) yield open
-              yield* endTurn('turn_limit', { error: { message: OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns }), class: 'turn_limit' } })
+              const closingAnswer = latestAnswer()
+              yield* endTurn('turn_limit', { error: { message: OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns }), class: 'turn_limit' }, ...(closingAnswer !== '' ? { answer: closingAnswer } : {}) })
               return
             } else if (attachmentType === 'loop_stopped') {
               if (eagerFlush) await flushSessionStorage()
@@ -1072,14 +1083,7 @@ export class Conversation {
     const open = steps.flush()
     if (open !== null) yield open
 
-    let answer = ''
-    for (let i = turnMessages.length - 1; i >= 0; i--) {
-      const message = turnMessages[i]!
-      if (message.type !== 'assistant') continue
-      if ((message as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) continue
-      answer = lastTextBlockOf(message as AssistantMessage)
-      if (answer !== '') break
-    }
+    const answer = latestAnswer()
 
     if (terminal === undefined) {
       yield* endTurn('failed', { error: { message: 'The turn ended without a terminal', class: 'internal' } })

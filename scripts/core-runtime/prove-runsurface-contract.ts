@@ -543,6 +543,7 @@ section('E6 MAX-TURNS — turn_limit from the attachment, generator closed early
   )
   check('the generator was closed early (finally ran, steps did not complete)', scriptFinallyRan && !scriptRanToEnd)
   check('maxTurns was passed through to query()', r.calls[0]!.maxTurns === 3)
+  check('the turn_limit outcome carries the last assistant text as its answer (the closing turn\u2019s words reach the caller)', res.answer === 'some work', JSON.stringify(res.answer))
 }
 
 section('E7 ATTACHMENTS — structured_output capture; a queued_command is the conversation\'s, never a row')

@@ -150,7 +150,3 @@ export function declaredInputSchema(tool: { inputSchema: unknown; inputJSONSchem
     return undefined
   }
 }
-
-export function repairToolInput<Input extends Record<string, unknown>>(tool: { inputSchema: unknown; inputJSONSchema?: unknown }, input: Input): Input {
-  return repairArgumentsBySchema(input, declaredInputSchema(tool)) as Input
-}

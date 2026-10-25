@@ -591,7 +591,7 @@ export async function* compatChatCallModel(
     ...(apiTools.length > 0 && !toolsInPrompt
       ? {
           tools: wireTools,
-          ...(profile.omitsToolChoice ? {} : { tool_choice: 'auto' as const }),
+          ...(profile.omitsToolChoice ? {} : { tool_choice: options.toolChoice?.type === 'none' ? ('none' as const) : ('auto' as const) }),
         }
       : {}),
     extra: makeRequestExtra(),
