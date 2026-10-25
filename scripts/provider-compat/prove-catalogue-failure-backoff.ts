@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
+
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'catalogue-backoff-'))
+delete process.env.MERCURY_HOME
+
 const { saveGlobalConfig } = await import('../../src/utils/config.js')
 const { refreshCompatCatalogues, cachedCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
 const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.js')
