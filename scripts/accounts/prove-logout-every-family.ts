@@ -97,6 +97,8 @@ section('§1 before — every family PRESENT through its own resolver')
   secrets.writeStoredCompatApiKey('fixture-compat')
   secrets.writeStoredHuggingfaceApiKey('hf_fixture_stored')
   secrets.writeStoredLocalApiKey('fixture-local')
+  writeFileSync(join(home, '.provider-secrets.json'), JSON.stringify({ ...authFile('.provider-secrets.json'), compatEndpointKeys: { named: 'fixture-named-endpoint' } }))
+  check('a named custom endpoint key reads present before logout (F43A-C6-01)', secrets.readStoredCompatApiKey('named') === 'fixture-named-endpoint')
   moonshot.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh', accessTokenExpiresAtMs: far }, 'global')
   huggingface.writeHuggingfaceTokens(
     { accessToken: 'hf-fixture-access', refreshToken: 'hf-fixture-refresh', accessTokenExpiresAtMs: far },
@@ -157,6 +159,7 @@ section('§2 performLogout — every store empties through the one owner')
   check('huggingface: the stored token is gone', secrets.readStoredHuggingfaceApiKey() === undefined)
   check('deepseek: the stored key is gone', secrets.readStoredDeepseekApiKey() === undefined)
   check('compat: the stored key is gone', secrets.readStoredCompatApiKey() === undefined)
+  check('logout removes named custom endpoint keys as well as the default (F43A-C6-01)', secrets.readStoredCompatApiKey('named') === undefined && authFile('.provider-secrets.json').compatEndpointKeys === undefined)
   check('local: the stored key is gone', secrets.readStoredLocalApiKey() === undefined)
 
   const secretsFile = authFile('.provider-secrets.json')

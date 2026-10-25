@@ -134,7 +134,11 @@ export function applySedSubstitution(content: string, sedInfo: SedEditInfo): str
       if (index === last && line === '') return line
       let seen = 0
       let substituted = false
+      let previousMatchEnd = -1
       const next = line.replace(regex, (match: string, ...rest: unknown[]) => {
+        const offset = rest[rest.length - 2] as number
+        if (match === '' && offset === previousMatchEnd) return match
+        previousMatchEnd = offset + match.length
         seen++
         if (seen < occurrence || (!global && seen > occurrence)) return match
         substituted = true

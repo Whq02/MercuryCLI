@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -119,6 +120,20 @@ try {
     check('the store is byte-untouched (no marker, nothing dropped)', before === after)
   }
 
+  section('§4b an API error row cannot become the summary (F43A-C4-01)')
+  {
+    const router = await import('../../src/services/providers/callModelRouter.js')
+    mock.module('../../src/services/providers/callModelRouter.js', () => ({
+      ...router,
+      async *routedCallModel() {
+        yield { type: 'assistant', message: { content: [{ type: 'text', text: 'partial summary' }] } }
+        yield { type: 'assistant', isApiErrorMessage: true, message: { content: [{ type: 'text', text: 'API Error: 529 overloaded_error' }] } }
+      },
+    }))
+    const before = JSON.stringify(await readCoordinatorConversation(scratch))
+    const r = await summarizeCoordinatorConversation({ dir: scratch, modelId: 'fixture-model' })
+    check('a provider error after partial text refuses and keeps every entry', r.compacted === 0 && r.refused?.includes('529 overloaded_error') === true && before === JSON.stringify(await readCoordinatorConversation(scratch)), JSON.stringify(r))
+  }
   section('§5 /clear empties the store')
   {
     await clearCoordinatorConversation(scratch)

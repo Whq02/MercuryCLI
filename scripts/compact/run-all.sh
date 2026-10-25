@@ -27,7 +27,7 @@
 # gate-watch: src/services/tokenEstimation.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/FileReadTool/FileReadTool.ts
 # gate-watch: src/tools/FileReadTool/prompt.ts src/tools/ToolSearchTool/ToolSearchTool.ts src/utils/*
-# gate-watch: src/utils/attachments/* src/utils/cockpit/contextGauge.ts src/utils/cockpit/helmConsole.ts
+# gate-watch: src/utils/attachments/* src/utils/cockpit/contextGauge.ts src/utils/cockpit/helmConsole.ts src/utils/hooks/fire.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/capabilities.ts
 # gate-watch: src/utils/sessionStorage/paths.ts
 # gate-watch: src/utils/task/diskOutput.ts

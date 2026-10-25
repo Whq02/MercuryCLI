@@ -286,7 +286,7 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
 }
 
 export function loggedHeadersOf(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, key.toLowerCase() === 'user-agent' ? value : '[REDACTED]']))
+  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, key.toLowerCase() === 'user-agent' && value === getMCPUserAgent() ? value : '[REDACTED]']))
 }
 
 

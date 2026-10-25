@@ -163,10 +163,13 @@ await (async () => {
     clientSrc.includes('toolDefinition: sdkTool') && clientSrc.includes('...(toolDefinition ? { toolDefinition } : {})'),
   )
   const { loggedHeadersOf } = await import('../../src/services/mcp/client.js')
-  const logged = loggedHeadersOf({ 'User-Agent': 'mercury/1', Authorization: 'Bearer tok-1', 'X-API-Key': 'key-2', Cookie: 'sid=3', 'Proxy-Authorization': 'Basic 4', 'X-Custom-Token': 'tok-5' })
+  const { getMCPUserAgent } = await import('../../src/utils/http.js')
+  const logged = loggedHeadersOf({ 'User-Agent': getMCPUserAgent(), Authorization: 'Bearer tok-1', 'X-API-Key': 'key-2', Cookie: 'sid=3', 'Proxy-Authorization': 'Basic 4', 'X-Custom-Token': 'tok-5' })
+  const overridden = loggedHeadersOf({ 'User-Agent': 'fixture-secret', 'user-agent': 'fixture-secret-two' })
+  check('configured User-Agent values are redacted too, regardless of case', Object.values(overridden).every(value => value === '[REDACTED]'), JSON.stringify(overridden))
   check(
     'no credential header VALUE reaches the MCP log: every configured or helper-supplied header is logged by name with its value redacted, whatever its name; only our own User-Agent stays readable (F43A-C7-18)',
-    logged['User-Agent'] === 'mercury/1' && Object.entries(logged).filter(([key]) => key !== 'User-Agent').every(([, value]) => value === '[REDACTED]') && Object.keys(logged).length === 6,
+    logged['User-Agent'] === getMCPUserAgent() && Object.entries(logged).filter(([key]) => key !== 'User-Agent').every(([, value]) => value === '[REDACTED]') && Object.keys(logged).length === 6,
     JSON.stringify(logged),
   )
   check(

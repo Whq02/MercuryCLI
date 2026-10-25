@@ -95,7 +95,19 @@ for (const command of ['x=cat; if true; then x=rm; $x victim; fi', 'x=rm; false 
   check(`branch-dependent assignments never retain an allowed command name: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
 }
 const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { parseSedEditCommand } = await import('../../src/tools/BashTool/sedEditParser.js')
+const { parseSedEditCommand, applySedSubstitution } = await import('../../src/tools/BashTool/sedEditParser.js')
+for (const [content, pattern, replacement, flags, expected] of [
+  ['a a\na a\n', 'a', 'b', '', 'b a\nb a\n'],
+  ['x\nxxa\n', 'x*', '-', 'g', '-\n-a-\n'],
+  ['xxa\n', 'x*', '-', '2', 'xxa-\n'],
+  ['a\nb\n', '^', '>', '', '>a\n>b\n'],
+  ['aa\naa\n', 'a\\{2\\}', 'z', '', 'z\nz\n'],
+  ['ab\n', '\\(a\\)b', '\\1\\\\', 'p', 'a\\\na\\\n'],
+  ['a a a\n', 'a', 'b', '2g', 'a b b\n'],
+] as const) {
+  const actual = applySedSubstitution(content, { filePath: 'file.txt', pattern, replacement, flags, extendedRegex: false })
+  check(`sed substitution preserves line, occurrence and replacement semantics: ${JSON.stringify([pattern, replacement, flags])}`, actual === expected, JSON.stringify({ actual, expected }))
+}
 await parseForSecurity("sed -i 's/a/b/' file.txt")
 check('the sed preview reads the already parsed single edit', parseSedEditCommand("sed -i 's/a/b/' file.txt")?.filePath === 'file.txt')
 await parseForSecurity("sed -i 's/a/b/' file.txt; echo side-effect")

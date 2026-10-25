@@ -1,4 +1,5 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+import { mock } from 'bun:test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -13,6 +14,16 @@ process.env.MERCURY_TURN_RECEIPT = '1'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getSessionMemoryPath, getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+const hookCalls: Array<{ event: string; payload: Record<string, unknown> }> = []
+const hooks = await import('../../src/utils/hooks/fire.js')
+const realFireHooks = hooks.fireHooks
+mock.module('../../src/utils/hooks/fire.js', () => ({
+  ...hooks,
+  fireHooks: async (event: Parameters<typeof hooks.fireHooks>[0], payload: Record<string, unknown>, ...rest: unknown[]) => {
+    hookCalls.push({ event, payload })
+    return (realFireHooks as (...args: unknown[]) => Promise<unknown>)(event, payload, ...rest)
+  },
+}))
 const { trySessionMemoryCompaction } = await import('../../src/services/compact/sessionMemoryCompact.ts')
 const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
 const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt.ts')
@@ -42,6 +53,14 @@ try {
     check('session-memory fold retains the full resume card', JSON.stringify(recap(after)) === JSON.stringify(recap(messages)))
     const again = await trySessionMemoryCompaction(after)
     check('repeated session-memory fold carries the counts once', !!again && JSON.stringify(counts(buildPostCompactMessages(again))) === JSON.stringify(counts(messages)) && JSON.stringify(recap(buildPostCompactMessages(again))) === JSON.stringify(recap(messages)))
+    hookCalls.length = 0
+    const manual = await trySessionMemoryCompaction(messages, undefined, undefined, undefined, 'manual')
+    const afterHook = hookCalls.find(call => call.event === 'compaction.after')
+    const { estimateContextTokens } = await import('../../src/services/compact/microCompact.js')
+    check('a manual notes fold records the trigger and the full landing estimate (F43A-C4-05/19)', manual?.boundaryMarker.compactMetadata.trigger === 'manual' && afterHook?.payload.trigger === 'manual' && afterHook.payload.tokens_after === estimateContextTokens(buildPostCompactMessages(manual!)))
+    hookCalls.length = 0
+    const refused = await trySessionMemoryCompaction(messages, undefined, 1)
+    check('an oversized notes fold fires no after hook (F43A-C4-05)', refused === null && !hookCalls.some(call => call.event === 'compaction.after'))
   }
 } finally {
   rmSync(home, { recursive: true, force: true })

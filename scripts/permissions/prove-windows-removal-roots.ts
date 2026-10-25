@@ -41,6 +41,10 @@ try {
     const result = checker(['-rf', path], 'C:\\work\\project', getEmptyToolPermissionContext())
     check(`Windows critical-path permission card ${path}`, result.behavior === 'ask' && result.message.includes('critical system directory'))
   }
+  for (const [cwd, operand] of [['C:\\Users\\Proof', '.'], ['C:\\', 'Windows'], ['C:\\Users', 'Proof'], ['C:\\Users\\Proof\\project', '..']]) {
+    const result = checker(['-rf', operand!], cwd!, getEmptyToolPermissionContext())
+    check(`Windows relative critical-path permission card ${cwd} + ${operand}`, result.behavior === 'ask' && result.message.includes('critical system directory'))
+  }
   Object.defineProperty(process, 'platform', { ...descriptor, value: 'darwin' })
   getPlatform.cache.set(undefined, 'macos')
   process.env.HOME = '/Users/proof'
