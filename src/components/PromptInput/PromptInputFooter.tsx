@@ -38,7 +38,6 @@ const NARROW_COLUMNS = 80
 
 export function PromptInputFooter({
   suggestions,
-  selectedSuggestion,
   suggestionType,
   onSuggestionPick,
   onSuggestionHover,
@@ -65,7 +64,6 @@ export function PromptInputFooter({
   suggestionRows,
 }: {
   suggestions: SuggestionItem[]
-  selectedSuggestion: number
   suggestionType: SuggestionType
   onSuggestionPick?: (index: number) => void
   onSuggestionHover?: (index: number) => void
@@ -119,7 +117,6 @@ export function PromptInputFooter({
       <Box paddingX={2}>
         <PromptInputFooterSuggestions
           suggestions={suggestions}
-          selectedSuggestion={selectedSuggestion}
           onPick={onSuggestionPick}
           onHover={onSuggestionHover}
         />

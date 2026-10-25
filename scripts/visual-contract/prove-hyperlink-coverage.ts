@@ -179,6 +179,14 @@ t.section('§1 — the owners emit COMPLETE OSC 8 links on the flow path')
     /\x1b\]8;[^;\x07]*;file:\/\/[^\x07]*README\.md\x07/.test(ansi) && ansi.includes('\x1b]8;;\x07'),
     JSON.stringify(ansi.slice(0, 160)),
   )
+  for (const name of ['report#1.txt', 'report%20.txt', 'report space.txt']) {
+    const path = join(process.cwd(), name)
+    const link = FilePathLink({ filePath: path, children: name }) as { props: { url: string } }
+    const { fileURLToPath } = await import('node:url')
+    t.check(`file link round-trips ${name}`, fileURLToPath(link.props.url) === path)
+  }
+  const image = readFileSync('src/components/ClickableImageRef.tsx', 'utf8')
+  t.check('image references use the same encoded file URL', image.includes('pathToFileURL(storedPath).href'))
   delete process.env.TERM_PROGRAM
 }
 

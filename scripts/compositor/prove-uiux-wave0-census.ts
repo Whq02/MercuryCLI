@@ -339,6 +339,11 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       'UI-057: modified arrows never map (ctrl/shift/meta arrows keep their own meanings)',
       JSON.stringify(names([{ ...arrow('up'), shift: true }], engaged)) === JSON.stringify(['up']),
     )
+    check(
+      'UI-057: a super-modified arrow keeps its own meaning too (super+up is never a wheel notch)',
+      JSON.stringify(names([{ ...arrow('up'), super: true }, { ...arrow('down'), super: true }], engaged)) === JSON.stringify(['up', 'down']),
+      JSON.stringify(names([{ ...arrow('up'), super: true }], engaged)),
+    )
     const historyRows = rowsBinding(shippedKeyForms(), action => action === 'history:previous' || action === 'history:next')
     const composer = src('src/hooks/useTextInput.ts')
     check(

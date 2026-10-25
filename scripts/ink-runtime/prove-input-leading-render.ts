@@ -71,4 +71,36 @@ advance(FRAME_INTERVAL_MS)
 assert.equal(paints, 4)
 console.log('PASS resize hold also gates the already queued leading microtask')
 scheduler.cancel()
+const bootFrames: number[] = []
+const bootScheduler = new RenderScheduler(() => {
+  bootScheduler.onRenderEntry()
+  bootFrames.push(now)
+}, clock)
+bootScheduler.requestFrame()
+now += 100
+bootScheduler.requestFrame()
+advance(0)
+assert.equal(bootFrames.length, 1, 'FAIL a leading paint must absorb a due but undelivered boot timer')
+bootScheduler.cancel()
+console.log('PASS a leading paint consumes an overdue boot timer without a duplicate frame')
+
+let probeOutstanding = true
+const probeFrames: number[] = []
+const probeScheduler = new RenderScheduler(() => {
+  probeScheduler.onRenderEntry()
+  probeFrames.push(now)
+}, clock, () => probeOutstanding)
+probeScheduler.requestFrame()
+advance(100)
+assert.equal(probeFrames.length, 0)
+advance(1)
+probeOutstanding = false
+probeScheduler.requestFrame()
+advance(0)
+assert.equal(probeFrames.length, 1)
+advance(15)
+assert.equal(probeFrames.length, 1, 'FAIL a first paint released by a commit must absorb its pending probe retry')
+probeScheduler.cancel()
+console.log('PASS the first paint consumes a pending capability-probe retry without a duplicate frame')
+
 console.log('INPUT LEADING RENDER HOLDS')

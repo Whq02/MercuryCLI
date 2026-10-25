@@ -88,7 +88,7 @@ export function useComposerDraft({
   const lastSelfWriteRef = useRef(input)
   const writeDraft = useCallback((text: string): void => {
     pendingInput.edit(text)
-    lastSelfWriteRef.current = text
+    lastSelfWriteRef.current = pendingInput.text()
   }, [])
   if (lastSelfWriteRef.current !== input) {
     lastSelfWriteRef.current = input

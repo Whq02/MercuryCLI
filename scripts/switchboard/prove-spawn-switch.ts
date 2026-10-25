@@ -190,6 +190,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
   check('the Crew view has no spawn key of its own (launches come through the Crewmate tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
   const boot = src('src/components/BootSettingsScreen.tsx')
+  check('the receipt request stays live when loading becomes ready, and cancels only when closed', boot.includes("}, [apply.phase === 'closed', path]);"))
   check("the boot menu opened in-session flips a live row through the connector's one verb", boot.includes("row.applicationClass === 'live'") && boot.includes('.setSpawnSwitch(kind, spawnSwitchOnFromValue(value))') && boot.includes("action: 'set-spawn-switch'"))
   check('the concourse coordinator never reads the switch (its launches are the estate\'s, not a session\'s)', !src('src/services/concourse/coordinatorTools.ts').includes('spawnSwitch') && !src('src/services/concourse/coordinatorTools.ts').includes('launchAuthority'))
   const owner = src('src/services/switchboard/spawnSwitches.ts')

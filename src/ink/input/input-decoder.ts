@@ -118,7 +118,7 @@ export function parseMultipleKeypresses(
       }
       continue
     }
-    if (token.value === PASTE_START) {
+    if (token.value === PASTE_START && !inPaste) {
       inPaste = true
       pasteBuffer = ''
     } else if (token.value === PASTE_END) {

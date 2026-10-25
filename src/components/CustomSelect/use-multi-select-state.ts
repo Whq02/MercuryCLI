@@ -123,6 +123,7 @@ export function useMultiSelectState<T>({
 
   const toggleValue = useCallback(
     (value: T): void => {
+      if (isDisabled || options.find(option => option.value === value)?.disabled) return
       const current = selectedValuesRef.current
       const next = current.includes(value)
         ? current.filter(v => v !== value)
@@ -131,7 +132,7 @@ export function useMultiSelectState<T>({
       setSelectedValues(next)
       onChange?.(next)
     },
-    [onChange],
+    [onChange, isDisabled, options],
   )
 
   const updateInputValue = useCallback(
@@ -166,6 +167,7 @@ export function useMultiSelectState<T>({
   const { focusValue: focusByValue } = navigation
   const activateInputValue = useCallback(
     (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string): void => {
+      if (isDisabled || options.find(option => option.value === value)?.disabled) return
       const text = (submitted ?? inputValuesRef.current.get(value) ?? '').trim()
       if (text === '') {
         focusByValue(value)
@@ -176,7 +178,7 @@ export function useMultiSelectState<T>({
       if (via === 'enter' && hasSubmitButton) setSubmitFocused(true)
       else focusByValue(value)
     },
-    [focusByValue, toggleValue, hasSubmitButton, onEmptyInputSubmit, setSubmitFocused],
+    [focusByValue, toggleValue, hasSubmitButton, onEmptyInputSubmit, setSubmitFocused, isDisabled, options],
   )
 
   useInput(

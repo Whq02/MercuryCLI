@@ -48,6 +48,7 @@ section('structural — the three seams')
     'adapter requires BOTH endpoints inside the input rect (transcript stays copy-only)',
     pi.includes('if (!inside(state.anchor) || !inside(state.focus)) {'),
   )
+  check('screen selection ends at the last cell’s grapheme boundary, not one UTF-16 code unit after its start', pi.includes('cellSpanAt(last.col - rect.x, last.row - rect.y).end'))
   check(
     "the adapter maps against the rect of the gesture's own frame (a reflow never detaches the highlight)",
     pi.includes('selectionGestureRectRef.current ?? (box ? nodeCache.get(box) : undefined)') &&

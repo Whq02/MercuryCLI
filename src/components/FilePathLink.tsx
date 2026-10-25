@@ -1,4 +1,5 @@
 
+import { pathToFileURL } from 'node:url'
 import React from 'react'
 import Link from '../ink/components/Link.js'
 
@@ -11,7 +12,7 @@ export function FilePathLink({
 }): React.ReactNode {
   const visible = children ?? filePath
   return (
-    <Link url={`file://${filePath}`} fallback={visible}>
+    <Link url={pathToFileURL(filePath).href} fallback={visible}>
       {visible}
     </Link>
   )

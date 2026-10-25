@@ -163,7 +163,8 @@ export function colorize(
   if (MERCURY_HONORS_NO_COLOR || monochromeTheme) return str
   if (!color) return str
   if (color.startsWith('ansi:')) {
-    const painter = NAMED_PAINTERS[color.slice('ansi:'.length)]
+    const name = color.slice('ansi:'.length)
+    const painter = Object.hasOwn(NAMED_PAINTERS, name) ? NAMED_PAINTERS[name] : undefined
     if (!painter) return str
     return type === 'foreground' ? painter.fg(str) : painter.bg(str)
   }

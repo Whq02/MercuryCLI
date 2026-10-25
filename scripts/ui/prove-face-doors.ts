@@ -267,6 +267,7 @@ t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; t
   t.check('the armed bridge entry is GONE from the face', !face.includes('armedRootCommand'))
   t.check('the arming helper is GONE from the face', !face.includes('armRootCommand') && !face.includes('initialMessage'))
   t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))
+  t.check('a project resume returns its refusal before entering chat', /const outcome = await hop\.focusResumedSession\(p\.sessionId,[^\n]+\n\s*if \(!outcome\.ok\) return outcome\.reason;/.test(face))
   const route = read('src/context/surfaceRoute.ts')
   t.check('the route owner carries NO armed exception (enterRootChat refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootChat(): ChatEntry {'))
   const launcher = read('src/chatLauncher.tsx')

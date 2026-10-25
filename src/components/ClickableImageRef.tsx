@@ -1,4 +1,5 @@
 
+import { pathToFileURL } from 'node:url'
 import React from 'react'
 import { Text } from '../ink.js'
 import Link from '../ink/components/Link.js'
@@ -26,7 +27,7 @@ export function ClickableImageRef({
         inverse={isSelected}
         bold={isSelected}
       >
-        <Link url={`file://${storedPath}`} fallback={label}>
+        <Link url={pathToFileURL(storedPath).href} fallback={label}>
           {label}
         </Link>
       </Text>

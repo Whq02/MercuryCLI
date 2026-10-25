@@ -30,6 +30,9 @@ check('the overflow reserves one line for the counter, floored at 1 item', /if \
 check('the selection-centred window is cut against the reduced budget', /const half = Math\.floor\(maxVisible \/ 2\)/.test(fn) && /Math\.min\(anchor - half, suggestions\.length - maxVisible\)/.test(fn) && /suggestions\.slice\(start, start \+ maxVisible\)/.test(fn))
 check('a dim "X of Y" count row renders only on overflow (count, NOT "+N more")', /\{overflowing \? \(\s*<Text dimColor>[\s\S]{0,160}of\{' '\}\s*\{suggestions\.length\}/.test(fn))
 check('the count uses selectedSuggestion + 1 (1-based "X"), NOT a trailing "+N more"', !/\+\s*N\s*more|more`/.test(fn))
+const footer = readFileSync(join(root, 'src/components/PromptInput/PromptInputFooter.tsx'), 'utf8')
+const composer = readFileSync(join(root, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+check('inline completions read their subscribed cursor instead of a frozen parent selection', !footer.includes('selectedSuggestion=') && !composer.includes('selectedSuggestion={getSelectedSuggestion()}'))
 
 section('behaviour: the reserved row never overflows the prompt budget; count is correct')
 const budget = (overlay: boolean, rows: number, len: number) => {

@@ -91,6 +91,14 @@ export class RenderScheduler {
     }
     if (this.chokeTimer !== null) return
     if (this.queuedPaint !== null) return
+    if (this.bootTimer !== null) {
+      this.clock.clearTimeout(this.bootTimer)
+      this.bootTimer = null
+    }
+    if (this.probeHoldTimer !== null) {
+      this.clock.clearTimeout(this.probeHoldTimer)
+      this.probeHoldTimer = null
+    }
     this.everInvoked = true
     this.windowOpenedAt = this.clock.now()
     const ticket = {}

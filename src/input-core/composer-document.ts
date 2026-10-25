@@ -59,7 +59,7 @@ function fmtBytes(n: number): string {
 }
 
 export function addLargePaste(doc: ComposerDocument, content: string): ComposerDocument {
-  const bytes = content.length
+  const bytes = Buffer.byteLength(content, 'utf8')
   const lines = content.split('\n').filter((l, i, a) => i < a.length - 1 || l !== '').length
   const item: ShelfItem = {
     id: mintItemId(),
@@ -151,7 +151,7 @@ export function migrateDraft(
         bytes: pc.content.length,
       })
     } else {
-      const bytes = pc.content.length
+      const bytes = Buffer.byteLength(pc.content, 'utf8')
       const lines = pc.content.split('\n').length
       const hash = pc.contentHash ?? hashPastedText(pc.content)
       if (pc.content !== '') doc.bodies.set(hash, pc.content)

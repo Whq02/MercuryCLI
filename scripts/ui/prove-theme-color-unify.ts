@@ -46,6 +46,7 @@ const theme = (await import(join(root, 'src', 'utils', 'theme.ts'))) as {
 }
 const colorizeMod = (await import(join(root, 'src', 'ink', 'colorize.ts'))) as {
   applyColor: (text: string, color: string) => string
+  colorize: (text: string, color: string, type: 'foreground' | 'background') => string
 }
 
 const bulletEsc = (c: string): string => {
@@ -90,6 +91,19 @@ check('the OLD rgb/hex-only chart path DESYNCED on ansi: colors (magenta vs the 
 check('the NEW colorize path AGREES with the legend on those same ansi: colors', newAgreed === ansiCases.length)
 check('the OLD chart path actually returned the magenta fallback for an ansi: color', oldChartEsc('ansi:blueBright') === '\x1b[35m')
 check('the NEW chart path does NOT return magenta for that ansi: color', theme.themeColorToAnsi('ansi:blueBright') !== '\x1b[35m')
+
+for (const channel of ['foreground', 'background'] as const) {
+  for (const name of ['not-a-color', ...Object.getOwnPropertyNames(Object.prototype)]) {
+    const color = `ansi:${name}`
+    try {
+      check(`${channel} ignores invalid ${color}`, colorizeMod.colorize('X', color, channel) === 'X')
+    } catch (error) {
+      check(`${channel} ignores invalid ${color}`, false, String(error))
+    }
+  }
+}
+check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'foreground') === '\x1b[31mX\x1b[39m')
+check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m')
 
 section('behaviour: NO_COLOR (chalk level 0) — no magenta leak, chart === legend')
 const childScript =

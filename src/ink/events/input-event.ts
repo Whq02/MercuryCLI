@@ -58,8 +58,7 @@ function normalizeSpecialFamilyText(name: string | undefined): string {
   if (!name) return ''
   if (name === 'space') return ' '
   if (FUNCTIONAL_NAMES.has(name)) return ''
-  if (name.length === 1) return name
-  return ''
+  return name
 }
 
 function projectKey(parsed: ParsedKey): Key {

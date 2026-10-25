@@ -1764,7 +1764,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           handlesRef.current = null;
           setDraft('');
           if (h.leg === 'openai-browser') closeFlow();
-          else if (h.leg === 'gemini-oauth') openPick('gemini');
+          else if (h.leg === 'gemini-oauth' || h.leg === 'gemini-plan') openPick('gemini');
           else openPick('openrouter');
           return;
         }

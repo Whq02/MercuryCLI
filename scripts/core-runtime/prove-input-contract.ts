@@ -122,6 +122,18 @@ console.log('native-core T4 — input interpretation contract')
   const empty = keys(drive(['\x1b[200~\x1b[201~', null]))
   check('paste empty: still one paste key', empty.length === 1 && empty[0]!.isPasted === true,
     JSON.stringify(empty))
+
+  for (const [label, head, tail] of [['latin', 'head', 'tail'], ['arabic', 'بلا ', 'تفلسف'], ['hebrew', 'שלום ', 'עולם'], ['persian joiner', 'می\u200c', 'خواهم']] as const) {
+    const whole = keys(drive([`\x1b[200~${head}\x1b[200~${tail}\x1b[201~`, null]))
+    check(`paste embedded-START (${label}): one paste key`, whole.length === 1, JSON.stringify(whole))
+    check(`paste embedded-START (${label}): the text before the marker survives, the marker is content`,
+      whole.length === 1 && whole[0]!.sequence === `${head}\x1b[200~${tail}`, JSON.stringify(whole[0]?.sequence))
+    const cut = keys(drive([`\x1b[200~${head}\x1b[20`, `0~${tail}\x1b[201~`, null]))
+    check(`paste embedded-START (${label}) split inside the marker: the same one paste key`,
+      cut.length === 1 && cut[0]!.sequence === `${head}\x1b[200~${tail}`, JSON.stringify(cut.map(k => k.sequence)))
+  }
+  const restarted = keys(drive(['\x1b[200~first\x1b[201~\x1b[200~second\x1b[201~', null]))
+  check('two pastes in one read stay two pastes', restarted.length === 2 && restarted[0]!.sequence === 'first' && restarted[1]!.sequence === 'second', JSON.stringify(restarted.map(k => k.sequence)))
 }
 
 {

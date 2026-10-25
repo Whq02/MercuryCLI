@@ -15,7 +15,8 @@ const isPlainArrow = (i: ParsedInput): i is ParsedKey =>
   !i.ctrl &&
   !i.meta &&
   !i.shift &&
-  !i.option
+  !i.option &&
+  !i.super
 
 export function resolveAlternateScrollIntent(
   items: readonly ParsedInput[],

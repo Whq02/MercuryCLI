@@ -315,7 +315,7 @@ export function BootSettingsScreen({
     return () => {
       cancelled = true;
     };
-  }, [apply.phase, path]);
+  }, [apply.phase === 'closed', path]);
 
   const commitRow = (row: MenuRow, value: string | null): string => {
     if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));

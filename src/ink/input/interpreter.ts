@@ -221,15 +221,16 @@ const NAMED_KEYCODES: ReadonlyMap<number, string> = new Map<number, string>([
   [57415, '='],
 ])
 
-function keycodeToName(keycode: number): string | undefined {
-  const named = NAMED_KEYCODES.get(keycode)
-  if (named !== undefined) return named
-  return keycode >= 32 && keycode <= 126 ? String.fromCharCode(keycode).toLowerCase() : undefined
-}
-
 function isTypedCodepoint(codepoint: number): boolean {
   if (!Number.isFinite(codepoint) || codepoint < 0x20 || codepoint === 0x7f || codepoint > 0x10ffff) return false
   return !(codepoint >= 0xe000 && codepoint <= 0xf8ff)
+}
+
+function keycodeToName(keycode: number, plane: 'chord' | 'typed' = 'chord'): string | undefined {
+  const named = NAMED_KEYCODES.get(keycode)
+  if (named !== undefined) return named
+  if (keycode >= 32 && keycode <= 126) return String.fromCharCode(keycode).toLowerCase()
+  return plane === 'typed' && isTypedCodepoint(keycode) ? String.fromCodePoint(keycode) : undefined
 }
 
 function resolveChordNameFromLayout(
@@ -272,7 +273,7 @@ function modifiedKey(s: string, keycode: number, modifier: number): ParsedKey {
   const mods = decodeModifier(modifier)
   return {
     kind: 'key',
-    name: keycodeToName(keycode),
+    name: keycodeToName(keycode, mods.ctrl || mods.meta || mods.super ? 'chord' : 'typed'),
     fn: false,
     ctrl: mods.ctrl,
     meta: mods.meta,
@@ -324,10 +325,9 @@ export function interpretKey(s: string = ''): ParsedKey {
       if (isTypedCodepoint(shifted)) key.name = String.fromCodePoint(shifted)
     }
     if (match[6] && !key.ctrl && !key.meta) {
-      const text = match[6]
-        .split(':')
-        .map(cp => String.fromCodePoint(parseInt(cp, 10)))
-        .join('')
+      const codepoints = match[6].split(':').map(cp => parseInt(cp, 10))
+      if (codepoints.some(cp => !Number.isInteger(cp) || cp < 0 || cp > 0x10ffff)) return baseKey(s)
+      const text = codepoints.map(cp => String.fromCodePoint(cp)).join('')
       if (text.length > 0) key.name = text
     }
     return key

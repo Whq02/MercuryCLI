@@ -104,6 +104,31 @@ section('§2 the composer at 120x40: a pasted chip keeps the bytes the model rea
   resetOverlayStackForTests()
 }
 
+section('§3 a decomposed paste mid-draft: the store holds NFC and the caret lands after the pasted text, so the next letter follows it')
+for (const [label, payload, composedForm] of [['a Latin letter and its combining acute', 'e\u0301', '\u00e9'], ['an Arabic alef and a maddah above', '\u0627\u0653', '\u0622'], ['a Hebrew presentation form', '\ufb2a', '\u05e9\u05c1'], ['a Hangul jamo pair', '\u1100\u1161', '\uac00']] as const) {
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+  resetChromeModeLatchForTests()
+  pending.edit('')
+  pending.setMode('prompt')
+  const m = await mountOffscreen(wrap(h(Harness, { columns: 120 })), 120, 40)
+  await waitFor(() => m.screen().includes('transcript row'), 8000)
+  await settle(300)
+  m.push('abXY')
+  await waitFor(() => pending.text() === 'abXY', 4000)
+  m.push('\x1b[D')
+  m.push('\x1b[D')
+  await settle(200)
+  m.push(`\x1b[200~${payload}\x1b[201~`)
+  const pasted = await waitFor(() => pending.text() === `ab${composedForm}XY`, 4000)
+  check(`${label}: the pasted draft is stored in NFC`, pasted, JSON.stringify(pending.text()))
+  await settle(200)
+  m.push('Z')
+  const typed = await waitFor(() => pending.text().includes('Z'), 4000)
+  check(`${label}: the letter typed after the paste follows the pasted text`, typed && pending.text() === `ab${composedForm}ZXY`, JSON.stringify(pending.text()))
+  m.unmount()
+  resetOverlayStackForTests()
+}
+
 await releaseScratchHome(HOME)
 console.log(`\npaste keeps tabs: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

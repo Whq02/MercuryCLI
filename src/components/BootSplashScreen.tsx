@@ -300,7 +300,8 @@ export function BootSplashScreen(): React.ReactNode {
           }
           if (p.sessionId !== null) {
             const hop = await import('../services/switchboard/hopIntoSession.js');
-            await hop.focusResumedSession(p.sessionId, p.transcriptPath ?? undefined, { title: p.base });
+            const outcome = await hop.focusResumedSession(p.sessionId, p.transcriptPath ?? undefined, { title: p.base });
+            if (!outcome.ok) return outcome.reason;
           } else if (
             p.firstSessionId !== null &&
             (await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId) !== null

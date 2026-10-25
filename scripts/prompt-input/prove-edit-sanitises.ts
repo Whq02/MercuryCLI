@@ -62,6 +62,41 @@ pending.resetPendingInputForTests()
 pending.initSession('early-session', 'early \x1b[4mwords\x1b[24m')
 check('initSession(): early input is stripped', pending.text() === 'early words', JSON.stringify(pending.text()))
 
+const { Cursor } = await import('../../src/utils/Cursor.ts')
+const composed: Array<[string, string, string]> = [
+  ['a Latin letter and its combining acute', 'e\u0301', '\u00e9'],
+  ['an Arabic alef and a maddah above', '\u0627\u0653', '\u0622'],
+  ['an Arabic waw and a hamza above', '\u0648\u0654', '\u0624'],
+  ['a Hangul jamo pair', '\u1100\u1161', '\uac00'],
+  ['a Hebrew presentation form decomposes to its letter and point', '\ufb2a', '\u05e9\u05c1'],
+  ['Arabic harakat have no composed form and stay', 'مُحَمَّدٌ', 'مُحَمَّدٌ'],
+  ['a Persian joiner stays', 'می\u200cخواهم', 'می\u200cخواهم'],
+]
+for (const [label, raw, want] of composed) {
+  pending.resetPendingInputForTests()
+  pending.edit(`ab${raw}XY`)
+  const stored = pending.text()
+  const end = Cursor.fromText(stored, 80, Number.MAX_SAFE_INTEGER).offset
+  check(`edit(): ${label} is stored in NFC`, stored === `ab${want}XY`, `text=${JSON.stringify(stored)}`)
+  check(`edit(): ${label} — the caret's end offset equals the stored unit count`, end === stored.length, `end=${end} stored=${stored.length}`)
+  check(`edit(): ${label} — a caret built from the stored text reads the stored text`, Cursor.fromText(stored, 80, 0).text === stored)
+}
+
+pending.resetPendingInputForTests()
+pending.edit('e\u0301')
+check('raw e + combining acute stores one unit and the caret ends at 1, never 1 against 2', pending.text().length === 1 && Cursor.fromText(pending.text(), 80, 2).offset === pending.text().length, `stored=${pending.text().length} end=${Cursor.fromText(pending.text(), 80, 2).offset}`)
+
+pending.resetPendingInputForTests()
+pending.initSession('nfc-early', 'caf\u0065\u0301')
+check('initSession(): early input is stored in NFC', pending.text() === 'caf\u00e9', JSON.stringify(pending.text()))
+
+pending.resetPendingInputForTests()
+drafts.saveDraftDebounced('nfd-session', { text: 'r\u0065\u0301sum\u0065\u0301', cursorOffset: 8, mode: 'prompt', pastedContents: {} })
+await drafts.flushDraftSaves()
+pending.initSession('elsewhere', '')
+await pending.rekeyToSession('nfd-session')
+check('rekeyToSession(): a decomposed draft from disk is stored in NFC', pending.text() === 'r\u00e9sum\u00e9', JSON.stringify(pending.text()))
+
 await pending.flushDrafts()
 console.log(failures === 0 ? '\nGREEN: every road into the composer is stripped at the one edit path' : `\nRED: ${failures} check(s) show a road that carries escape bytes into the composer`)
 process.exit(failures === 0 ? 0 : 1)

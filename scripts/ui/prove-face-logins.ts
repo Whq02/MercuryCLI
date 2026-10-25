@@ -878,7 +878,7 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   const src = read('src/components/BootLoginsScreen.tsx')
   t.check('the d-switch cancels the browser flow and remounts the device leg', src.includes("handlesRef.current?.cancel('switching to the device-code flow');") && src.includes('startOpenaiDeviceRun();'))
   t.check('the opdevice esc paints the honest stopped receipt', src.includes('setFlow({ kind: \'receipt\', receipt: OPENAI_DEVICE_STOPPED_RECEIPT, ok: false });'))
-  t.check('a handles esc backs where the leg came from', src.includes("if (h.leg === 'openai-browser') closeFlow();") && src.includes("else if (h.leg === 'gemini-oauth') openPick('gemini');") && src.includes("else openPick('openrouter');"))
+  t.check('a handles esc backs where the leg came from', src.includes("if (h.leg === 'openai-browser') closeFlow();") && src.includes("else if (h.leg === 'gemini-oauth' || h.leg === 'gemini-plan') openPick('gemini');") && src.includes("else openPick('openrouter');"))
   t.check('the gemini account pick opens the guide at step 1 without a client and signs in from step 6 with one; the change row opens step 5', src.includes("if (geminiGuideOpeningStep(liveGeminiConnectFacts()) === 6) {") && src.includes("openGuideStep(1, 'walk');") && src.includes("openGuideStep(5, 'pick');"))
   t.check('the gemini key pick opens AI Studio and the sign-in refusal returns to step 3 with its page', src.includes('void openBrowser(GEMINI_API_KEY_PAGE.address)') && src.includes("openGuideStep(back, 'walk', errorMessageWithCause(error));"))
   t.check('the client store rides the ONE owner (writeGeminiOauthClientConfig)', src.includes('writeGeminiOauthClientConfig({') && src.includes('clientId: c.clientId,'))

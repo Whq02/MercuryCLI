@@ -19,10 +19,9 @@ import { markTypingActivity } from '../utils/cockpit/typingActivity.js'
 import { normalizePastedInput } from './composer-document.js'
 
 export function sanitizeComposerText(raw: string): string {
-  return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, '')).replace(
-    /[\u0000-\u0008\u000b-\u001f\u007f]/g,
-    '',
-  )
+  return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, ''))
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
+    .normalize('NFC')
 }
 
 export type ComposerDraft = {

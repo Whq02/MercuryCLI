@@ -135,6 +135,26 @@ t.section('§4 — honest states, undo material, pure reorder')
     big.items[0]!.state === 'too-large' && big.items[0]!.bytes === 2_000_000,
     `${big.items[0]!.state} bytes=${big.items[0]!.bytes}`,
   )
+  for (const [label, content, bytes] of [['a CJK ideograph', '漢', 3], ['an Arabic word', 'تفلسف', 10], ['a Hebrew word with niqqud', 'שָׁלוֹם', 14], ['a Persian word with the joiner', 'می\u200cخواهم', 17], ['a combining Latin letter', 'e\u0301', 3], ['an astral emoji', '🦀', 4]] as const) {
+    const pasted = C.addLargePaste(C.createComposerDocument('main'), content)
+    t.check(
+      `the chip counts UTF-8 bytes, not UTF-16 units: ${label} is ${bytes} B`,
+      pasted.items[0]!.bytes === bytes && pasted.items[0]!.label.endsWith(`· ${bytes} B`),
+      `bytes=${pasted.items[0]!.bytes} label=${pasted.items[0]!.label}`,
+    )
+  }
+  const migrated = C.migrateDraft('main', 'see [Pasted text #4 +1 lines]', { 4: { id: 4, type: 'text', content: 'بلا تفلسف\n' } } as never)
+  t.check(
+    'a migrated paste counts the same UTF-8 bytes',
+    migrated.items[0]!.bytes === 18 && migrated.items[0]!.label.endsWith('· 18 B'),
+    `bytes=${migrated.items[0]!.bytes} label=${migrated.items[0]!.label}`,
+  )
+  const nearlyOver = C.addLargePaste(C.createComposerDocument('main'), '漢'.repeat(Math.floor(C.SHELF_ITEM_TOO_LARGE_BYTES / 3) + 1))
+  t.check(
+    'the too-large line is drawn on bytes: a third of a mebibyte of ideographs plus one crosses it',
+    nearlyOver.items[0]!.state === 'too-large',
+    `${nearlyOver.items[0]!.state} bytes=${nearlyOver.items[0]!.bytes}`,
+  )
 }
 
 t.section('§5 — restart restore: the scoped-docs store round-trip')

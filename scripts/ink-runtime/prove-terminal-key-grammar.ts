@@ -112,6 +112,18 @@ check('a bare ESC ESC still flushes as two Escape keypresses', doubleEscape.leng
 const escThenLetter = atomsOf('\x1b\x1bx')
 check('ESC ESC x is still Escape then alt+x', escThenLetter.length === 2 && escThenLetter[0]!.kind === 'key' && escThenLetter[0]!.name === 'escape' && escThenLetter[1]!.kind === 'key' && escThenLetter[1]!.meta, JSON.stringify(escThenLetter.map(a => (a.kind === 'key' ? a.name : a.kind))))
 
+console.log('\n a standalone CSI-u code beyond ASCII is the typed character (Arabic, Hebrew, Persian, Cyrillic, a supplementary ideograph)')
+for (const [seq, want] of [['\x1b[1575u', 'ا'], ['\x1b[1488u', 'א'], ['\x1b[1662u', 'پ'], ['\x1b[1092u', 'ф'], ['\x1b[1092;1:1u', 'ф'], ['\x1b[1092;1:2u', 'ф'], ['\x1b[27;1;1575~', 'ا']] as const) {
+  const got = project(seq)
+  check(`${JSON.stringify(seq)} types ${JSON.stringify(want)}`, got.name === want && got.input === want, `name=${JSON.stringify(got.name)} input=${JSON.stringify(got.input)}`)
+}
+check('a shift-only code beyond ASCII with no alternate subfield names its character, as a Latin one does', project('\x1b[1092;2u').name === 'ф' && project('\x1b[1092;2u').shift === true, JSON.stringify(project('\x1b[1092;2u')))
+check('CSI 131072 u names the two-unit ideograph', interpretKey('\x1b[131072u').name === '\u{20000}', JSON.stringify(interpretKey('\x1b[131072u').name))
+check('a release of such a key still swallows', project('\x1b[1575;1:3u').name === '' && project('\x1b[1575;1:3u').input === '', JSON.stringify(project('\x1b[1575;1:3u')))
+check('a chord on such a code stays nameless without its base-layout subfield (ctrl+ф binds to the physical key or to nothing)', interpretKey('\x1b[1092;5u').name === undefined && interpretKey('\x1b[1092;3u').name === undefined && interpretKey('\x1b[1092;9u').name === undefined)
+check('a kitty functional code outside the typed range stays nameless', interpretKey('\x1b[57358u').name === undefined && interpretKey('\x1b[57376u').name === undefined)
+check('a control code stays nameless', interpretKey('\x1b[31u').name === undefined)
+
 console.log('\n WezTerm with the kitty protocol on: under flag 4 every shifted key is CSI unshifted:shifted;2 u')
 check('control: CSI 58;2 u (the shifted code as primary) types a colon', project('\x1b[58;2u').input === ':')
 check('control: plain text colon types a colon', project(':').input === ':')
@@ -123,6 +135,104 @@ check('the layout law holds: a chord keeps the base code (ctrl+ф resolves a, ne
 check('a shift chord with ctrl keeps the base code (ctrl+shift+; is a ; chord)', project('\x1b[59:58;6u').input === ';')
 check('the associated text still names the key when it arrives', project('\x1b[97:65;2;65u').input === 'A')
 check('an unshifted alternate-keys report types the primary', project('\x1b[97:65;1u').input === 'a')
+
+for (const payload of ['1114112', '999999999999999999999999', ':', '65:', '65::66']) {
+  const seq = `\x1b[97;1;${payload}u`
+  for (const split of [0, seq.length - 1]) {
+    let state = { ...INITIAL_STATE }
+    const atoms: ParsedInput[] = []
+    let error: unknown
+    try {
+      for (const chunk of [seq.slice(0, split), seq.slice(split), 'z']) {
+        const [got, next] = parseMultipleKeypresses(state, chunk)
+        atoms.push(...got)
+        state = next
+      }
+    } catch (caught) {
+      error = caught
+    }
+    const typed = atoms.flatMap(atom => atom.kind === 'key' ? [new InputEvent(atom).input] : []).join('')
+    check(`invalid associated text ${JSON.stringify(payload)} at split ${split} never throws or types, and the next key survives`, error === undefined && typed === 'z', String(error ?? typed))
+  }
+}
+check('valid associated text still preserves the complete Unicode range', interpretKey('\x1b[97;1;1114111u').name === String.fromCodePoint(0x10ffff))
+check('valid associated text keeps every codepoint', interpretKey('\x1b[97;1;65:769u').name === 'A\u0301')
+
+const unicodeCases = [
+  ['shifted supplementary letter', '\x1b[66600:66560;2u', '\u{10400}'],
+  ['associated supplementary ideograph', '\x1b[131072;1;131072u', '\u{20000}'],
+  ['associated combining mark', '\x1b[101;1;101:769u', 'e\u{301}'],
+  ['associated text run', '\x1b[97;1;97:98u', 'ab'],
+] as const
+for (const [label, seq, want] of unicodeCases) {
+  const got = project(seq)
+  check(`${label}: the decoder keeps the text`, got.name === want, JSON.stringify(got))
+  check(`${label}: the input projection keeps the text`, got.input === want, JSON.stringify(got))
+}
+
+{
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { Readable, Writable } = await import('node:stream')
+  const home = mkdtempSync(join(tmpdir(), 'key-grammar-frame-'))
+  const previousHome = process.env.MERCURY_CONFIG_DIR
+  process.env.MERCURY_CONFIG_DIR = home
+  const React = await import('react')
+  const { default: render } = await import('../../src/ink/root.ts')
+  const { default: Text } = await import('../../src/ink/components/Text.tsx')
+  const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
+  const { flushPendingSyncWork } = await import('../../src/ink/reconciler.ts')
+  const stdin = Object.assign(new Readable({ read() {} }), {
+    isTTY: true,
+    isRaw: false,
+    setRawMode(raw: boolean) { this.isRaw = raw; return this },
+    ref() { return this },
+    unref() { return this },
+  })
+  const stdout = Object.assign(new Writable({ write(_chunk, _encoding, done) { done() } }), { isTTY: true, columns: 40, rows: 6 })
+  let received = 0
+  function Probe(): React.ReactNode {
+    const [text, setText] = React.useState('ready')
+    useInput(input => { received++; setText(input) })
+    return React.createElement(Text, null, `input:${text}:end`)
+  }
+  const mounted = await render(React.createElement(Probe), { stdin: stdin as unknown as NodeJS.ReadStream, stdout: stdout as unknown as NodeJS.WriteStream, patchConsole: false, exitOnCtrlC: false })
+  const waitFor = async (predicate: () => boolean): Promise<void> => {
+    const deadline = Date.now() + 1000
+    while (!predicate() && Date.now() < deadline) {
+      flushPendingSyncWork()
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
+  }
+  const send = async (bytes: string, want: string): Promise<string> => {
+    const before = received
+    stdin.push(bytes)
+    await waitFor(() => received > before && mounted.lastFrame().includes(`input:${want}:end`))
+    return mounted.lastFrame()
+  }
+  try {
+    await waitFor(() => mounted.lastFrame().includes('input:ready:end'))
+    check('the input frame mounted', mounted.lastFrame().includes('input:ready:end'), JSON.stringify(mounted.lastFrame()))
+    for (const [label, seq, want] of unicodeCases) {
+      const plain = await send(want, want)
+      check(`${label}: plain input paints the text`, plain.includes(`input:${want}:end`), JSON.stringify(plain))
+      const reset = await send('|', '|')
+      check(`${label}: the prior frame was replaced before the encoded input`, reset.includes('input:|:end'), JSON.stringify(reset))
+      const encoded = await send(seq, want)
+      check(`${label}: encoded input paints the same frame as plain input`, encoded === plain, JSON.stringify({ plain, encoded }))
+    }
+  } finally {
+    stdin.isTTY = false
+    mounted.unmount()
+    mounted.cleanup()
+    stdin.destroy()
+    stdout.destroy()
+    if (previousHome === undefined) delete process.env.MERCURY_CONFIG_DIR
+    else process.env.MERCURY_CONFIG_DIR = previousHome
+    rmSync(home, { recursive: true, force: true })
+  }
+}
 
 console.log(failures === 0 ? '\nGREEN: every named key is decoded' : `\nRED: ${failures} check(s) show keys the grammar swallows, splits or unshifts`)
 process.exit(failures === 0 ? 0 : 1)

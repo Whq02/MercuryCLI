@@ -58,7 +58,6 @@ import { PromptInputFooter } from './PromptInputFooter.js'
 import { PromptInputModeIndicator } from './PromptInputModeIndicator.js'
 import { PromptInputStashNotice } from './PromptInputStashNotice.js'
 import {
-  getSelectedSuggestion,
   setSelectedSuggestionStore,
 } from './suggestionSelectionStore.js'
 import { Notifications } from './Notifications.js'
@@ -1144,7 +1143,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         maxRows={isCompact ? (helpOpen ? Math.max(2, (compactBudget?.editorPoolRows ?? 2) - 1) : compactBudget?.noticeRows ?? 0) : undefined}
         suggestionRows={isCompact ? compactSuggestionRows : undefined}
         suggestions={typeahead.suggestions}
-        selectedSuggestion={getSelectedSuggestion()}
         suggestionType={typeahead.suggestionType}
         onSuggestionPick={typeahead.acceptSuggestionAt}
         onSuggestionHover={typeahead.hoverSuggestionAt}

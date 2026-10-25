@@ -417,7 +417,7 @@ export function Select<T = string>({
         const stateColor = stateColorOf(isFocused, isSelected, option.disabled)
         const prefix = ordinalsHidden ? '' : rowPrefix(option, option.index + 1, textRowReserved)
         const clickable =
-          layout === 'expanded' && disableSelection !== true && !option.disabled
+          layout === 'expanded' && disableSelection !== true && !option.disabled && !isDisabled
         const description =
           option.description !== undefined && option.description !== ''
             ? option.description

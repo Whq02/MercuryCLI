@@ -132,9 +132,9 @@ export function useComposerAttachments({
     ) {
       payload = ` ${payload}`
     }
-    const next = input.slice(0, start) + payload + input.slice(end)
-    writeDraft(next)
-    setCursorOffset(start + payload.length)
+    const head = input.slice(0, start) + payload
+    writeDraft(head + input.slice(end))
+    setCursorOffset(pendingInput.sanitizeComposerText(head).length)
   }
   const insertAtomic = (text: string): void => {
     insertAtCursor(text, { atomic: true })

@@ -152,7 +152,7 @@ export function useComposerSelectionRoad(
     const start = offsetAtCell(first.col - rect.x, first.row - rect.y)
     const end = Math.min(
       input.length,
-      offsetAtCell(last.col - rect.x, last.row - rect.y) + 1,
+      cellSpanAt(last.col - rect.x, last.row - rect.y).end,
     )
     trace(start >= end ? 'degenerate' : 'ok', start, end)
     if (start >= end) return null
