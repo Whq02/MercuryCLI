@@ -66,6 +66,19 @@ export function fitRailVerb(verb: string, budget: number): string {
   return truncateToWidth(verb, budget)
 }
 
+const RAIL_SEPARATOR_WORD = /^[—–·-]$/
+
+export function fitRailName(name: string, budget: number): string {
+  if (displayWidth(name) <= budget) return name
+  const words = name.split(' ')
+  for (let keep = words.length - 1; keep >= 1; keep--) {
+    if (RAIL_SEPARATOR_WORD.test(words[keep - 1]!)) continue
+    const kept = words.slice(0, keep).join(' ')
+    if (displayWidth(kept) < budget) return `${kept}…`
+  }
+  return truncateToWidth(name, budget)
+}
+
 function RailRow({
   width,
   glyph,
@@ -108,7 +121,7 @@ function RailRow({
   const sep = ' · '
   const budgets = railRowBudgets(width - indentW - dotW, displayWidth(name), verb !== undefined && verb !== '' ? displayWidth(verb) : 0, displayWidth(sep))
   const verbT = verb !== undefined && budgets.verb > 0 ? fitRailVerb(verb, budgets.verb) : ''
-  const nameT = truncateToWidth(name, budgets.name)
+  const nameT = fitRailName(name, budgets.name)
 
   const clickable = rowIndex != null
   return (
