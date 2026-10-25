@@ -29,6 +29,7 @@ arm.
 | `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped because OpenRouter ids are vendor/model slugs, so the namespace disambiguates them) | OpenRouter |
+| `orcarouter` | `orcarouter/<vendor>/<model>` or `orcarouter/<alias>`; named routers use `orcarouter/orcarouter/<name>` | OrcaRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
 | `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
@@ -412,6 +413,29 @@ no other value (`low` and `medium` answer HTTP 400). `parallel_tool_calls`
 is never sent (the vendor lists it unsupported). The meter is the session's
 spend at the recorded prices; a standard key reads no usage endpoint, and the
 dashboard shows the account's spend.
+
+OrcaRouter connects through `/logins orcarouter` with device-code sign-in
+or an API key from [the console](https://www.orcarouter.ai/console/token).
+`ORCAROUTER_API_KEY` takes precedence over the stored key. If sign-in cannot
+start, paste an API key instead. Requests use
+`https://api.orcarouter.ai/v1/chat/completions` and bill OrcaRouter credits.
+The [live catalogue](https://docs.orcarouter.ai/getting-started/models) supplies
+model ids, context windows and output limits; published catalogue prices
+apply when a response carries no call cost. `/usage` shows session spend,
+total usage and the key's credit allowance.
+
+Models use `orcarouter/<vendor>/<model>`, for example
+`orcarouter/openai/gpt-4o-mini`. Choose `orcarouter/orcarouter/auto` or a
+[named router](https://docs.orcarouter.ai/routing/named-routers) to use the
+routing policy configured in the OrcaRouter console. Model suffixes such
+as `-high` and `-free` stay intact. Chat streams text, tool calls, reasoning
+and usage through the shared OpenAI-compatible transport. Explicit
+[reasoning effort](https://docs.orcarouter.ai/advanced/reasoning) is sent
+unchanged; accepted levels depend on the model. A conversation cache key
+keeps related turns together for
+[session affinity](https://docs.orcarouter.ai/routing/session-affinity).
+[Call costs](https://docs.orcarouter.ai/operations/per-request-cost) returned
+in the final usage chunk take precedence over catalogue token rates.
 
 Groq connects through `/logins groq` or `GROQ_API_KEY`, with keys from
 [console.groq.com/keys](https://console.groq.com/keys). Its live text models

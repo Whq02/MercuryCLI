@@ -37,6 +37,8 @@ import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
 import { meliousCallModel, meliousLiveProofState } from './melious/meliousCallModel.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
 import { resolveMeliousApiKey } from './melious/meliousAccounts.js'
+import { orcarouterCallModel, orcarouterLiveProofState } from './orcarouter/orcarouterCallModel.js'
+import { resolveOrcarouterApiKey } from './orcarouter/orcarouterAccounts.js'
 import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
@@ -77,6 +79,7 @@ export type PrimaryBackendId =
   | 'cohere-chat'
   | 'groq-chat'
   | 'melious-chat'
+  | 'orcarouter-chat'
   | 'cerebras-chat'
   | 'fireworks-chat'
   | 'qwen-chat'
@@ -105,6 +108,7 @@ export interface AgentRuntimeRef {
     | 'cohere'
     | 'groq'
     | 'melious'
+    | 'orcarouter'
     | 'cerebras'
     | 'fireworks'
     | 'qwen'
@@ -127,6 +131,7 @@ export interface AgentRuntimeRef {
     | { kind: 'zen' }
     | { kind: 'groq' }
     | { kind: 'melious' }
+    | { kind: 'orcarouter' }
     | { kind: 'cerebras' }
     | { kind: 'fireworks' }
     | { kind: 'qwen' }
@@ -334,6 +339,17 @@ const meliousBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const orcarouterBackend: PrimaryAgentBackend = {
+  id: 'orcarouter-chat', provider: 'orcarouter', label: 'OrcaRouter',
+  callModel: orcarouterCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveOrcarouterApiKey()) return { state: 'unavailable', reason: 'no API key (/logins orcarouter, or ORCAROUTER_API_KEY)' }
+    const proof = orcarouterLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `${proof.model}` }
+      : { state: 'configured', detail: 'API key present' }
+  },
+}
 const cerebrasBackend: PrimaryAgentBackend = {
   id: 'cerebras-chat', provider: 'cerebras', label: 'Cerebras (gateway, in-process)',
   callModel: cerebrasCallModel,
@@ -501,6 +517,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   cohere: cohereBackend,
   groq: groqBackend,
   melious: meliousBackend,
+  orcarouter: orcarouterBackend,
   cerebras: cerebrasBackend,
   fireworks: fireworksBackend,
   qwen: qwenBackend,
@@ -566,6 +583,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'groq' }
   } else if (route === 'melious') {
     family = { kind: 'melious' }
+  } else if (route === 'orcarouter') {
+    family = { kind: 'orcarouter' }
   } else if (route === 'cerebras') {
     family = { kind: 'cerebras' }
   } else if (route === 'fireworks') {

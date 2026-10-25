@@ -21,6 +21,7 @@ export type CallModelRoute =
   | 'cohere'
   | 'groq'
   | 'melious'
+  | 'orcarouter'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -30,7 +31,7 @@ export interface ProviderIdSpace {
   qualifiedPrefix?: string
   barePrefixes?: readonly string[]
   bareAliases?: readonly string[]
-  innerGrammar?: 'segments-2' | 'named'
+  innerGrammar?: 'segments-2' | 'segments-1-or-2' | 'named'
 }
 
 export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
@@ -52,6 +53,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'cohere', barePrefixes: ['command-', 'north-', 'c4ai-aya-'], bareAliases: ['cohere'] },
   { route: 'groq', qualifiedPrefix: 'groq/', innerGrammar: 'named' },
   { route: 'melious', qualifiedPrefix: 'melious/', innerGrammar: 'named' },
+  { route: 'orcarouter', qualifiedPrefix: 'orcarouter/', innerGrammar: 'segments-1-or-2' },
   { route: 'cerebras', qualifiedPrefix: 'cerebras/', innerGrammar: 'named' },
   { route: 'fireworks', qualifiedPrefix: 'fireworks/', innerGrammar: 'named' },
   { route: 'qwen', barePrefixes: ['qwen-', 'qwen3', 'qwen2', 'qwq-', 'qvq-'], bareAliases: ['qwen'] },

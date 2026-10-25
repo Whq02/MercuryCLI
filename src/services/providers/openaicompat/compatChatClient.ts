@@ -918,7 +918,7 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
     num(details?.cached_tokens)
   const reasoning = num(completionDetails?.reasoning_tokens)
   const ticks = num(usage.cost_in_usd_ticks)
-  const statedCost = num(usage.cost) ?? (ticks !== undefined && Number.isFinite(ticks) && ticks >= 0 ? ticks / 1e10 : undefined)
+  const statedCost = num(usage.cost_usd) ?? num(usage.cost) ?? (ticks !== undefined && Number.isFinite(ticks) && ticks >= 0 ? ticks / 1e10 : undefined)
   return {
     inputTokens: prompt ?? 0,
     outputTokens: completion ?? 0,

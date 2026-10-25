@@ -62,7 +62,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -112,6 +112,14 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       const { source } = meliousCatalogueRows(env)
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       const error = getCachedMeliousCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'orcarouter': {
+      const { orcarouterCatalogueRows, orcarouterCatalogueSourceWords, getCachedOrcarouterCatalogue } = await import('../../providers/orcarouter/orcarouterCatalogue.js')
+      const { source } = orcarouterCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      if (source.kind === 'pins') return { kind: 'static', words: orcarouterCatalogueSourceWords(env)! }
+      const error = getCachedOrcarouterCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'cerebras': {
@@ -321,6 +329,8 @@ export async function knownModelsReference(): Promise<KnownModelsReference> {
   providers.push({ provider: 'together', providerName: providerDisplayName('together'), familyWord: 'together', models: TOGETHER_DISPLAY_PINS.map(pin => ({ id: togetherQualifiedId(pin.id), displayName: pin.displayName })) })
   const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../providers/groq/groqPins.js')
   providers.push({ provider: 'groq', providerName: providerDisplayName('groq'), familyWord: 'groq', models: GROQ_DISPLAY_PINS.map(pin => ({ id: groqQualifiedId(pin.id), displayName: pin.displayName })) })
+  const { ORCAROUTER_DISPLAY_PINS, orcarouterQualifiedId } = await import('../../providers/orcarouter/orcarouterCatalogue.js')
+  providers.push({ provider: 'orcarouter', providerName: providerDisplayName('orcarouter'), familyWord: 'orcarouter', models: ORCAROUTER_DISPLAY_PINS.map(pin => ({ id: orcarouterQualifiedId(pin.id), displayName: pin.displayName })) })
   const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../providers/cerebras/cerebrasPins.js')
   providers.push({ provider: 'cerebras', providerName: providerDisplayName('cerebras'), familyWord: 'cerebras', models: CEREBRAS_DISPLAY_PINS.map(pin => ({ id: cerebrasQualifiedId(pin.id), displayName: pin.displayName })) })
   const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../providers/fireworks/fireworksPins.js')

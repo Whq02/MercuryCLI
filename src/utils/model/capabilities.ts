@@ -53,6 +53,7 @@ import { isCohereModelId } from '../../services/providers/cohere/coherePins.js'
 import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from '../../services/providers/groq/groqPins.js'
 import { groqContextWindowFor, groqOutputMaxFor } from '../../services/providers/groq/groqCatalogue.js'
 import { isMeliousModelId, meliousListedModel, meliousEffortVocabulary, meliousContextWindowFor, meliousOutputMaxFor } from '../../services/providers/melious/meliousCatalogue.js'
+import { isOrcarouterModelId, orcarouterListedModel, orcarouterEffortVocabulary } from '../../services/providers/orcarouter/orcarouterCatalogue.js'
 import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from '../../services/providers/cerebras/cerebrasPins.js'
 import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from '../../services/providers/fireworks/fireworksPins.js'
@@ -92,6 +93,7 @@ export function modelSupportsTemperature(model: string): boolean {
 
 
 export function modelSupportsISP(model: string): boolean {
+  if (isOrcarouterModelId(model)) return false
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
@@ -100,6 +102,7 @@ export function modelSupportsISP(model: string): boolean {
 }
 
 function baseModelSupportsThinking(model: string): boolean {
+  if (isOrcarouterModelId(model)) return true
   if (isXaiModelId(model)) {
     const facts = xaiModelFacts(model)
     return facts?.reasoning ?? (facts?.efforts?.some(effort => effort !== 'none') === true)
@@ -119,6 +122,7 @@ function baseModelSupportsThinking(model: string): boolean {
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
+  if (isOrcarouterModelId(model)) return false
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   if (isMistralModelId(model)) return false
@@ -251,7 +255,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | 'compat'
+      source: 'operator' | 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | 'compat'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -281,6 +285,7 @@ export type EffortVocabularyView =
         | 'cohere'
         | 'groq'
         | 'melious'
+        | 'orcarouter'
         | 'cerebras'
         | 'fireworks'
         | 'qwen'
@@ -379,6 +384,7 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       ? { kind: 'provider', source: 'cohere', vocabulary, defaultEffort: 'high', thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'cohere' }
   }
+  if (route === 'orcarouter') return { kind: 'provider', source: 'orcarouter', vocabulary: orcarouterEffortVocabulary(model), thinkingGated: false }
   if (route === 'groq') {
     const vocabulary = groqEffortVocabulary(model)
     return vocabulary.length > 0
@@ -801,6 +807,10 @@ function baseResolveContextWindow(
       return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
     }
   }
+  if (carrierRoute === 'orcarouter') {
+    const window = orcarouterListedModel(model)?.contextWindow
+    if (window !== undefined) return finish({ effectiveWindow: window, source: 'live-current', catalogueCurrent: window })
+  }
   if (carrierRoute === 'openai-compat') {
     const { compatContextWindowFor } = require('../../services/providers/openaicompat/compatCatalogue.js') as typeof import('../../services/providers/openaicompat/compatCatalogue.js')
     const window = compatContextWindowFor(model)
@@ -890,6 +900,8 @@ function baseGetModelMaxOutputTokens(model: string): {
   if (minimaxOut !== undefined) return statedOutputTokens(minimaxOut)
   const cohereOut = isCohereModelId(model) ? cohereModelFacts(model).outputMax : undefined
   if (cohereOut !== undefined) return statedOutputTokens(cohereOut)
+  const orcarouterOut = isOrcarouterModelId(model) ? orcarouterListedModel(model)?.outputMax : undefined
+  if (orcarouterOut !== undefined) return statedOutputTokens(orcarouterOut)
   const groqOut = isGroqModelId(model) ? groqOutputMaxFor(model) : undefined
   if (groqOut !== undefined) return statedOutputTokens(groqOut)
   const meliousOut = isMeliousModelId(model) ? meliousOutputMaxFor(model) : undefined
@@ -1146,6 +1158,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return groqDisplayPin(model)?.images === true
     case 'melious':
       return meliousListedModel(model)?.images === true
+    case 'orcarouter':
+      return modalitiesAdmitImages(orcarouterListedModel(model)?.inputModalities)
     case 'cerebras':
       return cerebrasDisplayPin(model)?.images === true
     case 'fireworks':

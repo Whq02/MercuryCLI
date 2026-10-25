@@ -42,6 +42,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   cohere: 'Cohere',
   groq: 'Groq',
   melious: 'Melious AI',
+  orcarouter: 'OrcaRouter',
   cerebras: 'Cerebras',
   fireworks: 'Fireworks',
   qwen: 'Qwen',
@@ -139,7 +140,7 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
   if (stripped === '') {
     return { ok: false, reason: `'${trimmed}' names no model inside the ${space.route} namespace — the /model picker lists the live catalogue.` }
   }
-  if (space.innerGrammar === 'segments-2') {
+  if (space.innerGrammar === 'segments-2' || space.innerGrammar === 'segments-1-or-2') {
     if (/[[\]]/.test(stripped)) {
       return {
         ok: false,
@@ -147,10 +148,10 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
       }
     }
     const segments = stripped.split('/')
-    if (segments.length !== 2 || segments.some(s => s === '')) {
+    if ((segments.length !== 2 && !(space.innerGrammar === 'segments-1-or-2' && segments.length === 1)) || segments.some(s => s === '')) {
       return {
         ok: false,
-        reason: `'${trimmed}' is not a dispatchable ${space.route} id — the catalogue's ids are exactly <vendor>/<model> under the ${space.qualifiedPrefix} namespace${segments.length > 2 ? ` and '${stripped}' composes a second vendor prefix onto an already carrier-shaped id` : ''}. The /model picker lists the live catalogue.`,
+        reason: `'${trimmed}' is not a dispatchable ${space.route} id — the catalogue's ids are ${space.innerGrammar === 'segments-1-or-2' ? '<vendor>/<model> or a bare alias' : 'exactly <vendor>/<model>'} under the ${space.qualifiedPrefix} namespace${segments.length > 2 ? ` and '${stripped}' composes a second vendor prefix onto an already carrier-shaped id` : ''}. The /model picker lists the live catalogue.`,
       }
     }
     return healed ? { ok: true, wireId: stripped, healed: true } : { ok: true, wireId: stripped }

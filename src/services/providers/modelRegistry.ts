@@ -31,6 +31,7 @@ import { togetherProviderAdapter } from './together/togetherAdapter.js'
 import { cohereProviderAdapter } from './cohere/cohereAdapter.js'
 import { groqProviderAdapter } from './groq/groqAdapter.js'
 import { meliousProviderAdapter } from './melious/meliousAdapter.js'
+import { orcarouterProviderAdapter } from './orcarouter/orcarouterAdapter.js'
 import { cerebrasProviderAdapter } from './cerebras/cerebrasAdapter.js'
 import { fireworksProviderAdapter } from './fireworks/fireworksAdapter.js'
 import { qwenProviderAdapter } from './qwen/qwenAdapter.js'
@@ -73,6 +74,7 @@ const PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   cohereProviderAdapter,
   groqProviderAdapter,
   meliousProviderAdapter,
+  orcarouterProviderAdapter,
   cerebrasProviderAdapter,
   fireworksProviderAdapter,
   qwenProviderAdapter,

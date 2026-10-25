@@ -20,6 +20,7 @@ export type LoginFamilyValue =
   | 'cohere'
   | 'groq'
   | 'melious'
+  | 'orcarouter'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -62,6 +63,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Cohere — API key', value: 'cohere' as const },
           { label: 'Groq — API key', value: 'groq' as const },
           { label: 'Melious AI — API key', value: 'melious' as const },
+          { label: 'OrcaRouter — device-code sign-in or API key', value: 'orcarouter' as const },
           { label: 'Cerebras — API key', value: 'cerebras' as const },
           { label: 'Fireworks — API key', value: 'fireworks' as const },
           { label: 'Qwen — QwenCloud or Model Studio API key', value: 'qwen' as const },
@@ -114,6 +116,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   cohere: 'dashboard.cohere.com/api-keys',
   groq: 'console.groq.com/keys',
   melious: 'melious.ai/account/api/keys',
+  orcarouter: 'orcarouter.ai/console/token',
   cerebras: 'cloud.cerebras.ai',
   fireworks: 'app.fireworks.ai/api-keys',
   qwen: 'modelstudio.alibabacloud.com',
@@ -151,6 +154,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'cohere':
     case 'groq':
     case 'melious':
+    case 'orcarouter':
     case 'cerebras':
     case 'fireworks':
     case 'qwen':

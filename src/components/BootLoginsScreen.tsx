@@ -37,6 +37,7 @@ import { storeTogetherApiKeyLogin } from '../services/providers/together/togethe
 import { storeCohereApiKeyLogin } from '../services/providers/cohere/cohereLogin.js';
 import { storeGroqApiKeyLogin } from '../services/providers/groq/groqLogin.js';
 import { storeMeliousApiKeyLogin } from '../services/providers/melious/meliousLogin.js';
+import { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin, ORCAROUTER_CONNECT_ROWS } from '../services/providers/orcarouter/orcarouterLogin.js';
 import { storeCerebrasApiKeyLogin } from '../services/providers/cerebras/cerebrasLogin.js';
 import { storeFireworksApiKeyLogin } from '../services/providers/fireworks/fireworksLogin.js';
 import { QWEN_KEY_KINDS_SHORT, storeQwenApiKeyLogin } from '../services/providers/qwen/qwenLogin.js';
@@ -463,7 +464,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 }
 
 
-export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta';
+export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 export type FaceKeyLegId =
   | 'openai-key'
   | 'zai-general'
@@ -485,6 +486,7 @@ export type FaceKeyLegId =
   | 'cohere'
   | 'groq'
   | 'melious'
+  | 'orcarouter'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -508,6 +510,8 @@ export function loginsPickOptions(
       return XAI_CONNECT_ROWS;
     case 'nous':
       return NOUS_CONNECT_ROWS;
+    case 'orcarouter':
+      return ORCAROUTER_CONNECT_ROWS;
     case 'meta':
       return metaPickOptions(metaFacts ?? liveMetaConnectFacts());
     case 'openrouter':
@@ -552,6 +556,8 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
         return 'Sign in with your Grok account (SuperGrok / X Premium) or paste an API key. xAI decides subscription eligibility; consent may say Grok Build.';
       case 'nous':
         return 'Sign in with your Nous Portal account in the browser, or paste an API key. Either one bills the Portal credits or subscription behind it.';
+      case 'orcarouter':
+        return 'Sign in with your OrcaRouter account in the browser, or paste an API key. Requests bill OrcaRouter credits.';
       case 'meta':
         return 'Sign in with Meta for a Muse Code subscription (device code in your browser), or paste a pay-as-you-go Model API key.';
       case 'anthropic':
@@ -614,6 +620,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'Groq API key';
     case 'melious':
       return 'Melious AI API key';
+    case 'orcarouter':
+      return 'OrcaRouter API key';
     case 'cerebras':
       return 'Cerebras API key';
     case 'fireworks':
@@ -665,6 +673,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Checked on the model list first; stored auth-scoped (mode 600); GROQ_API_KEY wins. Text models only.';
     case 'melious':
       return 'MELIOUS_API_KEY wins over a stored key.';
+    case 'orcarouter':
+      return 'Requests bill OrcaRouter credits. ORCAROUTER_API_KEY wins over the stored key.';
     case 'cerebras':
       return 'Checked on the model list first; stored auth-scoped (mode 600); CEREBRAS_API_KEY wins. Text models only.';
     case 'fireworks':
@@ -717,6 +727,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a Groq API key' };
     case 'melious':
       return { stores: 'a Melious AI API key' };
+    case 'orcarouter':
+      return { stores: 'an OrcaRouter API key' };
     case 'cerebras':
       return { stores: 'a Cerebras API key' };
     case 'fireworks':
@@ -749,7 +761,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'mistral-admin' && note === null) lines.push(...wrapPlain(MISTRAL_ADMIN_KEY_PAGE, DETAIL_W));
   if (leg === 'nous' && note === null) lines.push(...wrapClauses(keyPageLine('nous'), DETAIL_W));
   if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
-  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'melious' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
+  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'orcarouter' || leg === 'melious' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -777,7 +789,7 @@ export function signedInStatusWayOut(backToPicker: boolean): string {
 }
 
 
-export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'meta';
+export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 
 export interface DeviceWaitStateV1 {
   family: FaceDeviceFamily;
@@ -794,6 +806,7 @@ export interface DeviceWaitStateV1 {
 export function deviceFamilyWords(family: FaceDeviceFamily, regionWords?: string): string {
   if (family === 'xai') return 'Grok (device code)';
   if (family === 'nous') return 'Nous Portal (browser approval)';
+  if (family === 'orcarouter') return 'OrcaRouter (device code)';
   if (family === 'meta') return 'Meta (device code)';
   return family === 'moonshot'
     ? `Kimi (device code${regionWords !== undefined ? ` · ${regionWords}` : ''})`
@@ -807,6 +820,9 @@ function expiryWords(expiresAtMs: number | undefined, nowMs: number): string {
 }
 
 export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string[] {
+  if (d.family === 'orcarouter') return d.phase === 'waiting'
+    ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', DETAIL_W), d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels']
+    : ['Connect OrcaRouter', 'esc cancels'];
   if (d.phase === 'starting') {
     return [`Connect ${deviceFamilyWords(d.family, d.regionWords)}`, '', 'Requesting a device code…', '', 'esc cancels — nothing is stored'];
   }
@@ -987,6 +1003,8 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
           return 'xAI — Grok subscription or API key';
         case 'nous':
           return 'Nous Portal — account sign-in or API key';
+        case 'orcarouter':
+          return 'OrcaRouter — device-code sign-in or API key';
         case 'meta':
           return META_LOGIN_FAMILY_LABEL;
         case 'anthropic':
@@ -1010,7 +1028,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'key':
       return pane.storing ? 'checking the key' : `paste ${keyLegTitle(pane.leg)}`;
     case 'device':
-      return pane.device.phase === 'finishing'
+      return pane.device.family === 'orcarouter' ? 'OrcaRouter sign-in' : pane.device.phase === 'finishing'
         ? 'authorized — settling the sign-in'
         : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : pane.device.family === 'meta' ? 'Meta' : 'Hub'} device code`;
     case 'handles':
@@ -1100,7 +1118,7 @@ export function loginsMenuModelOf(
                         ? 'OpenRouter'
                         : pick.pick === 'gemini'
                           ? 'Google Gemini'
-                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : pick.pick === 'meta' ? 'Meta (Muse)' : 'which deployment?',
+                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : pick.pick === 'orcarouter' ? 'OrcaRouter' : pick.pick === 'meta' ? 'Meta (Muse)' : 'which deployment?',
             summary: '',
             valueLabel: '',
             valueIsDefault: true,
@@ -1285,6 +1303,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       void runXaiDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else if (family === 'nous') {
       void runNousDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
+    } else if (family === 'orcarouter') {
+      void runOrcarouterDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else if (family === 'meta') {
       void runMetaDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else {
@@ -1422,6 +1442,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'nous':
         openPick('nous');
         return;
+      case 'orcarouter':
+        openPick('orcarouter');
+        return;
       case 'zen':
         setFlow({ kind: 'key', leg: 'zen', note: null, storing: false });
         return;
@@ -1481,6 +1504,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'nous':
         if (value === 'key') setFlow({ kind: 'key', leg: 'nous', note: null, storing: false });
         else startDeviceRun('nous');
+        return;
+      case 'orcarouter':
+        if (value === 'key') setFlow({ kind: 'key', leg: 'orcarouter', note: null, storing: false });
+        else startDeviceRun('orcarouter');
         return;
       case 'meta':
         if ((value === 'key' || value === 'device') && metaConnectRowAction(liveMetaConnectFacts(), value) === 'activate') {
@@ -1597,6 +1624,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'cohere') void storeCohereApiKeyLogin(value).then(settle);
     else if (leg === 'groq') void storeGroqApiKeyLogin(value).then(settle);
     else if (leg === 'melious') void storeMeliousApiKeyLogin(value).then(settle);
+    else if (leg === 'orcarouter') void storeOrcarouterApiKeyLogin(value).then(settle);
     else if (leg === 'cerebras') void storeCerebrasApiKeyLogin(value).then(settle);
     else if (leg === 'fireworks') void storeFireworksApiKeyLogin(value).then(settle);
     else if (leg === 'qwen') void storeQwenApiKeyLogin(value).then(settle);

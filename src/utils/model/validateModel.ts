@@ -34,6 +34,7 @@ async function validateNonAnthropicModel(
     | 'cohere'
     | 'groq'
     | 'melious'
+    | 'orcarouter'
     | 'cerebras'
     | 'fireworks'
     | 'qwen',
@@ -301,6 +302,10 @@ async function validateNonAnthropicModel(
     if (snapshot?.models.length && !cohereListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
     if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !cohereDisplayPin(id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Cohere account's live catalogue.` }
     return { valid: true, skipCache: true }
+  }
+  if (route === 'orcarouter') {
+    const { resolveOrcarouterAccount } = await import('../../services/providers/orcarouter/orcarouterAccounts.js')
+    return resolveOrcarouterAccount() ? { valid: true, skipCache: true } : { valid: false, error: 'OrcaRouter is unavailable — /logins orcarouter connects an account, or set ORCAROUTER_API_KEY.' }
   }
   if (route === 'groq') {
     const { resolveGroqAccount } = await import('../../services/providers/groq/groqAccounts.js')

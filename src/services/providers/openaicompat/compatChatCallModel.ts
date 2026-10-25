@@ -123,6 +123,7 @@ type CompatLaneId =
   | 'cohere'
   | 'groq'
   | 'melious'
+  | 'orcarouter'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -154,6 +155,7 @@ export interface CompatLaneProfile {
   effortOnWire?(extra: Record<string, unknown>): EffortWireFact
   usageForSettlement?(usage: CompatUsage): CompatUsage
   policyFaultNote?(fault: CompatFault, extra: Record<string, unknown> | undefined): string | undefined
+  classifyFault?(fault: CompatFault): NonNullable<AssistantMessage['error']> | undefined
   leadingNotes?: readonly string[]
   partialFaultPolicy?: 'stop'
   providerLabel: string
@@ -684,8 +686,9 @@ export async function* compatChatCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
-    observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
-    const typed = compatFaultToTypedError(outcome.fault)
+    const laneClass = profile.classifyFault?.(outcome.fault)
+    const typed = laneClass ?? compatFaultToTypedError(outcome.fault)
+    if (laneClass === undefined || typed === 'authentication_failed') observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     if (
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
@@ -1397,7 +1400,7 @@ async function* streamOneCompatAttempt(ctx: {
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
-      compatFaultToTypedError(fault),
+      profile.classifyFault?.(fault) ?? compatFaultToTypedError(fault),
       fault.code,
       overflowOf(profile, fault, { request, model: modelId }),
     )

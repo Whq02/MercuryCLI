@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -359,6 +359,15 @@ function meliousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     return { family: 'melious', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMeliousCatalogue(env)) : { kind: 'no-credential' } }
   })
 }
+function orcarouterFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./orcarouter/orcarouterCatalogue.js') as typeof import('./orcarouter/orcarouterCatalogue.js')).ORCAROUTER_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('orcarouter', name, typed, () => {
+    const { resolveOrcarouterAccount } = require('./orcarouter/orcarouterAccounts.js') as typeof import('./orcarouter/orcarouterAccounts.js')
+    const { getCachedOrcarouterCatalogue } = require('./orcarouter/orcarouterCatalogue.js') as typeof import('./orcarouter/orcarouterCatalogue.js')
+    const account = resolveOrcarouterAccount(env)
+    return { family: 'orcarouter', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedOrcarouterCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
 function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const typed = (): string[] => (require('./cerebras/cerebrasPins.js') as typeof import('./cerebras/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
   return guarded('cerebras', name, typed, () => {
@@ -408,6 +417,7 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     cohereFact(name('cohere'), env),
     groqFact(name('groq'), env),
     meliousFact(name('melious'), env),
+    orcarouterFact(name('orcarouter'), env),
     cerebrasFact(name('cerebras'), env),
     fireworksFact(name('fireworks'), env),
     qwenFact(name('qwen'), env),

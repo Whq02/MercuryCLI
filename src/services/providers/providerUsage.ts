@@ -615,6 +615,11 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
       case 'openrouter':
         await refreshOpenrouterKeyUsage(io)
         return
+      case 'orcarouter': {
+        const { refreshOrcarouterUsage } = await import('./orcarouter/orcarouterUsageState.js')
+        await refreshOrcarouterUsage(io)
+        return
+      }
       case 'xai': {
         const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
         if (resolveXaiAccount()?.kind === 'grok-subscription') await refreshXaiSubscriptionCredits(io)
@@ -2017,6 +2022,10 @@ function deriveUsageForProvider(
   if (provider === 'melious') {
     const { meliousUsageView } = require('./melious/meliousUsageState.js') as typeof import('./melious/meliousUsageState.js')
     return meliousUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
+  if (provider === 'orcarouter') {
+    const { orcarouterUsageView } = require('./orcarouter/orcarouterUsageState.js') as typeof import('./orcarouter/orcarouterUsageState.js')
+    return orcarouterUsageView(spend, reads?.laneCredentialed?.(provider))
   }
   if (provider === 'cerebras') {
     const { cerebrasUsageView } = require('./cerebras/cerebrasUsageState.js') as typeof import('./cerebras/cerebrasUsageState.js')

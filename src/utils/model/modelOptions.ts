@@ -322,21 +322,22 @@ export const TOGETHER_MODEL_GROUP = 'Mercury — Together AI models'
 export const COHERE_MODEL_GROUP = 'Mercury — Cohere models'
 export const GROQ_MODEL_GROUP = 'Mercury — Groq models'
 export const MELIOUS_MODEL_GROUP = 'Mercury — Melious AI models'
+export const ORCAROUTER_MODEL_GROUP = 'Mercury — OrcaRouter models'
 export const CEREBRAS_MODEL_GROUP = 'Mercury — Cerebras models'
 export const FIREWORKS_MODEL_GROUP = 'Mercury — Fireworks models'
 export const QWEN_MODEL_GROUP = 'Mercury — Qwen models'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | `compat/${string}` | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | `compat/${string}` | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
   if (/^compat\/[a-z0-9-]{1,32}$/.test(provider)) return provider as `compat/${string}`
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'melious' || provider === 'cerebras' || provider === 'fireworks' || provider === 'qwen'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral' || provider === 'zen' || provider === 'minimax' || provider === 'together' || provider === 'cohere' || provider === 'groq' || provider === 'orcarouter' || provider === 'melious' || provider === 'cerebras' || provider === 'fireworks' || provider === 'qwen'
     ? provider
     : undefined
 }
@@ -526,7 +527,7 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLaneListState {
   if (provider === 'qwen') {
     const owner = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
     const { source } = owner.qwenCatalogueRows()
@@ -567,6 +568,16 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
     const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('melious')
     const error = !gate.allowed ? gate.reason : owner.getCachedMeliousCatalogue()?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
+  if (provider === 'orcarouter') {
+    const owner = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    const { source } = owner.orcarouterCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    if (source.kind === 'pins') return { kind: 'pin' }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('orcarouter')
+    const error = !gate.allowed ? gate.reason : owner.getCachedOrcarouterCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'cerebras') {
@@ -661,6 +672,7 @@ export interface KeyLaneReads {
   cohereKeyPresent?(): boolean
   groqKeyPresent?(): boolean
   meliousKeyPresent?(): boolean
+  orcarouterKeyPresent?(): boolean
   cerebrasKeyPresent?(): boolean
   fireworksKeyPresent?(): boolean
   qwenKeyPresent?(): boolean
@@ -716,6 +728,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveMeliousApiKey } = require('../../services/providers/melious/meliousAccounts.js') as typeof import('../../services/providers/melious/meliousAccounts.js')
       return resolveMeliousApiKey() !== undefined
     },
+    orcarouterKeyPresent: () => {
+      const { resolveOrcarouterApiKey } = require('../../services/providers/orcarouter/orcarouterAccounts.js') as typeof import('../../services/providers/orcarouter/orcarouterAccounts.js')
+      return resolveOrcarouterApiKey() !== undefined
+    },
     cerebrasKeyPresent: () => {
       const { resolveCerebrasApiKey } = require('../../services/providers/cerebras/cerebrasAccounts.js') as typeof import('../../services/providers/cerebras/cerebrasAccounts.js')
       return resolveCerebrasApiKey() !== undefined
@@ -748,7 +764,7 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLanePin[] {
   if (provider === 'qwen') {
     const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
     const { qwenDisplayPin } = require('../../services/providers/qwen/qwenPins.js') as typeof import('../../services/providers/qwen/qwenPins.js')
@@ -777,6 +793,10 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
   if (provider === 'melious') {
     const { meliousCatalogueRows } = require('../../services/providers/melious/meliousCatalogue.js') as typeof import('../../services/providers/melious/meliousCatalogue.js')
     return meliousCatalogueRows().rows
+  }
+  if (provider === 'orcarouter') {
+    const { orcarouterCatalogueRows } = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    return orcarouterCatalogueRows().rows
   }
   if (provider === 'cerebras') {
     const { cerebrasCatalogueRows } = require('../../services/providers/cerebras/cerebrasCatalogue.js') as typeof import('../../services/providers/cerebras/cerebrasCatalogue.js')
@@ -1015,6 +1035,12 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   const groqCredentialed = reads.groqKeyPresent?.() ?? false
   if (groqCredentialed && groqRows.length === 0 && groqState.kind === 'live') {
     out.push({ value: keyConnectValue('groq'), label: 'Groq — no models listed', group: GROQ_MODEL_GROUP, description: 'the live list serves no text model — /logins groq checks the key', descriptionForModel: 'The Groq account returned an empty text model list; no Groq model is selectable.' })
+  }
+  const orcarouterRows = keyLanePins('orcarouter')
+  const orcarouterState = keyLaneListState('orcarouter')
+  const orcarouterCredentialed = reads.orcarouterKeyPresent?.() ?? false
+  if (orcarouterCredentialed && orcarouterRows.length === 0 && orcarouterState.kind === 'live') {
+    out.push({ value: keyConnectValue('orcarouter'), label: 'OrcaRouter — no models listed', group: ORCAROUTER_MODEL_GROUP, description: 'the live list serves no text model — /logins orcarouter checks the key', descriptionForModel: 'The OrcaRouter account returned an empty text model list; no OrcaRouter model is selectable.' })
   } else {
     out.push(...keyLaneGroupRows({ group: GROQ_MODEL_GROUP, providerName: 'Groq', connectValue: keyConnectValue('groq'), connectHint: 'opens /logins groq (GROQ_API_KEY works too)', keyPresent: groqCredentialed, pins: groqRows, listState: groqState, engineWords: 'the Groq text models' }))
   }
@@ -1171,6 +1197,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     COHERE_MODEL_GROUP,
     GROQ_MODEL_GROUP,
     MELIOUS_MODEL_GROUP,
+    ORCAROUTER_MODEL_GROUP,
     CEREBRAS_MODEL_GROUP,
     FIREWORKS_MODEL_GROUP,
     QWEN_MODEL_GROUP,

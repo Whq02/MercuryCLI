@@ -26,7 +26,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, MELIOUS_MODEL_GROUP, CEREBRAS_MODEL_GROUP, FIREWORKS_MODEL_GROUP, QWEN_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, ORCAROUTER_MODEL_GROUP, MELIOUS_MODEL_GROUP, CEREBRAS_MODEL_GROUP, FIREWORKS_MODEL_GROUP, QWEN_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -645,6 +645,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [COHERE_MODEL_GROUP]: 'cohere',
   [GROQ_MODEL_GROUP]: 'groq',
   [MELIOUS_MODEL_GROUP]: 'melious',
+  [ORCAROUTER_MODEL_GROUP]: 'orcarouter',
   [CEREBRAS_MODEL_GROUP]: 'cerebras',
   [FIREWORKS_MODEL_GROUP]: 'fireworks',
   [QWEN_MODEL_GROUP]: 'qwen',
@@ -727,7 +728,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -765,6 +766,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [COHERE_MODEL_GROUP]: keyLaneHeading('cohere'),
     [GROQ_MODEL_GROUP]: keyLaneHeading('groq'),
     [MELIOUS_MODEL_GROUP]: keyLaneHeading('melious'),
+    [ORCAROUTER_MODEL_GROUP]: keyLaneHeading('orcarouter'),
     [CEREBRAS_MODEL_GROUP]: keyLaneHeading('cerebras'),
     [FIREWORKS_MODEL_GROUP]: keyLaneHeading('fireworks'),
     [QWEN_MODEL_GROUP]: keyLaneHeading('qwen'),
@@ -1189,7 +1191,7 @@ function MercuryModelWrapper({
           })()
           return
         }
-        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', melious: 'Melious AI', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
+        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', orcarouter: 'OrcaRouter', melious: 'Melious AI', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
         onDone(
           `${keyLaneLabels[keyLane as keyof typeof keyLaneLabels] ?? keyLane} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },

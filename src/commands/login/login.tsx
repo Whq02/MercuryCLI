@@ -145,6 +145,8 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
       return 'groq'
     case 'melious':
       return 'melious'
+    case 'orcarouter':
+      return 'orcarouter'
     case 'cerebras':
       return 'cerebras'
     case 'fireworks':

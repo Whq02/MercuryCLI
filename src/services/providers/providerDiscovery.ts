@@ -116,6 +116,12 @@ export interface MeliousDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface OrcarouterDiscovery {
+  provider: 'orcarouter'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CerebrasDiscovery {
   provider: 'cerebras'
   probedAtMs: number
@@ -183,6 +189,7 @@ export type ProviderDiscovery =
   | CohereDiscovery
   | GroqDiscovery
   | MeliousDiscovery
+  | OrcarouterDiscovery
   | CerebrasDiscovery
   | FireworksDiscovery
   | QwenDiscovery
@@ -364,6 +371,11 @@ function probeMelious(io: DiscoveryIo): MeliousDiscovery {
   const { resolveMeliousApiKey } = require('./melious/meliousAccounts.js') as typeof import('./melious/meliousAccounts.js')
   const key = resolveMeliousApiKey(io.env as NodeJS.ProcessEnv)
   return { provider: 'melious', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+function probeOrcarouter(io: DiscoveryIo): OrcarouterDiscovery {
+  const { resolveOrcarouterApiKey } = require('./orcarouter/orcarouterAccounts.js') as typeof import('./orcarouter/orcarouterAccounts.js')
+  const key = resolveOrcarouterApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'orcarouter', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 function probeCerebras(io: DiscoveryIo): CerebrasDiscovery {
   const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
@@ -551,6 +563,8 @@ export function refreshProviderDiscovery(
                                           ? probeGroq(io)
                                         : id === 'melious'
                                           ? probeMelious(io)
+                                        : id === 'orcarouter'
+                                          ? probeOrcarouter(io)
                                           : id === 'cerebras'
                                             ? probeCerebras(io)
                                             : id === 'fireworks'

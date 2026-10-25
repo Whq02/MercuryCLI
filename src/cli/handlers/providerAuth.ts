@@ -11,6 +11,7 @@ import { storeCohereApiKeyLogin } from '../../services/providers/cohere/cohereLo
 import { storeFireworksApiKeyLogin } from '../../services/providers/fireworks/fireworksLogin.js'
 import { storeGroqApiKeyLogin } from '../../services/providers/groq/groqLogin.js'
 import { storeMeliousApiKeyLogin } from '../../services/providers/melious/meliousLogin.js'
+import { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin } from '../../services/providers/orcarouter/orcarouterLogin.js'
 import { storeDeepseekApiKeyLogin } from '../../services/providers/deepseek/deepseekLogin.js'
 import { storeGeminiApiKeyLogin } from '../../services/providers/gemini/geminiLogin.js'
 import { runHuggingfaceDeviceLogin, storeHuggingfaceTokenLogin } from '../../services/providers/huggingface/huggingfaceLogin.js'
@@ -184,6 +185,15 @@ export async function providerAuthLogin(
       if (outcome.ok) await readCatalogueIfPending('nous', { force: true })
       return finish(outcome.ok, outcome.receipt)
     }
+    if (normalized === 'orcarouter') {
+      const outcome = await runOrcarouterDeviceLogin({
+        onEvent: ev => {
+          if (ev.phase === 'waiting' && ev.polls === 0) out(`Visit ${ev.start.verificationUri} and enter code ${ev.start.userCode}\n`)
+        },
+      })
+      if (outcome.ok) await readCatalogueIfPending('orcarouter', { force: true })
+      return finish(outcome.ok, outcome.receipt)
+    }
   }
 
   const promptFn = io.promptKey ?? (text => promptSecretWithoutEcho(text))
@@ -258,6 +268,9 @@ export async function providerAuthLogin(
       break
     case 'melious':
       outcome = await storeMeliousApiKeyLogin(key)
+      break
+    case 'orcarouter':
+      outcome = await storeOrcarouterApiKeyLogin(key)
       break
     case 'cerebras':
       outcome = await storeCerebrasApiKeyLogin(key)

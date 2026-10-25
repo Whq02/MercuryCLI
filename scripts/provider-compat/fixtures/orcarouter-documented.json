@@ -1,0 +1,48 @@
+{
+  "readAt": "2026-10-24",
+  "fixtureKind": "Synthetic responses in the documented schema; not a captured account or model inventory. Context/output figures test propagation. GPT-4o-mini pricing mirrors the cited official MCP test fixture.",
+  "sources": {
+    "models": "https://docs.orcarouter.ai/api-reference/models/list-available-models",
+    "pricing": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/blob/main/test/tools/models_list.test.ts",
+    "chat": "https://docs.orcarouter.ai/api-reference/chat/create-a-chat-completion",
+    "stream": "https://docs.orcarouter.ai/advanced/streaming",
+    "reasoning": "https://docs.orcarouter.ai/advanced/reasoning",
+    "cache": "https://docs.orcarouter.ai/routing/session-affinity",
+    "cost": "https://docs.orcarouter.ai/operations/per-request-cost",
+    "errors": "https://docs.orcarouter.ai/operations/errors",
+    "billing": "https://docs.rs/ai-usagebar/latest/ai_usagebar/orcarouter/types/index.html",
+    "signin": "https://docs.orcarouter.ai/getting-started/sign-in-with-orcarouter"
+  },
+  "catalogue": {
+    "object": "list",
+    "data": [
+      {
+        "id": "openai/gpt-4o-mini",
+        "object": "model",
+        "created": 1715367049,
+        "owned_by": "openai",
+        "supported_endpoint_types": ["openai", "openai-response"],
+        "context_length": 128000,
+        "pricing": {
+          "prompt": "0.00000015",
+          "completion": "0.0000006",
+          "prompt_per_million": "0.150000",
+          "completion_per_million": "0.600000"
+        }
+      },
+      {
+        "id": "anthropic/claude-sonnet-4.6",
+        "object": "model",
+        "owned_by": "anthropic",
+        "supported_endpoint_types": ["anthropic", "openai"],
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "architecture": { "input_modalities": ["text", "image"], "output_modalities": ["text"] }
+      },
+      { "id": "orcarouter/auto", "object": "model", "owned_by": "orcarouter", "supported_endpoint_types": ["openai"] }
+    ]
+  },
+  "usage": { "prompt_tokens": 1100, "completion_tokens": 420, "total_tokens": 1520, "cost_usd": 0.00846 },
+  "billingUsage": { "total_usage": 275 },
+  "billingSubscription": { "hard_limit_usd": 10, "access_until": 0 }
+}

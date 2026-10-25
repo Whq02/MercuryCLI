@@ -261,6 +261,12 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   cohere: model => recorded(engineTier(cohereDisplayPin(model))),
   groq: model => recorded(engineTier(groqDisplayPin(model))),
   melious: () => undefined,
+  orcarouter: model => {
+    const { orcarouterListedModel } = require('../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../services/providers/orcarouter/orcarouterCatalogue.js')
+    const price = orcarouterListedModel(model)?.pricing
+    if (price?.prompt === undefined || price.completion === undefined) return undefined
+    return recorded({ inputTokens: price.prompt * 1e6, outputTokens: price.completion * 1e6, promptCacheReadTokens: price.prompt * 1e6, promptCacheWriteTokens: price.prompt * 1e6, webSearchRequests: 0 })
+  },
   cerebras: model => recorded(engineTier(cerebrasDisplayPin(model))),
   fireworks: model => recorded(engineTier(fireworksDisplayPin(model))),
   qwen: model => recorded(engineTier(qwenDisplayPin(model))),

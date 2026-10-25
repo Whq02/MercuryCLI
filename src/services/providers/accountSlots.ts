@@ -56,6 +56,8 @@ import {
   readStoredMeliousApiKey,
   writeStoredGroqApiKey,
   writeStoredMeliousApiKey,
+  readStoredOrcarouterApiKey,
+  writeStoredOrcarouterApiKey,
   readStoredCerebrasApiKey,
   writeStoredCerebrasApiKey,
   readStoredFireworksApiKey,
@@ -152,6 +154,7 @@ export type SlotRemoval =
   | { route: 'cohere-stored-key' }
   | { route: 'groq-stored-key' }
   | { route: 'melious-stored-key' }
+  | { route: 'orcarouter-stored-key' }
   | { route: 'cerebras-stored-key' }
   | { route: 'fireworks-stored-key' }
   | { route: 'qwen-stored-key' }
@@ -248,6 +251,8 @@ export interface AccountSlotReads {
   meliousEnvKey?: () => string | undefined
   groqStoredKey?: () => string | undefined
   meliousStoredKey?: () => string | undefined
+  orcarouterEnvKey?: () => string | undefined
+  orcarouterStoredKey?: () => string | undefined
   cerebrasEnvKey?: () => string | undefined
   cerebrasStoredKey?: () => string | undefined
   fireworksEnvKey?: () => string | undefined
@@ -1098,6 +1103,11 @@ function meliousSlots(reads: AccountSlotReads): AccountSlot[] {
   const storedKey = (reads.meliousStoredKey ?? readStoredMeliousApiKey)()
   return keyLaneSlots({ family: 'melious', envVar: 'MELIOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'melious-stored-key' } })
 }
+function orcarouterSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.orcarouterEnvKey ? reads.orcarouterEnvKey() : process.env.ORCAROUTER_API_KEY?.trim() || undefined
+  const storedKey = (reads.orcarouterStoredKey ?? readStoredOrcarouterApiKey)()
+  return keyLaneSlots({ family: 'orcarouter', envVar: 'ORCAROUTER_API_KEY', envKey, storedKey, storedRemoval: { route: 'orcarouter-stored-key' } })
+}
 function cerebrasSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.cerebrasEnvKey ? reads.cerebrasEnvKey() : process.env.CEREBRAS_API_KEY?.trim() || undefined
   const storedKey = (reads.cerebrasStoredKey ?? readStoredCerebrasApiKey)()
@@ -1362,6 +1372,8 @@ export function deriveFamilySlotGroups(
                             ? groqSlots(reads)
                           : family.id === 'melious'
                             ? meliousSlots(reads)
+                          : family.id === 'orcarouter'
+                            ? orcarouterSlots(reads)
                           : family.id === 'cerebras'
                             ? cerebrasSlots(reads)
                           : family.id === 'fireworks'
@@ -1412,6 +1424,7 @@ export interface SlotRemovalOwners {
   clearStoredCohereKey?: () => void
   clearStoredGroqKey?: () => void
   clearStoredMeliousKey?: () => void
+  clearStoredOrcarouterKey?: () => void
   clearStoredCerebrasKey?: () => void
   clearStoredFireworksKey?: () => void
   clearStoredQwenKey?: () => void
@@ -1640,6 +1653,9 @@ function routeSlotRemoval(
     case 'melious-stored-key':
       ;(owners.clearStoredMeliousKey ?? (() => writeStoredMeliousApiKey(null)))()
       return { note: 'stored Melious AI API key cleared from the auth-scoped store', mutated: true }
+    case 'orcarouter-stored-key':
+      ;(owners.clearStoredOrcarouterKey ?? (() => writeStoredOrcarouterApiKey(null)))()
+      return { note: 'OrcaRouter API key removed', mutated: true }
     case 'cerebras-stored-key':
       ;(owners.clearStoredCerebrasKey ?? (() => writeStoredCerebrasApiKey(null)))()
       return { note: 'stored Cerebras API key cleared from the auth-scoped store', mutated: true }
@@ -1716,6 +1732,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['cohere-stored-key', owners.clearStoredCohereKey ?? (() => writeStoredCohereApiKey(null))],
     ['groq-stored-key', owners.clearStoredGroqKey ?? (() => writeStoredGroqApiKey(null))],
     ['melious-stored-key', owners.clearStoredMeliousKey ?? (() => writeStoredMeliousApiKey(null))],
+    ['orcarouter-stored-key', owners.clearStoredOrcarouterKey ?? (() => writeStoredOrcarouterApiKey(null))],
     ['cerebras-stored-key', owners.clearStoredCerebrasKey ?? (() => writeStoredCerebrasApiKey(null))],
     ['fireworks-stored-key', owners.clearStoredFireworksKey ?? (() => writeStoredFireworksApiKey(null))],
     ['qwen-stored-key', owners.clearStoredQwenKey ?? (() => writeStoredQwenApiKey(null))],

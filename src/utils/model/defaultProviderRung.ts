@@ -21,6 +21,7 @@ const KNOWN_FAMILIES = new Set([
   'cohere',
   'groq',
   'melious',
+  'orcarouter',
   'cerebras',
   'fireworks',
   'qwen',

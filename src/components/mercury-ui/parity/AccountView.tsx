@@ -297,6 +297,7 @@ export function AccountView({
                     slot.removal.route === 'cohere-stored-key' ||
                     slot.removal.route === 'groq-stored-key' ||
                     slot.removal.route === 'melious-stored-key' ||
+                    slot.removal.route === 'orcarouter-stored-key' ||
                     slot.removal.route === 'cerebras-stored-key' ||
                     slot.removal.route === 'fireworks-stored-key' ||
                     slot.removal.route === 'qwen-stored-key'

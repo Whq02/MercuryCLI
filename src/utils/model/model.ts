@@ -307,6 +307,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { togetherDisplayPin } = require('../../services/providers/together/togetherPins.js') as typeof import('../../services/providers/together/togetherPins.js')
     return togetherDisplayPin(bare)?.displayName ?? null
   }
+  if (/^orcarouter\//i.test(bare)) {
+    const { orcarouterListedModel } = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    return orcarouterListedModel(bare)?.displayName ?? null
+  }
   if (/^groq\//i.test(bare)) {
     const { groqDisplayPin } = require('../../services/providers/groq/groqPins.js') as typeof import('../../services/providers/groq/groqPins.js')
     return groqDisplayPin(bare)?.displayName ?? null

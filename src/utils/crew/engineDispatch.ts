@@ -29,8 +29,10 @@ import { isTogetherModelId } from '../../services/providers/together/togetherPin
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { isGroqModelId } from '../../services/providers/groq/groqPins.js'
 import { isMeliousModelId } from '../../services/providers/melious/meliousCatalogue.js'
+import { isOrcarouterModelId } from '../../services/providers/orcarouter/orcarouterCatalogue.js'
 import { groqCatalogueEntries, groqCatalogueEntry } from '../../services/providers/groq/groqAdapter.js'
 import { meliousCatalogueEntries, meliousCatalogueEntry } from '../../services/providers/melious/meliousAdapter.js'
+import { orcarouterCatalogueEntries, orcarouterCatalogueEntry } from '../../services/providers/orcarouter/orcarouterAdapter.js'
 import { isCerebrasModelId } from '../../services/providers/cerebras/cerebrasPins.js'
 import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../services/providers/cerebras/cerebrasAdapter.js'
 import { isFireworksModelId } from '../../services/providers/fireworks/fireworksPins.js'
@@ -62,7 +64,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -103,6 +105,7 @@ export function isExactEngineModelId(v: unknown): v is string {
     isTogetherModelId(v) ||
     isGroqModelId(v) ||
     isMeliousModelId(v) ||
+    isOrcarouterModelId(v) ||
     isCerebrasModelId(v) ||
     isFireworksModelId(v) ||
     isGoogleRosterModelId(v)
@@ -171,6 +174,7 @@ type EngineProvider =
   | 'cohere'
   | 'groq'
   | 'melious'
+  | 'orcarouter'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -200,6 +204,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   cohere: '/logins cohere',
   groq: '/logins groq',
   melious: '/logins melious',
+  orcarouter: '/logins orcarouter',
   cerebras: '/logins cerebras',
   fireworks: '/logins fireworks',
   qwen: '/logins qwen',
@@ -414,6 +419,14 @@ async function resolveMeliousClassDispatch(): Promise<EngineDispatch> {
   if (!head) throw new Error("The Melious text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
   return { backend: 'melious', model: head.id, displayLabel: head.displayLabel }
 }
+async function resolveOrcarouterClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'orcarouter') return { backend: 'orcarouter', model: main, displayLabel: orcarouterCatalogueEntry(main)?.displayLabel ?? main }
+  if (!orcarouterCatalogueEntries().length) await readCatalogueIfPending('orcarouter')
+  const head = orcarouterCatalogueEntries()[0]
+  if (!head) throw new Error("The OrcaRouter text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'orcarouter', model: head.id, displayLabel: head.displayLabel }
+}
 async function resolveCerebrasClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'cerebras') return { backend: 'cerebras', model: main, displayLabel: cerebrasCatalogueEntry(main)?.displayLabel ?? main }
@@ -575,6 +588,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('melious')
       return resolveMeliousClassDispatch()
     }
+    if (modelParam === 'orcarouter') {
+      await requireProviderAvailable('orcarouter')
+      return resolveOrcarouterClassDispatch()
+    }
     if (modelParam === 'cerebras') {
       await requireProviderAvailable('cerebras')
       return resolveCerebrasClassDispatch()
@@ -667,6 +684,10 @@ export async function resolveEngineDispatch(
         )
       }
       return { backend: 'together', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (isOrcarouterModelId(id)) {
+      await requireProviderAvailable('orcarouter')
+      return { backend: 'orcarouter', model: id, displayLabel: orcarouterCatalogueEntry(id)?.displayLabel ?? id }
     }
     if (isGroqModelId(id)) {
       await requireProviderAvailable('groq')
