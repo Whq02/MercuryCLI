@@ -9,7 +9,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
 import { servicesEnabled } from '../../services/projectServices/contracts.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
-import { exec, getShellCwd } from '../../utils/Shell.js'
+import { exec, resolveShellCwd } from '../../utils/Shell.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -101,6 +101,7 @@ const SLEEP_TIMEOUT_WHY = 'A command whose first word is `sleep` is killed at it
 function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The command to execute'),
+    cwd: z.string().optional().describe('Run in this directory: absolute, or relative to the starting folder; the session directory stays.'),
     timeout: semanticNumber(z.number().optional()).describe(describeTimeout()),
     description: z.string().optional().describe(describeCommandDescription()),
     run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
@@ -257,7 +258,7 @@ async function runSimulatedSedEdit(
   parentMessageId: string | undefined,
 ): Promise<Out> {
   const sed = input._simulatedSedEdit as { filePath: string; newContent: string }
-  const filePath = expandToAbsolute(sed.filePath)
+  const filePath = expandToAbsolute(sed.filePath, resolveShellCwd(input.cwd))
   if (!existsSync(filePath)) {
     return {
       stdout: '',
@@ -280,12 +281,12 @@ async function runSimulatedSedEdit(
   return { stdout: '', stderr: '', interrupted: false }
 }
 
-function expandToAbsolute(path: string): string {
+function expandToAbsolute(path: string, cwd: string): string {
   if (path.startsWith('~')) {
     const home = process.env.HOME || process.env.USERPROFILE || ''
     return home + path.slice(1)
   }
-  return isAbsolute(path) ? path : join(getShellCwd(), path)
+  return isAbsolute(path) ? path : join(cwd, path)
 }
 
 
@@ -296,6 +297,7 @@ async function* runBash(
 ): AsyncGenerator<{ toolUseID: string; data: BashProgress }, Out, void> {
   const abortController = context.abortController
   const isMainThread = agentId === undefined
+  const cwd = resolveShellCwd(input.cwd)
   const setToolJSX = context.setToolJSX
   const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
@@ -325,7 +327,7 @@ async function* runBash(
   const ideShellCommand =
     isMainThread && !input.run_in_background && ideTerminalAvailable()
       ? await execViaIdeTerminal(input.command, abortController.signal, {
-          cwd: getShellCwd(),
+          cwd,
           timeout: effectiveTimeout,
           shouldAutoBackground,
           inheritSessionEnv: input.inherit_session_env === true,
@@ -341,7 +343,8 @@ async function* runBash(
     ideShellCommand ??
     (await exec(input.command, abortController.signal, 'bash', {
       timeout: effectiveTimeout,
-      preventCwdChanges: !isMainThread,
+      cwd: input.cwd === undefined ? undefined : cwd,
+      preventCwdChanges: !isMainThread || input.cwd !== undefined,
       shouldAutoBackground,
       backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
       inheritSessionEnv: input.inherit_session_env === true,
@@ -371,7 +374,7 @@ async function* runBash(
     command: input.command,
     description: input.description ?? input.command,
     agentId,
-    cwd: getShellCwd(),
+    cwd,
     startTime: launchedAt,
     toolUseId: context.toolUseId,
   })
@@ -632,7 +635,7 @@ async function* runBash(
     if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
-    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getShellCwd() })
+    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
     if (boxLine !== null) accumulator.append(boxLine + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message

@@ -140,6 +140,13 @@ try {
   const still = await mount()
   check('the unmoved session names the project folder', folderLine(still.frame()) === `in ${PROJECT}`, folderLine(still.frame()))
   still.close()
+
+  for (const cwd of [SCRATCH_DIR, 'scratch-dir']) {
+    toolUseConfirm.input = { ...toolUseConfirm.input, cwd } as typeof toolUseConfirm.input
+    const perCall = await mount()
+    check('a per-call cwd names the run folder without moving the session', folderLine(perCall.frame()) === `in ${SCRATCH_DIR}` && facts.cwd === PROJECT, perCall.frame())
+    perCall.close()
+  }
 } finally {
   _resetFocusedSessionConnectorForTesting()
   rmSync(PROJECT, { recursive: true, force: true })

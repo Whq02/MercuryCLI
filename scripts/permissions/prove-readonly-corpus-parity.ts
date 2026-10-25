@@ -101,6 +101,17 @@ for (const command of [
   'git status *', 'grep --include=*.ts x .', 'ls *', 'ls -d */', 'ls /tmp/a/*.txt | head -1', 'ls ?', 'ls [', 'ls "/tmp/a b/"*.txt | head -1', 'ls a[0]',
   'tail view unexpectedly complete — spill semantics changed?', 'tr [:upper:] [:lower:]', 'wc -l *.ts',
 ]) pinGlobOperandRead(command)
+function pinWrapped(command: string, reason: Record<string, string>, clause: string, cdReading = ''): void {
+  bindingRepins.set(command, [stable({ behavior: 'passthrough', message: clause, notReadOnly: reason }), cdReading, stable({ reason, clause }), ''])
+}
+pinWrapped('bash -c "rm -rf scratch-output"', { kind: 'not-on-list', part: 'rm -rf scratch-output', word: 'rm' }, '`rm` is not a command Mercury can verify as read-only')
+pinWrapped('bash -c exit', { kind: 'not-on-list', part: 'exit', word: 'exit' }, '`exit` is not a command Mercury can verify as read-only')
+pinWrapped("sh -c 'exit 42'", { kind: 'not-on-list', part: 'exit 42', word: 'exit' }, '`exit` is not a command Mercury can verify as read-only')
+pinWrapped('sh -c "npm install package"', { kind: 'not-on-list', part: 'npm install package', word: 'npm' }, '`npm` is not a command Mercury can verify as read-only')
+pinWrapped('bash -c "git push origin topic"', { kind: 'form', part: 'git push origin topic', word: 'git' }, 'it is not a read-only form of `git`', cdGuardReading)
+const wrappedExpansion = 'the expansion "${a}" supplies a value at runtime; spell out the value, or approve'
+pinWrapped("bash -c 'sleep ${a} & sleep ${b}'", { kind: 'screen', part: 'sleep ${a} & sleep ${b}', detail: wrappedExpansion }, `the command could not be verified as read-only — ${wrappedExpansion}`)
+bindingRepins.set('bash -c "true"', [stable({ behavior: 'allow' }), '', 'null', ''])
 
 const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { verdicts: [], rows: [] }
 

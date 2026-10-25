@@ -261,8 +261,9 @@ async function walkShellCommands(
   command: string,
   powershell: boolean,
   visitor: (state: { argv: string[]; commands: string[][]; cwd: string; text: string; powershell: boolean }) => Promise<string | null> | string | null,
+  cwd: string,
 ): Promise<string | null> {
-  const pending = [{ text: command, cwd: getShellCwd(), powershell }]
+  const pending = [{ text: command, cwd, powershell }]
   while (pending.length) {
     const current = pending.pop()!
     current.text = expandShellConstants(current.text, current.powershell)
@@ -333,7 +334,7 @@ async function walkShellCommands(
   return null
 }
 
-export async function shellCredentialWritePath(command: string, powershell = false): Promise<string | null> {
+export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
   return walkShellCommands(command, powershell, ({ argv, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -355,17 +356,17 @@ export async function shellCredentialWritePath(command: string, powershell = fal
       }
     }
     return null
-  })
+  }, cwd)
 }
 
-export async function shellMercurySecretPath(command: string, powershell = false): Promise<string | null> {
+export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
   const expanded = expandShellConstants(command, powershell)
   const pending = [expanded]
   while (pending.length) {
     const text = pending.pop()!
     for (const match of text.matchAll(/"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s"'();|<>=]+)/g)) {
       const token = match[1] ?? match[2] ?? match[3]!
-      if (mercurySecretPath(token, getShellCwd()) !== null) return token
+      if (mercurySecretPath(token, cwd) !== null) return token
       if (token.length < text.length && /["']/.test(token)) pending.push(token)
     }
   }
@@ -390,10 +391,10 @@ export async function shellMercurySecretPath(command: string, powershell = false
       }
     }
     return null
-  })
+  }, cwd)
 }
 
-export async function shellSelfProtectionReason(command: string, powershell = false): Promise<string | null> {
+export async function shellSelfProtectionReason(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -421,7 +422,7 @@ export async function shellSelfProtectionReason(command: string, powershell = fa
       }
     }
     return null
-  })
+  }, cwd)
 }
 
 export async function evalCodePermission(code: string, cwd = getShellCwd()): Promise<{ behavior: 'deny'; message: string; decisionReason: { type: 'other'; reason: string } } | null> {

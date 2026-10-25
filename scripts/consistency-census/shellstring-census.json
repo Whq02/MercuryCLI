@@ -1382,6 +1382,13 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/permissions/prove-shell-cwd.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const moved = await exec(`cd '${other}'`, new AbortController().signal, 'bash', { timeout: 10_000 })",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
       "file": "scripts/pings/journey-calm-idle.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const py = spawnSync('/usr/bin/python3', ['-c', 'import pyte'], { encoding: 'utf8' })",

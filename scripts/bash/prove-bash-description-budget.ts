@@ -85,7 +85,7 @@ if (brush.engine === 'brush') {
   check('under the brush engine the timeout rule says the command is killed (exit 143)', brushText.includes('the command is killed (exit 143) and the shell session resets'), brushText.slice(0, 600))
   check('…and never says it moves to the background', !brushText.includes('moves to the background'))
   check('…and points at run_in_background for longer work', brushText.includes('For work that may take longer, use `run_in_background`.'))
-  check('the engine session paragraphs are the .28 ones', brushText.includes('One shell session serves the whole conversation') && brushText.includes('engine sessions are kept alive at once') && brushText.includes('Prefer absolute paths to `cd`, and double-quote a path with spaces.'))
+  check('the engine session paragraphs are the .28 ones', brushText.includes('One shell session serves the whole conversation') && brushText.includes('engine sessions are kept alive at once') && brushText.includes('Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.'))
   check(`the brush description is still under the half budget (${bytes(brushText)})`, bytes(brushText) <= 3563)
 } else {
   console.log(`  [INFO] the brush engine does not resolve here (${brush.reason}); the variant is not measured on this box`)

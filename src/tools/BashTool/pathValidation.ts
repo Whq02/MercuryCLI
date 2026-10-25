@@ -21,6 +21,7 @@ import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectE
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getShellCwd, resolveShellCwd } from '../../utils/Shell.js'
 import { getPlatform } from '../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { getDirectoryForPath } from '../../utils/path.js'
@@ -560,6 +561,12 @@ function attachSuggestions(result: PermissionResult, operationType: FileOperatio
     if (editRule) suggestions.push(editRule)
   }
   return { ...result, suggestions }
+}
+
+export function checkShellCwd(input: { cwd?: string }, context: ToolPermissionContext): PermissionResult | null {
+  if (input.cwd === undefined) return null
+  const result = createPathChecker('cd')([`"${resolveShellCwd(input.cwd)}"`], getShellCwd(), context)
+  return result.behavior === 'passthrough' ? null : result
 }
 
 

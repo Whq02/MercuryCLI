@@ -400,6 +400,7 @@ type EngineExecOptions = {
   signal: AbortSignal
   onCwd?: (cwd: string) => void
   cwd?: string
+  requireCwd?: boolean
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
   owner?: string
   sessionCeiling?: number
@@ -475,7 +476,9 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     }
     scrubbedSessionEnv = live.scrubbedSessionEnv
 
-    const payload = `cd -- ${quote([cwdThatResolves(options.cwd)])} || :\n${command}`
+    const payload = options.requireCwd && options.cwd !== undefined
+      ? `cd -- ${quote([options.cwd])} && {\n${command}\n}`
+      : `cd -- ${quote([cwdThatResolves(options.cwd)])} || :\n${command}`
 
     const marker = Buffer.from(SOH + live.nonce + ' ', 'utf8')
     const etx = ETX.charCodeAt(0)

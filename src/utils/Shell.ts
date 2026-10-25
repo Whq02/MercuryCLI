@@ -5,10 +5,10 @@ import { isAbsolute, join, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
-import { contextShellCwd, getCwd, setContextShellCwd } from './cwd.js'
+import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
-import { getFsImplementation } from './fsOperations.js'
+import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
@@ -150,6 +150,12 @@ export function getShellCwd(): string {
   return getCwd()
 }
 
+export function resolveShellCwd(cwd?: string): string {
+  if (cwd === undefined) return getShellCwd()
+  const absolute = isAbsolute(cwd) ? cwd : resolvePath(getStartingCwd(), cwd)
+  return safeResolvePath(getFsImplementation(), absolute).resolvedPath
+}
+
 function recordShellCwd(path: string, base: string): void {
   const resolved = isAbsolute(path) ? path : resolvePath(base, path)
   writeShellCwd(getFsImplementation().realpathSync(resolved).normalize('NFC'))
@@ -172,6 +178,7 @@ function directoryResolves(path: string): boolean {
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000
 
 type ExecOptions = {
+  cwd?: string
   timeout?: number
   onProgress?: (
     recentLines: string,
@@ -203,6 +210,8 @@ export async function exec(
   options: ExecOptions = {},
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
+  const cwdOverride = options.cwd === undefined ? undefined : resolveShellCwd(options.cwd)
+  if (cwdOverride !== undefined && !directoryResolves(cwdOverride)) return createFailedCommand(`Path "${cwdOverride}" does not exist`)
 
   if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
     const engine = resolveShellEngine(getInitialSettings().shell?.engine)
@@ -214,9 +223,10 @@ export async function exec(
         onProgress: options.onProgress,
         owner: options.owner,
         sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shell?.sessions),
-        cwd: getShellCwd(),
+        cwd: cwdOverride ?? getShellCwd(),
+        requireCwd: cwdOverride !== undefined,
         onCwd: reported => {
-          if (options.preventCwdChanges) return
+          if (options.preventCwdChanges || cwdOverride !== undefined) return
           try {
             const before = getShellCwd()
             if (reported.normalize('NFC') !== before.normalize('NFC')) {
@@ -237,7 +247,7 @@ export async function exec(
     !abortSignal.aborted &&
     resolveShellEngine(getInitialSettings().shell?.engine).engine === 'system'
   ) {
-    const shellDirectory = getShellCwd()
+    const shellDirectory = cwdOverride ?? getShellCwd()
     if (directoryResolves(shellDirectory)) {
       const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
       if (invocation.kind === 'batch') {
@@ -263,8 +273,9 @@ export async function exec(
 
   const built = await provider.buildExecCommand(command, { id: invocationId })
 
-  let cwd = getShellCwd()
+  let cwd = cwdOverride ?? getShellCwd()
   if (!directoryResolves(cwd)) {
+    if (cwdOverride !== undefined) return createFailedCommand(`Path "${cwdOverride}" does not exist`)
     const bootDirectory = getOriginalCwd()
     if (directoryResolves(bootDirectory)) {
       if (contextShellCwd() === undefined) setCwdState(bootDirectory)
@@ -373,7 +384,7 @@ export async function exec(
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
     try {
-      if (result && !options.preventCwdChanges && shellCommand.status !== 'backgrounded') {
+      if (result && !options.preventCwdChanges && cwdOverride === undefined && shellCommand.status !== 'backgrounded') {
         const record = readFileSync(cwdFilePath, 'utf8')
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }

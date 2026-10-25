@@ -290,14 +290,21 @@ export function dangerousRemovalDeny(path: string): PermissionResult {
 }
 
 
+export function checkPowerShellCwd(cwd: string, context: ToolPermissionContext): PermissionResult | null {
+  const decision = resolveAndDecide(`"${cwd}"`, getShellCwd(), context, 'read')
+  if (decision.allowed) return null
+  if (decision.reason?.type === 'rule') return { behavior: 'deny', message: pathMessage('set-location', decision, context), decisionReason: decision.reason }
+  return askForPath('set-location', decision, 'read', context)
+}
+
 export function checkPathConstraints(
   input: { command: string },
   parsed: ParsedPowerShellCommand,
   context: ToolPermissionContext,
   compoundCommandHasCd = false,
+  cwd = getShellCwd(),
 ): PermissionResult {
   if (!parsed.valid) return { behavior: 'passthrough', message: 'Paths cannot be validated on an unparseable command.' }
-  const cwd = getShellCwd()
   let firstAsk: PermissionResult | null = null
   const seedAsk = (result: PermissionResult): void => {
     if (result.behavior === 'ask' && firstAsk === null) firstAsk = result

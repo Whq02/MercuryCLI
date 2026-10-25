@@ -4,7 +4,7 @@ import type {
   PermissionDecisionReason,
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule } from '../../types/permissions.js'
-import { getShellCwd } from '../../utils/Shell.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
@@ -25,6 +25,10 @@ import {
 import {
   withBashParseScope,
   parseForSecurity,
+  extractShellCScript,
+  prepareShellCScripts,
+  shellCCommands,
+  SHELL_C_MAX_DEPTH,
   preparedSecurityParse,
   peelWrappers,
   shellCommandText,
@@ -43,7 +47,7 @@ import {
   type CommandIdentityCheckers,
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
-import { checkPathConstraints } from './pathValidation.js'
+import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
@@ -58,6 +62,7 @@ const MAX_SUGGESTED_RULES_FOR_COMPOUND = 5
 
 type BashInput = {
   command: string
+  cwd?: string
   timeout?: number
   description?: string
   _simulatedSedEdit?: unknown
@@ -226,7 +231,7 @@ export function getFirstWordPrefix(command: string): string | null {
 function normalizedWords(command: string): string[][] {
   const parsed = preparedSecurityParse(command)
   if (parsed.kind !== 'simple') return []
-  return parsed.commands.map(simple => peelWrappers(simple.argv)).filter((argv): argv is string[] => Array.isArray(argv))
+  return shellCCommands(parsed.commands).map(simple => peelWrappers(simple.argv)).filter((argv): argv is string[] => Array.isArray(argv))
 }
 
 export function isNormalizedGitCommand(command: string): boolean {
@@ -457,7 +462,7 @@ export function bashToolCheckPermission(
   }
   const path = checkPathConstraints(
     input,
-    getShellCwd(),
+    resolveShellCwd(input.cwd),
     context,
     compoundHasCd,
     astCommand?.redirects,
@@ -473,7 +478,7 @@ export function bashToolCheckPermission(
   if (sed.behavior !== 'passthrough') return sed
   const mode = checkPermissionMode(input, context)
   if (mode.behavior !== 'passthrough') return mode
-  const readOnly = checkPreparedReadOnlyConstraints({ command: input.command }, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined)
+  const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined, SHELL_C_MAX_DEPTH)
   if (readOnly.behavior === 'allow') {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
   }
@@ -506,8 +511,7 @@ type PrefixFn = (
   | null
 >
 
-function asWrittenSingle(command: string, fallback: string): string {
-  const cwd = getShellCwd()
+function asWrittenSingle(command: string, fallback: string, cwd: string): string {
   const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
   const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
   return written.length === 1 ? (written[0] as string) : fallback
@@ -516,8 +520,8 @@ function asWrittenSingle(command: string, fallback: string): string {
 function filterCwdSubcommands(
   subcommands: string[],
   parsed: (SimpleCommand | undefined)[],
+  cwd: string,
 ): { subcommands: string[]; parsed: (SimpleCommand | undefined)[] } {
-  const cwd = getShellCwd()
   const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
   const outSub: string[] = []
   const outParsed: (SimpleCommand | undefined)[] = []
@@ -539,28 +543,38 @@ export function bashToolHasPermission(
   context: ToolPermissionContext,
   prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
 ): Promise<PermissionResult> {
-  return withBashParseScope(() => decideBashPermission(input, context, prefixFn))
+  return withBashParseScope(async () => {
+    const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
+    const result = await decideBashPermission(resolvedInput, context, prefixFn)
+    if (result.behavior === 'deny') return result
+    const cwd = checkShellCwd(resolvedInput, context)
+    if (cwd !== null) return cwd
+    return result.behavior === 'allow' ? { ...result, updatedInput: resolvedInput } : result
+  })
 }
 
 async function decideBashPermission(
   input: BashInput,
   context: ToolPermissionContext,
   prefixFn: PrefixFn,
+  depth = 0,
+  inheritedHasCd = false,
 ): Promise<PermissionResult> {
   const command = input.command
-  const selfProtection = await shellSelfProtectionReason(command)
+  const cwd = resolveShellCwd(input.cwd)
+  const selfProtection = await shellSelfProtectionReason(command, false, cwd)
   if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
   const hidden = hiddenCommandCharacterReason(command)
   if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
   const upload = credentialUploadReason(command)
   const uploadAsk: PermissionResult | null = upload === null ? null : { behavior: 'ask', message: upload, decisionReason: { type: 'safetyCheck', reason: upload, operatorOnly: true } }
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
-  const secretRead = await shellMercurySecretPath(command)
+  const secretRead = await shellMercurySecretPath(command, false, cwd)
   if (secretRead !== null) {
     const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
     return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
   }
-  const protectedWrite = await shellCredentialWritePath(command)
+  const protectedWrite = await shellCredentialWritePath(command, false, cwd)
   if (protectedWrite !== null) {
     const denied = astRoot === undefined ? earlyExitDenyCheck(input, context) : astDenyCheck(input, context, astRoot)
     if (denied) return denied
@@ -576,7 +590,7 @@ async function decideBashPermission(
       return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
     }
   }
-  let compoundHasCd = false
+  let compoundHasCd = inheritedHasCd
   const customPrefixFn = prefixFn !== pinnedCommandAnalysis.getCommandSubcommandPrefix
 
   let astCommands: SimpleCommand[] | null = null
@@ -584,9 +598,10 @@ async function decideBashPermission(
     return earlyExitDenyCheck(input, context) ?? unprovenAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
   }
   if (astRoot !== undefined) {
+    const parsed = await parseForSecurity(command)
+    await prepareShellCScripts(parsed, depth)
     const denied = astDenyCheck(input, context, astRoot)
     if (denied) return denied
-    const parsed = await parseForSecurity(command)
     if (parsed.kind === 'too-complex') return uploadAsk ?? unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
       const early = semanticsDenyCheck(input, context, parsed.commands)
@@ -595,7 +610,7 @@ async function decideBashPermission(
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
       astCommands = parsed.commands
-      compoundHasCd = astCommands.some(simple => isNormalizedCdCommand(simple.text))
+      compoundHasCd ||= astCommands.some(simple => isNormalizedCdCommand(simple.text))
     }
   } else {
     return earlyExitDenyCheck(input, context) ?? uploadAsk ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
@@ -609,13 +624,13 @@ async function decideBashPermission(
 
   const operator = await checkCommandOperatorPermissions(
     input,
-    segmentInput => bashToolHasPermission(segmentInput, context, prefixFn),
+    segmentInput => decideBashPermission(segmentInput, context, prefixFn, depth, inheritedHasCd),
     identityCheckers,
     astRoot,
   )
   if (operator.behavior !== 'passthrough') {
     if (operator.behavior === 'deny') return operator
-    const path = checkPathConstraints(input, getShellCwd(), context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
+    const path = checkPathConstraints(input, cwd, context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
     if (path.behavior === 'deny') return path
     if (exact.behavior === 'ask') return exact
     if (operator.behavior === 'allow') return path.behavior !== 'passthrough' ? path : operator
@@ -624,7 +639,7 @@ async function decideBashPermission(
 
   const rawSubcommands = astCommands.map(simple => simple.text)
   const rawParsed = astCommands
-  const filtered = filterCwdSubcommands(rawSubcommands, rawParsed)
+  const filtered = filterCwdSubcommands(rawSubcommands, rawParsed, cwd)
   const subcommands = filtered.subcommands
   const parsedSubcommands = filtered.parsed
 
@@ -636,9 +651,16 @@ async function decideBashPermission(
     return { behavior: 'ask', message: CD_GIT_BARE_REPO_REASON, decisionReason: { type: 'other', reason: CD_GIT_BARE_REPO_REASON } }
   }
 
-  const decisions = subcommands.map((sub, i) =>
-    bashToolCheckPermission({ command: sub }, context, compoundHasCd, parsedSubcommands[i]),
-  )
+  const decisions = await Promise.all(subcommands.map(async (sub, i) => {
+    const simple = parsedSubcommands[i]
+    const outer = bashToolCheckPermission({ ...input, command: sub }, context, compoundHasCd, simple)
+    const script = simple && depth < SHELL_C_MAX_DEPTH ? extractShellCScript(simple) : null
+    if (script === null || outer.behavior === 'deny') return outer
+    const inner = await decideBashPermission({ ...input, command: script }, context, prefixFn, depth + 1, compoundHasCd)
+    if (inner.behavior === 'deny') return inner
+    if (outer.behavior === 'ask' || inner.behavior === 'ask') return outer.behavior === 'ask' ? outer : inner
+    return outer.behavior === 'allow' ? outer : inner
+  }))
 
   const denied = decisions.find(d => d.behavior === 'deny')
   if (denied) {
@@ -650,7 +672,7 @@ async function decideBashPermission(
 
   const originalPath = checkPathConstraints(
     input,
-    getShellCwd(),
+    cwd,
     context,
     compoundHasCd,
     astCommands ? astCommands.flatMap(c => c.redirects) : undefined,
@@ -684,11 +706,11 @@ async function decideBashPermission(
 
   if (subcommands.length === 1) {
     const single = await checkCommandAndSuggestRules(
-      { command: subcommands[0] as string },
+      { ...input, command: subcommands[0] as string },
       context,
       prefixHint,
       compoundHasCd,
-      asWrittenSingle(command, subcommands[0] as string),
+      asWrittenSingle(command, subcommands[0] as string, cwd),
       parsedSubcommands[0],
     )
     return single
@@ -696,7 +718,7 @@ async function decideBashPermission(
 
   const merged = await Promise.all(
     subcommands.map((sub, index) =>
-      checkCommandAndSuggestRules(
+      decisions[index]!.behavior !== 'passthrough' ? decisions[index]! : checkCommandAndSuggestRules(
         { ...input, command: sub },
         context,
         prefixHint?.subcommandPrefixes?.get(sub) ?? null,
@@ -772,7 +794,7 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
     if (node.type === 'command' || node.type === 'declaration_command') {
       const candidates = [node.text]
       const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(node.text, node)
-      if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(restrictedCommandCandidates))
+      if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(simple => restrictedCommandCandidates(simple)))
       const name = node.children.find(child => child.type === 'command_name')
       if (name) {
         const named = pinnedCommandAnalysis.parseForSecurityFromAst(name.text, { ...node, children: [name] })
@@ -835,8 +857,18 @@ function wrappedCommand(argv: string[]): string[] | null {
   return Array.isArray(peeled) && peeled !== argv ? peeled : null
 }
 
-function restrictedCommandCandidates(command: SimpleCommand): string[] {
+function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[] {
   const candidates = new Set([command.text.trim(), shellCommandText(command.argv)])
+  const script = depth < SHELL_C_MAX_DEPTH ? extractShellCScript(command) : null
+  if (script !== null) {
+    candidates.add(script)
+    const inner = preparedSecurityParse(script)
+    if (inner.kind === 'simple') {
+      for (const simple of inner.commands) {
+        for (const candidate of restrictedCommandCandidates(simple, depth + 1)) candidates.add(candidate)
+      }
+    }
+  }
   const pending = [command.argv]
   while (pending.length) {
     const argv = pending.pop()!

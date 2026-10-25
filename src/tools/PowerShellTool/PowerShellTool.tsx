@@ -6,7 +6,7 @@ import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
-import { exec } from '../../utils/Shell.js'
+import { exec, resolveShellCwd } from '../../utils/Shell.js'
 import { sessionEnvNoticeForResult } from '../shared/sessionEnvNotice.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -93,6 +93,7 @@ const NEVER_AUTO_BACKGROUND = new Set(['start-sleep', 'sleep'])
 function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The PowerShell command to execute'),
+    cwd: z.string().optional().describe('Run in this directory: absolute, or relative to the starting folder; the session directory stays.'),
     timeout: semanticNumber(z.number().optional()).describe(`Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`),
     description: z.string().optional().describe('A short description of what the command does, in active voice.'),
     run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
@@ -176,7 +177,8 @@ async function* runPowerShell(
   try {
     shellCommand = await exec(input.command, abortController.signal, 'powershell', {
       timeout: effectiveTimeout,
-      preventCwdChanges: !isMainThread,
+      cwd: input.cwd === undefined ? undefined : resolveShellCwd(input.cwd),
+      preventCwdChanges: !isMainThread || input.cwd !== undefined,
       shouldAutoBackground,
       inheritSessionEnv: input.inherit_session_env === true,
       onProgress: (recent, all, lines, bytes, incomplete) => {

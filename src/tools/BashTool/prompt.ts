@@ -64,10 +64,10 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   )
   if (brush) {
     sections.push(...brushShellParagraphs())
-    sections.push('Prefer absolute paths to `cd`, and double-quote a path with spaces.')
+    sections.push('Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.')
   } else {
     sections.push(
-      'Shell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths to `cd`, and double-quote a path with spaces.',
+      'Shell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.',
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)

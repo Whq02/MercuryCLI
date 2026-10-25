@@ -19,7 +19,7 @@ import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/p
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { getShellCwd } from '../../utils/Shell.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -164,7 +164,7 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
         input,
         ...(askResult.suggestions !== undefined && askResult.suggestions.length > 0 ? { suggestions: askResult.suggestions } : {}),
         ...(askResult.blockedPath !== undefined ? { blocked_path: askResult.blockedPath } : {}),
-        ...(tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME ? { cwd: getShellCwd() } : {}),
+        ...(tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME ? { cwd: resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined) } : {}),
         ...(reason !== undefined ? { reason } : {}),
         ...(reasonDetail !== undefined ? { reason_detail: reasonDetail } : {}),
         ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),

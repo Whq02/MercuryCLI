@@ -32,11 +32,11 @@ import {
   resolveToCanonical,
   argLeaksValue,
 } from './readOnlyValidation.js'
-import { checkPathConstraints, isDangerousRemovalRawPath, dangerousRemovalDeny } from './pathValidation.js'
+import { checkPathConstraints, checkPowerShellCwd, isDangerousRemovalRawPath, dangerousRemovalDeny } from './pathValidation.js'
 import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.js'
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
-import { getShellCwd } from '../../utils/Shell.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { getDestructiveCommandWarning } from '../BashTool/destructiveCommandWarning.js'
@@ -136,14 +136,27 @@ const GIT_WRITER = new Set(['new-item', 'set-content', 'add-content', 'out-file'
 const ARCHIVE_EXTRACTORS = new Set(['tar', 'bsdtar', 'unzip', '7z', '7za', 'gzip', 'gunzip', 'tar.exe', 'bsdtar.exe', 'unzip.exe', '7z.exe', '7za.exe', 'gzip.exe', 'gunzip.exe', 'expand-archive'])
 
 export async function powershellToolHasPermission(
-  input: { command: string; timeout?: number },
+  input: { command: string; timeout?: number; cwd?: string },
   context: ToolUseContext,
 ): Promise<PermissionResult> {
+  const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
+  const result = await decidePowerShellPermission(resolvedInput, context)
+  if (result.behavior === 'deny') return result
+  const directory = input.cwd === undefined ? null : checkPowerShellCwd(resolvedInput.cwd!, context.getAppState().toolPermissionContext)
+  if (directory !== null) return directory
+  return result.behavior === 'allow' ? { ...result, updatedInput: resolvedInput } : result
+}
+
+async function decidePowerShellPermission(
+  input: { command: string; timeout?: number; cwd?: string },
+  context: ToolUseContext,
+): Promise<PermissionResult> {
+  const cwd = resolveShellCwd(input.cwd)
   const toolPermissionContext = context.getAppState().toolPermissionContext as ToolPermissionContext
   const hidden = hiddenCommandCharacterReason(input.command.replace(/\r\n/g, '\n'))
   if (hidden !== null) return { behavior: 'deny', message: hidden, decisionReason: { type: 'safetyCheck', reason: hidden, operatorOnly: true } }
   const command = input.command.trim()
-  const selfProtection = await shellSelfProtectionReason(command, true)
+  const selfProtection = await shellSelfProtectionReason(command, true, cwd)
   if (selfProtection !== null) return { behavior: 'deny', message: selfProtection, decisionReason: { type: 'other', reason: selfProtection } }
 
   if (command === '') return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
@@ -154,7 +167,7 @@ export async function powershellToolHasPermission(
   if (exact.behavior === 'deny') return exact
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
   if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
-  const secretRead = await shellMercurySecretPath(command, true)
+  const secretRead = await shellMercurySecretPath(command, true, cwd)
   if (secretRead !== null) {
     const message = 'Reading ' + secretRead + " is refused: it holds Mercury's own credentials; use the product's sign-in and account surfaces instead."
     return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
@@ -163,7 +176,7 @@ export async function powershellToolHasPermission(
   let deferredAsk: PermissionResult | null = warning === null ? null : {
     behavior: 'ask', message: warning, decisionReason: { type: 'safetyCheck', reason: warning, operatorOnly: true },
   }
-  const protectedWrite = await shellCredentialWritePath(command, true)
+  const protectedWrite = await shellCredentialWritePath(command, true, cwd)
   if (protectedWrite !== null) {
     const message = 'Writing ' + protectedWrite + ' affects a credential store and requires approval.'
     deferredAsk = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
@@ -215,12 +228,12 @@ export async function powershellToolHasPermission(
   for (const command_ of subcommands) push(subcommandRuleVerdict(command_, toolPermissionContext))
   if (totalCommands > 1 && hasCd && hasGit) push({ behavior: 'ask', message: 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.' })
   if (hasGit) {
-    if (isCurrentDirectoryBareGitRepo(getShellCwd())) push({ behavior: 'ask', message: 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.' })
+    if (isCurrentDirectoryBareGitRepo(cwd)) push({ behavior: 'ask', message: 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.' })
     if (gitInternalWrite(parsed, subcommands)) push({ behavior: 'ask', message: 'The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.' })
     if (subcommands.some(c => ARCHIVE_EXTRACTORS.has(c.name.toLowerCase())) ) push({ behavior: 'ask', message: 'The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.' })
   }
   if (dotGitWrite(parsed, subcommands)) push({ behavior: 'ask', message: 'The command targets .git/; anything planted there runs at the next git operation.' })
-  push(checkPathConstraints({ command }, parsed, toolPermissionContext, hasCd))
+  push(checkPathConstraints({ command }, parsed, toolPermissionContext, hasCd, cwd))
   if (exact.behavior === 'allow' && subcommands.length > 0 && subcommands.every(c => c.nameType !== 'application') && !subcommands.some(c => argLeaksValue(command, c))) {
     push(exact)
   }
