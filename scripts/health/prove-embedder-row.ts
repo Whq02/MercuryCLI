@@ -55,19 +55,20 @@ console.log('\n§2 with no pack on the box the row is degraded: word match only,
 }
 
 const packDir = embedPackDirFor(ROOT, `${process.platform}-${process.arch}`)
-if (existsSync(join(packDir, EMBED_PACK_MANIFEST_FILE))) {
+const model = embedDefaultModel()
+const missing = [join(packDir, EMBED_PACK_MANIFEST_FILE), join(ROOT, 'vendor', 'embed-models', model.file)].filter(path => !existsSync(path))
+if (missing.length === 0) {
   console.log('\n§3 with the pack and the default model on the box the row is present and names the model')
   seedEmbedPackDirForTest(packDir)
   seedEmbedModelForTest(null, join(ROOT, 'vendor', 'embed-models'))
   const found = await row()
-  const model = embedDefaultModel()
   check('status ok', found?.row.status === 'ok', `${found?.row.status}: ${found?.row.evidence}`)
   check(`the evidence names the model (${model.name}) and its dimensions`, found !== null && found.row.evidence.startsWith(`present: ${model.name} (${model.dimension} dimensions)`), found?.row.evidence)
   check('…and the semantic + word ranking Recall will use, in Recall\'s own words', found !== null && found.row.evidence.endsWith(`Recall ranks by semantic + word match (${model.name})`), found?.row.evidence)
   seedEmbedPackDirForTest(null)
   seedEmbedModelForTest(null)
 } else {
-  console.log(`\n§3 SKIP: no embed pack at ${packDir} on this box (bun run scripts/vendor/build-embed.ts builds it); the present shape is pinned where the pack is`)
+  console.log(`\n§3 [SKIP] present embedder row: missing ${missing.join(', ')}`)
 }
 
 console.log('\n§4 with memory off the row is off and still states the pack fact')
@@ -81,5 +82,5 @@ console.log('\n§4 with memory off the row is off and still states the pack fact
 }
 
 rmSync(HOME, { recursive: true, force: true })
-console.log(failures === 0 ? '\nprove-embedder-row: green' : `\nprove-embedder-row: RED (${failures})`)
+console.log(failures === 0 ? missing.length > 0 ? '\nprove-embedder-row: [SKIP] present-model checks; other checks passed' : '\nprove-embedder-row: green' : `\nprove-embedder-row: RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

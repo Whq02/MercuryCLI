@@ -1,4 +1,11 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+const scratch = mkdtempSync(join(tmpdir(), 'thinking-drop-clean-retry-'))
+delete process.env.MERCURY_HOME
+process.env.MERCURY_CONFIG_DIR = scratch
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -52,4 +59,7 @@ try {
   }
   assert.deepEqual(failures, [])
   console.log('thinking-only stream drops retry clean once on compat and Z.AI: PASS')
-} finally { server.stop(true) }
+} finally {
+  server.stop(true)
+  rmSync(scratch, { recursive: true, force: true })
+}
