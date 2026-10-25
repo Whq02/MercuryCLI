@@ -170,12 +170,12 @@ writeFileSync(join(pkgDir, 'RELEASE-NOTES.md'), RELEASE_NOTES)
 writeFileSync(join(pkgDir, 'NOTICES.md'), NOTICES)
 
 {
-  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION })
+  const docs = checkReleaseDocuments({ root: ROOT })
   if (!docs.ok) {
-    fail(`the licence documents are not true for ${VERSION}:\n    ${docs.findings.join('\n    ')}\n  (node scripts/release/releaseDocuments.mjs stamp fills the version, the dates and the terms hash)`)
+    fail(`the licence documents: ${docs.findings.join('; ')}`)
   }
   for (const name of LICENCE_DOCUMENTS) cpSync(join(ROOT, name), join(pkgDir, name))
-  ok(`licence documents: ${LICENCE_DOCUMENTS.join(', ')} (${docs.parameters.version}, released ${docs.parameters.releaseDate}, change date ${docs.parameters.changeDate}, terms hash matches)`)
+  ok(`Apache License 2.0 — ${LICENCE_DOCUMENTS.join(', ')}`)
 }
 
 try {
@@ -442,9 +442,9 @@ if (runtime) ok(`manifest names the vendored runtime (node ${mf.runtime.version}
 }
 
 {
-  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION, archiveDir: join(smoke, 'mercury') })
+  const docs = checkReleaseDocuments({ root: ROOT, archiveDir: join(smoke, 'mercury') })
   if (!docs.ok) fail(`smoke: the archive's licence documents: ${docs.findings.join('; ')}`)
-  ok('the archive carries LICENSE.md, TRADEMARKS.md and the production terms verbatim (the terms hash the licence states)')
+  ok(`Apache License 2.0 — ${LICENCE_DOCUMENTS.join(', ')}`)
 }
 
 const stateMarker = join(smokeHome, 'user-state-marker.json')

@@ -149,12 +149,20 @@ section('(3) deterministic .vsix build')
     'extension/package.json',
     'extension/extension.js',
     'extension/LICENSE.txt',
+    'extension/NOTICE',
   ]) {
     check(`vsix member: ${member}`, listing.includes(member))
   }
   const staged = execFileSync('unzip', ['-p', 'dist/mercury-vscode.vsix', 'extension/package.json'], { encoding: 'utf8' })
   const harnessVersion = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version
   check('the staged manifest carries the harness version', (JSON.parse(staged) as { version: string }).version === harnessVersion, `${(JSON.parse(staged) as { version: string }).version} vs ${harnessVersion}`)
+  check('the bridge manifest declares Apache-2.0', (JSON.parse(staged) as { license: string }).license === 'Apache-2.0')
+  check('the bridge source licence matches LICENSE.md', readFileSync('integrations/vscode/LICENSE.txt').equals(readFileSync('LICENSE.md')))
+  for (const [member, source] of [['extension/LICENSE.txt', 'LICENSE.md'], ['extension/NOTICE', 'NOTICE']]) {
+    const shipped = execFileSync('unzip', ['-p', 'dist/mercury-vscode.vsix', member!])
+    check(`vsix ships ${member} verbatim`, shipped.equals(readFileSync(source!)))
+  }
+  check('the extension NOTICE has a text content type', execFileSync('unzip', ['-p', 'dist/mercury-vscode.vsix', '\\[Content_Types\\].xml'], { encoding: 'utf8' }).includes('<Override PartName="/extension/NOTICE" ContentType="text/plain"/>'))
 }
 
 section('(4) mercury bridge status — honest E2E from the dist bundle')

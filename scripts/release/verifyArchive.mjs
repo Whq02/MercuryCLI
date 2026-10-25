@@ -74,9 +74,9 @@ try {
   console.log(`${basename(archive)}: ${said} (deep, exit ${run.status})`)
   if (verdict.state !== expect) fail(`expected the verdict '${expect}', the archive verifies as '${verdict.state}' — nothing may publish`)
 
-  const docs = checkReleaseDocuments({ root, version, archiveDir: payload })
+  const docs = checkReleaseDocuments({ root, archiveDir: payload })
   if (!docs.ok) fail(`the archive's licence documents: ${docs.findings.join('; ')}`)
-  console.log(`${basename(archive)}: LICENSE.md (${docs.parameters.version}, released ${docs.parameters.releaseDate}), TRADEMARKS.md and the production terms ride verbatim; the terms hash the licence states`)
+  console.log(`${basename(archive)}: Apache License 2.0 — LICENSE.md; NOTICE; TRADEMARKS.md`)
 
   const shipped = JSON.parse(readFileSync(join(payload, 'manifest.json'), 'utf8'))
   const shippedTarget = shipped.target && typeof shipped.target === 'object' && typeof shipped.target.release === 'string' ? shipped.target.release : target

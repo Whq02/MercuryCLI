@@ -4,7 +4,7 @@
 # gate-watch: src/services/workbench/** src/services/resources/adapters/workbench.ts
 # gate-watch: src/services/acp/** src/services/workContexts/** src/services/walkthrough/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
-# gate-watch: integrations/vscode/extension.js integrations/vscode/package.json
+# gate-watch: integrations/vscode/extension.js integrations/vscode/package.json integrations/vscode/LICENSE.txt LICENSE.md NOTICE
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
 # gate-watch: scripts/prompts-panel/prove-panel-captures.ts scripts/release/package.mjs
 # gate-watch: scripts/release/payloadContract.mjs scripts/vscode/build-vsix.sh scripts/vscode/host-test/run.sh

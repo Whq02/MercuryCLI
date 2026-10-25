@@ -13,7 +13,7 @@ const DEFAULTS = {
   name: 'Mercury CLI',
   moniker: 'mercurycli',
   command: 'mercury',
-  license: 'Business Source License 1.1 (BUSL-1.1)',
+  license: 'Apache-2.0',
   description: 'Mercury CLI: a software-development harness for the terminal.',
   tags: ['ai', 'cli', 'coding-agent', 'developer-tools', 'mercury-cli', 'terminal'],
 }
@@ -105,7 +105,7 @@ function renderManifests(facts) {
     `PackageName: ${yamlString(name)}`,
     `PackageUrl: ${SITE}`,
     `License: ${yamlString(license)}`,
-    `LicenseUrl: https://github.com/${REPO}/blob/v${version}/LICENSE.md`,
+    `LicenseUrl: https://raw.githubusercontent.com/${REPO}/v${version}/LICENSE.md`,
     `ShortDescription: ${yamlString(description)}`,
     `Moniker: ${moniker}`,
     'Tags:',

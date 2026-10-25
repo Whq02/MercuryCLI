@@ -224,7 +224,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/services/lsp/godotLane.ts', 'words', "Godot's editor addon API"],
   ['src/services/ide/pythonTests.ts', 'words', "pytest's own vocabulary for its add-ons"],
   ['BUILD-NOTES.md', 'words', "Bun's build API vocabulary (the build's module-resolution hook)"],
-  ['MERCURY-COMMUNITY-PRODUCTION-TERMS.md', 'words', "the licence's companion terms: generic legal enumerations of third-party things, in the licence's own wording"],
   ['scripts/gate/gate-ledger.jsonl', 'words,retired', 'an append-only record of past gate runs'],
   ['scripts/project-intel/fixtures/', 'words', 'fixture repositories exercise ordinary English'],
   ['scripts/search/fixtures/', 'words', "captured third-party search-result pages — the outside world's own text, replayed verbatim"],

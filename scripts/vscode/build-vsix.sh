@@ -11,6 +11,7 @@ VERSION=$(node -p "require('./package.json').version")
 
 mkdir -p "$STAGE/extension"
 cp "$SRC/extension.js" "$SRC/README.md" "$SRC/LICENSE.txt" "$STAGE/extension/"
+cp NOTICE "$STAGE/extension/NOTICE"
 node -e '
 const fs = require("node:fs")
 const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
@@ -47,6 +48,7 @@ cat > "$STAGE/[Content_Types].xml" <<'XML'
   <Default Extension="md" ContentType="text/markdown"/>
   <Default Extension="txt" ContentType="text/plain"/>
   <Default Extension="svg" ContentType="image/svg+xml"/>
+  <Override PartName="/extension/NOTICE" ContentType="text/plain"/>
   <Default Extension="vsixmanifest" ContentType="text/xml"/>
 </Types>
 XML

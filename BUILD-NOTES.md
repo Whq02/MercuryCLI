@@ -315,19 +315,14 @@ bundle, `manifest.json`, the platform ripgrep, the platform Node runtime
 (`splash.mjs` + `splash-core.mjs`, canonical in `assets/splash/`),
 `verify-artifact.mjs`, optional install scripts, `README-FIRST.md`,
 `NOTICES.md` (the generated `THIRD_PARTY_NOTICES.md` verbatim), and Mercury's
-own licence documents verbatim — `LICENSE.md`, `TRADEMARKS.md`,
-`MERCURY-COMMUNITY-PRODUCTION-TERMS.md`. A degraded manifest refuses to
-package unless `--allow-degraded` says so explicitly.
+own licence documents verbatim — `LICENSE.md`, `NOTICE`, `TRADEMARKS.md`.
+A degraded manifest refuses to package unless `--allow-degraded` says so explicitly.
 
-The licence documents are read on the release path
-(`scripts/release/releaseDocuments.mjs`, one owner): the packager refuses a
-`LICENSE.md` that still carries a bracketed placeholder or the review banner,
-names another version than the version root, states a change date that is
-not three years after the release date, or states a terms hash the terms
-file does not have — and reads the three files back out of the archive it
-smoked. `node scripts/release/releaseDocuments.mjs stamp` fills the version,
-the release date (today), the change date and the terms hash with the version
-bump before a tag; `check` is what the release verify job runs for the tag.
+The packager checks the Apache License 2.0 text and copyright notice in
+`LICENSE.md`, the attribution in `NOTICE`, and the presence of `TRADEMARKS.md`,
+then reads all three files back from the archive byte for byte.
+`node scripts/release/releaseDocuments.mjs check` runs the same check without
+changing any licence document.
 
 The build ships for its host unless `bun run build.ts --target <target>` names
 another release target (`src/services/privateChannel/releaseTarget.ts` owns the

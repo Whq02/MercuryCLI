@@ -2,10 +2,10 @@
 # gate-class: pure
 # gate-watch: sdk/package.json sdk-py/pyproject.toml
 # gate-watch: scripts/distribution/**
-# gate-watch: sdk/README.md sdk-py/README.md .node-version
+# gate-watch: sdk/README.md sdk-py/README.md sdk/LICENSE sdk-py/LICENSE .node-version
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json
 # gate-watch: docs/AUTOMATION.md scripts/sdk/generate.ts src/cli/headless/runnerAsks.ts src/runner/wire/methods.ts
-# gate-watch: LICENSE.md TRADEMARKS.md MERCURY-COMMUNITY-PRODUCTION-TERMS.md scripts/release/releaseDocuments.mjs scripts/release/payloadContract.mjs
+# gate-watch: LICENSE.md NOTICE TRADEMARKS.md scripts/release/releaseDocuments.mjs scripts/release/payloadContract.mjs
 # gate-watch: .github/workflows/private-release.yml README.md build.ts docs/COMPATIBILITY.md docs/README.md
 # gate-watch: scripts/release/package.mjs scripts/release/verifyArchive.mjs src/constants/legalNotice.ts
 # gate-watch: src/utils/crashReport.ts

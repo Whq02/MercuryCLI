@@ -15,7 +15,7 @@
   <a href="https://mercury-cli.ai"><img alt="website mercury-cli.ai" src="https://img.shields.io/badge/website-mercury--cli.ai-4d7ae2?style=flat"></a>
   <a href="https://www.npmjs.com/package/mercury-tech-cli"><img alt="npm version" src="https://img.shields.io/npm/v/mercury-tech-cli?style=flat"></a>
   <a href="https://github.com/Whq02/MercuryCLI/actions/workflows/private-release.yml"><img alt="release workflow status" src="https://img.shields.io/github/actions/workflow/status/Whq02/MercuryCLI/private-release.yml?style=flat&label=release"></a>
-  <a href="LICENSE.md"><img alt="licence BUSL-1.1" src="https://img.shields.io/badge/licence-BUSL--1.1-blue?style=flat"></a>
+  <a href="LICENSE.md"><img alt="licence Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat"></a>
   <a href="https://github.com/Whq02/MercuryCLI"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Whq02/MercuryCLI?style=flat"></a>
 </p>
 
@@ -58,7 +58,7 @@ Mercury is used to build Mercury, running multiple sessions and models across lo
 
 ![The session board with three sessions on one project, each on its own model and effort: one ready to review, two working; opening the review session, then the finished documentation session](docs/media/session-board-stream.gif)
 
-Mercury is source-available under the Business Source License 1.1, and the SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/) are licensed under the Apache License 2.0. See [Licence](#licence) for the production-use terms.
+Mercury is open source under the Apache License 2.0, as are the SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/).
 
 ## Install
 
@@ -988,40 +988,10 @@ Keep them out of public issues. See [SECURITY.md](SECURITY.md).
 
 ## Licence
 
-The Mercury CLI is licensed under the Business Source License 1.1 (`BUSL-1.1`)
-with the Mercury Community Production Grant in [LICENSE.md](LICENSE.md). The
-TypeScript and Python SDKs in [sdk/](sdk/) and [sdk-py/](sdk-py/)
-(`mercury-cli-sdk` on npm and PyPI) are licensed separately under the Apache
-License 2.0 (`Apache-2.0`), each by the LICENSE file it carries
-([sdk/LICENSE](sdk/LICENSE) and [sdk-py/LICENSE](sdk-py/LICENSE)), and are not
-part of the Licensed Work.
+The Mercury CLI is licensed under the Apache License 2.0 (`Apache-2.0`); see
+[LICENSE.md](LICENSE.md). The TypeScript and Python SDKs use the same licence
+([sdk/LICENSE](sdk/LICENSE) and [sdk-py/LICENSE](sdk-py/LICENSE)).
 
-Mercury is source-available under the Business Source License 1.1, with the
-Mercury Community Production Grant. The licence is in
-[LICENSE.md](LICENSE.md), with its companion
-[production terms](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and
-[trademark policy](TRADEMARKS.md). The licence text controls; this is a summary.
-
-You may read, copy, modify and fork the source. Individuals and organisations
-below both community thresholds can use Mercury in production for free to
-build and sell their own products, including commercial products. Both
-consolidated annual revenue and total external funding must be below
-US$1,000,000.
-
-A qualifying user that reaches either threshold receives a 90-day grace
-period. After that, new product work, including substantial new functionality,
-requires a commercial licence. Products already in production when the
-threshold was reached can still be maintained using Mercury versions obtained
-before the grace period ended, subject to the licence's maintenance terms.
-
-Selling, white-labelling or hosting Mercury itself for third parties, or
-offering a substitute for it, requires a commercial licence regardless of
-your revenue or funding.
-
-Each version changes to the Apache License 2.0 on its own Change Date, three
-years after that version's release.
-
-For commercial licensing and trademark permission, visit
-[mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Bundled
-third-party licences are listed in
+The [trademark policy](TRADEMARKS.md) covers use of the Mercury name and marks.
+Bundled third-party licences are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

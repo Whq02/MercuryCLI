@@ -4,7 +4,7 @@
   "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp). A thin bridge: no second agent runtime.",
   "version": "0.1.0",
   "publisher": "mercury",
-  "license": "SEE LICENSE IN LICENSE.txt",
+  "license": "Apache-2.0",
   "private": true,
   "homepage": "https://github.com/Whq02/MercuryCLI",
   "repository": {

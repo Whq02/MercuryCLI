@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'LICENSE.md', 'TRADEMARKS.md', 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md']
+export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'LICENSE.md', 'NOTICE', 'TRADEMARKS.md']
 
 export const UNSIGNED_ARCHIVE_SUFFIX = '-unsigned'
 

@@ -1,6 +1,33 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+
+export function readReleaseNoteParameters(text) {
+  const header = /^# (\S+) — published (\S+)(?:\r?\n|$)/.exec(text)
+  return { version: header ? `v${header[1]}` : null, releaseDate: header ? header[2] : null }
+}
+
+export function latestReleaseNote(rootDir) {
+  const { rcompare, valid } = createRequire(import.meta.url)('semver')
+  const dir = join(rootDir, 'docs', 'releases')
+  const versions = readdirSync(dir).filter(name => name.endsWith('.md')).map(name => name.slice(0, -3)).filter(version => valid(version)).sort(rcompare)
+  for (const version of versions) {
+    const text = readFileSync(join(dir, `${version}.md`), 'utf8')
+    if (text.startsWith(`# ${version} — queued\n`)) continue
+    return readReleaseNoteParameters(text).version === `v${version}` ? text : ''
+  }
+  return ''
+}
+
+export function parseIsoDate(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const [y, m, d] = s.split('-').map(Number)
+  const t = Date.UTC(y, m - 1, d)
+  const back = new Date(t)
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== m - 1 || back.getUTCDate() !== d) return null
+  return t
+}
 
 export function releaseNotesFor(version, rootDir) {
   const src = readFileSync(join(rootDir, 'src', 'constants', 'changelog.ts'), 'utf8')

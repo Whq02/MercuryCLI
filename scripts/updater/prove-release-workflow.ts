@@ -44,7 +44,7 @@ check('every suite step in private-release resolves to a run-all.sh on disk', su
 check('private-release runs the packager for each target it publishes', release.includes('node scripts/release/package.mjs --target ${{ matrix.target }}'))
 check('private-release runs the bridge gate (previous shipped reader consumes the candidate)', release.includes('scripts/updater/prove-release-bridge.ts'))
 check('private-release checks hosted-verdict eligibility through the gate ledger', release.includes('scripts/gate/ledger.ts check'))
-for (const f of ['scripts/vscode/build-vsix.sh', 'THIRD_PARTY_NOTICES.md', 'scripts/release/compat-floor.json', 'assets/splash/mercury-splash.mjs', 'assets/splash/splash-core.mjs', 'LICENSE.md', 'TRADEMARKS.md', 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md']) {
+for (const f of ['scripts/vscode/build-vsix.sh', 'THIRD_PARTY_NOTICES.md', 'scripts/release/compat-floor.json', 'assets/splash/mercury-splash.mjs', 'assets/splash/splash-core.mjs', 'LICENSE.md', 'NOTICE', 'TRADEMARKS.md']) {
   check(`packager input exists: ${f}`, existsSync(join(ROOT, f)))
 }
 
@@ -65,7 +65,7 @@ check('the key present expects the verdict signed', signingStep.includes('echo "
 check('the archive is read back and verified at full depth before publish, named from the release-target owner, requiring the decided verdict', packageJob.includes('node scripts/release/verifyArchive.mjs --target ${{ matrix.target }} --expect ${{ steps.signing.outputs.expect }}'))
 check('the key file is removed in an always() step', /- name: remove the signing key file\n\s+if: always\(\)\n\s+shell: bash\n\s+run: \|\n\s+rm -f "\$\{RUNNER_TEMP\/\/\\\\\/\/\}\/mercury-signing\.pem"/.test(packageJob))
 const verifyJob = release.slice(release.indexOf('  verify:\n'), release.indexOf('  package:\n'))
-check('the verify job checks the licence documents for the tag before packaging', verifyJob.includes('node scripts/release/releaseDocuments.mjs check --version "${TAG#v}"'))
+check('the verify job checks the licence documents before packaging', verifyJob.includes('node scripts/release/releaseDocuments.mjs check'))
 const releaseJob = release.slice(release.indexOf('  release:\n'))
 check('the publish job says -unsigned in the notes when the archives are unsigned', releaseJob.includes('for f in assets/*-unsigned.tar.gz assets/*-unsigned.zip; do') && releaseJob.includes('UNSIGNED BUILD') && releaseJob.includes('printf \'%s\\n\\n\' "$PROVENANCE_NOTE"'))
 check('the bridge gate drives the row\'s target and its prover finds an unsigned-by-decision twin itself', release.includes('bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}') && readFileSync(join(ROOT, 'scripts/updater/prove-release-bridge.ts'), 'utf8').includes('unsignedArchiveName(candidateAsset)'))

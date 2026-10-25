@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: LICENSE.md package.json scripts/release/releaseDocuments.mjs scripts/splash/deploy.sh
+# gate-watch: docs/releases/** package.json scripts/release/notesFromChangelog.mjs scripts/splash/deploy.sh
 # gate-watch: scripts/vendor/fetch-node.ts src/components/geminiConnectGuide.ts src/constants/oauth.ts
 # gate-watch: src/services/providers/nous/nousClientContract.ts
 # gate-watch: src/services/providers/gemini/antigravityClientContract.ts

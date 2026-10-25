@@ -4,10 +4,10 @@ Copyright © 2026 Waleed Al Qusous, trading as Mercury CLI.
 
 "Mercury CLI", the Mercury wordmark and lockups, the Mercury logos, and the Mercury
 critter artwork and their distinctive presentation (the **Marks**) are trademarks and
-trade dress of the Licensor. The Business Source License 1.1 under which Mercury is
-licensed does not grant any right in any trademark or logo of the Licensor, and
-nothing in the Mercury Community Production Grant or the Mercury Community Production
-Terms grants any such right.
+trade dress of the Licensor. The Apache License 2.0 under which Mercury is
+licensed does not grant permission to use the Licensor's trademarks, except as
+required for reasonable and customary use in describing the origin of the Work
+and reproducing the content of the NOTICE file.
 
 ## Permitted without permission
 
@@ -29,5 +29,4 @@ Terms grants any such right.
 A public fork of Mercury must adopt its own name and visual identity. Retaining the
 required legal notices is not a trademark use and is always permitted.
 
-Permission requests: use the Commercial Licensing Contact identified in the licence
-parameters distributed with the applicable Mercury version.
+Permission requests: https://mercury-cli.ai/licensing.
