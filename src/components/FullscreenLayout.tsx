@@ -11,6 +11,8 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { fileURLToPath } from 'node:url'
+import { logError } from '../utils/log.js'
 import { Box, MotionParkContext, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
 import ScrollBox, {
@@ -395,7 +397,11 @@ export function FullscreenLayout({
     if (!ink) return
     ink.onHyperlinkClick = (url: string) => {
       if (url.startsWith('file:')) {
-        void openPath(url.replace(/^file:\/\//, ''))
+        try {
+          void openPath(fileURLToPath(url))
+        } catch (error) {
+          logError(error)
+        }
       } else {
         void openBrowser(url)
       }

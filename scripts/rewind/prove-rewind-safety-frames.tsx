@@ -2,13 +2,14 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 
 const outAt = process.argv.indexOf('--out')
 const output = outAt < 0 ? mkdtempSync(join(tmpdir(), 'rewind-frames-')) : resolve(process.argv[outAt + 1]!)
 mkdirSync(output, { recursive: true })
 const home = pinScratchHome('rewind-frames-home')
+pinSourceRef()
 delete process.env.MERCURY_HOME
 const React = await import('react')
 const { Box } = await import('../../src/ink.js')
@@ -52,6 +53,22 @@ async function save(mounted: Mounted, label: string, cols: number, rows: number)
   console.log(join(output, `${label}.png`))
 }
 try {
+  let ownerClosed = 0
+  let hiddenClosed = 0
+  let ownerRestored = 0
+  const duplicate = <AppStateProvider><ThemeProvider><KeybindingSetup><Box width={80} height={24} flexDirection="column">
+    <MessageSelector messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { ownerClosed++ }} onSummarize={() => {}} onRestore={async () => { ownerRestored++; return { outcome: 'applied', mode: 'conversation' } }} />
+    <MessageSelector messages={[first, next]} preselectedMessage={first} onPreRestore={() => {}} onClose={() => { hiddenClosed++ }} onSummarize={() => {}} onRestore={async () => ({ outcome: 'applied', mode: 'conversation' })} />
+  </Box></KeybindingSetup></ThemeProvider></AppStateProvider>
+  const duplicated = await mountOffscreen(duplicate, 80, 24, { mouseTracking: true })
+  try {
+    check('the owner paints confirmation', await waitFor(() => duplicated.screen().includes('Restore code and conversation'), 3000))
+    await settle(100)
+    check('only the visible selector asks for a restore preview', requests.filter(request => request.dryRun).length === 1)
+    duplicated.push(KEY.enter)
+    await settle(100)
+    check('only the visible selector handles confirmation', ownerRestored === 1 && ownerClosed === 1 && hiddenClosed === 0)
+  } finally { duplicated.unmount(); await settle(50) }
   for (const [cols, rows] of [[80, 24], [120, 40]] as const) {
     let closed = false
     const element = <AppStateProvider><ThemeProvider><KeybindingSetup><Box width={cols} height={rows} flexDirection="column">

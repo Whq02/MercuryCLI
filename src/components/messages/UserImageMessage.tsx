@@ -1,4 +1,5 @@
 
+import { pathToFileURL } from 'node:url'
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
@@ -17,7 +18,7 @@ export function UserImageMessage({
     <Box marginTop={addMargin ? 1 : 0}>
       <Text dimColor>
         {stored !== null && stored.present ? (
-          <Link url={`file://${stored.path}`} fallback={label}>
+          <Link url={pathToFileURL(stored.path).href} fallback={label}>
             {label}
           </Link>
         ) : (

@@ -5,6 +5,7 @@ import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/index.js'
 import { setClipboard } from '../ink/termio/osc.js'
 import { openBrowser } from '../utils/browser.js'
+import { errorMessageWithCause } from '../utils/errors.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   KIMI_REGIONS,
@@ -72,6 +73,8 @@ export function KimiConnect({
     }).then(outcome => {
       if (disposed) return
       settle(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      if (!disposed) settle(errorMessageWithCause(error))
     })
     return () => {
       disposed = true
@@ -215,7 +218,9 @@ function MoonshotKeyLeg({
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [storing, setStoring] = useState(false)
+  const storingRef = useRef(false)
   const submit = (raw: string): void => {
+    if (storingRef.current) return
     const key = raw.trim()
     if (!key) return
     const guard = keyPasteGuardNote(key, { stores: 'a Moonshot platform key' })
@@ -223,14 +228,21 @@ function MoonshotKeyLeg({
       setNote(guard)
       return
     }
+    storingRef.current = true
     setStoring(true)
     void storeMoonshotApiKeyLogin(key).then(outcome => {
+      storingRef.current = false
       if (!outcome.stored) {
         setStoring(false)
         setNote(outcome.receipt)
         return
       }
+      setValue('')
       onResult(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      storingRef.current = false
+      setStoring(false)
+      setNote(errorMessageWithCause(error))
     })
   }
   return (

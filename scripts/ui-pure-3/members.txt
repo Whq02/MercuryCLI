@@ -103,3 +103,11 @@ prove-defaultprovider-popup.ts
 prove-files-reader-drive.ts
 prove-popup-contract.ts
 prove-voice-on-off.ts
+prove-component-state-guards.tsx
+prove-transcript-search-steps.tsx
+prove-task-recency-expiry.tsx
+prove-message-renderer-edges.tsx
+prove-connect-lifecycle.ts
+prove-file-hyperlinks.ts
+prove-file-open-fresh-query.ts
+prove-trust-path-label.ts

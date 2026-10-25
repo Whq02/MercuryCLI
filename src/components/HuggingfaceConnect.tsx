@@ -5,6 +5,7 @@ import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/index.js'
 import { setClipboard } from '../ink/termio/osc.js'
 import { openBrowser } from '../utils/browser.js'
+import { errorMessageWithCause } from '../utils/errors.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import type { HuggingfaceDeviceAuthStart } from '../services/providers/huggingface/huggingfaceAccounts.js'
 import {
@@ -68,6 +69,8 @@ export function HuggingfaceConnect({
     }).then(outcome => {
       if (disposed) return
       settle(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      if (!disposed) settle(errorMessageWithCause(error))
     })
     return () => {
       disposed = true
@@ -183,7 +186,9 @@ function HuggingfaceTokenLeg({
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [storing, setStoring] = useState(false)
+  const storingRef = useRef(false)
   const submit = (raw: string): void => {
+    if (storingRef.current) return
     const token = raw.trim()
     if (!token) return
     const guard = keyPasteGuardNote(token, { stores: 'a Hugging Face token (hf_…)', looksLike: 'a token' })
@@ -191,14 +196,21 @@ function HuggingfaceTokenLeg({
       onNote(guard)
       return
     }
+    storingRef.current = true
     setStoring(true)
     void storeHuggingfaceTokenLogin(token).then(outcome => {
+      storingRef.current = false
       if (!outcome.stored) {
         setStoring(false)
         onNote(outcome.receipt)
         return
       }
+      setValue('')
       onResult(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      storingRef.current = false
+      setStoring(false)
+      onNote(errorMessageWithCause(error))
     })
   }
   return (

@@ -54,6 +54,7 @@ export function MercuryFileOpen({
   const genRef = useRef(0)
 
   useEffect(() => {
+    setResults(null)
     const gen = ++genRef.current
     let alive = true
     void loadFiles(query)
@@ -66,7 +67,7 @@ export function MercuryFileOpen({
     return () => {
       alive = false
     }
-  }, [query])
+  }, [query, loadFiles])
 
   const listRows = (results?.length ?? 0) > rowCap ? Math.max(1, rowCap - 1) : rowCap
   const shown = useMemo(() => (results ?? []).slice(0, listRows), [results, listRows])

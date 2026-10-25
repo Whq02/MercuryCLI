@@ -2,13 +2,14 @@ import { homedir } from 'node:os'
 import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { getCwd } from '../utils/cwd.js'
+import { toTildePath } from '../utils/path.js'
 import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
 function cwdLabel(): string {
   const cwd = getCwd()
   const home = homedir()
-  return cwd.startsWith(home) ? `~${cwd.slice(home.length)}` || '~' : cwd
+  return cwd === home ? '~' : toTildePath(cwd)
 }
 
 export function MercuryTrust({path=cwdLabel()}:{path?:string}){return (

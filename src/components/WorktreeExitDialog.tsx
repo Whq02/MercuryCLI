@@ -140,24 +140,25 @@ export function WorktreeExitDialog({
       const status = await execFileNoThrowWithCwd(
         'git',
         ['status', '--porcelain'],
-        { cwd: process.cwd() },
+        { cwd: session.worktreePath },
       )
       const changedFiles =
         status.code === 0
           ? status.stdout.split('\n').filter(line => line.trim() !== '').length
           : 0
-      let commits = 0
+      let commits: number | null = null
       if (session.originalHeadCommit) {
         const revList = await execFileNoThrowWithCwd(
           'git',
           ['rev-list', '--count', `${session.originalHeadCommit}..HEAD`],
-          { cwd: process.cwd() },
+          { cwd: session.worktreePath },
         )
-        if (revList.code === 0) commits = parseInt(revList.stdout.trim(), 10) || 0
+        const count = revList.stdout.trim()
+        if (revList.code === 0 && /^\d+$/.test(count)) commits = Number(count)
       }
       if (!alive) return
-      statusRef.current = { changedFiles, commits }
-      if (changedFiles === 0 && commits === 0) {
+      statusRef.current = { changedFiles, commits: commits ?? 0 }
+      if (status.code === 0 && changedFiles === 0 && commits === 0) {
         setPhase({ kind: 'removing' })
         try {
           await cleanupWorktree()
@@ -170,7 +171,7 @@ export function WorktreeExitDialog({
         }
         return
       }
-      setPhase({ kind: 'asking', changedFiles, commits })
+      setPhase({ kind: 'asking', changedFiles, commits: commits ?? 0 })
     })()
     return () => {
       alive = false

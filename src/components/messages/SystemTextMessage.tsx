@@ -1,4 +1,5 @@
 
+import { pathToFileURL } from 'node:url'
 import figures from 'figures'
 import React, { useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -137,7 +138,7 @@ export function SystemTextMessage({
               >
                 <Text dimColor>
                   {'  '}
-                  <Link url={`file://${path}`} fallback={basename}>
+                  <Link url={pathToFileURL(path).href} fallback={basename}>
                     {basename}
                   </Link>
                 </Text>

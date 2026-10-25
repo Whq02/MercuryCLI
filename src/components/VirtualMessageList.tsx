@@ -418,7 +418,7 @@ export function VirtualMessageList({
         }
         engine.phantomRun = 0
         const ordinal = Math.min(
-          Math.max(0, direction === -1 ? positions.length - 1 : engine.ordinal),
+          Math.max(0, engine.ordinal),
           positions.length - 1,
         )
         engine.ordinal = ordinal

@@ -354,7 +354,7 @@ export function MessageSelector({
   const [storeStats, setStoreStats] = useState<CodeStats | undefined>(undefined)
   const chosen = index < selectable.length ? selectable[index] : undefined
   useEffect(() => {
-    if (phase !== 'confirm' || !chosen || !historyOn || !hasSavedPoint(chosen.uuid)) {
+    if (!claimed || phase !== 'confirm' || !chosen || !historyOn || !hasSavedPoint(chosen.uuid)) {
       setStoreStats(undefined)
       return
     }
@@ -370,7 +370,7 @@ export function MessageSelector({
     return () => {
       cancelled = true
     }
-  }, [phase, chosen, historyOn, hasSavedPoint])
+  }, [claimed, phase, chosen, historyOn, hasSavedPoint])
 
   const close = useCallback(() => onClose(), [onClose])
 
@@ -412,7 +412,7 @@ export function MessageSelector({
   }, [chosen, historyOn, onViewOnly, onRerun, onBranchCreated, runRestore, close])
 
   const active =
-    phase === 'pick' && !restoring && errorText === null && entries.length > 0
+    claimed && phase === 'pick' && !restoring && errorText === null && entries.length > 0
   useKeybindings(
     {
       'messageSelector:up': () => {
@@ -459,7 +459,7 @@ export function MessageSelector({
       }
       close()
     },
-    { context: 'MessageSelector' },
+    { context: 'MessageSelector', isActive: claimed },
   )
 
   const runBranch = useCallback(async () => {

@@ -28,7 +28,7 @@ export function TaskListV2({
   isStandalone?: boolean
 }): React.ReactNode {
   const { rows, columns } = useTerminalSize()
-  const [, forceRender] = useState(0)
+  const [expiryVersion, forceRender] = useState(0)
 
   const completedAtRef = useRef(new Map<string, number>())
   const baselineRef = useRef<Set<string> | null>(null)
@@ -78,7 +78,7 @@ export function TaskListV2({
     return () => {
       clearTimeout(timer)
     }
-  }, [tasks])
+  }, [tasks, expiryVersion])
 
   if (!isTaskToolsEnabled() || tasks.length === 0) return null
 

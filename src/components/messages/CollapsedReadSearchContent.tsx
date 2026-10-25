@@ -296,6 +296,7 @@ export function CollapsedReadSearchContent({
     bashRan +
     bashBlocked +
     memoryReads +
+    memorySearches +
     memoryWrites
 
   if (verbose) {

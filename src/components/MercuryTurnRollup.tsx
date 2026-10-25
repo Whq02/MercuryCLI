@@ -38,6 +38,7 @@ export function rollupSpineOf(messages: readonly Message[]): Spine {
   let searchCount = 0
   const erroredIds = new Set<string>()
   const noChangeIds = new Set<string>()
+  const settledIds = new Set<string>()
   for (const m of messages) {
     if (m.type !== 'user') continue
     const content = m.message?.content
@@ -49,6 +50,7 @@ export function rollupSpineOf(messages: readonly Message[]): Spine {
       const id = (block as { tool_use_id: string }).tool_use_id
       if ((block as { is_error?: boolean }).is_error === true) erroredIds.add(id)
       else if (isNoChange) noChangeIds.add(id)
+      else settledIds.add(id)
     }
   }
   for (const m of messages) {
@@ -67,7 +69,7 @@ export function rollupSpineOf(messages: readonly Message[]): Spine {
           editCount++
           const fp = (block.input as { file_path?: unknown } | undefined)?.file_path
           const blockId = (block as { id?: string }).id ?? ''
-          if (typeof fp === 'string' && !erroredIds.has(blockId) && !noChangeIds.has(blockId)) fileSet.add(fp)
+          if (typeof fp === 'string' && settledIds.has(blockId) && !erroredIds.has(blockId) && !noChangeIds.has(blockId)) fileSet.add(fp)
           break
         }
         case BASH_TOOL_NAME:

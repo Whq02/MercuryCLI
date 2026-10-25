@@ -136,6 +136,10 @@ check('a member leaving the in-flight set re-renders the settled row once', !are
 check('the loading flag flipping re-renders a collapsed group (its active verdict reads it)', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups, { isLoading: true }) as never, rowProps(collapsedFirst, first.lookups) as never))
 check('a member result moving re-renders the settled group', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups) as never, rowProps(collapsedFirst, third.lookups) as never))
 
+const settledProps = rowProps(collapsedFirst, first.lookups)
+for (const [name, value] of Object.entries({ isUserContinuation: true, canAnimate: false, style: 'condensed', tools: [] })) {
+  check(`a changed ${name} reaches the row renderer`, !areMessageRowPropsEqual(settledProps as never, { ...settledProps, [name]: value } as never))
+}
 console.log(`\n${'─'.repeat(76)}`)
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -15,7 +15,7 @@ function formatInvalidValue(value: unknown): string {
 }
 
 function buildTree(errors: ValidationError[]): TreeNode {
-  const root: TreeNode = {}
+  const root: TreeNode = Object.create(null)
   for (const error of errors) {
     if (error.path === '') {
       root[''] = error.message
@@ -40,7 +40,7 @@ function buildTree(errors: ValidationError[]): TreeNode {
         typeof existing !== 'object' ||
         Array.isArray(existing)
       ) {
-        node[segment] = {}
+        node[segment] = Object.create(null)
       }
       node = node[segment] as TreeNode
     }

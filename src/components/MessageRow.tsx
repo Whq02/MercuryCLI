@@ -364,6 +364,10 @@ export function areMessageRowPropsEqual(
   next: MessageRowProps,
 ): boolean {
   if (prev.message !== next.message) return false
+  if (prev.isUserContinuation !== next.isUserContinuation) return false
+  if (prev.canAnimate !== next.canAnimate) return false
+  if (prev.style !== next.style) return false
+  if (prev.tools !== next.tools) return false
   if (prev.screen !== next.screen) return false
   if (prev.verbose !== next.verbose) return false
   if (prev.columns !== next.columns) return false
