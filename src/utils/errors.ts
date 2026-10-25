@@ -42,6 +42,7 @@ export class ConfigReadError extends MercuryError {
 }
 
 export class ShellError extends MercuryError {
+  pipelineStatus?: number[]
   constructor(
     readonly stdout: string,
     readonly stderr: string,

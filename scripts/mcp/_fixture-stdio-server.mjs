@@ -47,7 +47,7 @@ rl.on('line', line => {
       result: {
         protocolVersion: msg.params?.protocolVersion ?? '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'fixsrv', version: '1.0.0' },
+        serverInfo: { name: 'fixsrv', version: '1.0.0', ...(process.env.MCP_FIXTURE_TITLE ? { title: process.env.MCP_FIXTURE_TITLE } : {}) },
       },
     })
     return
@@ -59,6 +59,7 @@ rl.on('line', line => {
       id: msg.id,
       result: {
         tools: [
+          ...(process.env.MCP_FIXTURE_MALFORMED_TOOLS ? [{ name: 'bad_schema', inputSchema: { type: 'array' } }, { name: 42, inputSchema: { type: 'object' } }] : []),
           {
             name: 'fix_ping',
             description: 'Fixture ping tool (live-connect proof).',

@@ -79,3 +79,4 @@ prove-everyday-words.ts
 prove-boot-hint-glyphs.ts
 prove-rail-whole-words.ts
 prove-rtl-row-border.ts
+prove-tool-error-ansi.ts

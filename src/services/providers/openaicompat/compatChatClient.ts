@@ -38,6 +38,7 @@ import {
   type LocalStreamLaw,
 } from '../localLiveness.js'
 import type { DeferralWireForm } from '../deferralWire.js'
+import { isBedrockThrottle } from '../../api/bedrockThrottle.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -205,7 +206,8 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const vendor = vendorEnvelopeFault(o)
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
   const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
-  const word = vendorErrorWord(err)
+  const throttled = isBedrockThrottle({ ...o, status, headers, message })
+  const word = throttled ? 'ThrottlingException' : vendorErrorWord(err)
   let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
   if (status === 429 && retryAfterMs === undefined) {
     const details = Array.isArray(err?.details) ? err.details : []
@@ -223,9 +225,10 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
     kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
+    ...(throttled ? { classification: 'rate_limit' as const } : {}),
     ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
     ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
-    retryable: status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
+    retryable: throttled || status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }

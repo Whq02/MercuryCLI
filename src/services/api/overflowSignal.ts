@@ -1,4 +1,5 @@
 import type { AssistantMessage, Message } from '../../types/message.js'
+import { isBedrockThrottle } from './bedrockThrottle.js'
 import type { CallModelRoute } from '../providers/idSpaces.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 
@@ -147,7 +148,7 @@ export function classifyOverflowFault(fault: {
   const detail = bounded(message)
 
   if (status !== undefined && status !== 400 && status !== 413 && status !== 422) return null
-  if (isRateLimitComplaint(message.toLowerCase())) return null
+  if (isBedrockThrottle(fault) || isRateLimitComplaint(message.toLowerCase())) return null
   if (status === 400 && fault.measured !== undefined && isBodilessRefusal(message)) {
     const { tokens, window } = fault.measured()
     if (window > 0 && tokens >= Math.floor(window * NEAR_WINDOW_SHARE)) {

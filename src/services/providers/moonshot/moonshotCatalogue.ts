@@ -23,7 +23,7 @@ import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMech
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
-const MOONSHOT_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const MOONSHOT_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface MoonshotLiveModel {
   id: string

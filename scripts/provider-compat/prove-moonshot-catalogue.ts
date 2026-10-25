@@ -121,7 +121,7 @@ if (catalogue) {
   clock += 5000
   await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch(), now })
   check('failure backoff prevents a tight retry loop', calls.length === failedCount)
-  clock += 5001
+  clock += 295001
   await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch(), now })
   check('the failed read recovers after its own retry span', calls.length === failedCount + 1 && c.moonshotCatalogueRows().source.kind === 'live')
   writeMoonshotTokens({ accessToken: 'fixture-managed', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 86400000 }, 'mainland-cn')

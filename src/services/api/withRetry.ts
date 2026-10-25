@@ -1,4 +1,5 @@
 import { OUTPUT_FIT_FLOOR_TOKENS, OUTPUT_FIT_HEADWAY_TOKENS } from './outputFit.js'
+import { isBedrockThrottle } from './bedrockThrottle.js'
 import type { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicClient.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
@@ -154,6 +155,7 @@ export function isRetryableError(error: unknown): boolean {
   if (transportCutOf(error) !== null) return true
   if (status === 408 || status === 409) return true
   if (status !== undefined && status >= 500) return true
+  if (isBedrockThrottle(error)) return true
   if (status === 429) {
     if (isClaudeAISubscriber() && !isEnterpriseSubscriber() && isSpentUsageWindowAnswer(error)) return false
     return true

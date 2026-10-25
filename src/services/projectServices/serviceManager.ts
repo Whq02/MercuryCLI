@@ -4,6 +4,7 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { encodePtyFrame, ptyHostLaunch } from './ptyHost.js'
 import { endProcessTree } from '../../utils/processGroup.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import {
   closeSync,
   createReadStream,
@@ -295,13 +296,50 @@ async function checkCondition(
   }
 }
 
+async function withPortHolder(cwd: string, status: ReadinessStatus): Promise<ReadinessStatus> {
+  if (process.platform === 'win32') return status
+  const condition = status.condition
+  let host: string
+  let port: number
+  if (condition.kind === 'tcp') {
+    host = condition.host ?? '127.0.0.1'
+    port = condition.port
+  } else if (condition.kind === 'http') {
+    try {
+      const url = new URL(condition.url)
+      host = url.hostname
+      port = Number(url.port || (url.protocol === 'https:' ? 443 : 80))
+    } catch { return status }
+  } else return status
+  host = host.replace(/^\[|\]$/g, '')
+  if (!['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(host)) return status
+  const result = await execFileNoThrowWithCwd('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpcn'], { cwd, timeout: 1_000, maxBuffer: 4096 })
+  if (result.code !== 0) return status
+  let pid = ''
+  let command = ''
+  for (const line of result.stdout.split('\n')) {
+    if (/^p\d+$/.test(line)) { pid = line.slice(1); command = '' }
+    else if (line.startsWith('c')) command = line.slice(1).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200)
+    else if (line.startsWith('n') && pid) {
+      const address = line.slice(1, line.lastIndexOf(':')).replace(/^\[|\]$/g, '')
+      if (address === '*' || address === host || host === 'localhost' || host === '0.0.0.0' || host === '::') {
+        return { ...status, met: false, detail: `${describeCondition(condition)} — held by PID ${pid}${command ? ` (${command})` : ''}` }
+      }
+    }
+  }
+  return status
+}
+
 export async function evaluateReadiness(
   cwd: string,
   record: ServiceRecord,
 ): Promise<{ ready: boolean; statuses: ReadinessStatus[] }> {
   const startedAt = record.startedAt ?? Date.now()
   const statuses = await Promise.all(
-    record.spec.readiness.map(c => checkCondition(cwd, record, c, startedAt)),
+    record.spec.readiness.map(async c => {
+      const status = await checkCondition(cwd, record, c, startedAt)
+      return record.state === 'failed' ? withPortHolder(cwd, status) : status
+    }),
   )
   const ready =
     statuses.length === 0

@@ -18,6 +18,7 @@ export interface ToolTerminalEvent {
   intentProjection?: ChangeIntentProjection
   cwd: string
   lifecycle?: 'terminal' | 'launch'
+  shellOutcome?: { code: number; pipelineStatus?: number[] }
 }
 
 type EffectSubscriber = (event: ToolTerminalEvent) => void
@@ -82,6 +83,7 @@ export function observeToolTerminal(event: ToolTerminalEvent): void {
         event.cwd,
         event.owner,
         event.lifecycle,
+        event.shellOutcome,
       )
     }
   } catch {

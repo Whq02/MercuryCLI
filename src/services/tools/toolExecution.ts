@@ -755,6 +755,7 @@ async function runTransactionBody(args: {
   let durationMs: number | undefined
   let outputMismatch: string | undefined
   let result: ToolResult<unknown> | undefined
+  let failedShellOutcome: { code: number; pipelineStatus?: number[] } | undefined
 
   try {
     observeToolStart({
@@ -929,6 +930,7 @@ async function runTransactionBody(args: {
       addToToolDuration(durationMs)
     } catch {
     }
+    if (error instanceof ShellError && error.ran && !error.interrupted) failedShellOutcome = { code: error.code, pipelineStatus: error.pipelineStatus }
     const abandoned = error instanceof ToolCallAbandonedError
     if (abandoned) logForDebugging(`tool ${tool.name}: ${error.message}`)
     const isInterrupt = abandoned || isAbortError(error)
@@ -1035,6 +1037,7 @@ async function runTransactionBody(args: {
             ? { intentProjection: result.changeIntent }
             : {}),
           cwd: getCwd(),
+          ...((tool.name === 'Bash' || tool.name === 'PowerShell') ? { shellOutcome: failedShellOutcome ?? (typeof (result?.data as { code?: unknown } | undefined)?.code === 'number' ? result!.data as { code: number; pipelineStatus?: number[] } : undefined) } : {}),
           ...(result !== undefined &&
           typeof result.data === 'object' &&
           result.data !== null &&

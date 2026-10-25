@@ -14,7 +14,6 @@ const JOIN_ALLOWLIST: Record<string, string> = {
   'src/utils/permissions/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the home',
   'src/utils/proofHomeGuard.ts': 'guard vocabulary — the account home is the forbidden proof-write boundary, never a write destination or the configurable scratch home',
   'src/utils/verification/verificationState.ts': 'tree-digest exclusion names the project home',
-  'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary names the home',
   'src/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',
   'src/utils/config/derived.ts': 'managed-policy dir join + user-scope file names',
   'src/services/privateChannel/installLayout.ts':

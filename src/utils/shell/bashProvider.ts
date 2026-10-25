@@ -65,7 +65,11 @@ export async function createBashShellProvider(
         : posixPath.join(nativeTmp, name)
       const cwdFileForEngine = isWindows ? cwdFileInShell : join(nativeTmp, name)
 
-      const normalised = rewriteWindowsNullRedirect(command)
+      const raw = rewriteWindowsNullRedirect(command)
+      const pipelineStatusPath = raw.includes('|') ? `${cwdFileForEngine}-pipeline` : undefined
+      const pipelineFileInShell = `${cwdFileInShell}-pipeline`
+      const statuses = shellPath.includes('zsh') ? '${pipestatus[@]}' : '${PIPESTATUS[@]}'
+      const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${statuses}")\nprintf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}\n(exit "$__mercury_status")`
       const addStdin = shouldAddStdinRedirect(normalised)
       let quotedCommand = quoteShellCommand(normalised, addStdin)
       if (addStdin && normalised.includes('|')) {
@@ -90,7 +94,7 @@ export async function createBashShellProvider(
       const prefix = shellPrefix()
       if (prefix) commandString = formatShellPrefixCommand(prefix, commandString)
 
-      return { commandString, cwdFilePath: cwdFileForEngine }
+      return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },
 
     getSpawnArgs(commandString: string): string[] {

@@ -65,6 +65,7 @@ interface OwnerVerificationState {
   unreadChanges: Set<string>
   pendingUnknownMutation: boolean
   evidenceDemands: number
+  unscoredVerification?: string
 }
 
 const ownerStates = new OwnerScopedStore<OwnerVerificationState>({
@@ -785,6 +786,7 @@ export function observeCompletedToolCall(
   cwd: string,
   owner?: OwnerKey,
   lifecycle?: 'terminal' | 'launch',
+  shellOutcome?: { code: number; pipelineStatus?: number[] },
 ): void {
   try {
     if (!verifyEvidenceEnabled()) return
@@ -805,8 +807,7 @@ export function observeCompletedToolCall(
       if (lifecycle === 'launch') return
       const command = String((input as { command?: unknown } | undefined)?.command ?? '')
       if (ok && /(^|[\s;&|(])git\s/.test(command)) markGitTreeSuspect('git')
-      const cls = classifyVerificationCommand(command, cwd)
-      if (cls) recordEvidence(cwd, { command, ok, ...cls }, owner)
+      recordShellCommandOutcome(command, shellOutcome?.code ?? (ok ? 0 : 1), cwd, owner, shellOutcome?.pipelineStatus)
     }
   } catch {
   }
@@ -915,8 +916,35 @@ export function stripQuotedShellArgs(text: string): string {
   return text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')
 }
 
+function stripVerificationPrefixes(segment: string): string {
+  const tokens = segment.trim().split(/\s+/)
+  while (tokens.length > 0) {
+    const head = tokens[0]!.replace(/^.*[\\/]/, '').toLowerCase()
+    if (/^[A-Za-z_][\w]*=/.test(tokens[0]!)) { tokens.shift(); continue }
+    if (!['timeout', 'nice', 'nohup', 'stdbuf', 'env'].includes(head)) break
+    tokens.shift()
+    while (tokens[0]?.startsWith('-')) {
+      const option = tokens.shift()!
+      if (option === '--') break
+      if (['-k', '--kill-after', '-s', '--signal', '-n', '--adjustment', '-i', '-o', '-e', '--input', '--output', '--error', '-u', '--unset'].includes(option)) tokens.shift()
+    }
+    if (head === 'timeout') {
+      if (!/^\d+(?:\.\d+)?[smhd]?$/.test(tokens[0] ?? '')) return segment.trim()
+      tokens.shift()
+    }
+  }
+  if (/^(?:python(?:3(?:\.\d+)?)?|py)(?:\.exe)?$/.test(tokens[0]?.replace(/^.*[\\/]/, '') ?? '')) {
+    let index = 1
+    while (/^-(?:[IBuEsSOd]+|3(?:\.\d+)?|[WX].*)$/.test(tokens[index] ?? '')) {
+      const flag = tokens[index]!
+      tokens.splice(index, flag === '-W' || flag === '-X' ? 2 : 1)
+    }
+  }
+  return tokens.join(' ')
+}
+
 export function leadingShellCommandToken(segment: string): string {
-  const tok = segment.trim().split(/\s+/)[0] ?? ''
+  const tok = stripVerificationPrefixes(segment).split(/\s+/)[0] ?? ''
   return tok.replace(/^.*[\\/]/, '').toLowerCase()
 }
 
@@ -989,6 +1017,7 @@ const MAKE_VERB_RE = new RegExp(`\\bmake\\s+(${GENERIC_VERBS})\\b`, 'i')
 const JUST_VERB_RE = new RegExp(`\\bjust\\s+(${GENERIC_VERBS})\\b`, 'i')
 
 export interface VerifyClassification {
+  exitCode?: number
   scope: VerificationScope
   coverage: string
   gateId?: string
@@ -999,7 +1028,7 @@ export function classifyVerifySegment(
   segment: string,
   cwd?: string,
 ): VerifyClassification | null {
-  const c = segment.trim()
+  const c = stripVerificationPrefixes(segment)
   if (!c || NOOP_COMMAND_HEADS.has(leadingShellCommandToken(c))) return null
   if (cwd !== undefined) {
     const declared = matchDeclaredGate(c, cwd)
@@ -1088,6 +1117,7 @@ function safeTailSegment(segment: string): boolean {
 export function classifyVerificationCommand(
   command: string,
   cwd?: string,
+  outcome?: { code: number; pipelineStatus?: number[] },
 ): VerifyClassification | null {
   const segments = splitShellControlOps(command)
   outer: for (let i = 0; i < segments.length; i++) {
@@ -1097,6 +1127,11 @@ export function classifyVerificationCommand(
       const seg = segments[j]!
       if (seg.opBefore === 'or') continue outer
       if (j < i && /^\s*cd\s+['"]?[/~]/.test(seg.text)) continue outer
+    }
+    const pipeline = outcome?.pipelineStatus
+    if (pipeline && segments[i]!.opBefore !== 'pipe' && segments[i + 1]?.opBefore === 'pipe' && segments.slice(i + 1).every(segment => segment.opBefore === 'pipe') && pipeline.length === segments.length - i && pipeline.every(code => Number.isInteger(code) && code >= 0)) {
+      if (outcome.code !== 0 && segments.slice(0, i + 1).some(segment => segment.opBefore === '&&')) continue
+      return { ...cls, exitCode: pipeline[0]! }
     }
     if (verifyExitPropagates(segments, i)) return cls
   }
@@ -1150,6 +1185,7 @@ export function recordEvidence(
     treeDigest: computeWorkingTreeDigest(cwd, { fresh: true }),
     seq: state.mutationSeq,
   }
+  delete state.unscoredVerification
   if (e.ok) state.evidenceDemands = 0
   state.pendingReadBack.clear()
   state.unreadChanges.clear()
@@ -1168,16 +1204,28 @@ export function recordEvidence(
   notify()
 }
 
+export function takeUnscoredVerification(owner?: OwnerKey): string | undefined {
+  const state = ownerStates.peek(effectiveOwner(owner))
+  const command = state?.unscoredVerification
+  if (state) delete state.unscoredVerification
+  return command === undefined ? undefined : `The check \`${command}\` did not count: its runner's exit status was hidden by the shell command. Run it without the pipe or masking tail.`
+}
+
 export function recordShellCommandOutcome(
   command: string,
   exitCode: number,
   cwd: string,
   owner?: OwnerKey,
+  pipelineStatus?: number[],
 ): void {
   try {
     if (!verifyEvidenceEnabled()) return
-    const cls = classifyVerificationCommand(command, cwd)
-    if (cls) recordEvidence(cwd, { command, ok: exitCode === 0, ...cls }, owner)
+    const cls = classifyVerificationCommand(command, cwd, { code: exitCode, pipelineStatus })
+    if (cls) recordEvidence(cwd, { command, ok: (cls.exitCode ?? exitCode) === 0, ...cls }, owner)
+    else {
+      const segments = splitShellControlOps(command)
+      if (segments.some(segment => segment.opBefore === 'pipe' || segment.opBefore === 'or') && segments.some(segment => classifyVerifySegment(segment.text, cwd))) ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
+    }
   } catch {
   }
 }

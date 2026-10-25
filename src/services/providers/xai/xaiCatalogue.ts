@@ -10,7 +10,7 @@ import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } f
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const XAI_CATALOGUE_TTL_MS = 5 * 60_000
-const XAI_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const XAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface XaiLiveModel {
   id: string

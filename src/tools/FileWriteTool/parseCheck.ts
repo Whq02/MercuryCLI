@@ -1,8 +1,10 @@
-import { extname } from 'node:path'
+import { basename, extname } from 'node:path'
 
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import type { TSNode } from '../../services/structure/grammarFacility.js'
 
+import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
+import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
 type ParseFormat = 'JSON' | 'YAML' | 'TOML'
 
 function formatForPath(filePath: string): ParseFormat | undefined {
@@ -117,12 +119,25 @@ async function checkSourceParseError(filePath: string, before: string | null, af
   }
 }
 
+function skillProblem(text: string): string | undefined {
+  if (!FRONTMATTER_REGEX.test(text)) return 'SKILL.md needs YAML frontmatter with a description.'
+  const parsed = parseFrontmatter(text)
+  if (parsed.parseError) return `SKILL.md frontmatter: ${parsed.parseError.message}`
+  const description = parsed.frontmatter.description
+  if (typeof description !== 'string' || !description.trim()) return 'SKILL.md needs a non-empty text description in frontmatter.'
+  if (description.trim().length > MAX_LISTING_DESC_CHARS) return `SKILL.md description exceeds the ${MAX_LISTING_DESC_CHARS}-character listing budget; shorten it to keep its trigger visible.`
+  return undefined
+}
 export async function checkIntroducedParseError(
   filePath: string,
   beforeContent: string | null,
   afterContent: string,
   hasLspServer?: boolean,
 ): Promise<string | undefined> {
+  if (basename(filePath) === 'SKILL.md') {
+    const problem = skillProblem(afterContent)
+    return problem && (beforeContent === null || problem !== skillProblem(beforeContent)) ? problem : undefined
+  }
   const format = formatForPath(filePath)
   const coveredByLsp =
     hasLspServer ?? ((getLspServerManager()?.getServersForFile(filePath).length ?? 0) > 0)

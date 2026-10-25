@@ -42,7 +42,7 @@ export async function refreshCompatCatalogues(opts: { force?: boolean; env?: Nod
     if (!endpoint.named || (opts.name !== undefined && endpoint.name !== opts.name) || !catalogueTrafficVerdict('openai-compat', env).allowed) return
     const id = identity(endpoint, env)
     const cached = cache.get(id)
-    if (!opts.force && cached && Date.now() - cached.attemptedAtMs < (cached.error ? 10_000 : 300_000)) return
+    if (!opts.force && cached && Date.now() - cached.attemptedAtMs < 300_000) return
     const pending = inFlight.get(id)
     if (pending) { await pending; return }
     const key = resolveCompatApiKey(env, endpoint.name)?.key

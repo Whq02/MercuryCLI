@@ -441,7 +441,7 @@ const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_
 type AttemptOutcome =
   | { kind: 'done'; served?: string }
   | { kind: 'cancelled' }
-  | { kind: 'fault'; fault: CompatFault; retryEligible: boolean }
+  | { kind: 'fault'; fault: CompatFault; retryEligible: boolean; invisibleOnly?: boolean }
 
 export async function* compatChatCallModel(
   profile: CompatLaneProfile,
@@ -708,7 +708,7 @@ export async function* compatChatCallModel(
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
-    const streamCut = outcome.retryEligible && !singleShot ? streamReconnectCause(outcome.fault) : null
+    const streamCut = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? streamReconnectCause(outcome.fault) : null
     if (streamCut !== null) {
       const now = Date.now()
       const ladder = reconnect ?? openReconnectLadder(now, streamCut)
@@ -731,7 +731,7 @@ export async function* compatChatCallModel(
       attempt--
       continue
     }
-    const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
+    const outage = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? outcome.fault.outage : undefined
     if (outage !== undefined) {
       const now = Date.now()
       const ladder = reconnect ?? openReconnectLadder(now, outage)
@@ -751,7 +751,7 @@ export async function* compatChatCallModel(
       continue
     }
     if (outcome.fault.status !== undefined) reconnect = undefined
-    if (outcome.retryEligible && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
+    if (outcome.retryEligible && !outcome.invisibleOnly && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -776,7 +776,7 @@ export async function* compatChatCallModel(
       }
       logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
-    const emptyEnd = busy === undefined && !singleShot && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
+    const emptyEnd = busy === undefined && !singleShot && !outcome.invisibleOnly && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
     if (emptyEnd) {
       emptyEnds++
       if (emptyEnds < EMPTY_STREAM_TRIES) {
@@ -933,6 +933,7 @@ async function* streamOneCompatAttempt(ctx: {
 
   let messageStarted = false
   let contentStarted = false
+  let visibleTextStarted = false
   let toolFragmentSeen = false
   let firstEventSeen = false
   const blocks = {
@@ -989,6 +990,7 @@ async function* streamOneCompatAttempt(ctx: {
     yield streamEvent({ type: 'message_start', message: { ...partial, content: [] } })
   }
   function* releaseMinted(): Generator<AssistantMessage> {
+    if (!visibleTextStarted && !toolFragmentSeen && !finish) return
     const limit = Math.min(minted.length - 1, paintSlots[0]?.at ?? minted.length)
     while (released < limit) yield minted[released++]!
   }
@@ -1141,6 +1143,7 @@ async function* streamOneCompatAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        visibleTextStarted ||= event.text.trim().length > 0
         streamedCharacters += event.text.length
         if (preserveKimi) kimiContent += event.text
         contentStarted = true
@@ -1225,6 +1228,11 @@ async function* streamOneCompatAttempt(ctx: {
     return { kind: 'cancelled' }
   }
   const hasTool = toolFragmentSeen || (finish?.toolCalls.length ?? 0) > 0
+  if (fault && !finish && messageStarted && !visibleTextStarted && !hasTool) {
+    if (blocks.open) yield streamEvent({ type: 'content_block_stop', index: blocks.index })
+    yield streamEvent({ type: 'message_stop' })
+    return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault), invisibleOnly: true }
+  }
   const nothingYielded = !contentStarted && minted.length === 0
   const retryStream = fault !== undefined && !finish && !hasTool && streamReconnectCause(fault) !== null
   const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && !hasTool

@@ -17,6 +17,7 @@ const samples = [
   ['bearer', bearer, `Bearer ${bearer}`],
   ['authorization', 'BasicFixturePrivateValue', 'Authorization: Basic BasicFixturePrivateValue'],
   ['sk-key', key, `"${key}"`],
+  ['context7', 'ctx7sk-' + 'aB_9-'.repeat(6), 'ctx7sk-' + 'aB_9-'.repeat(6)],
   ['anthropic', 'sk-ant-' + 'a'.repeat(30), 'sk-ant-' + 'a'.repeat(30)],
   ['github-pat', 'ghp_' + 'b'.repeat(36), 'ghp_' + 'b'.repeat(36)],
   ['github-oauth', 'gho_' + 'c'.repeat(36), 'gho_' + 'c'.repeat(36)],
@@ -83,6 +84,12 @@ try {
   check('masking does not rewrite the transcript or credential store', JSON.stringify(fixture.messages) === before && getSecureStorage().read()?.trustedDeviceToken === stored)
   if (!textOnly) {
     const { createSecretRedactor, redactSecretValues } = await import('../../src/utils/redactSecrets.js')
+    const { detectSecrets } = await import('../../src/utils/detectSecrets.js')
+    const { redactSecrets } = await import('../../src/utils/secrets/secretScanner.js')
+    const contextKey = 'ctx7sk-' + 'aB_9-'.repeat(6)
+    check('Context7 keys are refused by memory detection', detectSecrets(contextKey).some(row => row.kind === 'context7-key'))
+    check('Context7 keys redact in the shared scanner including adjacent keys', redactSecrets(`${contextKey},${contextKey}`) === '[REDACTED],[REDACTED]')
+    check('short Context7 examples are not secrets', detectSecrets('ctx7sk-short').length === 0 && redactSecrets('ctx7sk-short') === 'ctx7sk-short')
     const redact = createSecretRedactor([stored, 'opaque\\"Credential\\\\Value'])
     check('surrounding prose, quotes and adjacent values survive naturally', redact('Use Authorization: Bearer simple-token then retry. api_key="one"&token=two; done') === 'Use Authorization: Bearer [redacted] then retry. api_key="[redacted]"&token=[redacted]; done')
     check('quoted Authorization preserves its surrounding command', redact('curl -H "Authorization: Bearer fixtureToken" https://example.test') === 'curl -H "Authorization: Bearer [redacted]" https://example.test')

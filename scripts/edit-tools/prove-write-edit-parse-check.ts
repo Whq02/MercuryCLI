@@ -270,6 +270,22 @@ section('P6. An unavailable grammar is silence, never a refused edit or write')
   _resetGrammarEngineForTesting()
 }
 
+section('P7. SKILL.md writes keep their content and report frontmatter and description problems')
+{
+  const ctx = makeContext()
+  const file = join(fixtures, 'SKILL.md')
+  const missing = await run(FileWriteTool, { file_path: file, content: '# Run the checks\n' }, ctx, 'skill-missing')
+  check('missing frontmatter is advisory after Write', missing.ok && !missing.isError && /SKILL.md.*frontmatter/i.test(missing.text))
+  const long = `---\ndescription: ${'word '.repeat(60)}\n---\nRun the checks.\n`
+  const written = await run(FileWriteTool, { file_path: file, content: long }, ctx, 'skill-long')
+  check('long description names the listing budget without refusing the Write', written.ok && !written.isError && /description.*250/.test(written.text) && readFileSync(file, 'utf8') === long)
+  const valid = '---\ndescription: Run the checks when asked to verify a change.\n---\nRun the checks.\n'
+  check('a valid skill stays silent', await parseCheckModule.checkIntroducedParseError(file, null, valid, false) === undefined)
+  check('an unchanged description warning stays silent', await parseCheckModule.checkIntroducedParseError(file, long, long + '\n', false) === undefined)
+  check('description must be text', /description/.test(await parseCheckModule.checkIntroducedParseError(file, null, '---\ndescription: [a, b]\n---\nBody\n', false) ?? ''))
+  check('malformed YAML is named', /frontmatter/.test(await parseCheckModule.checkIntroducedParseError(file, null, '---\ndescription:\n  - [\n---\nBody\n', false) ?? ''))
+  check('ordinary markdown is not a skill', await parseCheckModule.checkIntroducedParseError(join(fixtures, 'notes.md'), null, '# Notes\n', false) === undefined)
+}
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

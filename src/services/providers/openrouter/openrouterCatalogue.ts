@@ -190,7 +190,7 @@ export async function fetchOpenrouterLiveModels(opts: {
 
 
 const OPENROUTER_CATALOGUE_TTL_MS = 5 * 60_000
-const OPENROUTER_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const OPENROUTER_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface OpenrouterCatalogueSnapshot {
   keySource: OpenrouterKeySource

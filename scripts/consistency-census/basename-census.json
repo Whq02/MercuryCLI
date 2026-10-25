@@ -12,8 +12,8 @@
   "counts": {
     "owner-internal": 6,
     "guide-probe": 10,
-    "own-guard": 6,
-    "baked-mirror": 3
+    "baked-mirror": 3,
+    "own-guard": 5
   },
   "sites": [
     {
@@ -64,13 +64,6 @@
       "excerpt": "if (snapshot.instructions.agentsMd) add('AGENTS.md', 'instruction', 5, `repository agent instructions`)",
       "cls": "guide-probe",
       "why": "the project intel facts name the guides Mercury loads — existence only, never a content load"
-    },
-    {
-      "file": "src/services/projectIntel/impact.ts",
-      "needle": ".mercury",
-      "excerpt": "'__pycache__', '.cache', 'coverage', '.mercury',",
-      "cls": "own-guard",
-      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the tree digest's exclusions) — never a read or a write path"
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",

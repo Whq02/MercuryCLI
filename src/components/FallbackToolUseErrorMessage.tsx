@@ -1,6 +1,6 @@
 import type { ToolResultBlockParam } from '../types/wire.js'
 import * as React from 'react'
-import { stripUnderlineAnsi } from 'src/components/shell/OutputLine.js'
+import stripAnsi from 'strip-ansi'
 import { extractTag } from 'src/utils/messages.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
@@ -21,7 +21,7 @@ type Props = {
 }
 
 function contentText(result: ToolResultBlockParam['content']): string | null {
-  if (typeof result === 'string') return result
+  if (typeof result === 'string') return stripAnsi(result)
   if (!Array.isArray(result)) return null
   const joined = result
     .map(block =>
@@ -34,7 +34,7 @@ function contentText(result: ToolResultBlockParam['content']): string | null {
     )
     .filter(text => text.trim() !== '')
     .join('\n')
-  return joined.trim() === '' ? null : joined
+  return joined.trim() === '' ? null : stripAnsi(joined)
 }
 
 function deriveDisplayedError(
@@ -61,7 +61,7 @@ export function isToolErrorResultTruncated(
   const collapsed = deriveDisplayedError(result, false)
   if (collapsed !== deriveDisplayedError(result, true)) return true
   {
-    const stripped = stripUnderlineAnsi(collapsed)
+    const stripped = collapsed
     const classified = classifyToolError(stripped)
     const fullBodyLines = classifyToolError(stripped, Number.MAX_SAFE_INTEGER)
       .bodyLines.length
@@ -89,7 +89,7 @@ export function FallbackToolUseErrorMessage({
 
   const plusLines = countCharInString(error, '\n') + 1 - MAX_RENDERED_LINES
   if (!verbose) {
-    const stripped = stripUnderlineAnsi(error)
+    const stripped = error
     const classified = classifyToolError(stripped)
     const hiddenLines =
       classifyToolError(stripped, Number.MAX_SAFE_INTEGER).bodyLines.length -
@@ -127,11 +127,7 @@ export function FallbackToolUseErrorMessage({
     )
   }
 
-  const body = stripUnderlineAnsi(
-    verbose
-      ? error
-      : error.split('\n').slice(0, MAX_RENDERED_LINES).join('\n'),
-  )
+  const body = verbose ? error : error.split('\n').slice(0, MAX_RENDERED_LINES).join('\n')
 
   return (
     <MessageResponse>

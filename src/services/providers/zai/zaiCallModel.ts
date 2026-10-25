@@ -208,7 +208,7 @@ const ZAI_FAULT_PROFILE = {
 type AttemptOutcome =
   | { kind: 'done' }
   | { kind: 'cancelled' }
-  | { kind: 'fault'; fault: ZaiFault; retryEligible: boolean }
+  | { kind: 'fault'; fault: ZaiFault; retryEligible: boolean; invisibleOnly?: boolean }
 
 export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
@@ -376,7 +376,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     }
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
-    const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
+    const outage = outcome.retryEligible && !outcome.invisibleOnly && !singleShot ? outcome.fault.outage : undefined
     if (outage !== undefined) {
       const now = Date.now()
       const ladder = reconnect ?? openReconnectLadder(now, outage)
@@ -396,7 +396,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       continue
     }
     if (outcome.fault.status !== undefined) reconnect = undefined
-    if (outcome.retryEligible && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
+    if (outcome.retryEligible && !outcome.invisibleOnly && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -421,7 +421,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       }
       logForDebugging(`[zai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
-    const emptyEnd = busy === undefined && !singleShot && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
+    const emptyEnd = busy === undefined && !singleShot && !outcome.invisibleOnly && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
     if (emptyEnd) {
       emptyEnds++
       if (emptyEnds < EMPTY_STREAM_TRIES) {
@@ -556,6 +556,9 @@ async function* streamOneZaiAttempt(ctx: {
   }
 
   let messageStarted = false
+  let visibleTextStarted = false
+  let toolFragmentSeen = false
+  let released = 0
   let firstEventSeen = false
   const blocks = {
     index: -1,
@@ -583,7 +586,7 @@ async function* streamOneZaiAttempt(ctx: {
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(settled)
     minted.push(m)
-    yield m
+    if (visibleTextStarted || toolFragmentSeen || finish) while (released < minted.length) yield minted[released++]!
   }
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
@@ -652,6 +655,7 @@ async function* streamOneZaiAttempt(ctx: {
         break
       }
       case 'text-delta': {
+        visibleTextStarted ||= event.text.trim().length > 0
         yield* ensureMessageStart()
         if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
         blocks.open!.value += event.text
@@ -663,6 +667,7 @@ async function* streamOneZaiAttempt(ctx: {
         break
       }
       case 'tool-call-fragment':
+        toolFragmentSeen = true
         break
       case 'usage':
         usageSeen = event.usage
@@ -685,8 +690,19 @@ async function* streamOneZaiAttempt(ctx: {
     if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
     return { kind: 'cancelled' }
   }
+  if (fault && !finish && messageStarted && !visibleTextStarted && !toolFragmentSeen) {
+    if (blocks.open) {
+      const block = blocks.open.kind === 'thinking' ? { type: 'thinking' as const, thinking: blocks.open.value, signature: '' } : { type: 'text' as const, text: blocks.open.value, citations: null }
+      minted.push(mintBlock(block))
+      yield streamEvent({ type: 'content_block_stop', index: blocks.index })
+    }
+    const usage = usageSeen ? mapZaiUsageToAnthropic(usageSeen) : estimateFaultedRequestUsage({ lane: 'zai', model: modelId, request, minted, faultCode: fault.code })
+    addToTotalSessionCost(calculateUSDCost(modelId, usage), usage, modelId)
+    yield streamEvent({ type: 'message_stop' })
+    return { kind: 'fault', fault, retryEligible: true, invisibleOnly: true }
+  }
   const nothingYielded = !messageStarted && minted.length === 0
-  if (fault && nothingYielded && !finish) {
+  if (fault && nothingYielded && !finish && !toolFragmentSeen) {
     return { kind: 'fault', fault, retryEligible: true }
   }
   const typedEnd =

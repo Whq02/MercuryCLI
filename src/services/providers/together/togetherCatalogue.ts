@@ -121,7 +121,7 @@ export function refreshTogetherCatalogue(opts?: { force?: boolean; fetchImpl?: t
   const cached = key ? cache.get(identity) ?? null : null
   if (!key || !catalogueTrafficVerdict('together', env).allowed) return Promise.resolve(cached)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  if (!opts?.force && cached && now() - anchor < (cached.lastError ? 10_000 : 300_000)) return Promise.resolve(cached)
+  if (!opts?.force && cached && now() - anchor < 300_000) return Promise.resolve(cached)
   const running = inFlight.get(identity)
   if (running) return running
   const work = (async (): Promise<TogetherCatalogueSnapshot | null> => {

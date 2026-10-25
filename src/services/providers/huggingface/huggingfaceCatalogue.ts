@@ -148,7 +148,7 @@ export async function fetchHuggingfaceLiveModels(opts: {
 
 
 const CATALOGUE_TTL_MS = 5 * 60_000
-const CATALOGUE_FAILURE_RETRY_MS = 10_000
+const CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export type HuggingfaceCatalogueKey = string
 

@@ -17,6 +17,7 @@ export type ExecResult = {
   stdout: string
   stderr: string
   code: number
+  pipelineStatus?: number[]
   interrupted: boolean
   backgroundTaskId?: string
   backgroundedByUser?: boolean

@@ -6,13 +6,12 @@ import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Command } from '../../types/command.js'
 import { truncateToWidth } from '../../utils/format.js'
-import { SKILL_TOOL_NAME } from './constants.js'
+import { MAX_LISTING_DESC_CHARS, SKILL_TOOL_NAME } from './constants.js'
 
 
 const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
 const CHARS_PER_TOKEN = 4
 const DEFAULT_CHAR_BUDGET = 8_000
-const MAX_LISTING_DESC_CHARS = 250
 
 const MIN_DESCRIPTION_ALLOWANCE = 20
 const NAME_OVERHEAD = 4
@@ -28,10 +27,17 @@ function getCharBudget(contextWindowTokens?: number): number {
 
 type ListingCommand = Command & { whenToUse?: string; loadedFrom?: string }
 
+function clipDescription(description: string, limit: number, width = false): string {
+  if ((width ? stringWidth(description) : description.length) <= limit) return description
+  const head = width ? truncateToWidth(description, limit).slice(0, -1) : description.slice(0, limit - 1)
+  if (/\s/.test(description.charAt(head.length))) return `${head.trimEnd()}…`
+  const boundary = /\s\S*$/.exec(head)
+  return `${boundary && boundary.index > 0 ? head.slice(0, boundary.index).trimEnd() : head}…`
+}
 function entryDescription(command: ListingCommand): string {
   const whenToUse = command.whenToUse
   const joined = whenToUse ? `${command.description} - ${whenToUse}` : command.description
-  return joined.length > MAX_LISTING_DESC_CHARS ? `${joined.slice(0, MAX_LISTING_DESC_CHARS - 1)}…` : joined
+  return clipDescription(joined, MAX_LISTING_DESC_CHARS)
 }
 
 function entryLine(name: string, description: string): string {
@@ -79,7 +85,7 @@ export function formatCommandsWithinBudgetDetailed(
   if (allowance >= MIN_DESCRIPTION_ALLOWANCE) {
     const lines = entries.map(entry => {
       if (isBundled(entry.command)) return entryLine(entry.name, entry.description)
-      return entryLine(entry.name, truncateToWidth(entry.description, allowance))
+      return entryLine(entry.name, clipDescription(entry.description, allowance, true))
     })
     return { content: lines.join('\n'), truncation: null }
   }

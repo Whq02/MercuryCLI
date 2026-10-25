@@ -5,7 +5,7 @@ export type ShellType = (typeof SHELL_TYPES)[number]
 
 const DEFAULT_HOOK_SHELL: ShellType = 'bash'
 
-type BuildExecCommandResult = { commandString: string; cwdFilePath: string }
+type BuildExecCommandResult = { commandString: string; cwdFilePath: string; pipelineStatusPath?: string }
 
 export type BuildExecCommandOptions = {
   id: number | string

@@ -52,7 +52,7 @@ const propertiesOf = (schema: unknown): string[] => Object.keys((schema as { pro
 function buildOldDist(version: string): string {
   const tree = join(scratch, 'old-tree')
   mkdirSync(tree)
-  const files = spawnSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+  const files = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
   if (files.status !== 0) throw new Error(files.stderr)
   for (const file of files.stdout.split('\0').filter(Boolean)) {
     const target = join(tree, file)

@@ -420,9 +420,37 @@ function listChangedHandlers(lookup: () => Client | undefined): {
   }
 }
 
+class ToolListClient extends Client {
+  override async connect(...args: Parameters<Client['connect']>): Promise<void> {
+    const [transport] = args
+    const requests = new Set<string | number>()
+    const send = transport.send.bind(transport)
+    transport.send = (message, options) => {
+      if ('method' in message && message.method === 'tools/list' && 'id' in message) requests.add(message.id)
+      return send(message, options)
+    }
+    const onmessage = transport.onmessage
+    transport.onmessage = (message, extra) => {
+      if ('id' in message && message.id !== undefined && requests.delete(message.id) && 'result' in message) {
+        const result = message.result
+        if (Array.isArray(result.tools) && this._wireCodec().validateResult('tools/list', { ...result, tools: [] }).ok) {
+          result.tools = result.tools.filter((tool: unknown) => {
+            const checked = this._wireCodec().validateResult('tools/list', { ...result, tools: [tool] })
+            if (checked.ok) return true
+            logMCPDebug(this.getServerVersion()?.name ?? 'MCP', `skipping malformed tool: ${checked.reason === 'invalid' ? checked.message : checked.reason}`)
+            return false
+          })
+        }
+      }
+      onmessage?.(message, extra)
+    }
+    return super.connect(...args)
+  }
+}
+
 function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 'remote'): Client {
   let built: Client | undefined
-  built = new Client(
+  built = new ToolListClient(
     {
       name: 'mercury',
       title: 'Mercury',
@@ -439,7 +467,7 @@ function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 're
 }
 
 function buildSdkClient(): Client {
-  return new Client(
+  return new ToolListClient(
     {
       name: 'mercury',
       title: 'Mercury',
@@ -858,7 +886,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     name,
     client,
     capabilities,
-    serverInfo: serverInfo ? { name: serverInfo.name, version: serverInfo.version } : undefined,
+    serverInfo: serverInfo ? { name: serverInfo.name, version: serverInfo.version, ...(serverInfo.title !== undefined ? { title: serverInfo.title } : {}) } : undefined,
     instructions,
     config: serverRef,
     cleanup,

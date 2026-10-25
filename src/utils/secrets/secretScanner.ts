@@ -19,6 +19,7 @@ function buildRules(): SecretRule[] {
     { id: 'digitalocean-access-token', pattern: '\\bdoo_v1_[a-f0-9]{64}\\b' },
     { id: 'anthropic-api-key', pattern: firstPartyKeyPattern() },
     { id: 'anthropic-admin-api-key', pattern: 'sk-ant-admin01-[a-zA-Z0-9_-]{93}AA' },
+    { id: 'context7-api-key', pattern: '\\bctx7sk-[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_])' },
     { id: 'openai-api-key', pattern: '\\bsk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}\\b' },
     { id: 'huggingface-access-token', pattern: '\\bhf_[a-zA-Z]{34}\\b' },
     { id: 'github-pat', pattern: '\\bghp_[0-9a-zA-Z]{36}\\b' },

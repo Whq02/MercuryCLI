@@ -9,6 +9,7 @@ const SECRET_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; unless?: RegExp
   { kind: 'github-pat', re: /\bgithub_pat_[A-Za-z0-9_]{40,}\b/ },
   { kind: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
   { kind: 'anthropic-key', re: ANTHROPIC_KEY },
+  { kind: 'context7-key', re: /\bctx7sk-[A-Za-z0-9_-]{10,}(?![A-Za-z0-9_])/ },
   { kind: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/, unless: ANTHROPIC_KEY },
   { kind: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
   { kind: 'jwt', re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/ },

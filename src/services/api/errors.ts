@@ -1,4 +1,5 @@
 import { APIConnectionError, APIConnectionTimeoutError, APIError } from './sdkErrors.js'
+import { isBedrockThrottle } from './bedrockThrottle.js'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
@@ -441,6 +442,10 @@ function composeAssistantMessageFromError(
 
   const refusal = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))
   const retryAfterMs = retryAfterHeaderMs(headerValue(errorHeaders(error), 'retry-after'))
+  if (isBedrockThrottle(error)) {
+    const result = createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${message}`, error: 'rate_limit', errorDetails: message })
+    return retryAfterMs !== undefined ? stampProviderWait(result, retryAfterMs) : result
+  }
   if (refusal === 'rate-limit' && retryAfterMs !== undefined) {
     const detail = extract429Detail(message)?.text ?? message
     return stampProviderWait(createAssistantAPIErrorMessage({
@@ -770,7 +775,7 @@ export function classifyAPIError(error: unknown): string {
   if (isTimeoutError(error)) return 'api_timeout'
   if (message.includes(REPEATED_529_ERROR_MESSAGE)) return 'repeated_529'
   if (message.includes(CUSTOM_OFF_SWITCH_MESSAGE)) return 'capacity_off_switch'
-  if (status === 429) return 'rate_limit'
+  if (status === 429 || isBedrockThrottle(error)) return 'rate_limit'
   if (status === 529 || message.includes(OVERLOADED_TYPE_MARKER)) return 'server_overload'
   if (lower.includes(PROMPT_TOO_LONG_ERROR_MESSAGE.toLowerCase())) return 'prompt_too_long'
   if (PDF_PAGES_PATTERN.test(message)) return 'pdf_too_large'

@@ -7,6 +7,8 @@ import type { QuerySource } from '../constants/querySource.js'
 import type { TurnAnswerContext } from './turnAnswerContext.js'
 import type { SystemPrompt } from '../utils/systemPromptType.js'
 import { getSessionId } from '../bootstrap/state.js'
+import { ownerFromToolUseContext } from '../services/run/resolveOwner.js'
+import { takeUnscoredVerification } from '../utils/verification/verificationState.js'
 import { judgeTurnEnd } from '../guards/guards.js'
 import { createAttachmentMessage } from '../utils/attachments.js'
 import { settleWriterDiagnosticsAtTurnEnd } from '../utils/attachments/diagnostics.js'
@@ -68,6 +70,8 @@ export async function* handleStopHooks(
   }
 
   const settlementBlocks: Message[] = []
+  const unscored = takeUnscoredVerification(ownerFromToolUseContext(toolUseContext))
+  if (unscored !== undefined) yield createUserMessage({ content: unscored, isMeta: true })
   const holds = await judgeTurnEnd(agentId ?? String(getSessionId()), { messages: history }, toolUseContext.abortController.signal)
   for (const hold of holds) {
     const message = createUserMessage({ content: hold.words, isMeta: true })

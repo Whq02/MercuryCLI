@@ -14,6 +14,7 @@ class FixtureTransport {
   stderr = new EventEmitter()
   pid = null
   constructor(_args: unknown) { spawned++ }
+  async send() {}
   async close() {}
 }
 class FixtureClient {

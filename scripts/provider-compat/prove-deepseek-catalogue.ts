@@ -197,7 +197,7 @@ if (catalogue) {
   t += 5_000
   await catalogue.refreshDeepseekCatalogue({ fetchImpl: pageFetch(FIXTURE_PAGE, retryCalls), now })
   check('after a failure with no rows, a refresh inside the retry window asks nothing', retryCalls.n === 0)
-  t += 6_000
+  t += 295_001
   await catalogue.refreshDeepseekCatalogue({ fetchImpl: pageFetch(FIXTURE_PAGE, retryCalls), now })
   check('past the retry window it asks again and lands', retryCalls.n === 1 && catalogue.getCachedDeepseekCatalogue()?.models.length === 3)
 }

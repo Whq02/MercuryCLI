@@ -42,7 +42,7 @@ export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
 
 
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000
-const OPENAI_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const OPENAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 const OPENAI_ADMISSION_READ_BOUND_MS = 5_000
 
 export interface OpenaiCatalogueSnapshot {

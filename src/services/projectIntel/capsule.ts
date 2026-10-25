@@ -1,7 +1,8 @@
 
 import { createHash } from 'node:crypto'
-import { readFileSync, statSync } from 'node:fs'
-import { dirname, join, normalize } from 'node:path'
+import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { basename, dirname, join, normalize, relative, resolve } from 'node:path'
+import { safeParseJSONC } from '../../utils/json.js'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
@@ -74,14 +75,72 @@ function isTestPath(path: string): boolean {
 
 function existsFile(workspace: string, rel: string): boolean {
   try {
-    return statSync(join(workspace, rel)).isFile()
+    const root = realpathSync(workspace)
+    const target = realpathSync(resolve(workspace, rel))
+    return target.startsWith(root + '/') && statSync(target).isFile()
   } catch {
     return false
   }
 }
 
+export function collectCodeFiles(workspace: string): { files: string[]; capped: boolean } {
+  const files: string[] = []
+  let capped = false
+  const skipped = new Set(['node_modules', 'dist', 'build', 'out', 'vendor', 'venv', '__pycache__', 'coverage'])
+  const walk = (rel: string, depth: number): void => {
+    if (depth > 5 || capped) return
+    let entries
+    try { entries = readdirSync(join(workspace, rel), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)) } catch { return }
+    for (const entry of entries) {
+      if (capped) return
+      if (entry.name.startsWith('.') && entry.name !== '.github') continue
+      const child = rel ? `${rel}/${entry.name}` : entry.name
+      if (entry.isDirectory() && !skipped.has(entry.name)) walk(child, depth + 1)
+      else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs|py)$/.test(entry.name)) {
+        if (files.length >= 400) { capped = true; return }
+        files.push(child)
+      }
+    }
+  }
+  walk('', 0)
+  return { files, capped }
+}
+
+function resolveSpecifier(workspace: string, spec: string, from = ''): string | undefined {
+  const bases = spec.startsWith('.') ? [join(dirname(from), spec)] : from && !spec.startsWith('/') ? [] : [spec]
+  if (!spec.startsWith('.') && !spec.startsWith('/')) {
+    let directory = dirname(resolve(workspace, from || 'index.ts'))
+    for (let depth = 0; depth <= 5 && (directory === resolve(workspace) || directory.startsWith(resolve(workspace) + '/')); depth++, directory = dirname(directory)) {
+      const file = join(directory, 'tsconfig.json')
+      try {
+        if (statSync(file).size > 65536) break
+        const config = safeParseJSONC(readFileSync(file, 'utf8')) as { compilerOptions?: { baseUrl?: string; paths?: Record<string, unknown> } } | null
+        const options = config?.compilerOptions
+        const base = resolve(directory, typeof options?.baseUrl === 'string' ? options.baseUrl : '.')
+        const entries = Object.entries(options?.paths ?? {}).sort(([a], [b]) => b.replace('*', '').length - a.replace('*', '').length)
+        for (const [pattern, targets] of entries) {
+          const star = pattern.indexOf('*')
+          const matches = star < 0 ? spec === pattern : spec.startsWith(pattern.slice(0, star)) && spec.endsWith(pattern.slice(star + 1))
+          if (!matches || !Array.isArray(targets)) continue
+          const captured = star < 0 ? '' : spec.slice(star, spec.length - (pattern.length - star - 1))
+          bases.unshift(...targets.filter((target): target is string => typeof target === 'string').map(target => relative(workspace, resolve(base, target.replace('*', captured)))))
+          break
+        }
+        if (options?.baseUrl) bases.push(relative(workspace, resolve(base, spec)))
+        break
+      } catch {}
+    }
+  }
+  for (const base of bases) {
+    const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, base.replace(/\.js$/, '.ts'), `${base}/index.ts`, `${base}/index.tsx`, `${base}/index.js`]
+    for (const candidate of candidates) if (existsFile(workspace, candidate)) return relative(workspace, resolve(workspace, candidate))
+  }
+  return undefined
+}
+
 export function pathTokens(task: string, workspace: string): string[] {
   const seen = new Set<string>()
+  const basenames = new Set<string>()
   for (const [raw] of task.matchAll(PATHISH_RE)) {
     const separator = raw.search(/[/.]/)
     if (separator < 0 || separator === raw.length - 1) continue
@@ -97,7 +156,36 @@ export function pathTokens(task: string, workspace: string): string[] {
     }
     if (!cleaned.includes('/') && !/\.[a-z]{1,4}$/i.test(cleaned)) continue
     if (seen.has(cleaned)) continue
-    if (existsFile(workspace, cleaned)) seen.add(cleaned)
+    const resolved = resolveSpecifier(workspace, cleaned)
+    if (resolved) seen.add(resolved)
+    else if (!cleaned.includes('/')) basenames.add(cleaned)
+  }
+  const symbols = new Set([...task.matchAll(PATHISH_RE)].map(match => match[0]).filter(word => /^[A-Za-z_][A-Za-z0-9_]*$/.test(word)))
+  if (basenames.size || symbols.size) {
+    const scan = collectCodeFiles(workspace)
+    for (const name of basenames) {
+      const matches = scan.files.filter(file => basename(file) === name)
+      if (!scan.capped && matches.length === 1) seen.add(matches[0]!)
+    }
+    if (symbols.size && !scan.capped) {
+      const ts = require('typescript') as typeof import('typescript')
+      const definitions = new Map<string, string[]>()
+      for (const file of scan.files) {
+        if (!/\.[cm]?[jt]sx?$/.test(file)) continue
+        try {
+          const text = readFileSync(join(workspace, file), 'utf8').split('\n').slice(0, IMPORT_SCAN_LINES).join('\n')
+          const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false)
+          for (const statement of source.statements) {
+            const declarations = ts.isVariableStatement(statement) ? statement.declarationList.declarations : [statement]
+            for (const node of declarations) {
+              const name = (node as import('typescript').NamedDeclaration).name
+              if (name && ts.isIdentifier(name) && symbols.has(name.text)) definitions.set(name.text, [...(definitions.get(name.text) ?? []), file])
+            }
+          }
+        } catch {}
+      }
+      for (const matches of definitions.values()) if (!scan.capped && matches.length === 1) seen.add(matches[0]!)
+    }
   }
   return [...seen].sort()
 }
@@ -119,22 +207,9 @@ export function importNeighbours(workspace: string, rel: string): string[] {
     }
     return false
   }
-  for (const m of head.matchAll(/from\s+['"](\.[^'"]+)['"]|require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
-    const spec = (m[1] ?? m[2])!
-    const base = normalize(join(dir, spec))
-    const candidates = [
-      base,
-      `${base}.ts`,
-      `${base}.tsx`,
-      `${base}.js`,
-      base.replace(/\.js$/, '.ts'),
-      `${base}/index.ts`,
-      `${base}/index.tsx`,
-      `${base}/index.js`,
-    ]
-    for (const candidate of candidates) {
-      if (addIfExists(candidate)) break
-    }
+  for (const m of head.matchAll(/from\s+['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+    const resolved = resolveSpecifier(workspace, (m[1] ?? m[2])!, rel)
+    if (resolved) out.add(resolved)
   }
   for (const m of head.matchAll(/^from\s+(\.+)([A-Za-z_][A-Za-z0-9_.]*)?\s+import\s+([A-Za-z_][A-Za-z0-9_]*)/gm)) {
     const dots = m[1]!.length

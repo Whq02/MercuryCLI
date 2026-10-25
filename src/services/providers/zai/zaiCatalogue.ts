@@ -12,7 +12,7 @@ import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.j
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ZAI_CATALOGUE_TTL_MS = 5 * 60_000
-const ZAI_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const ZAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 interface ZaiLiveModel {
   id: string

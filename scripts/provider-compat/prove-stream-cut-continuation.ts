@@ -235,15 +235,14 @@ section('A · a cut after settled text: the continuation replays the partial as 
   check('the wire body: the marker row follows the partial directly, carrying the nudge and the partial\'s last words', after?.role === 'user' && String(after.content).startsWith(STREAM_FAULT_RECOVERY_NUDGE) && String(after.content).includes(tailOf(PARTIAL, 40)), `${String(after?.role)}: ${JSON.stringify(String(after?.content ?? '').slice(0, 80))}`)
 }
 
-section('B · a cut before any text: the plain marker as today')
+section('B · a cut before any text: retry the unchanged request')
 {
   const r = await run([cutBeforeText, finishNormally])
   check('the fixture saw two chat requests', r.wire.length === 2, `${r.wire.length} request(s)`)
   check('the run completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  const request = r.calls[1]?.messages ?? []
-  const marker = request.at(-1)
-  check('the marker is the plain owned nudge, nothing named (no settled words to name)', marker?.type === 'user' && marker.isMeta === true && marker.message?.content === STREAM_FAULT_RECOVERY_NUDGE, JSON.stringify(marker?.message?.content).slice(0, 120))
-  check('the continuation request carries no API-error row', !request.some(m => m.type === 'assistant' && m.isApiErrorMessage === true))
+  check('the retry stays inside the original model call, without a turn-machine nudge', r.calls.length === 1, `${r.calls.length} model calls`)
+  check('the retry request is unchanged, including thinking and effort', JSON.stringify(r.wire[1]) === JSON.stringify(r.wire[0]))
+  check('neither request carries the empty continuation nudge', r.wire.every(body => !JSON.stringify(body).includes(STREAM_FAULT_RECOVERY_NUDGE)))
 }
 
 vllm.server.close()

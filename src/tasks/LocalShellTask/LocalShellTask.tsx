@@ -229,7 +229,7 @@ async function settleShellTask(args: {
   const { taskId, shellCommand, setAppState } = args
   args.cancelWatchdog?.()
 
-  let result: { stdout: string; stderr: string; code: number; interrupted: boolean }
+  let result: { stdout: string; stderr: string; code: number; interrupted: boolean; pipelineStatus?: number[] }
   try {
     result = await shellCommand.result
   } catch (error) {
@@ -296,7 +296,7 @@ async function settleShellTask(args: {
   }
 
   if (!wasKilled && !wasNotified && launchCwd) {
-    recordShellCommandOutcome(command, result.code, launchCwd, processOwnerForLane(agentId ?? null))
+    recordShellCommandOutcome(command, result.code, launchCwd, processOwnerForLane(agentId ?? null), result.pipelineStatus)
   }
 
   const outcome = shellOutcomeState({

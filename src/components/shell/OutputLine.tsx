@@ -42,7 +42,7 @@ function linkifyUrlsInText(content: string): string {
   )
 }
 
-export function stripUnderlineAnsi(content: string): string {
+function stripUnderlineAnsi(content: string): string {
   return content
     .replace(/\u001b\[4;/g, '\u001b[')
     .replace(/\u001b\[([0-9;]*);4m/g, '\u001b[$1m')

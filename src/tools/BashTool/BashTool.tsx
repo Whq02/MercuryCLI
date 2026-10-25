@@ -128,6 +128,7 @@ export type Out = {
   stderr: string
   interrupted: boolean
   code?: number
+  pipelineStatus?: number[]
   isImage?: boolean
   backgroundTaskId?: string
   backgroundPid?: number
@@ -657,6 +658,7 @@ async function* runBash(
       const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
       const notice = sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })
       const error = new ShellError('', [thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
+      error.pipelineStatus = result.pipelineStatus
       throw budget.requested === undefined ? error : windowedError(error)
     }
 
@@ -700,6 +702,7 @@ async function* runBash(
       stderr,
       interrupted: result.interrupted,
       code: result.code,
+      ...(result.pipelineStatus ? { pipelineStatus: result.pipelineStatus } : {}),
       isImage,
       returnCodeInterpretation,
       ...(exitNote !== undefined ? { exitNote } : {}),

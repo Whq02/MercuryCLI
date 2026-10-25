@@ -395,6 +395,14 @@ export async function exec(
       logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
     }
 
+    if (built.pipelineStatusPath !== undefined) {
+      const file = getPlatform() === 'windows' ? posixPathToWindowsPath(built.pipelineStatusPath) : built.pipelineStatusPath
+      try {
+        const text = readFileSync(file, 'utf8').trim()
+        if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
+      } catch {}
+      void getFsImplementation().unlink(file).catch(() => {})
+    }
     void getFsImplementation()
       .unlink(cwdFilePath)
       .catch(() => {

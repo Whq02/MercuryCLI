@@ -217,7 +217,7 @@ if (catalogue) {
   t += 5_000
   await catalogue.refreshAnthropicCatalogue({ fetchImpl: doorFetch({ calls: retry }), now })
   check('inside the failure window a refresh asks nothing', retry.length === 0)
-  t += 6_000
+  t += 295_001
   await catalogue.refreshAnthropicCatalogue({ fetchImpl: doorFetch({ calls: retry }), now })
   check('past the failure window it asks again and lands', retry.length === 1 && catalogue.getCachedAnthropicDoorCatalogue('api-key')?.models.length === 3)
 }
