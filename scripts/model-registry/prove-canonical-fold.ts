@@ -23,7 +23,7 @@ const folds: Record<string, string> = {
   haiku35: 'claude-3-5-haiku', haiku45: 'claude-haiku-4-5',
   sonnet35: 'claude-3-5-sonnet', sonnet37: 'claude-3-7-sonnet', sonnet40: 'claude-sonnet-4', sonnet45: 'claude-sonnet-4-5',
   opus40: 'claude-opus-4', opus41: 'claude-opus-4-1', opus45: 'claude-opus-4-5', opus47: 'claude-opus-4-6', opus48: 'claude-opus-4-6',
-  mythos5: 'claude-fable-5',
+  mythos5: 'claude-fable-5', mythos51: 'claude-fable-5-1',
 }
 for (const [key, row] of existing) {
   const expected = folds[key] ?? row.firstParty

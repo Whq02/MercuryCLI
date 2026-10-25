@@ -6,7 +6,7 @@ import { HOST_VENDORS, vendorKey, vendorLabel, vendorStorage, vendorKeyNotice, t
 import { vendorKeyRows } from './vendorKeys.js'
 import { bankRowWords, bankState, weightsLine } from './bank.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
-import { LLM_HOST_SEARCH_MIN_CHARS, hostMachineName, hostNoStockWords, hostRunningCountWords, hostSetupEstimate, hostVendorKeysWords } from '../../commands/llmhost/words.js'
+import { LLM_HOST_SEARCH_MIN_CHARS, hostMachineName, hostNoStockWords, hostRunningCountWords, hostVendorKeysWords } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { configuredCompatEndpoints, resolveCompatApiKey, isCompatEndpointCredentialed } from '../providers/openaicompat/compatAccounts.js'
 import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
@@ -122,9 +122,6 @@ function hfSearchMemory(deps: ModelDoorDeps, signal: AbortSignal): { lookup: (qu
     },
     pick: model => pick(model, signal),
   }
-}
-function readyWords(recipe: HostRecipe): string {
-  return hostSetupEstimate(recipe)
 }
 function rentalSentence(offer: HostOffer, thinking = thinkingWords(offer.recipe)): string {
   return modelTitle(offer.recipe) + ' · ' + shape(offer.recipe) + ' · ' + hourly(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + '\n' + qualityWords(offer.recipe) + ' · ' + conversationWords(offer.recipe) + ' · thinking ' + thinking + '\n' + offer.recipe.diskGb + ' GB disk extra · Runpod bills it per GB-month (runpod.io/pricing). Billing starts now and continues after closing.'

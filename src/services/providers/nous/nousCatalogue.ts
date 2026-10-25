@@ -14,7 +14,6 @@ import { NOUS_SIGNIN_EXPIRED_LINE } from './nousOauth.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const NOUS_CATALOGUE_TTL_MS = 5 * 60_000
-const NOUS_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export const NOUS_MODEL_PREFIX = 'nous/'
 
@@ -158,8 +157,7 @@ export function refreshNousCatalogue(opts?: {
   const cached = key ? catalogueCache.get(identity) ?? null : null
   if (!key || !catalogueTrafficVerdict('nous', env).allowed) return Promise.resolve(cached)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window = cached && cached.models.length === 0 && cached.lastError ? NOUS_CATALOGUE_FAILURE_RETRY_MS : NOUS_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) return Promise.resolve(cached)
+  if (!opts?.force && cached && now() - anchor < NOUS_CATALOGUE_TTL_MS) return Promise.resolve(cached)
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<NousCatalogueSnapshot | null> => {

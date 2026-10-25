@@ -10,7 +10,6 @@ import memoize from 'lodash-es/memoize.js'
 
 import {
   INFERENCE_SCOPE,
-  SUBSCRIPTION_OAUTH_SCOPES,
   PROFILE_SCOPE,
 } from '../constants/oauth.js'
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'

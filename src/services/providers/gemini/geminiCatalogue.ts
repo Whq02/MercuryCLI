@@ -182,7 +182,6 @@ export async function fetchGeminiLiveModels(opts: {
 
 
 const GEMINI_CATALOGUE_TTL_MS = 5 * 60_000
-const GEMINI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface GeminiCatalogueSnapshot {
   sourceKind: GeminiSourceKind
@@ -223,11 +222,7 @@ export function refreshGeminiCatalogue(
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window =
-    cached && cached.models.length === 0 && cached.lastError
-      ? GEMINI_CATALOGUE_FAILURE_RETRY_MS
-      : GEMINI_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) {
+  if (!opts?.force && cached && now() - anchor < GEMINI_CATALOGUE_TTL_MS) {
     return Promise.resolve(cached)
   }
   const existing = catalogueInFlight.get(identity)

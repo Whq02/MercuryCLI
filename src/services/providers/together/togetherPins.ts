@@ -69,10 +69,6 @@ export function togetherDisplayPin(id: string): TogetherDisplayPin | undefined {
   return TOGETHER_DISPLAY_PINS.find(pin => pin.id.toLowerCase() === wire)
 }
 
-export function togetherDisplayName(id: string): string {
-  return togetherDisplayPin(id)?.displayName ?? togetherWireId(id)
-}
-
 export function togetherThinkingDial(id: string): TogetherThinkingDial {
   const pin = togetherDisplayPin(id)
   if (pin) return pin.thinking

@@ -42,7 +42,6 @@ export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
 
 
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000
-const OPENAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 const OPENAI_ADMISSION_READ_BOUND_MS = 5_000
 
 export interface OpenaiCatalogueSnapshot {
@@ -82,11 +81,7 @@ export function refreshOpenaiCatalogue(
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window =
-    cached && cached.models.length === 0 && cached.lastError
-      ? OPENAI_CATALOGUE_FAILURE_RETRY_MS
-      : OPENAI_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) {
+  if (!opts?.force && cached && now() - anchor < OPENAI_CATALOGUE_TTL_MS) {
     return Promise.resolve(cached)
   }
   const existing = catalogueInFlight.get(identity)

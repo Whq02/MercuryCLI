@@ -196,7 +196,7 @@ try {
   check('an empty inner id refuses before inference, naming the namespace', captures.length === before && bareNamespace.some(row => row.isApiErrorMessage) && words(bareNamespace).includes('together/'))
   modelList = []; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
   const emptyPins = togetherCatalogueRows()
-  check('an empty live list falls to the 19 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 19 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run(params('together/zai-org/GLM-5.3'))).some(row => row.isApiErrorMessage) && captures.length === before + 1)
+  check('an empty live list falls to the 24 pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 24 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run(params('together/zai-org/GLM-5.3'))).some(row => row.isApiErrorMessage) && captures.length === before + 1)
   before = captures.length
   modelList = TOGETHER_FIXTURE_MODELS
   listStatus = 401; __resetTogetherCatalogueForTest(); await refreshTogetherCatalogue({ force: true })
@@ -208,7 +208,7 @@ try {
   __resetTogetherCatalogueForTest()
   await refreshTogetherCatalogue({ force: true })
   const pinRows = togetherCatalogueRows()
-  check('with the list unreachable the picker shows the 19 pins, labelled as pins, dated from the vendor page', pinRows.source.kind === 'pins' && pinRows.rows.length === 19 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17' && row.id.startsWith('together/')) && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && (togetherCatalogueSourceWords() ?? '').includes('HTTP 500'))
+  check('with the list unreachable the picker shows the 24 pins, labelled as pins, dated from the vendor page', pinRows.source.kind === 'pins' && pinRows.rows.length === 24 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17' && row.id.startsWith('together/')) && keyLaneListState('together').kind === 'pin' && (togetherCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && (togetherCatalogueSourceWords() ?? '').includes('HTTP 500'))
   before = captures.length
   const unreachableTurn = await run(params('together/zai-org/GLM-5.3'))
   check('with the list unreachable a pinned id still rides, with the note that the gateway decides', captures.length === before + 1 && captures.at(-1)?.body.model === 'zai-org/GLM-5.3' && textOf(unreachableTurn).startsWith('Together AI model list unavailable') && textOf(unreachableTurn).endsWith('TOGETHER-FIXTURE-SETTLED'))

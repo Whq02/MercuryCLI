@@ -148,7 +148,6 @@ export async function fetchHuggingfaceLiveModels(opts: {
 
 
 const CATALOGUE_TTL_MS = 5 * 60_000
-const CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export type HuggingfaceCatalogueKey = string
 
@@ -190,8 +189,7 @@ export function refreshHuggingfaceCatalogue(opts?: {
   const cached = catalogueCache.get(key)
   if (!catalogueTrafficVerdict('huggingface', env).allowed) return Promise.resolve(cached ?? null)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window = cached && cached.models.length === 0 && cached.lastError ? CATALOGUE_FAILURE_RETRY_MS : CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) return Promise.resolve(cached)
+  if (!opts?.force && cached && now() - anchor < CATALOGUE_TTL_MS) return Promise.resolve(cached)
   const existing = catalogueInFlight.get(key)
   if (existing) return existing
   const work = (async (): Promise<HuggingfaceCatalogueSnapshot | null> => {

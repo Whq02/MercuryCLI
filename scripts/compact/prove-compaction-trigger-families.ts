@@ -65,6 +65,7 @@ await gemini.refreshGeminiCatalogue('api-key', {
   fetchImpl: jsonFetch({ models: [{ name: 'models/gemini-fixture-pro', displayName: 'Gemini Fixture Pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent'] }] }),
 })
 const HF_FIXTURE = JSON.parse(readFileSync(join(ROOT, 'scripts', 'provider-compat', 'fixtures', 'huggingface-models-2026-08-22.json'), 'utf8')) as unknown
+process.env.HF_TOKEN = 'hf_fixture_not_a_real_token'
 await huggingface.refreshHuggingfaceCatalogue({ force: true, fetchImpl: ((async (url: unknown) => String(url).endsWith('/models') ? new Response(JSON.stringify(HF_FIXTURE), { status: 200, headers: { 'content-type': 'application/json' } }) : new Response('{}', { status: 404 })) as typeof fetch) })
 
 type Usage = { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number }

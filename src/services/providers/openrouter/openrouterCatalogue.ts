@@ -14,7 +14,6 @@ import { OPENROUTER_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import {
-  openrouterApiBase,
   openrouterKeyRefusal,
   openrouterRefusalNote,
   resolveOpenrouterAccount,
@@ -190,7 +189,6 @@ export async function fetchOpenrouterLiveModels(opts: {
 
 
 const OPENROUTER_CATALOGUE_TTL_MS = 5 * 60_000
-const OPENROUTER_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface OpenrouterCatalogueSnapshot {
   keySource: OpenrouterKeySource
@@ -234,11 +232,7 @@ export function refreshOpenrouterCatalogue(
     return Promise.resolve(cached ?? null)
   }
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window =
-    cached && cached.models.length === 0 && cached.lastError
-      ? OPENROUTER_CATALOGUE_FAILURE_RETRY_MS
-      : OPENROUTER_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) {
+  if (!opts?.force && cached && now() - anchor < OPENROUTER_CATALOGUE_TTL_MS) {
     return Promise.resolve(cached)
   }
   const existing = catalogueInFlight.get(identity)

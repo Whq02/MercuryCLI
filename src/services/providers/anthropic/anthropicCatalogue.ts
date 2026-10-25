@@ -11,7 +11,6 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ANTHROPIC_CATALOGUE_TTL_MS = 5 * 60_000
-const ANTHROPIC_CATALOGUE_FAILURE_RETRY_MS = 300_000
 const ANTHROPIC_VERSION = '2023-06-01'
 const ANTHROPIC_PAGE_LIMIT = 1000
 const ANTHROPIC_MAX_PAGES = 5
@@ -232,8 +231,7 @@ function refreshDoor(
   const identity = doorIdentity(credential, opts.env)
   const cached = catalogueCache.get(identity) ?? null
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window = cached && nothingUsable(cached) ? ANTHROPIC_CATALOGUE_FAILURE_RETRY_MS : ANTHROPIC_CATALOGUE_TTL_MS
-  if (!opts.force && cached && opts.now() - anchor < window) return Promise.resolve(cached)
+  if (!opts.force && cached && opts.now() - anchor < ANTHROPIC_CATALOGUE_TTL_MS) return Promise.resolve(cached)
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<AnthropicDoorSnapshot> => {

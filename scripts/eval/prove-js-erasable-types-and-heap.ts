@@ -5,6 +5,8 @@ const { work } = setup()
 const { evalKernelManager } = await loadEval()
 const run = (code: string) => within('typed JS cell', 30_000, evalKernelManager.runCell({ owner: 'typed-js-proof', cwd: work, input: { language: 'js', code }, abortSignal: new AbortController().signal, serveBridge: refusingBridge() }))
 try {
+  const plain = await run('import { basename as plainBase } from "node:path"; plainBase("/a/b")')
+  check('a plain JS cell with an import statement is never type-stripped: no ExperimentalWarning reaches its stderr', plain.status === 'ok' && plain.resultRepr === "'b'" && !plain.stderr.text.includes('ExperimentalWarning'), JSON.stringify({ error: plain.error, stderr: plain.stderr.text }))
   const first = await run('interface Point { x: number }; type Count = number; const typedCount: Count = 4; function typedAdd(p: Point): number { return p.x + typedCount }; typedAdd({ x: 3 })')
   check('erasable declarations, annotations and return types execute', first.status === 'ok' && first.resultRepr === '7', JSON.stringify(first.error ?? first.resultRepr))
   const next = await run('typedAdd({ x: typedCount })')

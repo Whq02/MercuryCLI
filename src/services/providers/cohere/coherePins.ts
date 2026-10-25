@@ -59,7 +59,3 @@ export function cohereDisplayPin(id: string): CohereDisplayPin | undefined {
 export function cohereDisplayName(id: string): string {
   return cohereDisplayPin(id)?.displayName ?? id
 }
-
-function cohereAcceptsEffort(model: string, effort: string): boolean {
-  return cohereDisplayPin(model)?.efforts.includes(effort) === true
-}

@@ -4,7 +4,6 @@ import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash } from 'node:crypto'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
-import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { randomUUID } from 'crypto'
 import type {
   ApiContentBlockDelta,

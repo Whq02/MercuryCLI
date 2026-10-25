@@ -59,7 +59,3 @@ export function minimaxDisplayPin(id: string): MinimaxDisplayPin | undefined {
 export function minimaxDisplayName(id: string): string {
   return minimaxDisplayPin(id)?.displayName ?? id
 }
-
-function minimaxAcceptsEffort(model: string, effort: string): boolean {
-  return minimaxDisplayPin(model)?.efforts.includes(effort) === true
-}

@@ -284,7 +284,6 @@ const { transformJsCell, splitTopLevelSegments } = ${jsCellTransformerSource()}
 const AsyncFunction = (async () => {}).constructor
 
 function stripCellTypes(code) {
-  try { new AsyncFunction(code); return code } catch {}
   try { return stripTypeScriptTypes(code) } catch (error) {
     const prefix = 'async function __mercury_cell__() {\\n'
     const suffix = '\\n}'
@@ -321,7 +320,8 @@ async function runCell(id, code) {
     }
     globalThis.require = require
     globalThis.__mercuryPersistedNames = []
-    const transformed = transformJsCell(stripCellTypes(code))
+    let transformed
+    try { transformed = transformJsCell(code); new AsyncFunction(transformed.code) } catch { transformed = transformJsCell(stripCellTypes(code)) }
     names = transformed.persistedNames
     const fn = new AsyncFunction(transformed.code)
     const returned = await Promise.race([

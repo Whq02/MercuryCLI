@@ -345,7 +345,7 @@ export class ProcKernel {
     this.send({ t: 'bridge_result', bridgeId, ok, ...(ok ? { value } : { error, errorKind }) })
   }
 
-  exec(cellId: string, code: string, handlers: CellFrameHandlers, names?: string[]): Promise<CellEnd> {
+  exec(cellId: string, code: string, handlers: CellFrameHandlers): Promise<CellEnd> {
     if (this.currentCellId !== null) {
       return Promise.resolve({ kind: 'done', status: 'error' })
     }
@@ -358,7 +358,7 @@ export class ProcKernel {
     this.pendingDone = null
     return new Promise<CellEnd>(resolve => {
       this.cellEnd = resolve
-      this.send({ t: 'exec', id: cellId, code, seq: this.executionCount, ...(names !== undefined ? { names } : {}) })
+      this.send({ t: 'exec', id: cellId, code, seq: this.executionCount })
     })
   }
 

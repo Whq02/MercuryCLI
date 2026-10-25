@@ -79,17 +79,17 @@ try {
   console.log('── the key: NOUS_API_KEY resolves the account; the catalogue reads live through it ──')
   check('the env key resolves as the account', resolveNousAccount()?.label === 'NOUS_API_KEY (env)')
   const snapshot = await cat.refreshNousCatalogue({ force: true })
-  check('the live list lands through the fixture', snapshot !== null && snapshot.models.length === 7 + NOUS_FIXTURE_FILLER_ROWS && snapshot.lastError === undefined, JSON.stringify({ n: snapshot?.models.length, err: snapshot?.lastError }))
+  check('the live list lands through the fixture', snapshot !== null && snapshot.models.length === 10 + NOUS_FIXTURE_FILLER_ROWS && snapshot.lastError === undefined, JSON.stringify({ n: snapshot?.models.length, err: snapshot?.lastError }))
   check('the models request carried the key as a bearer', fixture.requests.some(r => r.path === '/v1/models' && r.headers.authorization === `Bearer ${NOUS_FIXTURE_API_KEY}`))
 
   console.log('── the picker: recommended rows lead, the door opens the full list ──')
   const options = getModelOptions().filter(row => row.group === cat.NOUS_MODEL_GROUP)
   const modelRows = options.filter(row => row.value.startsWith('nous/'))
-  check('the Portal-recommended agentic rows lead the group', modelRows[0]?.value === 'nous/anthropic/claude-sonnet-4.6' && modelRows[1]?.value === 'nous/openai/gpt-5.5-pro' && modelRows[2]?.value === 'nous/deepseek/deepseek-v4-pro', modelRows.slice(0, 4).map(r => r.value).join(','))
-  check('the bounded view holds 24 rows and a door names the full count', modelRows.length === 24 && options.some(row => isCatalogueDoorRow(row.value) && row.catalogueDoor?.total === 7 + NOUS_FIXTURE_FILLER_ROWS), `${modelRows.length} rows`)
+  check('the Portal-recommended agentic rows lead the group (the Portal list read 2026-10-25; the unlisted Gemini recommendation is skipped)', modelRows[0]?.value === 'nous/anthropic/claude-sonnet-5.5' && modelRows[1]?.value === 'nous/openai/gpt-6.1-sol' && modelRows[2]?.value === 'nous/deepseek/deepseek-v4.1-flash-1017', modelRows.slice(0, 4).map(r => r.value).join(','))
+  check('the bounded view holds 24 rows and a door names the full count', modelRows.length === 24 && options.some(row => isCatalogueDoorRow(row.value) && row.catalogueDoor?.total === 10 + NOUS_FIXTURE_FILLER_ROWS), `${modelRows.length} rows`)
   check('a :batch variant sinks below the plain rows', modelRows.findIndex(r => r.value.endsWith(':batch')) === -1 || modelRows.findIndex(r => r.value.endsWith(':batch')) > modelRows.findIndex(r => r.value === 'nous/fixture/chat-only'))
   const full = cat.getNousFullModelOptions()
-  check('the door lists every row, persisted as nous/<slug>', full.length === 7 + NOUS_FIXTURE_FILLER_ROWS && full.every(row => row.value.startsWith('nous/')))
+  check('the door lists every row, persisted as nous/<slug>', full.length === 10 + NOUS_FIXTURE_FILLER_ROWS && full.every(row => row.value.startsWith('nous/')))
   check('a row states its own context window to the picker', modelRows[0]?.statedContextWindow === 1000000)
 
   console.log('── the capability edge reads the live row, never a first-party table ──')
@@ -172,7 +172,7 @@ try {
 
   console.log('── the engine grammar: the class word and an exact id ──')
   const classWord = await resolveEngineDispatch('nous')
-  check("'nous' resolves to the Portal's first recommended live row", classWord?.backend === 'nous' && classWord.model === 'nous/anthropic/claude-sonnet-4.6', JSON.stringify(classWord))
+  check("'nous' resolves to the Portal's first recommended live row", classWord?.backend === 'nous' && classWord.model === 'nous/anthropic/claude-sonnet-5.5', JSON.stringify(classWord))
   const exact = await resolveEngineDispatch('nous/openai/gpt-5.5-pro')
   check('an exact listed id dispatches on the nous backend', exact?.backend === 'nous' && exact.model === 'nous/openai/gpt-5.5-pro', JSON.stringify(exact))
   let unlistedExact: string | undefined

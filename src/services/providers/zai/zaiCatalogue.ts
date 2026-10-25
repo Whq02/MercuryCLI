@@ -12,7 +12,6 @@ import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.j
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ZAI_CATALOGUE_TTL_MS = 5 * 60_000
-const ZAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 interface ZaiLiveModel {
   id: string
@@ -200,8 +199,7 @@ export function refreshZaiCatalogue(opts?: {
   const cached = dispatch ? (catalogueCache.get(identity) ?? null) : null
   if (!dispatch || !catalogueTrafficVerdict('zai', env).allowed) return Promise.resolve(cached)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const window = cached && nothingUsable(cached) ? ZAI_CATALOGUE_FAILURE_RETRY_MS : ZAI_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < window) return Promise.resolve(cached)
+  if (!opts?.force && cached && now() - anchor < ZAI_CATALOGUE_TTL_MS) return Promise.resolve(cached)
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<ZaiCatalogueSnapshot | null> => {

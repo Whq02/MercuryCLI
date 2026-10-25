@@ -2,7 +2,7 @@ import { NOUS_CLIENT_CONTRACT_RELEASE } from '../../../src/services/providers/no
 
 export const NOUS_FIXTURE_API_KEY = 'sk-nous-fixture-not-a-real-key-0123456789'
 export const NOUS_FIXTURE_NOW = Date.UTC(2026, 9, 9, 7, 30, 0)
-export const NOUS_FIXTURE_FILLER_ROWS = 28
+export const NOUS_FIXTURE_FILLER_ROWS = 25
 
 export const NOUS_FIXTURE_INVALID_KEY_MESSAGE = 'Your API key is invalid, blocked or out of funds. Please go visit the portal to sort that out: https://portal.nousresearch.com '
 const NOUS_FIXTURE_RETIRED_MESSAGE = 'This model has been retired. Please select a different model to continue!'
@@ -66,6 +66,9 @@ function nousFixtureModels(): Row[] {
     row('openai/gpt-5.5-pro', { name: 'OpenAI: GPT-5.5 Pro', created: 1791200000, context_length: 1050000, max_completion_tokens: 128000, input_modalities: ['text', 'image'], supported_parameters: ['max_tokens', 'reasoning', 'reasoning_effort', 'tools', 'tool_choice'], reasoning: { mandatory: true, supported_efforts: ['xhigh', 'high', 'medium'], default_effort: 'medium' } }),
     row('~anthropic/claude-sonnet-latest', { name: 'Anthropic: Claude Sonnet Latest', created: 1789400000, context_length: 1000000, max_completion_tokens: 128000, input_modalities: ['text', 'image'], supported_parameters: ['max_tokens', 'reasoning', 'reasoning_effort', 'tools', 'tool_choice'], reasoning: { mandatory: false, supported_efforts: ['max', 'xhigh', 'high', 'medium', 'low'], default_effort: 'high' } }),
     row('deepseek/deepseek-v4-pro', { name: 'DeepSeek: DeepSeek V4 Pro 0423', created: 1791100000, context_length: 1048576, max_completion_tokens: 393216, supported_parameters: ['max_tokens', 'reasoning', 'tools', 'tool_choice'], reasoning: { mandatory: false, supported_efforts: ['xhigh', 'high'], default_effort: 'high' } }),
+    row('anthropic/claude-sonnet-5.5', { name: 'Claude Sonnet 5.5', created: 1791080000, context_length: 1000000, input_modalities: ['text', 'image'], supported_parameters: ['max_tokens', 'reasoning', 'reasoning_effort', 'tools', 'tool_choice'], reasoning: { mandatory: false, supported_efforts: ['max', 'xhigh', 'high', 'medium', 'low'], default_effort: 'high' } }),
+    row('openai/gpt-6.1-sol', { name: 'OpenAI: GPT-6.1 Sol', created: 1791070000, context_length: 1050000, max_completion_tokens: 128000, input_modalities: ['text', 'image'], supported_parameters: ['max_tokens', 'reasoning', 'reasoning_effort', 'tools', 'tool_choice'], reasoning: { mandatory: true, supported_efforts: ['xhigh', 'high', 'medium'], default_effort: 'medium' } }),
+    row('deepseek/deepseek-v4.1-flash-1017', { name: 'DeepSeek: DeepSeek V4.1 Flash 1017', created: 1791060000, context_length: 1000000, max_completion_tokens: 131072, supported_parameters: ['max_tokens', 'reasoning', 'tools', 'tool_choice'], reasoning: { mandatory: false, supported_efforts: ['high'], default_effort: 'high' } }),
     row('fixture/chat-only', { name: 'Fixture: chat only', created: 1791050000, context_length: 32768, supported_parameters: ['max_tokens', 'temperature'] }),
     ...filler,
   ]

@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync } from 'node:fs'
-import { HostPreparationCleanupFailed, keptWeightsPath, prepareKeptWeights } from './keptWeights.js'
+import { HostPreparationCleanupFailed, prepareKeptWeights } from './keptWeights.js'
 import { gigabytes, keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
@@ -109,7 +109,6 @@ export async function runHostJob(id: string, generation: string, options: { runn
   let offset = 0
   let logBusy = false
   let target: SshTarget | undefined
-  let clusterStarted = false
   const originalRecipe = hostRecipeOfRecord(initial)
   const recipe = originalRecipe && initial.tune ? tunedRecipe(originalRecipe, initial.tune) : originalRecipe
   patchHostRecord(id, { jobState: 'running', error: undefined })
@@ -364,7 +363,6 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (!endpointBase) throw new Error('HF endpoint did not reach running within the setup budget.')
     } else if (initial.cluster) {
       target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
-      clusterStarted = true
     } else {
     let last = 'SSH address not yet assigned'
     let sshDeadline = deadline

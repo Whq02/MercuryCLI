@@ -26,7 +26,7 @@ try {
   const rejected = await storeMistralApiKeyLogin('proof-key-mistral-wrong', { env })
   check('a refused key stores nothing and names the key page', !rejected.ok && !rejected.stored && !readStoredMistralApiKey() && rejected.receipt.includes('console.mistral.ai/api-keys') && rejected.receipt.includes('HTTP 401'))
   const saved = await storeMistralApiKeyLogin(key, { env })
-  check('a listed key is stored with the model count, the account and the plan words, never its secret', saved.ok && saved.stored && saved.receipt.includes('5 chat models listed') && saved.receipt.includes('fixture@example.invalid (Fixture org / Fixture workspace)') && saved.receipt.includes('included monthly usage') && !saved.receipt.includes(key) && readStoredMistralApiKey() === key)
+  check('a listed key is stored with the model count, the account and the plan words, never its secret', saved.ok && saved.stored && saved.receipt.includes('6 chat models listed') && saved.receipt.includes('fixture@example.invalid (Fixture org / Fixture workspace)') && saved.receipt.includes('included monthly usage') && !saved.receipt.includes(key) && readStoredMistralApiKey() === key)
   check('the key leg read the model list and the identity, nothing of the admin road', fixture.requests.some(request => request.path === '/v1/models') && fixture.requests.some(request => request.path === '/v1/users/me' && request.headers['x-api-key'] === key) && !fixture.requests.some(request => request.path.startsWith('/v1/admin/')))
   check('at-rest storage is auth-scoped and mode 600', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
   check('sign-in recency records the Mistral key', readSignInLedger().mistral?.kind === 'api-key')

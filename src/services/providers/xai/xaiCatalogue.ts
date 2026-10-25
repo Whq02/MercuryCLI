@@ -10,7 +10,6 @@ import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } f
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const XAI_CATALOGUE_TTL_MS = 5 * 60_000
-const XAI_CATALOGUE_FAILURE_RETRY_MS = 300_000
 
 export interface XaiLiveModel {
   id: string
@@ -154,8 +153,7 @@ export function refreshXaiCatalogue(opts?: {
   const cached = key ? catalogueCache.get(identity) ?? null : null
   if (!key || !catalogueTrafficVerdict('xai', env).allowed) return Promise.resolve(cached)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
-  const ttl = cached?.lastError ? XAI_CATALOGUE_FAILURE_RETRY_MS : XAI_CATALOGUE_TTL_MS
-  if (!opts?.force && cached && now() - anchor < ttl) return Promise.resolve(cached)
+  if (!opts?.force && cached && now() - anchor < XAI_CATALOGUE_TTL_MS) return Promise.resolve(cached)
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<XaiCatalogueSnapshot | null> => {
