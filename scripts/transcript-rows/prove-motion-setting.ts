@@ -146,7 +146,7 @@ check('the receipt for auto says the machine decides again', motionReceiptWords(
 {
   const config = src('src/components/Settings/Config.tsx')
   const boot = src('src/components/BootSettingsScreen.tsx')
-  check('the /config door reads and writes through the owner', /readMotionSetting\(\)/.test(config) && /setMotionSetting\(next\)/.test(config) && /motionValueWords\(/.test(config))
+  check('the /config door reads and writes through the owner', /readMotionSetting\(\)/.test(config) && /setMotionSetting\(next, writeGlobal\)/.test(config) && /motionValueWords\(/.test(config))
   check('the Boot Menu door reads and writes through the owner', /readMotionSetting\(\)/.test(boot) && /setMotionSetting\(next\)/.test(boot) && /motionValueWords\(motionSetting\)/.test(boot) && /motionDetailLines\(\)/.test(boot))
   check('the /config esc-revert tells the owner when it restored the key', /noteMotionSettingChanged\(\)/.test(config))
   const owner = src('src/utils/cockpit/motionSetting.ts')

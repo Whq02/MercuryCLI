@@ -323,11 +323,11 @@ console.log('§21 /config revert — targeted undo, never the mount snapshot')
 {
   const cfg = read('src/components/Settings/Config.tsx')
   check('poison gone: no wholesale snapshot publish', !cfg.includes('saveGlobalConfig(() => snapshots.global)'))
-  check('the dialog tracks its touched global keys at the one write door', cfg.includes('globalTouchedRef.current.add(key)'))
+  check('the dialog records global leaves from the locked write base', cfg.includes("undo = configUndoLeaves('global', current, next)"))
   check('the revert merges the snapshot values onto CURRENT (lock re-read respected)', cfg.includes('saveGlobalConfig(current => {') && cfg.includes('const restored = { ...current }'))
-  check('an untouched dialog reverts no global key at all', cfg.includes('if (globalTouchedRef.current.size > 0)'))
-  check('a key absent at mount deletes on revert (born-in-dialog keys go)', cfg.includes('if (snap[key] === undefined) delete restored[key]'))
-  check('guardrails revert moves ONLY mode', cfg.includes('guardrails: { mode: snapshots.user.guardrails?.mode }') && !cfg.includes('guardrails: snapshots.user.guardrails'))
+  check('an untouched dialog reverts no global key at all', cfg.includes('while (undoRef.current.length > 0)'))
+  check('an absent leaf deletes on revert', cfg.includes('value === undefined') && cfg.includes('delete restored[key]'))
+  check('guardrails revert moves ONLY the leaf written by this visit', cfg.includes('guardrails: { mode: next }') && cfg.includes('configUndoLeaves(source, raw, partial, [], true)') && cfg.includes('updateSettingsForSource(undo.source, partial)') && !cfg.includes('guardrails: snapshots.user.guardrails'))
 }
 
 console.log('§22 service stop — the tree goes, not just the root')

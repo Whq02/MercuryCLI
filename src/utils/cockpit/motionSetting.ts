@@ -32,8 +32,8 @@ export function primeMotionSetting(): void {
   readMotionSetting({ quiet: true })
 }
 
-export function setMotionSetting(next: MotionSetting): MotionSetting {
-  saveGlobalConfig(config => {
+export function setMotionSetting(next: MotionSetting, save: typeof saveGlobalConfig = saveGlobalConfig): MotionSetting {
+  save(config => {
     const out = { ...config }
     if (next === 'auto') delete out.motion
     else out.motion = next

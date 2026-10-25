@@ -1,11 +1,25 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mock } from 'bun:test'
+import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
+pinSourceRef()
 const HOME = pinScratchHome('mercury-config-popup-esc')
+const PROJECT = join(HOME, 'project')
+mkdirSync(PROJECT, { recursive: true })
+process.chdir(PROJECT)
+const bootstrap = await import('../../src/bootstrap/state.js')
+bootstrap.setOriginalCwd(PROJECT)
+bootstrap.setProjectRoot(PROJECT)
+bootstrap.setCwdState(PROJECT)
+const localCatalogue = await import('../../src/services/providers/local/localCatalogue.js')
+mock.module('../../src/services/providers/local/localCatalogue.js', () => ({
+  ...localCatalogue,
+  localRecordFor: (id: string) => id === 'local/undo-fixture' ? { id: 'undo-fixture', server: 'ollama', modelMaxContext: 131072 } : undefined,
+}))
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -18,7 +32,7 @@ function section(title: string): void {
 
 const React = await import('react')
 const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
+const { AppStateProvider, getDefaultAppState } = await import('../../src/state/AppState.js')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
 const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
 const store = await import('../../src/utils/cockpit/settingsPopup.js')
@@ -38,11 +52,12 @@ const TOP = 4
 type Notice = { key?: string; text: string; priority?: string }
 let notices: Notice[] = []
 
-async function openPopup(): Promise<Mounted> {
+async function openPopup(model?: string): Promise<Mounted> {
   notices = []
   const element = React.createElement(
     AppStateProvider as never,
     {
+      ...(model ? { initialState: { ...getDefaultAppState(), engineModel: model } } : {}),
       onChangeAppState: ({ newState: state }: { newState: { notifications?: { current?: Notice | null; queue?: Notice[] } } }) => {
         const current = state.notifications?.current
         if (current && !notices.some(n => n.text === current.text)) notices.push(current)
@@ -150,6 +165,96 @@ section('§2b the sessions row (local) and the pinned-memory row (user) move bac
     m.unmount()
     await settle(40)
   }
+}
+
+const settings = await import('../../src/utils/settings/settings.js')
+const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+const userFile = join(HOME, 'settings.json')
+const localFile = settings.getSettingsFilePathForSource('localSettings')!
+const rawUser = (): Record<string, any> => JSON.parse(readFileSync(userFile, 'utf8'))
+const rawLocal = (): Record<string, any> => JSON.parse(readFileSync(localFile, 'utf8'))
+async function selectRow(m: Mounted, query: string): Promise<void> {
+  m.push(query)
+  await settle(120)
+  m.push(KEY.down)
+  await settle(100)
+  check(`selected ${query}`, firstRow(m).startsWith(CONFIG_ROW_MARK), firstRow(m))
+}
+
+section('§2c each written leaf returns to its previous layer, even after a toggle back')
+{
+  settings.updateSettingsForSource('userSettings', { memory: { embeddingModel: 'previous-ranking', journal: false, journalOnEntryPage: false }, activity: { progress: true }, view: { ping: false } })
+  settings.updateSettingsForSource('localSettings', { view: { ping: true, reducedMotion: true }, shell: { sessions: 4 } })
+  const m = await openPopup('local/undo-fixture')
+  for (const query of ['session journal', 'journal on the entry page', 'memory recall ranking', 'terminal progress bar', 'local model window']) {
+    await selectRow(m, query)
+    m.push(KEY.right)
+    await settle(160)
+  }
+  check('the omitted leaves were actually changed', rawUser().memory.embeddingModel === undefined && rawUser().memory.journal === true && rawUser().memory.journalOnEntryPage === true && rawUser().activity.progress === false && getGlobalConfig().localModelWindows?.['local/undo-fixture'] !== undefined)
+  await selectRow(m, 'zen mode')
+  m.push(KEY.right)
+  await settle(120)
+  m.push(KEY.right)
+  await settle(120)
+  settings.updateSettingsForSource('userSettings', { view: { ping: true }, memory: { startLimit: 9000 }, guardrails: { allow: ['Read'] } })
+  settings.updateSettingsForSource('localSettings', { shell: { sessions: 8 } })
+  saveGlobalConfig(c => ({ ...c, localModelWindows: { ...c.localModelWindows, 'local/sibling': 65536 } }))
+  m.push(KEY.esc)
+  await settle(240)
+  const user = rawUser()
+  const local = rawLocal()
+  check('Escape restores embeddingModel, journal and journalOnEntryPage', user.memory.embeddingModel === 'previous-ranking' && user.memory.journal === false && user.memory.journalOnEntryPage === false, JSON.stringify(user.memory))
+  check('Escape restores the user progress leaf', user.activity.progress === true)
+  check('Escape removes only this model window and keeps another model written while open', getGlobalConfig().localModelWindows?.['local/undo-fixture'] === undefined && getGlobalConfig().localModelWindows?.['local/sibling'] === 65536)
+  check('a toggled-back setting restores its original absence', !Object.hasOwn(user.view, 'zen'))
+  check('untouched user leaves written while open survive', user.view.ping === true && user.memory.startLimit === 9000 && JSON.stringify(user.guardrails.allow) === '["Read"]')
+  check('untouched project-local leaves and their user split survive', local.shell.sessions === 8 && local.view.ping === true && local.view.reducedMotion === true)
+  check('the revert leaves the popup open', popupUp(m))
+  m.push(KEY.esc)
+  await settle(120)
+  m.unmount()
+}
+
+section('§2d the undo value is the value at write time, and nested siblings survive')
+{
+  const m = await openPopup()
+  settings.updateSettingsForSource('userSettings', { view: { accountIdentity: false } })
+  await selectRow(m, 'account identity')
+  m.push(KEY.right)
+  await settle(160)
+  check('the account identity write lands', rawUser().view.accountIdentity === undefined)
+  saveGlobalConfig(c => ({ ...c, agents: { defaultEffort: 'high' } }))
+  await selectRow(m, 'crewmate default effort')
+  m.push(KEY.right)
+  await settle(160)
+  saveGlobalConfig(c => ({ ...c, agents: { ...c.agents, maxConcurrent: 11 } }))
+  m.push(KEY.esc)
+  await settle(200)
+  check('Escape uses the pre-write value, not the value when the popup opened', rawUser().view.accountIdentity === false)
+  check('nested global undo preserves the sibling and restores just the effort', getGlobalConfig().agents?.defaultEffort === 'high' && getGlobalConfig().agents?.maxConcurrent === 11)
+  m.push(KEY.esc)
+  await settle(100)
+  m.unmount()
+}
+
+section('§2e owner-setter undo reads the locked file, not a stale cache')
+{
+  const { getGlobalMercuryFile } = await import('../../src/utils/env.js')
+  const m = await openPopup('local/undo-fixture')
+  await selectRow(m, 'local model window')
+  const file = getGlobalMercuryFile()
+  const disk = JSON.parse(readFileSync(file, 'utf8'))
+  disk.localModelWindows = { ...disk.localModelWindows, 'local/undo-fixture': 32768, 'local/peer': 131072 }
+  writeFileSync(file, JSON.stringify(disk))
+  m.push(KEY.right)
+  await settle(120)
+  m.push(KEY.esc)
+  await settle(160)
+  check('the owner-setter undo restores the real pre-write value and leaves the peer alone', getGlobalConfig().localModelWindows?.['local/undo-fixture'] === 32768 && getGlobalConfig().localModelWindows?.['local/peer'] === 131072)
+  m.push(KEY.esc)
+  await settle(100)
+  m.unmount()
 }
 
 section('§3 enter saves and closes with the summary receipt')

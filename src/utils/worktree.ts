@@ -620,12 +620,13 @@ export async function cleanupWorktree(): Promise<void> {
     process.chdir(session.originalCwd)
   } catch (error) {
     logForDebugging(`cleanupWorktree chdir failed: ${String(error)}`)
+    throw error
   }
   try {
     {
       const removal = await runGit(['worktree', 'remove', '--force', session.worktreePath], session.originalCwd)
       if (removal.code !== 0) {
-        logForDebugging(`worktree remove failed: ${removal.stderr.trim()}`)
+        throw new Error(removal.stderr.trim() || removal.stdout.trim() || `git worktree remove exited ${removal.code}`)
       }
     }
     currentWorktreeSession = null
@@ -639,6 +640,7 @@ export async function cleanupWorktree(): Promise<void> {
     }
   } catch (error) {
     logForDebugging(`cleanupWorktree failed: ${String(error)}`)
+    throw error
   }
 }
 
@@ -979,6 +981,7 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
 
 export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<number> {
   const gitRoot = findCanonicalGitRoot(getCwd())
+  if (!Number.isFinite(cutoffDate.getTime()) || cutoffDate.getTime() === -8_640_000_000_000_000) return 0
   if (!gitRoot) return 0
 
   const cutoffMs = Math.max(cutoffDate.getTime(), Date.now() - EPHEMERAL_RETENTION_FLOOR_MS)

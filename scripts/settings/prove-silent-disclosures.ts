@@ -109,7 +109,7 @@ section('§3 the wiring — every silent road rides the ONE door (structural)')
 {
   const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
   const config = src('components/Settings/Config.tsx')
-  const writeFail = config.slice(config.indexOf('const writeSource'), config.indexOf('const globalTouchedRef'))
+  const writeFail = config.slice(config.indexOf('const writeSource'), config.indexOf('const writeGlobal'))
   check("/config's write-fail arm discloses through the door", writeFail.includes('enqueueNotification(setAppState') && writeFail.includes("key: 'config-write-failed'"), writeFail.slice(0, 120))
   check('…beside (not instead of) the debug log', writeFail.includes('logForDebugging'))
   const channel = src('context/notifications.tsx')

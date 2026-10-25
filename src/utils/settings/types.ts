@@ -104,7 +104,7 @@ export const SettingsSchema = lazySchema(() => {
       suggester: z.object({ type: z.literal('command'), command: z.string() }).optional(),
       honourGitignore: z.boolean().optional(),
     }).passthrough().optional(),
-    records: z.object({ retentionDays: z.number().int().min(0).optional() }).passthrough().optional(),
+    records: z.object({ retentionDays: z.number().int().min(0).max(36_500, 'records.retentionDays must be at most 36500 days (100 years)').optional() }).passthrough().optional(),
     briefs: z.object({
       exclude: z.array(z.string()).optional().describe('Glob patterns or absolute paths of instruction files to skip (e.g. ~/.mercury/MERCURY.md or **/.mercury/rules/*.md); managed layers cannot be excluded'),
       git: z.boolean().optional(),

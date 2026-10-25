@@ -485,7 +485,7 @@ section('§5 /config carries the one row in the view group: Account identity · 
   check("the row is id 'accountIdentity', labelled Account identity", source.includes("id: 'accountIdentity'") && source.includes("label: 'Account identity'"))
   check('its value reads shown unless the setting is false', source.includes("merged.view?.accountIdentity !== false ? 'shown' : 'hidden'"))
   check('←/→ writes false to the user settings and removes the key to show again', source.includes("writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })"))
-  check('the mount snapshot and the esc revert carry the key', source.includes('accountIdentity: user.view?.accountIdentity') && source.includes('accountIdentity: snapshots.user.view?.accountIdentity'))
+  check('the write records raw leaf values and esc restores them at their source', source.includes('configUndoLeaves(source, raw, partial, [], true)') && source.includes('updateSettingsForSource(undo.source, partial)'))
   check('the row sits after Ping, beside the other view.* rows', source.includes("id: 'ping'") && source.includes("id: 'accountIdentity'") && source.includes("id: 'motion'") && source.indexOf("id: 'accountIdentity'") > source.indexOf("id: 'ping'") && source.indexOf("id: 'accountIdentity'") < source.indexOf("id: 'motion'"))
   const still = readFileSync(join(ROOT, 'scripts/ui/fixtures/settings-popup-header/config-120x40.txt'), 'utf8')
   check('the stored /config still paints the row with its default word', /Account identity\s+shown/.test(still), still.split('\n').find(line => line.includes('Account identity')) ?? 'no row in the still')

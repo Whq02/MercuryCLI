@@ -451,9 +451,9 @@ export function seatCeilingDetailLines(facts: SeatCeilingFacts = seatCeilingFact
   return lines
 }
 
-export function setOperatorSeats(seats: number | null): SeatCeilingFacts {
+export function setOperatorSeats(seats: number | null, save: typeof saveGlobalConfig = saveGlobalConfig): SeatCeilingFacts {
   const next = seats === null ? null : Math.max(1, Math.floor(seats))
-  saveGlobalConfig(c => {
+  save(c => {
     const block = { ...(c.switchboardCapacity ?? {}) }
     if (next === null) delete block.operatorSeats
     else block.operatorSeats = next

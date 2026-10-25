@@ -15,8 +15,8 @@ export function backgroundSessionsLaunchCrewmates(): boolean {
   }
 }
 
-export function setBackgroundSessionsLaunchCrewmates(on: boolean): boolean {
-  saveGlobalConfig(config => {
+export function setBackgroundSessionsLaunchCrewmates(on: boolean, save: typeof saveGlobalConfig = saveGlobalConfig): boolean {
+  save(config => {
     if (on) return config[BACKGROUND_LAUNCH_KEY] === true ? config : { ...config, [BACKGROUND_LAUNCH_KEY]: true }
     if (config[BACKGROUND_LAUNCH_KEY] === undefined) return config
     const rest = { ...config }

@@ -53,9 +53,9 @@ export function jevEnabled(): boolean {
   return readJevSettings().enabled
 }
 
-function writeJev(mutate: (stored: StoredJev) => StoredJev): JevSettings {
+function writeJev(mutate: (stored: StoredJev) => StoredJev, save: typeof saveGlobalConfig = saveGlobalConfig): JevSettings {
   let out: JevSettings = { ...JEV_DEFAULT_SETTINGS }
-  saveGlobalConfig(config => {
+  save(config => {
     const next = mutate({ ...(config.jev ?? {}) })
     const trimmed: StoredJev = {}
     if (next.enabled === true) trimmed.enabled = true
@@ -74,8 +74,8 @@ function writeJev(mutate: (stored: StoredJev) => StoredJev): JevSettings {
   return out
 }
 
-export function setJevEnabled(next: boolean, road?: JevRoad): JevSettings {
-  return writeJev(stored => ({ ...stored, enabled: next, ...(road === undefined ? {} : { road }) }))
+export function setJevEnabled(next: boolean, road?: JevRoad, save: typeof saveGlobalConfig = saveGlobalConfig): JevSettings {
+  return writeJev(stored => ({ ...stored, enabled: next, ...(road === undefined ? {} : { road }) }), save)
 }
 
 export function setJevRoad(road: JevRoad): JevSettings {

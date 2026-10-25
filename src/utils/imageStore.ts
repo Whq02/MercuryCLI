@@ -207,6 +207,7 @@ export async function readStoredImageRefsForRequest(messages: readonly Message[]
 
 
 export async function cleanupOldImageCaches(cutoff: Date): Promise<void> {
+  if (!Number.isFinite(cutoff.getTime())) return
   const base = cacheBaseDir()
   const current = getSessionId()
   let entries: string[]

@@ -103,7 +103,7 @@ export function WorktreeExitDialog({
       finish(message)
     } catch (error) {
       logError(error)
-      finish('Worktree cleanup failed; exiting anyway.')
+      finish(`Could not remove ${session.worktreePath}: ${error instanceof Error ? error.message : String(error)}. Fix the error and try again.`)
     }
   }
 
@@ -167,7 +167,7 @@ export function WorktreeExitDialog({
           finish('Removed the worktree — there was nothing to keep.')
         } catch (error) {
           logError(error)
-          finish('Worktree cleanup failed; exiting anyway.')
+          finish(`Could not remove ${session.worktreePath}: ${error instanceof Error ? error.message : String(error)}. Fix the error and try again.`)
         }
         return
       }

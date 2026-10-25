@@ -120,9 +120,9 @@ export function advisorChatLine(state: AdvisorChatState = advisorChatState()): s
   return parts.join(' · ')
 }
 
-function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): AdvisorSettings {
+function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor, save: typeof saveGlobalConfig): AdvisorSettings {
   let out: AdvisorSettings = { ...ADVISOR_DEFAULT_SETTINGS }
-  saveGlobalConfig(config => {
+  save(config => {
     const next = mutate({ ...(config.advisor ?? {}) })
     const trimmed: StoredAdvisor = {}
     if (next.enabled === true) trimmed.enabled = true
@@ -136,16 +136,16 @@ function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): Advisor
   return out
 }
 
-export function setAdvisorEnabled(next: boolean): AdvisorSettings {
-  return writeAdvisor(stored => ({ ...stored, enabled: next }))
+export function setAdvisorEnabled(next: boolean, save: typeof saveGlobalConfig = saveGlobalConfig): AdvisorSettings {
+  return writeAdvisor(stored => ({ ...stored, enabled: next }), save)
 }
 
-export function setAdvisorMinutes(next: number): AdvisorSettings {
+export function setAdvisorMinutes(next: number, save: typeof saveGlobalConfig = saveGlobalConfig): AdvisorSettings {
   const value = minutesOf(next)
   if (value === undefined) {
     throw new Error(`the advisor interval is a whole number of minutes (${ADVISOR_MINUTES_FLOOR} or more), not ${String(next)}`)
   }
-  return writeAdvisor(stored => ({ ...stored, minutes: value }))
+  return writeAdvisor(stored => ({ ...stored, minutes: value }), save)
 }
 
 export function resolveAdvisorModel(): SubModelResolution {

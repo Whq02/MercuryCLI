@@ -59,9 +59,9 @@ export function localWindowFits(window: number | undefined, estTokens: number): 
   return window === undefined || estTokens + LOCAL_OUTPUT_FLOOR <= window
 }
 
-export function writeLocalWindowSetting(record: Pick<LocalModelRecord, 'id'>, setting: LocalWindowSetting | undefined): void {
+export function writeLocalWindowSetting(record: Pick<LocalModelRecord, 'id'>, setting: LocalWindowSetting | undefined, save: typeof saveGlobalConfig = saveGlobalConfig): void {
   const key = localWindowSettingKey(record)
-  saveGlobalConfig(config => {
+  save(config => {
     const next = { ...(config.localModelWindows ?? {}) }
     if (setting === undefined) delete next[key]
     else next[key] = setting

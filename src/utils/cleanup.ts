@@ -39,7 +39,8 @@ function convertFileNameToDate(filename: string): Date {
 }
 
 function computeCutoffDate(): Date {
-  return new Date(Date.now() - retentionWindowDays() * 24 * 60 * 60 * 1000)
+  const cutoff = Date.now() - retentionWindowDays() * 86_400_000
+  return new Date(Number.isFinite(cutoff) && Math.abs(cutoff) <= 8_640_000_000_000_000 ? cutoff : -8_640_000_000_000_000)
 }
 
 async function cleanupOldMessageFiles(): Promise<CleanupResult> {

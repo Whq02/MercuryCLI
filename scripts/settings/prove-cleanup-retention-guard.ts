@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -44,8 +44,12 @@ function runIn(body: string): Record<string, unknown> {
     process.stdout.write('\\n' + JSON.stringify(out))
   `
   const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' }, cwd: project })
-  if (res.status !== 0) throw new Error(`scenario failed: ${res.stderr.slice(-1500)}`)
-  return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
+  try {
+    if (res.status !== 0) throw new Error(`scenario failed: ${res.stderr.slice(-1500)}`)
+    return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 }
 
 console.log('L1 the probe — unknown answers yes')
@@ -119,6 +123,53 @@ console.log('L4 policy — a registry/plist-delivered retention window is seen')
   `)
   if (r.skipped === true) check('the policy tier is probed', false, 'the proof seam is absent in this src (pre-fix tree)')
   else check('the policy tier is probed (the key seen through the parsed view)', r.viaPolicy === true, `answered ${r.viaPolicy}`)
+}
+
+console.log('L5 oversized retention never deletes pasted images or worktrees')
+for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
+  const r = runIn(`
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    fs.writeFileSync(userSettingsPath, JSON.stringify({ records: { retentionDays: 1e12 } }))
+    const image = path.join(home, 'image-cache', 'another-session', '1.png')
+    fs.mkdirSync(path.dirname(image), { recursive: true })
+    fs.writeFileSync(image, 'keep this image')
+    const oldLog = plantOldDebugLog()
+    const { spawnSync } = await import('node:child_process')
+    const git = args => {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' })
+      if (result.status !== 0) throw new Error(result.stderr)
+      return result.stdout
+    }
+    git(['init', '-q'])
+    git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'fixture'])
+    const tree = path.join(project, '.mercury', 'worktrees', 'agent-a123456789abcdef0')
+    git(['worktree', 'add', '-qb', 'worktree-agent-a123456789abcdef0', tree])
+    const age = new Date(Date.now() - 10 * 86_400_000)
+    fs.utimesSync(tree, age, age)
+    const schema = (await import(${JSON.stringify(join(SRC, 'utils/settings/types.ts'))})).SettingsSchema()
+    const parsed = schema.safeParse({ records: { retentionDays: 1e12 } })
+    out.refused = !parsed.success && parsed.error.issues.some(i => i.path.join('.') === 'records.retentionDays' && /at most|maximum/.test(i.message))
+    if (${JSON.stringify(road)} === 'runtime') {
+      const { mock } = await import('bun:test')
+      const all = await import(${JSON.stringify(join(SRC, 'utils/settings/allErrors.ts'))})
+      mock.module(${JSON.stringify(join(SRC, 'utils/settings/settings.ts'))}, () => ({ ...s, getInitialSettings: () => ({ records: { retentionDays: 1e12 } }) }))
+      mock.module(${JSON.stringify(join(SRC, 'utils/settings/allErrors.ts'))}, () => ({ ...all, getSettingsWithAllErrors: () => ({ settings: {}, errors: [] }) }))
+    }
+    const cleanup = await import(${JSON.stringify(join(SRC, 'utils/cleanup.ts'))})
+    if (${JSON.stringify(road)} === 'invalid-cutoff') {
+      const images = await import(${JSON.stringify(join(SRC, 'utils/imageStore.ts'))})
+      const trees = await import(${JSON.stringify(join(SRC, 'utils/worktree.ts'))})
+      await images.cleanupOldImageCaches(new Date(NaN))
+      await trees.cleanupStaleAgentWorktrees(new Date(NaN))
+    } else out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    out.image = fs.existsSync(image) && fs.readFileSync(image, 'utf8') === 'keep this image'
+    out.tree = fs.existsSync(tree)
+    out.log = fs.existsSync(oldLog)
+  `)
+  check(`${road}: oversized retention is refused by name`, r.refused === true)
+  check(`${road}: another session's pasted image survives`, r.image === true)
+  check(`${road}: the ten-day-old clean worktree survives`, r.tree === true)
+  check(`${road}: the old debug log survives`, r.log === true)
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

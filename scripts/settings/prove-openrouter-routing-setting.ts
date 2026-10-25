@@ -70,7 +70,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   m.unmount()
   store.closeSettingsPopup()
 }
-check('Config snapshots the user setting for escape', readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8').includes('routing: { openrouter: user.routing?.openrouter }'))
+check('Config records the written leaves from the raw source for escape', readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8').includes('configUndoLeaves(source, raw, partial, [], true)'))
 await releaseScratchHome(home)
 console.log(`prove-openrouter-routing-setting: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

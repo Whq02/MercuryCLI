@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useLayoutEffect,
@@ -8,6 +7,7 @@ import React, {
   useSyncExternalStore,
 } from 'react'
 import { basename } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { ModalContext } from '../../context/modalContext.js'
@@ -30,7 +30,6 @@ import {
   type GlobalConfig,
 } from '../../utils/config.js'
 import {
-  getSettingsForSource,
   updateSettingsForSource,
   getInitialSettings,
 } from '../../utils/settings/settings.js'
@@ -94,7 +93,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
-import { setZenMode } from '../../utils/cockpit/zenMode.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import { jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '../../services/jev/jevSetting.js'
 import { BACKGROUND_LAUNCH_DOORS, BACKGROUND_LAUNCH_KEY, BACKGROUND_LAUNCH_LABEL, BACKGROUND_LAUNCH_NOTE, BACKGROUND_LAUNCH_SUMMARY, backgroundLaunchValueWords, backgroundSessionsLaunchCrewmates, setBackgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js'
@@ -113,7 +112,6 @@ import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, local
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
 import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/advisorSettings.js'
-import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
 const LABEL_CELLS = 36
 
@@ -349,6 +347,34 @@ function validated<T extends string>(
     : fallback
 }
 
+type ConfigUndoSource = 'global' | 'localSettings' | 'userSettings' | 'app'
+type ConfigUndo = { source: ConfigUndoSource; path: string[]; previous: unknown }
+
+function configObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function configUndoLeaves(source: ConfigUndoSource, before: unknown, after: unknown, path: string[] = [], partial = false): ConfigUndo[] {
+  if (isDeepStrictEqual(before, after)) return []
+  if ((configObject(before) || before === undefined) && (configObject(after) || after === undefined)) {
+    const old = before ?? {}
+    const next = after ?? {}
+    const keys = partial && after !== undefined ? Object.keys(next) : new Set([...Object.keys(old), ...Object.keys(next)])
+    return [...keys].flatMap(key => configUndoLeaves(source, old[key], next[key], [...path, key], partial))
+  }
+  return [{ source, path, previous: structuredClone(before) }]
+}
+
+function restoreConfigLeaf(current: Record<string, unknown>, path: string[], previous: unknown): Record<string, unknown> {
+  const [key, ...tail] = path
+  if (key === undefined) return current
+  const restored = { ...current }
+  const value = tail.length === 0 ? previous : restoreConfigLeaf(configObject(current[key]) ? current[key] : {}, tail, previous)
+  if (value === undefined || (tail.length > 0 && configObject(value) && Object.keys(value).length === 0)) delete restored[key]
+  else Object.defineProperty(restored, key, { value, enumerable: true, configurable: true, writable: true })
+  return restored
+}
+
 export function Config({
   onClose,
   onLine,
@@ -379,37 +405,19 @@ export function Config({
   const config = getGlobalConfig()
   const merged = getInitialSettings() as SettingsJson
 
-  const snapshotsRef = useRef<{
-    global: GlobalConfig
-    theme: string
-    local: Partial<SettingsJson>
-    user: Partial<SettingsJson>
-    appVerbose: boolean
-    dirty: boolean
-  } | null>(null)
-  if (snapshotsRef.current === null) {
-    const local = getSettingsForSource('localSettings') ?? {}
-    const user = getSettingsForSource('userSettings') ?? {}
-    snapshotsRef.current = {
-      global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
-      theme: themeSetting,
-      local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity, zen: user.view?.zen }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit, startLimit: user.memory?.startLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
-      appVerbose: appState.verbose === true,
-      dirty: false,
-    }
-  }
-  const snapshots = snapshotsRef.current
+  const undoRef = useRef<ConfigUndo[]>([])
+  const dirtyRef = useRef(false)
+  const initialThinking = useRef(merged.engine?.reasoning !== false)
   const mountTheme = useRef(themeSetting)
 
   const changesRef = useRef(new Map<string, string>())
   const recordToggle = (key: string, text: string): void => {
-    snapshots.dirty = true
+    dirtyRef.current = true
     if (changesRef.current.has(key)) changesRef.current.delete(key)
     else changesRef.current.set(key, text)
   }
   const recordSet = (key: string, text: string): void => {
-    snapshots.dirty = true
+    dirtyRef.current = true
     changesRef.current.delete(key)
     changesRef.current.set(key, text)
   }
@@ -418,11 +426,17 @@ export function Config({
     source: 'localSettings' | 'userSettings',
     partial: Partial<SettingsJson>,
   ): boolean => {
-    const { error } = updateSettingsForSource(source, partial)
+    let undo: ConfigUndo[] = []
+    const { error } = updateSettingsForSource(source, raw => {
+      undo = configUndoLeaves(source, raw, partial, [], true)
+      return partial
+    })
     if (error !== null) {
       writeFailed(source, error)
       return false
     }
+    undoRef.current.push(...undo)
+    dirtyRef.current = true
     return true
   }
   const writeFailed = (source: 'localSettings' | 'userSettings', error: Error): void => {
@@ -435,17 +449,15 @@ export function Config({
       timeoutMs: 15_000,
     })
   }
-  const globalTouchedRef = useRef(new Set<string>())
   const writeGlobal = (mutate: (config: GlobalConfig) => GlobalConfig): void => {
-    const before = getGlobalConfig()
-    const after = mutate(before)
-    for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (!Object.is((before as Record<string, unknown>)[key], (after as Record<string, unknown>)[key])) {
-        globalTouchedRef.current.add(key)
-      }
-    }
-    saveGlobalConfig(mutate)
-    snapshots.dirty = true
+    let undo: ConfigUndo[] = []
+    saveGlobalConfig(current => {
+      const next = mutate(current)
+      undo = configUndoLeaves('global', current, next)
+      return next
+    })
+    undoRef.current.push(...undo)
+    dirtyRef.current = true
     bump()
   }
 
@@ -568,7 +580,7 @@ export function Config({
     change: direction => {
       if (seatFacts === null) return
       const next = direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1)
-      const after = setOperatorSeats(next)
+      const after = setOperatorSeats(next, writeGlobal)
       setSeatFacts(after)
       recordSet('seats', `set the seat ceiling to ${after.seats}`)
       bump()
@@ -583,7 +595,7 @@ export function Config({
     change: () => {
       const next = merged.activity?.tips?.enabled === false
       if (writeSource('localSettings', { activity: { tips: { enabled: next ? undefined : false } } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordToggle('tips', `set tips to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -598,7 +610,7 @@ export function Config({
     change: () => {
       const next = merged.view?.reducedMotion !== true
       if (writeSource('localSettings', { view: { reducedMotion: next ? true : undefined } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordToggle('reducedMotion', `set reduced motion to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -615,7 +627,7 @@ export function Config({
     change: () => {
       const next = merged.view?.ping === false
       if (writeSource('userSettings', { view: { ping: next ? undefined : false } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordToggle('ping', `set the ping to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -636,7 +648,7 @@ export function Config({
     change: () => {
       const next = merged.view?.accountIdentity === false
       if (writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordToggle('accountIdentity', `set account identity to ${next ? 'shown' : 'hidden'}`)
         bump()
       }
@@ -652,12 +664,8 @@ export function Config({
     warning: 'Hide the side rails for full-width chat. /zen also toggles this.',
     change: () => {
       const next = merged.view?.zen !== true
-      const error = setZenMode(next)
-      if (error !== null) {
-        writeFailed('userSettings', error)
-        return
-      }
-      snapshots.dirty = true
+      if (!writeSource('userSettings', { view: { zen: next ? true : undefined } })) return
+      settingsChangeDetector.notifyChange('userSettings')
       recordToggle('zen', `set zen mode to ${next ? 'on' : 'off'}`)
       bump()
     },
@@ -673,9 +681,7 @@ export function Config({
       warning: `${motionDetailLines().slice(0, 2).join(' · ')} · auto = full until painting falls behind, then reduced · full never reduces · reduced slows the clock and stills the critter · off stops idle motion · doors: ${MOTION_DOORS}`,
       change: direction => {
         const next = cycleIn(MOTION_SETTINGS, motionSetting, direction)
-        setMotionSetting(next)
-        globalTouchedRef.current.add('motion')
-        snapshots.dirty = true
+        setMotionSetting(next, writeGlobal)
         recordSet('motion', `set motion to ${next}`)
         bump()
       },
@@ -712,9 +718,7 @@ export function Config({
       warning: [jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings)), ...jevSettingLines(jevSettings)].join(' · '),
       change: () => {
         const next = !jevSettings.enabled
-        setJevEnabled(next)
-        globalTouchedRef.current.add('jev')
-        snapshots.dirty = true
+        setJevEnabled(next, undefined, writeGlobal)
         recordToggle('jev', `set JEV to ${jevValueWords({ ...jevSettings, enabled: next })}`)
         bump()
       },
@@ -731,7 +735,7 @@ export function Config({
       const current = validated(profiles, merged.briefs?.profile, 'auto')
       const next = cycleIn(profiles, current, direction)
       if (writeSource('localSettings', { briefs: { profile: next } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         setSessionInstructionProfile(next === 'auto' ? null : isInstructionProfile(next) ? next : null)
         clearInstructionFileCaches()
         recordSet('briefs.profile', `set instruction profile to ${next}`)
@@ -762,7 +766,7 @@ export function Config({
         const engines = ['system', 'brush'] as const
         const next = cycleIn(engines, engineSetting, direction)
         if (writeSource('localSettings', { shell: { engine: next === 'system' ? undefined : next } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordSet('shell.engine', `set shell engine to ${next}`)
           resetShellEngineResolution()
           void endEngineSession()
@@ -797,7 +801,7 @@ export function Config({
         const value =
           next === 'normal' ? undefined : next === 'patient' ? 'patient' : customPatienceSetting(patience.numbers)
         if (writeSource('userSettings', { patience: value })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordSet('patience', `set patience with a quiet model to ${next}`)
           bump()
         }
@@ -829,7 +833,7 @@ export function Config({
           zeroDataRetention: next === 'strict',
         }
         if (writeSource('userSettings', { routing: { openrouter: value } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordSet('routing.openrouter', `set OpenRouter routing policy to ${next}`)
           bump()
         }
@@ -854,7 +858,7 @@ export function Config({
       change: direction => {
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
         if (writeSource('localSettings', { shell: { sessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordSet('shell.sessions', `set shell engine sessions to ${next}`)
           bump()
         }
@@ -880,10 +884,10 @@ export function Config({
         if (!thinkingApplicability.applies) return
         const next = !thinkingOn
         if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordToggle('thinking', `set thinking to ${next ? 'on' : 'off'}`)
           if (conversationHasAssistantTurn) {
-            const initial = snapshots.user.engine?.reasoning !== false
+            const initial = initialThinking.current
             setThinkingWarning(next !== initial)
           }
           bump()
@@ -902,7 +906,7 @@ export function Config({
     change: () => {
       const next = merged.engine?.usageNotice !== true
       if (writeSource('userSettings', { engine: { usageNotice: next ? true : undefined } })) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordToggle('usageNotice', `set usage notice to the model to ${next ? 'on' : 'off'}`)
         bump()
       }
@@ -917,7 +921,8 @@ export function Config({
     change: direction => {
       const levels = ['compact', 'full'] as const
       const next = cycleIn(levels, appState.verbose === true ? 'full' : 'compact', direction)
-      snapshots.dirty = true
+      undoRef.current.push({ source: 'app', path: ['verbose'], previous: appState.verbose })
+      dirtyRef.current = true
       setAppState(prev => ({ ...prev, verbose: next === 'full' }))
       recordToggle('toolOutput', `set tool output to ${next}`)
     },
@@ -940,7 +945,7 @@ export function Config({
     change: () => {
       if (progressPin !== undefined) {
         if (writeSource('userSettings', { activity: { progress: progressPin ? false : undefined } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordToggle('terminalProgressBar', `set activity.progress to ${progressPin ? 'false' : 'unset'}`)
           bump()
         }
@@ -980,7 +985,7 @@ export function Config({
       if (
         writeSource('userSettings', { guardrails: { mode: next } })
       ) {
-        snapshots.dirty = true
+        dirtyRef.current = true
         recordSet('defaultPermissionMode', `set default permission mode to ${permissionModeTitle(next)}`)
         bump()
       }
@@ -1176,9 +1181,9 @@ export function Config({
     change: direction => {
       if (localMain === undefined || !localWindowRow.applies) return
       const next = nextLocalWindowSetting(localWindowSettingOf(localMain), direction)
-      writeLocalWindowSetting(localMain, next)
+      writeLocalWindowSetting(localMain, next, writeGlobal)
       recordSet('localModelWindow', `set the local model window for ${localMain.id} to ${localWindowSettingWords(next)}`)
-      snapshots.dirty = true
+      dirtyRef.current = true
       bump()
     },
   })
@@ -1202,7 +1207,7 @@ export function Config({
       tokens,
       onSet: (id, value, words) => {
         if (writeSource('userSettings', { local: { server: { [id]: value } } })) {
-          snapshots.dirty = true
+          dirtyRef.current = true
           recordSet(`localServer.${id}`, words)
           bump()
         }
@@ -1213,16 +1218,12 @@ export function Config({
     ...advisorConfigItems({
       tokens,
       onToggle: (next, words) => {
-        setAdvisorEnabled(next)
-        globalTouchedRef.current.add('advisor')
-        snapshots.dirty = true
+        setAdvisorEnabled(next, writeGlobal)
         recordToggle('advisor', words)
         bump()
       },
       onInterval: (next, words) => {
-        setAdvisorMinutes(next)
-        globalTouchedRef.current.add('advisor')
-        snapshots.dirty = true
+        setAdvisorMinutes(next, writeGlobal)
         recordSet('advisor.minutes', words)
         bump()
       },
@@ -1400,9 +1401,7 @@ export function Config({
     warning: `${BACKGROUND_LAUNCH_SUMMARY} · ${BACKGROUND_LAUNCH_NOTE} · doors: ${BACKGROUND_LAUNCH_DOORS}`,
     change: () => {
       const next = !backgroundLaunchOn
-      setBackgroundSessionsLaunchCrewmates(next)
-      globalTouchedRef.current.add(BACKGROUND_LAUNCH_KEY)
-      snapshots.dirty = true
+      setBackgroundSessionsLaunchCrewmates(next, writeGlobal)
       recordToggle(BACKGROUND_LAUNCH_KEY, `set ${BACKGROUND_LAUNCH_LABEL.toLowerCase()} to ${backgroundLaunchValueWords(next)}`)
       bump()
     },
@@ -1472,50 +1471,46 @@ export function Config({
     onClose([composeSummary(), 'Sign in first — /logins opens; the door lists that family once a credential connects'].filter(Boolean).join('\n'))
   }
 
-  const revert = (): void => {
-    setThemeSetting(snapshots.theme)
-    if (globalTouchedRef.current.size > 0) {
-      const motionTouched = globalTouchedRef.current.has('motion')
-      saveGlobalConfig(current => {
-        const restored = { ...current } as Record<string, unknown>
-        const snap = snapshots.global as unknown as Record<string, unknown>
-        for (const key of globalTouchedRef.current) {
-          if (snap[key] === undefined) delete restored[key]
-          else restored[key] = snap[key]
+  const revert = (): boolean => {
+    while (undoRef.current.length > 0) {
+      const undo = undoRef.current.at(-1)!
+      if (undo.source === 'global') {
+        saveGlobalConfig(current => restoreConfigLeaf(current, undo.path, undo.previous) as GlobalConfig)
+        if (undo.path[0] === 'motion') noteMotionSettingChanged()
+        if (undo.path[0] === 'mouseCapture') inkInstances.get(process.stdout)?.setMouseTrackingEnabled(undo.previous !== false)
+      } else if (undo.source === 'app') {
+        setAppState(prev => ({ ...prev, verbose: undo.previous as boolean }))
+      } else {
+        const partial = undo.path.reduceRight<unknown>((value, key) => ({ [key]: value }), undo.previous) as Partial<SettingsJson>
+        const { error } = updateSettingsForSource(undo.source, partial)
+        if (error !== null) {
+          writeFailed(undo.source, error)
+          bump()
+          return false
         }
-        return restored as unknown as GlobalConfig
-      })
-      globalTouchedRef.current.clear()
-      if (motionTouched) noteMotionSettingChanged()
+        if (undo.path[0] === 'view' && undo.path[1] === 'zen') settingsChangeDetector.notifyChange(undo.source)
+        if (undo.path[0] === 'briefs' && undo.path[1] === 'profile') {
+          const restoredProfile = getInitialSettings().briefs?.profile
+          setSessionInstructionProfile(isInstructionProfile(restoredProfile) ? restoredProfile : null)
+          clearInstructionFileCaches()
+        }
+        if (undo.path[0] === 'shell' && undo.path[1] === 'engine') {
+          resetShellEngineResolution()
+          void endEngineSession()
+        }
+      }
+      undoRef.current.pop()
     }
-    writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine, sessions: snapshots.local.shell?.sessions } })
-    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning, usageNotice: snapshots.user.engine?.usageNotice }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping, accountIdentity: snapshots.user.view?.accountIdentity }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
-        dataCollection: undefined,
-        requireParameters: undefined,
-        allowFallbacks: undefined,
-        zeroDataRetention: undefined,
-        ...snapshots.user.routing?.openrouter,
-      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore }, memory: { pinnedLimit: snapshots.user.memory?.pinnedLimit, startLimit: snapshots.user.memory?.startLimit } })
-    writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
-    if (changesRef.current.has('zen')) {
-      const error = setZenMode(snapshots.user.view?.zen === true)
-      if (error !== null) writeFailed('userSettings', error)
-    }
-    setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
-    const restoredProfile = snapshots.local.briefs?.profile
-    setSessionInstructionProfile(
-      isInstructionProfile(restoredProfile) ? restoredProfile : null,
-    )
-    clearInstructionFileCaches()
     changesRef.current.clear()
-    snapshots.dirty = false
+    dirtyRef.current = false
     setThinkingWarning(false)
     bump()
+    return true
   }
 
   const escape = (): void => {
     if (escapeFromOutsidePress()) {
-      if (snapshots.dirty) revert()
+      if (dirtyRef.current && !revert()) return
       onClose(undefined)
       return
     }
@@ -1524,7 +1519,7 @@ export function Config({
       return
     }
     if (searchMode) setSearchMode(false)
-    if (snapshots.dirty) {
+    if (dirtyRef.current) {
       revert()
       return
     }
@@ -1644,7 +1639,6 @@ export function Config({
         defaultFocusValue={themeSetting}
         onChange={value => {
           setThemeSetting(value)
-          snapshots.theme = value
           setSubMenu(null)
         }}
         onCancel={() => setSubMenu(null)}
@@ -1675,7 +1669,7 @@ export function Config({
         initialLanguage={merged.voice?.language}
         onComplete={language => {
           if (writeSource('userSettings', { voice: { language: language } })) {
-            snapshots.dirty = true
+            dirtyRef.current = true
             recordSet('language', `set language to ${language ?? 'auto'}`)
           }
           setSubMenu(null)

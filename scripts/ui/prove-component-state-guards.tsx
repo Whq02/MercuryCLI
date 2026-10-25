@@ -1,8 +1,9 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { join } from 'node:path'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.js'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.js'
 
 pinSourceRef()
 const home = pinScratchHome('component-state-guards')
@@ -12,7 +13,7 @@ const check = (label: string, ok: boolean): void => {
   if (!ok) failures++
 }
 
-const session = { originalCwd: process.cwd(), worktreePath: join(home, 'worktree'), worktreeBranch: 'fixture', originalHeadCommit: 'base' }
+let session = { originalCwd: process.cwd(), worktreePath: join(home, 'worktree'), worktreeBranch: 'fixture', originalHeadCommit: 'base', worktreeName: 'fixture', sessionId: 'fixture-session' }
 let statusCode = 0
 let countCode = 0
 let countText = '0'
@@ -20,25 +21,33 @@ let changed = ''
 let removed = 0
 const checkedDirectories: string[] = []
 const worktrees = await import('../../src/utils/worktree.js')
+const realCleanup = worktrees.cleanupWorktree
+const realCurrent = worktrees.getCurrentWorktreeSession
+let realRemoval = false
+let removalError = ''
+let exitsRecorded = 0
 const execution = await import('../../src/utils/execFileNoThrow.js')
 const logs = await import('../../src/utils/sessionStorage/logs.js')
+const runCommand = execution.execFileNoThrowWithCwd
 mock.module('../../src/utils/worktree.js', () => ({
   ...worktrees,
   getCurrentWorktreeSession: () => session,
-  cleanupWorktree: async () => { removed++ },
+  cleanupWorktree: async () => { removed++; if (realRemoval) await realCleanup() },
   keepWorktree: async () => {},
 }))
 mock.module('../../src/utils/execFileNoThrow.js', () => ({
   ...execution,
   execFileNoThrow: async () => ({ code: 0, stdout: '', stderr: '' }),
   execFileNoThrowWithCwd: async (_command: string, args: string[], options: { cwd: string }) => {
+    if (args[0] === 'worktree' && removalError !== '') return { code: 128, stdout: '', stderr: removalError }
+    if (realRemoval) return runCommand(_command, args, options)
     checkedDirectories.push(options.cwd)
     return args[0] === 'status'
       ? { code: statusCode, stdout: changed, stderr: '' }
       : { code: countCode, stdout: countText, stderr: '' }
   },
 }))
-mock.module('../../src/utils/sessionStorage/logs.js', () => ({ ...logs, saveWorktreeState: () => {} }))
+mock.module('../../src/utils/sessionStorage/logs.js', () => ({ ...logs, saveWorktreeState: () => { exitsRecorded++ } }))
 
 const { ValidationErrorsList } = await import('../../src/components/ValidationErrorsList.js')
 const { WorktreeExitDialog } = await import('../../src/components/WorktreeExitDialog.js')
@@ -92,6 +101,62 @@ try {
     if (scenario.expected === 0) check(`${scenario.name}: keeps the choice available`, view.screen().includes('Keep worktree'))
     view.unmount()
     await settle(50)
+  }
+  const root = join(home, 'repo')
+  mkdirSync(root)
+  const git = (args: string[]): void => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' })
+    if (result.status !== 0) throw new Error(result.stderr)
+  }
+  git(['init', '-q'])
+  git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'fixture'])
+  const parent = join(root, 'trees')
+  mkdirSync(parent)
+  const bootstrap = await import('../../src/bootstrap/state.js')
+  const { getCurrentProjectConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+  bootstrap.setOriginalCwd(root)
+  bootstrap.setProjectRoot(root)
+  bootstrap.setCwdState(root)
+  realRemoval = true
+  for (const scenario of ['read-only parent', 'file held open', 'successful removal']) {
+    const slug = scenario.replaceAll(' ', '-')
+    const path = join(parent, slug)
+    git(['worktree', 'add', '-qb', slug, path])
+    const sha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
+    session = { originalCwd: root, worktreePath: path, worktreeBranch: slug, originalHeadCommit: sha, worktreeName: slug, sessionId: 'fixture-session' }
+    worktrees.restoreWorktreeSession(session)
+    saveCurrentProjectConfig(c => ({ ...c, activeWorktreeSession: { originalCwd: root, worktreePath: path, worktreeName: slug, sessionId: session.sessionId } }))
+    const expectedFailure = scenario !== 'successful removal'
+    if (scenario === 'read-only parent' && process.platform !== 'win32') chmodSync(parent, 0o555)
+    removalError = scenario === 'file held open' ? `fatal: failed to delete '${path}': Device or resource busy` : process.platform === 'win32' && scenario === 'read-only parent' ? `fatal: failed to delete '${path}': Permission denied` : ''
+    if (scenario === 'file held open') writeFileSync(join(path, 'held.txt'), 'keep this file')
+    exitsRecorded = 0
+    let result: string | undefined
+    let reported = 0
+    const view = await mount(<WorktreeExitDialog onDone={message => { result = message; reported++ }} />)
+    if (scenario === 'file held open') {
+      check('a held file presents the existing remove choice', await waitFor(() => view.screen().includes('Remove worktree'), 3000))
+      view.push(KEY.down)
+      await settle(80)
+      view.push(KEY.enter)
+    }
+    await waitFor(() => result !== undefined, 4000)
+    if (expectedFailure) {
+      check(`${scenario}: the failure row carries the OS reason, not Removed`, result !== undefined && !result.startsWith('Removed') && /Permission denied|Device or resource busy/.test(result))
+      check(`${scenario}: the row names the tree and a retry action`, result !== undefined && result.includes(path) && /retry|try again/i.test(result))
+      check(`${scenario}: the tree and session record stay`, existsSync(path) && realCurrent()?.worktreePath === path && getCurrentProjectConfig().activeWorktreeSession?.worktreePath === path)
+      check(`${scenario}: session history is not cleared`, exitsRecorded === 0)
+      if (scenario === 'file held open') check('the held file is untouched', readFileSync(join(path, 'held.txt'), 'utf8') === 'keep this file')
+    } else {
+      check('successful removal reports Removed once', result?.startsWith('Removed') === true && reported === 1)
+      check('successful removal clears the tree and both records', !existsSync(path) && realCurrent() === null && getCurrentProjectConfig().activeWorktreeSession === undefined && exitsRecorded === 1)
+    }
+    view.unmount()
+    if (process.platform !== 'win32') chmodSync(parent, 0o755)
+    removalError = ''
+    rmSync(path, { recursive: true, force: true })
+    git(['worktree', 'prune'])
+    worktrees.restoreWorktreeSession(null)
   }
 } finally {
   await releaseScratchHome(home)

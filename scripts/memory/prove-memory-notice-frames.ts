@@ -211,7 +211,7 @@ section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens 
   check('each row carries the rule\'s size, its asked mark and its words', ruleRows.length >= 5 && ruleRows.every(l => l.includes('chars · asked for by you · About')), ruleRows.slice(0, 2).join(' | '))
   const heading = m.lines().find(l => l.includes('memory › pinned rules')) ?? ''
   check('the breadcrumb says how full the shelf is and that all still loads', /memory › pinned rules · [\d.]+k of [\d.]+k · over the limit, all still loaded/.test(heading), heading.trim())
-  check('the list footer offers ↵ open and no letter key; the legend names the road and /config for the limit', m.lines().some(l => l.includes('↑↓ move · ↵ open · esc back')) && !m.lines().some(l => l.includes('↑↓ move') && l.includes('u unpin')) && m.lines().some(l => l.includes('↵ opens a rule: c corrects it, x retires it, u unpins it') && l.includes('/config raises the limit')), m.lines().filter(l => l.includes('↵ open')).join(' | '))
+  check('the list footer offers ↵ open and no letter key; the legend names the road and /config for the limit', m.lines().some(l => l.includes('↑↓ move · pgup/pgdn page · ↵ open · esc back')) && !m.lines().some(l => l.includes('↑↓ move') && l.includes('u unpin')) && m.lines().some(l => l.includes('↵ opens a rule: c corrects it, x retires it, u unpins it') && l.includes('/config raises the limit')), m.lines().filter(l => l.includes('↵ open')).join(' | '))
   save('memory-pinned-120x40.txt', m.lines())
   const selected = m.lines().find(l => l.includes('❯') && l.includes('chars ·')) ?? ''
   check('the first rule row is selected on entry', selected !== '', selected.trim())
