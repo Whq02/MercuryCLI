@@ -382,6 +382,7 @@ class Project {
       queued?: { line: string; resolve: () => void }
     }
   >()
+  private settledBeforeRecord = new Map<string, Message>()
   private flushTimer: ReturnType<typeof setTimeout> | null = null
   private activeDrain: Promise<void> | null = null
   private FLUSH_INTERVAL_MS = 100
@@ -408,6 +409,7 @@ class Project {
 
   _resetFlushState(): void {
     this.settleState = new Map()
+    this.settledBeforeRecord = new Map()
     this.pendingWriteCount = 0
     this.flushResolvers = []
     if (this.flushTimer) clearTimeout(this.flushTimer)
@@ -592,6 +594,7 @@ class Project {
     this.sessionFile = null
     this.pendingEntries = []
     this.settleState = new Map()
+    this.settledBeforeRecord = new Map()
     this.currentSessionChainLeaf = undefined
   }
 
@@ -882,6 +885,14 @@ class Project {
   }
 
   private enqueueMessageWrite(file: string, entry: Entry): void {
+    if (entry.type === 'user' || entry.type === 'assistant') {
+      const settled = this.settledBeforeRecord.get(entry.uuid)
+      if (settled !== undefined) {
+        this.settledBeforeRecord.delete(entry.uuid)
+        const [cleaned] = cleanForTranscript([settled])
+        if (cleaned) entry = { ...entry, ...cleaned } as Entry
+      }
+    }
     const encoded = encodeTranscriptLine(file, entry as Record<string, unknown>)
     const line = encoded.line
     if (entry.type === 'user' || entry.type === 'assistant') {
@@ -913,7 +924,10 @@ class Project {
   async settleMessage(message: Message): Promise<void> {
     if (this.shouldSkipPersistence()) return
     const cached = this.settleState.get(message.uuid)
-    if (!cached) return
+    if (!cached) {
+      this.settledBeforeRecord.set(message.uuid, message)
+      return
+    }
     const [cleaned] = cleanForTranscript([message])
     if (!cleaned) return
     const settled = { ...cached.entry, ...cleaned } as Entry

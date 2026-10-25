@@ -8,10 +8,11 @@
 # gate-watch: src/tools/MCPTool/MCPTool.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/services/dap/dapClient.ts src/tools/LSPTool/LSPTool.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/services/providers/** src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
+# gate-watch: src/services/providers/** src/utils/sessionStorage/chain.ts src/utils/sessionStorage/writer.ts src/utils/toolSchemaCache.ts
 # gate-watch: src/prompt/composer.ts src/utils/settings/settings.ts scripts/lib/hermetic.ts src/services/eval/interpreters.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/engine-durability/harness.ts
 # gate-watch: src/run-core/turn-machine.ts src/services/run/resolveOwner.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts
+# gate-watch: src/query.ts src/query/deps.ts src/services/compact/compact.ts src/utils/toolResultStorage.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
