@@ -60,6 +60,8 @@ if (catalogue) {
   const preview = c.moonshotCatalogueRows()
   const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
   check('signed out, the dated observations preview the lineup with each row\'s own date and none is listed live', preview.source.kind === 'pin' && preview.rows[0]?.id === 'kimi-k3' && preview.rows.every(row => !row.listedLive && row.observedAt === kimiDisplayPin(row.id)?.observedAt))
+  const documentedModels = ['kimi-k3.1-pro', 'kimi-k3.1-pro-highspeed', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6']
+  check('signed-out preview matches the served list at https://platform.kimi.ai/docs/models.md (2026-10-25)', JSON.stringify(preview.rows.map(row => row.id).sort()) === JSON.stringify(documentedModels.sort()), preview.rows.map(row => row.id).join(','))
   writeStoredMoonshotApiKey('fixture-stored-one')
   const unread = c.moonshotCatalogueRows()
   check('a stored key with no fetched list lists nothing and says the list is unread, never the dated table', unread.source.kind === 'unread' && unread.source.reading && unread.rows.length === 0 && keyLanePins('moonshot').length === 0, JSON.stringify(unread))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -149,6 +149,55 @@ chord()
 await settle()
 check('the chord grants the session option with no rule suggestions', j(taken()) === j(['onDone', `onAllow(${j({ ...originalInput, parsed: true })}, [], undefined)`]), j(journal))
 read.close()
+
+section('§5 READ SYMLINKS — the same target and workspace escape row as edits')
+const { FilePermissionDialog } = await import('../../src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx')
+const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
+const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { Text } = await import('../../src/ink.js')
+const inside = join(PROJ, 'target.txt')
+const outside = join(HOME, 'target.txt')
+writeFileSync(inside, 'inside')
+writeFileSync(outside, 'outside')
+const links = [
+  { path: join(PROJ, 'inside-link.txt'), target: inside, warning: `Symlink target: ${inside}` },
+  { path: join(PROJ, 'outside-link.txt'), target: outside, warning: `This operation will modify ${outside} — outside the working directory via a symlink` },
+]
+for (const link of links) symlinkSync(link.target, link.path)
+const dangling = join(PROJ, 'dangling.txt')
+symlinkSync(join(PROJ, 'missing.txt'), dangling)
+const compact = (text: string): string => text.replace(/[│\s]+/g, '')
+for (const operationType of ['write', 'read'] as const) {
+  for (const entry of [...links, ...[inside, dangling, null].map(path => ({ path, target: '', warning: '' }))]) {
+    const card = React.createElement(FilePermissionDialog, {
+      toolUseConfirm: { ...toolUseConfirm, input: { file_path: entry.path }, permissionResult: { behavior: 'ask' } } as never,
+      onDone,
+      onReject,
+      title: operationType === 'read' ? 'Read file' : 'Edit file',
+      path: entry.path,
+      operationType,
+      parseInput,
+      content: React.createElement(Text, null, 'Fixture content'),
+    })
+    const tree = React.createElement(ThemeProvider, null, React.createElement(AppStateProvider, null, React.createElement(KeybindingSetup, null, card)))
+    const scene = await mountOffscreen(tree, 120, 24)
+    try {
+      check(`${operationType}: the file card renders`, await waitFor(() => scene.screen().includes('Fixture content'), 1800), scene.screen())
+      const frame = scene.screen()
+      check(`${operationType}: ${entry.path ?? 'no path'} shows only its existing symlink warning`, entry.warning !== ''
+        ? compact(frame).includes(compact(entry.warning))
+        : !frame.includes('Symlink target:') && !frame.includes('outside the working directory via a symlink'), frame)
+      if (process.argv.includes('--frames') && entry.warning !== '') console.log(frame)
+    } finally {
+      scene.unmount()
+    }
+  }
+}
+process.chdir(tmpdir())
+rmSync(HOME, { recursive: true, force: true })
+rmSync(PROJ, { recursive: true, force: true })
 
 console.log(failures === 0 ? '\nPASS file dialog dispatch' : `\nFAIL ${failures} check(s)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -204,11 +204,11 @@ console.log('\n§8 conversation-model retention (pure helper; ambient-safe forms
       'openrouter/stealth/ox-alpha',
   )
   check(
-    'every family retains verbatim (gemini · zai · moonshot · deepseek · o-series · local)',
+    'every family retains verbatim (Moonshot: https://platform.kimi.ai/docs/models.md, 2026-10-25)',
     [
       'gemini-3-pro-preview',
       'glm-5.2',
-      'kimi-k2.5-0127',
+      'kimi-k2.6',
       'deepseek-v4',
       'o5-mini',
       'qwen3-coder:30b',

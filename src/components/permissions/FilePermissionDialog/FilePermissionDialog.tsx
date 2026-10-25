@@ -58,7 +58,7 @@ export function FilePermissionDialog<T extends ToolInput>({
   )
 
   const symlinkTarget = useMemo(() => {
-    if (operationType === 'read' || path === null) return undefined
+    if (path === null) return undefined
     try {
       const expanded = expandPath(path)
       if (!lstatSync(expanded).isSymbolicLink()) return undefined
@@ -66,7 +66,7 @@ export function FilePermissionDialog<T extends ToolInput>({
     } catch {
       return undefined
     }
-  }, [operationType, path])
+  }, [path])
   const symlinkEscapes =
     symlinkTarget !== undefined && relative(getFocusedSessionConnector().workspace().cwd, symlinkTarget).startsWith('..')
 

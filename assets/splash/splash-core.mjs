@@ -207,7 +207,6 @@ const MODEL_NAMES = {
   "kimi-k2.7-code": "Kimi K2.7 Code",
   "kimi-k2.7-code-highspeed": "Kimi K2.7 Code Highspeed",
   "kimi-k2.6": "Kimi K2.6",
-  "kimi-k2.5": "Kimi K2.5",
   "k3.1-pro": "K3.1 Pro",
   "k3.1-pro-highspeed": "K3.1 Pro Highspeed",
   "k3": "K3",

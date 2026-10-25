@@ -94,7 +94,7 @@ const openrouterFull: ModelChoice[] = [
   row('anthropic/claude-opus-5.5', 'anthropic/claude-opus-5.5', '1M ctx', OPENROUTER),
   ...Array.from({ length: OPENROUTER_TOTAL - openrouterListed.length - 1 }, (_, k) => row(`vendor-${k}/model-${k}`, `Vendor ${k} Model ${k}`, '128k ctx', OPENROUTER)),
 ]
-const moonshot: ModelChoice[] = [row('kimi-k3-0905', 'Kimi K3', '262k ctx', MOONSHOT), row('kimi-k2.5-thinking', 'Kimi K2.5', '262k ctx', MOONSHOT)]
+const moonshot: ModelChoice[] = [row('kimi-k3-0905', 'Kimi K3', '262k ctx', MOONSHOT), row('kimi-k2.6', 'Kimi K2.6', '262k ctx', MOONSHOT)]
 const gemini: ModelChoice[] = Array.from({ length: 14 }, (_, k) => row(`gemini-3.${k}-pro`, `Gemini 3.${k} Pro`, '1M ctx', GEMINI))
 const zai: ModelChoice[] = [
   row('glm-5.3', 'GLM 5.3', '200k ctx', ZAI),
@@ -221,6 +221,7 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   check('the other providers follow by most recent use, then the never-used in today\'s order', others.every(line => line !== '') && others.map(line => lines.indexOf(line)).every((at, k, all) => k === 0 || at > all[k - 1]!), others.map(inner).join(' | '))
   check('a one-door heading reads PROVIDER · door · account · N live', inner(lineWith(lines, 'OPENAI')).trim() === `▾ OPENAI · ChatGPT Pro login · ${EMAIL} · 5 live`, inner(lineWith(lines, 'OPENAI')).trim())
   check('the OpenRouter heading counts the whole live list', inner(lineWith(lines, 'OPENROUTER')).trim() === `▸ OPENROUTER · OAuth key · …9c1d · ${OPENROUTER_TOTAL} live`, inner(lineWith(lines, 'OPENROUTER')).trim())
+  check('the Moonshot row uses the served K2.6 id (https://platform.kimi.ai/docs/models.md, 2026-10-25)', /Kimi K2\.6\s+kimi-k2\.6\s+262k ctx/.test(rowOf(lines, 'kimi-k2.6')), rowOf(lines, 'kimi-k2.6'))
   const fable = rowOf(lines, 'claude-fable-5-1')
   check('the current row reads alias · raw id · current · ctx', /Fable 5\.1\s+claude-fable-5-1\s+current\s+1M ctx/.test(fable), fable)
   check('the current row sits in the red cursor box', lines[lines.indexOf(fable) - 1]?.includes('╭') === true && lines[lines.indexOf(fable) + 1]?.includes('╰') === true)

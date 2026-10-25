@@ -250,8 +250,8 @@ section('§1 THE RULE — the openrouter row reads the native form; the plan def
   check('the capability row is the native form', (wire.DEFERRAL_WIRE_CAPABILITY as Record<string, string>).openrouter === 'openrouter-native', String((wire.DEFERRAL_WIRE_CAPABILITY as Record<string, string>).openrouter))
   check('the route defers (supportsToolDeferral)', wire.supportsToolDeferral(MODEL) === true)
   check('the search is the server\'s on this form (deferralSearchIsServerSide)', serverSide('openrouter-native') === true && serverSide('text') === false && serverSide('block') === false)
-  for (const id of ['openrouter/openai/gpt-5-mini', 'openrouter/anthropic/claude-sonnet-4.5', 'openrouter/google/gemini-2.5-flash', 'openrouter/deepseek/deepseek-v3.2', 'openrouter/moonshotai/kimi-k2.5']) {
-    check(`the docs exclude no model: ${id} reads the native form`, wire.deferralWireFormFor(id).form === 'openrouter-native', wire.deferralWireFormFor(id).form)
+  for (const id of ['openrouter/openai/gpt-5-mini', 'openrouter/anthropic/claude-sonnet-4.5', 'openrouter/google/gemini-2.5-flash', 'openrouter/deepseek/deepseek-v3.2', 'openrouter/moonshotai/kimi-k2.6']) {
+    check(`the docs exclude no model: ${id} reads the native form (Moonshot fixture: https://platform.kimi.ai/docs/models.md, 2026-10-25)`, wire.deferralWireFormFor(id).form === 'openrouter-native', wire.deferralWireFormFor(id).form)
   }
   clearToolRosterLatches()
   const plan = await planToolPayload({ model: MODEL, tools: POOL as never, messages: [createUserMessage({ content: 'begin' }) as Message], getToolPermissionContext: async () => permissionContext, agents: [], hasPendingMcpServers: false, source: 'proof', latchKey: 'proof' })

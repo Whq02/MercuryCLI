@@ -143,11 +143,6 @@ export const KIMI_DISPLAY_PINS: readonly KimiDisplayPin[] = [
     observedAt: '2026-08-21',
     thinking: 'opt-in',
   },
-  {
-    id: 'kimi-k2.5',
-    displayName: 'Kimi K2.5',
-    observedAt: '2026-08-21',
-  },
 ]
 
 const KIMI_PINS: readonly KimiDisplayPin[] = [...KIMI_PLAN_PINS, ...KIMI_DISPLAY_PINS]

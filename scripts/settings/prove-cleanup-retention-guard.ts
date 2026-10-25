@@ -172,5 +172,43 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
   check(`${road}: the old debug log survives`, r.log === true)
 }
 
+console.log('L6 an aged error log is a removal, not a failed sweep')
+{
+  const r = runIn(`
+    globalThis.MACRO = { VERSION: '1.0.0' }
+    fs.writeFileSync(userSettingsPath, JSON.stringify({ theme: 'dark' }))
+    const { CACHE_PATHS } = await import(${JSON.stringify(join(SRC, 'utils/cachePaths.ts'))})
+    CACHE_PATHS.baseLogs = () => path.join(home, 'logs')
+    CACHE_PATHS.errors = () => path.join(home, 'logs', 'errors')
+    const planted = path.join(CACHE_PATHS.errors(), '2000-01-01T00-00-00-000Z.txt')
+    fs.mkdirSync(CACHE_PATHS.errors(), { recursive: true })
+    fs.writeFileSync(planted, 'old error')
+    const cleanup = await import(${JSON.stringify(join(SRC, 'utils/cleanup.ts'))})
+    out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
+    out.removed = !fs.existsSync(planted)
+    fs.writeFileSync(planted, 'old error')
+    const housekeeping = await import(${JSON.stringify(join(SRC, 'utils/backgroundHousekeeping.ts'))})
+    housekeeping._resetHousekeepingCycleForTesting()
+    const sentinel = path.join(home, '.last-cleanup')
+    fs.writeFileSync(sentinel, 'previous sweep')
+    const old = new Date(Date.now() - 2 * 86_400_000)
+    fs.utimesSync(sentinel, old, old)
+    const before = fs.statSync(sentinel).mtimeMs
+    let outcome = 'continue'
+    for (let step = 0; step < 12 && outcome === 'continue'; step++) {
+      outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000 })
+    }
+    out.outcome = outcome
+    out.cycleRemoved = !fs.existsSync(planted)
+    await housekeeping.runLifecycleVerbOpportunity('health', { budgetMs: 60_000 })
+    out.advanced = fs.statSync(sentinel).mtimeMs > before && fs.readFileSync(sentinel, 'utf8') !== 'previous sweep'
+  `)
+  const receipt = r.receipt as { messages: number; errors: number }
+  check('one aged error log is removed', r.removed === true)
+  check('the receipt counts one removal and no failures', receipt.messages === 1 && receipt.errors === 0, JSON.stringify(receipt))
+  check('the cycle removes the aged error log and completes cleanly', r.cycleRemoved === true && r.outcome === 'cycle-complete', String(r.outcome))
+  check('the successful cycle advances the stale sentinel', r.advanced === true)
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

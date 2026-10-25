@@ -55,7 +55,7 @@ async function cleanupOldMessageFiles(): Promise<CleanupResult> {
       if (!(convertFileNameToDate(entry.name) < cutoff)) continue
       try {
         await fs.unlink(join(errorsDir, entry.name))
-        result.errors++
+        result.messages++
       } catch (err) {
         logError(err)
       }
