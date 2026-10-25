@@ -99,6 +99,10 @@ See [docs/README.md](docs/README.md) for the full documentation catalogue ([docs
 | `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
 | `/mcp` | Inspect servers, sign in, browse each server’s tools and parameters, reconnect, or toggle a server for this chat. |
 
+## Author
+
+Mercury CLI is designed, built and maintained by **Waleed Al Qusous** as its sole developer — seven months from the first line to this release, 42 public releases, 717,000 lines of TypeScript and 3,900 proofs, built with the AI agents it now runs. [GitHub](https://github.com/Whq02) · [X](https://x.com/dubsthedev) · [mercury-cli.ai](https://mercury-cli.ai)
+
 ## Reporting a problem
 
 For a short report (OS, what you tried, what broke; no health dump), use [the tester form](https://mercury-cli.ai/report) or `/bug --short <what you tried>` inside Mercury. Run `/bug <what happened>` to preview and file a full report through your signed-in GitHub CLI (`gh`), or open an issue with your `--version` output, OS, terminal, steps and `mercury health --json` (`node dist/mercury.mjs health --json` for a source build). Report security problems privately through the repository's Security tab ([SECURITY.md](SECURITY.md)); see [CONTRIBUTING.md](CONTRIBUTING.md) for pull requests and checks.

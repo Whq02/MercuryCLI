@@ -11,6 +11,7 @@
 # gate-watch: src/utils/crashReport.ts
 # gate-watch: scripts/release/winget-manifest.mjs
 # gate-watch: Dockerfile .dockerignore bunfig.toml src/services/privateChannel/vendoredRuntime.ts src/services/providers/credentialEnvSpellings.ts scripts/lib/fixtureApi.ts
+# gate-watch: README.md scripts/release/readmeAuthor.mjs
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
