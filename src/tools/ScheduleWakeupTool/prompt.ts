@@ -30,5 +30,5 @@ This is the native way to run a self-paced loop: instead of a fixed cron cadence
 - pacing a long self-directed task across several wakes without burning a turn idling
 - Not for fixed recurring schedules ("every 5 minutes", "every day at 9am") — use ${CRON_CREATE_TOOL_NAME} for those. This tool fires exactly once per call.
 
-The wake fires only while the session is idle (not mid-turn), same as all scheduled prompts. It lives exactly as long as the turn that asked for it: when the operator interrupts, parks or stops the session, the pending wake is dropped (with a receipt) and the loop does not resume on its own.`
+The wake fires only while the session is idle (not mid-turn), same as all scheduled prompts. When the operator interrupts or stops the session, the pending wake is dropped (with a receipt) and the loop does not resume on its own; a parked session keeps its wake and is woken by it when it fires.`
 }
