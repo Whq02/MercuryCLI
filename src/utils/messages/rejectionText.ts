@@ -87,4 +87,4 @@ export function denialLineOf(raw: string): string {
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
 export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =
-  '[Tool result missing due to internal error]'
+  'No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.'

@@ -49,6 +49,32 @@ function envFlagDefaultOn(name: string): boolean {
   return isEnvTruthy(raw === undefined || raw === '' ? '1' : raw)
 }
 
+function sampleAcrossTopLevel(files: string[], root: string, limit: number, offset: number): string[] {
+  const groups = new Map<string, string[]>()
+  for (const file of files) {
+    const key = relative(root, file).split(sep)[0]!
+    const group = groups.get(key) ?? []
+    group.push(file)
+    groups.set(key, group)
+  }
+  let active = [...groups.values()].map(group => group.values())
+  const selected = new Set<string>()
+  let count = 0
+  while (active.length && count < offset + limit) {
+    const next: typeof active = []
+    for (const group of active) {
+      const item = group.next()
+      if (item.done) continue
+      if (count >= offset) selected.add(item.value)
+      count++
+      next.push(group)
+      if (count >= offset + limit) break
+    }
+    active = next
+  }
+  return files.filter(file => selected.has(file))
+}
+
 export async function glob(
   filePattern: string,
   cwd: string,
@@ -75,6 +101,12 @@ export async function glob(
   const patterns = resolveSearchGlob(normalizeGlobPattern(pattern), searchDir, false)
   const args = ['--files', ...patterns.flatMap(value => ['--glob', value]), '--sortr=modified', '--no-ignore']
   const universeArgs = ['--files', '--sortr=modified']
+  for (const dir of ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']) {
+    for (const exclude of [`!**/${dir}`, `!**/${dir}/**`]) {
+      args.push('--glob', exclude)
+      universeArgs.push('--glob', exclude)
+    }
+  }
   const depth = globSearchDepth(patterns)
   if (depth !== undefined) {
     args.push('--max-depth', String(depth))
@@ -108,7 +140,7 @@ export async function glob(
     .map(file => resolve(givenSearchDir, relative(searchDir, file)))
   const truncated = files.length > offset + limit
   return {
-    files: files.slice(offset, offset + limit),
+    files: files.length > limit ? sampleAcrossTopLevel(files, givenSearchDir, limit, offset) : files.slice(offset, offset + limit),
     truncated,
     ignored: complete ? matches.lines.length - kept.length : 0,
     ...(complete ? {} : { incomplete: (matches.complete ? universe.reason : matches.reason) ?? 'the search did not finish' }),

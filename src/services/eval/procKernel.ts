@@ -58,7 +58,7 @@ interface CellFrameHandlers {
   onStderr: (chunk: string) => void
   onDisplay: (frame: Extract<RunnerFrame, { t: 'display' }>) => void
   onResult: (repr: string) => void
-  onError: (error: { name: string; value: string; traceback: string; survived?: string[] }) => void
+  onError: (error: { name: string; value: string; traceback: string; survived?: string[]; declared?: string[] }) => void
   onBridge: (frame: BridgeRequestFrame) => void
 }
 
@@ -292,7 +292,7 @@ export class ProcKernel {
         return
       case 'error':
         if (frame.id === this.currentCellId) {
-          this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback, ...(frame.survived !== undefined ? { survived: frame.survived } : {}) })
+          this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback, ...(frame.survived !== undefined ? { survived: frame.survived } : {}), ...(frame.declared !== undefined ? { declared: frame.declared } : {}) })
         }
         return
       case 'bridge':

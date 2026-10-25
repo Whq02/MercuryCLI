@@ -30,7 +30,6 @@ import {
 } from './contracts.js'
 import { primeEvalAvailability } from './interpreters.js'
 import { buildKernelEnv } from './kernelEnv.js'
-import { transformJsCell } from './jsCellTransform.js'
 import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } from './procKernel.js'
@@ -236,7 +235,7 @@ export class EvalKernelManager {
     const runner = language === 'py' ? ensurePyRunner() : ensureJsRunner()
     const kernel = await ProcKernel.launch({
       command: interpreter,
-      args: [runner],
+      args: language === 'js' ? ['--max-old-space-size=512', runner] : [runner],
       cwd,
       env: buildKernelEnv(),
       transport: language === 'py' && this.tuning.pyTransport !== undefined ? this.tuning.pyTransport : kernelTransportFor(language),
@@ -429,12 +428,11 @@ export class EvalKernelManager {
     const samples: SampleItem[] = []
     let displaysDropped = 0
     let resultRepr: string | undefined
-    let cellError: { name: string; value: string; traceback: string; survived?: string[] } | undefined
+    let cellError: { name: string; value: string; traceback: string; survived?: string[]; declared?: string[] } | undefined
     const nested: { seq: number; name: string; ok: boolean; error?: string; code?: number }[] = []
 
     const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
-    const transformed = input.language === 'js' ? transformJsCell(input.code) : null
-    const code = transformed !== null ? transformed.code : input.code
+    const code = input.code
 
     let interruptRequested: 'budget' | 'wall' | 'abort' | null = null
     let escalated = false
@@ -500,7 +498,7 @@ export class EvalKernelManager {
             budget.bridgeEnd()
           })
       },
-    }, transformed !== null ? transformed.persistedNames : undefined)
+    })
 
     runtime.start()
     wall.start()
@@ -574,7 +572,7 @@ export class EvalKernelManager {
       }
     }
     if (status === 'error') {
-      annotations.push(...stateAfterFailure(input.language, transformed?.persistedNames ?? [], cellError))
+      annotations.push(...stateAfterFailure(input.language, cellError?.declared ?? [], cellError))
       annotations.push(...jsEnvironmentNotes(input.language, cellError))
     }
     if (status === 'error' || nested.some(r => !r.ok)) {

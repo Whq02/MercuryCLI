@@ -669,10 +669,13 @@ export function createImageMetadataText(
   const parts: string[] = []
   if (sourcePath) parts.push(`source: ${sourcePath}`)
   if (resized) {
-    const scale = (originalWidth / displayWidth).toFixed(2)
+    const x = (originalWidth / displayWidth).toFixed(2)
+    const y = (originalHeight / displayHeight).toFixed(2)
     parts.push(`original dimensions: ${originalWidth}x${originalHeight}`)
     parts.push(`displayed at: ${displayWidth}x${displayHeight}`)
-    parts.push(`multiply any coordinates you read off this image by ${scale} to map them onto the original`)
+    parts.push(x === y
+      ? `multiply any coordinates you read off this image by ${x} to map them onto the original`
+      : `multiply x coordinates by ${x} and y coordinates by ${y} to map them onto the original`)
   }
   const head = ordinal === undefined ? 'Image' : `Image ${ordinal.index} of ${ordinal.count}`
   return `[${head}: ${parts.join(', ')}]`

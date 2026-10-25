@@ -1,7 +1,9 @@
 
+import { jsCellTransformerSource } from './jsCellTransform.js'
+
 export const JS_RUNNER_SOURCE: string = `// Mercury eval kernel runner (generated; do not edit in place)
 import { createInterface } from 'node:readline'
-import { createRequire, syncBuiltinESMExports } from 'node:module'
+import { createRequire, syncBuiltinESMExports, stripTypeScriptTypes } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { resolve as resolvePath, join as joinPath, dirname as dirnamePath, basename as basenamePath, isAbsolute, sep as pathSep } from 'node:path'
 import { homedir as osHomedir } from 'node:os'
@@ -277,9 +279,34 @@ Object.assign(globalThis, {
   __mercuryImport,
 })
 
+const { transformJsCell, splitTopLevelSegments } = ${jsCellTransformerSource()}
+
 const AsyncFunction = (async () => {}).constructor
 
-async function runCell(id, code, names) {
+function stripCellTypes(code) {
+  try { new AsyncFunction(code); return code } catch {}
+  try { return stripTypeScriptTypes(code) } catch (error) {
+    const prefix = 'async function __mercury_cell__() {\\n'
+    const suffix = '\\n}'
+    try {
+      const imports = []
+      let offset = 0
+      const body = splitTopLevelSegments(code).map(({ text }) => {
+        const start = offset
+        offset += text.length
+        if (!/^\\s*import\\s*(?!\\s*\\()[{'"*\\w]/.test(text)) return text
+        imports.push({ start, length: text.length, text: stripTypeScriptTypes(text) })
+        return text.replace(/[^\\r\\n]/g, ' ')
+      }).join('')
+      let stripped = stripTypeScriptTypes(prefix + body + suffix).slice(prefix.length, -suffix.length)
+      for (const item of imports.reverse()) stripped = stripped.slice(0, item.start) + item.text + stripped.slice(item.start + item.length)
+      return stripped
+    } catch { throw error }
+  }
+}
+
+async function runCell(id, code) {
+  let names = []
   currentCell = id
   execCount += 1
   emit({ t: 'started', id })
@@ -294,7 +321,9 @@ async function runCell(id, code, names) {
     }
     globalThis.require = require
     globalThis.__mercuryPersistedNames = []
-    const fn = new AsyncFunction(code)
+    const transformed = transformJsCell(stripCellTypes(code))
+    names = transformed.persistedNames
+    const fn = new AsyncFunction(transformed.code)
     const returned = await Promise.race([
       fn.call(globalThis),
       new Promise((_resolve, reject) => {
@@ -322,6 +351,7 @@ async function runCell(id, code, names) {
         name: (error && error.constructor && error.constructor.name) || 'Error',
         value: String((error && error.message) !== undefined ? error.message : error).slice(0, 2000),
         traceback: String((error && error.stack) || '').slice(0, 8000),
+        declared: names,
         survived,
       })
     }
@@ -379,7 +409,7 @@ async function pump() {
       globalThis.env = Object.freeze(Object.assign({}, process.env))
       emit({ t: 'ready' })
     } else if (msg.t === 'exec') {
-      await runCell(String(msg.id), String(msg.code), msg.names)
+      await runCell(String(msg.id), String(msg.code))
     } else if (msg.t === 'bye') {
       process.exit(0)
     }

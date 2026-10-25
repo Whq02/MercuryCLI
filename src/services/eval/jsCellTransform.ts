@@ -5,6 +5,7 @@ interface TransformedCell {
   capturesResult: boolean
 }
 
+function createJsCellTransformer() {
 const LEADING_TRIVIA = /^(?:\s+|\/\/[^\r\n]*(?:\r?\n|$)|\/\*[\s\S]*?\*\/)*/
 const DECL_KEYWORD = /^(const|let|var)\b/
 const FUNC_DECL = /^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/
@@ -33,7 +34,7 @@ interface Segment {
   text: string
 }
 
-export function splitTopLevelSegments(source: string): Segment[] {
+function splitTopLevelSegments(source: string): Segment[] {
   const segments: Segment[] = []
   let start = 0
   for (const i of topLevelCodePositions(source)) {
@@ -433,7 +434,7 @@ function directivePrologue(source: string): string {
   return source.slice(0, end)
 }
 
-export function transformJsCell(source: string): TransformedCell {
+function transformJsCell(source: string): TransformedCell {
   const base = rewriteDynamicImports(source)
   const segments = splitTopLevelSegments(base)
   const names: string[] = []
@@ -528,4 +529,13 @@ function parsesCell(code: string): boolean {
   } catch {
     return false
   }
+}
+
+return { transformJsCell, splitTopLevelSegments }
+}
+
+export const { transformJsCell, splitTopLevelSegments } = createJsCellTransformer()
+
+export function jsCellTransformerSource(): string {
+  return `(${createJsCellTransformer.toString()})()`
 }

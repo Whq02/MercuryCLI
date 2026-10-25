@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { closeSync, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import { closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -491,6 +491,22 @@ function isBlockingDevicePath(path: string): boolean {
 }
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
+
+function hasImageSignature(path: string): boolean {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+  try {
+    if (!fstatSync(fd).isFile()) return false
+    const header = Buffer.alloc(12)
+    const length = readSync(fd, header, 0, header.length, 0)
+    if (length >= 8 && header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return true
+    if (length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) return true
+    const magic = header.subarray(0, 6).toString('ascii')
+    if (length >= 6 && (magic === 'GIF87a' || magic === 'GIF89a')) return true
+    return length >= 12 && header.subarray(0, 4).toString('ascii') === 'RIFF' && header.subarray(8, 12).toString('ascii') === 'WEBP'
+  } finally {
+    closeSync(fd)
+  }
+}
 
 function extensionOf(rawPath: string): string {
   const base = rawPath.split(/[\\/]/).pop() ?? ''
@@ -1769,10 +1785,11 @@ export const FileReadTool = buildTool({
         ? { ...input, file_path: effectiveRawPath, ranges: splitTarget.ranges }
         : input
     const ext = extensionOf(effectiveRawPath)
+    let image = IMAGE_EXTENSIONS.has(ext)
     const ignoredParameterNotes = (): Message[] => {
       const kind = ext === '' ? 'a file with no extension' : `.${ext}`
       const notes: string[] = []
-      if (selectedCrop(effectiveInput.crop) !== undefined && !IMAGE_EXTENSIONS.has(ext)) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
+      if (selectedCrop(effectiveInput.crop) !== undefined && !image) notes.push(`crop ignored — ${kind} is not an image; the file was read as usual. Send crop only for an image file.`)
       if (selectedPages(effectiveInput.pages) !== undefined && !isPDFExtension(ext)) notes.push(`pages ignored — ${kind} is not a PDF; the file was read as usual. Send pages only for a PDF.`)
       return notes.map(content => createUserMessage({ content, isMeta: true }))
     }
@@ -1890,7 +1907,8 @@ export const FileReadTool = buildTool({
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
-      if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, resolvedPath, context, reserve(), selectedCrop(effectiveInput.crop))
+      image = IMAGE_EXTENSIONS.has(ext) || (ext === '' && !ideReadTextAvailable() && hasImageSignature(resolvedPath))
+      if (image) return readImageLane(resolvedPath, resolvedPath, context, reserve(), selectedCrop(effectiveInput.crop))
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
       if (richTarget !== null) {
         return readRichFormatLane(

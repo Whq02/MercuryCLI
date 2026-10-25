@@ -123,7 +123,9 @@ export async function getURLMarkdownContent(
     persistedSize = persisted.size
   }
 
-  const decoded = buffer.toString('utf8')
+  const charset = /;\s*charset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^;\s]*))/i.exec(contentType)
+  const encoding = charset?.[1] ?? charset?.[2] ?? charset?.[3] ?? 'utf-8'
+  const decoded = persistedPath ? '' : new TextDecoder(encoding.trim()).decode(buffer)
   let content: string
   let cachedSize: number
   let notice: string | undefined

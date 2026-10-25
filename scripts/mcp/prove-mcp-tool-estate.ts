@@ -137,9 +137,9 @@ const tools = (await mcp.fetchToolsForClient(client as never)) as Tool[]
 const byServerName = new Map<string, Tool>()
 for (const tool of tools) byServerName.set((tool as { mcpInfo?: { toolName: string } }).mcpInfo?.toolName ?? tool.name, tool)
 t('every fixture tool was discovered (12)', tools.length === 12, `${tools.length}: ${tools.map(x => x.name).join(', ')}`)
-t('a dotted name projects with the dot as an underscore', byServerName.get('plain.echo')?.name === `mcp__${SERVER}__plain_echo`, byServerName.get('plain.echo')?.name)
+t('a dotted name projects with an identity suffix', byServerName.get('plain.echo')?.name === `mcp__${SERVER}__plain_echo_81f9cc`, byServerName.get('plain.echo')?.name)
 t('a dashed name keeps its dashes', byServerName.get('awkward-schema-tool')?.name === `mcp__${SERVER}__awkward-schema-tool`, byServerName.get('awkward-schema-tool')?.name)
-t('a non-ASCII name projects into the grammar charset', /^mcp__estate-fixture__unicode_[_]+$/.test(byServerName.get('unicode_名前')?.name ?? ''), byServerName.get('unicode_名前')?.name)
+t('a non-ASCII name projects into the grammar charset with an identity suffix', byServerName.get('unicode_名前')?.name === 'mcp__estate-fixture__unicode____f304cf', byServerName.get('unicode_名前')?.name)
 const awkward = byServerName.get('awkward-schema-tool')!
 const wireSchema = (awkward as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
 const props = (wireSchema?.properties ?? {}) as Record<string, Record<string, unknown>>
@@ -177,7 +177,7 @@ t('the over-long tool keeps its server prefix and its real name in mcpInfo', lon
 {
   const { wireSafeMcpToolName, buildMcpToolName, getToolNameForPermissionCheck, WIRE_TOOL_NAME_MAX, mcpInfoFromString } = await import('../../src/services/mcp/mcpStringUtils.ts')
   const LONG = 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar'
-  t('wireSafeMcpToolName: a fitting name is the fully-qualified name, unchanged', wireSafeMcpToolName(SERVER, 'plain.echo') === buildMcpToolName(SERVER, 'plain.echo'))
+  t('wireSafeMcpToolName: a clean fitting name is unchanged and a lossy name stays distinct', wireSafeMcpToolName(SERVER, 'plain_echo') === buildMcpToolName(SERVER, 'plain_echo') && wireSafeMcpToolName(SERVER, 'plain.echo') !== wireSafeMcpToolName(SERVER, 'plain_echo'))
   const shortened = wireSafeMcpToolName(SERVER, LONG)
   t(`wireSafeMcpToolName: an over-long name fits ${WIRE_TOOL_NAME_MAX} and keeps the server prefix whole`, shortened.length <= WIRE_TOOL_NAME_MAX && shortened.startsWith(`mcp__${SERVER}__`) && OPENAI_NAME.test(shortened), shortened)
   t('…deterministically', wireSafeMcpToolName(SERVER, LONG) === shortened)

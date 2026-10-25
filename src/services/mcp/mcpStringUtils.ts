@@ -30,9 +30,9 @@ function shortDigest(value: string): string {
 
 export function wireSafeMcpToolName(serverName: string, toolName: string): string {
   const full = buildMcpToolName(serverName, toolName)
-  if (full.length <= WIRE_TOOL_NAME_MAX) return full
+  if (full === `mcp__${serverName}__${toolName}` && full.length <= WIRE_TOOL_NAME_MAX) return full
   const tool = normalizeNameForMCP(toolName)
-  const suffix = `_${shortDigest(toolName)}`
+  const suffix = `_${shortDigest(`${serverName}\0${toolName}`)}`
   const prefix = getMcpPrefix(serverName)
   const room = WIRE_TOOL_NAME_MAX - prefix.length - suffix.length
   if (room >= 8) return `${prefix}${tool.slice(0, room)}${suffix}`

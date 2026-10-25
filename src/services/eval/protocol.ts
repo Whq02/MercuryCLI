@@ -27,6 +27,7 @@ const errorFrame = z.object({
   value: z.string(),
   traceback: z.string(),
   survived: z.array(z.string()).optional(),
+  declared: z.array(z.string()).optional(),
 })
 const doneFrame = z.object({
   t: z.literal('done'),

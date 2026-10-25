@@ -1,0 +1,31 @@
+import { spawnSync } from 'node:child_process'
+import { check, cleanup, finish, loadEval, refusingBridge, setup, within } from './lib.ts'
+
+const { work } = setup()
+const { evalKernelManager } = await loadEval()
+const run = (code: string) => within('typed JS cell', 30_000, evalKernelManager.runCell({ owner: 'typed-js-proof', cwd: work, input: { language: 'js', code }, abortSignal: new AbortController().signal, serveBridge: refusingBridge() }))
+try {
+  const first = await run('interface Point { x: number }; type Count = number; const typedCount: Count = 4; function typedAdd(p: Point): number { return p.x + typedCount }; typedAdd({ x: 3 })')
+  check('erasable declarations, annotations and return types execute', first.status === 'ok' && first.resultRepr === '7', JSON.stringify(first.error ?? first.resultRepr))
+  const next = await run('typedAdd({ x: typedCount })')
+  check('typed values and functions persist to the next cell', next.status === 'ok' && next.resultRepr === '8', JSON.stringify(next.error ?? next.resultRepr))
+  const cast = await run('const typedObject = { x: 6 } satisfies { x: number }; (typedObject as { x: number }).x')
+  check('typed final expressions return their value', cast.status === 'ok' && cast.resultRepr === '6', JSON.stringify(cast.error ?? cast.resultRepr))
+  const imports = await run('import type { Missing } from "module-that-must-not-load"; import { basename } from "node:path"; const typedBase: string = basename("/a/b"); typedBase')
+  check('type-only imports are erased without loading a module', imports.status === 'ok' && imports.resultRepr === "'b'", JSON.stringify(imports.error ?? imports.resultRepr))
+  const returned = await run('import { basename as returnBase } from "node:path"; const typedReturn: number = 9; return typedReturn + returnBase("/a/").length - 1')
+  check('typed cells keep the top-level return dialect', returned.status === 'ok' && returned.resultRepr === '9', JSON.stringify(returned.error ?? returned.resultRepr))
+  const failed = await run('const survivedType: number = 12; throw new Error("typed failure")')
+  check('initialized typed bindings survive a thrown cell', failed.status === 'error' && failed.annotations.some(note => note.startsWith('bindings that survived') && note.includes('survivedType')), JSON.stringify(failed.error))
+  const survived = await run('survivedType')
+  check('surviving typed binding is readable', survived.resultRepr === '12')
+  const rejected = await run('enum NeverRun { A }; globalThis.enumRan = true')
+  check('non-erasable syntax stays an error without running', rejected.status === 'error')
+  const flag = await run('process.execArgv.find(x => x.startsWith("--max-old-space-size="))')
+  check('the Node child uses the 512 MiB old-generation ceiling', flag.status === 'ok' && flag.resultRepr === "'--max-old-space-size=512'", JSON.stringify(flag.error ?? flag.resultRepr))
+  const heap = await run('(await import("node:v8")).getHeapStatistics().heap_size_limit / 1024 / 1024')
+  const runtime = await run('console.log(process.execPath)')
+  const control = spawnSync(runtime.stdout.text.trim(), ['--max-old-space-size=512', '-p', 'require("node:v8").getHeapStatistics().heap_size_limit / 1024 / 1024'], { cwd: work, env: {}, encoding: 'utf8', windowsHide: true })
+  check('the V8 heap matches the same Node runtime launched with the 512 MiB flag', control.status === 0 && heap.status === 'ok' && heap.resultRepr === control.stdout.trim(), JSON.stringify({ heap: heap.resultRepr, control: control.stdout.trim() }))
+} finally { await evalKernelManager.disposeAll(); cleanup() }
+finish('JS ERASABLE TYPES AND HEAP')
