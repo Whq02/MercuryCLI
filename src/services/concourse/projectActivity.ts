@@ -1,6 +1,6 @@
 
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
-import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
+import { concourseRecordState, listConcourseWorkers } from '../../daemon/concourseWorkers.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import { inProject, projectDisplayName, type ProjectIdentity } from '../../utils/bootCardFacts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1 } from '../../components/concourse/contracts.js'
@@ -57,7 +57,6 @@ export function elsewhereLine(p: ConcourseElsewhereV1): string {
 export async function runningByProjectKey(recordsDir?: string): Promise<Map<string, number>> {
   const out = new Map<string, number>()
   try {
-    const { concourseRecordState } = await import('../../daemon/concourseWorkers.js')
     for (const rec of listConcourseWorkers(null, recordsDir)) {
       const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
       const state = concourseRecordState(rec, { needsYou: rec.crash !== undefined, alive })

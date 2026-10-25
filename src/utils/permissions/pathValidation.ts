@@ -9,6 +9,8 @@ import {
   checkReadableInternalPath,
   checkPathSafetyForAutoEdit,
   getResolvedWorkingDirPaths,
+  instructionEstateGrant,
+  isInstructionEstatePath,
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from './filesystem.js'
@@ -60,9 +62,10 @@ export function isPathAllowed(
     const rule = matchingRuleForInput(resolved, context, permType, 'deny')
     if (rule) return { allowed: false, decisionReason: { type: 'rule', rule } }
   }
+  const steering = operationType !== 'read' && (context.mode === 'default' || context.mode === 'implement') && isInstructionEstatePath(resolvedPath)
   if (operationType !== 'read') {
     const internal = checkEditableInternalPath(resolvedPath, undefined)
-    if ((internal as { behavior: string }).behavior === 'allow') return { allowed: true }
+    if (!steering && (internal as { behavior: string }).behavior === 'allow') return { allowed: true }
     const safety = checkPathSafetyForAutoEdit(resolvedPath, resolutionSet)
     if (!safety.safe) {
       return {
@@ -78,11 +81,15 @@ export function isPathAllowed(
   const inside = pathInAllowedWorkingPath(resolvedPath, context, resolutionSet)
   if (inside) {
     if (operationType === 'read') return { allowed: true }
-    if (context.mode === 'implement') return { allowed: true }
+    if (context.mode === 'implement' && !steering) return { allowed: true }
   }
   if (operationType === 'read') {
     const internal = checkReadableInternalPath(resolvedPath, undefined)
     if ((internal as { behavior: string }).behavior === 'allow') return { allowed: true }
+  }
+  if (steering) {
+    const grant = instructionEstateGrant(resolutionSet, context)
+    return grant ? { allowed: true, decisionReason: { type: 'rule', rule: grant } } : { allowed: false }
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, permType, 'allow')

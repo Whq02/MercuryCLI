@@ -12,7 +12,6 @@ import { isENOENT } from './errors.js'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
-import { jsonStringify } from './slowOperations.js'
 
 
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
@@ -58,8 +57,6 @@ const getDebugFilePath = memoize((): string | null => {
   return readSessionOption(process.argv.slice(2), '--log-file').value ?? null
 })
 
-let hasFormattedOutput = false
-
 export function getDebugLogPath(): string {
   const explicit = getDebugFilePath()
   if (explicit) return explicit
@@ -69,6 +66,7 @@ export function getDebugLogPath(): string {
 
 
 let trackedLogSize: number | null = null
+let trackedLogPath: string | null = null
 let rotationInProgress = false
 let latestSymlinkRefreshed = false
 let pendingMaintenance: Promise<void> = Promise.resolve()
@@ -79,7 +77,8 @@ async function maybeRotateDebugLog(
   maxBytes: number = MAX_DEBUG_LOG_BYTES,
 ): Promise<void> {
   const fs = getFsImplementation()
-  if (trackedLogSize === null) {
+  if (trackedLogSize === null || trackedLogPath !== path) {
+    trackedLogPath = path
     try {
       trackedLogSize = fs.statSync(path).size
     } catch {
@@ -187,11 +186,7 @@ export function logForDebugging(message: string, opts?: { level: DebugLogLevel }
   if (typeof process === 'undefined' || !process.versions) return
   if (!shouldShowDebugMessage(message, getDebugFilter())) return
 
-  let text = message
-  if (hasFormattedOutput && text.includes('\n')) {
-    text = jsonStringify(text)
-  }
-  const line = `${new Date().toISOString()} [${level.toUpperCase()}] ${text.trim()}\n`
+  const line = `${new Date().toISOString()} [${level.toUpperCase()}] ${message.trim()}\n`
   if (isDebugToStdErr()) {
     writeToStderr(line)
     return

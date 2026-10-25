@@ -119,9 +119,6 @@ export function classifyGatewayProbe(answer: GatewayProbeAnswer): GatewayProbeCl
   if (status >= 200 && status < 300) return { kind: 'verdict', verdict: 'block', evidence }
   if (status === 400 && SHAPE_REFUSAL.test(bodyText)) return { kind: 'verdict', verdict: 'text', evidence }
   if (status === 401 || status === 403) return { kind: 'indeterminate', reason: 'auth-refused', evidence }
-  if (status === 400 || status === 404 || status === 422) {
-    return { kind: 'indeterminate', reason: 'other-status', evidence }
-  }
   return { kind: 'indeterminate', reason: 'other-status', evidence }
 }
 

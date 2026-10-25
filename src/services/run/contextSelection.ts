@@ -281,6 +281,7 @@ function computeRequiredClosure(view: Message[]): Map<number, RequiredReason> {
     for (const id of toolResultIdsOf(m)) resultAt.set(id, i)
     for (const p of filePathsOf(m)) {
       const blocks = toolUseBlocksOf(m)
+      latestPathUse.delete(p)
       if (blocks.length > 0) latestPathUse.set(p, blocks[0]!.id)
       if (latestPathUse.size > MAX_FILE_EDGES) {
         const oldest = latestPathUse.keys().next().value as string | undefined

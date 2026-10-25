@@ -250,7 +250,7 @@ function agentPolicyReason(
   agentType: string | undefined,
 ): CapabilityKillReason | null {
   try {
-    if (!flagEnv('MERCURY_AGENT_CAP') || false) return null
+    if (!flagEnv('MERCURY_AGENT_CAP')) return null
     const policy = parseAgentCapPolicy()
     if (policy.size === 0) return null
     const key = normalizeAgentType(agentType ?? currentAgentTypeSafe())

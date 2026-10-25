@@ -253,6 +253,7 @@ function updateTrackedCwd(argv: string[], cwd: string): string {
   if (['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'].includes(name)) {
     const target = argv.slice(1).find(word => !word.startsWith('-'))
     if (target) return expandPath(spelling(target), cwd)
+    if (['cd', 'chdir', 'set-location', 'sl'].includes(name) && !argv.includes('-')) return expandPath(spelling('~'), cwd)
   }
   return cwd
 }

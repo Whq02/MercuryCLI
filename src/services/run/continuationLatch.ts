@@ -4,7 +4,6 @@ import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
 
 interface LatchState {
-  lastAttemptId: string | null
   claimedAttemptId: string | null
   turnIdx: number
   continuationsThisTurn: number
@@ -13,7 +12,6 @@ interface LatchState {
 const latches = new OwnerScopedStore<LatchState>({
   name: 'continuation-latch',
   create: () => ({
-    lastAttemptId: null,
     claimedAttemptId: null,
     turnIdx: -1,
     continuationsThisTurn: 0,
@@ -36,7 +34,6 @@ function rollTurn(state: LatchState, turnIdx: number): void {
     state.turnIdx = turnIdx
     state.continuationsThisTurn = 0
     state.claimedAttemptId = null
-    state.lastAttemptId = null
   }
 }
 
@@ -56,7 +53,6 @@ export function claimContinuation(
   const attempt = stopAttemptId(turnIdx, messageCount)
   if (s.claimedAttemptId === attempt) return false
   s.claimedAttemptId = attempt
-  s.lastAttemptId = attempt
   s.continuationsThisTurn++
   return true
 }

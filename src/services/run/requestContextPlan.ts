@@ -313,6 +313,7 @@ export async function buildRequestContextPlan(
       calibration,
     }
   }
+  const gaugeSourceDigest = input.fixedRequest && input.calibrationKey ? requestGaugeDigest(afterBoundary) : undefined
   const plan: RequestContextPlan = {
     planVersion: 2,
     mode,
@@ -334,7 +335,7 @@ export async function buildRequestContextPlan(
     selection,
     tokenEstimate,
     ...(input.fixedRequest && input.calibrationKey ? {
-      gauge: { ...bindRequestGauge(view, input.calibrationKey, getContextEpoch(input.owner).epoch, input.fixedRequest, requestGaugeDigest(afterBoundary) !== requestGaugeDigest(view)), sourceDigest: requestGaugeDigest(afterBoundary) },
+      gauge: { ...bindRequestGauge(view, input.calibrationKey, getContextEpoch(input.owner).epoch, input.fixedRequest, gaugeSourceDigest !== requestGaugeDigest(view)), sourceDigest: gaugeSourceDigest },
     } : {}),
   }
   if (mode === 'apply') {

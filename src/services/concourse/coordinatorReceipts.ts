@@ -197,7 +197,7 @@ export async function foldJournaledCoordinatorReceipts(opts: { crewDir?: string 
     }
   }
   if (advanceTo > state.consumedSeq) {
-    await store.mutate(s => ({ ...s, consumedSeq: advanceTo }))
+    await store.mutate(s => (s.consumedSeq >= advanceTo ? s : { ...s, consumedSeq: advanceTo }))
   }
   return folded
 }

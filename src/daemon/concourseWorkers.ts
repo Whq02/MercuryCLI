@@ -1552,7 +1552,6 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     try {
       sweepScratchpadDir(scratchpadDirFor(settledRec.worktreePath ?? settledRec.workspaceId, settledRec.sessionId))
     } catch {
-      settled = settled
     }
   }
   if (settled && endedSessionId !== undefined) {

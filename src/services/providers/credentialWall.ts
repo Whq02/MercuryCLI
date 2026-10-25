@@ -13,10 +13,6 @@ export function isRevokedSignInText(wireText: string): boolean {
   return REVOKED_SIGN_IN.test(wireText)
 }
 
-function isKeyLimitText(wireText: string): boolean {
-  return KEY_LIMIT.test(wireText)
-}
-
 export function classifyCredentialWall(
   status: number | undefined,
   wireText: string,

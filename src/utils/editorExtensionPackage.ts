@@ -42,7 +42,7 @@ export function installedEditorExtensions(home: string = homedir()): InstalledEd
     } catch {
       continue
     }
-    const matches = names.filter(n => n.toLowerCase().startsWith(prefix)).sort()
+    const matches = names.filter(n => n.toLowerCase().startsWith(prefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     const newest = matches[matches.length - 1]
     if (newest !== undefined) {
       out.push({ editor, version: newest.slice(prefix.length), dir: join(extensionsDir, newest) })

@@ -874,7 +874,7 @@ async function runApply(
     }
   }
   if (!isEnvTruthy(process.env.MERCURY_BARE)) {
-    const paths = changedTargets.map(t => t.canonicalPath)
+    const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
     discoverSkillDirsForPaths(paths, getCwd())
       .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
       .catch(() => {})

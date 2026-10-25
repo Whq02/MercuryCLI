@@ -993,9 +993,9 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         if (reply.ok !== true && !lostReply(reply)) {
           try {
             const o = await import('../crew/obligations.js')
-            const row = await o.obligationOf(requestId, { scope: 'switchboard' })
+            const row = await o.obligationOf(requestId, { scope: 'switchboard', ...(ctx.crewDir !== undefined ? { dir: ctx.crewDir } : {}) })
             if (row !== null && row !== undefined && row.status === 'open') {
-              const res = await o.resolveObligation(requestId, { kind: 'withdrawn', by: ctx.by, scope: 'switchboard' })
+              const res = await o.resolveObligation(requestId, { kind: 'withdrawn', by: ctx.by, scope: 'switchboard', ...(ctx.crewDir !== undefined ? { dir: ctx.crewDir } : {}) })
               if (res.settled) {
                 return {
                   content: jsonResult({ ok: true, requestId, dismissed: true }),

@@ -5,9 +5,7 @@ import {
   type LaneSettlement,
 } from '../../substrate/serialGeneration.js'
 import type { OwnerKey } from './ownerKey.js'
-import { currentWriterEpoch, writerEpoch, FALLBACK_EPOCH } from './writerEpoch.js'
-
-const WRITER_EPOCH: number = FALLBACK_EPOCH
+import { currentWriterEpoch, writerEpoch } from './writerEpoch.js'
 
 const WRITER_ID: string = `${process.pid}-${randomUUID().slice(0, 8)}`
 

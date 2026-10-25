@@ -1,6 +1,7 @@
 import { getSessionId } from '../../bootstrap/state.js'
 
 const refusedFields = new Set<string>()
+const FIELD_REFUSAL_WORDS = /unsupported|unknown|unrecognized|not allowed|not permitted|extra inputs|unexpected|invalid|not supported/i
 
 async function fieldRefused(response: Response, field: string): Promise<boolean> {
   if (response.status !== 400) return false
@@ -21,8 +22,8 @@ async function fieldRefused(response: Response, field: string): Promise<boolean>
     const text = Buffer.concat(chunks).toString('utf8')
     try {
       const body = JSON.parse(text) as { error?: { param?: string; message?: string }; message?: string }
-      return body?.error?.param === field || ((body?.error?.message ?? body?.message ?? '').includes(field) && /unsupported|unknown|unrecognized|not allowed|not permitted|extra inputs|unexpected|invalid|not supported/i.test(text))
-    } catch { return text.includes(field) && /unsupported|unknown|unrecognized|unexpected|invalid|not supported/i.test(text) }
+      return body?.error?.param === field || ((body?.error?.message ?? body?.message ?? '').includes(field) && FIELD_REFUSAL_WORDS.test(text))
+    } catch { return text.includes(field) && FIELD_REFUSAL_WORDS.test(text) }
   } catch { return false }
   finally { reader.releaseLock() }
 }

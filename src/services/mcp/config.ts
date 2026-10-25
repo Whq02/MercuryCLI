@@ -847,7 +847,7 @@ export async function addMcpConfig(
       const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
-        const existing = getProjectMcpConfigsFromCwd().servers
+        const existing = flat(parseMcpConfigFromFilePath({ filePath: mcpJsonPath, expandVars: false, scope: 'project' })).servers
         if (name in existing) {
           throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
         }
@@ -893,7 +893,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
       }
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
-        const existing = getProjectMcpConfigsFromCwd().servers
+        const existing = flat(parseMcpConfigFromFilePath({ filePath: mcpJsonPath, expandVars: false, scope: 'project' })).servers
         if (!(name in existing)) {
           throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
         }

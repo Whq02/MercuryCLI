@@ -6,7 +6,6 @@ import { readdir, rename, symlink, unlink } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import type { DaemonBreaker } from '../utils/daemonBreaker.js'
-import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import {
   CONTROL_FRAME_CAP,
   MERCURY_DAEMON_PROTO,
@@ -431,13 +430,15 @@ export async function startControlServer(
             resolve()
             return
           }
-          server.once('error', err => {
+          const listenFailed = (err: Error): void => {
             logForDebugging(`[daemon] rebind listen failed (next beat retries): ${err}`)
             resolve()
-          })
+          }
+          server.once('error', listenFailed)
           void removeStaleSocket(sockPath)
             .then(() => {
               server.listen(sockPath, () => {
+                server.removeListener('error', listenFailed)
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)
                 if (foreignLive) {
                   resolve()

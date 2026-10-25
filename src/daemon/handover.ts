@@ -187,7 +187,10 @@ export function forwardFrame(sockPath: string, line: string, timeoutMs: number =
       done({ ok: false, code: 'ETIMEOUT', error: 'the daemon that holds this session did not answer in time' })
     }, timeoutMs)
     const sock = net.connect(sockPath)
-    sock.on('error', () => done({ ok: false, code: 'ENOCONN', error: 'the daemon that holds this session is unreachable' }))
+    const unreachable = (): void => done({ ok: false, code: 'ENOCONN', error: 'the daemon that holds this session is unreachable' })
+    sock.on('error', unreachable)
+    sock.on('end', unreachable)
+    sock.on('close', unreachable)
     sock.on('connect', () => {
       readControlFrame(
         sock,

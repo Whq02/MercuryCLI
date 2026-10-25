@@ -86,9 +86,9 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
     for await (const streamed of stream) {
       handleMessageFromStream(
         streamed,
-        run.toolUseContext.setStreamMode ?? (() => {}),
-        newContent => run.toolUseContext.setResponseLength?.(prev => prev + newContent.length),
         () => {},
+        newContent => run.toolUseContext.setResponseLength?.(prev => prev + newContent.length),
+        run.toolUseContext.setStreamMode ?? (() => {}),
         () => {},
       )
       if (!('type' in streamed)) continue

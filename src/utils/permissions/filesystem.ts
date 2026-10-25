@@ -284,6 +284,17 @@ function isProductConfigPath(expandedPath: string, instructionEstate = false): b
   return false
 }
 
+export function isInstructionEstatePath(path: string): boolean {
+  return protectedPathForms(path).some(form => isProductConfigPath(form, true))
+}
+
+export function instructionEstateGrant(resolutionSet: readonly string[], context: ToolPermissionContext): PermissionRule | undefined {
+  return resolutionSet.flatMap(resolved => matchingRulesForInput(resolved, context, 'edit', 'allow')).find(rule => {
+    const content = rule.ruleValue.ruleContent ?? ''
+    return content !== '' && !/[*?[\]{}]/.test(content) && rule.source !== 'projectSettings'
+  })
+}
+
 function pathHasSegmentContainment(path: string, base: string): boolean {
   if (path === base) return true
   const baseWithSep = base.endsWith(platformSep.toLowerCase()) ? base : base + platformSep.toLowerCase()
@@ -584,17 +595,14 @@ function walkMatchingRules(
   for (const [root, entries] of groups) {
     const base = root === null ? getCwd() : root
     const relative = relativePath(base, candidatePath === '' ? getCwd() : candidatePath)
-    if (relative.startsWith('..')) continue
+    if (behavior === 'allow' ? relative.startsWith('..') : /^\.+(?:\/|$)/.test(relative)) continue
     if (relative === '') continue
 
     const matcher = ignore()
-    const patternToRule = new Map<string, PermissionRule>()
     for (const { pattern, rule } of entries) {
       const { relative: rel } = rootForPattern(pattern, rule.source)
       const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
       matcher.add(stripped)
-      patternToRule.set(stripped, rule)
-      patternToRule.set(rel, rule)
     }
     const result = matcher.test(relative)
     if (result.ignored) {
@@ -827,15 +835,12 @@ export function checkWritePermissionForTool(
     return deny(message, { type: 'other', reason: message })
   }
   if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement') &&
-      [path, runtimeInput].some(target => protectedPathForms(target).some(form => isProductConfigPath(form, true)))) {
+      [path, runtimeInput].some(target => isInstructionEstatePath(target))) {
     for (const resolved of resolutionSet) {
       const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
       if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
     }
-    const grant = resolutionSet.flatMap(resolved => matchingRulesForInput(resolved, context, 'edit', 'allow')).find(rule => {
-      const content = rule.ruleValue.ruleContent ?? ''
-      return content !== '' && !/[*?[\]{}]/.test(content) && rule.source !== 'projectSettings'
-    })
+    const grant = instructionEstateGrant(resolutionSet, context)
     if (grant) return allow(input, { type: 'rule', rule: grant })
     const estateGrant = sessionEstateAllow(path, context, input)
     if (estateGrant) return estateGrant

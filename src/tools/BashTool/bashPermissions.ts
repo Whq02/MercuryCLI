@@ -38,7 +38,6 @@ import {
   WILDCARD_REASON,
   type Node,
   type SimpleCommand,
-  type Redirect,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
   checkCommandOperatorPermissions,
@@ -53,8 +52,6 @@ import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
-export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
-  parsePermissionRule(ruleContent)
 
 const TOOL_NAME = 'Bash'
 

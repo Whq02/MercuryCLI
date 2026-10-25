@@ -1,4 +1,4 @@
-import { closeSync, existsSync, openSync, realpathSync } from 'node:fs'
+import { existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 let selfScriptMemo: { argv: string; real: string } | null = null

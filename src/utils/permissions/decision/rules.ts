@@ -46,13 +46,11 @@ function ruleStringsByBehavior(
 }
 
 type RuleTableShape = {
-  rows: PermissionRule[]
   byBehavior: Record<PermissionBehavior, PermissionRule[]>
   contentScoped: Map<string, PermissionRule[]>
 }
 
 const emptyTable = (): RuleTableShape => ({
-  rows: [],
   byBehavior: { allow: [], deny: [], ask: [] },
   contentScoped: new Map(),
 })
@@ -68,7 +66,6 @@ function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
           ruleBehavior: behavior,
           ruleValue: permissionRuleValueFromString(ruleString),
         }
-        table.rows.push(row)
         table.byBehavior[behavior].push(row)
         if (row.ruleValue.ruleContent !== undefined) {
           const key = `${row.ruleValue.toolName}\0${row.ruleValue.ruleContent}`
@@ -217,8 +214,4 @@ export function getRuleByContentsForToolName(
     }
   }
   return ruleByContents
-}
-
-function permissionRuleTable(context: ToolPermissionContext): readonly PermissionRule[] {
-  return ruleTable(context).rows.map(copyRule)
 }

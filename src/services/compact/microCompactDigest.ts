@@ -49,7 +49,7 @@ const PRED = {
   diffLike: (l: string) => /^(?:[+\-@]|diff --git\b)/.test(l),
   errLike: (l: string) => /\b(?:Error|Exception|Traceback|FAILED?|panic|fatal)\b/i.test(l),
   stackLike: (l: string) =>
-    /\bat\s+\S.*\(.*:\d+\)/.test(l) || /File ".*", line \d+/.test(l) || /:\d+:\d+/.test(l),
+    /\bat\s+\S.*\(.*:\d+\)/.test(l) || /File ".*", line \d+/.test(l) || /\D:\d+:\d+/.test(l),
   tabular: (l: string) => /\t/.test(l) || /\S {2,}\S.* {2,}\S/.test(l),
   logLike: (l: string) =>
     /^\d{4}-\d\d-\d\d[T ]/.test(l) || /^\[\w+\]/.test(l) || /^\d\d:\d\d:\d\d/.test(l),

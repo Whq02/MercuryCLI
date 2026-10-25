@@ -164,7 +164,7 @@ export function useManageMCPConnections(
         clearServerCache(client.name, client.config).catch(error => {
           logForDebugging(`${HOOK_LABEL}: cache invalidation on close failed: ${String(error)}`)
         })
-        void registry.connectionLost(client.name)
+        if (registry.get(client.name) === client) void registry.connectionLost(client.name)
       }
 
       const capabilities = client.capabilities as {

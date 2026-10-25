@@ -375,6 +375,8 @@ export function getLoggingSafeMcpBaseUrl(
     const parsed = new URL(url)
     parsed.search = ''
     parsed.hash = ''
+    parsed.username = ''
+    parsed.password = ''
     const text = parsed.toString()
     return text.endsWith('/') ? text.slice(0, -1) : text
   } catch {

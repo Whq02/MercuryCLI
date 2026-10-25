@@ -7,7 +7,7 @@ export const WORKER_WATCH_INTERVAL_MS = 4000
 export const WORKER_WATCH_GRACE_CHECKS = 2
 
 export function parseWorkerParentPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (env[WORKER_PARENT_PID_ENV] ?? env['MERCURY_WORKER_PARENT_PID'])?.trim()
+  const raw = env[WORKER_PARENT_PID_ENV]?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null

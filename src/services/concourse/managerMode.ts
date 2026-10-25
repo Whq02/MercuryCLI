@@ -525,17 +525,18 @@ export async function startWaitingManagerLane(
   dir?: string,
 ): Promise<number | null> {
   if (supervised === null || startingLane) return null
-  const waiting = supervised.plan.laneWaiting ?? []
+  const current = supervised
+  const waiting = current.plan.laneWaiting ?? []
   if (waiting.length === 0 || counts.live >= counts.ceiling) return null
-  const workspaceRoot = supervised.workspaceRoot
+  const workspaceRoot = current.workspaceRoot
   if (workspaceRoot === undefined) return null
   const now = Date.now()
-  const entryId = supervised.entryId
+  const entryId = current.entryId
   const laneIndex = waiting.find(i => (laneRetryAfter.get(laneKey(entryId, i)) ?? 0) <= now)
   if (laneIndex === undefined) return null
   startingLane = true
   try {
-    const started = await startManagerLane(supervised.plan, laneIndex, { workspaceRoot, ...init, ...(entryId !== undefined ? { entryId } : {}) })
+    const started = await startManagerLane(current.plan, laneIndex, { workspaceRoot, ...init, ...(entryId !== undefined ? { entryId } : {}) })
     if (started.sessionId === null) {
       if (!started.noSeat) {
         laneRetryAfter.set(laneKey(entryId, laneIndex), now + WAITING_LANE_BACKOFF_MS)
@@ -546,7 +547,7 @@ export async function startWaitingManagerLane(
               {
                 id: `mgr:wait:${entryId}:${laneIndex}`,
                 role: 'coordinator',
-                text: `lane "${supervised.plan.lanes[laneIndex]!.title}" still waits — its start was refused; the walker retries in ${Math.round(WAITING_LANE_BACKOFF_MS / 1000)}s`,
+                text: `lane "${current.plan.lanes[laneIndex]!.title}" still waits — its start was refused; the walker retries in ${Math.round(WAITING_LANE_BACKOFF_MS / 1000)}s`,
                 ts: now,
                 harness: true,
                 receipts: started.receipts.map(r => ({
@@ -563,21 +564,21 @@ export async function startWaitingManagerLane(
       }
       return null
     }
-    const laneSessionIds = [...(supervised.plan.laneSessionIds ?? supervised.plan.lanes.map(() => null))]
+    const laneSessionIds = [...(current.plan.laneSessionIds ?? current.plan.lanes.map(() => null))]
     laneSessionIds[laneIndex] = started.sessionId
     const laneWaiting = waiting.filter(i => i !== laneIndex)
-    supervised.plan = { ...supervised.plan, laneSessionIds, ...(laneWaiting.length > 0 ? { laneWaiting } : {}) }
-    if (laneWaiting.length === 0) delete supervised.plan.laneWaiting
-    supervised.lanes.push({ sessionId: started.sessionId, title: supervised.plan.lanes[laneIndex]!.title })
-    if (supervised.entryId !== undefined) {
-      await markManagerPlanState(supervised.entryId, { state: 'dispatched', laneSessionIds, laneWaiting }, dir)
+    current.plan = { ...current.plan, laneSessionIds, ...(laneWaiting.length > 0 ? { laneWaiting } : {}) }
+    if (laneWaiting.length === 0) delete current.plan.laneWaiting
+    current.lanes.push({ sessionId: started.sessionId, title: current.plan.lanes[laneIndex]!.title })
+    if (current.entryId !== undefined) {
+      await markManagerPlanState(current.entryId, { state: 'dispatched', laneSessionIds, laneWaiting }, dir)
       try {
         const conv = await import('./coordinatorConversation.js')
         await conv.appendCoordinatorConversation(
           {
-            id: `mgr:start:${supervised.entryId}:${laneIndex}`,
+            id: `mgr:start:${current.entryId}:${laneIndex}`,
             role: 'coordinator',
-            text: `a seat freed — lane "${supervised.plan.lanes[laneIndex]!.title}" started under its contract`,
+            text: `a seat freed — lane "${current.plan.lanes[laneIndex]!.title}" started under its contract`,
             ts: Date.now(),
             harness: true,
             receipts: started.receipts.map(r => ({

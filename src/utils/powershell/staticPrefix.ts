@@ -21,7 +21,7 @@ async function extractPrefixFromElement(element: ParsedCommandElement): Promise<
   const spec = await getCommandSpec(name.toLowerCase())
   const prefix = await buildPrefix(name, element.args, spec)
 
-  if (!checkWordIntegrity(prefix, name, element.args, spec)) return null
+  if (!checkWordIntegrity(prefix, element.args, spec)) return null
 
   if (!prefix.includes(' ')) {
     const hasSubcommands = (spec?.subcommands?.length ?? 0) > 0
@@ -42,10 +42,8 @@ function optionTakesArgument(spec: CommandSpec | null, flagText: string): boolea
   return false
 }
 
-function checkWordIntegrity(prefix: string, name: string, args: string[], spec: CommandSpec | null): boolean {
+function checkWordIntegrity(prefix: string, args: string[], spec: CommandSpec | null): boolean {
   const words = prefix.split(' ')
-  if (words[0] !== name && words[0]?.toLowerCase() !== name.toLowerCase()) {
-  }
   const prefixWords = words.slice(1)
   let cursor = 0
   for (const expected of prefixWords) {

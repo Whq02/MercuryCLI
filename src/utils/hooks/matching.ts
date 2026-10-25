@@ -59,6 +59,12 @@ function isHookSpent(id: string, scope: HookScope): boolean {
   return spent.has(`${scope.sessionId}\0${id}`)
 }
 
+export function claimOnceHook(id: string, scope: HookScope): boolean {
+  if (isHookSpent(id, scope)) return false
+  markHookSpent(id, scope)
+  return true
+}
+
 export function forgetSpentHooks(): void {
   spent.clear()
 }

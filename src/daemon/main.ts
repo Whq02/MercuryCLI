@@ -1,8 +1,7 @@
 
 import { randomUUID } from 'crypto'
-import { existsSync, readFileSync, watch as watchDir, writeSync, type FSWatcher } from 'node:fs'
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
-import { homedir } from 'os'
+import { existsSync, watch as watchDir, writeSync, type FSWatcher } from 'node:fs'
+import { unlink } from 'fs/promises'
 import { basename, dirname, join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { spawn } from 'node:child_process'
@@ -16,7 +15,7 @@ import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
-import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
+import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import {
   concourseWorkersPath,
   listConcourseWorkers,
@@ -132,7 +131,7 @@ import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
-import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
+import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'

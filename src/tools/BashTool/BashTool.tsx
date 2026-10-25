@@ -6,7 +6,7 @@ import { BASH_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
+import { isRunInputClosed } from '../../bootstrap/state.js'
 import { servicesEnabled } from '../../services/projectServices/contracts.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, resolveShellCwd } from '../../utils/Shell.js'
@@ -24,7 +24,7 @@ import {
   type ShellLaunchFacts,
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { registerShellRun } from './backgroundRequest.js'
-import { ShellError, isAbortError } from '../../utils/errors.js'
+import { ShellError } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { formatDuration } from '../../utils/format.js'
 import { recordBashAudit } from '../../utils/spawnLedger.js'
@@ -36,13 +36,12 @@ import {
   detectLineEndings,
   getFileModificationTime,
   writeTextContent,
-  getDisplayPath,
 } from '../../utils/file.js'
-import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
+import { buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
 import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
-import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
+import { isSedInPlaceEdit, parseSedEditCommand } from './sedEditParser.js'
 import { prepareBashReadOnly, preparedBashReadsOnly } from './readOnlyValidation.js'
 import { bashToolHasPermission } from './bashPermissions.js'
 import {
@@ -79,8 +78,9 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { existsSync } from 'node:fs'
 import { tailFile } from '../../utils/fsOperations.js'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
+import { expandPath } from '../../utils/path.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 
@@ -224,8 +224,6 @@ async function preparePermissionMatcher(input: BashToolInput): Promise<(pattern:
   }
   const argvTexts = parsed.commands.map(command => command.argv.join(' '))
   return (pattern: string): boolean => {
-    const rule = pinnedCommandAnalysis
-    void rule
     return argvTexts.some(argv => matchGlob(pattern, argv))
   }
 }
@@ -258,7 +256,7 @@ async function runSimulatedSedEdit(
   parentMessageId: string | undefined,
 ): Promise<Out> {
   const sed = input._simulatedSedEdit as { filePath: string; newContent: string }
-  const filePath = expandToAbsolute(sed.filePath, resolveShellCwd(input.cwd))
+  const filePath = expandPath(sed.filePath, resolveShellCwd(input.cwd))
   if (!existsSync(filePath)) {
     return {
       stdout: '',
@@ -279,14 +277,6 @@ async function runSimulatedSedEdit(
     limit: undefined,
   })
   return { stdout: '', stderr: '', interrupted: false }
-}
-
-function expandToAbsolute(path: string, cwd: string): string {
-  if (path.startsWith('~')) {
-    const home = process.env.HOME || process.env.USERPROFILE || ''
-    return home + path.slice(1)
-  }
-  return isAbsolute(path) ? path : join(cwd, path)
 }
 
 
@@ -531,9 +521,8 @@ async function* runBash(
       const settled = outcome === 'done' ? await shellCommand.result : null
       if (settled && settled.backgroundTaskId !== undefined) {
         markTaskNotified(settled.backgroundTaskId, setTaskState)
-        const reconstructed = reconstructLargeOutput(settled, shellCommand)
         shellCommand.cleanup()
-        return await postProcess({ ...reconstructed, backgroundTaskId: undefined })
+        return await postProcess({ ...settled, backgroundTaskId: undefined })
       }
 
       if (settled) {
@@ -719,13 +708,6 @@ async function* runBash(
         : {}),
     }
   }
-}
-
-function reconstructLargeOutput(result: ExecResult, shellCommand: { taskOutput: { outputFileRedundant: boolean } }): ExecResult {
-  if (result.outputFilePath && !shellCommand.taskOutput.outputFileRedundant) {
-    return { ...result }
-  }
-  return result
 }
 
 

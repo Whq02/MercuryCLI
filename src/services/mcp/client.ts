@@ -341,7 +341,7 @@ function writeNeedsAuth(serverName: string): Promise<void> {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, JSON.stringify(cache, null, 2))
     needsAuthReadMemo = null
-  })
+  }).catch(() => undefined)
   return needsAuthWriteChain
 }
 
@@ -469,6 +469,7 @@ function installRootsHandler(client: Client): void {
 type WsSocketLike = {
   send(data: string): void
   close(): void
+  readyState?: number
   addEventListener?(event: string, handler: (event: never) => void): void
   on?(event: string, handler: (...args: never[]) => void): void
 }
@@ -512,6 +513,7 @@ async function createWsTransport(url: string, headers: Record<string, string>): 
             wsTransport.onerror?.(err instanceof Error ? err : new Error(String(err)))
           }
         })
+        if (socket.readyState === 1) resolve()
       }),
     send: async (message: JSONRPCMessage) => {
       socket.send(JSON.stringify(message))
@@ -596,9 +598,11 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       const headers = await getMcpServerHeaders(name, config as never)
       const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
       const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
-      const logged = { ...requestInit, headers: { ...headers, ...(headers.authorization ? { authorization: '[REDACTED]' } : {}) } }
-      logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${getProxyUrl() ?? 'none'}`)
-      logMCPDebug(name, `HTTP request options: ${JSON.stringify(logged)}`)
+      const logged = { ...headers }
+      for (const key of Object.keys(logged)) if (key.toLowerCase() === 'authorization') logged[key] = '[REDACTED]'
+      const proxyUrl = getProxyUrl()
+      logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
+      logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: logged, tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
       void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
       transport = new StreamableHTTPClientTransport(new URL(config.url as string), {
         authProvider: provider as never,
@@ -684,6 +688,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const prior = await readEraVerdict(eraKey)
   if (spawnRefused) return { name, type: 'disabled', config: serverRef }
 
+  let timedOut = false
   const connectPromise = (async (): Promise<void> => {
     try {
       await client.connect(transport, prior ? { prior } : undefined)
@@ -699,12 +704,14 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       stdioTransport.stderr?.on('data', onStderr)
       client = buildClient(false)
       installRootsHandler(client)
+      if (timedOut || spawnRefused) throw err
       await client.connect(transport)
     }
   })()
   let timer: NodeJS.Timeout | null = null
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
+      timedOut = true
       const transportLabel = inProcess ? 'in-process' : type
       const stdioConfig = config as { command?: string; args?: string[] }
       const stderrFirstLine = stderrBuffer.trim().split('\n')[0]?.trim().slice(0, 200) ?? ''

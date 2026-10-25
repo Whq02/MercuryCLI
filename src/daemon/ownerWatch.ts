@@ -197,7 +197,7 @@ export const OWNER_IDENTITY_FLOOR_MS = 60_000
 export const OWNER_PROBE_BACKOFF_FACTOR = 4
 
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_DAEMON_OWNER_PID)?.trim()
+  const raw = env[OWNER_PID_ENV]?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null

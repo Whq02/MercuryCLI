@@ -1,4 +1,4 @@
-import { posix as posixPath } from 'node:path'
+import { posix as posixPath, win32 as win32Path } from 'node:path'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type {
   PermissionResult,
@@ -20,7 +20,6 @@ import {
 import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
-import { getCwd } from '../../utils/cwd.js'
 import { getShellCwd, resolveShellCwd } from '../../utils/Shell.js'
 import { getPlatform } from '../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
@@ -524,7 +523,7 @@ function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string
     if (/['"]$/.test(operand)) operand = operand.slice(0, -1)
     operand = expandTilde(operand)
     if (getPlatform() === 'windows' && /^\/[a-z](?:\/|$)/i.test(operand)) operand = posixPathToWindowsPath(operand + (operand.length === 2 ? '/' : ''))
-    const resolved = operand.startsWith('/') || (getPlatform() === 'windows' && /^[a-z]:[/\\]/i.test(operand)) ? operand : joinNoSymlink(cwd, operand)
+    const resolved = operand.startsWith('/') || (getPlatform() === 'windows' && /^[a-z]:[/\\]/i.test(operand)) ? operand : getPlatform() === 'windows' ? win32Path.resolve(cwd, operand) : joinNoSymlink(cwd, operand)
     if (isDangerousRemovalPath(resolved)) {
       return {
         behavior: 'ask',
@@ -591,7 +590,7 @@ export function checkPathConstraints(
   astRedirects ??= astCommands.flatMap(simple => simple.redirects)
   const redirectionTargets = convertAstRedirects(astRedirects)
 
-  const redirectResult = validateRedirections(redirectionTargets, command, cwd, context, compoundCommandHasCd)
+  const redirectResult = validateRedirections(redirectionTargets, cwd, context, compoundCommandHasCd)
   if (redirectResult.behavior !== 'passthrough') return redirectResult
 
   const inputTargets = convertAstInputRedirects(astRedirects)
@@ -693,7 +692,6 @@ function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: strin
 
 function validateRedirections(
   targets: string[],
-  command: string,
   cwd: string,
   context: ToolPermissionContext,
   compoundCommandHasCd: boolean,

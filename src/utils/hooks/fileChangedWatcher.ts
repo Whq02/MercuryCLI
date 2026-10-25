@@ -82,12 +82,18 @@ async function startWatching(): Promise<void> {
   watcher.on('unlink', path => handleWatchEvent('unlink', path))
 }
 
-async function restartWatching(): Promise<void> {
-  if (watcher) {
-    await watcher.close()
-    watcher = null
+let restarting: Promise<void> = Promise.resolve()
+
+function restartWatching(): Promise<void> {
+  const step = async (): Promise<void> => {
+    if (watcher) {
+      await watcher.close()
+      watcher = null
+    }
+    await startWatching()
   }
-  await startWatching()
+  restarting = restarting.then(step, step)
+  return restarting
 }
 
 export function initializeFileChangedWatcher(cwd: string): void {
@@ -97,7 +103,7 @@ export function initializeFileChangedWatcher(cwd: string): void {
   if (hooksFor('file.changed', scope()).length === 0) return
   registerCleanup(() => disposeFileChangedWatcher())
   if (resolveWatchPaths().length > 0) {
-    void startWatching()
+    void restartWatching()
   }
 }
 

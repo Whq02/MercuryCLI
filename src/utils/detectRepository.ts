@@ -46,16 +46,13 @@ export function parseGitRemote(input: string): ParsedRepository | null {
   return null
 }
 
-async function detectCurrentRepositoryWithHost(cwd?: string): Promise<ParsedRepository | null> {
+async function detectCurrentRepositoryWithHost(): Promise<ParsedRepository | null> {
   try {
-    const directory = cwd ?? getCwd()
+    const directory = getCwd()
     const cached = repositoryCache.get(directory)
     if (cached) return cached
 
-    let remoteUrl: string | null = null
-    if (cwd === undefined) {
-      remoteUrl = await getRemoteUrl()
-    }
+    let remoteUrl = await getRemoteUrl()
     if (!remoteUrl) {
       const result = await execFileNoThrowWithCwd(
         gitExe(),

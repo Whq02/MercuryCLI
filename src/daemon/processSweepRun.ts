@@ -15,7 +15,6 @@ import {
   bundleArgOf,
   classifyMercuryProcess,
   composeProcessSweepFacts,
-  processSweepIdentityKey,
   readProcessSweepCensus,
   sameSweepIdentity,
   tokenBinding,

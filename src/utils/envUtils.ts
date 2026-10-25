@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { chmodSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 import { memoize } from 'lodash-es'
 
@@ -79,7 +79,7 @@ export function ensurePrivateConfigHome(): void {
 export function displayConfigHome(): string {
   const home = getMercuryHome()
   const userHome = homedir()
-  return home.startsWith(userHome) ? `~${home.slice(userHome.length)}` : home
+  return home === userHome || home.startsWith(userHome + sep) ? `~${home.slice(userHome.length)}` : home
 }
 
 export function hasNodeOption(flag: string): boolean {

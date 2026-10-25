@@ -50,7 +50,6 @@ import {
   usageAgeWords,
   usageFreshHorizonMs,
   usageFreshness,
-  usagePollTtlMs,
   usageSourceWords,
   usageStaleAfterMs,
   usageStaleTail,
@@ -1377,7 +1376,7 @@ export function openaiSubscriptionCredits(reads?: ActiveUsageReads): UsageCredit
   const credits = (reads?.openaiObserved ?? openaiSubscriptionUsage)().credits
   if (credits === undefined) return { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }
   const source = credits.source ?? 'headers'
-  const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(source) }
+  const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: usageFreshHorizonMs(source) }
   if (credits.unlimited) return { state: 'reported', display: 'unlimited', compact: 'unlimited', ...stamp }
   if (credits.balance !== undefined) return { state: 'reported', ...openaiBalanceWords(credits.balance), ...stamp }
   return { state: 'unreported', reason: credits.hasCredits ? 'balance not stated on this reply' : 'no credits on this plan', compact: credits.hasCredits ? 'not stated' : 'none on this plan', ...stamp }
@@ -1415,7 +1414,7 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
   return bands.map(band => {
     const label = usageWindowLabel(band.windowMinutes)
     const stamp = { observedAtMs: band.observedAtMs, source: band.source ?? 'headers' as const }
-    const horizon = (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(stamp.source)
+    const horizon = usageFreshHorizonMs(stamp.source)
     const freshForMs = band.resetsAtMs !== undefined ? Math.min(horizon, band.resetsAtMs - band.observedAtMs - 1) : horizon
     return {
       key: label,

@@ -34,17 +34,14 @@ import {
 import { isFullscreenEnvEnabled } from '../fullscreen.js'
 import {
   createCommandInputMessage,
-  createCompactBoundaryMessage,
   createSyntheticUserCaveatMessage,
   createSystemMessage,
   createUserMessage,
   INTERRUPT_MESSAGE,
   isCompactBoundaryMessage,
 } from '../messages.js'
-import { getPlatform } from '../platform.js'
 import { parseSlashCommand } from '../slashCommandParsing.js'
 import { logError } from '../log.js'
-import { logForDebugging } from '../debug.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
 import { getAgentContext } from '../agentContext.js'

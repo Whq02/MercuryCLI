@@ -726,7 +726,11 @@ export async function performMCPOAuthFlow(
 
     server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`)
-      if (url.pathname !== CALLBACK_PATH) return
+      if (url.pathname !== CALLBACK_PATH) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
       const error = url.searchParams.get('error')
       const state = url.searchParams.get('state')
       if (!error && state !== expectedState) {
@@ -756,7 +760,11 @@ export async function performMCPOAuthFlow(
         return
       }
       const received = url.searchParams.get('code')
-      if (!received) return
+      if (!received) {
+        res.writeHead(400)
+        res.end()
+        return
+      }
       res.writeHead(200, { 'Content-Type': 'text/html' })
       res.end('<html><body><h1>Authentication successful</h1><p>You can close this window and return to Mercury.</p></body></html>')
       settle(() => {

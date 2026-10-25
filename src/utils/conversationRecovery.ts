@@ -2,7 +2,7 @@ import { rebuildSeenLinesFromTranscript } from '../services/changeTransaction/se
 import { logForDebugging } from './debug.js'
 import { mainOwnerOfSession, processMainOwner } from '../services/run/resolveOwner.js'
 import type { UUID } from 'crypto'
-import { basename, relative } from 'node:path'
+import { relative } from 'node:path'
 
 import { addInvokedSkill, getEngineModelOverride } from '../bootstrap/state.js'
 import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'

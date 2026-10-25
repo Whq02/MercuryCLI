@@ -1,7 +1,7 @@
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
@@ -15,7 +15,7 @@ export function crashReportDir(): string {
 export function crashReportDirDisplay(): string {
   const dir = crashReportDir()
   const home = homedir()
-  return dir.startsWith(home) ? `~${dir.slice(home.length)}` : dir
+  return dir.startsWith(home + sep) ? `~${dir.slice(home.length)}` : dir
 }
 
 let lastReportPath: string | null = null

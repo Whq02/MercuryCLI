@@ -1,6 +1,5 @@
 import { memoize } from 'lodash-es'
 import '../bootstrap/state.js'
-import '../utils/config.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'
 import { applyExtraCACertsFromConfig } from '../utils/caCertsConfig.js'

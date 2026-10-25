@@ -113,17 +113,19 @@ export async function liveCoordinatorSummarizer(args: {
     } as never,
   })
   const texts: string[] = []
+  const failures: string[] = []
   try {
     for await (const ev of stream) {
-      const e = ev as { type?: string; message?: { content?: unknown } }
+      const e = ev as { type?: string; isApiErrorMessage?: boolean; message?: { content?: unknown } }
       if (e.type !== 'assistant' || e.message === undefined) continue
+      const sink = e.isApiErrorMessage === true ? failures : texts
       const content = e.message.content
       if (typeof content === 'string') {
-        texts.push(content)
+        sink.push(content)
       } else if (Array.isArray(content)) {
         for (const b of content) {
           if (b && (b as { type?: string }).type === 'text' && typeof (b as { text?: unknown }).text === 'string') {
-            texts.push((b as { text: string }).text)
+            sink.push((b as { text: string }).text)
           }
         }
       }
@@ -131,6 +133,8 @@ export async function liveCoordinatorSummarizer(args: {
   } catch (err) {
     throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', err))
   }
+  const failure = failures.join('\n').trim()
+  if (failure.length > 0) throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', new Error(failure)))
   const summary = texts.join('\n').trim()
   if (summary.length === 0) throw new Error(coordinatorDeadlineExpired(signal) ? coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', undefined) : 'the summarizer returned no text')
   return summary

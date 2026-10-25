@@ -168,6 +168,7 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
     kill()
   }
   run.signal?.addEventListener('abort', onAbort, { once: true })
+  if (run.signal?.aborted) onAbort()
   child.stdout.setEncoding('utf8')
   child.stderr.setEncoding('utf8')
   child.stdout.on('data', (chunk: string) => {

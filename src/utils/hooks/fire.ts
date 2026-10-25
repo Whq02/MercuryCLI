@@ -17,7 +17,7 @@ import { startCommandHook, type CommandHookSource } from './commandRunner.js'
 import { hookAnswerSchema, hookEventTable, hookKindsOf, HOOK_TIMEOUT_DEFAULT_S, type HookAnswer, type HookEvent, type HookPayload } from './contract.js'
 import { runCrewmateHook } from './crewmateRunner.js'
 import { emitHookResponse, emitHookStarted, getHookRunContext, hookProgressReporter } from './hookEvents.js'
-import { markHookSpent, matchHooks, type MatchedHook } from './matching.js'
+import { claimOnceHook, matchHooks, type MatchedHook } from './matching.js'
 import type { HookScope } from './sessionHooks.js'
 import { runQuestionHook, type ModelHookEnd } from './questionRunner.js'
 
@@ -148,11 +148,9 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
     })
     if (entry.background === true || entry.wake === true) {
       startBackgroundHook({ id: hookId, name, event, process, wake: entry.wake === true, scope: options.scope })
-      if (entry.once) markHookSpent(match.id, options.scope)
       return { id: match.id, name, event, source: match.source, durationMs: 0, state: { kind: 'background' } }
     }
     const end = await process.result
-    if (entry.once) markHookSpent(match.id, options.scope)
     if (end.kind === 'ended') return outcome({ kind: 'failed', line: failedLine(end.ending, name, event) }, end.durationMs)
     if (end.code === 0) return outcome(readToState(event, name, readStdoutAnswer(event, end.stdout)), end.durationMs)
     if (end.code === 2) {
@@ -167,7 +165,6 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
   }
   const run = { text: entry.question ?? entry.crewmate ?? '', name, event, payloadJson, answerSchema: hookAnswerSchema(event), model: entry.model, timeoutMs, signal: options.signal, toolUseContext: options.toolUseContext }
   const end = kind === 'question' ? await runQuestionHook(run) : await runCrewmateHook(run)
-  if (entry.once) markHookSpent(match.id, options.scope)
   return outcome(modelEndToState(event, name, end, timeoutMs), end.durationMs)
 }
 
@@ -192,7 +189,8 @@ export async function prepareHooks<E extends HookEvent>(event: E, fields: HookFi
     timeoutsS: matched.map(match => clockOf(match.entry, options.budgetMs) / 1000),
     run: async () => {
       if (options.signal?.aborted) return nothingFired(event)
-      const outcomes = await Promise.all(matched.map((match, index) => runOne(event, match, payloadJson, index, options).catch(error => {
+      const live = matched.filter(match => match.entry.once !== true || claimOnceHook(match.id, options.scope))
+      const outcomes = await Promise.all(live.map((match, index) => runOne(event, match, payloadJson, index, options).catch(error => {
         const name = hookEntryName(match.entry)
         const line = failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: error instanceof Error ? error.message : String(error) }, name, event)
         logForDebugging(line, { level: 'error' })

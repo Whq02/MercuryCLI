@@ -16,7 +16,8 @@ import { findCanonicalGitRoot } from '../../utils/git.js'
 import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
 import { saveWorktreeState } from '../../utils/sessionStorage.js'
 import { setCwd } from '../../utils/Shell.js'
-import { ENTER_WORKTREE_TOOL_NAME, getEnterWorktreeToolPrompt } from './prompt.js'
+import { ENTER_WORKTREE_TOOL_NAME } from './constants.js'
+import { getEnterWorktreeToolPrompt } from './prompt.js'
 import * as UI from './UI.js'
 
 const RESULT_SIZE_CAP = 100_000

@@ -5,7 +5,7 @@ export function credentialUploadReason(command: string): string | null {
     const name = (words[0]?.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '')
     if (name !== 'curl' && name !== 'wget') continue
     for (let index = 1; index < words.length; index++) {
-      const word = words[index]!
+      const word = name === 'curl' ? words[index]!.replace(/^-[0-9aBfgGIijJklLMnNOpqRsSvVZ#]*(?=[dFT])/, '-') : words[index]!
       const option = name === 'curl'
         ? /^(--(?:data|data-raw|data-binary|data-urlencode|form|form-string|upload-file|json))(?:=(.*))?$/.exec(word) ?? /^(-[dFT])(.*)$/.exec(word)
         : /^(--(?:post-data|post-file))(?:=(.*))?$/.exec(word)

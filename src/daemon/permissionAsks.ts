@@ -157,7 +157,7 @@ function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'an
       const o = await import('../services/crew/obligations.js')
       await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard' } as Parameters<typeof o.resolveObligation>[1])
     })
-    .catch(() => {})
+    .catch(err => logForDebugging(`[daemon] permission-ask obligation settle failed: ${err}`))
 }
 const MAX_PENDING = 200
 

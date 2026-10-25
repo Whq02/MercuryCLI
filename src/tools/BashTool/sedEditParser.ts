@@ -110,28 +110,42 @@ export function isSedInPlaceEdit(command: string): boolean {
 
 
 const WHOLE_MATCH_MARKER = '\x00MERCURY_SED_WHOLE_MATCH\x00'
+const REPLACEMENT_MARKER = /\x00MERCURY_SED_(?:WHOLE_MATCH|GROUP_([1-9]))\x00/g
 
 export function applySedSubstitution(content: string, sedInfo: SedEditInfo): string {
   const global = sedInfo.flags.includes('g')
   const caseInsensitive = sedInfo.flags.includes('i') || sedInfo.flags.includes('I')
-  const multiline = sedInfo.flags.includes('m') || sedInfo.flags.includes('M')
-  let regexFlags = ''
-  if (global) regexFlags += 'g'
-  if (caseInsensitive) regexFlags += 'i'
-  if (multiline) regexFlags += 'm'
+  const print = sedInfo.flags.includes('p')
+  const occurrence = Number(sedInfo.flags.replace(/[^0-9]/g, '') || '1')
 
   const pattern = translatePattern(sedInfo.pattern, sedInfo.extendedRegex)
   const replacement = translateReplacement(sedInfo.replacement)
 
   let regex: RegExp
   try {
-    regex = new RegExp(pattern, regexFlags)
+    regex = new RegExp(pattern, caseInsensitive ? 'gi' : 'g')
   } catch {
     return content
   }
-  return content.replace(regex, match =>
-    replacement.split(WHOLE_MATCH_MARKER).join(match),
-  )
+  const lines = content.split('\n')
+  const last = lines.length - 1
+  return lines
+    .map((line, index) => {
+      if (index === last && line === '') return line
+      let seen = 0
+      let substituted = false
+      const next = line.replace(regex, (match: string, ...rest: unknown[]) => {
+        seen++
+        if (seen < occurrence || (!global && seen > occurrence)) return match
+        substituted = true
+        const groups = rest.slice(0, -2) as Array<string | undefined>
+        return replacement.replace(REPLACEMENT_MARKER, (_marker: string, digit: string | undefined) =>
+          digit === undefined ? match : (groups[Number(digit) - 1] ?? ''),
+        )
+      })
+      return print && substituted ? `${next}\n${next}` : next
+    })
+    .join('\n')
 }
 
 function translatePattern(pattern: string, extendedRegex: boolean): string {
@@ -147,7 +161,7 @@ function translatePattern(pattern: string, extendedRegex: boolean): string {
         i++
         continue
       }
-      if (next !== undefined && '+?|()'.includes(next)) {
+      if (next !== undefined && '+?|(){}'.includes(next)) {
         result += next
         i++
         continue
@@ -156,7 +170,7 @@ function translatePattern(pattern: string, extendedRegex: boolean): string {
       if (next !== undefined) i++
       continue
     }
-    if ('+?|()'.includes(ch)) {
+    if ('+?|(){}'.includes(ch)) {
       result += '\\' + ch
       continue
     }
@@ -173,6 +187,8 @@ function translateReplacement(replacement: string): string {
       const next = replacement[i + 1] as string
       if (next === '/') result += '/'
       else if (next === '&') result += '&'
+      else if (next === '\\') result += '\\'
+      else if (next >= '1' && next <= '9') result += `\x00MERCURY_SED_GROUP_${next}\x00`
       else result += '\\' + next
       i++
       continue

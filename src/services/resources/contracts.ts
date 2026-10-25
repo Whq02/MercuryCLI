@@ -91,7 +91,11 @@ export function parseMercuryRef(raw: string): ParsedRef | null {
       const eq = pair.indexOf('=')
       if (eq === -1) continue
       const key = pair.slice(0, eq)
-      const value = decodeURIComponent(pair.slice(eq + 1))
+      let value = pair.slice(eq + 1)
+      try {
+        value = decodeURIComponent(value)
+      } catch {
+      }
       switch (key) {
         case 'lines': {
           const m = value.match(/^(\d+)-(\d+)$/)

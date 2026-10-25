@@ -18,16 +18,18 @@ const epochStore = defineStore<EpochRecord, []>({
   onReadFailure: 'throw',
 })()
 
-export const FALLBACK_EPOCH: number = Date.now()
+const FALLBACK_EPOCH: number = Date.now()
 
 let claimed: Promise<number> | null = null
 let resolved: number = FALLBACK_EPOCH
 
 export function writerEpoch(): Promise<number> {
   claimed ??= epochStore
-    .mutate(current => ({ epoch: current.epoch + 1 }))
-    .then(async () => {
-      const next = (await epochStore.read()).epoch
+    .update(current => {
+      const next = current.epoch + 1
+      return { next: { epoch: next }, result: next }
+    })
+    .then(next => {
       resolved = next
       return next
     })

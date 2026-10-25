@@ -214,9 +214,11 @@ export async function trySessionMemoryCompaction(
     annotateBoundaryWithWork(boundary, messages, kept, summaryMessage.uuid)
 
     const summaryEstimate = estimateContextTokens([summaryMessage])
+    const landed = estimateContextTokens([boundary, summaryMessage, ...kept, ...attachments])
+    if (autoCompactThreshold !== undefined && landed >= autoCompactThreshold) return null
     const after = await fireHooks(
       'compaction.after',
-      { method: 'notes', trigger: 'auto', tokens_before: preTokens, tokens_after: summaryEstimate },
+      { method: 'notes', trigger: 'auto', tokens_before: preTokens, tokens_after: landed },
       { scope: { sessionId: String(getSessionId()), ...(rosterContext?.agentId !== undefined ? { crewmateId: rosterContext.agentId } : {}) } },
     )
     const hookResults: Message[] = hookRowsOfResult(after).map(row => createAttachmentMessage(row))

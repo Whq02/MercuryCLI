@@ -5,13 +5,6 @@ import {
   preparedSecurityParse,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
-function tokeniseSedArgs(command: string): { tokens: Array<string | null>; ok: boolean } {
-  const parse = sedWords(command)
-  if (!parse.success) return { tokens: [], ok: false }
-  const tokens = parse.tokens.map(token => (typeof token === 'string' ? token : GLOB_OR_OP))
-  return { tokens, ok: true }
-}
-
 function sedWords(command: string): { success: boolean; tokens: string[] } {
   const parsed = preparedSecurityParse(command)
   if (parsed.kind !== 'simple' || parsed.commands.length !== 1) return { success: false, tokens: [] }
@@ -20,27 +13,16 @@ function sedWords(command: string): { success: boolean; tokens: string[] } {
   return { success: true, tokens: simple.argv.slice(1) }
 }
 
-const GLOB_OR_OP: null = null
-
 function hasFileArgs(command: string): boolean {
   if (!/^sed\s/.test(command)) return false
-  let parseOk = true
-  let glob = false
   const parse = sedWords(command)
   if (!parse.success) return true
-  const tokens = parse.tokens.map(token => {
-    if (typeof token === 'string') return token
-    if (isGlobToken(token)) glob = true
-    return null
-  })
-  if (!parseOk) return true
-  if (glob) return true
+  const tokens = parse.tokens
 
   let expressionFlagSeen = false
   let nonFlagCount = 0
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
-    if (token === null) continue
     if (token === '-e' || token === '--expression') {
       if (tokens[i + 1] !== undefined) {
         i++
@@ -281,8 +263,4 @@ export function checkSedConstraints(input: { command: string }, context: ToolPer
     }
   }
   return { behavior: 'passthrough', message: 'No sed constraint applies.' }
-}
-
-function isGlobToken(token: unknown): boolean {
-  return typeof token === 'object' && token !== null && (token as { op?: string }).op === 'glob'
 }

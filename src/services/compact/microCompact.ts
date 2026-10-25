@@ -384,7 +384,7 @@ export async function microcompactMessages(
     const config = getTimeBasedMCConfig()
     logForDebugging(
       trigger?.pressure === true
-        ? `pressure microcompact (${trigger.supersededOnly === true ? 'context size' : 'context overflow'}): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
+        ? `pressure microcompact (${trigger.minimumTokensSaved !== undefined ? 'context size' : 'context overflow'}): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
         : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${config.thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
     )
     suppressCompactWarning()

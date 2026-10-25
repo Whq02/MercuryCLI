@@ -426,7 +426,7 @@ export async function runCoordinatorKernel(
   }
   if (receipts.length > 0) {
     try {
-      ;(await import('./coordinatorReceipts.js')).ingestCoordinatorReceipts(receipts)
+      ;(await import('./coordinatorReceipts.js')).ingestCoordinatorReceipts(receipts, opts.crewDir !== undefined ? { crewDir: opts.crewDir } : {})
     } catch {
     }
   }

@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs'
+import { sep } from 'node:path'
 
 import { getOriginalCwd } from '../bootstrap/state.js'
 import type { SessionListing } from '../types/logs.js'
 import { quote } from './bash/shellQuote.js'
 import { binaryName } from './config.js'
+import { normalizePathForComparison } from './file.js'
 import { sessionIdOfListing } from './sessionStorage.js'
 
 type CrossProjectResumeResult =
@@ -25,6 +27,12 @@ export function checkCrossProjectResume(
   } catch {
     return { isCrossProject: false }
   }
+  const target = normalizePathForComparison(projectPath)
+  const inRepoWorktree = worktreePaths.some(worktree => {
+    const root = normalizePathForComparison(worktree)
+    return target === root || target.startsWith(root + sep)
+  })
+  if (inRepoWorktree) return { isCrossProject: true, isSameRepoWorktree: true, projectPath }
 
   const sessionId = sessionIdOfListing(log)
   if (!sessionId) return { isCrossProject: false }

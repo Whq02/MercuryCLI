@@ -677,7 +677,10 @@ export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: Sat
         pending = r.pending
         if (onReport && r.fired + r.held + r.missed + r.replayed + r.dropped > 0) onReport(r)
       })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        storeStamp = undefined
+        logForDebugging(`[saturn] tick failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+      })
       .finally(() => {
         running = false
       })

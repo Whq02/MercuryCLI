@@ -81,7 +81,7 @@ export function postLocalChannelMessage(record: LocalChannelRecord): boolean {
 }
 
 function ingestRecord(record: LocalChannelRecord): void {
-  if (!record.server || typeof record.content !== 'string') return
+  if (!record?.server || typeof record.content !== 'string') return
   enqueue({
     mode: 'prompt',
     value: wrapChannelMessage(record.server, record.content, record.meta),

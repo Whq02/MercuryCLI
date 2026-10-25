@@ -271,12 +271,19 @@ export class TaskRoster {
   kill(short: string, signal: NodeJS.Signals = 'SIGTERM'): boolean {
     const h = this.handles.get(short)
     if (!h) return false
+    const respawnPending = h.longLived?.respawnTimer !== undefined && h.entry.state === 'spawning'
     if (h.longLived) {
       h.longLived.intentionalStop = true
       if (h.longLived.respawnTimer) clearTimeout(h.longLived.respawnTimer)
     }
     if (h.entry.outcome) {
       this.handles.delete(short)
+      return true
+    }
+    if (respawnPending) {
+      h.entry.state = 'settled'
+      h.entry.outcome = 'killed'
+      this.completeIntentionalStop(short)
       return true
     }
     h.entry.state = 'retiring'
@@ -724,6 +731,16 @@ export class TaskRoster {
     })
   }
 
+  private completeIntentionalStop(short: string): void {
+    if (!short.startsWith('concourse-w')) return
+    void import('./concourseWorkers.js')
+      .then(async sup => {
+        sup.completeRequestedStop(short)
+        await sup.completeFencedRetirement(short)
+      })
+      .catch(() => {})
+  }
+
   private superviseChildLife(
     short: string,
     h: WorkerHandle,
@@ -759,14 +776,7 @@ export class TaskRoster {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
         ledgerExit('killed')
-        if (short.startsWith('concourse-w')) {
-          void import('./concourseWorkers.js')
-            .then(async sup => {
-              sup.completeRequestedStop(short)
-              await sup.completeFencedRetirement(short)
-            })
-            .catch(() => {})
-        }
+        this.completeIntentionalStop(short)
         return
       }
       if (ll.reconfiguring) {

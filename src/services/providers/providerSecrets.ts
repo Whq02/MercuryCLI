@@ -341,6 +341,12 @@ export function writeStoredCompatApiKey(key: string | null, name?: string): void
   })
   if (key?.trim()) recordSignIn('openai-compat', 'api-key')
 }
+export function clearEveryStoredCompatKey(): void {
+  publishSecrets(next => {
+    delete next.compatApiKey
+    delete next.compatEndpointKeys
+  })
+}
 
 export function readStoredHuggingfaceApiKey(): string | undefined {
   return readStoredKey('huggingfaceApiKey')

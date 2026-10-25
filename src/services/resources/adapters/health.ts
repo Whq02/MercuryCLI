@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { decodeGateVerdict, decodeLastCertSummary } from '../../../utils/healthCertCore.js'
 import { gateVerdictPath, lastCertPath } from '../../../utils/healthReport.js'
 import type {
-  ResourceContext,
   ParsedRef,
   ResourceAdapter,
   ResourceResult,

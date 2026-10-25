@@ -339,6 +339,7 @@ export class McpServerRegistry {
         if (this.stale(slot, gen, 'disable')) return null
         slot.connection = { name, type: 'disabled', config: slot.config }
         this.emit(slot, 'toggle', { tools: [], commands: [] })
+        if (wasConnected.type !== 'connected') await this.ports.disconnect(name, slot.config)
         return null
       }).then(() => undefined)
     }

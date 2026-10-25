@@ -77,7 +77,7 @@ import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork, SUMMARY_SECTION_TITLES } from './prompt.js'
-import { computeVerbatimRecentTail, FOLDED_RESULT_KEY, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
+import { computeVerbatimRecentTail, DEFAULT_KEEP_ROUNDS, FOLDED_RESULT_KEY, foldLandingCeiling, foldableResults, foldedResultPlaceholder, isMercuryCompactKeepTailEnabled, withFoldedResults } from './verbatimTail.js'
 import { operatorTextOf, selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
 import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
@@ -1819,7 +1819,7 @@ export async function compactConversation(
     boundary.compactMetadata.ledger = ledger
     boundary.compactMetadata.memory = memory
     if (gauge) boundary.compactMetadata.requestGauge = { key: gauge.key, epoch: getContextEpoch(owner).epoch + 1, fixed: gauge.fixed, density: gauge.density }
-    boundary.compactMetadata.recentRounds = recentRounds ?? { requested: 10, kept: 0, tokens: 0, reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled' }
+    boundary.compactMetadata.recentRounds = recentRounds ?? { requested: DEFAULT_KEEP_ROUNDS, kept: 0, tokens: 0, reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled' }
     if (overflow !== undefined) boundary.compactMetadata.overflow = overflow
     const discovered = extractDiscoveredToolNames(messages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()

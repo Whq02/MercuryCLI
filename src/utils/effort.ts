@@ -13,9 +13,8 @@ import {
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
 } from './model/capabilities.js'
-import { resolveInternalModel } from './model/internalModels.js'
 import { familyDefaultsModel } from './model/configs.js'
-import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
+import { getInitialSettings } from './settings/settings.js'
 import { sessionThinkingEnabled } from './thinking.js'
 
 
@@ -197,7 +196,6 @@ function resolveEffortTruthWithEnv(
   sessionEnvOverride: EffortValue | null | undefined,
   context: EffortTruthContext,
 ): EffortResolution {
-  resolveInternalModel(model)
   const freeze = (record: EffortResolution): EffortResolution => Object.freeze(record)
 
   const ownWord = agentOwnEffortWordOf(context.agentId)

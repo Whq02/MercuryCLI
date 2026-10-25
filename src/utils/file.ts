@@ -15,7 +15,7 @@ import {
 } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, dirname, extname, isAbsolute, join, normalize, parse, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, normalize, parse, relative, resolve, sep } from 'node:path'
 
 import { faultPoint, isTransientWin32FsCode, renameWithWin32RetrySync, WIN32_RENAME_RETRY_DELAYS_MS } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'

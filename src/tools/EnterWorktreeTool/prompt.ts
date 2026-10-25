@@ -1,6 +1,4 @@
 
-export const ENTER_WORKTREE_TOOL_NAME = 'EnterWorktree'
-
 export function getEnterWorktreeToolPrompt(): string {
   return `Split off an isolated git worktree and move this session into it.
 

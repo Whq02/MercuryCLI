@@ -10,7 +10,6 @@ let watchdog: ReturnType<typeof setInterval> | null = null
 let previousTickAt = 0
 let stallsObserved = 0
 let stalledMsTotal = 0
-let ticksObserved = 0
 
 type MemorySample = {
   rss_mb: number
@@ -49,7 +48,6 @@ export function startEventLoopStallDetector(): void {
     const tickAt = Date.now()
     const actual = tickAt - previousTickAt
     const stall = actual - DETECT_INTERVAL_MS
-    ticksObserved++
 
     if (stall > STALL_THRESHOLD_MS) {
       stallsObserved++

@@ -57,16 +57,7 @@ export async function reconcileDaemonRecords(opts?: {
     }
   }
 
-  const schedulerCleaned: string | null = null
-
   if (!supExists && !lockExists && !keyExists) {
-    if (schedulerCleaned) {
-      const reason = 'stale scheduler lock (dead holder)'
-      logForDebugging(
-        `[daemon-records] reconciled stale daemon records (${reason}): removed ${schedulerCleaned}`,
-      )
-      return { state: 'reconciled', cleaned: [schedulerCleaned], reason }
-    }
     return { state: 'clean', cleaned: [], reason: 'no daemon records on disk' }
   }
 
@@ -81,7 +72,6 @@ export async function reconcileDaemonRecords(opts?: {
   if (supExists) await rm(supPath, 'daemon.json')
   if (lockExists) await rm(lockPath, 'daemon.lock')
   if (keyExists) await rm(keyPath, 'control.key')
-  if (schedulerCleaned) cleaned.push(schedulerCleaned)
 
   if (cleaned.length === 0) {
     return { state: 'clean', cleaned, reason: 'records vanished before removal (racing reconcile)' }

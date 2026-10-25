@@ -104,7 +104,8 @@ export async function addSavedPrompt(projectPath: string, rawText: string): Prom
       return { next: current, result: { ok: false as const, reason: `the list holds ${MAX_SAVED_PROMPTS} prompts — delete one first` } }
     }
     const now = new Date().toISOString()
-    const id = newSavedPromptId()
+    let id = newSavedPromptId()
+    while (current.drafts.some(d => d.id === id)) id = newSavedPromptId()
     const draft: SavedPromptV1 = { id, text, createdAt: now, updatedAt: now }
     return { next: { drafts: [...current.drafts, draft] }, result: { ok: true as const, id } }
   })

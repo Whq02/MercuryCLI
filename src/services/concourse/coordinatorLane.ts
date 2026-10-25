@@ -433,7 +433,7 @@ async function runAssistedTurnGoverned(
         })
         if (r.feedEligible === true && feed !== null) {
           try {
-            feed.ingestCoordinatorReceipts([stamped])
+            feed.ingestCoordinatorReceipts([stamped], deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {})
           } catch {
           }
         }
@@ -550,13 +550,14 @@ async function runAssistedTurnGoverned(
       remember(failedBatches, batch)
     try {
       if (feed !== null) {
-        feed.ingestCoordinatorReceipts(decisionReceipts)
+        feed.ingestCoordinatorReceipts(decisionReceipts, deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {})
         if (vocabularyRefused > 0) {
           await feed.ingestCoordinatorTurnRefusal({
             reason: `${vocabularyRefused} proposal(s) outside the closed vocabulary — refused, not executed`,
             refusedProposals: vocabularyRefused,
             modelId: assistModelId,
             actorAgentId: actor,
+            ...(deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {}),
           })
         }
         if (capDropped > 0) {
@@ -565,6 +566,7 @@ async function runAssistedTurnGoverned(
             refusedProposals: capDropped,
             modelId: assistModelId,
             actorAgentId: actor,
+            ...(deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {}),
           })
         }
       }

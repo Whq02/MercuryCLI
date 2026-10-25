@@ -82,7 +82,7 @@ const LINE_BREAK = /\r\n|\n/
 
 export function countLinesChanged(patch: StructuredPatchHunk[], newFileContent?: string): void {
   const marks = patch.flatMap(hunk => hunk.lines.map(line => line[0]))
-  const added = patch.length === 0 && newFileContent !== undefined ? newFileContent.split(LINE_BREAK).length : marks.filter(mark => mark === '+').length
+  const added = patch.length === 0 && newFileContent !== undefined ? newFileContent.split(LINE_BREAK).length - (newFileContent === '' || newFileContent.endsWith('\n') ? 1 : 0) : marks.filter(mark => mark === '+').length
   const removed = marks.filter(mark => mark === '-').length
   addToTotalLinesChanged(added, removed)
 }

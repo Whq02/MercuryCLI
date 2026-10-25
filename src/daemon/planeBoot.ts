@@ -8,7 +8,7 @@ export interface PlaneBootFactsV1 {
   plane: { pid: number; buildTree: string | null } | null
 }
 
-export type PlaneBootDecisionV1 =
+type PlaneBootDecisionV1 =
   | { road: 'serve'; why: string }
   | { road: 'handover'; from: number; why: string }
   | { road: 'wait-lock'; for: number; why: string }

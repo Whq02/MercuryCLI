@@ -276,7 +276,7 @@ export function processNamesMercury(args: readonly string[]): boolean {
   return args.some(arg => /(^|[\\/])mercury(\.mjs|\.cmd|\.exe)?$/i.test(arg.trim()))
 }
 
-export function processSweepIdentityKey(entry: Pick<ProcessSweepEntry, 'kind' | 'process' | 'startToken'>): string {
+function processSweepIdentityKey(entry: Pick<ProcessSweepEntry, 'kind' | 'process' | 'startToken'>): string {
   return `${entry.kind}:${entry.process.pid}:${entry.startToken ?? ''}`
 }
 

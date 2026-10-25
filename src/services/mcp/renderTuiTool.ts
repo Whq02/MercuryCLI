@@ -74,7 +74,7 @@ export function renderTui(opts: {
   const { root, bun } = prerequisites
   const cols = opts.cols ?? 120
   const rows = opts.rows ?? 44
-  const out = join(tmpdir(), `render-tui-mcp-${cols}.png`)
+  const out = join(tmpdir(), `render-tui-mcp-${process.pid}-${cols}.png`)
   rmSync(out, { force: true })
   const res = spawnSync(
     bun,
@@ -100,11 +100,13 @@ export function renderTui(opts: {
       ],
     }
   }
+  const data = readFileSync(out).toString('base64')
+  rmSync(out, { force: true })
   return {
     content: [
       {
         type: 'image',
-        data: readFileSync(out).toString('base64'),
+        data,
         mimeType: 'image/png',
       },
     ],

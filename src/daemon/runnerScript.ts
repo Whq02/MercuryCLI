@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { getCachedPowerShellPath } from '../utils/shell/powershellDetection.js'

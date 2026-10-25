@@ -28,6 +28,7 @@ export function parseOperatorPauseDirective(text: string): OperatorPauseVerdict 
   if (!raw || raw.length > MAX_PAUSE_DIRECTIVE_CHARS) return { kind: 'none' }
   const tokens = raw
     .toLowerCase()
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
     .replace(/[.,!?…;:]+/g, ' ')
     .split(/\s+/)
     .filter(Boolean)

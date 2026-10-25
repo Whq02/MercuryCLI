@@ -407,7 +407,10 @@ export function startLocalLivenessLoop(args: {
         answered = false
       }
       if (!answered && !stopped) {
-        await new Promise<void>(resolve => timers.setTimeout(resolve, gap))
+        await new Promise<void>(resolve => {
+          handle = timers.setTimeout(resolve, gap)
+        })
+        handle = null
         if (!stopped) {
           try {
             answered = await args.probe()

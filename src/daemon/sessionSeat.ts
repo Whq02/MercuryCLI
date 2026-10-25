@@ -816,7 +816,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       return
     }
     case 'heartbeat':
-    case 'notice':
     case 'command_output':
     case 'rate_limit':
     case 'tool_result':

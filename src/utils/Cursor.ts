@@ -112,10 +112,6 @@ export class MeasuredText {
     return this.lines()
   }
 
-  getWrappedText(): string[] {
-    return this.lines().map(line => this.displayTextOf(line))
-  }
-
   private displayTextOf(line: WrappedLine): string {
     return line.isPrecededByNewline ? line.text : line.text.replace(/^\s+/, '')
   }
@@ -476,10 +472,6 @@ export class Cursor {
     return new Cursor(this.measuredText, offset)
   }
 
-  endOfFile(): Cursor {
-    return new Cursor(this.measuredText, this.text.length)
-  }
-
 
   private wordLikeBoundaries(): WordBoundary[] {
     return this.measuredText.getWordBoundaries().filter(b => b.isWordLike)
@@ -705,13 +697,6 @@ export class Cursor {
     const end = this.endOfLine()
     const killed = this.text.slice(this.offset, end.offset)
     return { cursor: this.modifyText(end), killed }
-  }
-
-  deleteToLogicalLineEnd(): Cursor {
-    if (this.text[this.offset] === '\n') {
-      return this.modifyText(new Cursor(this.measuredText, this.offset + 1))
-    }
-    return this.modifyText(this.endOfLogicalLine())
   }
 
   deleteWordBefore(): { cursor: Cursor; killed: string } {
