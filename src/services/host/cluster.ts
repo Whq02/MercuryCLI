@@ -91,10 +91,11 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
   if (cluster.compute.podCount !== recipe.nodes || cluster.compute.gpuCountPerPod !== recipe.count || !recipeFits(recipe, cluster.compute.gpuTypeId, recipe.vramGb, cluster.compute.gpuCountPerPod, cluster.compute.podCount)) return endHostCluster(record, 'shape does not match the saved recipe', '')
   const placementMs = Math.min(timeoutMs, clusterPlacementMs)
   const placed = Date.now() + placementMs
+  const placementRead = hostJobReadOnly({ label: 'Runpod', pauseMs, timeoutMs, signal, deadline: placed + timeoutMs, mark: onStep })
   let last = 'Cluster nodes have not all received private addresses and SSH access.'
   let rated = false
   while (!signal.aborted && Date.now() < placed) {
-    const nodes = (await readOnly('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
+    const nodes = (await placementRead('cluster node', readSignal => api.clusterPods(record.id, readSignal))).sort((a, b) => (a.cluster.rank ?? Infinity) - (b.cluster.rank ?? Infinity))
     patchHostRecord(record.id, { nodes, cluster })
     const failed = nodes.find(node => ['ERROR', 'EXITED', 'TERMINATED'].includes(node.status))
     if (failed) await endHostCluster(record, 'lost node ' + failed.id + ' (' + failed.status + ') before setup began', await readOnly('log', readSignal => api.logs(failed.id, readSignal)))
