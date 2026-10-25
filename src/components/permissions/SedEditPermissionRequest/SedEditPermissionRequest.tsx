@@ -15,7 +15,7 @@ import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDial
 import type { ToolInput } from '../FilePermissionDialog/permissionOptions.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
-type LoadedFile = { exists: boolean; content: string }
+type LoadedFile = { exists: boolean; content: string; beforeBytes?: string }
 
 export function SedEditPermissionRequest({
   toolUseConfirm,
@@ -32,8 +32,8 @@ export function SedEditPermissionRequest({
     void (async () => {
       try {
         const encoding = detectEncodingForResolvedPath(sedEditInfo.filePath)
-        const raw = await fs.readFile(sedEditInfo.filePath, encoding)
-        if (!cancelled) setLoaded({ exists: true, content: raw.replaceAll('\r\n', '\n') })
+        const bytes = await fs.readFile(sedEditInfo.filePath)
+        if (!cancelled) setLoaded({ exists: true, content: bytes.toString(encoding).replaceAll('\r\n', '\n'), beforeBytes: bytes.toString('base64') })
       } catch (error) {
         if (cancelled) return
         if (isENOENT(error)) setLoaded({ exists: false, content: '' })
@@ -56,9 +56,9 @@ export function SedEditPermissionRequest({
   const parseInput = useCallback(
     (input: unknown): ToolInput => ({
       ...(input as ToolInput),
-      _simulatedSedEdit: { filePath: sedEditInfo.filePath, newContent },
+      _simulatedSedEdit: { filePath: sedEditInfo.filePath, newContent, beforeBytes: loaded?.beforeBytes },
     }),
-    [sedEditInfo.filePath, newContent],
+    [sedEditInfo.filePath, newContent, loaded],
   )
 
   return (
@@ -90,6 +90,7 @@ export function SedEditPermissionRequest({
       path={sedEditInfo.filePath}
       parseInput={parseInput}
       workerBadge={workerBadge}
+      canApprove={loaded !== null}
     />
   )
 }

@@ -45,8 +45,10 @@ export function ToolSelector({
   initialTools,
   onComplete,
   onCancel,
+  explicitSelection = false,
 }: {
   tools: Tools
+  explicitSelection?: boolean
   initialTools: string[] | undefined
   onComplete: (tools: string[] | undefined) => void
   onCancel?: () => void
@@ -65,7 +67,7 @@ export function ToolSelector({
       ? [...candidates]
       : initialTools,
   )
-  const selection = stored.filter(name => candidateSet.has(name))
+  const selection = [...new Set(stored.filter(name => candidateSet.has(name)))]
   const selectionSet = new Set(selection)
 
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -147,7 +149,7 @@ export function ToolSelector({
     switch (item.kind) {
       case 'continue':
         onComplete(
-          selection.length === candidates.length ? undefined : selection,
+          !explicitSelection && selection.length === candidates.length ? undefined : selection,
         )
         break
       case 'all':

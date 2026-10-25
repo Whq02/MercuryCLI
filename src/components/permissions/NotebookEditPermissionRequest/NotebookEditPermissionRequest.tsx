@@ -11,7 +11,7 @@ import { NotebookEditToolDiff } from './NotebookEditToolDiff.js'
 
 type NotebookEditInput = {
   notebook_path: string
-  cell_id: string
+  cell_id?: string
   new_source: string
   cell_type?: string
   edit_mode?: string

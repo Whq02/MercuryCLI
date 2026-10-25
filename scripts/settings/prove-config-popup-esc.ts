@@ -66,6 +66,22 @@ const savedAutoCompact = (): string => {
   return value === undefined ? 'unset' : String(value)
 }
 
+section('a live config write refreshes the displayed choice without reopening')
+{
+  const { saveGlobalConfig, readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.js')
+  const m = await openPopup()
+  await settle(200)
+  const before = getGlobalConfig().autoCompactEnabled
+  saveGlobalConfig(current => ({ ...current, autoCompactEnabled: false }))
+  readGlobalConfigAgain()
+  await settle(160)
+  check('an external config write updates the displayed row', firstRow(m).endsWith('off'), firstRow(m))
+  saveGlobalConfig(current => ({ ...current, autoCompactEnabled: before }))
+  await settle(160)
+  m.unmount()
+  store.closeSettingsPopup()
+}
+
 section('§1 a clean config: esc closes')
 {
   const m = await openPopup()

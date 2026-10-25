@@ -75,7 +75,8 @@ import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { modifiedSinceReadMessage } from '../FileEditTool/otherSession.js'
 import { tailFile } from '../../utils/fsOperations.js'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -116,7 +117,7 @@ const modelInputSchema = lazySchema(buildModelSchema)
 type ModelInput = z.infer<ReturnType<typeof buildModelSchema>>
 
 type BashToolInput = ModelInput & {
-  _simulatedSedEdit?: { filePath: string; newContent: string }
+  _simulatedSedEdit?: { filePath: string; newContent: string; beforeBytes: string }
 }
 
 
@@ -255,7 +256,7 @@ async function runSimulatedSedEdit(
   context: ToolUseContext,
   parentMessageId: string | undefined,
 ): Promise<Out> {
-  const sed = input._simulatedSedEdit as { filePath: string; newContent: string }
+  const sed = input._simulatedSedEdit as { filePath: string; newContent: string; beforeBytes: string }
   const filePath = expandPath(sed.filePath, resolveShellCwd(input.cwd))
   if (!existsSync(filePath)) {
     return {
@@ -268,6 +269,9 @@ async function runSimulatedSedEdit(
   const endings = detectLineEndings(filePath, encoding)
   if (fileHistoryEnabled() && parentMessageId) {
     await fileHistoryTrackEdit(context.updateFileHistoryState, filePath, parentMessageId as `${string}-${string}-${string}-${string}-${string}`)
+  }
+  if (typeof sed.beforeBytes !== 'string' || readFileSync(filePath).toString('base64') !== sed.beforeBytes) {
+    return { stdout: '', stderr: modifiedSinceReadMessage(), interrupted: false }
   }
   writeTextContent(filePath, sed.newContent, encoding, endings)
   context.readFileState.set(filePath, {

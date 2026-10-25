@@ -30,7 +30,7 @@ type NotebookCell = {
 
 type Props = {
   notebook_path: string
-  cell_id: string
+  cell_id?: string
   new_source: string
   cell_type?: string
   edit_mode?: string
@@ -71,12 +71,10 @@ export function NotebookEditToolDiff({
   }, [notebook_path])
 
   const oldSource = useMemo(() => {
-    if (!cells || cell_id === '') return ''
+    if (!cells || !cell_id) return ''
     const index = parseCellId(cell_id)
-    const cell =
-      typeof index === 'number'
-        ? cells[index]
-        : cells.find(candidate => candidate.id === cell_id)
+    const cell = cells.find(candidate => candidate.id === cell_id) ??
+      (typeof index === 'number' ? cells[index] : undefined)
     return cellSourceText(cell)
   }, [cells, cell_id])
 

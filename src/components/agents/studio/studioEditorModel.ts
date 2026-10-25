@@ -408,6 +408,7 @@ export function createStudioEditorMachine(
     }
     return freshStudioDocument()
   })()
+  let baseDocument = doc
   let baseRevision: string | undefined = base ? revisionDigest(doc.raw) : undefined
   let scope: 'user' | 'project' = 'project'
   let view: EditorView =
@@ -726,18 +727,19 @@ export function createStudioEditorMachine(
       try {
         const theirs = decodeAgentDocument(conflict.currentRaw, base?.identity.filePath)
         const edits: Partial<AgentSpecFields> = {}
-        for (const key of Object.keys(doc.fields) as (keyof AgentSpecFields)[]) {
+        for (const key of new Set([...Object.keys(baseDocument.fields), ...Object.keys(doc.fields)]) as Set<keyof AgentSpecFields>) {
           if (key === 'mcpServers' || key === 'hooks') continue
-          if (JSON.stringify(doc.fields[key]) !== JSON.stringify(theirs.fields[key])) {
+          if (JSON.stringify(doc.fields[key]) !== JSON.stringify(baseDocument.fields[key])) {
             // @ts-expect-error narrow per-key assignment over the shared union
             edits[key] = doc.fields[key]
           }
         }
         const merged = patchAgentDocument(theirs, {
           set: edits,
-          ...(doc.body !== theirs.body ? { body: doc.body } : {}),
+          ...(doc.body !== baseDocument.body ? { body: doc.body } : {}),
         })
         adoptDoc(merged)
+        baseDocument = theirs
         baseRevision = revisionDigest(conflict.currentRaw)
         conflict = null
         note = { text: 'their version loaded — your field edits re-applied on top; review and save again', tone: TEAL }
@@ -792,6 +794,7 @@ export function createStudioEditorMachine(
   }
 
   async function runGeneration(prompt: string): Promise<void> {
+    if (busy || disposed) return
     busy = true
     note = { text: 'generating agent from description …', tone: SECOND }
     emit()
@@ -804,6 +807,7 @@ export function createStudioEditorMachine(
         options.getExistingAgents().map(a => a.agentType),
         controller.signal,
       )
+      if (disposed || controller.signal.aborted) return
       adoptDoc(
         patchAgentDocument(doc, {
           set: { name: generated.identifier, description: generated.whenToUse },

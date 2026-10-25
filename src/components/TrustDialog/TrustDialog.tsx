@@ -46,6 +46,11 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
   const { rows } = useTerminalSize();
   const boxTone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();
+  React.useEffect(() => {
+    if (!hasTrustDialogAccepted) return;
+    const timer = setTimeout(onDone);
+    return () => clearTimeout(timer);
+  }, [hasTrustDialogAccepted, onDone]);
 
   function onChange(value: 'enable_all' | 'exit'): void {
     if (value === "exit") {
@@ -69,10 +74,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
     gracefulShutdownSync(1);
   }, { context: "Confirmation" });
 
-  if (hasTrustDialogAccepted) {
-    setTimeout(onDone);
-    return null;
-  }
+  if (hasTrustDialogAccepted) return null;
 
   const shortFrame = rows < 18;
   return (

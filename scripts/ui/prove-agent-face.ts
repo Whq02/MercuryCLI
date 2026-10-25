@@ -95,6 +95,7 @@ function harness(opts?: {
   drafts?: { path: string; draft: { baseIdentity?: { filePath: string; revision: string }; raw: string } }[]
   saveOutcome?: 'ok' | 'conflict'
   generateBehaviour?: 'settle' | 'hang'
+  theirRaw?: string
   mode?: 'create' | 'edit'
 }) {
   const events: string[] = []
@@ -116,7 +117,7 @@ function harness(opts?: {
         revision: baseIdentity!.revision,
       } as never)
     : undefined
-  const theirRaw = '---\nname: fixture-scout\ndescription: Their newer description, written elsewhere on disk.\n---\nTheir newer body, long enough to stand as a real system prompt.\n'
+  const theirRaw = opts?.theirRaw ?? '---\nname: fixture-scout\ndescription: Their newer description, written elsewhere on disk.\n---\nTheir newer body, long enough to stand as a real system prompt.\n'
   const machine = createStudioEditorMachine(
     {
       mode: opts?.mode ?? (opts?.base ? 'edit' : 'create'),
@@ -259,7 +260,7 @@ let existing: never[] = []
   t.check('a conflicted save arms the conflict with its spelling', h.snap().conflict !== null && h.lastNote().startsWith('the file changed outside this draft'))
   h.machine.mergeOntoTheirs()
   const merged = h.snap()
-  t.check('merge re-applies MY changed field and MY body over their bytes', merged.doc.fields.description === 'My newer description, edited in this draft with intent.' && merged.doc.body.startsWith('The base body'))
+  t.check('merge re-applies MY changed field and preserves THEIR changed body', merged.doc.fields.description === 'My newer description, edited in this draft with intent.' && merged.doc.body.startsWith('Their newer body'))
   t.check('merge re-anchors the base revision to theirs', merged.baseRevision === revisionDigest(h.theirRaw))
   t.check('merge clears the conflict and speaks the re-apply spelling', merged.conflict === null && merged.note?.text.startsWith('their version loaded'))
 }
@@ -996,6 +997,33 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     if (priorZai9 === undefined) delete process.env.ZAI_API_KEY
     else process.env.ZAI_API_KEY = priorZai9
   }
+}
+
+{
+  const raw = '---\nname: fixture-scout\ndescription: Original description that passes validation.\nmaxTurns: 5\n---\nOriginal body long enough to pass the validation floor.\n'
+  const theirs = raw.replace('Original description', 'Peer changed description').replace('maxTurns: 5', 'maxTurns: 9')
+  const h = harness({ base: { raw, filePath: join(cwdDir, '.mercury', 'agents', 'merge-fixture.md') }, theirRaw: theirs, saveOutcome: 'conflict' })
+  h.machine.commit({ set: { maxTurns: undefined }, body: 'My edited body long enough to pass the validation floor.\n' })
+  await h.machine.save()
+  h.machine.mergeOntoTheirs()
+  t.check('merge keeps a peer field that I never edited', h.snap().doc.fields.description.startsWith('Peer changed description'))
+  t.check('merge reapplies my explicit field deletion', h.snap().doc.fields.maxTurns === undefined)
+  t.check('merge reapplies my edited body', h.snap().doc.body.startsWith('My edited body'))
+  h.machine.dispose()
+}
+for (const stop of ['abort', 'dispose'] as const) {
+  const h = harness()
+  const raw = h.snap().doc.raw
+  h.machine.guidedDescribe('generate then stop before the result settles')
+  h.machine.guidedDescribe('a duplicate request before settlement')
+  if (stop === 'abort') h.machine.abortGeneration()
+  else h.machine.dispose()
+  await Promise.resolve()
+  await Promise.resolve()
+  t.check(`${stop}: a late success does not adopt the generated document`, h.snap().doc.raw === raw)
+  t.check(`${stop}: a late success does not rearm autosave`, h.timers.length === 0)
+  t.check(`${stop}: duplicate generation is not dispatched`, h.events.filter(event => event === 'generate-called').length === 1)
+  h.machine.dispose()
 }
 
 t.finish('prove-agent-face')

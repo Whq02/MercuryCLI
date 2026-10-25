@@ -629,6 +629,7 @@ function FieldEditor(props: {
         <ToolSelector
           tools={tools}
           initialTools={doc.fields.disallowedTools ?? []}
+          explicitSelection
           onComplete={selected =>
             props.onCommit({
               set: {

@@ -650,7 +650,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
           <Text dimColor>{absentSlotLine('/logins gemini → Sign in with Google rides your plan\'s quota')}</Text>
         ) : (
           <Box flexDirection="column">
-            <Text dimColor>{plan.identity?.email !== undefined ? `${plan.label} · ${plan.identity.email}` : plan.label}</Text>
+            <Text dimColor>{shownIdentityWords('gemini', plan.identity?.email !== undefined ? `${plan.label} · ${plan.identity.email}` : plan.label)}</Text>
             {tierFigure !== undefined ? <Text dimColor>{[`${tierFigure.label}: ${tierFigure.value}`, ...(tierStamp !== undefined ? [tierStamp] : [])].join(' · ')}</Text> : null}
             {quota.active !== undefined ? <Text dimColor>{quotaLine(quota.active, `the session's model${quota.activeRow !== undefined && sessionModel !== null && quota.activeRow !== sessionModel.toLowerCase() ? ` (${sessionModel} ▸ ${quota.activeRow})` : ''}`)}</Text> : null}
             {quota.used.map(figure => (

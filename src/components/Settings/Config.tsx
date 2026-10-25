@@ -1423,7 +1423,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting, seatFacts, jevStamp, localServer.stamp])
+  }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
   useLayoutEffect(() => {

@@ -3,7 +3,7 @@
 import { mock } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, promises as fs, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -48,7 +48,8 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+let cycleMode: (() => void) | undefined
+await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: (action: string, handler: () => void) => { if (action === 'confirm:cycleMode') cycleMode = handler }, useKeybindings: () => undefined }))
 await stub('../../src/components/CustomSelect/select.js', () => ({
   Select: (props: SelectProps) => {
     selectProps = props
@@ -106,10 +107,17 @@ const toolUseContext = {
   nestedMemoryAttachmentTriggers: new Set(),
 }
 
-async function approveCard(command: string): Promise<{ frame: string; approved: Approved | null }> {
+async function approveCard(command: string, beforeApprove?: () => void): Promise<{ frame: string; approved: Approved | null }> {
   let approved: Approved | null = null
   selectProps = null
   await parseForSecurity(command)
+  const readFile = fs.readFile
+  let releaseRead = (): void => {}
+  const waiting = new Promise<void>(resolve => { releaseRead = resolve })
+  fs.readFile = (async (...args: Parameters<typeof fs.readFile>) => {
+    await waiting
+    return readFile(...args)
+  }) as typeof fs.readFile
   const toolUseConfirm = {
     assistantMessage: { message: { id: 'msg_sed' } },
     tool: BashTool,
@@ -151,7 +159,17 @@ async function approveCard(command: string): Promise<{ frame: string; approved: 
   const instance = await render(tree, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await firstFrame
   await settle()
+  selectProps?.onChange('accept-once')
+  check('Enter cannot approve before the file has loaded', approved === null)
+  selectProps?.onChange('accept-session')
+  check('the session choice cannot approve before the file has loaded', approved === null)
+  cycleMode?.()
+  check('the mode-cycle chord cannot approve before the file has loaded', approved === null)
+  fs.readFile = readFile
+  releaseRead()
+  await settle()
   const frame = stripAnsi(instance.lastFrame() ?? '').split('\n').map(line => line.trimEnd()).join('\n')
+  beforeApprove?.()
   selectProps?.onChange('accept-once')
   await settle()
   instance.unmount()
@@ -182,6 +200,21 @@ try {
   check('the approved input names the shell-cwd file', relativeRun.approved?._simulatedSedEdit?.filePath === join(SHELL_CWD, 'notes.txt'), JSON.stringify(relativeRun.approved))
   await BashTool.call(relativeRun.approved as never, toolUseContext as never)
   check('the shell-cwd file is written and the root file is untouched', readFileSync(join(SHELL_CWD, 'notes.txt'), 'utf8') === 'foo b\n' && readFileSync(join(PROJECT, 'notes.txt'), 'utf8') === 'root a\n')
+  section('§3 a change while the card is open refuses without overwriting it')
+  const target = join(SHELL_CWD, 'notes.txt')
+  const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/FileEditTool/constants.js')
+  for (const changed of ['another session\n', 'alpha\r\n']) {
+    writeFileSync(target, 'alpha\n')
+    const stale = await approveCard("sed -i 's/alpha/beta/' notes.txt", () => writeFileSync(target, changed))
+    check('the open card shows the original preview', stale.frame.includes('alpha') && stale.frame.includes('beta'), stale.frame)
+    const result = await BashTool.call(stale.approved as never, toolUseContext as never)
+    check('drift returns the existing Edit refusal', (result.data as { stderr: string }).stderr.startsWith(FILE_UNEXPECTEDLY_MODIFIED_ERROR), JSON.stringify(result.data))
+    check('the changed file remains byte-identical', readFileSync(target, 'utf8') === changed)
+  }
+  writeFileSync(target, 'alpha\r\n')
+  const crlf = await approveCard("sed -i 's/alpha/beta/' notes.txt")
+  const crlfWrite = await BashTool.call(crlf.approved as never, toolUseContext as never)
+  check('unchanged CRLF bytes still write as previewed', (crlfWrite.data as { stderr: string }).stderr === '' && readFileSync(target, 'utf8') === 'beta\r\n', JSON.stringify(crlfWrite.data))
 } finally {
   _resetFocusedSessionConnectorForTesting()
   rmSync(SCRATCH, { recursive: true, force: true })

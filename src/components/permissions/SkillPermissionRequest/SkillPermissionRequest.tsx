@@ -19,7 +19,7 @@ type SkillOptionValue = 'yes' | 'yes-exact' | 'yes-prefix' | 'no'
 
 function parseSkillCommand(input: unknown): string {
   const result = SkillTool.inputSchema.safeParse(input)
-  if (result.success) return (result.data as { command?: string }).command ?? ''
+  if (result.success) return result.data.skill.trim().replace(/^\//, '')
   logError(result.error)
   return ''
 }
@@ -48,7 +48,7 @@ export function SkillPermissionRequest({
     const list: PermissionPromptOption<SkillOptionValue>[] = [
       { label: 'Yes', value: 'yes', feedbackConfig: { type: 'accept' } },
     ]
-    if (shouldShowAlwaysAllowOptions()) {
+    if (skill !== '' && shouldShowAlwaysAllowOptions()) {
       list.push({
         label: (
           <Text>

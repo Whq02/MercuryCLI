@@ -25,6 +25,7 @@ type FilePermissionDialogProps<T extends ToolInput> = {
   path: string | null
   parseInput: (input: unknown) => T
   workerBadge?: WorkerBadgeProps
+  canApprove?: boolean
 }
 
 export function FilePermissionDialog<T extends ToolInput>({
@@ -39,6 +40,7 @@ export function FilePermissionDialog<T extends ToolInput>({
   path,
   parseInput,
   workerBadge,
+  canApprove = true,
 }: FilePermissionDialogProps<T>): React.ReactNode {
   const dialog = useFilePermissionDialog<T>({
     filePath: path,
@@ -47,6 +49,7 @@ export function FilePermissionDialog<T extends ToolInput>({
     onReject,
     parseInput,
     operationType,
+    canApprove,
   })
 
   const parsedInput = useMemo(

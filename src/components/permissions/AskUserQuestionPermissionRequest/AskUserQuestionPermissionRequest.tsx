@@ -30,7 +30,6 @@ import type {
   InterviewAnswerValue,
   InterviewQuestion,
   InterviewQuestionState,
-  InterviewSessionState,
 } from '../../../services/interview/contracts.js'
 import { AskUserQuestionTool } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { type CliHighlight, getCliHighlightPromise } from '../../../utils/cliHighlight.js'

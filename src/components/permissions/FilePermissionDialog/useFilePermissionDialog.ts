@@ -11,7 +11,7 @@ const AMENDABLE = ['accept-once', 'reject'] as const
 
 type HandlerOptions = Parameters<(typeof PERMISSION_HANDLERS)['accept-session']>[1]
 
-type DialogArgs<T> = { filePath: string | null; toolUseConfirm: ToolUseConfirm; onDone: () => void; onReject: () => void; parseInput: (input: unknown) => T; operationType?: FileOperationType }
+type DialogArgs<T> = { filePath: string | null; toolUseConfirm: ToolUseConfirm; onDone: () => void; onReject: () => void; parseInput: (input: unknown) => T; operationType?: FileOperationType; canApprove?: boolean }
 
 export function cycleModeMayApprove(state: { yesInputMode: boolean; noInputMode: boolean }): boolean {
   return !(state.yesInputMode || state.noInputMode)
@@ -26,7 +26,7 @@ const sessionOptionOf = (options: PermissionOptionWithLabel[]): PermissionOption
   options.find(candidate => candidate.option.type === 'accept-session')?.option
 
 export function useFilePermissionDialog<T extends Record<string, unknown>>(args: DialogArgs<T>) {
-  const { filePath, toolUseConfirm, onDone, onReject, parseInput, operationType = 'write' } = args
+  const { filePath, toolUseConfirm, onDone, onReject, parseInput, operationType = 'write', canApprove = true } = args
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
   const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
   const [focusedOption, setFocused] = useState<string>('accept-once')
@@ -43,14 +43,15 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>(args:
 
   const onChange = useCallback(
     (option: PermissionOption, input: T, feedback?: string) => {
+      if (option.type !== 'reject' && !canApprove) return
       const request: PermissionHandlerParams = { path: filePath, toolUseConfirm: { ...toolUseConfirm, input }, toolPermissionContext, onDone, onReject, operationType }
       PERMISSION_HANDLERS[option.type](request, handlerOptionsFor(option, feedback?.trim() || undefined))
     },
-    [filePath, toolUseConfirm, toolPermissionContext, onDone, onReject, operationType],
+    [filePath, toolUseConfirm, toolPermissionContext, onDone, onReject, operationType, canApprove],
   )
 
   useKeybinding('confirm:cycleMode', () => {
-    const session = cycleModeMayApprove({ yesInputMode, noInputMode }) ? sessionOptionOf(options) : undefined
+    const session = canApprove && cycleModeMayApprove({ yesInputMode, noInputMode }) ? sessionOptionOf(options) : undefined
     if (session) onChange(session, parseInput(toolUseConfirm.input))
   }, { context: 'Confirmation' })
 
