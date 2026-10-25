@@ -377,6 +377,29 @@ section('§9 the roads that legitimately clear: a typed submit takes the compose
   await settle(200)
 }
 
+section('the restored rewind prompt accepts a fresh slash command')
+{
+  pending.edit(DRAFT, { restored: true })
+  await settle(200)
+  check('the rewound prompt stays available for editing or Enter', pending.text() === DRAFT && composerRow(m).includes(DRAFT), quoted(m))
+  await typeWords(m, '/rewind')
+  check('a slash command replaces the untouched restored prompt', pending.text() === '/rewind', quoted(m))
+  if (pending.text() === '/rewind') {
+    await press(m, KEY.enter, 300)
+    check('Enter opens rewind instead of submitting a model turn', await waitFor(() => m.screen().includes('There is nothing to rewind to yet.'), 4000), m.screen())
+    check('esc returns from rewind', await closeWith(m, () => !m.screen().includes('There is nothing to rewind to yet.')))
+  }
+  pending.edit(DRAFT, { restored: true })
+  await settle(200)
+  await typeWords(m, ' again/rewind')
+  check('editing the restored words keeps subsequent slashes literal', pending.text() === `${DRAFT} again/rewind`, quoted(m))
+  pending.edit(DRAFT)
+  await settle(200)
+  await typeWords(m, '/rewind')
+  check('ordinary drafts keep their slash input', pending.text() === `${DRAFT}/rewind`, quoted(m))
+  pending.edit('')
+}
+
 section('§10 the seam in source: one owner of the text, no per-view pocket, no pop over typed words')
 {
   const { readFileSync } = await import('node:fs')

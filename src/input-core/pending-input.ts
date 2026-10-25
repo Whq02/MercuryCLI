@@ -54,6 +54,7 @@ let draft: ComposerDraft = {
   pastedContents: {},
 }
 let stash: StashedPrompt | undefined
+let restoredPrompt: string | undefined
 let interceptors: EditInterceptors = {}
 let initialized = false
 let owningSessionId: string | null = null
@@ -87,6 +88,7 @@ export const readDraftFor = readDraftSync
 export function clearForSubmit(submittedText?: string): void {
   cancelPendingDraftSave()
   deleteDraft(owningSessionId ?? getSessionId())
+  restoredPrompt = undefined
   if (submittedText !== undefined) {
     staged = { text: submittedText, at: Date.now() }
     lastSubmitted = { text: submittedText.replace(/\s+$/, ''), at: Date.now() }
@@ -183,6 +185,7 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
     mode: saved?.mode === 'bash' || saved?.mode === 'prompt' ? saved.mode : 'prompt',
     pastedContents: saved?.pastedContents ?? {},
   }
+  restoredPrompt = undefined
   commit()
 }
 
@@ -201,6 +204,7 @@ export function registerInterceptors(next: EditInterceptors): () => void {
 export function resetPendingInputForTests(): void {
   draft = { text: '', cursorOffset: 0, mode: 'prompt', pastedContents: {} }
   stash = undefined
+  restoredPrompt = undefined
   staged = null
   interceptors = {}
   initialized = false
@@ -226,10 +230,13 @@ function armSuppressionTimer(nonempty: boolean): void {
   }, PROMPT_SUPPRESSION_MS)
 }
 
-export function edit(raw: string): void {
-  const value = sanitizeComposerText(raw)
+export function edit(raw: string, options?: { restored?: boolean }): void {
   const prev = draft.text
+  const startsCommand = restoredPrompt === prev && prev !== '' && raw.startsWith(`${prev}/`)
+  const value = sanitizeComposerText(startsCommand ? raw.slice(prev.length) : raw)
   if (interceptors.interceptSuggestion?.(prev, value)) return
+  restoredPrompt = options?.restored === true ? value : undefined
+  if (startsCommand) draft = { ...draft, mode: 'prompt', pastedContents: {} }
   if (prev === '' && value !== '') {
     interceptors.onEmptyToNonempty?.()
   }

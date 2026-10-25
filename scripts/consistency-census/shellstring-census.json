@@ -682,6 +682,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-capture-preflight.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const result = spawnSync('bash', ['-c', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_PYTHON: pin }, timeout: 10_000 ",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/gate/prove-hermetic-shard.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })",

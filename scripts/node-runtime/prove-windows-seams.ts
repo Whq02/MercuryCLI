@@ -364,6 +364,7 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
   const savedConfigDir = process.env.MERCURY_CONFIG_DIR
   const savedHome = process.env.MERCURY_HOME
   const savedUser = process.env.USER
+  const savedUsername = process.env.USERNAME
   try {
     process.env.MERCURY_CONFIG_DIR = '/h/op/.mercury/'
     process.env.USER = 'op'
@@ -383,6 +384,12 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
     process.env.MERCURY_CONFIG_DIR = realHome
     check('a CANONICAL pin has no raw twin — no fallback exists, nothing to migrate', helpers.getRawSpellingKeychainStorageServiceName('-credentials') === null)
     check('the keyed id is STABLE across the spelling change (same home, same key)', identity.operatorPrincipal().id === keyedId)
+    process.env.USERNAME = 'windows-operator'
+    check('USER keeps precedence when both login variables exist', identity.operatorPrincipal().name === 'op')
+    delete process.env.USER
+    check('the Windows USERNAME supplies the principal name without changing its id', identity.operatorPrincipal().name === 'windows-operator' && identity.operatorPrincipal().id === keyedId)
+    delete process.env.USERNAME
+    check('an absent login keeps the non-throwing operator fallback', identity.operatorPrincipal().name === 'operator' && identity.operatorPrincipal().id === keyedId)
     rmSync(realHome, { recursive: true, force: true })
   } finally {
     if (savedConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR
@@ -391,6 +398,8 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
     else process.env.MERCURY_HOME = savedHome
     if (savedUser === undefined) delete process.env.USER
     else process.env.USER = savedUser
+    if (savedUsername === undefined) delete process.env.USERNAME
+    else process.env.USERNAME = savedUsername
   }
   const store = readFileSync(join(ROOT, 'src', 'utils', 'secureStorage', 'macOsKeychainStorage.ts'), 'utf8')
   check('the store MIGRATES a raw-keyed read: the canonical write precedes the raw delete', store.includes('function migrateRawKeyedEntry(') && store.includes('macOsKeychainStorage.update(data)') && store.indexOf('macOsKeychainStorage.update(data)') < store.indexOf("runSecurity(['delete-generic-password', '-a', getUsername(), '-s', rawServiceName])"))
@@ -407,7 +416,7 @@ section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 —
   const singleBangAt = prompt.indexOf('value.slice(1) === input')
   const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))
   check("the single-'!'-at-offset-0 branch writes the draft through the one draft-write owner before the mode flips", singleBang.includes('writeDraft(input)'))
-  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*lastSelfWriteRef\.current = text/.test(prompt))
+  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*lastSelfWriteRef\.current = (text|pendingInput\.text\(\))/.test(prompt))
 }
 
 console.log('\n============================================================')

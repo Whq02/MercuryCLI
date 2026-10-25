@@ -178,6 +178,31 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
   ok(allClean, `§6 all ${migrated.length} migrated writers import the primitive; old fingerprints gone`)
 }
 
+{
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  try {
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+    for (const [name, publish] of [['async', durableAtomicPublish], ['sync', durableAtomicPublishSync]] as const) {
+      const path = join(tmp, `win32-${name}.json`)
+      process.env.MERCURY_FAULT_INJECT = `flush-dir@win32-${name}.json:throw`
+      let caught: unknown = null
+      try {
+        await publish(path, 'landed')
+      } catch (error) {
+        caught = error
+      }
+      delete process.env.MERCURY_FAULT_INJECT
+      ok(caught instanceof DurablePublishError && caught.phase === 'flush-dir' && caught.tempCleanup === 'renamed', `win32 ${name}: injected flush-dir failure is reported, never swallowed`)
+      ok(readFileSync(path, 'utf8') === 'landed', `win32 ${name}: the rename remains visible after the injected flush failure`)
+      await publish(path, 'next')
+      ok(readFileSync(path, 'utf8') === 'next', `win32 ${name}: without injection publication still succeeds`)
+    }
+  } finally {
+    delete process.env.MERCURY_FAULT_INJECT
+    Object.defineProperty(process, 'platform', platform)
+  }
+}
+
 rmSync(tmp, { recursive: true, force: true })
 console.log(failures === 0 ? '\nPASS prove-durable-publish' : `\nFAIL prove-durable-publish (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

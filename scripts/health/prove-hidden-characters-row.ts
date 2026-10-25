@@ -68,6 +68,10 @@ if (registry === null) {
   check('forgetting a server drops its tools and their scans', r.currentHiddenCharacterFindings().every(f => f.source !== 'mcp') && r.hiddenCharacterScanCounts().mcp === 0)
   r.recordHiddenCharacters('mcp', 'srv · vs', JSON.stringify({ name: 'vs', description: '\u{1F600}\u{E0101}' }), { group: 'srv' })
   check('a variation selector the strip keeps is reported as read by the model', r.currentHiddenCharacterFindings().some(f => f.source === 'mcp' && f.removed === false) && r.hiddenCharacterLine(r.currentHiddenCharacterFindings().find(f => f.source === 'mcp')!).includes('the model reads the description as sent'))
+  const windowsPath = 'C:\\repo\\notes\\extra.md'
+  r.recordHiddenCharacters('instruction', windowsPath, 'a\u200Bb')
+  const windowsRecord = r.currentHiddenCharacterFindings().find(record => record.path === windowsPath)!
+  check('native Windows paths remain intact in the finding and detail', r.hiddenCharacterLine(windowsRecord).startsWith(`${windowsPath} carries`) && r.hiddenCharacterDetailLines(windowsRecord)[0]!.startsWith(`${windowsPath} · `))
   r.resetHiddenCharacterFindings()
 }
 
@@ -140,9 +144,9 @@ section('§3 /health: the Hidden characters row names each file, line and class;
   check('the row warns', row?.status === 'warn', JSON.stringify(row))
   const evidence = row?.evidence ?? ''
   check('the evidence names MERCURY.md at line 3 with five invisible characters', /MERCURY\.md line 3 \(an invisible character ×5\)/.test(evidence), evidence)
-  check('the @import target is named with its direction overrides', /notes\/extra\.md line 1 \(a direction override ×2\)/.test(evidence), evidence)
-  check('the skill is named with its soft hyphen', /\.mercury\/skills\/greet\/SKILL\.md line 5 \(a soft hyphen\)/.test(evidence), evidence)
-  check('the settings file is named with its direction overrides', /\.mercury\/settings\.json line \d+ \(a direction override ×2\)/.test(evidence), evidence)
+  check('the @import target is named with its direction overrides', /notes[\\/]extra\.md line 1 \(a direction override ×2\)/.test(evidence), evidence)
+  check('the skill is named with its soft hyphen', /\.mercury[\\/]skills[\\/]greet[\\/]SKILL\.md line 5 \(a soft hyphen\)/.test(evidence), evidence)
+  check('the settings file is named with its direction overrides', /\.mercury[\\/]settings\.json line \d+ \(a direction override ×2\)/.test(evidence), evidence)
   check('the emoji ZWJ sequences on line 5 are not findings', !(row?.detail ?? '').includes('line 5, column') || !/MERCURY\.md · line 5/.test(row?.detail ?? ''), row?.detail)
   check('the count reads 10 hidden characters in 4 places', /^10 hidden characters in 4 places — /.test(evidence), evidence)
   check('the row says what was scanned and read as written', /instruction file\(s\) · 1 skill\(s\) · \d+ settings file\(s\) read as written/.test(evidence), evidence)
@@ -218,7 +222,7 @@ section('§4 the run reports each finding once, at startup or on the next turn')
   const reported = [...stderr.split('\n'), ...saved.map(row => JSON.stringify(row))]
   const said = reported.filter(line => line.includes('MERCURY.md carries 5 hidden characters'))
   check('the run reported MERCURY.md once, with five hidden characters and the line and column', said.length === 1 && said[0]!.includes('line 3, column 5: an invisible character (U+200B)') && said[0]!.includes('loaded as written, nothing changed'), `${said.length} report(s): ${JSON.stringify(said).slice(0, 500)}`)
-  const importSaid = reported.filter(line => line.includes('notes/extra.md carries 2 hidden characters'))
+  const importSaid = reported.filter(line => /notes[\\/]+extra\.md carries 2 hidden characters/.test(line))
   check('the @import target was reported once too', importSaid.length === 1, `${importSaid.length} report(s)`)
   check('the settings file finding reached stderr at the start of the run and the chat did not repeat it', /settings\.json carries 2 hidden characters/.test(stderr) && saved.filter(row => JSON.stringify(row).includes('settings.json carries')).length === 0, stderr.slice(0, 400))
   check('the model was still asked three times: nothing was refused and no file was changed', fixture.requests.length >= 3 && readFileSync(join(project.cwd, 'MERCURY.md'), 'utf8') === project.files['MERCURY.md'], `${fixture.requests.length} requests`)

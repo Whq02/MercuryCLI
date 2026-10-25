@@ -107,6 +107,67 @@ check('the refusal describes itself as the reason and the indented remedy lines'
 const gone = preflightCaptureDriver({ ...driver, python: join(scratch, 'no-such-python') }, ROOT, baseEnv)
 check('a driver whose interpreter is missing answers the reason and a remedy', !gone.ok && gone.reason.includes('did not run') && gone.remedy.length > 0, JSON.stringify(gone))
 
+section('the gate shape interpreter follows the host, independently of the capture pin')
+{
+  const unit = readFileSync(join(ROOT, 'scripts/gate/run-suite.sh'), 'utf8')
+  const resolver = unit.match(/^shape_python\(\) \{[\s\S]*?^\}/m)?.[0] ?? ''
+  check('the gate has one shape interpreter resolver', resolver !== '')
+  for (const [host, python, python3, pin, expected, status] of [
+    ['MINGW64_NT-10.0', 0, 0, '', 'python', 0],
+    ['MSYS_NT-10.0', 0, 78, '', 'python', 0],
+    ['CYGWIN_NT-10.0', 0, 78, '', 'python', 0],
+    ['Darwin', 0, 0, '', 'python3', 0],
+    ['Linux', 0, 78, '', 'python', 0],
+    ['MINGW64_NT-10.0', 78, 0, '', 'python3', 0],
+    ['Darwin', 0, 0, '/missing/capture-python', 'python3', 0],
+    ['MINGW64_NT-10.0', 78, 78, '', '', 78],
+  ] as const) {
+    const code = `uname() { printf '%s' '${host}'; }\npython() { return ${python}; }\npython3() { return ${python3}; }\n${resolver}\nshape_python`
+    const result = spawnSync('bash', ['-c', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_PYTHON: pin }, timeout: 10_000 })
+    check(`${host}: usable interpreter ${expected || '(none)'}; capture pin ${pin || '(unset)'}`, result.status === status && result.stdout === expected, `status ${result.status}, output ${JSON.stringify(result.stdout)}`)
+  }
+  check('both box-shape calls use the selected interpreter and a missing interpreter stops the gate', unit.includes('python=$(shape_python) || exit 78') && unit.includes('"$python" "$repo_root/scripts/lib/box_shape.py" --start') && unit.includes('budget=$("$python" "$repo_root/scripts/lib/box_shape.py" --budget'))
+}
+
+section('the runner proof host keeps the Windows PATH and explicit overrides')
+{
+  const { mock } = await import('bun:test')
+  const childProcess = await import('node:child_process')
+  const { EventEmitter } = await import('node:events')
+  const { PassThrough } = await import('node:stream')
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  const originalPath = process.env.PATH
+  const launches: Array<NodeJS.ProcessEnv> = []
+  mock.module('node:child_process', () => ({ ...childProcess, spawn: (_file: string, _argv: string[], options: { env: NodeJS.ProcessEnv }) => {
+    launches.push(options.env)
+    return Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough() })
+  } }))
+  try {
+    const { hostRunner } = await import('../lib/runnerHost.ts')
+    for (const [host, path, override, expected] of [
+      ['win32', 'C:\\Windows\\System32;C:\\Tools', undefined, 'C:\\Windows\\System32;C:\\Tools'],
+      ['win32', 'C:\\Windows', 'D:\\Pinned', 'D:\\Pinned'],
+      ['darwin', '/usr/local/bin', undefined, '/usr/bin:/bin:/runtime/bin'],
+    ] as const) {
+      Object.defineProperty(process, 'platform', { value: host, configurable: true })
+      process.env.PATH = path
+      const runner = hostRunner({ node: '/runtime/bin/node', dist: 'unused', home: ROOT, cwd: ROOT, env: override === undefined ? {} : { PATH: override } })
+      check(`${host}: the spawned runner receives its intended search path`, launches.at(-1)?.PATH === expected, String(launches.at(-1)?.PATH))
+      runner.peer.close('fixture finished')
+      runner.child.emit('close', 0)
+      await runner.exited
+      runner.child.stdin?.destroy()
+      runner.child.stdout?.destroy()
+      runner.child.stderr?.destroy()
+    }
+  } finally {
+    mock.restore()
+    Object.defineProperty(process, 'platform', platform)
+    if (originalPath === undefined) delete process.env.PATH
+    else process.env.PATH = originalPath
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

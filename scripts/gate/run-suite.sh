@@ -40,6 +40,20 @@ kill_tree() {
 }
 
 t0=$SECONDS
+shape_python() {
+  local candidates candidate
+  case "$(uname -s)" in
+    (MINGW* | MSYS* | CYGWIN*) candidates='python python3' ;;
+    (*) candidates='python3 python' ;;
+  esac
+  for candidate in $candidates; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  return 78
+}
 run_checked_suite() {
 suite_class=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" 2>/dev/null | head -1 | tr -d '[:space:]')
 case "$(uname -s)" in (MINGW* | MSYS* | CYGWIN*) posix_host=0 ;; (*) posix_host=1 ;; esac
@@ -59,8 +73,9 @@ rm -f "$outdir/$dom.hang"
 printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
 resource=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" | head -1 | tr -d '[:space:]')
 case "$resource" in pure|cpu|pty|exclusive) ;; *) resource=undeclared ;; esac
-python3 "$repo_root/scripts/lib/box_shape.py" --start "$outdir/$dom.start.json" "$secs" "$resource" "${5:-adaptive}" >>"$out" || exit 78
-budget=$(python3 "$repo_root/scripts/lib/box_shape.py" --budget "$outdir/$dom.start.json") || exit 78
+python=$(shape_python) || exit 78
+"$python" "$repo_root/scripts/lib/box_shape.py" --start "$outdir/$dom.start.json" "$secs" "$resource" "${5:-adaptive}" >>"$out" || exit 78
+budget=$("$python" "$repo_root/scripts/lib/box_shape.py" --budget "$outdir/$dom.start.json") || exit 78
 read -r wall scale <<<"$budget"
 if [ "$wall" -gt "$secs" ]; then
   note="${note:+$note; }authored wall ${secs}s stretched for the recorded start load (scale $scale)"

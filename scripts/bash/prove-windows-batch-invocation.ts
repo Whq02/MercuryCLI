@@ -57,7 +57,7 @@ section('§1 the module exists and its wiring is in the exec path')
 const CRLF = '\r\n'
 const writeBatch = (path: string, lines: string[]): void => writeFileSync(path, lines.join(CRLF))
 const BIN = mkdtempSync(join(tmpdir(), 'batch-prove-bin-'))
-const BIN_SPACED = mkdtempSync(join(tmpdir(), 'batch prove spaced-'))
+const BIN_SPACED = mkdtempSync(join(tmpdir(), 'batch Café Ledger-'))
 writeBatch(join(BIN, 'tool.cmd'), ['@echo off', 'exit /b 0'])
 writeBatch(join(BIN, 'tool.bat'), ['@echo off', 'exit /b 0'])
 writeBatch(join(BIN, 'onlycmd.cmd'), ['@echo off', 'exit /b 0'])
@@ -65,6 +65,9 @@ writeBatch(join(BIN, 'code42.cmd'), ['@echo off', 'exit /b 42'])
 writeFileSync(join(BIN, 'plain'), '#!/bin/sh\nexit 0\n')
 writeFileSync(join(BIN, 'tool.exe'), Buffer.alloc(0))
 writeBatch(join(BIN_SPACED, 'spaced.cmd'), ['@echo off', 'exit /b 0'])
+writeBatch(join(BIN_SPACED, 'hello.bat'), ['@echo off', 'exit /b 0'])
+writeBatch(join(BIN_SPACED, 'tool.cmd'), ['@echo off', 'exit /b 0'])
+mkdirSync(join(BIN_SPACED, 'folder.cmd'))
 
 section('§2 the composer emits the cmd.exe line that carries every byte literally')
 {
@@ -124,6 +127,13 @@ section('§3 the planner takes only a lone simple command onto a found .cmd/.bat
   await isBatch('tool.cmd x # a trailing note', `"${join(BIN, 'tool.cmd')}" "x"`)
   await isBatch('(tool.cmd x)', `"${join(BIN, 'tool.cmd')}" "x"`)
   await isBatch('./tool.cmd x', `"${join(BIN, 'tool.cmd')}" "x"`, { cwd: BIN })
+  await isBatch('hello.bat x', `"${join(BIN_SPACED, 'hello.bat')}" "x"`, { cwd: BIN_SPACED, path: '' })
+  await isBatch('spaced.cmd x', `"${join(BIN_SPACED, 'spaced.cmd')}" "x"`, { cwd: BIN_SPACED, path: '' })
+  await isBatch('tool.cmd x', `"${join(BIN_SPACED, 'tool.cmd')}" "x"`, { cwd: BIN_SPACED })
+  await isBatch('onlycmd.cmd x', `"${join(BIN, 'onlycmd.cmd')}" "x"`, { cwd: BIN_SPACED })
+  await isBatch('missing.cmd x', null, { cwd: BIN_SPACED, path: '' })
+  await isBatch('folder.cmd x', null, { cwd: BIN_SPACED, path: '' })
+  await isBatch('spaced x', null, { cwd: BIN_SPACED, path: '' })
   await isBatch('plain x', null)
   await isBatch('tool.exe x', null)
   await isBatch('echo hi', null)
@@ -202,6 +212,24 @@ if (process.platform !== 'win32') {
     check(label, ok, `code ${r.code} argv ${JSON.stringify(got).slice(0, 160)}${r.err ? ` err ${JSON.stringify(r.err.slice(0, 80))}` : ''}`)
   }
 
+  {
+    const local = join(SCRATCH, 'Café Ledger')
+    mkdirSync(local)
+    const previous = process.env.NoDefaultCurrentDirectoryInExePath
+    process.env.NoDefaultCurrentDirectoryInExePath = '1'
+    try {
+      for (const name of ['hello.bat', 'totals.cmd']) {
+        writeBatch(join(local, name), ['@echo off', 'echo LOCAL-BATCH', 'exit /b 23'])
+        const handle = await exec(name, new AbortController().signal, 'bash', { cwd: local, timeout: 20_000, shouldAutoBackground: false })
+        const result = await handle.result
+        handle.cleanup()
+        check(`${name} runs from the explicit working directory with current-directory executable lookup disabled`, result.code === 23 && result.stdout.includes('LOCAL-BATCH'), JSON.stringify(result))
+      }
+    } finally {
+      if (previous === undefined) delete process.env.NoDefaultCurrentDirectoryInExePath
+      else process.env.NoDefaultCurrentDirectoryInExePath = previous
+    }
+  }
   await expectArgv('a bare name that only exists as .cmd runs and every byte survives: caret, percent, spaces, bang, backslash, non-ASCII',
     'echoargs a^b %BATCHPROOFVAR% "pl ain" "C:\\dir\\\\" x!y! ünï',
     ['a^b', '%BATCHPROOFVAR%', 'pl ain', 'C:\\dir\\', 'x!y!', 'ünï'])

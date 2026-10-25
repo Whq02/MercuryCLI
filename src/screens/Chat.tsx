@@ -1893,7 +1893,7 @@ export function Chat({
         if (message === undefined) return receipt;
         const resubmit = textForResubmit(message);
         if (resubmit) {
-          setInputValue(resubmit.text);
+          pendingInput.edit(resubmit.text, { restored: true });
           setInputMode(resubmit.mode);
         }
       }

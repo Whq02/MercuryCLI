@@ -66,8 +66,9 @@ export function scratchHome(prefix = 'runner-host-'): { home: string; cwd: strin
 export function hostRunner(opts: HostOptions): HostedRunner {
   const scratch = opts.home === undefined ? scratchHome() : null
   const cwd = opts.cwd ?? scratch?.cwd ?? process.cwd()
+  const posixPath = dirname(opts.node) === '.' ? (process.env.PATH ?? '/usr/bin:/bin') : `/usr/bin:/bin:${dirname(opts.node)}`
   const env: Record<string, string | undefined> = {
-    PATH: dirname(opts.node) === '.' ? (process.env.PATH ?? '/usr/bin:/bin') : `/usr/bin:/bin:${dirname(opts.node)}`,
+    PATH: process.platform === 'win32' ? process.env.PATH : posixPath,
     ...(scratch?.env ?? {}),
     ...(opts.env ?? {}),
   }

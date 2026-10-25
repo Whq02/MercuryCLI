@@ -337,7 +337,7 @@ export async function durableAtomicPublish(
         await dh.close()
       }
     } catch (e) {
-      if (process.platform !== 'win32' && !isDirFsyncUnsupported(e)) {
+      if (isFaultInjection(e) || (process.platform !== 'win32' && !isDirFsyncUnsupported(e))) {
         throw new DurablePublishError('flush-dir', path, e, {
           fsCode: errnoOf(e),
           attempts: renameAttempts,
@@ -425,7 +425,7 @@ export function durableAtomicPublishSync(
         closeSync(dfd)
       }
     } catch (e) {
-      if (process.platform !== 'win32' && !isDirFsyncUnsupported(e)) {
+      if (isFaultInjection(e) || (process.platform !== 'win32' && !isDirFsyncUnsupported(e))) {
         throw new DurablePublishError('flush-dir', path, e, {
           fsCode: errnoOf(e),
           attempts: renameAttempts,
@@ -441,6 +441,10 @@ export function durableAtomicPublishSync(
     elapsedMs: Date.now() - startedAt,
     retriedTransient: renameAttempts > 1,
   }
+}
+
+function isFaultInjection(e: unknown): boolean {
+  return e instanceof Error && e.message.startsWith('injected fault at ')
 }
 
 function isDirFsyncUnsupported(e: unknown): boolean {

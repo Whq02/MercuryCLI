@@ -40,6 +40,10 @@ function resolveBatchProgram(word: string, world: WindowsBatchWorld, cwd: string
     const candidate = isAbsolute(word) ? word : resolvePath(cwd, word)
     return isBatchFile(candidate) ? candidate : null
   }
+  if (BATCH_EXTENSIONS.test(word)) {
+    const candidate = resolvePath(cwd, word)
+    if (isBatchFile(candidate)) return candidate
+  }
   const resolved = resolveExecutable(word, world)
   return resolved !== null && BATCH_EXTENSIONS.test(resolved) ? resolved : null
 }

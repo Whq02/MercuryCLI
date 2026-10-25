@@ -99,7 +99,7 @@ export function standInRunner(opts: { capabilities?: Partial<Capabilities>; hook
       }),
     )
   }
-  runner.onNotification('credentials/changed', params => notifications.push({ method: 'credentials/changed', params }))
+  runner.onNotification('credentials/changed', params => { notifications.push({ method: 'credentials/changed', params }) })
   const hooks: RunnerConnectionHooks = {
     onRow: () => {},
     onAsk: params => ({ answer: Promise.resolve({ outcome: 'deny', message: `the stand-in's host holds no asks (${params.kind})` }), withdraw: () => {} }),
