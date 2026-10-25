@@ -357,6 +357,24 @@ export function preserveQuoteStyle(
   return result + actualOldString.slice(actualOldString.length - tail)
 }
 
+export function preserveQuoteStyleCandidates(
+  oldString: string,
+  actualOldString: string,
+  newString: string,
+): { exact: string; styled: string } {
+  const road = matchRoad(oldString, actualOldString)
+  if (road === 'escapes') {
+    return preserveQuoteStyleCandidates(actualOldString, actualOldString, unescapeControlSequences(newString))
+  }
+  if (road === 'whitespace' || road === 'indentation') {
+    return preserveQuoteStyleCandidates(actualOldString, actualOldString, respellWhitespace(oldString, actualOldString, newString))
+  }
+  return {
+    exact: preserveQuoteStyle(oldString, actualOldString, newString, () => false),
+    styled: preserveQuoteStyle(oldString, actualOldString, newString),
+  }
+}
+
 export async function preserveQuoteStyleForFile(
   filePath: string,
   fileContent: string,
@@ -364,16 +382,7 @@ export async function preserveQuoteStyleForFile(
   actualOldString: string,
   newString: string,
 ): Promise<string> {
-  const road = matchRoad(oldString, actualOldString)
-  if (road === 'escapes') {
-    return preserveQuoteStyleForFile(filePath, fileContent, actualOldString, actualOldString, unescapeControlSequences(newString))
-  }
-  if (road === 'whitespace' || road === 'indentation') {
-    const respelled = respellWhitespace(oldString, actualOldString, newString)
-    return preserveQuoteStyleForFile(filePath, fileContent, actualOldString, actualOldString, respelled)
-  }
-  const exact = preserveQuoteStyle(oldString, actualOldString, newString, () => false)
-  const styled = preserveQuoteStyle(oldString, actualOldString, newString)
+  const { exact, styled } = preserveQuoteStyleCandidates(oldString, actualOldString, newString)
   if (exact === styled) return exact
   const { fileLanguageKind } = await import('../../native-ts/color-diff/index.js')
   return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'prose' ? styled : exact
@@ -386,17 +395,16 @@ export function applyEditToFile(
   newString: string,
   replaceAll: boolean = false,
 ): string {
-  let searchString = oldString
-  if (
-    newString === '' &&
-    !oldString.endsWith('\n') &&
-    originalContent.includes(`${oldString}\n`)
-  ) {
-    searchString = `${oldString}\n`
-  }
+  const searchString = editSearchString(originalContent, oldString, newString)
   return replaceAll
     ? originalContent.replaceAll(searchString, () => newString)
     : originalContent.replace(searchString, () => newString)
+}
+
+export function editSearchString(originalContent: string, oldString: string, newString: string): string {
+  return newString === '' && !oldString.endsWith('\n') && originalContent.includes(`${oldString}\n`)
+    ? `${oldString}\n`
+    : oldString
 }
 
 function stripTrailingNewlines(s: string): string {

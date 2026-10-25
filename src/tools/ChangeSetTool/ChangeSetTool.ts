@@ -60,7 +60,7 @@ import {
   addSkillDirectories,
   discoverSkillDirsForPaths,
 } from '../../skills/loadSkillsDir.js'
-import { linesOfHunks, readKnowledgeRefusal } from '../FileEditTool/FileEditTool.js'
+import { linesOfHunks, matchExactEdit, readKnowledgeRefusal } from '../FileEditTool/FileEditTool.js'
 import { syncServersAfterWrite } from '../LSPTool/mercuryOps.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -71,6 +71,7 @@ import {
 } from '../../utils/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
+import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { checkWritePermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
@@ -111,11 +112,21 @@ const baseShape = () => ({
             }),
           )
           .optional()
-          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); required for op "edit" (the default), optional for a move, none for a delete'),
+          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); an edit member (op "edit", the default) carries hunks or edits, a move optionally, a delete neither'),
+        edits: z
+          .array(
+            z.strictObject({
+              old_string: z.string().describe('The text to replace, as the file spells it'),
+              new_string: z.string().describe('The text to replace it with ("" deletes the text)'),
+              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace all occurrences of old_string (default false)'),
+            }),
+          )
+          .optional()
+          .describe('Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary), instead of hunks; each old_string must occur once unless replace_all'),
         op: z
           .enum(['edit', 'delete', 'move'])
           .optional()
-          .describe('"edit" (default) applies the hunks; "delete" removes the file (no hunks); "move" renames it to new_path after any hunks'),
+          .describe('"edit" (default) applies the hunks or edits; "delete" removes the file (neither); "move" renames it to new_path after any hunks or edits'),
         new_path: z
           .string()
           .optional()
@@ -222,16 +233,35 @@ interface OpResult {
   repetitionStop?: boolean
 }
 
+type LanguageKind = (path: string, firstLine: string) => 'prose' | 'code' | 'unknown'
+
+async function languageKindFor(members: readonly ChangeSetMemberInput[]): Promise<LanguageKind | undefined> {
+  if (!members.some(m => (m.edits?.length ?? 0) > 0)) return undefined
+  const { fileLanguageKind } = await import('../../native-ts/color-diff/index.js')
+  return fileLanguageKind
+}
+
 function planContext(
   context: ToolUseContext,
   lowered?: LoweredPatch,
+  languageKind?: LanguageKind,
 ): Parameters<typeof planChangeSet>[1] {
   const owner = ownerFromToolUseContext(context)
   const permCtx = context.getAppState().toolPermissionContext
   return {
     ownerKey: owner,
+    exactEdit: (target, edit) => {
+      const requested = expandPath(target.requestedPath)
+      const expandedPath = context.readFileState.has(requested) ? requested : target.canonicalPath
+      return matchExactEdit(
+        target.content,
+        edit,
+        { context, expandedPath, displayPath: target.requestedPath, expectedAnchor: target.expectedAnchor },
+        languageKind === undefined ? undefined : firstLine => languageKind(target.canonicalPath, firstLine) === 'prose',
+      )
+    },
     readEvidence: target => {
-      const touched = linesOfHunks(target.hunks)
+      const touched = target.touched !== undefined ? target.touched : linesOfHunks(target.hunks)
       let refused: string | null = null
       for (const path of new Set([target.canonicalPath, expandPath(target.requestedPath)])) {
         const verdict = readKnowledgeRefusal(context, path, target.requestedPath, target.content, target.expectedAnchor, touched)
@@ -384,7 +414,7 @@ function recoveryNotes(plan: ChangeSetPlan): string[] {
   return plan.targets.flatMap(t => (t.staleRecovery !== undefined ? [`note: ${t.staleRecovery}`] : []))
 }
 
-function runPreview(input: Input, context: ToolUseContext): OpResult {
+async function runPreview(input: Input, context: ToolUseContext): Promise<OpResult> {
   const owner = ownerFromToolUseContext(context)
   let members = input.changes as ChangeSetMemberInput[]
   let lowered: LoweredPatch | undefined
@@ -402,7 +432,7 @@ function runPreview(input: Input, context: ToolUseContext): OpResult {
     lowered = resolved.lowered
     members = lowered.members
   }
-  const planned = planChangeSet(members, planContext(context, lowered))
+  const planned = planChangeSet(members, planContext(context, lowered, await languageKindFor(members)))
   if (!planned.ok) {
     return {
       op: 'preview',
@@ -465,7 +495,7 @@ async function runApply(
       lowered = resolved.lowered
       members = lowered.members
     }
-    const planned = planChangeSet(members, planContext(context, lowered))
+    const planned = planChangeSet(members, planContext(context, lowered, await languageKindFor(members)))
     if (!planned.ok) {
       return {
         op: 'apply',
@@ -1091,9 +1121,9 @@ Operations:
 3. { op: "status", plan_id } — plan state + per-file freshness.
 4. { op: "discard", plan_id } — retire a prepared plan.
 
-Each changes[] member targets one existing text file with the Edit hunk vocabulary:
-  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }], op?: "edit" | "delete" | "move", new_path? }
-Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line. op "delete" removes the file (no hunks); op "move" renames it to new_path, which must not exist, after any hunks. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.
+Each changes[] member targets one existing text file with the Edit vocabulary:
+  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] or edits: [{ old_string, new_string, replace_all? }], op?: "edit" | "delete" | "move", new_path? }
+Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string occurring once unless replace_all, and must address disjoint text; a member carries hunks or edits, not both. op "delete" removes the file (neither); op "move" renames it to new_path, which must not exist, after any hunks or edits. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.
 
 The contract:
 · any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;
@@ -1260,7 +1290,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
     try {
       switch (input.op) {
         case 'preview':
-          op = runPreview(input, context)
+          op = await runPreview(input, context)
           break
         case 'apply':
           op = await runApply(input, context, parentMessage.uuid)

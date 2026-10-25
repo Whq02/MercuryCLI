@@ -2,6 +2,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
+import type { ChangeSetMemberEdit, ExactEditOutcome } from '../../services/changeTransaction/changeSetContracts.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import { relocateStaleHunksFromRing } from '../../services/changeTransaction/stalePatchRecovery.js'
@@ -90,9 +91,11 @@ import {
 import {
   applyEditToFile,
   areFileEditsInputsEquivalent,
+  editSearchString,
   findActualString,
   getPatchForEdit,
   locateActualString,
+  preserveQuoteStyleCandidates,
   preserveQuoteStyleForFile,
   stripSequentialReadPrefixes,
   type ActualMatchOutcome,
@@ -451,6 +454,45 @@ function notUniqueRefusal(
     message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount: lineCountOf(currentContent), oldString }),
     meta: { oldString, ...(located.kind === 'found' ? { actualOldString: located.actual } : {}), matchLines: spellNamedRanges(matches) },
   }
+}
+
+const IDENTICAL_EDIT_MESSAGE = 'old_string and new_string are identical — there is no edit to apply.'
+
+type NoMatchReads = { context: ToolUseContext; expandedPath: string; displayPath: string; expectedAnchor: string | undefined }
+
+function notFoundMessage(currentContent: string, oldString: string, newString: string, reads: NoMatchReads | undefined): string {
+  const composedElsewhere = oldString !== '' && currentContent.normalize('NFC').includes(oldString.normalize('NFC'))
+  const hint = composedElsewhere
+    ? ' The file spells this text with another Unicode composition of the same letters (accents stored as separate combining marks, or the reverse) — a Read of the lines carries the file\'s own spelling; copy old_string from it.'
+    : ''
+  const words = reads === undefined ? '' : noMatchWords(reads.context, reads.expandedPath, reads.displayPath, currentContent, reads.expectedAnchor, oldString, newString)
+  return `The old_string was not found in the file.${hint}${words}\nString: ${oldString}`
+}
+
+export function matchExactEdit(
+  content: string,
+  edit: ChangeSetMemberEdit,
+  reads?: NoMatchReads,
+  prose?: (firstLine: string) => boolean,
+): ExactEditOutcome {
+  let oldString: string
+  let newString: string
+  try {
+    oldString = stripSequentialReadPrefixes(edit.old_string, content)
+    newString = stripSequentialReadPrefixes(edit.new_string, content)
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) }
+  }
+  if (oldString === newString) return { ok: false, message: IDENTICAL_EDIT_MESSAGE }
+  const located = locateActualString(content, oldString)
+  if (located.kind !== 'none') {
+    const notUnique = notUniqueRefusal(content, oldString, edit.replace_all === true, located)
+    if (notUnique !== null) return { ok: false, message: notUnique.message }
+  }
+  if (located.kind !== 'found') return { ok: false, message: notFoundMessage(content, oldString, newString, reads) }
+  const { exact, styled } = preserveQuoteStyleCandidates(oldString, located.actual, newString)
+  const replacement = exact !== styled && prose?.(content.split('\n', 1)[0] ?? '') === true ? styled : exact
+  return { ok: true, actual: located.actual, replacement, search: editSearchString(content, located.actual, replacement) }
 }
 
 function withoutReadPrefixes(input: FileEditInput, referenceText: string): FileEditInput {
@@ -851,7 +893,7 @@ export const FileEditTool = buildTool({
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: 'old_string and new_string are identical — there is no edit to apply.',
+        message: IDENTICAL_EDIT_MESSAGE,
         errorCode: 1,
       }
     }
@@ -1107,15 +1149,10 @@ export const FileEditTool = buildTool({
 
     const actualOldString = located !== null && located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
-      const composedElsewhere = oldString !== '' && currentContent.normalize('NFC').includes(oldString.normalize('NFC'))
-      const hint = composedElsewhere
-        ? ' The file spells this text with another Unicode composition of the same letters (accents stored as separate combining marks, or the reverse) — a Read of the lines carries the file\'s own spelling; copy old_string from it.'
-        : ''
-      const words = noMatchWords(context, expandedPath, input.file_path, currentContent, input.expected_anchor, oldString, newString)
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `The old_string was not found in the file.${hint}${words}\nString: ${oldString}`,
+        message: notFoundMessage(currentContent, oldString, newString, { context, expandedPath, displayPath: input.file_path, expectedAnchor: input.expected_anchor }),
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }

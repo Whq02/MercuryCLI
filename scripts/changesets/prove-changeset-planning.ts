@@ -36,6 +36,7 @@ const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
   '../../src/services/changeTransaction/snapshotRing.ts'
 )
 const { LOSSY_DECODE_MESSAGE } = await import('../../src/utils/fileRead.ts')
+const { matchExactEdit } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 
 const root = mkdtempSync(join(tmpdir(), 'fulcrum-plan-'))
 mkdirSync(join(root, 'sub'))
@@ -69,7 +70,10 @@ const member = (p: string, hunks: object[], anchor?: string) => ({
   expected_anchor: anchor ?? anchorOf(p),
   hunks: hunks as { lines: string; replace: string; insert?: 'before' | 'after' }[],
 })
-const ctx = { ownerKey: 'fulcrum-plan-prover' }
+const ctx = {
+  ownerKey: 'fulcrum-plan-prover',
+  exactEdit: (target: { content: string }, edit: { old_string: string; new_string: string; replace_all?: boolean }) => matchExactEdit(target.content, edit),
+}
 
 const treeDigestBefore = [aPath, bPath, cPath, crlfPath, cjkPath, noNlPath, execPath]
   .map(p => sha256Hex(readFileSync(p)))
@@ -133,6 +137,70 @@ console.log('── §1 planning across sets, encodings, modes ──')
   check('a move onto an existing path refuses by name', taken.ok === false && taken.code === 'destination')
   const deleteWithHunks = planChangeSet([{ file_path: gone, expected_anchor: anchorOf(gone), op: 'delete' as const, hunks: [{ lines: '1', replace: 'x' }] }], ctx)
   check('a delete member carrying hunks refuses as a schema error', deleteWithHunks.ok === false && deleteWithHunks.code === 'schema')
+}
+
+console.log("── §1b edits members ride Edit's exact-string matcher ──")
+{
+  type Edit = { old_string: string; new_string: string; replace_all?: boolean }
+  const editsMember = (p: string, edits: Edit[], anchor?: string) => ({ file_path: p, expected_anchor: anchor ?? anchorOf(p), edits })
+  const realA = realpathSync(aPath)
+  const one = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 2', new_string: 'ALPHA 2' }]), member(bPath, [{ lines: '1', replace: 'BETA 1' }])], ctx)
+  check('an edits member plans beside a hunks member', one.ok === true, one.ok ? '' : (one as { message: string }).message)
+  if (one.ok) {
+    const t = one.plan.targets.find(x => x.canonicalPath === realA)!
+    check('the located text is replaced in the planned content', t.plannedContent === 'alpha line 1\nALPHA 2\nalpha line 3\n', JSON.stringify(t.plannedContent))
+    check('the edit is one line span in the original coordinates', t.hunkSpans.length === 1 && t.hunkSpans[0]!.start === 2 && t.hunkSpans[0]!.end === 2 && t.hunkSpans[0]!.replace === 'ALPHA 2', JSON.stringify(t.hunkSpans))
+    check('the plan counts the edit the way it counts a hunk', one.plan.totalHunks === 2 && one.plan.changedPaths.length === 2, String(one.plan.totalHunks))
+  }
+  const both = planChangeSet([{ ...editsMember(aPath, [{ old_string: 'alpha line 2', new_string: 'x' }]), hunks: [{ lines: '1', replace: 'y' }] }], ctx)
+  check('a member carrying hunks AND edits refuses by name', both.ok === false && both.code === 'schema' && /hunks and edits/.test(both.message), both.ok ? 'planned' : both.message)
+  const dupes = planChangeSet([editsMember(bPath, [{ old_string: 'beta', new_string: 'BETA' }]), member(aPath, [{ lines: '1', replace: 'x' }])], ctx)
+  check("a non-unique old_string refuses the whole set in Edit's words, naming the lines", dupes.ok === false && dupes.code === 'edits' && dupes.failures?.length === 1 && /^edit 1: Found 2 matches of the string to replace, but replace_all is false, so nothing was written\. The matches are at lines 1, 2;/.test(dupes.failures[0]!.message), dupes.ok ? 'planned' : JSON.stringify(dupes.failures))
+  const todo1 = write('todo-1.ts', 'one TODO\ntwo TODO\n')
+  const todo2 = write('todo-2.ts', 'TODO\n')
+  const todo3 = write('sub/todo-3.ts', 'a TODO b TODO\n')
+  const everywhere = planChangeSet([todo1, todo2, todo3].map(p => editsMember(p, [{ old_string: 'TODO', new_string: 'DONE', replace_all: true }])), ctx)
+  check('replace_all rewrites every occurrence across three files', everywhere.ok === true && everywhere.plan.targets.map(t => t.plannedContent).sort().join('|') === ['one DONE\ntwo DONE\n', 'DONE\n', 'a DONE b DONE\n'].sort().join('|'), everywhere.ok ? JSON.stringify(everywhere.plan.targets.map(t => t.plannedContent)) : (everywhere as { message: string }).message)
+  check('every changed line region counts as a hunk (2 + 1 + 1)', everywhere.ok === true && everywhere.plan.totalHunks === 4, everywhere.ok ? String(everywhere.plan.totalHunks) : 'refused')
+  const satisfied = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 2 ', new_string: 'alpha line 2' }])], ctx)
+  check('an edit the file already satisfies classifies no-change, not failure', satisfied.ok === true && satisfied.plan.changedPaths.length === 0 && satisfied.plan.noChangePaths.length === 1, satisfied.ok ? '' : (satisfied as { message: string }).message)
+  const missing = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 9', new_string: 'x' }])], ctx)
+  check("an old_string the file lacks refuses in Edit's words", missing.ok === false && missing.code === 'edits' && /^edit 1: The old_string was not found in the file\.\nString: alpha line 9$/.test(missing.failures?.[0]?.message ?? ''), missing.ok ? 'planned' : JSON.stringify(missing.failures))
+  const same = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 2', new_string: 'alpha line 2' }])], ctx)
+  check('identical old_string and new_string refuse', same.ok === false && same.code === 'edits' && /old_string and new_string are identical/.test(same.failures?.[0]?.message ?? ''), same.ok ? 'planned' : JSON.stringify(same.failures))
+  const empty = planChangeSet([editsMember(aPath, [{ old_string: '', new_string: 'x' }])], ctx)
+  check('an empty old_string refuses as a schema error', empty.ok === false && empty.code === 'schema', empty.ok ? 'planned' : empty.message)
+  const none = planChangeSet([{ file_path: aPath, expected_anchor: anchorOf(aPath), edits: [] }], ctx)
+  check('a member with neither hunks nor edits refuses as a schema error', none.ok === false && none.code === 'schema', none.ok ? 'planned' : none.message)
+  const overlap = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 1\nalpha line 2', new_string: 'A' }, { old_string: 'alpha line 2\nalpha line 3', new_string: 'B' }])], ctx)
+  check('overlapping edits refuse naming both', overlap.ok === false && overlap.code === 'edits' && /edit 1 and edit 2 overlap/.test(overlap.failures?.[0]?.message ?? ''), overlap.ok ? 'planned' : JSON.stringify(overlap.failures))
+  const removed = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 2', new_string: '' }])], ctx)
+  check("deleting a line leaves no blank behind (Edit's rule)", removed.ok === true && removed.plan.targets[0]!.plannedContent === 'alpha line 1\nalpha line 3\n' && removed.plan.targets[0]!.hunkSpans[0]!.start === 2 && removed.plan.targets[0]!.hunkSpans[0]!.replace === '', removed.ok ? JSON.stringify(removed.plan.targets[0]!.hunkSpans) : (removed as { message: string }).message)
+  const glue = write('glue.txt', 'ax\nby\ncz\n')
+  const glued = planChangeSet([editsMember(glue, [{ old_string: 'x\n', new_string: '' }])], ctx)
+  check('an edit that joins two lines spans both in the plan', glued.ok === true && glued.plan.targets[0]!.plannedContent === 'aby\ncz\n' && glued.plan.targets[0]!.hunkSpans.length === 1 && glued.plan.targets[0]!.hunkSpans[0]!.start === 1 && glued.plan.targets[0]!.hunkSpans[0]!.end === 2 && glued.plan.targets[0]!.hunkSpans[0]!.replace === 'aby', glued.ok ? JSON.stringify(glued.plan.targets[0]!.hunkSpans) : (glued as { message: string }).message)
+  const twoOnOneLine = planChangeSet([editsMember(todo3, [{ old_string: 'a TODO', new_string: 'A' }, { old_string: 'b TODO', new_string: 'B' }])], ctx)
+  check('two edits on one line share one span', twoOnOneLine.ok === true && twoOnOneLine.plan.targets[0]!.plannedContent === 'A B\n' && twoOnOneLine.plan.targets[0]!.hunkSpans.length === 1 && twoOnOneLine.plan.targets[0]!.hunkSpans[0]!.replace === 'A B', twoOnOneLine.ok ? JSON.stringify(twoOnOneLine.plan.targets[0]!.hunkSpans) : (twoOnOneLine as { message: string }).message)
+  const curly = write('prose.md', 'She said “hello” to him.\n')
+  const { fileLanguageKind } = await import('../../src/native-ts/color-diff/index.ts')
+  const proseCtx = {
+    ...ctx,
+    exactEdit: (target: { canonicalPath: string; content: string }, edit: Edit) =>
+      matchExactEdit(target.content, edit, undefined, firstLine => fileLanguageKind(target.canonicalPath, firstLine) === 'prose'),
+  }
+  const quoted = planChangeSet([editsMember(curly, [{ old_string: 'said "hello"', new_string: 'said "hello" and "bye"' }])], proseCtx)
+  check("a straight-quoted old_string finds the file's curly spelling and new quotes take the prose file's style", quoted.ok === true && quoted.plan.targets[0]!.plannedContent === 'She said “hello” and “bye” to him.\n', quoted.ok ? JSON.stringify(quoted.plan.targets[0]!.plannedContent) : (quoted as { message: string }).message)
+  const code = write('code.ts', 'say(“hello”)\n')
+  const codeQuoted = planChangeSet([editsMember(code, [{ old_string: 'say("hello")', new_string: 'say("hello", "bye")' }])], proseCtx)
+  check('in a code file the new quotes stay straight', codeQuoted.ok === true && codeQuoted.plan.targets[0]!.plannedContent === 'say(“hello”, "bye")\n', codeQuoted.ok ? JSON.stringify(codeQuoted.plan.targets[0]!.plannedContent) : (codeQuoted as { message: string }).message)
+  const prefixed = planChangeSet([editsMember(aPath, [{ old_string: '1\talpha line 1\n2\talpha line 2', new_string: '1\tA1\n2\tA2' }])], ctx)
+  check("pasted line-number prefixes are stripped the way Edit strips them", prefixed.ok === true && prefixed.plan.targets[0]!.plannedContent === 'A1\nA2\nalpha line 3\n', prefixed.ok ? JSON.stringify(prefixed.plan.targets[0]!.plannedContent) : (prefixed as { message: string }).message)
+  const stale = planChangeSet([editsMember(aPath, [{ old_string: 'alpha line 2', new_string: 'x' }], 'fa:beefbeefbeef')], ctx)
+  check('a stale anchor on an edits member refuses (text addressed by content never relocates)', stale.ok === false && stale.failures?.[0]?.code === 'stale-anchor')
+  const deleteWithEdits = planChangeSet([{ file_path: aPath, expected_anchor: anchorOf(aPath), op: 'delete' as const, edits: [{ old_string: 'alpha line 2', new_string: 'x' }] }], ctx)
+  check('a delete member carrying edits refuses as a schema error', deleteWithEdits.ok === false && deleteWithEdits.code === 'schema')
+  const notRead = planChangeSet([editsMember(bPath, [{ old_string: 'beta', new_string: 'x' }])], { ...ctx, readEvidence: () => ({ ok: false, message: 'file has not been read' }) })
+  check('an unread file refuses before any match line is named', notRead.ok === false && notRead.failures?.length === 1 && notRead.failures[0]!.code === 'not-read' && !/Found 2 matches/.test(notRead.message), notRead.ok ? 'planned' : JSON.stringify(notRead.failures))
 }
 
 console.log('── §2 bounds name the limit + smallest recovery ──')

@@ -9,6 +9,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import {
   CHANGESET_BOUNDS,
   CHANGESET_CONTRACT_VERSION,
+  type ChangeSetMemberEdit,
   type ChangeSetMemberFailure,
   type ChangeSetMemberInput,
   type ChangeSetPlan,
@@ -16,20 +17,28 @@ import {
   type ChangeSetRefusal,
   type ChangeSetTargetBytes,
   type ChangeSetTargetPlan,
+  type ExactEditOutcome,
 } from './changeSetContracts.js'
 import { buildDiffHunks } from './diffBudget.js'
-import { applyHunks, planHunks, type EditHunkInput } from './hunks.js'
+import { applyHunks, countLines, planHunks, type EditHunkInput, type HunkSpan } from './hunks.js'
 import { checkAnchor, mintFileAnchor } from './snapshotAnchor.js'
 import { relocateStaleHunksFromRing } from './stalePatchRecovery.js'
 
+type LineRange = { start: number; end: number }
+
 interface ChangeSetPlanContext {
   ownerKey: string
+  exactEdit: (
+    target: { canonicalPath: string; requestedPath: string; expectedAnchor: string; content: string },
+    edit: ChangeSetMemberEdit,
+  ) => ExactEditOutcome
   readEvidence?: (target: {
     canonicalPath: string
     requestedPath: string
     expectedAnchor: string
     content: string
     hunks: readonly EditHunkInput[]
+    touched?: LineRange[] | null
   }) => { ok: true } | { ok: false; message: string }
   scopeCheck?: (canonicalPath: string) => string | null
   validateTarget?: (target: ChangeSetTargetPlan, plannedContent: string) => string | null
@@ -103,6 +112,110 @@ export function anchorPatchCodeOfResult(result: string): string | null {
   return m ? m[1]! : null
 }
 
+interface EditPlacement {
+  edit: number
+  at: number
+  end: number
+  replacement: string
+}
+
+function lineStartsOf(body: string): number[] {
+  const starts = [0]
+  for (let at = body.indexOf('\n'); at !== -1; at = body.indexOf('\n', at + 1)) starts.push(at + 1)
+  return starts
+}
+
+function lineAtOffset(starts: readonly number[], offset: number): number {
+  let low = 0
+  let high = starts.length - 1
+  while (low < high) {
+    const mid = (low + high + 1) >> 1
+    if (starts[mid]! <= offset) low = mid
+    else high = mid - 1
+  }
+  return low + 1
+}
+
+function placeEdits(
+  body: string,
+  edits: readonly ChangeSetMemberEdit[],
+  match: (edit: ChangeSetMemberEdit) => ExactEditOutcome,
+): { placements: EditPlacement[]; failures: string[] } {
+  const placements: EditPlacement[] = []
+  const failures: string[] = []
+  edits.forEach((edit, i) => {
+    const outcome = match(edit)
+    if (!outcome.ok) {
+      failures.push(`edit ${i + 1}: ${outcome.message}`)
+      return
+    }
+    for (let at = body.indexOf(outcome.search); at !== -1; at = body.indexOf(outcome.search, at + outcome.search.length)) {
+      placements.push({ edit: i + 1, at, end: at + outcome.search.length, replacement: outcome.replacement })
+      if (edit.replace_all !== true) break
+    }
+  })
+  placements.sort((a, b) => a.at - b.at || a.edit - b.edit)
+  const starts = lineStartsOf(body)
+  const lines = (p: EditPlacement): string => {
+    const start = lineAtOffset(starts, p.at)
+    const end = lineAtOffset(starts, p.end - 1)
+    return start === end ? `${start}` : `${start}-${end}`
+  }
+  for (let k = 1, reach = placements[0]!; k < placements.length; k++) {
+    const cur = placements[k]!
+    if (cur.at < reach.end) {
+      failures.push(`edit ${reach.edit} and edit ${cur.edit} overlap (lines ${lines(reach)} vs ${lines(cur)}) — edits must address disjoint text`)
+    }
+    if (cur.end > reach.end) reach = cur
+  }
+  return { placements, failures }
+}
+
+function splicePlacements(body: string, placements: readonly EditPlacement[]): string {
+  let out = body
+  for (let k = placements.length - 1; k >= 0; k--) {
+    const p = placements[k]!
+    out = out.slice(0, p.at) + p.replacement + out.slice(p.end)
+  }
+  return out
+}
+
+function spansOfPlacements(body: string, placements: readonly EditPlacement[]): HunkSpan[] {
+  const starts = lineStartsOf(body)
+  const lineCount = countLines(body)
+  const endOffsetOf = (line: number): number => (line < starts.length ? starts[line]! : body.length)
+  const spans: HunkSpan[] = []
+  let i = 0
+  while (i < placements.length) {
+    const startLine = lineAtOffset(starts, placements[i]!.at)
+    let endLine = lineAtOffset(starts, placements[i]!.end - 1)
+    let j = i + 1
+    for (;;) {
+      while (j < placements.length && lineAtOffset(starts, placements[j]!.at) <= endLine) {
+        endLine = Math.max(endLine, lineAtOffset(starts, placements[j]!.end - 1))
+        j++
+      }
+      const regionStart = starts[startLine - 1]!
+      const regionEnd = endOffsetOf(endLine)
+      let text = ''
+      let cursor = regionStart
+      for (let k = i; k < j; k++) {
+        text += body.slice(cursor, placements[k]!.at) + placements[k]!.replacement
+        cursor = placements[k]!.end
+      }
+      text += body.slice(cursor, regionEnd)
+      if (text !== '' && !text.endsWith('\n') && body[regionEnd - 1] === '\n' && endLine < lineCount) {
+        endLine += 1
+        continue
+      }
+      spans.push({ index: spans.length + 1, start: startLine, end: endLine, replace: text.endsWith('\n') ? text.slice(0, -1) : text })
+      break
+    }
+    i = j
+  }
+  return spans
+}
+
 export function planChangeSet(
   members: ChangeSetMemberInput[],
   ctx: ChangeSetPlanContext,
@@ -110,7 +223,7 @@ export function planChangeSet(
   const now = ctx.now ?? Date.now()
 
   if (members.length === 0) {
-    return refusal('schema', 'changes is empty — provide at least one file member', 'Add one or more { file_path, expected_anchor, hunks } members.')
+    return refusal('schema', 'changes is empty — provide at least one file member', 'Add one or more { file_path, expected_anchor, hunks or edits } members.')
   }
   if (members.length > CHANGESET_BOUNDS.maxFiles) {
     return refusal(
@@ -119,12 +232,17 @@ export function planChangeSet(
       `Split the change into ${Math.ceil(members.length / CHANGESET_BOUNDS.maxFiles)} sets of at most ${CHANGESET_BOUNDS.maxFiles} files.`,
     )
   }
-  let totalHunks = 0
+  let suppliedHunks = 0
   for (const m of members) {
     const op = m.op ?? 'edit'
     const hunks = m.hunks ?? []
-    if (op === 'delete' && hunks.length > 0) {
-      return refusal('schema', `${m.file_path}: a delete member carries hunks — deleting a file discards its edits`, 'Drop the hunks or split the edit into its own member.')
+    const edits = m.edits ?? []
+    const carried = hunks.length > 0 ? 'hunks' : 'edits'
+    if (hunks.length > 0 && edits.length > 0) {
+      return refusal('schema', `${m.file_path}: hunks and edits are mutually exclusive — use one edit mode per member`, 'Keep the hunks or the edits, not both.')
+    }
+    if (op === 'delete' && (hunks.length > 0 || edits.length > 0)) {
+      return refusal('schema', `${m.file_path}: a delete member carries ${carried} — deleting a file discards its edits`, `Drop the ${carried} or split the edit into its own member.`)
     }
     if (op === 'delete' && m.new_path !== undefined) {
       return refusal('schema', `${m.file_path}: a delete member carries new_path — delete and move are different ops`, 'Use op "move" to rename, or drop new_path.')
@@ -135,22 +253,26 @@ export function planChangeSet(
     if (op === 'edit' && m.new_path !== undefined) {
       return refusal('schema', `${m.file_path}: new_path is only meaningful on a move member`, 'Set op: "move" or drop new_path.')
     }
-    if (op === 'edit' && hunks.length === 0) {
-      return refusal('schema', `${m.file_path}: hunks is empty — every member needs at least one hunk`, 'Drop the empty member or give it a hunk.')
+    if (op === 'edit' && hunks.length === 0 && edits.length === 0) {
+      return refusal('schema', `${m.file_path}: hunks and edits are empty — every edit member needs at least one hunk or edit`, 'Drop the empty member or give it a hunk or an edit.')
     }
-    if (hunks.length > CHANGESET_BOUNDS.maxHunksPerFile) {
+    const blank = edits.findIndex(e => e.old_string === '')
+    if (blank !== -1) {
+      return refusal('schema', `${m.file_path}: edit ${blank + 1} has an empty old_string — ChangeSet edits EXISTING text; file creation stays with the Write tool`, 'Give the edit the text to replace, as the file spells it.')
+    }
+    if (hunks.length + edits.length > CHANGESET_BOUNDS.maxHunksPerFile) {
       return refusal(
         'bounds',
-        `${m.file_path}: ${hunks.length} hunks — the limit is ${CHANGESET_BOUNDS.maxHunksPerFile} hunks per file`,
-        'Merge adjacent hunks into range hunks, or split the file across two change sets.',
+        `${m.file_path}: ${hunks.length + edits.length} ${carried} — the limit is ${CHANGESET_BOUNDS.maxHunksPerFile} ${carried} per file`,
+        `Merge adjacent ${carried}${carried === 'hunks' ? ' into range hunks' : ''}, or split the file across two change sets.`,
       )
     }
-    totalHunks += hunks.length
+    suppliedHunks += hunks.length + edits.length
   }
-  if (totalHunks > CHANGESET_BOUNDS.maxHunksTotal) {
+  if (suppliedHunks > CHANGESET_BOUNDS.maxHunksTotal) {
     return refusal(
       'bounds',
-      `the set carries ${totalHunks} hunks — the limit is ${CHANGESET_BOUNDS.maxHunksTotal} hunks per change set`,
+      `the set carries ${suppliedHunks} hunks — the limit is ${CHANGESET_BOUNDS.maxHunksTotal} hunks per change set`,
       'Split the change into smaller sets.',
     )
   }
@@ -316,8 +438,20 @@ export function planChangeSet(
     const bom = content.charCodeAt(0) === 0xfeff ? content.charAt(0) : ''
     const body = content.slice(bom.length)
     let memberHunks = member.hunks ?? []
+    const memberEdits = member.edits ?? []
     let memberAnchor = member.expected_anchor
     let staleRecovery: string | undefined
+    const placed =
+      memberEdits.length > 0
+        ? placeEdits(body, memberEdits, edit =>
+            ctx.exactEdit({ canonicalPath: canonical, requestedPath: member.file_path, expectedAnchor: member.expected_anchor, content: body }, edit),
+          )
+        : null
+    let touched: LineRange[] | null | undefined
+    if (placed !== null) {
+      const starts = lineStartsOf(body)
+      touched = placed.placements.length === 0 ? null : placed.placements.map(p => ({ start: lineAtOffset(starts, p.at), end: lineAtOffset(starts, p.end - 1) }))
+    }
 
     if (ctx.readEvidence) {
       const ev = ctx.readEvidence({
@@ -326,6 +460,7 @@ export function planChangeSet(
         expectedAnchor: member.expected_anchor,
         content,
         hunks: memberHunks,
+        ...(touched !== undefined ? { touched } : {}),
       })
       if (!ev.ok) {
         failures.push({ path: member.file_path, code: 'not-read', message: ev.message })
@@ -359,6 +494,13 @@ export function planChangeSet(
     let plannedContent: string
     if (memberOp === 'delete') {
       plannedContent = ''
+    } else if (placed !== null) {
+      if (placed.failures.length > 0) {
+        for (const message of placed.failures) failures.push({ path: member.file_path, code: 'edits', message })
+        continue
+      }
+      hunkSpans = spansOfPlacements(body, placed.placements)
+      plannedContent = bom + splicePlacements(body, placed.placements)
     } else if (memberHunks.length === 0) {
       plannedContent = content
     } else {
@@ -481,7 +623,7 @@ export function planChangeSet(
     targets,
     changedPaths,
     noChangePaths,
-    totalHunks,
+    totalHunks: targets.reduce((n, t) => n + t.hunkSpans.length, 0),
   }
   return { ok: true, plan, bytes }
 }

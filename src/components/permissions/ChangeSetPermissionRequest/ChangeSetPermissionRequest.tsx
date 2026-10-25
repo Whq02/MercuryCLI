@@ -13,11 +13,13 @@ import {
   diffPaintWidth,
   totalHunkRows,
 } from '../consentBodyBudget.js';
+import { fileLanguageKind } from '../../../native-ts/color-diff/index.js';
 import type { ChangeSetPlan } from '../../../services/changeTransaction/changeSetContracts.js';
 import { planChangeSet, formatChangeSetRefusal } from '../../../services/changeTransaction/changeSetPlan.js';
 import { getChangeSetPlan } from '../../../services/changeTransaction/changeSetStore.js';
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js';
 import { ChangeSetTool } from '../../../tools/ChangeSetTool/ChangeSetTool.js';
+import { matchExactEdit } from '../../../tools/FileEditTool/FileEditTool.js';
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
 import { usePermissionRequestLogging } from '../hooks.js';
 import { PermissionDialog } from '../PermissionDialog.js';
@@ -42,7 +44,11 @@ interface PreviewData {
 
 function computePreview(input: ChangeSetInput, owner: string): PreviewData {
   if (input.changes !== undefined && input.changes.length > 0) {
-    const planned = planChangeSet(input.changes, { ownerKey: owner });
+    const planned = planChangeSet(input.changes, {
+      ownerKey: owner,
+      exactEdit: (target, edit) =>
+        matchExactEdit(target.content, edit, undefined, firstLine => fileLanguageKind(target.canonicalPath, firstLine) === 'prose'),
+    });
     if (!planned.ok) return { refusalText: formatChangeSetRefusal(planned) };
     return { plan: planned.plan };
   }

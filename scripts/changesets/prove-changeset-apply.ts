@@ -404,5 +404,58 @@ console.log('── A8 delete and move members through changes[] ──')
   check('an empty file and its registration join one atomic change set', result.effect.outcome === 'succeeded' && readFileSync(empty, 'utf8') === 'notes' && readFileSync(other, 'utf8') === 'after\n', result.data.result)
 }
 
+console.log("── A9 edits members through changes[]: Edit's exact-string lane in one atomic set ──")
+{
+  type Edit = { old_string: string; new_string: string; replace_all?: boolean }
+  const editsMember = (p: string, edits: Edit[], anchor?: string) => ({ file_path: p, expected_anchor: anchor ?? mintFileAnchor(readFileSync(p, 'utf8')), edits })
+  const e1 = writeFixture('edits-1.ts', 'const a = 1\nconst b = 2\n')
+  const e2 = writeFixture('edits-2.ts', 'left\nright\n')
+  const ctx = makeContext()
+  primeRead(ctx, e1, e2)
+  const pv = await callTool({ op: 'preview', changes: [editsMember(e1, [{ old_string: 'const b = 2', new_string: 'const b = 3' }]), member(e2, [{ lines: '1', replace: 'LEFT' }])] }, ctx)
+  check('a preview counts an edits member the way it counts hunks', pv.data.outcome === 'no-change' && /2 file\(s\) to change, 2 hunk\(s\)\./.test(pv.data.result) && pv.data.result.includes('edits-1.ts'), pv.data.result)
+  const landed = await callTool({ op: 'apply', plan_id: pv.data.planId }, ctx)
+  check('the previewed edits member lands beside the hunks member', landed.effect.outcome === 'succeeded' && readFileSync(e1, 'utf8') === 'const a = 1\nconst b = 3\n' && readFileSync(e2, 'utf8') === 'LEFT\nright\n', landed.data.result)
+  check('the apply result counts the edit and names the file with its fresh anchor', /2 file\(s\), 2 hunk\(s\), verified by reread:/.test(landed.data.result) && new RegExp(`edits-1\\.ts \\(anchor: ${mintFileAnchor('const a = 1\nconst b = 3\n')}\\)`).test(landed.data.result), landed.data.result)
+  check('read-state is refreshed for the edits member', (ctx.readFileState.get(e1) as { content: string } | undefined)?.content === 'const a = 1\nconst b = 3\n')
+
+  const f1 = writeFixture('fast-1.ts', 'one TODO\ntwo TODO\n')
+  const f2 = writeFixture('fast-2.ts', 'TODO\n')
+  const f3 = writeFixture('fast-3.ts', 'a TODO b TODO\n')
+  const fCtx = makeContext()
+  primeRead(fCtx, f1, f2, f3)
+  const everywhere = await callTool({ op: 'apply', changes: [f1, f2, f3].map(p => editsMember(p, [{ old_string: 'TODO', new_string: 'DONE', replace_all: true }])) }, fCtx)
+  check('replace_all across three files lands every occurrence in one set', everywhere.effect.outcome === 'succeeded' && readFileSync(f1, 'utf8') === 'one DONE\ntwo DONE\n' && readFileSync(f2, 'utf8') === 'DONE\n' && readFileSync(f3, 'utf8') === 'a DONE b DONE\n', everywhere.data.result)
+  check('the result counts every changed line region (2 + 1 + 1)', /3 file\(s\), 4 hunk\(s\)/.test(everywhere.data.result) && everywhere.effect.changedPaths.length === 3, everywhere.data.result)
+
+  const both = await callTool({ op: 'apply', changes: [{ ...editsMember(f2, [{ old_string: 'DONE', new_string: 'x' }]), hunks: [{ lines: '1', replace: 'y' }] }] }, fCtx)
+  check('a member carrying hunks and edits refuses by name, writing nothing', both.effect.outcome === 'failed' && /^ChangeSet refused \(schema\)/.test(both.data.result) && /hunks and edits/.test(both.data.result) && /Nothing was written\./.test(both.data.result) && readFileSync(f2, 'utf8') === 'DONE\n', both.data.result)
+
+  const nu = writeFixture('not-unique.ts', 'beta one\nbeta two\n')
+  const nCtx = makeContext()
+  primeRead(nCtx, nu, f2)
+  const notUnique = await callTool({ op: 'apply', changes: [editsMember(nu, [{ old_string: 'beta', new_string: 'BETA' }]), editsMember(f2, [{ old_string: 'DONE', new_string: 'done' }])] }, nCtx)
+  check("a non-unique old_string refuses the whole set in Edit's words with the line numbers", notUnique.effect.outcome === 'failed' && /\[edits\] edit 1: Found 2 matches of the string to replace, but replace_all is false, so nothing was written\. The matches are at lines 1, 2; Read\(offset: 1, limit: 2\) shows the first with its neighbours\./.test(notUnique.data.result) && readFileSync(nu, 'utf8') === 'beta one\nbeta two\n' && readFileSync(f2, 'utf8') === 'DONE\n', notUnique.data.result)
+  const nuMtime = statSync(nu).mtimeMs
+  const satisfied = await callTool({ op: 'apply', changes: [editsMember(nu, [{ old_string: 'beta one ', new_string: 'beta one' }])] }, nCtx)
+  check('an all-satisfied edits set reports no change and writes nothing', satisfied.effect.outcome === 'no-change' && /^No changes needed — every member of plan cs-[0-9a-f]{12} is already satisfied/.test(satisfied.data.result) && statSync(nu).mtimeMs === nuMtime, satisfied.data.result)
+  const missing = await callTool({ op: 'apply', changes: [editsMember(nu, [{ old_string: 'beta twoo', new_string: 'x' }])] }, nCtx)
+  check("an old_string the file lacks refuses in Edit's words and names the closest lines read", missing.effect.outcome === 'failed' && /\[edits\] edit 1: The old_string was not found in the file\./.test(missing.data.result) && /The lines read this session closest to old_string, numbered with their anchor:/.test(missing.data.result) && /2\tbeta two/.test(missing.data.result), missing.data.result)
+  const unread = writeFixture('unread-edits.ts', 'beta one\nbeta two\n')
+  const unreadRefusal = await callTool({ op: 'apply', changes: [editsMember(unread, [{ old_string: 'beta', new_string: 'x' }], 'fa:000000000000')] }, makeContext())
+  check('an unread file refuses before any match line is named', unreadRefusal.effect.outcome === 'failed' && /\[not-read\] Read the file before editing it/.test(unreadRefusal.data.result) && !/Found 2 matches/.test(unreadRefusal.data.result) && readFileSync(unread, 'utf8') === 'beta one\nbeta two\n', unreadRefusal.data.result)
+
+  const prose = writeFixture('prose.md', 'She said “hello” to him.\n')
+  const pCtx = makeContext()
+  primeRead(pCtx, prose)
+  const styled = await callTool({ op: 'apply', changes: [editsMember(prose, [{ old_string: 'said "hello"', new_string: 'said "hello" and "bye"' }])] }, pCtx)
+  check("new quotes take the prose file's curly style through the tool", styled.effect.outcome === 'succeeded' && readFileSync(prose, 'utf8') === 'She said “hello” and “bye” to him.\n', styled.data.result)
+
+  const description = await (ChangeSetTool as { prompt: (input: { tools: unknown[]; model: string }) => Promise<string> }).prompt({ tools: [], model: '' })
+  check('the tool description says a member carries hunks or edits', description.includes('edits: [{ old_string, new_string, replace_all? }]') && description.includes('a member carries hunks or edits, not both'), description)
+  const shape = (ChangeSetTool.inputSchema as unknown as { shape: { changes: { unwrap: () => { element: { shape: Record<string, unknown> } } } } }).shape.changes.unwrap().element.shape
+  check('the schema carries edits beside hunks on a member', 'edits' in shape && 'hunks' in shape, Object.keys(shape).join(','))
+}
+
 console.log(failures === 0 ? '\nprove-changeset-apply: GREEN' : `\nprove-changeset-apply: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

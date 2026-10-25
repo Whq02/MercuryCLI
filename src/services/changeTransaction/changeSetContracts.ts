@@ -45,10 +45,21 @@ export const CHANGESET_BOUNDS = {
 } as const
 
 
+export interface ChangeSetMemberEdit {
+  old_string: string
+  new_string: string
+  replace_all?: boolean
+}
+
+export type ExactEditOutcome =
+  | { ok: true; actual: string; replacement: string; search: string }
+  | { ok: false; message: string }
+
 export interface ChangeSetMemberInput {
   file_path: string
   expected_anchor: string
   hunks?: EditHunkInput[]
+  edits?: ChangeSetMemberEdit[]
   op?: 'edit' | 'delete' | 'move'
   new_path?: string
 }
@@ -126,6 +137,7 @@ type ChangeSetRefusalCode =
   | 'stale-anchor'
   | 'malformed-anchor'
   | 'hunks'
+  | 'edits'
   | 'destination'
   | 'scope'
   | 'denied'

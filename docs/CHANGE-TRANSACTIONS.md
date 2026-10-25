@@ -188,9 +188,11 @@ reviews, and applies an anchored text change across several existing files:
 | `status` / `discard` + `plan_id` | inspect or retire a plan |
 
 Each member names an existing text file, its required `expected_anchor`, and
-its hunks (the live Edit hunk vocabulary). Creation, deletion, move, binary,
-notebook, and executable targets are refused by name in the JSON form (the
-patch dialect above carries delete and move). A nine-step preflight
+either its hunks (the live Edit hunk vocabulary) or its edits (`old_string`,
+`new_string`, `replace_all`, matched by Edit's own exact-string lane against
+the same snapshot, each `old_string` occurring once unless `replace_all`);
+`op: "delete"` removes the file and `op: "move"` renames it to `new_path`.
+Creation, binary and notebook targets are refused by name. A nine-step preflight
 covers bounds, duplicates, anchors, hunks, digest determinism, owner
 isolation, and expiry; the valid subset of an invalid set is never written.
 There is one aggregate approval decision per set (any denied path
