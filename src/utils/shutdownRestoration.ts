@@ -10,6 +10,7 @@ import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../ink/termio
 import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../ink/termio/dec.js'
 import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, CLEAR_TERMINAL_TITLE, supportsTabStatus, wrapForMultiplexer } from '../ink/termio/osc.js'
 import { binaryName } from './config.js'
+import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { restoreOriginalBackground } from './cockpit/warmBackground.js'
 
@@ -91,7 +92,7 @@ export function resumeHintArgument(
 ): string {
   if (!title) return sessionId
   return platform === 'win32'
-    ? `'${title.replace(/'/g, "''")}'`
+    ? `'${escapeForPowershellSingleQuotes(title)}'`
     : `"${title.replace(POSIX_BACKSLASHED, '\\$&').replace(POSIX_SPLICED, "\"'$&'\"")}"`
 }
 

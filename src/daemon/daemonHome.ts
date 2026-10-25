@@ -1,6 +1,6 @@
-import { appendFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { publishAtomicSync } from '../substrate/fileStore.js'
+import { publishAtomicSync, renameWithWin32RetrySync } from '../substrate/fileStore.js'
 
 type DaemonHomeWatch = { dir: string; onGone: (where: string) => void; gone: boolean }
 
@@ -82,7 +82,7 @@ export function publishTransientInDaemonHome(where: string, path: string, conten
   const tmp = `${path}.${process.pid}.tmp`
   try {
     writeFileSync(tmp, contents)
-    renameSync(tmp, path)
+    renameWithWin32RetrySync(tmp, path)
     return 'published'
   } catch (e) {
     if (w === null || (e as NodeJS.ErrnoException).code !== 'ENOENT') throw e

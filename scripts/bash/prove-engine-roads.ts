@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.ts'
 import { plugin } from 'bun'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -258,15 +258,18 @@ section('§3 off the Windows road with the engine pinned (MERCURY_SHELL_ENGINE=b
 
 section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=locate): the located bash serves the three paths beside the engine')
 {
-  const located = existsSync('/bin/bash') ? '/bin/bash' : null
+  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const gitBash = process.platform === 'win32' ? locateGitBash() : null
+  const located = gitBash !== null ? ('path' in gitBash ? gitBash.path : null) : existsSync('/bin/bash') ? '/bin/bash' : null
   if (located === null) {
-    check('a bash stands in for the located Git Bash on this host', false, 'no /bin/bash')
+    check('a bash stands in for the located Git Bash on this host', false, process.platform === 'win32' ? 'no Git Bash located' : 'no /bin/bash')
   } else {
+    const shellSees = process.platform === 'win32' ? execFileSync(located, ['-c', 'cygpath -u -- "$1"', '_', located], { encoding: 'utf8', windowsHide: true }).trim() : located
     const { report: r, text } = await runLegProcess('located', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: located })
     check('the leg ran and reported', r !== null, text.slice(-1500))
     if (r !== null) {
       check('the engine is the road (the Windows default)', (r.engineBinary ?? '').includes('brush') && r.plain.session && r.plain.out === `plain:${VERSION}:kept:scrubbed`, JSON.stringify(r.plain))
-      check('the Monitor-shaped, background and inheriting calls run under the located bash', r.monitor.chunks.includes(`tick1:system:${located}`) && r.background.out === `background:system:none:${located}` && r.inherit.out === `inherit:system:none:cli:unseeded:${located}`, JSON.stringify({ monitor: r.monitor.chunks, background: r.background.out, inherit: r.inherit.out }))
+      check('the Monitor-shaped, background and inheriting calls run under the located bash', r.monitor.chunks.includes(`tick1:system:${shellSees}`) && r.background.out === `background:system:none:${shellSees}` && r.inherit.out === `inherit:system:none:cli:unseeded:${shellSees}`, JSON.stringify({ monitor: r.monitor.chunks, background: r.background.out, inherit: r.inherit.out }))
       check("…and a crewmate's way round under a ceiling of 1 names that system shell", r.crewmate.refusal.includes('run_in_background (its own system shell)'), JSON.stringify(r.crewmate))
     }
   }

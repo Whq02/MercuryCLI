@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 // @ts-ignore -- untyped .mjs module
 import { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, SPLASH_SKIP_FLAGS, SPLASH_SKIP_VERBS, SPLASH_VERSION_TTY_PROBE_JS } from '../release/launcherTemplates.mjs'
 // @ts-ignore -- untyped .mjs module
@@ -124,7 +124,9 @@ section('(2b) the runtime rungs — MERCURY_NODE · vendor/node · PATH')
   mkdirSync(trapDir, { recursive: true })
   writeFileSync(join(trapDir, 'node'), '#!/bin/sh\necho "trap: the PATH node must not be used while a higher rung answers" >&2\nexit 86\n')
   chmodSync(join(trapDir, 'node'), 0o755)
-  const rungEnv = (extra: Record<string, string> = {}, path = `${trapDir}:/usr/bin:/bin`): NodeJS.ProcessEnv => {
+  const shellDirs = process.platform === 'win32' ? [dirname(Bun.which('sh') ?? 'sh')] : ['/usr/bin', '/bin']
+  const shellPath = (first: string): string => [first, ...shellDirs].join(delimiter)
+  const rungEnv = (extra: Record<string, string> = {}, path = shellPath(trapDir)): NodeJS.ProcessEnv => {
     const env: NodeJS.ProcessEnv = { ...process.env, PATH: path, MERCURY_CONFIG_DIR: SHIM_HOME, MERCURY_HOME: SHIM_HOME, ...extra }
     delete env.FAKE_NODE_VERSION
     if (!('MERCURY_NODE' in extra)) delete env.MERCURY_NODE
@@ -154,12 +156,12 @@ section('(2b) the runtime rungs — MERCURY_NODE · vendor/node · PATH')
     check('MERCURY_NODE below the floor is refused by label + range (the rung picked is checked, never trusted)', r.status === 1 && r.stderr.includes(policy.label) && r.stderr.includes(policy.range), `status=${r.status} ${r.stderr.slice(0, 200)}`)
   }
   rmSync(join(appDir, 'vendor'), { recursive: true, force: true })
-  if (existsSync('/usr/bin/node') || existsSync('/bin/node')) {
+  if (shellDirs.some(dir => existsSync(join(dir, 'node')) || existsSync(join(dir, 'node.exe')))) {
     console.log('  [SKIP] no-rung leg — this host carries a node in /usr/bin or /bin, so no PATH without one can be minted')
   } else {
     const emptyDir = join(base, 'empty-path')
     mkdirSync(emptyDir, { recursive: true })
-    const r = spawnSync('sh', [launcherPath, '--version'], { encoding: 'utf8', env: rungEnv({}, `${emptyDir}:/usr/bin:/bin`), timeout: 30_000 })
+    const r = spawnSync('sh', [launcherPath, '--version'], { encoding: 'utf8', env: rungEnv({}, shellPath(emptyDir)), timeout: 30_000 })
     check('no rung at all refuses (exit 1) naming MERCURY_NODE, the vendored path and PATH', r.status === 1 && r.stderr.includes('MERCURY_NODE') && r.stderr.includes(VENDORED) && r.stderr.includes('PATH'), `status=${r.status} ${r.stderr.slice(0, 300)}`)
   }
 }
@@ -436,7 +438,7 @@ if (mode === 'handoff') {
       timeout: 60_000,
       input: '',
     })
-    return { out: r.stdout + r.stderr, status: r.status }
+    return { out: (r.stdout ?? '') + (r.stderr ?? ''), status: r.status }
   }
 
   resetChain()
@@ -589,7 +591,7 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     mkdirSync(join(opsHome, 'bin'), { recursive: true })
     writeFileSync(opsLauncher, ops)
     const vendoredNode = join(repo, 'dist', 'vendor', 'node', 'bin', 'node')
-    const pathNode = (process.env.PATH ?? '').split(':').filter(dir => dir !== '').map(dir => join(dir, 'node')).find(candidate => existsSync(candidate))
+    const pathNode = (process.env.PATH ?? '').split(delimiter).filter(dir => dir !== '').flatMap(dir => [join(dir, 'node'), join(dir, 'node.exe')]).find(candidate => existsSync(candidate))
     const opsNode = existsSync(vendoredNode) ? vendoredNode : pathNode
     check('operator launcher: a real node runs the built verb (the vendored runtime when the build carries one, else the PATH node)', opsNode !== undefined, 'no node on PATH and no vendored runtime')
     writeFileSync(join(opsHome, 'splash.mjs'),

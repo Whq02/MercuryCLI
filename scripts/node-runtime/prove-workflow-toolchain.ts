@@ -27,7 +27,7 @@ const jobBlock = (t: string, job: string): string => {
 const selectsNoNode = (block: string): boolean => block !== '' && !block.includes('actions/setup-node') && !block.includes('node-version')
 
 section('gate.yml — build, every shard, darwin')
-const gate = readFileSync(join(REPO, '.github/workflows/gate.yml'), 'utf8')
+const gate = readFileSync(join(REPO, '.github/workflows/gate.yml'), 'utf8').replace(/\r\n/g, '\n')
 check('setup-node v7 (SHA-pinned) in build + shard + darwin + the Node-22 leg (4 uses)', countPinned(gate, 'actions/setup-node', 'v7') === 4, `${countPinned(gate, 'actions/setup-node', 'v7')}`)
 check('every third-party action is pinned to an immutable SHA', floatingRefs(gate).length === 0, floatingRefs(gate).join(', '))
 check('bun installs via a pinned action, not a live curl-to-shell', gate.includes('oven-sh/setup-bun@') && !gate.includes('bun.sh/install'))
@@ -40,7 +40,7 @@ check('the verdict job selects no Node (python-only aggregation)', selectsNoNode
 check('dispatch-only trigger untouched', gate.includes('workflow_dispatch:') && !gate.includes('push:'))
 
 section('private-release.yml — verify + every packaging OS')
-const rel = readFileSync(join(REPO, '.github/workflows/private-release.yml'), 'utf8')
+const rel = readFileSync(join(REPO, '.github/workflows/private-release.yml'), 'utf8').replace(/\r\n/g, '\n')
 check('setup-node v7 (SHA-pinned) in verify + package + bridge-gate (3 uses)', countPinned(rel, 'actions/setup-node', 'v7') === 3, `${countPinned(rel, 'actions/setup-node', 'v7')}`)
 check('every third-party action is pinned to an immutable SHA', floatingRefs(rel).length === 0, floatingRefs(rel).join(', '))
 check('all three select the calibration pin via node-version-file', count(rel, 'node-version-file: .node-version') === 3)

@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'input-redirect-read-')))
 const root = join(scratch, 'run')
@@ -61,7 +62,7 @@ console.log('\n3. the pipe with 2>&1 stays allowed')
 
 console.log('\n4. a target outside the starting folder asks with the read words')
 {
-  const v = await decide(`wc -l < ${outsideWords}`)
+  const v = await decide(`wc -l < ${slashed(outsideWords)}`)
   const want = `Mercury needs permission to read ${outsideWords}, outside the starting folder ('${root}').`
   check('wc -l < <outside>/words → ask', v.behavior === 'ask', shown(v))
   check('the words are the read words naming the file and the starting folder', v.message === want, shown(v))
@@ -108,7 +109,7 @@ console.log('\n7. the shapes that keep refusing')
     const v = await decide(command)
     check(`${command} → ${behavior}: ${want ?? ''}`, v.behavior === behavior && v.message === want, shown(v))
   }
-  const descriptorOutside = await decide(`cat 3< ${outsideWords}`)
+  const descriptorOutside = await decide(`cat 3< ${slashed(outsideWords)}`)
   check('every input descriptor is path-checked', descriptorOutside.behavior === 'ask' && descriptorOutside.message === `Mercury needs permission to read ${outsideWords}, outside the starting folder ('${root}').`, shown(descriptorOutside))
   const interpreter = await decide('python3 < l_data.txt')
   check('python3 < l_data.txt is not allowed', interpreter.behavior !== 'allow', shown(interpreter))

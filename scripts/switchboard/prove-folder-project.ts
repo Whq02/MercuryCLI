@@ -106,7 +106,7 @@ try {
     check('F2 the birth door stamps AFTER the admission is accepted and before the hop (never on a refusal)', refusal > 0 && stamp > refusal && hop > stamp)
     const callers = srcFiles('src').filter(f => read(f).includes('catalogFirstChat(') && !f.endsWith('bootCardFacts.ts'))
     check('F2 the birth door is the ONE caller of the stamp', callers.length === 1 && callers[0]!.endsWith('bornSession.ts'), callers.join(','))
-    const estateCallers = srcFiles('src').filter(f => read(f).includes('initializeProjectLocalEstate(') && !f.endsWith('projectLocal/paths.ts'))
+    const estateCallers = srcFiles('src').filter(f => read(f).includes('initializeProjectLocalEstate(') && !f.replace(/\\/g, '/').endsWith('projectLocal/paths.ts'))
     check('F2 the estate verb has ONE caller — the catalog owner', estateCallers.length === 1 && estateCallers[0]!.endsWith('bootCardFacts.ts'), estateCallers.join(','))
     const owner = read('src/utils/bootCardFacts.ts')
     const stampAt = owner.indexOf('export function catalogFirstChat')

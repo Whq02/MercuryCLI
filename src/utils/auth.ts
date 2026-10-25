@@ -706,7 +706,7 @@ function credentialsFilePath(): string {
 
 let lastCredentialsMtimeMs: number | null = null
 
-function invalidateOnDiskChange(): void {
+export function invalidateOnDiskChange(): void {
   try {
     const mtime = statSync(credentialsFilePath()).mtimeMs
     if (lastCredentialsMtimeMs === null || mtime !== lastCredentialsMtimeMs) {

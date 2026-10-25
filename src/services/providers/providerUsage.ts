@@ -9,6 +9,7 @@ import {
   getAuthTokenSource,
   getClaudeAIOAuthTokens,
   getSubscriptionType,
+  invalidateOnDiskChange,
   isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
@@ -180,6 +181,7 @@ function engineIdentityLive(id: ProviderFamilyId): string | undefined {
 export function anthropicCredentialPresence(
   reads?: ProviderFamilyReads,
 ): { credentialed: boolean; credentialLabel?: string; identity?: string; expired?: boolean } {
+  if (reads === undefined) invalidateOnDiskChange()
   const subscriber = reads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const plan = reads?.subscriptionType?.() ?? getSubscriptionType()
   const keyPresent =

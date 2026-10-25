@@ -158,7 +158,7 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
   const stale = await readConcourseSeedOverrides(draftDir)
   check('a chip an earlier boot left behind reads as UNSET through the reader door', stale.projectDir === undefined && stale.projectDirAt === undefined)
   check('the ground resolver answers the LIVE ground over the stale chip (the seed-chip follow-up)', (await resolveHarnessGround(draftDir)) === getCwd() && getCwd() === P_A)
-  check('the stale chip is still in the file (the route\'s mount clears it — the reader door only stops it steering)', readFileSync(join(draftDir, 'concourse-draft.json'), 'utf8').includes(P_B))
+  check('the stale chip is still in the file (the route\'s mount clears it — the reader door only stops it steering)', readFileSync(join(draftDir, 'concourse-draft.json'), 'utf8').includes(JSON.stringify(P_B).slice(1, -1)))
   const staleBoard = await build()
   check('the board never follows a stale chip: the view is the live ground (A), not the chip (B)', staleBoard.context.projectLabel === basename(P_A))
   await writeConcourseSeedOverride({ projectDir: null }, draftDir)

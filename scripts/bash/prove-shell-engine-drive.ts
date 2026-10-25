@@ -4,12 +4,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { ENGINE_ENV, ROOT, engineLaneState, type Engine } from './shell-engine-parity.ts'
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
-const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
+const driver = resolveCaptureDriver()
+const nodeArgv0 = driver.kind === 'unavailable' ? 'node' : resolveCaptureArgv0('node', driver)
 if (!existsSync(DIST)) {
   console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
   process.exit(0)
@@ -198,13 +199,16 @@ const gridText = (grid: Grid): string =>
   grid.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd()).join('\n')
 
 async function capture(cfg: Record<string, unknown>, env: Record<string, string>): Promise<Capture> {
+  if (driver.kind === 'unavailable') throw new Error(`${driver.reason}: ${driver.remedy}`)
+  const engineEntry = captureEngineEntry(driver, ROOT)
+  const python = driver.python
   const dir = mkdtempSync(join(tmpdir(), 'shell-drive-cfg-'))
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
   const stderr: string[] = []
   await new Promise<void>((resolve, reject) => {
-    const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {
+    const child = spawn(python, [engineEntry, cfgPath], {
       env: { ...process.env, ...env },
       stdio: ['ignore', 'ignore', 'pipe'],
     })
@@ -300,7 +304,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
         rows: ROWS,
         total: 320,
         cwd,
-        argv: ['node', DIST, '--sovereign'],
+        argv: [nodeArgv0, DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },

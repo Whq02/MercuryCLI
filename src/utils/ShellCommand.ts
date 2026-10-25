@@ -118,8 +118,10 @@ export function wrapSpawn(
     void assembleResult(code)
   }
 
+  const terminatedByOurKill = (code: number): boolean => killedByMercury && process.platform === 'win32' && code === 1
+
   const deriveExitCode = (code: number | null, exitSignal: NodeJS.Signals | null): number => {
-    if (code !== null && code !== undefined) return code
+    if (code !== null && code !== undefined && !terminatedByOurKill(code)) return code
     if (exitSignal === 'SIGTERM') return 144
     if (killedByTimeoutPolicy) return 143
     if (killedByMercury) return 137

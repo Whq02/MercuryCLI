@@ -21,6 +21,10 @@ export function validateUuid(maybeUuid: unknown): UUID | null {
   return UUID_PATTERN.test(maybeUuid) ? (maybeUuid as UUID) : null
 }
 
+export function isTranscriptFileName(name: string): boolean {
+  return name.length > 6 && name.endsWith('.jsonl') && !name.slice(0, -6).includes('.')
+}
+
 export function unescapeJsonString(raw: string): string {
   if (!raw.includes('\\')) return raw
   try {

@@ -9,6 +9,7 @@ import { calculateUSDCost, modelPricingBasis, resolveModelPricing } from './mode
 import { MERCURY_VERSION } from '../constants/product.js'
 import { servedModelOfAssistantRow } from './model/retainedModel.js'
 import { scanTranscriptEntriesForward } from './sessionStorage/transcriptReader.js'
+import { isTranscriptFileName } from './sessionStoragePortable.js'
 
 const HOUR_MS = 3_600_000
 export const USAGE_HISTORY_MAX_ROWS = 32_768
@@ -160,7 +161,7 @@ function transcriptFiles(root: string, warnings: string[]): Array<{ path: string
   for (const project of dirs(root).filter(entry => entry.isDirectory())) {
     const directory = join(root, project.name)
     for (const entry of dirs(directory)) {
-      if (!entry.isFile() || !entry.name.endsWith('.jsonl') || entry.name.startsWith('agent-')) continue
+      if (!entry.isFile() || !isTranscriptFileName(entry.name) || entry.name.startsWith('agent-')) continue
       const session = entry.name.slice(0, -6)
       files.push({ path: join(directory, entry.name), session, project: project.name })
       const walk = (path: string, depth: number): void => {

@@ -29,6 +29,17 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const note = (text: string): void => console.log(`        note: ${text}`)
+const shellSpelling = async (native: string): Promise<string> => {
+  if (process.platform !== 'win32') return native
+  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const located = locateGitBash()
+  if (!('path' in located)) return native
+  try {
+    return execFileSync(located.path, ['-c', 'cygpath -u -- "$1"', '_', native], { encoding: 'utf8', windowsHide: true }).trim()
+  } catch {
+    return native
+  }
+}
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 console.log('============================================================')
@@ -132,7 +143,7 @@ section('§2b a piped command keeps its quoted glob words')
   const copied = await plain(`cp "${globDir}/"*.m4a "${globOut}/" && echo 'copied:' && find "${globOut}" -name '*.m4a' | wc -l | tr -d ' '`)
   check('the real shell copies the file through the product seam', copied.code === 0 && trimmed(copied) === 'copied:\n1' && existsSync(join(globOut, 'x.m4a')), `code ${copied.code} ${JSON.stringify(copied.out.slice(0, 120))} ${JSON.stringify(copied.stderr.slice(0, 120))}`)
   const listed = await plain(`ls "${globDir}/"*.m4a | head -1`)
-  check('…and lists it through a pipe', listed.code === 0 && trimmed(listed) === join(globDir, 'x.m4a'), `code ${listed.code} ${JSON.stringify(listed.out.slice(0, 120))}`)
+  check('…and lists it through a pipe', listed.code === 0 && trimmed(listed) === `${globDir}/x.m4a`, `code ${listed.code} ${JSON.stringify(listed.out.slice(0, 120))}`)
   const noMatch = await plain(`ls "${globDir}/"*.none 2>&1 | head -1`)
   check('…and a glob with no match still reaches the command as its own text', noMatch.out.includes('a b&c/*.none'), JSON.stringify(noMatch.out.slice(0, 160)))
 }
@@ -349,13 +360,14 @@ if (!existsSync(DIST) || !nodeBin) {
   check('the artifact showed the model eight tool results', results.length === 8, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth, copied, listed, noMatch] = results
   check('artifact: a quoted space-and-ampersand audio glob copies through a pipeline', copied !== undefined && !copied.isError && copied.text.split('\n').slice(0, 2).join('\n') === 'copied:\n1' && existsSync(join(globOut, 'x.m4a')) && readFileSync(join(globOut, 'x.m4a'), 'utf8') === 'recorded-audio', JSON.stringify(copied))
-  check('artifact: a quoted audio glob lists through a pipeline', listed !== undefined && !listed.isError && listed.text.split('\n')[0] === join(globDir, 'x.m4a'), JSON.stringify(listed))
+  check('artifact: a quoted audio glob lists through a pipeline', listed !== undefined && !listed.isError && listed.text.split('\n')[0] === `${globDir}/x.m4a`, JSON.stringify(listed))
   check('artifact: an unmatched quoted glob retains its complete directory in the error text', noMatch !== undefined && noMatch.text.includes('a b&c/*.none'), JSON.stringify(noMatch))
   const fifthPath = fifth?.text.trim().split('\n')[0] ?? ''
   check("artifact: the model's timeout is honoured — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
   check('artifact: …on the kill path — an error result, never moved to the background', fourth !== undefined && fourth.isError && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
-  check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
+  const subAsShellSpells = await shellSpelling(join(cwd, 'sub'))
+  check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(subAsShellSpells) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   const descriptions = fixture.messageRequests().map(r => ((r.body as { tools?: Array<{ name?: string; description?: string }> })?.tools ?? []).find(t => t.name === 'Bash')?.description ?? '')
   check("artifact: the tool's description names no sandbox", descriptions.length > 0 && descriptions.every(d => !/sandbox/i.test(d)))
   check('artifact: run mode says nothing about a sandbox', !/sandbox/i.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
@@ -366,6 +378,7 @@ if (!existsSync(DIST) || !nodeBin) {
   rmSync(away, { recursive: true, force: true })
 }
 
+process.chdir(ROOT)
 rmSync(SCRATCH, { recursive: true, force: true })
 
 console.log('\n============================================================')

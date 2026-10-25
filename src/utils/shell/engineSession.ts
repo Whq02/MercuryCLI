@@ -419,6 +419,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   let status: ShellCommand['status'] = 'running'
   let settled = false
   let scrubbedSessionEnv: readonly string[] = []
+  let releaseInFlight: (() => void) | null = null
 
   const settle = (execResult: ExecResult): void => {
     if (settled) return
@@ -472,6 +473,11 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       live = await ensureSession(owned, binaryPath)
     } catch (error) {
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
+      return
+    }
+    if (settled) return
+    if (options.signal.aborted) {
+      settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
       return
     }
     scrubbedSessionEnv = live.scrubbedSessionEnv
@@ -534,6 +540,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         await taskOutput.flush().catch(() => {})
         const stdout = await taskOutput.getStdout()
         settle({ stdout, stderr: withInherited(partial.stderr, partial.interrupted), code: partial.code, interrupted: partial.interrupted })
+        releaseInFlight = null
         resolveExecute()
       }
 
@@ -580,6 +587,14 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         void done({ stderr: '', code: 137, interrupted: true })
       }
       options.signal.addEventListener('abort', onAbort, { once: true })
+      releaseInFlight = () => {
+        if (finished) return
+        finished = true
+        releaseInFlight = null
+        if (timer !== undefined) clearTimeout(timer)
+        if (onAbort) options.signal.removeEventListener('abort', onAbort)
+        resolveExecute()
+      }
 
       live.stderrBuf = Buffer.alloc(0)
       try {
@@ -602,6 +617,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
+    releaseInFlight?.()
   }
 
   return {

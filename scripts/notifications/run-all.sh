@@ -20,6 +20,7 @@
 # gate-watch: src/tools/WorkflowTool/* src/utils/* src/utils/cockpit/critterData.ts
 # gate-watch: src/utils/config/globalConfig.ts src/services/providers/modelRegistry.ts
 # gate-watch: src/rows/* src/runner/wire/* src/prompt/mercuryContract.ts
+# gate-watch: scripts/lib/removeScratch.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

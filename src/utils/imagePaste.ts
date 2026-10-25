@@ -14,6 +14,7 @@ import {
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { logError } from './log.js'
 import { logForDebugging } from './debug.js'
+import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 
 export const PASTE_THRESHOLD = 800
 
@@ -51,10 +52,6 @@ let pasteSequence = 0
 export function nextPasteArtifactPath(): string {
   pasteSequence += 1
   return join(pasteArtifactDir(), `paste-${pasteSequence}-${randomBytes(4).toString('hex')}.png`)
-}
-
-function psQuote(path: string): string {
-  return path.replace(/'/g, "''")
 }
 
 
@@ -118,7 +115,7 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
     const result = await execFileNoThrow('powershell', [
       '-NoProfile',
       '-Command',
-      `Add-Type -AssemblyName System.Drawing; $img = Get-Clipboard -Format Image; if ($null -eq $img) { exit 1 }; $img.Save('${psQuote(path)}', [System.Drawing.Imaging.ImageFormat]::Png); exit 0`,
+      `Add-Type -AssemblyName System.Drawing; $img = Get-Clipboard -Format Image; if ($null -eq $img) { exit 1 }; $img.Save('${escapeForPowershellSingleQuotes(path)}', [System.Drawing.Imaging.ImageFormat]::Png); exit 0`,
     ])
     return result.code === 0
   }
@@ -174,7 +171,7 @@ function deleteArtifact(platform: ClipboardPlatform, path: string): void {
     void execFileNoThrow('powershell', [
       '-NoProfile',
       '-Command',
-      `Remove-Item -ErrorAction SilentlyContinue '${psQuote(path)}'`,
+      `Remove-Item -ErrorAction SilentlyContinue '${escapeForPowershellSingleQuotes(path)}'`,
     ]).catch(() => {})
     return
   }

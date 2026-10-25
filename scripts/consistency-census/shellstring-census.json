@@ -234,13 +234,6 @@
       "why": "shell parsing is the subject under test"
     },
     {
-      "file": "scripts/bash/prove-shell-engine-drive.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "test-fixture",
-      "why": "shell parsing is the subject under test"
-    },
-    {
       "file": "scripts/bash/prove-shell-engine-exec.ts",
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec('echo \"${BRUSH_VERSION:-system} [${BG_MARK:-none}]\"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBack",

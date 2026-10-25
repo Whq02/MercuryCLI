@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ENGINE_ENV, ROOT, engineLaneState, resolveEngineUnderTest, type Engine } from './shell-engine-parity.ts'
+import { slashed } from '../lib/platformPath.ts'
 
 plugin({
   name: 'stub-color-diff-napi',
@@ -128,6 +129,10 @@ mkdirSync(DEEP, { recursive: true })
 mkdirSync(GLOB, { recursive: true })
 writeFileSync(join(GLOB, 'one.txt'), '1\n')
 writeFileSync(join(GLOB, 'two.txt'), '2\n')
+const msysPrints = process.platform === 'win32' && engine === 'system'
+const printed = async (native: string): Promise<string> =>
+  msysPrints ? (await run(`cygpath -u -- '${native.split("'").join("'\\''")}'`)).out.trim() : native
+const [SUB_PRINTED, DEEP_PRINTED, SCRATCH_PRINTED] = [await printed(SUB), await printed(DEEP), await printed(SCRATCH)]
 
 section('§0 the live engine answers the pin')
 {
@@ -215,10 +220,10 @@ section('§5 the cwd record — the shell directory, which the cd moves; the ses
 {
   await row('cd moves the shell directory', `cd "${SUB}"`, { code: 0, out: '', cwd: SUB })
   check('…and the session directory stayed where the session is', getCwd() === SCRATCH, `session ${getCwd()}`)
-  await row('pwd reads the moved directory', 'pwd', { code: 0, out: SUB, cwd: SUB })
-  await row('a relative cd resolves against the shell directory', 'cd deep && pwd', { code: 0, out: DEEP, cwd: DEEP })
+  await row('pwd reads the moved directory', 'pwd', { code: 0, out: SUB_PRINTED, cwd: SUB })
+  await row('a relative cd resolves against the shell directory', 'cd deep && pwd', { code: 0, out: DEEP_PRINTED, cwd: DEEP })
   await row('cd ../.. climbs', 'cd ../..', { code: 0, cwd: SCRATCH })
-  await row('a subshell cd never moves the shell', `(cd "${SUB}"; pwd); pwd`, { code: 0, out: `${SUB}\n${SCRATCH}`, cwd: SCRATCH })
+  await row('a subshell cd never moves the shell', `(cd "${SUB}"; pwd); pwd`, { code: 0, out: `${SUB_PRINTED}\n${SCRATCH_PRINTED}`, cwd: SCRATCH })
   await row('a failed cd leaves the shell where it was', `cd "${SCRATCH}/nope" 2>/dev/null; echo "rc=$?"`, { code: 0, out: 'rc=1', cwd: SCRATCH })
   const deleted = await row(
     'a command that deletes its own directory leaves the shell in an existing one',
@@ -228,8 +233,10 @@ section('§5 the cwd record — the shell directory, which the cd moves; the ses
   note(`deleted-directory row: code ${deleted.code} out ${JSON.stringify(deleted.out.trim().slice(0, 120))}`)
   check('…and that directory exists on disk', existsSync(deleted.cwd), deleted.cwd)
   const after = await run('pwd')
-  check('…and the next command runs there', after.code === 0 && after.out.trim() === getShellCwd(), `pwd ${JSON.stringify(after.out.trim())} vs shell ${getShellCwd()}`)
-  await row('cd -P resolves a symlinked directory to its physical path', 'cd -P /tmp && pwd -P', { code: 0, out: realpathSync('/tmp'), cwd: realpathSync('/tmp') })
+  const shellCwdPrinted = await printed(getShellCwd())
+  check('…and the next command runs there', after.code === 0 && after.out.trim() === shellCwdPrinted, `pwd ${JSON.stringify(after.out.trim())} vs shell ${shellCwdPrinted}`)
+  const physicalTmp = msysPrints ? (await run('cygpath -w /tmp')).out.trim() : realpathSync('/tmp')
+  await row('cd -P resolves a symlinked directory to its physical path', 'cd -P /tmp && pwd -P', { code: 0, out: await printed(physicalTmp), cwd: physicalTmp })
   const home = realpathSync(homedir())
   await row('a tilde cd lands in the home directory', 'cd ~', { code: 0, cwd: home })
   const odd = join(SCRATCH, 'sp ace', 'ünï')
@@ -260,7 +267,7 @@ section('§7 the security preamble and globs')
   )
   check('the extended-glob probe never moved the session directory (the cd was subshell-scoped)', getCwd() === SCRATCH, `cwd ${getCwd()}`)
   note(`extended-pattern row (${engine}): code ${extglob.code} out ${JSON.stringify(extglob.out.trim().slice(0, 80))}`)
-  await row('an unmatched glob passes through literally', `echo "${GLOB}"/*.nomatch | sed "s#${SCRATCH}##"`, { code: 0, out: '/glob/*.nomatch' })
+  await row('an unmatched glob passes through literally', `echo "${slashed(GLOB)}"/*.nomatch | sed "s#${slashed(SCRATCH)}##"`, { code: 0, out: '/glob/*.nomatch' })
   await row('a matched glob expands', `ls "${GLOB}"/*.txt | wc -l | tr -d ' '`, { code: 0, out: '2' })
 }
 
@@ -274,7 +281,7 @@ section('§8 state between calls (the engines differ by contract)')
   const opt = await run('set -e; :')
   const leak = await run('false; echo survived')
   note(`a set -e from a previous call: code ${opt.code} then ${JSON.stringify(leak.out.trim())} code ${leak.code} (${engine}: ${leak.out.includes('survived') ? (engine === 'brush' ? 'the option persists but errexit is suppressed at the command boundary' : 'options reset per call') : 'the option persisted and aborted the command'})`)
-  check('the cwd persists on both engines', (await run('pwd')).out.trim() === SCRATCH)
+  check('the cwd persists on both engines', (await run('pwd')).out.trim() === SCRATCH_PRINTED)
 }
 
 section('§9 timeouts, aborts, and a shell that dies')

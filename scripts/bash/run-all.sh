@@ -88,6 +88,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-no-auto-consent.ts" || 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-patch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-patch.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-stop-releases-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-stop-releases-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-live-output.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-live-output.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-exec.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-exec.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-rules.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-rules.ts" "$__t" "$__rc"

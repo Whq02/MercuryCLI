@@ -1443,8 +1443,12 @@ export function Chat({
   useEffect(() => {
     const paintDegradation = (): void => {
       try {
-        const fact = transcriptLoadDegradation();
-        if (!fact) return;
+        const focused = getFocusedSessionConnector() as PaintsRows;
+        const fact = transcriptLoadDegradation(typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : undefined);
+        if (!fact) {
+          removeNotification('transcript-degraded');
+          return;
+        }
         const where = fact.path;
         addNotification({
           key: 'transcript-degraded',
@@ -1461,7 +1465,7 @@ export function Chat({
     paintDegradation();
     return subscribeTranscriptLoadDegradation(paintDegradation);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [focusedConnector]);
 
   useEffect(() => {
     if (!mercuryBootPreflightEnabled()) return;

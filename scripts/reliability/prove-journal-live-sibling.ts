@@ -117,5 +117,50 @@ console.log('L4 the generic walker rides the one liveness owner')
   ok(!walker.includes('pidAlive(op.writerPid) && op.writerPid !== process.pid'), 'L4 the inline pid test is gone from the walker')
 }
 
+console.log('L5 a live writer this process may not signal (EPERM) is alive to the sweep, never compensated')
+{
+  const unsignalable = [4, 1].find(pid => {
+    try {
+      process.kill(pid, 0)
+      return false
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'EPERM'
+    }
+  })
+  if (unsignalable === undefined) {
+    console.log('  [SKIP] no process on this host answers EPERM to a liveness probe (the proof runs privileged)')
+  } else {
+    const dir3 = mkdtempSync(join(tmpdir(), 'journal-eperm-'))
+    const seed = await journal
+      .runJournaledOperation({
+        journalDir: dir3,
+        ownerKey: 'eperm-owner',
+        kind: 'proof-eperm',
+        idempotencyKey: 'eperm-op',
+        steps: [{ id: 's1', target: 'x', run: async () => ({}) }],
+        result: () => ({ ok: true }),
+      })
+      .then((o: { operationId: string }) => o)
+    const committed = ((await journal.listJournalOperations(dir3)) as Array<Record<string, unknown>>).find(o => o.operationId === seed.operationId)!
+    await journal.republishJournalOperation(dir3, {
+      ...committed,
+      state: 'applying',
+      writerPid: unsignalable,
+      steps: (committed.steps as Array<Record<string, unknown>>).map(s => ({ ...s, state: 'pending' })),
+    })
+    const foreign = ((await journal.listJournalOperations(dir3)) as Array<Record<string, unknown>>).find(o => o.operationId === seed.operationId)!
+    ok(journal.isJournalWriterAlive(foreign) === true, `L5 a record whose writer (pid ${unsignalable}) answers the probe with EPERM classifies ALIVE`, `alive=${String(journal.isJournalWriterAlive(foreign))}`)
+    let compensatedForeign = 0
+    const summary = (await journal.recoverJournalDir(dir3, {
+      'proof-eperm': {
+        compensate: async () => {
+          compensatedForeign++
+        },
+      },
+    })) as { compensated: string[]; waiting: string[] }
+    ok(summary.waiting.includes(seed.operationId) && compensatedForeign === 0, 'L5 the sweep waits on it and never runs its compensator', JSON.stringify(summary))
+  }
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

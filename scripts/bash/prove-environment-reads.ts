@@ -21,6 +21,9 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
 const { getFirstWordPrefix } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { windowsPathToPosixPath } = await import('../../src/utils/windowsPaths.js')
+const nativeHome = process.env.HOME ?? process.env.USERPROFILE ?? ''
+const printedHome = process.platform === 'win32' ? windowsPathToPosixPath(nativeHome) : nativeHome
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
@@ -46,7 +49,8 @@ try {
     check(`${command}: default headless allows without a card`, verdict.behavior === 'allow', JSON.stringify(verdict))
     if (verdict.behavior !== 'allow') continue
     const { data } = await (BashTool as unknown as { call: (input: unknown, context: unknown) => Promise<{ data: { code?: number; stdout: string } }> }).call({ command }, context)
-    check(`${command}: completed with exit 0 and output`, data.code === 0 && data.stdout.includes(command === 'printenv HOME' ? process.env.HOME! : 'environment-read-fixture'))
+    const want = command === 'printenv HOME' ? printedHome : 'environment-read-fixture'
+    check(`${command}: completed with exit 0 and output`, data.code === 0 && want !== '' && data.stdout.includes(want))
   }
   for (const command of ['env echo fixture', 'env VAR=x echo fixture', 'env -i echo fixture', 'env -0 echo fixture', 'env -S "echo fixture"', 'env > environment.txt', 'printenv HOME PATH', 'printenv > environment.txt', 'printenv $(echo HOME)']) {
     const interactive = await decide(command, false)

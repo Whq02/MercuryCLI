@@ -131,7 +131,8 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
   }
   return new Promise(resolve => {
     try {
-      execFile(file, args, { timeout: opts.timeoutMs ?? SETUP_EXEC_TIMEOUT_MS, maxBuffer: 1 << 24, cwd: opts.cwd, env: opts.env ?? process.env, windowsHide: true }, (error, stdout, stderr) => {
+      const verbatim = process.platform === 'win32' && /(?:^|[\\/])cmd(?:\.exe)?$/i.test(file)
+      execFile(file, args, { timeout: opts.timeoutMs ?? SETUP_EXEC_TIMEOUT_MS, maxBuffer: 1 << 24, cwd: opts.cwd, env: opts.env ?? process.env, windowsHide: true, ...(verbatim ? { windowsVerbatimArguments: true } : {}) }, (error, stdout, stderr) => {
         const out = String(stdout)
         const err = String(stderr)
         const rc = error ? (typeof (error as { code?: unknown }).code === 'number' ? ((error as { code: number }).code) : 1) : 0

@@ -3,6 +3,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'awk-operands-')))
 const root = join(scratch, 'run')
@@ -88,10 +89,11 @@ console.log('\n5. what keeps refusing')
   const noRule = await decide('awk "/zzz/{f=1} END{exit !f}" s.txt')
   check('no rule, mode default → not allow', noRule.behavior !== 'allow', shown(noRule))
   check('the words name the part as written and the word awk', noRule.message === '`awk "/zzz/{f=1} END{exit !f}" s.txt` requires approval: `awk` is not a command Mercury can verify as read-only.', shown(noRule))
-  const outside = await decide(`awk '{print}' ${outsideWords}`, AWK_RULE)
+  const outside = await decide(`awk '{print}' ${slashed(outsideWords)}`, AWK_RULE)
   check('a real input file outside the starting folder asks naming it', outside.behavior === 'ask' && outside.message === `Mercury needs permission to process ${outsideWords}, outside the starting folder ('${root}').`, shown(outside))
-  const program = await decide(`awk -f ${join(scratch, 'outside', 'prog.awk')} s.txt`, AWK_RULE)
-  check('a program file outside the starting folder asks naming it', program.behavior === 'ask' && (program.message ?? '').startsWith(`Mercury needs permission to process ${join(scratch, 'outside', 'prog.awk')}, outside the starting folder`), shown(program))
+  const programFile = slashed(join(scratch, 'outside', 'prog.awk'))
+  const program = await decide(`awk -f ${programFile} s.txt`, AWK_RULE)
+  check('a program file outside the starting folder asks naming it', program.behavior === 'ask' && (program.message ?? '').startsWith(`Mercury needs permission to process ${programFile}, outside the starting folder`), shown(program))
 }
 
 process.chdir(previousCwd)

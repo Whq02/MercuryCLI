@@ -26,7 +26,7 @@ import {
   type ParkedSessionFact,
   type ProjectIdentity,
 } from '../../utils/bootCardFacts.js'
-import { extractFirstPromptFromHead, getProjectDir, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
+import { extractFirstPromptFromHead, getProjectDir, isTranscriptFileName, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
@@ -793,7 +793,7 @@ export function olderChatsCensus(
     } else {
       const home = getProjectDir(projectDir)
       for (const f of readdirSync(home)) {
-        if (!f.endsWith('.jsonl') || f === skip) continue
+        if (!isTranscriptFileName(f) || f === skip) continue
         try {
           const st = statSync(join(home, f))
           if (st.size === 0) continue

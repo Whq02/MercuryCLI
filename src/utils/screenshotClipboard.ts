@@ -6,6 +6,7 @@ import { ansiToPng, type AnsiToPngOptions } from './ansiToPng.js'
 import { errorMessage } from './errors.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { logError } from './log.js'
+import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getPlatform } from './platform.js'
 
 
@@ -39,7 +40,7 @@ async function linuxCopy(filePath: string): Promise<CopyResult> {
 }
 
 async function windowsCopy(filePath: string): Promise<CopyResult> {
-  const escaped = filePath.replace(/'/g, "''")
+  const escaped = escapeForPowershellSingleQuotes(filePath)
   const script =
     `Add-Type -AssemblyName System.Windows.Forms; ` +
     `[System.Windows.Forms.Clipboard]::SetImage([System.Drawing.Image]::FromFile('${escaped}'))`

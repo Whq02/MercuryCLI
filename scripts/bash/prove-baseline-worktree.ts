@@ -34,6 +34,7 @@ function sh(args: string[]): string {
 
 try {
   sh(['init', '--quiet', '--initial-branch=main'])
+  sh(['config', 'core.autocrlf', 'false'])
   writeFileSync(join(repo, 'app.ts'), 'export const v = 1\n')
   sh(['add', '.'])
   sh(['commit', '--quiet', '-m', 'v1'])

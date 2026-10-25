@@ -41,7 +41,7 @@ writeFileSync(join(SHIM_DIR, 'pwsh'), [
   '',
 ].join('\n'))
 chmodSync(join(SHIM_DIR, 'pwsh'), 0o755)
-process.env.PATH = `${SHIM_DIR}:${process.env.PATH ?? ''}`
+if (process.platform !== 'win32') process.env.PATH = `${SHIM_DIR}:${process.env.PATH ?? ''}`
 
 let failures = 0
 let checks = 0
@@ -255,7 +255,7 @@ const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head a
 const HEADLINE = 'Shell command failed (exit code 3)\n'
 async function sinkExcerpt(text: string): Promise<string> {
   const path = SPILL_NOTICE.exec(text)?.[2] ?? ''
-  const taskId = path.slice(path.lastIndexOf('/') + 1, -'.output'.length)
+  const taskId = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1, -'.output'.length)
   return await new TaskOutput(taskId, null, true).getStdout()
 }
 function shownBytes(text: string, notice: RegExpExecArray): number {
@@ -337,23 +337,25 @@ check('PowerShell’s validateInput refuses a raw " 2000 " with the schema’s w
 check('…and admits 2000, "2000.0" and omitted', (await psValidate(2000)).result === true && (await psValidate('2000.0')).result === true && (await psValidate(undefined)).result === true)
 const runPs = (input: Record<string, unknown>): Promise<{ out: Out; content: string }> => runWith(PowerShellTool as unknown as ShellTool, input)
 const failPs = (input: Record<string, unknown>): Promise<Thrown> => failWith(PowerShellTool as unknown as ShellTool, input)
-const psBudgeted = await runPs({ command, max_output_chars: 2000 })
+const psCommand = process.platform === 'win32' ? `[Console]::Out.Write([IO.File]::ReadAllText('${fixture.split("'").join("''")}'))` : command
+const psFailing = process.platform === 'win32' ? `${psCommand}; exit 3` : failing
+const psBudgeted = await runPs({ command: psCommand, max_output_chars: 2000 })
 check('PowerShell: max_output_chars: 2000 → the inline result is about 2 000 characters, head + one notice + verdict, no clause', psBudgeted.out.stdout.length >= 1500 && psBudgeted.out.stdout.length <= 2200 && psBudgeted.out.stdout.startsWith('line 00001:') && psBudgeted.out.stdout.endsWith(VERDICT) && (psBudgeted.out.stdout.match(/truncated from the middle/g) ?? []).length === 1 && !/clamped to/.test(psBudgeted.content), `${psBudgeted.out.stdout.length} chars; ${psBudgeted.out.stdout.slice(0, 80)}`)
-const psPlain = await runPs({ command })
+const psPlain = await runPs({ command: psCommand })
 check('PowerShell: omitted keeps today’s bytes byte for byte, no clause', psPlain.out.stdout === thirtyK && !/max_output_chars/.test(psPlain.content), `${psPlain.out.stdout.length} chars`)
-const psOver = await runPs({ command, max_output_chars: 999_999 })
+const psOver = await runPs({ command: psCommand, max_output_chars: 999_999 })
 check('PowerShell: a value above the cap clamps to it — the bytes of the omitted call and the clause, once', psOver.out.stdout === thirtyK && (psOver.content.match(/clamped to/g) ?? []).length === 1 && psOver.content.includes(overClause), `${psOver.out.stdout.length} chars; ${psOver.content.slice(-120)}`)
-const psUnder = await runPs({ command, max_output_chars: 10 })
+const psUnder = await runPs({ command: psCommand, max_output_chars: 10 })
 check('PowerShell: a value below the floor clamps up to a floor-sized window and says so', psUnder.out.stdout.length >= floor / 2 && psUnder.out.stdout.length <= floor + 200 && psUnder.content.includes(underClause) && psUnder.out.stdout.endsWith(VERDICT), `${psUnder.out.stdout.length} chars; ${psUnder.content.slice(-120)}`)
-const psFailPlain = await failPs({ command: failing })
+const psFailPlain = await failPs({ command: psFailing })
 const psFailSuffix = psFailPlain.text.startsWith(thirtyK) ? psFailPlain.text.slice(thirtyK.length) : '(prefix differs)'
 check('PowerShell: omitted keeps the thrown bytes ONCE — the output in stderr, nothing doubled into stdout', psFailPlain.stdout === '' && psFailPlain.text.startsWith(thirtyK) && (psFailSuffix === '' || /session env/i.test(psFailSuffix)), `stdout ${psFailPlain.stdout.length} chars; stderr ${psFailPlain.text.length} chars`)
 check('…and the model text is today’s fixed error window with an honest removed count', psFailPlain.model.length === 10_034 && psFailPlain.model.includes(`[${HEADLINE.length + psFailPlain.text.length - 10_000} characters removed]`), `${psFailPlain.model.length} chars; ${/\[\d+ characters removed\]/.exec(psFailPlain.model)?.[0] ?? '(no marker)'}`)
-const psFailBudgeted = await failPs({ command: failing, max_output_chars: 2000 })
+const psFailBudgeted = await failPs({ command: psFailing, max_output_chars: 2000 })
 check('PowerShell: max_output_chars: 2000 on the error road → about 2 000 thrown characters, head + one notice + verdict, the model text whole', psFailBudgeted.text.length >= 1500 && psFailBudgeted.text.length <= 2300 && psFailBudgeted.text.startsWith('line 00001:') && (psFailBudgeted.text.match(/truncated from the middle/g) ?? []).length === 1 && bare(psFailBudgeted.text).endsWith(VERDICT) && psFailBudgeted.model.length < 2500 && !/characters removed/.test(psFailBudgeted.model), `${psFailBudgeted.text.length} thrown / ${psFailBudgeted.model.length} model chars`)
-const psFailWide = await failPs({ command: failing, max_output_chars: 20_000 })
+const psFailWide = await failPs({ command: psFailing, max_output_chars: 20_000 })
 check('PowerShell: a 20 000 budget on the error road holds through formatError — about 20 000 characters, no fixed-window marker', psFailWide.model.length >= 19_500 && psFailWide.model.length <= 20_400 && !/characters removed/.test(psFailWide.model) && (psFailWide.model.match(/truncated from the middle/g) ?? []).length === 1, `${psFailWide.model.length} chars`)
-const psFailOver = await failPs({ command: failing, max_output_chars: 999_999 })
+const psFailOver = await failPs({ command: psFailing, max_output_chars: 999_999 })
 check('PowerShell: a value above the cap on the error road: today’s bytes plus the clause once, the model text whole', psFailOver.text === `${thirtyK}\n${overClause}${psFailSuffix}` && !/characters removed/.test(psFailOver.model) && (psFailOver.model.match(/clamped to/g) ?? []).length === 1 && psFailOver.model.length > cap, `${psFailOver.text.length} thrown / ${psFailOver.model.length} model chars; tail ${JSON.stringify(psFailOver.text.slice(-100))}`)
 
 section('§9 one function mints every clamp clause')

@@ -91,8 +91,7 @@ export type TranscriptLoadDegradation = {
 let loadDegradation: TranscriptLoadDegradation | null = null
 const degradationListeners = new Set<() => void>()
 
-function noteLoadDegradation(next: TranscriptLoadDegradation): void {
-  loadDegradation = next
+function fanOutLoadDegradation(): void {
   for (const listener of degradationListeners) {
     try {
       listener()
@@ -101,8 +100,19 @@ function noteLoadDegradation(next: TranscriptLoadDegradation): void {
   }
 }
 
-export function transcriptLoadDegradation(): TranscriptLoadDegradation | null {
-  return loadDegradation
+function noteLoadDegradation(next: TranscriptLoadDegradation): void {
+  loadDegradation = next
+  fanOutLoadDegradation()
+}
+
+function clearLoadDegradation(path: string): void {
+  if (loadDegradation === null || loadDegradation.path !== path) return
+  loadDegradation = null
+  fanOutLoadDegradation()
+}
+
+export function transcriptLoadDegradation(forPath?: string): TranscriptLoadDegradation | null {
+  return forPath === undefined || loadDegradation?.path === forPath ? loadDegradation : null
 }
 
 export function subscribeTranscriptLoadDegradation(listener: () => void): () => void {
@@ -505,6 +515,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
 
   if (state.refusal === null) {
     finishTranscriptFold(state.fold)
+    if (!state.degradedSinceSnapshot) clearLoadDegradation(path)
     if (!snapshotCovered && policy === 'resume' && resumeSnapshotEnabled() && offset >= SNAPSHOT_MIN_BYTES) {
       writeResumeSnapshot(path, state.fold, offset)
       wroteSnapshot = true

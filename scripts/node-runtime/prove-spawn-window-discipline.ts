@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
+import { relativeSlashed } from '../lib/platformPath.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -90,7 +91,7 @@ const FOREIGN_SPAWN_LIBS = new Set(['cross-spawn', 'open', 'tinyexec', 'shelljs'
 for (const file of walkDir(join(ROOT, 'src'))) {
   const text = readFileSync(file, 'utf8')
   if (!/child_process|execa|Bun\.spawn|cross-spawn|shelljs|tinyexec/.test(text)) continue
-  const rel = file.slice(ROOT.length + 1)
+  const rel = relativeSlashed(ROOT, file)
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
 
   const cpLocal = new Map<string, string>()

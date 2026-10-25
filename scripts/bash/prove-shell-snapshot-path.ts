@@ -94,7 +94,10 @@ check('powershell/cmd are NOT (the "sh" substring trap)',
 }
 
 {
-  const val = await resolveSnapshotPathValue('/bin/bash', { platform: 'windows' })
+  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const located = process.platform === 'win32' ? locateGitBash() : null
+  const realBash = located !== null && 'path' in located ? located.path : '/bin/bash'
+  const val = await resolveSnapshotPathValue(realBash, { platform: 'windows' })
   check('live probe against real /bin/bash returns a plausible PATH',
     val.includes('/') && val !== '$PATH' && val.length > 0)
 }

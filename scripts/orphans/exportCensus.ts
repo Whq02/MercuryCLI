@@ -441,14 +441,14 @@ function treePathTail(text: string): string | null {
 
 function resolveModule(root: string, fromFile: string, spec: string, stubMap: Record<string, string>): string | null {
   if (spec.startsWith('file://')) spec = spec.slice('file://'.length)
-  const absolute = isAbsolute(spec) ? spec : spec.startsWith('.') ? resolve(dirname(fromFile), spec) : join(root, spec)
+  const absolute = isAbsolute(spec) ? resolve(spec) : spec.startsWith('.') ? resolve(dirname(fromFile), spec) : join(root, spec)
   for (const [delivered, source] of Object.entries(stubMap)) {
     if (isAbsolute(delivered) && (absolute === delivered || absolute.startsWith(delivered + sep))) {
       return resolveModule(root, fromFile, source + absolute.slice(delivered.length), {})
     }
   }
   if (isAbsolute(spec)) {
-    const candidates = [spec, spec.replace(/\.js$/, '.ts'), spec.replace(/\.js$/, '.tsx'), spec + '.ts', spec + '.tsx', join(spec, 'index.ts'), join(spec, 'index.tsx')]
+    const candidates = [absolute, absolute.replace(/\.js$/, '.ts'), absolute.replace(/\.js$/, '.tsx'), absolute + '.ts', absolute + '.tsx', join(absolute, 'index.ts'), join(absolute, 'index.tsx')]
     for (const c of candidates) if (existsSync(c) && statSync(c).isFile()) return c
     return null
   }
@@ -963,7 +963,7 @@ function scanShellFile(opts: CensusOptions, scan: Scan, abs: string, text: strin
     spec = spec.replace(/^"?\$\{?(?:here|HERE|dir|DIR|SUITE_DIR)\}?"?\//, dirname(abs) + '/')
     spec = spec.replace(/^"?\$\(dirname "\$0"\)"?\//, dirname(abs) + '/')
     if (spec.includes('$')) continue
-    const t = resolveModule(opts.root, abs, spec.startsWith('/') || spec.startsWith('.') || spec.startsWith('src/') || spec.startsWith('scripts/') ? spec : './' + spec, opts.stubMap)
+    const t = resolveModule(opts.root, abs, isAbsolute(spec) || spec.startsWith('.') || spec.startsWith('src/') || spec.startsWith('scripts/') ? spec : './' + spec, opts.stubMap)
     if (!t) continue
     addNamed(scan, t, abs)
     n++
