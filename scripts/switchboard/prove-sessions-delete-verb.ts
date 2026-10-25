@@ -94,7 +94,7 @@ section('§0 the verb exists and rides the one delete door')
   check('main.tsx registers `sessions delete <id>` with --yes', /\.command\('sessions'\)/.test(source('src/main.tsx')) && /\.command\('delete <id>'\)/.test(source('src/main.tsx')) && /option\('--yes'/.test(source('src/main.tsx')))
   check('the verb deletes through operatorPruneTranscripts and never unlinks on its own', verb !== null && source('src/cli/sessionsVerb.ts').includes('operatorPruneTranscripts(') && !/unlinkSync\(|rmSync\(|\.unlink\(|\brm\(/.test(source('src/cli/sessionsVerb.ts')))
   check('the door offers a named session without an age window (buildSessionDeleteOffer)', typeof door.buildSessionDeleteOffer === 'function')
-  check('README names the verb in the headless section', /`mercury sessions delete <id>`/.test(source('README.md')))
+  check('AUTOMATION.md names the verb in the headless section', /`mercury sessions delete <id>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/mercury.bash', 'assets/completions/_mercury', 'assets/completions/mercury.fish']) {
     check(`${file} completes the sessions verb`, /\bsessions\b/.test(source(file)), file)
   }

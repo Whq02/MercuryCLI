@@ -84,9 +84,9 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('on the Windows road with no bash found, the no-bash arm still names the reason', windowsLadder(undefined, undefined, true) === want('brush', 'no-bash'))
   check('on the Windows road the system pin and the system setting keep bash.exe', windowsLadder('system', undefined, false) === want('system', 'pin') && windowsLadder(undefined, 'system', false) === want('system', 'setting'))
   check('the windows arm names the pin and the setting that keep bash.exe', /Windows default/.test(shellEngineArmWords('windows')) && shellEngineArmWords('windows').includes('MERCURY_SHELL_ENGINE=system') && /Shell engine setting/.test(shellEngineArmWords('windows')))
-  const readme = read('README.md')
+  const readme = read('docs/INSTALL.md')
   const runtime = read('docs/TERMINAL-RUNTIME.md')
-  check('README and TERMINAL-RUNTIME say the engine is the Windows default and no longer name the cmd /c npm hole', readme.includes('on Windows it serves the Bash tool by default') && !readme.includes('cmd /c npm') && runtime.includes('On Windows the default is the bundled **brush**') && !runtime.includes('Two\nthings the engine cannot do') && !runtime.includes('cmd /c npm'))
+  check('INSTALL.md and TERMINAL-RUNTIME say the engine is the Windows default and no longer name the cmd /c npm hole', readme.includes('on Windows it serves the Bash tool by default') && !readme.includes('cmd /c npm') && runtime.includes('On Windows the default is the bundled **brush**') && !runtime.includes('Two\nthings the engine cannot do') && !runtime.includes('cmd /c npm'))
 }
 
 console.log('── §2 the locator: typed answers, one loud refusal ──')

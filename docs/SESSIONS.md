@@ -14,6 +14,26 @@ On Windows, each frame reads the window size from the console so the terminal UI
 
 ## A fresh boot has no chat
 
+On your first interactive run, choose an appearance, then sign in to a
+provider. The screen previews theme changes as you browse. True Black is
+the default; the other options are the oasis dark theme and Black and
+white, which paints no colour at all: the terminal's own ink on its own
+ground, the way Mercury looks on a terminal without colour. You can change
+this later with `/appearance`. You can also choose "sign in later" to look
+around without connecting an account; when a provider key in your environment
+already signs a provider in, the sign-in step is not asked. Next, the
+Guardrails step reminds you to check Mercury's edits and commands, and that
+what it reads can carry instructions for the model. In a terminal Mercury knows
+how to configure (Terminal.app, the VS Code family, Alacritty, Zed), a Terminal
+keys step can configure newline keybindings in the terminal's own settings (on
+macOS Terminal.app, it sets `Option+Enter` for a newline and silences the
+terminal bell across every profile, which takes effect after restarting
+Terminal.app; in the VS Code family, Alacritty and Zed, it writes
+`Shift+Enter` for a newline). It is off unless you choose it, and a backup is
+kept. Next, Mercury asks whether you trust the folder you opened; nothing
+requested by a workspace configuration runs before you grant that trust, which
+covers the whole repository ([TRUST.md](TRUST.md)).
+
 Running `mercury` with no arguments opens the home screen: the card of New
 Session · Continue Last Session · Boot Menu · MCPs & Skills · Agents ·
 Health Check · Saturn Scheduler · Logins · Session Concourse, and
@@ -31,7 +51,9 @@ in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu display
 backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
 lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
 lanes`, `Aseprite dev lanes`, `Cap failover posture`, `Session Concourse at
-boot`, `Seats`), and **PERFORMANCE** (`Motion`). A chat exists
+boot`, `Seats`), and **PERFORMANCE** (`Motion`). The Boot Menu's Performance
+section includes a Motion setting: `auto`, `full`, `reduced` or `off`. It
+controls idle animation in the interface and is also available in `/config`. A chat exists
 only once you enter
 one: New Session, Continue, a pick on the Sessions · Projects screen, or a
 row on the concourse board. Until
@@ -232,7 +254,16 @@ read from the output file the session's runner writes, under a
 count of the lines shown against the lines it has written. On a short window
 the command yields rows to the output, so at least one line of it always
 shows. In `/help`, pressing `PageDown` or `PageUp` from the tab header enters
-the command list and pages immediately.
+the command list and pages immediately. Tool calls appear as they run, either as
+compact cards or with full output (choose the display in `/config` under Tool
+output). Review changes with `/diff`, by source, file and hunk; `! <command>`
+runs a shell command in chat with a live output tail; `/mouse off` returns the
+pointer to the terminal for native text selection and copying (saved in
+`/config` as Mouse capture). A required argument starts with `<…>` in a skill's
+usage (for example, `/update-config` and `/debug`): send one alone and you get
+its description and usage without starting a turn, or select it in typeahead and
+`Enter` leaves `/name ` ready for the argument (`/loop` has no required argument
+and runs immediately).
 
 When a model returns its reasoning text, a folded `✻ thinking…` block appears
 above the reply and expands on click or in the transcript view (`ctrl+o`). When

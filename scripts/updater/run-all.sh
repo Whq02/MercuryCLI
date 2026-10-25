@@ -12,6 +12,7 @@
 # gate-watch: scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts src/mneme/embedModels.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools/FileReadTool/imagePackArm.ts src/utils/auth.ts src/utils/envUtils.ts src/utils/healthReport.ts src/utils/runtime/nodePolicy.ts
 # gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json src/ink/root/teardown.ts src/ink/termio/*
+# gate-watch: docs/INSTALL.md
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

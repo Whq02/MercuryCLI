@@ -869,6 +869,25 @@ exact fix.
 
 ## Auth
 
+Use `/logins` to connect a provider. It opens the same sign-in catalogue used
+during setup:
+
+- **OpenAI:** ChatGPT subscription or API key.
+- **Anthropic:** Claude subscription, Console sign-in or API key.
+- **OpenRouter:** catalogue access through OAuth or an API key; model requests deny data collection and require every parameter from the start.
+- **Google Gemini:** Sign in with Google, an API key, or your own OAuth client.
+- **Hugging Face:** device-code sign-in or Hub token.
+- **Kimi (Moonshot):** device-code sign-in or API key.
+- **GLM (Z.AI):** a GLM Coding Plan subscription key or a general pay-as-you-go API key (`/logins zai` or `ZAI_API_KEY` with `ZAI_KEY_PLAN=coding|general`).
+- **DeepSeek:** an API key from the DeepSeek platform (`/logins deepseek`, or `DEEPSEEK_API_KEY`).
+- **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
+- **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key.
+- **Qwen:** a QwenCloud key (Token Plan or pay-as-you-go) or an Alibaba Cloud Model Studio key (pay-as-you-go, Token Plan or Coding Plan).
+- **MiniMax:** an Open Platform key or an M Plan subscription key.
+- **Mistral**, **Nous Portal**, **OpenCode Zen**, **Together AI**, **Cohere**, **Groq**, **Cerebras**, **Fireworks AI**, **Melious AI** and **OrcaRouter:** sign in or API key through `/logins`; any family's key can also come from a command named in `credentials.keyCommands.<family>`.
+
+Provider access remains subject to the provider's own terms and availability.
+
 Run `/accounts` to see every connected account and API key across all providers:
 
 - **anthropic**: the account scope ring plus the API-key ladder, source-honest;
@@ -1136,7 +1155,8 @@ and the health check's Default model row say which and why.
 existed, env-pinned keys included, order after every recorded sign-in (the
 config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in). With no sign-in anywhere there is no default: the home screen and
-`/model` say so and point at `/logins`. An explicit `/model` choice,
+`/model` say so and point at `/logins`. A family word picks that family's newest
+model: `/model grok`, `/model deepseek`, `/model kimi` or `/model glm`. An explicit `/model` choice,
 `MERCURY_MODEL` or a session override always outranks the default. A saved
 `/model` choice whose family cannot run when a chat starts (no sign-in for
 it here, or a credential its catalogue refused, such as a Google, OpenRouter or

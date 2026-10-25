@@ -256,7 +256,7 @@ section('§5 never an automatic install: nothing under the language service impo
   const main = source('src/main.tsx')
   check('main.tsx wires lsp list and lsp install <server> with --yes, through the verb module', /command\('lsp'\)/.test(main) && /command\('list'\)/.test(main) && /command\('install <server>'\)/.test(main) && /option\('--yes'/.test(main) && /cli\/lspVerb\.js/.test(main))
   check('the catalogue file is read through its exports and not edited for the verb', /export function probeCatalogueEntry\(/.test(source('src/services/lsp/serverCatalogue.ts')) && /export const SERVER_CATALOGUE/.test(source('src/services/lsp/serverCatalogue.ts')) && !/lspVerb|lspInstall/.test(source('src/services/lsp/serverCatalogue.ts')))
-  check('the README names both verbs', /`mercury lsp list`/.test(source('README.md')) && /`mercury lsp install <server>`/.test(source('README.md')))
+  check('AUTOMATION.md names both verbs', /`mercury lsp list`/.test(source('docs/AUTOMATION.md')) && /`mercury lsp install <server>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/_mercury', 'assets/completions/mercury.bash', 'assets/completions/mercury.fish']) {
     check(`${file} completes lsp install`, /lsp/.test(source(file)) && /install/.test(source(file)))
   }

@@ -19,7 +19,7 @@ const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 section('(1) live surfaces carry the generated label')
 const LABEL = NODE_SUPPORT.label
 const LIVE: Array<[string, (t: string) => boolean, string]> = [
-  ['README.md', t => (t.match(/Node 24 LTS/g) ?? []).length >= 3 && t.includes(NODE_SUPPORT.range), 'three sites + the range'],
+  ['docs/INSTALL.md', t => (t.match(/Node 24 LTS/g) ?? []).length >= 3 && t.includes(NODE_SUPPORT.range), 'three sites + the range'],
   ['BUILD-NOTES.md', t => t.includes('three truths') && t.includes(NODE_SUPPORT.range) && t.includes('.node-version'), 'the runtime-contract section'],
   ['.github/workflows/private-release.yml', t => t.includes('carries its own Node 24 LTS runtime'), 'generated release notes'],
 ]

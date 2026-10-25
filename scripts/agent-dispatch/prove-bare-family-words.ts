@@ -265,8 +265,8 @@ section('§4 one resolver by construction: neither road spells a family word of 
   check("the sentence says 'qwen' means Qwen's newest text row, the shape the table's words use", aliases.includes("'qwen' (Qwen's newest text row)") && table.includes("{ word: 'qwen', route: 'qwen'"))
   const engines = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
   check('docs/ENGINES.md says the three words mean the newest row beside grok', /the family word `grok` means the newest Grok row[\s\S]{0,80}`deepseek`, `kimi` and `glm` mean the newest row/.test(engines))
-  const readme = readFileSync(join(import.meta.dir, '../../README.md'), 'utf8')
-  check('README.md names the four words as picks of the newest model', /A family word picks that family's newest\s+model: `\/model grok`, `\/model deepseek`, `\/model kimi` or `\/model glm`/.test(readme))
+  const readme = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')
+  check('docs/ENGINES.md names the four words as picks of the newest model', /A family word picks that family's newest\s+model: `\/model grok`, `\/model deepseek`, `\/model kimi` or `\/model glm`/.test(readme))
 }
 
 rmSync(scratch, { recursive: true, force: true })

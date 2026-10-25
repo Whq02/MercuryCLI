@@ -283,7 +283,7 @@ section('§8 the surfaces — health, status, dry-run, registry, notices, docs, 
   const notices = read('THIRD_PARTY_NOTICES.md')
   check('THIRD_PARTY_NOTICES names the Node.js runtime with its receipt', notices.includes('**Node.js runtime**') && notices.includes('vendor/node.lock.json'))
   check('the notices generator reads the node lock', read('scripts/distribution/generate-third-party-notices.ts').includes("vendorLock('node.lock.json')"))
-  const readme = read('README.md')
+  const readme = read('docs/INSTALL.md')
   check('README: a release install needs git only', readme.replace(/\s+/g, ' ').includes('`git` is the only separate requirement'))
   check('README: the vendored packs', readme.includes('the vendored packs'))
   const agents = read('AGENTS.md')

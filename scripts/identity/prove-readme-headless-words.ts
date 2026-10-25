@@ -18,7 +18,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
+const readme = readFileSync(join(REPO, 'docs', 'AUTOMATION.md'), 'utf8')
 const { ROW_TYPES, PARTIAL_ROW_TYPES, OUTCOME_STATUSES, INPUT_ROW_TYPES } = await import('../../src/rows/vocabulary.ts')
 const errors = await import('../../src/runner/wire/errors.ts')
 const { InitializeParamsSchema } = await import('../../src/runner/wire/methods.ts')

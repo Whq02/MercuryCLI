@@ -158,7 +158,7 @@ for (const never of ['.git', 'node_modules', 'dist', 'bench', '.mercury', 'vendo
   check(`.dockerignore never re-includes ${never}`, !included.some(p => p === never || p.startsWith(`${never}/`)))
 }
 
-const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
+const readme = readFileSync(join(ROOT, 'docs', 'AUTOMATION.md'), 'utf8')
 const dockerLines = readme.split('\n').filter(l => /^\s*(?:echo .*\| )?docker run\b/.test(l) || /\bdocker run\b/.test(l) && l.includes('mercury'))
 const runLine = dockerLines.find(l => / run "/.test(l))
 check('README.md carries the one docker run line', runLine !== undefined, dockerLines.join(' | '))

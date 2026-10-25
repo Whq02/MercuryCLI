@@ -61,12 +61,13 @@ console.log('\n§0 self-test: the shapes trip on the old words and stay silent o
 console.log('\n§1 every page says the pack rides every release archive')
 {
   const readme = read('README.md')
+  const install = read('docs/INSTALL.md')
   const mneme = read('docs/MNEME.md')
   const windows = read('docs/INSTALL-WINDOWS-FROM-SOURCE.md')
   const compat = read('docs/COMPATIBILITY.md')
-  check('README: Build from source says every release archive carries the pack built for its platform', /Every release archive carries the embedding pack built for its\s+platform/.test(readme))
+  check('INSTALL.md: Build from source says every release archive carries the pack built for its platform', /Every release archive carries the embedding pack built for its\s+platform/.test(install))
   check('README: What is inside says the model is bundled in every release archive, built for its platform', /bundled in every release archive,\s+built for its platform/.test(readme))
-  check('README: the source-build words name setup, build-embed.ts and the --default model fetch, and word match only without cargo', readme.includes('`setup` also builds the local embedding addon') && readme.includes('bun run scripts/vendor/build-embed.ts') && readme.includes('bun run scripts/vendor/fetch-embed-models.ts --default') && /without cargo the\s+pack is skipped, setup says so, and Mneme memory lookup runs word match only/.test(readme))
+  check('INSTALL.md: the source-build words name setup, build-embed.ts and the --default model fetch, and word match only without cargo', install.includes('`setup` also builds the local embedding addon') && install.includes('bun run scripts/vendor/build-embed.ts') && install.includes('bun run scripts/vendor/fetch-embed-models.ts --default') && /without cargo the\s+pack is skipped, setup says so, and Mneme memory lookup runs word match only/.test(install))
   check('MNEME.md: the model arrives with every release archive, built for its platform', /arrives with\s+every release archive, built for its platform/.test(mneme) && mneme.includes('fetch-embed-models.ts --default'))
   check('the Windows source page: a release archive carries the engine, the pack and the model; --default named', /archive always carries the engine, the embedding pack and the model/.test(windows) && windows.includes('fetch-embed-models.ts --default'))
   check('COMPATIBILITY.md: every archive bundles the addon built for its platform and the model', /Every archive\s+also bundles the `vendor\/embed` addon built for its platform and the 118 MB\s+`bge-base-en-v1\.5` embedding model/.test(compat))
@@ -75,14 +76,14 @@ console.log('\n§1 every page says the pack rides every release archive')
 console.log('\n§2 the pages say what Linux and Windows run: a vectorised kernel, about a tenth of a second per Recall by meaning')
 {
   const RETIRED = [/plain maths loop/, /second and a half/, /faster kernel/]
-  for (const page of ['README.md', 'docs/MNEME.md', 'docs/INSTALL-WINDOWS-FROM-SOURCE.md', 'docs/COMPATIBILITY.md']) {
+  for (const page of ['docs/INSTALL.md', 'docs/MNEME.md', 'docs/INSTALL-WINDOWS-FROM-SOURCE.md', 'docs/COMPATIBILITY.md']) {
     const text = read(page)
     check(`${page}: a vectorised kernel, about a tenth of a second per Recall by meaning`, /vectorised (maths )?kernel/.test(text) && /about a\s+tenth of\s+a\s+second/.test(text))
     const stale = RETIRED.filter(shape => shape.test(text)).map(String)
     check(`${page}: the plain-loop words of the earlier release are gone`, stale.length === 0, stale.join(' · '))
   }
-  const readme = read('README.md')
-  check('README: Build from source ties the kernel to Linux and Windows and names the macOS road beside it', /on Linux and Windows the maths runs a\s+vectorised kernel/.test(readme) && /few hundredths on macOS, which uses Accelerate/.test(readme))
+  const install = read('docs/INSTALL.md')
+  check('INSTALL.md: Build from source ties the kernel to Linux and Windows and names the macOS road beside it', /on Linux and Windows the maths runs a\s+vectorised kernel/.test(install) && /few hundredths on macOS, which uses Accelerate/.test(install))
 }
 
 console.log('\n§3 no page says the pack is the Apple silicon archive\'s alone')

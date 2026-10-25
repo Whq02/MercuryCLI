@@ -75,9 +75,9 @@ check('the Saturn page the scheduling question needs is carried and names /satur
 const TOPIC_PAGES: Readonly<Record<string, ReadonlyArray<readonly [string, RegExp]>>> = {
   commands: [['README.md', /^## Slash commands/m]],
   scheduling: [['docs/SATURN.md', /`\/saturn`/]],
-  providers: [['docs/ENGINES.md', /sign-in provider families/], ['README.md', /^## Providers and models: sign-ins/m]],
+  providers: [['docs/ENGINES.md', /sign-in provider families/], ['README.md', /\*\*22 model providers/]],
   hosting: [['docs/LLM-HOST.md', /`\/llmhost`/], ['docs/LLM-HOST.md', /mercury\s+host/]],
-  'headless runs': [['docs/AUTOMATION.md', /`mercury run/], ['docs/AUTOMATION.md', /`mercury runner`/], ['README.md', /^## The headless CLI/m]],
+  'headless runs': [['docs/AUTOMATION.md', /`mercury run/], ['docs/AUTOMATION.md', /`mercury runner`/], ['docs/AUTOMATION.md', /^### Other commands/m]],
   voice: [['docs/VOICE.md', /`\/voice on`/]],
   restart: [['README.md', /`\/restart`/], ['docs/TERMINAL-RUNTIME.md', /`\/restart`/]],
 }
@@ -118,16 +118,16 @@ check('an uncovered question is answered plainly, never guessed', /say so and na
 const guidance = text.slice(text.indexOf("Answer the question"), text.indexOf('## The pages'))
 const README_CLAIMS: ReadonlyArray<readonly [string, RegExp]> = [
   ['install', /^## Install/m],
-  ['updates', /^### Updates/m],
-  ['provider sign-ins', /^## Providers and models: sign-ins/m],
-  ['headless', /^## The headless CLI/m],
+  ['what is inside', /^## What is inside/m],
   ['slash-command table', /^## Slash commands/m],
+  ['reporting a problem', /^## Reporting a problem/m],
+  ['licence', /^## Licence/m],
 ]
 const readmeClaimsPinned = (readme: string): boolean => README_CLAIMS.every(([phrase, heading]) => guidance.includes(phrase) && heading.test(readme))
 check('every README section the guidance names is a heading of the README', readmeClaimsPinned(pages['README.md'] ?? ''))
 check('poison control: a README without its slash-command table heading fails the README predicate', !readmeClaimsPinned((pages['README.md'] ?? '').replace('## Slash commands', '## Commands')))
 check('the guidance states no count that could go stale', !/\d/.test(guidance), guidance.match(/\d+/g)?.join(',') ?? '')
-check('poison control: a guidance with a provider count in it fails the no-count predicate', /\d/.test(guidance.replace('provider sign-ins', '20 provider sign-ins')))
+check('poison control: a guidance with a provider count in it fails the no-count predicate', /\d/.test(guidance.replace('what is inside', '22 providers inside')))
 check('the guidance sends a long page to a Grep and a window read, not a whole-file read', /Grep across the folder first/.test(guidance) && /only the lines the match points at/.test(guidance))
 check('the guidance stays within its 900-character size budget', guidance.length <= 900, `${guidance.length} characters`)
 const mapLines = text.split('\n').filter(line => line.startsWith('- README.md') || line.startsWith('- docs/'))

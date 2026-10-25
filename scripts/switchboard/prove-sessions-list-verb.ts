@@ -77,8 +77,8 @@ try {
     check("the sessions command's description names list and delete", main.includes("description('Saved sessions: list, delete')"))
     check('a bare `sessions` runs the listing (an action on the parent command)', /command\('sessions'\)[\s\S]{0,900}\.action\(async \(options: \{ all\?: boolean; limit\?: number \}\) => \{\s*const \{ sessionsListCli \}/.test(main))
     check('`sessions list` is a sub-command with --all and --limit', main.includes(".command('list')") && main.includes("'--all', 'List the saved sessions of every project, not only this one'"))
-    const readme = source('README.md')
-    check('the README names `mercury sessions list`', readme.includes('`mercury sessions list`'))
+    const readme = source('docs/AUTOMATION.md')
+    check('AUTOMATION.md names `mercury sessions list`', readme.includes('`mercury sessions list`'))
   }
 } finally {
   removeScratch(HOME)
