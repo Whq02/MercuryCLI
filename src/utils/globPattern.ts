@@ -1,3 +1,6 @@
+import { existsSync, globSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+
 export function normalizeGlobPattern(pattern: string, platform: NodeJS.Platform = process.platform): string {
   if (platform !== 'win32') return pattern
   return pattern.replace(/\\/g, '/')
@@ -15,6 +18,35 @@ export function splitGrepGlobField(field: string, platform: NodeJS.Platform = pr
     }
   }
   return values
+}
+
+export function resolveSearchGlob(pattern: string, root: string, intoMixed = true): string[] {
+  if (pattern.startsWith('!')) return [pattern]
+  const parts = pattern.split('/')
+  let prefix = root
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!
+    if (/[*?{\\]/.test(part)) break
+    prefix = join(prefix, part)
+    if (part.includes('[')) {
+      if (!existsSync(prefix)) break
+      parts[i] = part.replace(/[\[\]]/g, bracket => (bracket === '[' ? '[[]' : '[]]'))
+    }
+  }
+  const escaped = parts.join('/')
+  if (escaped.includes('**')) return [escaped]
+  let matches: string[]
+  try {
+    matches = [...globSync(escaped.replace(/^\//, ''), { cwd: root })]
+  } catch {
+    return [escaped]
+  }
+  const directories = matches.filter(path => {
+    try { return statSync(join(root, path)).isDirectory() } catch { return false }
+  })
+  if (directories.length === 0 || (!intoMixed && directories.length < matches.length)) return [escaped]
+  const recursive = `${escaped.replace(/\/$/, '')}/**`
+  return directories.length === matches.length ? [recursive] : [escaped, recursive]
 }
 
 export function globSearchDepth(patterns: readonly string[]): number | undefined {

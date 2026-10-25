@@ -19,7 +19,7 @@ import {
 } from '../../utils/curlyQuotes.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
-import { globSearchDepth, splitGrepGlobField } from '../../utils/globPattern.js'
+import { globSearchDepth, resolveSearchGlob, splitGrepGlobField } from '../../utils/globPattern.js'
 import {
   FILE_NOT_FOUND_CWD_NOTE,
   findSimilarFile,
@@ -52,6 +52,7 @@ import {
 
 
 const DEFAULT_HEAD_LIMIT = 250
+const DEFAULT_PER_FILE_MATCHES = 25
 
 const VCS_EXCLUDED_DIRECTORIES = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
 
@@ -123,6 +124,7 @@ type Output = {
   incomplete?: string
   engine?: string
   withheld?: string
+  cappedFiles?: string[]
 }
 
 const outputSchema = z.object({
@@ -137,9 +139,36 @@ const outputSchema = z.object({
   incomplete: z.string().optional(),
   engine: z.string().optional(),
   withheld: z.string().optional(),
+  cappedFiles: z.array(z.string()).optional(),
 })
 
 type OutputMode = NonNullable<Output['mode']>
+
+function capContentMatches(lines: string[], limit: number | undefined, after: number): { lines: string[]; files: Set<string> } {
+  const files = new Set<string>()
+  if (limit === undefined) return { lines, files }
+  const counts = new Map<string, number>()
+  const lastShown = new Map<string, number>()
+  const kept: string[] = []
+  let separator = false
+  for (const line of lines) {
+    if (line === '--') { separator = kept.length > 0; continue }
+    const nul = line.indexOf('\0')
+    const row = nul < 0 ? null : /^(\d+)([:-])/.exec(line.slice(nul + 1))
+    if (row !== null) {
+      const file = line.slice(0, nul)
+      const count = counts.get(file) ?? 0
+      if (row[2] === ':') {
+        counts.set(file, count + 1)
+        if (count >= limit) { files.add(file); continue }
+        lastShown.set(file, Number(row[1]))
+      } else if (count >= limit && Number(row[1]) > (lastShown.get(file) ?? 0) + after) continue
+    }
+    if (separator) { kept.push('--'); separator = false }
+    kept.push(line)
+  }
+  return { lines: kept, files }
+}
 
 function envFileTargetsInGlobField(glob: string | undefined): string[] {
   return glob ? splitGrepGlobField(glob).flatMap(envFileTargetsInGlob) : []
@@ -172,6 +201,7 @@ function withholdEnvFileLines(
   numbered: boolean,
   permission: ToolPermissionContext,
   covered: (file: string) => boolean,
+  preserveNull = false,
 ): { lines: string[]; withheld: string | undefined } {
   const kept: string[] = []
   const counts = new Map<string, number>()
@@ -195,7 +225,7 @@ function withholdEnvFileLines(
       counts.set(file, (counts.get(file) ?? 0) + 1)
       continue
     }
-    kept.push(mode === 'files_with_matches' ? raw : restoreSeparator(file, raw.slice(nul + 1), numbered))
+    kept.push(mode === 'files_with_matches' || preserveNull ? raw : restoreSeparator(file, raw.slice(nul + 1), numbered))
   }
   if (kept[kept.length - 1] === '--') kept.pop()
   if (counts.size === 0) return { lines: kept, withheld: undefined }
@@ -332,7 +362,7 @@ export function realSearchRoot(root: string): string {
 function respellRoot(line: string, real: string, given: string): string {
   if (!line.startsWith(real)) return line
   const next = line.charAt(real.length)
-  return next === '' || next === '/' || next === '\\' || next === ':' || next === '-' ? `${given}${line.slice(real.length)}` : line
+  return next === '' || next === '/' || next === '\\' || next === ':' || next === '-' || next === '\0' ? `${given}${line.slice(real.length)}` : line
 }
 
 async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string, withholdEnvFiles: boolean): Promise<string[]> {
@@ -348,8 +378,8 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   if (input['-i']) args.push('-i')
   if (mode === 'files_with_matches') args.push('-l')
   if (mode === 'count') args.push('-c')
-  if (withholdEnvFiles && mode !== 'files_with_matches') args.push('--null')
-  if (((input['-n'] ?? true) || withholdEnvFiles) && mode === 'content') args.push('-n')
+  if (mode === 'content' || (withholdEnvFiles && mode === 'count')) args.push('--null')
+  if (mode === 'content') args.push('-n')
   if (mode === 'content') {
     args.push('--with-filename')
     if (input.context !== undefined) {
@@ -369,7 +399,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   }
   if (input.type) args.push('--type', input.type)
   if (input.glob) {
-    const patterns = splitGrepGlobField(input.glob)
+    const patterns = splitGrepGlobField(input.glob).flatMap(pattern => resolveSearchGlob(pattern, searchRoot))
     const anchored = patterns.every(value => value.startsWith('!') || value.includes('/'))
     const depth = anchored ? globSearchDepth(patterns) : undefined
     if (depth !== undefined) args.push('--max-depth', String(depth))
@@ -541,12 +571,19 @@ export const GrepTool = buildTool({
     const offset = input.offset ?? 0
 
     const { answer, engine } = await answerWithPcre2Fallback(input.pattern, args, searchRoot, context.abortController.signal)
-    const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot)) : { lines: answer.lines, withheld: undefined }
+    const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot), mode === 'content') : { lines: answer.lines, withheld: undefined }
     const withheld = kept.withheld
-    const lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
+    let lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
     if (mode === 'content') {
+      const perFileLimit = input.head_limit === undefined && (await stat(searchRoot)).isDirectory() ? DEFAULT_PER_FILE_MATCHES : undefined
+      const capped = capContentMatches(lines, perFileLimit, input.context ?? input['-C'] ?? input['-A'] ?? 0)
+      const rawLines = capped.lines
+      lines = rawLines.map(line => {
+        const nul = line.indexOf('\0')
+        return nul < 0 ? line : restoreSeparator(line.slice(0, nul), line.slice(nul + 1), input['-n'] ?? true)
+      })
       const { slice, start, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
       if ((anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)) {
         try {
@@ -571,6 +608,7 @@ export const GrepTool = buildTool({
       const relativized = withContext
         ? relativizeContentLines(lines, start, slice.length)
         : slice.map(line => relativizePrefixed(line, 'first'))
+      const cappedFiles = [...new Set(rawLines.slice(start, start + slice.length).map(line => line.split('\0')[0]!).filter(file => capped.files.has(file)))].map(toRelativePath)
       return {
         data: {
           mode,
@@ -578,6 +616,7 @@ export const GrepTool = buildTool({
           filenames: [],
           content: relativized.join('\n'),
           numLines: relativized.length,
+          ...(cappedFiles.length > 0 ? { cappedFiles } : {}),
           ...(appliedLimit !== undefined ? { appliedLimit } : {}),
           ...(appliedOffset !== undefined ? { appliedOffset } : {}),
           ...(incomplete !== undefined ? { incomplete } : {}),
@@ -667,6 +706,7 @@ export const GrepTool = buildTool({
     switch (data.mode) {
       case 'content':
         text = data.content ? `${data.content}${note ? `\n${note.trim()}` : ''}` : 'No matches found'
+        if (data.cappedFiles?.length) text += `\nMore than ${DEFAULT_PER_FILE_MATCHES} matches in ${data.cappedFiles.join(', ')}; pass path: ${JSON.stringify(data.cappedFiles[0])} to see that file, or head_limit: 0 for all matches.`
         break
       case 'count': {
         const body = data.content ? data.content : 'No matches found'

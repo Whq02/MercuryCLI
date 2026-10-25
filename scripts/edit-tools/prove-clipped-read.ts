@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, writeFileSync, readFileSync, realpathSync, rmSync, utimesSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync, readFileSync, realpathSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'clipped-read-'))
@@ -15,6 +15,7 @@ const { FileReadTool: Read } = await import('../../src/tools/FileReadTool/FileRe
 const { FileEditTool: Edit } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { GrepTool: Grep } = await import('../../src/tools/GrepTool/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { toolErrorReason } = await import('../../src/utils/toolErrorReason.ts')
 const parent = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'fixture' } } as any
 function context(): any { return { readFileState: new Map(), abortController: new AbortController(), options: { tools: [], commands: [], engineModel: 'fixture-model' }, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), dynamicSkillDirTriggers: new Set(), nestedMemoryAttachmentTriggers: new Set(), updateFileHistoryState() {} } }
 let failures = 0
@@ -101,5 +102,84 @@ try {
   await read({ file_path: set, offset: 1, limit: 1, lossless: true }, setCtx)
   await (ChangeSetTool as any).call({ op: 'apply', changes: [member] }, setCtx, null, parent)
   check('ChangeSet lands once the clipped line was read lossless', readFileSync(set, 'utf8') === 'replacement\nshort\n')
+  for (const [name, total, window, missing] of [
+    ['window', 50, { offset: 1, limit: 10 }, '11-50'],
+    ['default', 3000, {}, '2001-3000'],
+    ['tail', 50, { offset: -10 }, '1-40'],
+  ] as const) {
+    const file = join(home, `${name}-write.txt`)
+    const original = Array.from({ length: total }, (_, i) => `row ${i + 1}`).join('\n') + '\n'
+    writeFileSync(file, original)
+    const ctx = context()
+    await read({ file_path: file, ...window }, ctx)
+    let refusal = ''
+    try { await Write.call({ file_path: file, content: 'replacement\n' }, ctx, null as any, parent) } catch (error) { refusal = (error as Error).message }
+    check(`${name}: Write refuses the unread range without changing the file`, refusal.includes(missing) && readFileSync(file, 'utf8') === original, refusal)
+    check(`${name}: the error row names the unread lines and nothing else`, toolErrorReason(refusal, '') === `Lines ${missing} were not read`, toolErrorReason(refusal, ''))
+    await read({ file_path: file, offset: name === 'default' ? 2001 : name === 'tail' ? 1 : 11, limit: name === 'tail' ? 40 : total }, ctx)
+    await Write.call({ file_path: file, content: 'replacement\n' }, ctx, null as any, parent)
+    check(`${name}: complete window coverage permits Write`, readFileSync(file, 'utf8') === 'replacement\n')
+  }
+  const numbered = join(home, 'numbered.txt')
+  for (const mode of ['write', 'exact', 'hunks', 'append', 'hashed']) {
+    writeFileSync(numbered, 'alpha\nbeta\n')
+    const ctx = context()
+    const before = await read({ file_path: numbered }, ctx)
+    const body = mode === 'hashed' ? '1#ab3f\tALPHA\n2#12ad\tBETA' : '1\tALPHA\n2\tBETA'
+    if (mode === 'write' || mode === 'hashed') await Write.call({ file_path: numbered, content: body }, ctx, null as any, parent)
+    else {
+      const input = { file_path: numbered, ...(mode === 'exact' ? { old_string: '1\talpha\n2\tbeta', new_string: body } : mode === 'append' ? { append: body } : { expected_anchor: (before.data as any).file.anchor, hunks: [{ lines: '1-2', replace: body }] }) }
+      const verdict = await Edit.validateInput(input, ctx)
+      check(`${mode}: copied prefixes validate`, verdict.result === true, verdict)
+      if (verdict.result) await Edit.call(input, ctx, null as any, parent)
+    }
+    check(`${mode}: sequential Read prefixes never reach disk`, readFileSync(numbered, 'utf8') === (mode === 'append' ? 'alpha\nbeta\nALPHA\nBETA\n' : 'ALPHA\nBETA\n'), readFileSync(numbered, 'utf8'))
+  }
+  for (const body of ['1\tALPHA\nBETA', '1\tALPHA\n3\tBETA', '1\tALPHA']) {
+    writeFileSync(numbered, 'alpha\nbeta\n')
+    const ctx = context()
+    const before = await read({ file_path: numbered }, ctx)
+    const input = { file_path: numbered, expected_anchor: (before.data as any).file.anchor, hunks: [{ lines: '1-2', replace: body }] }
+    check(`Edit keeps ${JSON.stringify(body)} literal: Read numbers every line, counting up by one`, (await Edit.validateInput(input, ctx)).result === true)
+    await Edit.call(input, ctx, null as any, parent)
+    check(`Edit writes ${JSON.stringify(body)} as given`, readFileSync(numbered, 'utf8') === `${body}\n`, readFileSync(numbered, 'utf8'))
+    writeFileSync(numbered, 'alpha\nbeta\n')
+    const writeCtx = context()
+    await read({ file_path: numbered }, writeCtx)
+    await Write.call({ file_path: numbered, content: body }, writeCtx, null as any, parent)
+    check(`Write writes ${JSON.stringify(body)} as given`, readFileSync(numbered, 'utf8') === `${body}\n`, readFileSync(numbered, 'utf8'))
+  }
+  const { stripSequentialReadPrefixes } = await import('../../src/tools/FileEditTool/utils.ts')
+  for (const body of ['1. alpha\n2. beta', '00000010  61 62\n00000020  63 64', '12:00\talpha\n12:01\tbeta', '12\tAlice\n47\tBob', 'cat <<EOF\n1\tAlice\n2\tBob\nEOF']) {
+    check(`numbered lists, hex dumps, timestamps, gapped IDs and heredoc rows stay literal: ${JSON.stringify(body)}`, stripSequentialReadPrefixes(body, '') === body && stripSequentialReadPrefixes(body, 'code\n') === body)
+  }
+  writeFileSync(numbered, '1\talpha\n2\tbeta\n')
+  const tableCtx = context()
+  await read({ file_path: numbered }, tableCtx)
+  await Write.call({ file_path: numbered, content: '1\tALPHA\n2\tbeta\n' }, tableCtx, null as any, parent)
+  const tableEdit = { file_path: numbered, old_string: '1\tALPHA\n2\tbeta', new_string: '1\tALPHA\n2\tBETA' }
+  check('a literal numbered TSV edit validates', (await Edit.validateInput(tableEdit, tableCtx)).result === true)
+  await Edit.call(tableEdit, tableCtx, null as any, parent)
+  check('Write and Edit preserve existing numbered TSV fields', readFileSync(numbered, 'utf8') === '1\tALPHA\n2\tBETA\n')
+  const table = join(home, 'new-table.txt')
+  let ambiguous = ''
+  try { await Write.call({ file_path: table, content: '1\talpha\n2\tbeta\n' }, context(), null as any, parent) } catch (error) { ambiguous = (error as Error).message }
+  check('a new file whose every line is numbered is refused with the reason and nothing is written', toolErrorReason(ambiguous, '') === 'Every line starts with a line number and a tab' && !existsSync(table), ambiguous)
+  const tableCtx2 = context()
+  await Write.call({ file_path: table, content: '1\talpha\n' }, tableCtx2, null as any, parent)
+  const appendRest = { file_path: table, append: '2\tbeta' }
+  check('the second numbered line appends as given', (await Edit.validateInput(appendRest, tableCtx2)).result === true)
+  await Edit.call(appendRest, tableCtx2, null as any, parent)
+  check('numbered data still lands: the first line alone, then the rest appended', readFileSync(table, 'utf8') === '1\talpha\n2\tbeta\n', readFileSync(table, 'utf8'))
+  const emptyFile = join(home, 'empty-table.txt')
+  writeFileSync(emptyFile, '')
+  const emptyCtx = context()
+  await read({ file_path: emptyFile }, emptyCtx)
+  const create = { file_path: emptyFile, old_string: '', new_string: '1\talpha\n2\tbeta' }
+  const createVerdict = await Edit.validateInput(create, emptyCtx)
+  check('Edit refuses the same text into an empty file at validation', createVerdict.result === false && String((createVerdict as any).message).startsWith('Every line starts with a line number and a tab;'), createVerdict)
+  let createRefused = false
+  try { await Edit.call(create, emptyCtx, null as any, parent) } catch (error) { createRefused = String(error).includes('line number and a tab') }
+  check('Edit rechecks it at execution and writes nothing', createRefused && readFileSync(emptyFile, 'utf8') === '')
 } finally { rmSync(home, { recursive: true, force: true }) }
 process.exit(failures ? 1 : 0)

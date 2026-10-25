@@ -94,6 +94,7 @@ import {
   getPatchForEdit,
   locateActualString,
   preserveQuoteStyleForFile,
+  stripSequentialReadPrefixes,
   type ActualMatchOutcome,
 } from './utils.js'
 import { findSection, planAppend, planSectionEdit, sectionHeadingOf } from './sectionEdit.js'
@@ -451,6 +452,16 @@ function notUniqueRefusal(
     errorCode: 9,
     message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount: lineCountOf(currentContent), oldString }),
     meta: { oldString, ...(located.kind === 'found' ? { actualOldString: located.actual } : {}), matchLines: spellNamedRanges(matches) },
+  }
+}
+
+function withoutReadPrefixes(input: FileEditInput, referenceText: string): FileEditInput {
+  return {
+    ...input,
+    ...(input.old_string !== undefined ? { old_string: stripSequentialReadPrefixes(input.old_string, referenceText) } : {}),
+    ...(input.new_string !== undefined ? { new_string: stripSequentialReadPrefixes(input.new_string, referenceText) } : {}),
+    ...(input.append !== undefined ? { append: stripSequentialReadPrefixes(input.append, referenceText) } : {}),
+    ...(input.hunks !== undefined ? { hunks: input.hunks.map(hunk => ({ ...hunk, replace: stripSequentialReadPrefixes(hunk.replace, referenceText) })) } : {}),
   }
 }
 
@@ -859,11 +870,8 @@ export const FileEditTool = buildTool({
     for (const body of proposedBodies) {
     }
 
-    const oldString = input.old_string ?? ''
-    const newString = input.new_string ?? ''
-
     const { old_string, new_string } = input
-    if (mode === 'exact' && oldString !== '' && old_string === new_string) {
+    if (mode === 'exact' && hasText(old_string) && old_string === new_string) {
       return {
         result: false as const,
         behavior: 'ask' as const,
@@ -943,6 +951,14 @@ export const FileEditTool = buildTool({
         errorCode: 14,
       }
     }
+
+    try {
+      input = withoutReadPrefixes(input, currentContent)
+    } catch (error) {
+      return { result: false as const, message: error instanceof Error ? error.message : String(error), errorCode: 13 }
+    }
+    const oldString = input.old_string ?? ''
+    const newString = input.new_string ?? ''
 
     if (!fileExists) {
       if (mode === 'exact' && oldString === '') {
@@ -1212,6 +1228,7 @@ export const FileEditTool = buildTool({
       }
     }
 
+    input = withoutReadPrefixes(input, freshContent)
     let sameCall: Extract<ReadKnowledge, { verdict: 'carry' }> | null = null
     if (fileExists && mode !== 'append') {
       const touched = mode === 'exact'

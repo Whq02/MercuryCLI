@@ -27,6 +27,20 @@ export function normalizeQuotes(s: string): string {
   return straightenQuotes(s)
 }
 
+export function stripSequentialReadPrefixes(text: string, referenceText: string): string {
+  if (text === '' || referenceText.includes(text)) return text
+  const prefix = /^(\d+)(#[0-9a-f]{4})?\t/
+  const lines = text.split('\n')
+  const matches = lines.filter(line => line !== '' && line !== '\r').map(line => prefix.exec(line))
+  if (matches.length === 0 || matches.some((match, i) => match === null || (i > 0 && Number(match[1]) !== Number(matches[i - 1]![1]) + 1))) return text
+  const hashed = matches.every(match => match![2] !== undefined)
+  if (!hashed && (matches.length < 2 || referenceText.split('\n').some(line => prefix.test(line)))) return text
+  if (!hashed && referenceText === '') {
+    throw new Error('Every line starts with a line number and a tab; Read adds those, so send the text without them. If the numbers are the file\'s data, write the first line alone, then add the rest with Edit append. Nothing was written.')
+  }
+  return lines.map(line => line.replace(prefix, '')).join('\n')
+}
+
 
 function stripTrailingWhitespace(s: string): string {
   return s.replace(/[^\S\r\n]+(?=\r\n|\r|\n|$)/g, '')

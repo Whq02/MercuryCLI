@@ -426,7 +426,7 @@ function textOfResult(content: unknown): string {
   return content.map(block => (typeof (block as { text?: unknown }).text === 'string' ? (block as { text: string }).text : '')).join('\n')
 }
 
-export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: ReadonlyArray<unknown>): { files: number; lines: number } {
+export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: ReadonlyArray<unknown>, excludedResultIds?: ReadonlySet<string>): { files: number; lines: number } {
   const pathOfUse = new Map<string, { path: string; tool: string; content?: string }>()
   const summary = { files: 0, lines: 0 }
   const touched = new Set<string>()
@@ -474,7 +474,7 @@ export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: Readon
         pathOfUse.set(block.id, { path, tool: block.name, ...(block.name === 'Write' && typeof input.content === 'string' ? { content: input.content } : {}) })
         continue
       }
-      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string' || block.is_error === true) continue
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string' || block.is_error === true || excludedResultIds?.has(block.tool_use_id)) continue
       const use = pathOfUse.get(block.tool_use_id)
       if (use === undefined) continue
       if (use.tool === 'Write' && use.content !== undefined) {

@@ -532,14 +532,15 @@ function shouldExcludeFromPostCompactRestore(filename: string): boolean {
   return false
 }
 
-function collectPreservedReadPaths(preserved: Message[]): Set<string> {
+export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
   const stubToolUseIds = new Set<string>()
+  const shownToolUseIds = new Set<string>()
   for (const message of preserved) {
     if (message.type !== 'user') continue
     const content = (message as UserMessage).message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      const record = block as { type?: string; tool_use_id?: string; content?: unknown }
+      const record = block as { type?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }
       if (record.type !== 'tool_result' || typeof record.tool_use_id !== 'string') continue
       const text =
         typeof record.content === 'string'
@@ -548,6 +549,7 @@ function collectPreservedReadPaths(preserved: Message[]): Set<string> {
             ? record.content.map(item => String((item as { text?: unknown }).text ?? '')).join('')
             : ''
       if (text.includes(FILE_UNCHANGED_STUB) || text.startsWith(FOLDED_RESULT_KEY) || text.startsWith(REPEATED_RESULT_TAG)) stubToolUseIds.add(record.tool_use_id)
+      else if (resultIds?.has(record.tool_use_id) && record.is_error !== true && text !== '' && !text.startsWith(PERSISTED_OUTPUT_TAG) && !text.startsWith(TOOL_RESULT_CLEARED_MESSAGE)) shownToolUseIds.add(record.tool_use_id)
     }
   }
   const paths = new Set<string>()
@@ -559,6 +561,7 @@ function collectPreservedReadPaths(preserved: Message[]): Set<string> {
       const record = block as { type?: string; id?: string; name?: string; input?: { file_path?: unknown } }
       if (record.type !== 'tool_use' || record.name !== FILE_READ_TOOL_NAME) continue
       if (typeof record.id === 'string' && stubToolUseIds.has(record.id)) continue
+      if (resultIds !== undefined && (typeof record.id !== 'string' || !shownToolUseIds.has(record.id))) continue
       const filePath = record.input?.file_path
       if (typeof filePath === 'string') paths.add(expandPath(filePath))
     }

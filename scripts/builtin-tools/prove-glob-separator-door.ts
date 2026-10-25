@@ -48,7 +48,7 @@ section('§2 Glob — the --glob value glob() builds rides the door')
 {
   const globUtil = readFileSync(join(ROOT, 'src', 'utils', 'glob.ts'), 'utf8')
   check('glob.ts imports the door', /from '\.\/globPattern\.js'/.test(globUtil))
-  check("the argument vector's --glob value is the normalised pattern", /'--files',\s*'--glob',\s*normalizeGlobPattern\(pattern\)/.test(globUtil))
+  check("the argument vector's --glob values come from the normalised pattern", /const patterns = resolveSearchGlob\(normalizeGlobPattern\(pattern\), searchDir, false\)/.test(globUtil) && /'--files',\s*\.\.\.patterns\.flatMap\(value => \['--glob', value\]\)/.test(globUtil))
   check('no verbatim pattern reaches the vector any more', !/'--glob',\s*pattern,/.test(globUtil))
 }
 

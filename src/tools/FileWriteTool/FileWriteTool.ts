@@ -5,7 +5,7 @@ import {
   recordNoChangeOutcome,
   serializeIntentDigest,
 } from '../../services/changeTransaction/repetitionPolicy.js'
-import { clippedLinesRefusal, fileGeneration, generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
+import { checkSeenLines, clippedLinesRefusal, fileGeneration, generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { clearDeliveredDiagnosticsForFile, snapshotDiagnosticsBeforeWrite } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
@@ -39,6 +39,8 @@ import type { UUID } from 'node:crypto'
 
 import type { FileState } from '../../utils/fileStateCache.js'
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
+import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
+import { spellLineRanges } from '../FileEditTool/readThrough.js'
 import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
 import { checkIntroducedParseError } from './parseCheck.js'
@@ -274,7 +276,8 @@ export const FileWriteTool = buildTool({
 
     const hadBom = rawContent.charCodeAt(0) === 0xfeff
     const rawBody = hadBom ? rawContent.slice(1) : rawContent
-    const shaped = fileExists && rawBody !== '' ? shapeToExistingFile(rawBody, input.content, lineEndings) : input.content
+    const content = stripSequentialReadPrefixes(input.content, rawBody)
+    const shaped = fileExists && rawBody !== '' ? shapeToExistingFile(rawBody, content, lineEndings) : content
     const wantsBom = hadBom || (needsPowerShellBom(expandedPath) && encoding === 'utf8')
     const producedContent =
       wantsBom && shaped.charCodeAt(0) !== 0xfeff
@@ -314,22 +317,26 @@ export const FileWriteTool = buildTool({
     }
 
     if (fileExists) {
+      const owner = ownerFromToolUseContext(context)
+      const generation = fileGeneration(expandedPath)
+      const clipped = clippedLinesRefusal(owner, expandedPath, input.file_path, generation, null)
+      if (clipped !== null) throw new Error(clipped)
       const entry = context.readFileState.get(expandedPath)
-      if (!entry || entry.isPartialView) {
-        if (!wholeFileSeen(ownerFromToolUseContext(context), expandedPath, normalizedContent)) {
-          throw new Error(unreadExistingWriteMessage())
-        }
-      } else {
-        const mtime = currentMtimeMs ?? getFileModificationTime(expandedPath)
-        if (
-          mtime > entry.timestamp &&
-          !(isFullReadEntry(entry) && entry.content === normalizedContent)
-        ) {
+      const fullRead = entry !== undefined && !entry.isPartialView && isFullReadEntry(entry) && entry.content === normalizedContent.replace(/^\uFEFF/, '')
+      if (!wholeFileSeen(owner, expandedPath, normalizedContent)) {
+        if (entry !== undefined && !entry.isPartialView && (currentMtimeMs ?? getFileModificationTime(expandedPath)) > entry.timestamp && !fullRead) {
           throw new Error(modifiedSinceReadMessage())
         }
+        if (!fullRead) {
+          const end = normalizedContent === '' ? 0 : normalizedContent.split('\n').length - (normalizedContent.endsWith('\n') ? 1 : 0)
+          const verdict = generation === null || end === 0 ? null : checkSeenLines(owner, expandedPath, generation, [{ index: 0, start: 1, end, replace: content }])
+          const unread = verdict === null || verdict.ok ? [] : verdict.unseen
+          const first = unread[0]
+          if (first === undefined || (first.start === 1 && first.end === end)) throw new Error(unreadExistingWriteMessage())
+          const one = unread.length === 1 && first.start === first.end
+          throw new Error(`${one ? 'Line' : 'Lines'} ${spellLineRanges(unread)} ${one ? 'was' : 'were'} not read; Read(file_path: ${JSON.stringify(input.file_path)}, offset: ${first.start}, limit: ${first.end - first.start + 1}) shows ${one ? 'it' : unread.length === 1 ? 'them' : 'the first range'} before replacement.`)
+        }
       }
-      const clipped = clippedLinesRefusal(ownerFromToolUseContext(context), expandedPath, input.file_path, fileGeneration(expandedPath), null)
-      if (clipped !== null) throw new Error(clipped)
     }
 
     let writtenContent = shaped.replaceAll('\r\n', '\n')

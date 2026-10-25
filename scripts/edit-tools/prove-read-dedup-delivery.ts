@@ -55,9 +55,9 @@ const context = {
   }),
 } as never
 
-async function readViaTool(path: string): Promise<string> {
+async function readViaTool(path: string, extra: Record<string, unknown> = {}): Promise<string> {
   const result = await (FileReadTool as { call: Function }).call(
-    { file_path: path },
+    { file_path: path, ...extra },
     context,
     null,
     { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
@@ -152,6 +152,58 @@ section('D5 — inspect mode never touches the ledger')
     'inspect',
   )
   check('the entry survives an inspect build', before && readFileState.has(files[0]!))
+}
+
+process.env.MERCURY_TIME_BASED_MC = '0'
+const { createRewindRecordMessage } = await import('../../src/services/compact/checkpointRewind.ts')
+const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
+const { wholeFileSeen, checkSeenLines, fileGeneration } = await import('../../src/services/changeTransaction/seenLines.ts')
+const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const rounds = (id: string, path: string, body: string, extra: Record<string, unknown> = {}) => [
+  createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path: path, ...extra } }] as never }),
+  createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: body }] as never }),
+]
+for (const mode of ['rewind', 'budget']) {
+  section(`${mode}: lost Read bodies lose their read evidence`)
+  const file = join(fixtures, `${mode}.txt`)
+  const survivor = join(fixtures, `${mode}-survivor.txt`)
+  const body = Array.from({ length: 500 }, (_, i) => `${i + 1}: ${'body '.repeat(20)}`).join('\n') + '\n'
+  writeFileSync(file, body)
+  writeFileSync(survivor, 'kept content\n')
+  const kept = rounds(`${mode}-kept`, survivor, await readViaTool(survivor))
+  const before = rounds(`${mode}-before`, file, await readViaTool(file, { offset: 1, limit: 1 }), { offset: 1, limit: 1 })
+  const checkpoint = [
+    createAssistantMessage({ content: [{ type: 'tool_use', id: 'cp-reads', name: 'Checkpoint', input: { goal: 'read files' } }] as never }),
+    createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'cp-reads', content: 'Checkpoint taken' }] as never }),
+  ]
+  const abandoned = join(fixtures, `${mode}-abandoned.txt`)
+  writeFileSync(abandoned, body)
+  const fullRead = rounds(`${mode}-lost`, file, await readViaTool(file))
+  const lostRead = rounds(`${mode}-abandoned`, abandoned, await readViaTool(abandoned))
+  const history = [...kept, ...before, ...(mode === 'rewind' ? checkpoint : []), ...fullRead, ...lostRead,
+    ...(mode === 'rewind' ? [createRewindRecordMessage({ checkpointId: 'cp-reads', goal: 'read files', report: 'finished', abandonedMessageCount: 2, rootFallback: false })] : []),
+  ]
+  const state = mode === 'budget' ? { ...createContentReplacementState(), budgetChars: 5000 } : undefined
+  const input = { messages: history, owner, querySource: 'main_thread' as never, contentReplacementState: state, skipToolNames: new Set<string>(), readFileState }
+  await buildRequestContextPlan(input, 'inspect')
+  check(`${mode}: inspect keeps the read cache and full line coverage`, readFileState.has(file) && wholeFileSeen(owner, file, body))
+  await buildRequestContextPlan(input, 'apply')
+  check(`${mode}: apply invalidates the full-read cache`, !readFileState.has(file))
+  check(`${mode}: the surviving partial Read cannot preserve the removed full Read`, !wholeFileSeen(owner, file, body))
+  const seen = (line: number) => checkSeenLines(owner, file, fileGeneration(file)!, [{ index: 0, start: line, end: line, replace: '' }]).ok
+  check(`${mode}: rebuild keeps the displayed line, not the hidden middle`, seen(1) && !seen(250))
+  check(`${mode}: an unrelated surviving Read still dedups`, (await readViaTool(survivor)).startsWith(FILE_UNCHANGED_STUB))
+  const edit = await FileEditTool.validateInput({ file_path: abandoned, old_string: body.split('\n')[249]!, new_string: 'changed' }, context)
+  check(`${mode}: Edit cannot use a wholly discarded read`, edit.result === false, JSON.stringify(edit))
+  let refused = false
+  try { await FileWriteTool.call({ file_path: file, content: 'changed\n' }, context, null as never, { uuid: '00000000-0000-0000-0000-000000000002' } as never) } catch { refused = true }
+  check(`${mode}: Write cannot use the discarded read`, refused)
+  const reread = await readViaTool(file)
+  check(`${mode}: the next Read returns its content, never the unchanged stub`, !reread.startsWith(FILE_UNCHANGED_STUB) && reread.includes('250: body'))
+  const freshState = mode === 'budget' ? { ...createContentReplacementState(), budgetChars: Infinity, replacements: new Map(state!.replacements), seenIds: new Set(state!.seenIds) } : undefined
+  await buildRequestContextPlan({ ...input, contentReplacementState: freshState, messages: [...history, ...rounds(`${mode}-fresh`, file, reread)] }, 'apply')
+  check(`${mode}: a later surviving full Read is not invalidated by the old removal`, readFileState.has(file) && wholeFileSeen(owner, file, body) && (await readViaTool(file)).startsWith(FILE_UNCHANGED_STUB))
 }
 
 await api.close()

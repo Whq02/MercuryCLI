@@ -8,8 +8,12 @@ import {
 } from '../compact/microCompact.js'
 import type { Message } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { expandPath } from '../../utils/path.js'
 import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js'
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
+import { collectPreservedReadPaths } from '../compact/compact.js'
+import { dropSeenLines, rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'
+import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { PROTECTED_TOOL_NAMES } from '../compact/pruneProtections.js'
 import {
   applyToolResultBudget,
@@ -125,6 +129,48 @@ function placeholdersOf(view: Message[], ids: ReadonlySet<string>): Map<string, 
   return out
 }
 
+const removedReadResults = new OwnerScopedStore<{ ids: Set<string> }>({
+  name: 'removed-read-results',
+  create: () => ({ ids: new Set() }),
+})
+registerOwnerScopedStore(removedReadResults)
+
+function invalidateRemovedReads(input: RequestContextPlanInput, before: Message[], view: Message[]): void {
+  const bodies = (messages: Message[]): Map<string, unknown> => {
+    const results = new Map<string, unknown>()
+    for (const message of messages) {
+      if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
+      for (const block of message.message.content) {
+        if (block.type === 'tool_result') results.set(block.tool_use_id, block.content)
+      }
+    }
+    return results
+  }
+  const original = bodies(before)
+  const surviving = bodies(view)
+  const removed = new Set([...original].filter(([id, body]) => surviving.get(id) !== body).map(([id]) => id))
+  const handled = removedReadResults.get(input.owner).ids
+  const fresh = new Set([...removed].filter(id => !handled.has(id)))
+  for (const id of fresh) handled.add(id)
+  const paths = collectPreservedReadPaths(before, fresh)
+  if (paths.size === 0) return
+  const latest = new Map<string, string>()
+  for (const message of before) {
+    if (message.type !== 'assistant' || !Array.isArray(message.message.content)) continue
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_use' || block.name !== FILE_READ_TOOL_NAME || !original.has(block.id)) continue
+      const path = (block.input as { file_path?: unknown })?.file_path
+      if (typeof path === 'string') latest.set(expandPath(path), block.id)
+    }
+  }
+  const retainedLatest = collectPreservedReadPaths(view, new Set([...latest.values()].filter(id => !removed.has(id))))
+  for (const path of paths) {
+    if (!retainedLatest.has(path)) input.readFileState?.delete(path)
+    dropSeenLines(input.owner, path)
+  }
+  rebuildSeenLinesFromTranscript(input.owner, view, removed)
+}
+
 const lastAppliedPlans = new OwnerScopedStore<{ plan: RequestContextPlan | null }>({
   name: 'request-plans',
   create: () => ({ plan: null }),
@@ -198,6 +244,10 @@ export async function buildRequestContextPlan(
     }
   } else {
     unknownFields.push('contentReplacementState absent — no budget transform in this lane')
+  }
+
+  if (mode === 'apply' && (afterRewinds.length < afterBoundary.length || budgetReplacements > 0 || (input.contentReplacementState?.replacements.size ?? 0) > 0)) {
+    invalidateRemovedReads(input, afterBoundary, view)
   }
 
   let timeBasedCleared = 0

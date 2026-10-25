@@ -4,7 +4,7 @@ import { resolveRelativePatternPrefix } from './globPrefix.js'
 
 import type { ToolPermissionContext } from '../Tool.js'
 import { isEnvTruthy } from './envUtils.js'
-import { globSearchDepth, normalizeGlobPattern } from './globPattern.js'
+import { globSearchDepth, normalizeGlobPattern, resolveSearchGlob } from './globPattern.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
@@ -72,9 +72,10 @@ export async function glob(
 
   const givenSearchDir = resolve(searchDir)
   searchDir = safeResolvePath(getFsImplementation(), givenSearchDir).resolvedPath
-  const args = ['--files', '--glob', normalizeGlobPattern(pattern), '--sortr=modified', '--no-ignore']
+  const patterns = resolveSearchGlob(normalizeGlobPattern(pattern), searchDir, false)
+  const args = ['--files', ...patterns.flatMap(value => ['--glob', value]), '--sortr=modified', '--no-ignore']
   const universeArgs = ['--files', '--sortr=modified']
-  const depth = globSearchDepth([normalizeGlobPattern(pattern)])
+  const depth = globSearchDepth(patterns)
   if (depth !== undefined) {
     args.push('--max-depth', String(depth))
     universeArgs.push('--max-depth', String(depth))

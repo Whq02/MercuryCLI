@@ -147,6 +147,7 @@ for (const kind of KINDS) {
     restore(kind.file)
     const ctx = makeContext()
     const read = await run(FileReadTool, { file_path: path }, ctx)
+    if (kind.id === 'big') await run(FileReadTool, { file_path: path, offset: 2001 }, ctx)
     const body = hasWord ? normalized(kind.bytes).replace(kind.oldWord, kind.newWord) : `${kind.newWord}\n`
     const modelContent = body === '' || body.endsWith('\n') ? body : `${body}\n`
     const wrote = await run(FileWriteTool, { file_path: path, content: modelContent }, ctx)
