@@ -106,7 +106,7 @@ for (const profile of ['alt', 'conpty', 'inline'] as const) {
     if (profile === 'inline') check('inline shrink never erases the screen or scrollback', !/\x1b\[[0123]?J/.test(writes.join('')))
     else if (idle) {
       const bytes = writes.join('')
-      check(`${profile}: idle erase and repaint share one synchronized write`, writes.length === 1 && bytes.startsWith('\x1b[?2026h') && bytes.endsWith('\x1b[?2026l') && bytes.indexOf('\x1b[2J') < bytes.indexOf('Guardrails') && bytes.split('\x1b[2J').length === 2)
+      check(`${profile}: idle erase and repaint share one synchronized write`, writes.length === 1 && bytes.startsWith('\x1b[?2026h') && bytes.endsWith('\x1b[?2026l') && bytes.indexOf('\x1b[2J') !== -1 && bytes.indexOf('\x1b[2J') < bytes.indexOf('Guardrails') && bytes.split('\x1b[2J').length === 2)
     } else check(`${profile}: an ordinary step change needs no whole-screen erase`, !/\x1b\[[0123]?J/.test(writes.join('')))
     save(`${profile}-${idle ? 'idle' : 'active'}-short`, terminal)
     ink.unmount()

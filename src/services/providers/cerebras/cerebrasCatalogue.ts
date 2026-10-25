@@ -148,7 +148,7 @@ export function cerebrasCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
 export function cerebrasCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedCerebrasCatalogue(env)
   const { source } = cerebrasCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${CEREBRAS_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
 }

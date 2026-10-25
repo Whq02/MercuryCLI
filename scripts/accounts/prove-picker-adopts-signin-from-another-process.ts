@@ -143,7 +143,7 @@ section('§5 the shape: the one presence reader checks the credential files befo
   const providerUsage = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
   const start = providerUsage.indexOf('export function anthropicCredentialPresence(')
   const body = providerUsage.slice(start, providerUsage.indexOf('\n}\n', start))
-  check('the live path (no injected reads) runs the on-disk invalidator first', /if \(reads === undefined\) invalidateOnDiskChange\(\)/.test(body) && body.indexOf('invalidateOnDiskChange()') < body.indexOf('isClaudeAISubscriber()'))
+  check('the live path (no injected reads) runs the on-disk invalidator first', /if \(reads === undefined\) invalidateOnDiskChange\(\)/.test(body) && body.indexOf('invalidateOnDiskChange()') !== -1 && body.indexOf('invalidateOnDiskChange()') < body.indexOf('isClaudeAISubscriber()'))
   check('auth.ts exports the invalidator', /export function invalidateOnDiskChange\(\)/.test(readFileSync(join(ROOT, 'src/utils/auth.ts'), 'utf8')))
 }
 

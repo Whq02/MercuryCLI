@@ -150,7 +150,7 @@ export function groqCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows:
 export function groqCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedGroqCatalogue(env)
   const { source } = groqCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${GROQ_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
 }

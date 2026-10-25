@@ -177,7 +177,7 @@ export function togetherCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
 export function togetherCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedTogetherCatalogue(env)
   const { source } = togetherCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${TOGETHER_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} chat ${source.count === 1 ? 'model' : 'models'} live${source.otherKinds > 0 ? ` · ${source.otherKinds} image, video, audio and other rows not listed` : ''}` : undefined
 }

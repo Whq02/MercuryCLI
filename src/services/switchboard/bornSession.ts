@@ -206,7 +206,7 @@ function mintOnBornChat(sessionId: string, text: string): void {
   const paint = (): boolean => {
     const focused = getFocusedSessionConnector()
     if (focused.sessionId() !== sessionId) return false
-    mintImmediateReceipt(text, 'warning')
+    mintImmediateReceipt(text, text.startsWith('▲') ? 'warning' : 'info')
     return true
   }
   if (paint()) return

@@ -177,7 +177,7 @@ export function orcarouterCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
 export function orcarouterCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedOrcarouterCatalogue(env)
   const { source } = orcarouterCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${ORCAROUTER_OBSERVED_AT}) — ${snapshot?.lastError}`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} text models live` : undefined
 }

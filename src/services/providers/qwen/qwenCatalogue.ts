@@ -283,8 +283,8 @@ export function qwenWireId(model: string, env: NodeJS.ProcessEnv = process.env):
 export function qwenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedQwenCatalogue(env)
   const { source } = qwenCatalogueRows(env)
-  if (source.kind === 'plan') return `the Coding Plan's documented models (observed ${QWEN_OBSERVED_AT}) on ${snapshot?.endpointLabel ?? 'the Coding Plan endpoint'} — its model list answers every caller and is not the plan's list`
-  if (source.kind === 'pins') return `pinned list (observed ${QWEN_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
+  if (source.kind === 'plan') return `the Coding Plan's documented models on ${snapshot?.endpointLabel ?? 'the Coding Plan endpoint'} — its model list answers every caller and is not the plan's list`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live on ${snapshot?.endpointLabel ?? QWEN_CONSOLES}${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
 }

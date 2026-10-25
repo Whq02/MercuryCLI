@@ -6,7 +6,7 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { cohereApiBase, resolveCohereApiKey } from './cohereAccounts.js'
-import { COHERE_DISPLAY_PINS, COHERE_OBSERVED_AT, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from './coherePins.js'
+import { COHERE_DISPLAY_PINS, isCohereChatModelId, cohereDisplayName, cohereDisplayPin } from './coherePins.js'
 
 export interface CohereLiveModel {
   id: string
@@ -170,7 +170,7 @@ export function newestCohereModel(env: NodeJS.ProcessEnv = process.env): string 
 export function cohereCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedCohereCatalogue(env)
   const { source } = cohereCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list (observed ${COHERE_OBSERVED_AT}) — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
+  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
   if (snapshot?.lastError) return snapshot.lastError
   return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
 }

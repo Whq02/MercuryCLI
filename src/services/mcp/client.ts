@@ -464,18 +464,6 @@ function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 're
   return built
 }
 
-function buildSdkClient(): Client {
-  return new ToolListClient(
-    {
-      name: 'mercury',
-      title: 'Mercury',
-      version: clientVersion(),
-      description: 'Mercury, an agentic coding harness',
-    },
-    { capabilities: {}, versionNegotiation: { mode: 'legacy' } },
-  )
-}
-
 function installRootsHandler(client: Client): void {
   client.setRequestHandler('roots/list', async () => {
     const roots = [pathToFileURL(getOriginalCwd()).href]

@@ -24,10 +24,10 @@ try {
   const rejected = await run('enum NeverRun { A }; globalThis.enumRan = true')
   check('non-erasable syntax stays an error without running', rejected.status === 'error')
   const flag = await run('process.execArgv.find(x => x.startsWith("--max-old-space-size="))')
-  check('the Node child uses the 512 MiB old-generation ceiling', flag.status === 'ok' && flag.resultRepr === "'--max-old-space-size=512'", JSON.stringify(flag.error ?? flag.resultRepr))
+  check('the Node child carries no old-generation ceiling of its own (the runtime decides)', flag.status === 'ok' && (flag.resultRepr === undefined || flag.resultRepr === 'undefined'), JSON.stringify(flag.error ?? flag.resultRepr))
   const heap = await run('(await import("node:v8")).getHeapStatistics().heap_size_limit / 1024 / 1024')
   const runtime = await run('console.log(process.execPath)')
-  const control = spawnSync(runtime.stdout.text.trim(), ['--max-old-space-size=512', '-p', 'require("node:v8").getHeapStatistics().heap_size_limit / 1024 / 1024'], { cwd: work, env: {}, encoding: 'utf8', windowsHide: true })
-  check('the V8 heap matches the same Node runtime launched with the 512 MiB flag', control.status === 0 && heap.status === 'ok' && heap.resultRepr === control.stdout.trim(), JSON.stringify({ heap: heap.resultRepr, control: control.stdout.trim() }))
+  const control = spawnSync(runtime.stdout.text.trim(), ['-p', 'require("node:v8").getHeapStatistics().heap_size_limit / 1024 / 1024'], { cwd: work, env: {}, encoding: 'utf8', windowsHide: true })
+  check('the V8 heap matches the same Node runtime launched bare', control.status === 0 && heap.status === 'ok' && heap.resultRepr === control.stdout.trim(), JSON.stringify({ heap: heap.resultRepr, control: control.stdout.trim() }))
 } finally { await evalKernelManager.disposeAll(); cleanup() }
 finish('JS ERASABLE TYPES AND HEAP')

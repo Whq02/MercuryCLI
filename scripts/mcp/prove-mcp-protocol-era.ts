@@ -242,10 +242,6 @@ section("(7) production's client shape, structurally")
       client.includes('client = buildClient(false)'),
   )
   check(
-    'the SDK host on the control channel keeps the handshake',
-    client.includes("{ capabilities: {}, versionNegotiation: { mode: 'legacy' } }"),
-  )
-  check(
     'the remembered verdict rides the connect and a failed connect drops it',
     client.includes('client.connect(transport, prior ? { prior } : undefined)') && client.includes('await clearEraVerdict(eraKey)'),
   )

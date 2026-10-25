@@ -89,7 +89,7 @@ export function birthFallbackModel(resolved: string, input: BirthFallbackInput):
   }
   return {
     setting: input.fallback.setting,
-    receipt: `▲ the saved default ${word} has no sign-in here — this chat runs on ${row} (${provider}, the most recent sign-in); /logins ${word} connects it, /model changes the default`,
+    receipt: '/logins to add your provider oauth or api',
   }
 }
 

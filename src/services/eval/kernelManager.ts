@@ -235,7 +235,7 @@ export class EvalKernelManager {
     const runner = language === 'py' ? ensurePyRunner() : ensureJsRunner()
     const kernel = await ProcKernel.launch({
       command: interpreter,
-      args: language === 'js' ? ['--max-old-space-size=512', runner] : [runner],
+      args: [runner],
       cwd,
       env: buildKernelEnv(),
       transport: language === 'py' && this.tuning.pyTransport !== undefined ? this.tuning.pyTransport : kernelTransportFor(language),
