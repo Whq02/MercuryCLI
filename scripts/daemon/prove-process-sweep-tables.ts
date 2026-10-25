@@ -36,6 +36,24 @@ await check('the birth token parses in the C and the en_GB spellings and refuses
   assert.ok(Number.isNaN(parseProcessStartToken('')))
 })
 
+await check('a birth token carries no zone: inside the repeated hour of a clock change it reads as the first pass, never later than the process began; outside a change, and in a zone without one, it reads exactly', () => {
+  const zone = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  try {
+    process.env.TZ = 'Europe/London'
+    assert.equal(parseProcessStartToken('Sun Oct 25 01:30:00 2026'), Date.UTC(2026, 9, 25, 0, 30, 0))
+    assert.equal(parseProcessStartToken('Sun Oct 25 00:59:00 2026'), Date.UTC(2026, 9, 24, 23, 59, 0))
+    assert.equal(parseProcessStartToken('Sun Oct 25 02:00:00 2026'), Date.UTC(2026, 9, 25, 2, 0, 0))
+    assert.equal(parseProcessStartToken('Sun Mar 29 00:59:00 2026'), Date.UTC(2026, 2, 29, 0, 59, 0))
+    assert.equal(parseProcessStartToken('Sun Mar 29 02:00:00 2026'), Date.UTC(2026, 2, 29, 1, 0, 0))
+    assert.equal(tokenBinding('Sun Oct 25 01:30:00 2026', 'Sun 25 Oct 01:30:00 2026'), 'bound')
+    process.env.TZ = 'Asia/Dubai'
+    assert.equal(parseProcessStartToken('Sun Oct 25 01:30:00 2026'), Date.UTC(2026, 9, 24, 21, 30, 0))
+    assert.equal(parseProcessStartToken('Sun Mar 29 01:30:00 2026'), Date.UTC(2026, 2, 28, 21, 30, 0))
+  } finally {
+    process.env.TZ = zone
+  }
+})
+
 await check('two spellings of one birth bind; two births are strangers; a spelling that cannot be read is uncertain, never a stranger', () => {
   assert.equal(tokenBinding('Sun Sep 20 04:14:19 2026', 'Sun 20 Sep 04:14:19 2026'), 'bound')
   assert.equal(tokenBinding('Sun 20 Sep 04:14:19 2026', 'Sun 20 Sep 04:14:19 2026'), 'bound')

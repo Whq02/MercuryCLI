@@ -141,6 +141,7 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
   check(
     'the hook threads ONE banded start into the paint and every derived offset',
     hook.includes('getViewportStartLine(maxVisibleLines, bandRef.current)') &&
+      hook.includes('bandRef.current = viewportStartLine') &&
       hook.indexOf('bandRef.current = viewportStartLine') < hook.indexOf('renderCursor.render(') &&
       /renderCursor\.render\([\s\S]{0,200}?viewportStartLine,\s*\)/.test(hook) &&
       hook.includes('getViewportCharOffset(maxVisibleLines, viewportStartLine)') &&

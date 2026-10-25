@@ -603,7 +603,9 @@ console.log('§L1 clock adversity')
 
   const springFrom = Date.parse('2026-03-07T12:00:00-05:00')
   const next230 = saturn.saturnNextFireMs({ kind: 'every', cron: '30 2 * * *' }, springFrom)
-  check('L1b the spring-forward day has no 02:30 (next = Mar 9 02:30 EDT)', next230 === Date.parse('2026-03-09T02:30:00-04:00'), `next=${next230 === null ? 'null' : new Date(next230).toISOString()}`)
+  check('L1b the spring-forward day runs 02:30 at the first real minute past the gap (03:00 EDT)', next230 === Date.parse('2026-03-08T03:00:00-04:00'), `next=${next230 === null ? 'null' : new Date(next230).toISOString()}`)
+  const afterSpring = saturn.saturnNextFireMs({ kind: 'every', cron: '30 2 * * *' }, next230!)
+  check('L1b …and once — the next after it is Mar 9 02:30 EDT', afterSpring === Date.parse('2026-03-09T02:30:00-04:00'), `next=${afterSpring === null ? 'null' : new Date(afterSpring).toISOString()}`)
   const wildSpring = saturn.saturnNextFireMs({ kind: 'every', cron: '30 * * * *' }, Date.parse('2026-03-08T01:45:00-05:00'))
   check('L1b a wildcard hour resumes at the first minute past the gap (03:30 EDT)', wildSpring === Date.parse('2026-03-08T03:30:00-04:00'), `next=${wildSpring === null ? 'null' : new Date(wildSpring).toISOString()}`)
 

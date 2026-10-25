@@ -253,6 +253,33 @@ console.log('§A2 next-fire math')
   check('describeWhen echoes the spelling verbatim', describeWhen({ kind: 'every', cron: '0 9 * * *', spelling: 'every day 09:00' }) === 'every day 09:00')
   check("describeWhen names a spelling-less cron", describeWhen({ kind: 'every', cron: '0 9 * * *' }) === "on '0 9 * * *'")
   check('describeWhen names a one-shot instant', describeWhen({ kind: 'at', atMs: Date.parse('2026-09-01T09:00:00Z') }).includes('2026-09-01T09:00:00'))
+
+  const zone = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const next = (cron: string, fromIso: string): string | null => computeNextCronRun(parseCronExpression(cron)!, new Date(fromIso))?.toISOString() ?? null
+  const pin = (label: string, cron: string, fromIso: string, expectedIso: string): void => {
+    const got = next(cron, fromIso)
+    check(`${process.env.TZ} · ${label}`, got === expectedIso, `${cron} from ${fromIso} answered ${got}, expected ${expectedIso}`)
+  }
+  process.env.TZ = 'Europe/London'
+  pin('clocks back: every minute moves to the next real minute inside the repeated hour, never back an hour', '* * * * *', '2026-10-25T01:20:05.000Z', '2026-10-25T01:21:00.000Z')
+  pin('clocks back: every minute crosses from the first 01:59 into the second 01:00', '* * * * *', '2026-10-25T00:59:05.000Z', '2026-10-25T01:00:00.000Z')
+  pin('clocks back: 01:30 daily runs at the first 01:30 (BST)', '30 1 * * *', '2026-10-24T12:00:00.000Z', '2026-10-25T00:30:00.000Z')
+  pin('clocks back: 01:30 daily does not run again at the second 01:30 — the next is tomorrow', '30 1 * * *', '2026-10-25T00:30:00.000Z', '2026-10-26T01:30:00.000Z')
+  pin('clocks back: half past every hour runs in both passes, a real hour apart', '30 * * * *', '2026-10-25T00:30:00.000Z', '2026-10-25T01:30:00.000Z')
+  pin('clocks back: 9am daily is 9am BST the day before', '0 9 * * *', '2026-10-23T12:00:00.000Z', '2026-10-24T08:00:00.000Z')
+  pin('clocks back: 9am daily is 9am GMT the day of', '0 9 * * *', '2026-10-24T12:00:00.000Z', '2026-10-25T09:00:00.000Z')
+  pin('clocks forward: 01:30 daily runs at the first real minute past the gap (02:00 BST), not never', '30 1 * * *', '2026-03-28T01:30:00.000Z', '2026-03-29T01:00:00.000Z')
+  pin('clocks forward: …and not twice — after that run the next is tomorrow 01:30 BST', '30 1 * * *', '2026-03-29T01:00:00.000Z', '2026-03-30T00:30:00.000Z')
+  pin('clocks forward: a quarter-hourly schedule inside the skipped hour runs once past the gap', '*/15 1 * * *', '2026-03-29T00:50:00.000Z', '2026-03-29T01:00:00.000Z')
+  pin('clocks forward: every minute runs at the first real minute past the gap', '* * * * *', '2026-03-29T00:59:30.000Z', '2026-03-29T01:00:00.000Z')
+  pin('clocks forward: half past every hour stays a real hour apart (02:30 BST)', '30 * * * *', '2026-03-29T00:30:00.000Z', '2026-03-29T01:30:00.000Z')
+  pin('clocks forward: 9am daily is 9am BST the day of', '0 9 * * *', '2026-03-28T09:00:00.000Z', '2026-03-29T08:00:00.000Z')
+  pin('clocks forward: a Monday 01:30 schedule is untouched by the Sunday gap', '30 1 * * 1', '2026-03-28T12:00:00.000Z', '2026-03-30T00:30:00.000Z')
+  process.env.TZ = 'Asia/Dubai'
+  pin('no clock change: 01:30 daily is 01:30 local every day across the October date', '30 1 * * *', '2026-10-24T21:30:00.000Z', '2026-10-25T21:30:00.000Z')
+  pin('no clock change: 01:30 daily is 01:30 local every day across the March date', '30 1 * * *', '2026-03-28T21:30:00.000Z', '2026-03-29T21:30:00.000Z')
+  pin('no clock change: every minute moves one real minute', '* * * * *', '2026-10-25T01:20:05.000Z', '2026-10-25T01:21:00.000Z')
+  process.env.TZ = zone
 }
 
 console.log('§P the preflight owner')
@@ -480,8 +507,9 @@ console.log('§F the ticker')
   let birthOk = true
   let liveFactsState: 'ready' | 'signed-out' | 'rate-limited' = 'ready'
   let screenOpen = true
+  let pinnedNow: number | null = null
   const ports = {
-    now: () => Date.now(),
+    now: () => pinnedNow ?? Date.now(),
     records: () => Object.values(JSON.parse(readFileSync(concourseWorkersPath(DAEMON_DIR), 'utf8')).workers as Record<string, never>).filter((r: { endedAt?: number }) => r.endedAt === undefined) as never[],
     deriveAccount: (_m: string) => ({ ok: true as const, account: { ...FIXTURE_ACCOUNT } }),
     liveFacts: () =>
@@ -564,6 +592,27 @@ console.log('§F the ticker')
   const r4b = await tickSaturnOnce(ports)
   check('F4 the same window never double-fires', r4b.fired === 0 && delivered.length === 1)
   check('F4 saturnDueAtOf moved past now (the anchor is the last fire)', (saturnDueAtOf(rowAfter as never) ?? 0) > Date.now())
+  clearSchedules()
+
+  const zoneBefore = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  process.env.TZ = 'Europe/London'
+  pinnedNow = Date.parse('2026-10-25T01:20:05.000Z')
+  delivered.length = 0
+  const repeatedHourId = addVia({ when: { kind: 'every', cron: '* * * * *' }, action: goodFire })
+  updateConcourseWorkers(workers => {
+    for (const r of Object.values(workers)) {
+      const row = ((r as { schedules?: Array<Record<string, unknown>> }).schedules ?? []).find(s => s.id === repeatedHourId)
+      if (row) row.createdAt = pinnedNow! - 120_000
+    }
+  }, DAEMON_DIR)
+  const r4c = await tickSaturnOnce(ports)
+  const repeatedRow = scheduleRows().find(s => s.id === repeatedHourId)
+  check('F4 clocks back (01:20 GMT, the second 01:20 of the night): the recurring fired once and re-armed', r4c.fired === 1 && delivered.length === 1 && repeatedRow?.lastFiredAt === pinnedNow)
+  const r4d = await tickSaturnOnce(ports)
+  check('F4 clocks back: the next tick fires nothing — the anchor is the last fire, the next run is the next real minute', r4d.fired === 0 && delivered.length === 1, JSON.stringify({ fired: r4d.fired, dueAt: saturnDueAtOf(repeatedRow as never) }))
+  check('F4 clocks back: saturnDueAtOf is 01:21 GMT, after now, never 01:21 BST an hour back', saturnDueAtOf(repeatedRow as never) === Date.parse('2026-10-25T01:21:00.000Z'), String(saturnDueAtOf(repeatedRow as never)))
+  pinnedNow = null
+  process.env.TZ = zoneBefore
   clearSchedules()
 
   delivered.length = 0
