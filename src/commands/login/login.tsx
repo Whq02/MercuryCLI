@@ -173,9 +173,9 @@ export async function call(
   const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
   const complete = (success: boolean, engineModel: string): void => {
     void (async () => {
-      context.onChangeAPIKey()
-      context.setMessages(prev => stripSignatureBlocks(prev))
       if (success) {
+        context.onChangeAPIKey()
+        context.setMessages(prev => stripSignatureBlocks(prev))
         runPostLoginRefresh(context)
         const shadow = loginShadowWarning()
         const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)

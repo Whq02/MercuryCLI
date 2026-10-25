@@ -12,6 +12,7 @@ export async function call(
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<null> {
+  const focusedSessionId = hasFocusedSession() ? getFocusedSessionConnector().sessionId() : null
   let name = (args ?? '').trim()
   if (name === '') {
     const messages = context.messages ?? []
@@ -38,8 +39,8 @@ export async function call(
     onDone('A session name needs visible text.', { display: 'system' })
     return null
   }
-  if (hasFocusedSession()) {
-    const sessionId = getFocusedSessionConnector().sessionId()
+  if (focusedSessionId !== null) {
+    const sessionId = focusedSessionId
     try {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
@@ -54,10 +55,12 @@ export async function call(
       onDone('The session was not renamed — the daemon that hosts sessions was unreachable.', { display: 'system' })
       return null
     }
-    context.setAppState(prev => ({
-      ...prev,
-      standaloneAgentContext: { ...prev.standaloneAgentContext, name },
-    }))
+    if (getFocusedSessionConnector().sessionId() === sessionId) {
+      context.setAppState(prev => ({
+        ...prev,
+        standaloneAgentContext: { ...prev.standaloneAgentContext, name },
+      }))
+    }
     onDone(`Renamed this session to ${name}`, { display: 'system' })
     return null
   }

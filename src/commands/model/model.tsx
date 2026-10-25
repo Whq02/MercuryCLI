@@ -116,6 +116,16 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
   return null
 }
 
+export function previewDaemonModelSelection(target: ModelSetting): { plan: TransitionPlan } | { reason: string } | null {
+  const focusedForPlan = getFocusedSessionConnector()
+  if (focusedForPlan.carrier !== 'daemon') return null
+  const sessionFacts = focusedForPlan.modelFacts()
+  if (sessionFacts.effectiveSource === 'ambient') {
+    return { reason: "The model switch was refused: the session's own model facts could not be resolved (no live facts and no recorded model on its admission record) — the preview will not be built from another session's state. Retry once the session reports its facts." }
+  }
+  const sessionMessages = [...focusedForPlan.records()]
+  return { plan: previewForSelection(sessionMessages, sessionFacts.effective, target) }
+}
 function ModelSet({
   target,
   raw,
@@ -245,18 +255,13 @@ function ModelSet({
           }
         }
       }
-      const focusedForPlan = getFocusedSessionConnector()
-      if (focusedForPlan.carrier === 'daemon') {
-        const sessionFacts = focusedForPlan.modelFacts()
-        if (sessionFacts.effectiveSource === 'ambient') {
-          onDone(
-            "The model switch was refused: the session's own model facts could not be resolved (no live facts and no recorded model on its admission record) — the preview will not be built from another session's state. Retry once the session reports its facts.",
-            { display: 'system' },
-          )
+      const daemonPreview = previewDaemonModelSelection(target)
+      if (daemonPreview !== null) {
+        if ('reason' in daemonPreview) {
+          onDone(daemonPreview.reason, { display: 'system' })
           return
         }
-        const sessionMessages = [...focusedForPlan.records()]
-        const plan = previewForSelection(sessionMessages, sessionFacts.effective, target)
+        const { plan } = daemonPreview
         if (plan.needsChoice) {
           setHeld({ plan, refreshed: false })
           return

@@ -104,7 +104,7 @@ section('§4 the wiring, structural')
   const model = readFileSync(join(import.meta.dir, '../../src/commands/model/model.tsx'), 'utf8')
   check(
     "the daemon arm plans from the CONNECTOR's facts and records",
-    /carrier === 'daemon'[\s\S]{0,900}modelFacts\(\)[\s\S]{0,900}previewForSelection\(sessionMessages, sessionFacts\.effective, target\)/.test(model),
+    /carrier !== 'daemon'[\s\S]{0,900}modelFacts\(\)[\s\S]{0,900}previewForSelection\(sessionMessages, sessionFacts\.effective, target\)/.test(model) && model.includes('const daemonPreview = previewDaemonModelSelection(target)'),
   )
   check(
     'the ambient refusal names what could not be resolved and builds no plan',

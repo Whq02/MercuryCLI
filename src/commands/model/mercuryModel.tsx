@@ -18,6 +18,7 @@ import { contextFillView } from '../../utils/contextFill.js'
 import { getDefaultEngineModel, getEngineModel, normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
+import { previewDaemonModelSelection } from './model.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
@@ -1199,20 +1200,24 @@ function MercuryModelWrapper({
         return
       }
     }
-    const probeState = store.getState()
-    const probe = settleModelSelection(probeState, value, {
-      turnActive: probeState.foregroundTurnActive || probeState.pendingModelSwitch !== null,
-    })
-    if (probe.kind === 'queued' || probe.kind === 'applied') {
-      const gatePlan = previewForSelection(
-        messages,
-        probeState.engineModelForSession ?? probeState.engineModel,
-        value,
-      )
-      if (gatePlan.needsChoice) {
-        setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })
-        return
+    const daemonPreview = previewDaemonModelSelection(value)
+    if (daemonPreview !== null && 'reason' in daemonPreview) {
+      onDone(daemonPreview.reason, { display: 'system' })
+      return
+    }
+    let gatePlan = daemonPreview?.plan
+    if (daemonPreview === null) {
+      const probeState = store.getState()
+      const probe = settleModelSelection(probeState, value, {
+        turnActive: probeState.foregroundTurnActive || probeState.pendingModelSwitch !== null,
+      })
+      if (probe.kind === 'queued' || probe.kind === 'applied') {
+        gatePlan = previewForSelection(messages, probeState.engineModelForSession ?? probeState.engineModel, value)
       }
+    }
+    if (gatePlan?.needsChoice) {
+      setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })
+      return
     }
     applySelection(value, id, pick)
   }
@@ -1222,6 +1227,7 @@ function MercuryModelWrapper({
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
       const factsBefore = focused.modelFacts()
+      const messagesBefore = [...focused.records()]
       const choice = persistModelChoice(value)
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'refused') {
@@ -1237,7 +1243,7 @@ function MercuryModelWrapper({
         }
         noteModelUse(value, pick.door)
         const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
-        const plan = previewForSelection(messages, factsBefore.effective, value)
+        const plan = previewForSelection(messagesBefore, factsBefore.effective, value)
         const lossNote = transitionPlanSummary(plan)
         onDone(
           receipt.state === 'queued'
@@ -1290,7 +1296,9 @@ function MercuryModelWrapper({
         toLabel={renderModelName(held.value)}
         refreshed={held.refreshed}
         onConfirm={() => {
-          const verdict = reconfirmTransitionPlan(held.plan, messages)
+          const focused = getFocusedSessionConnector()
+          const confirmMessages = focused.carrier === 'daemon' ? [...focused.records()] : messages
+          const verdict = reconfirmTransitionPlan(held.plan, confirmMessages)
           if (!verdict.ok) {
             setTransitionConfirm({ ...held, plan: verdict.freshPlan, refreshed: true })
             return

@@ -154,6 +154,33 @@ section('§3 only a connected server offers its tools: a server the kit dial tur
   m.unmount()
 }
 
+section('§4 a focus change drops the old tool request and keeps the new session usable')
+{
+  roster.clients = [{ name: 'runpod', type: 'connected', toolCount: 1 }]
+  let finishOld: ((value: unknown) => void) | undefined
+  connector.mcpTools = () => new Promise(resolve => { finishOld = resolve })
+  const m = await mounted()
+  await press(m, KEY.enter, '  tools')
+  await press(m, KEY.down, '›   tools')
+  await press(m, KEY.enter, 'listing tools…')
+  check('the first session has an unfinished tools request', finishOld !== undefined)
+  const other = Object.assign(Object.create(connector), {
+    sessionId: () => 'other-session',
+    mcpRoster: () => ({ clients: [{ name: 'other-server', type: 'connected', toolCount: 1 }] }),
+    mcpTools: async () => ({ server: 'other-server', state: 'connected', omitted: 0, tools: [{ name: 'other_tool', registeredAs: 'mcp__other__other_tool', description: 'the other session tool', inputSchema: {}, loading: 'listed' }] }),
+  })
+  setFocusedSessionConnector(other)
+  check('the server list follows the focused session', await waitFor(() => m.screen().includes('other-server · connected'), 1500))
+  await press(m, KEY.up, 'other-server')
+  await press(m, KEY.enter, '  tools', 1500)
+  await press(m, KEY.down, '›   tools', 1500)
+  check('the new session can list tools while the old request is pending', await press(m, KEY.enter, 'other_tool', 1500), m.screen())
+  finishOld?.({ server: 'runpod', state: 'connected', omitted: 0, tools: [{ name: 'old_tool', registeredAs: 'mcp__old', description: 'stale', inputSchema: {}, loading: 'listed' }] })
+  await settle(100)
+  check('the old request cannot replace the new session tool list', m.screen().includes('other_tool') && !m.screen().includes('old_tool'), m.screen())
+  m.unmount()
+}
+
 releaseFocusedSessionConnector()
 console.log(`\n${checks - failures}/${checks} checks passed; ${failures} failed`)
 await releaseScratchHome(HOME)

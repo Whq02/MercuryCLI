@@ -188,14 +188,20 @@ export function McpPopup({ onDone }: { onDone: (message?: string) => void }): Re
   const [toolFilter, setToolFilter] = useState('')
   const [toolFilterFocus, setToolFilterFocus] = useState(false)
   const [detailScroll, setDetailScroll] = useState(0)
-  const alive = useRef(true)
-  const signingIn = useRef<string | null>(null)
+  const alive = useMemo(() => ({ current: true }), [connector])
+  const signingIn = useMemo(() => ({ current: null as string | null }), [connector])
   const filterFocusRef = useRef(false)
   const toolFilterFocusRef = useRef(false)
-  useEffect(() => () => {
-    alive.current = false
-    if (signingIn.current) void connector.mcpAction(signingIn.current, 'cancel-auth')
-  }, [connector])
+  useEffect(() => {
+    alive.current = true
+    setBusy(null)
+    setListing(null)
+    setToolView(null)
+    return () => {
+      alive.current = false
+      if (signingIn.current) void connector.mcpAction(signingIn.current, 'cancel-auth')
+    }
+  }, [connector, alive, signingIn])
   const rows: Row[] = servers.filter(server => server.name.toLowerCase().includes(filter.toLowerCase())).flatMap(server => {
     const rows: Row[] = [{ key: server.name, server }]
     if (expanded === server.name) {

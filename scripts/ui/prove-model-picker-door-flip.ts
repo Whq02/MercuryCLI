@@ -53,6 +53,7 @@ function section(title: string): void {
 const React = (await import('react')).default
 const { render } = await import('../../src/ink.js')
 const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.js')
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
 const { createStore } = await import('../../src/state/store.js')
 const { call } = await import('../../src/commands/model/mercuryModel.js')
 const { FAMILY_GENERATIONS } = await import('../../src/utils/model/configs.js')
@@ -104,9 +105,9 @@ async function mountPicker(): Promise<{ frame: () => string; press: (keys: strin
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), engineModel: SONNET }, () => {})
+  const store = createStore<ReturnType<typeof getDefaultAppState>>({ ...getDefaultAppState(), engineModel: SONNET }, () => {})
   const picker = await call((result?: string) => { receipts.push(result ?? '') }, { messages: [] } as never, '')
-  const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
+  const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, React.createElement(KeybindingSetup, {}, picker)), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
   const until = Date.now() + 6000
   while (Date.now() < until && !(frame().includes('API key ·') && frame().includes('↑↓ select'))) await flush()
@@ -191,6 +192,68 @@ section('§3 the same model under the other door while the switch is a no-op: th
   await flush(400)
   check('the no-op sentence carries the door flip instead of "nothing to change"', receipts.length === 1 && receipts[0]!.startsWith(`Already on ${renderModelName(OPUS)}`) && !receipts[0]!.includes('nothing to change') && receipts[0]!.includes('active slot switched'), receipts.join(' | '))
   check('the billing door flipped back to the login', slotSeatView('anthropic').active === 'subscription', `active ${slotSeatView('anthropic').active}`)
+  picker.unmount()
+  await flush()
+}
+
+section('§4 the daemon session owns the preview, even when the screen already names the target')
+{
+  receipts.length = 0
+  let switches = 0
+  const history: Message[] = [{
+    type: 'assistant',
+    uuid: '00000000-0000-4000-8000-000000000044',
+    timestamp: new Date().toISOString(),
+    message: { id: 'fixture', type: 'message', role: 'assistant', model: 'gpt-6-astra', content: [{ type: 'thinking', thinking: 'fixture reasoning' }, { type: 'text', text: 'fixture answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } },
+  } as unknown as Message]
+  seat(async () => { switches++; return { state: 'applied' } }, 'gpt-6-astra')
+  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  Object.assign(getFocusedSessionConnector(), { records: () => history })
+  const picker = await mountPicker()
+  await picker.press(SONNET)
+  check('the cursor reaches the target while the screen store already names it', picker.frame().includes(SONNET), picker.frame())
+  await picker.press('\r')
+  check('the session history holds a lossy pick at the preview instead of switching immediately', picker.frame().includes('Model switch preview') && picker.frame().includes('thinking block stays behind') && switches === 0, `switches=${switches} · ${picker.frame()}`)
+  history.push({ ...history[0]!, uuid: '00000000-0000-4000-8000-000000000045' } as Message)
+  await picker.press('y')
+  check('confirmation re-reads the daemon history and refreshes a drifted preview without switching', switches === 0 && picker.frame().includes('the conversation changed while this preview was open'), picker.frame())
+  await picker.press('y')
+  check('confirmation of the unchanged daemon history applies once with its actual loss count', switches === 1 && receipts.length === 1 && receipts[0]!.includes('2 thinking blocks stay behind'), `switches=${switches} · ${receipts.join(' | ')}`)
+  picker.unmount()
+  await flush()
+}
+
+section('§5 missing daemon model facts refuse the pick without applying it')
+{
+  receipts.length = 0
+  let switches = 0
+  seat(async () => { switches++; return { state: 'applied' } }, SONNET)
+  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  Object.assign(getFocusedSessionConnector(), { modelFacts: () => ({ effective: SONNET, main: SONNET, setting: SONNET, sessionPin: null, pendingSwitch: null, effectiveSource: 'ambient' }) })
+  const picker = await mountPicker()
+  check('the cursor reaches the target with ambient-only model facts', await walkToLoginDoorRow(picker, OPUS))
+  await picker.press('\r')
+  check('ambient model facts do not authorize a switch', switches === 0 && receipts.length === 1 && receipts[0]!.includes("the session's own model facts could not be resolved"), `switches=${switches} · ${receipts.join(' | ')}`)
+  picker.unmount()
+  await flush()
+}
+
+section('§6 a daemon history over the target window asks before compacting')
+{
+  receipts.length = 0
+  const calls: string[] = []
+  seat(async () => { calls.push('switch'); return { state: 'applied' } }, OPUS)
+  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  Object.assign(getFocusedSessionConnector(), {
+    records: () => [{ type: 'assistant', uuid: '00000000-0000-4000-8000-000000000046', message: { role: 'assistant', model: OPUS, content: [{ type: 'text', text: 'a long conversation' }], usage: { input_tokens: 2_000_000, output_tokens: 10 } } }],
+    sendWords: async (words: string) => { calls.push(words); return { state: 'sent' } },
+  })
+  const picker = await mountPicker()
+  await picker.press(SONNET)
+  await picker.press('\r')
+  check('the daemon token count reaches the existing compact confirmation before any action', picker.frame().includes('Model switch preview') && picker.frame().replace(/[│\s]+/g, ' ').includes('confirm folds the conversation') && calls.length === 0, `calls=${calls.join(',')} · ${picker.frame()}`)
+  await picker.press('y')
+  check('confirm sends compact to that daemon before applying the switch', calls.join(',') === '/compact,switch', calls.join(','))
   picker.unmount()
   await flush()
 }

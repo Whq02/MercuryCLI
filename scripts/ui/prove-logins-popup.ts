@@ -137,9 +137,14 @@ const COMPACT_BELOW_BODY_ROWS = 8
 const isCompact = (s: Scene): boolean => (geometryOf(s).rows ?? 0) - 7 < COMPACT_BELOW_BODY_ROWS
 check('the host folds below eight full-layout body rows, one constant the geometry reads', (store as { SETTINGS_POPUP_COMPACT_BELOW_ROWS?: number }).SETTINGS_POPUP_COMPACT_BELOW_ROWS === COMPACT_BELOW_BODY_ROWS && allSizes.every(s => geometryOf(s).compact === isCompact(s)) && geometryOf({ columns: 64, rows: 12, bottom: 3 }).compact === true && geometryOf({ columns: 64, rows: 12, bottom: 3 }).rowBudget === 4, JSON.stringify(allSizes.map(s => [s.columns, s.rows, geometryOf(s).compact])))
 const markerOf = (m: Mounted): string | undefined => m.lines().find(line => line.includes(compactHint))?.match(/(\d+ of \d+)\s*│?\s*$/)?.[1]
-const context = { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never
+const signedHistory = [{ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'fixture reasoning', signature: 'fixture-signature' }, { type: 'text', text: 'fixture answer' }] } }] as never[]
+let commandMessages = signedHistory
+let keyChanges = 0
+const context = { onChangeAPIKey() { keyChanges++ }, setMessages(update: (messages: typeof signedHistory) => typeof signedHistory) { commandMessages = update(commandMessages) }, getAppState: () => ({}), setAppState() {} } as never
 const receipts: string[] = []
 async function mount(scene: Scene, focus = '') {
+  commandMessages = signedHistory
+  keyChanges = 0
   const ref = React.createRef<DOMElement>()
   const scaffold = (s: Scene) => React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(KeybindingSetup, {},
     React.createElement(Box, { width: s.columns, height: s.rows, flexDirection: 'column' },
@@ -223,6 +228,7 @@ for (const s of sizes) {
   await key(board.m, KEY.esc)
   const closed = await waitFor(() => !store.isSettingsPopupOpen(), 1000)
   check('menu esc closes the popup and reports no credential change', closed && receipts.at(-1)?.includes('no credential changed') === true, `open=${store.isSettingsPopupOpen()} receipt=${receipts.at(-1)}`)
+  check('closing without a credential change keeps the signed conversation intact', commandMessages === signedHistory && keyChanges === 0, `keyChanges=${keyChanges} · ${JSON.stringify(commandMessages)}`)
   board.close()
   if (process.argv.includes('--menu-only')) { await releaseScratchHome(home); process.exit(failures ? 1 : 0) }
   for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '2', huggingface: '2', moonshot: '2', zai: '1', xai: '2', meta: '2' })) {
@@ -317,6 +323,7 @@ for (const s of sizes) {
   fits(board.m, s, 'receipt'); save(board.m, s, 'receipt')
   await key(board.m, KEY.esc)
   check('receipt esc completes the popup', !store.isSettingsPopupOpen())
+  check('a successful Anthropic credential change refreshes the key and strips the old signatures', keyChanges === 1 && commandMessages !== signedHistory && !JSON.stringify(commandMessages).includes('fixture-signature'))
   board.close()
   seed = 'idle'
   successKey = true

@@ -145,7 +145,10 @@ function SessionsLogPicker({
         return
       }
       await performResume(context, onDone, sessionId, full, 'slash_command_picker')
-    })()
+    })().catch(thrown => {
+      logError(thrown)
+      onDone(`Failed to resume: ${errorMessage(thrown)}`)
+    })
   }
 
   if (resuming || logs === null) {
@@ -189,10 +192,6 @@ function SessionsByArgument({
       try {
         const worktreePaths = await getWorktreePathsPortable(getOriginalCwd())
         const logs = await listRepoSessions(worktreePaths)
-        if (logs.length === 0) {
-          setCardMessage('No conversations found to resume.')
-          return
-        }
         const uuid = validateUuid(argument)
         if (uuid !== null) {
           const matches = logs.filter(log => sessionIdOfListing(log) === uuid)
@@ -229,7 +228,7 @@ function SessionsByArgument({
             }
           }
         }
-        setCardMessage(`No session found matching "${argument}".`)
+        setCardMessage(logs.length === 0 ? 'No conversations found to resume.' : `No session found matching "${argument}".`)
       } catch (thrown) {
         logError(thrown)
         setCardMessage(`Failed to resume: ${errorMessage(thrown)}`)
