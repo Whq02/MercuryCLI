@@ -20,6 +20,8 @@ check('one trailing /** is cut from each pattern, empties drop, the rest stay', 
 check('every pattern "**" means unconditional', same(parseFrontmatterPaths('---\npaths: "**"\n---\nbody\n'), { content: 'body\n' }))
 check('patterns that all reduce to nothing mean unconditional', same(parseFrontmatterPaths('---\npaths: "/**"\n---\nbody\n'), { content: 'body\n' }), JSON.stringify(parseFrontmatterPaths('---\npaths: "/**"\n---\nbody\n')))
 check('a "**" beside a real pattern keeps both', same(parseFrontmatterPaths('---\npaths: ["**", "src/**"]\n---\nbody\n').paths, ['**', 'src']))
+check('globs: scopes a rule the same way paths: does', same(parseFrontmatterPaths('---\nglobs: "src/**/*.tsx"\n---\nbody\n'), { content: 'body\n', paths: ['src/**/*.tsx'] }), JSON.stringify(parseFrontmatterPaths('---\nglobs: "src/**/*.tsx"\n---\nbody\n')))
+check('paths: wins when both keys are present', same(parseFrontmatterPaths('---\npaths: lib/**\nglobs: src/**\n---\nbody\n').paths, ['lib']))
 
 console.log('html comments')
 const plain = parse('Keep this.\n\nAnd this.\n')

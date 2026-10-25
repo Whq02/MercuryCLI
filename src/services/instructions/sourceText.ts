@@ -49,7 +49,8 @@ export function parseFrontmatterPaths(rawContent: string): {
   paths?: string[]
 } {
   const { frontmatter, content } = parseFrontmatter(rawContent)
-  const paths = frontmatter.paths ? narrowingPatterns(frontmatter.paths) : []
+  const raw = frontmatter.paths ?? frontmatter.globs
+  const paths = raw ? narrowingPatterns(raw) : []
   return paths.length === 0 ? { content } : { content, paths }
 }
 

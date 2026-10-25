@@ -73,6 +73,7 @@ type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
 
 const AUTH_FETCH_TIMEOUT_MS = 30_000
 const FLOW_TIMEOUT_MS = 5 * 60 * 1000
+const UNFILLED_PLACEHOLDER = /^\$\{[^}]+\}$/
 const DEFAULT_TOKEN_LIFETIME_S = 3600
 const REFRESH_LEAD_S = 300
 const REFRESH_ATTEMPTS = 3
@@ -325,10 +326,11 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
       logForDebugging(`mcp auth [${this.serverName}]: using stored client id`)
       return { client_id: entry.clientId, ...(entry.clientSecret ? { client_secret: entry.clientSecret } : {}) }
     }
-    if (this.config.oauth?.clientId) {
+    const configuredClientId = this.config.oauth?.clientId
+    if (configuredClientId && !UNFILLED_PLACEHOLDER.test(configuredClientId)) {
       logForDebugging(`mcp auth [${this.serverName}]: using configured client id`)
       const secret = getMcpClientConfig(this.serverName, this.config)?.clientSecret
-      return { client_id: this.config.oauth.clientId, ...(secret ? { client_secret: secret } : {}) }
+      return { client_id: configuredClientId, ...(secret ? { client_secret: secret } : {}) }
     }
     logForDebugging(`mcp auth [${this.serverName}]: no client information (registration will run)`)
     return undefined

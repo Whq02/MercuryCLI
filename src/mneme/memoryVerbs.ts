@@ -468,13 +468,17 @@ export function readMemoryRecord(
       }
       seenFullRows.add(seq)
       noteMemoryOpened([id], dir)
+      const inHistory = lineIndex >= historyStartLine(recallSlug(doc), dir, new Map()) || row?.supersededBy !== undefined
+      const note = inHistory
+        ? `this row is history, not the current record${row?.supersededBy !== undefined ? ` — superseded by seq:${row.supersededBy}; read or correct seq:${row.supersededBy} instead` : ''}; ${breadcrumb}`
+        : `full record read — amend is now unlocked for this seq; ${breadcrumb}`
       return {
         found: true,
         id,
         slug: doc.slug,
         content: rowLine,
         renderedContent: `${grade} ${rowLine}`,
-        note: `full record read — amend is now unlocked for this seq; ${breadcrumb}`,
+        note,
         footnotes,
       }
     }
@@ -520,7 +524,14 @@ export function readMemoryRecord(
   if (id.startsWith('pending:')) {
     const ts = id.slice('pending:'.length)
     const row = pendingRows(dir).find(r => r.ts === ts)
-    if (!row) return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
+    if (!row) {
+      const consolidated = consolidatedIdOf(id, dir)
+      if (consolidated !== null) {
+        const followed = readMemoryRecord(consolidated, dir, opts)
+        return { ...followed, note: `followed ${id} → ${consolidated}${followed.note ? `; ${followed.note}` : ''}` }
+      }
+      return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
+    }
     seenPendingRows.add(ts)
     noteMemoryOpened([id], dir)
     const history = row.history === undefined ? '' : `\n  history: replaced pending:${row.history.ts} — ${row.history.text}`

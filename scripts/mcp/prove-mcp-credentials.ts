@@ -108,6 +108,30 @@ section('config-plane pure gates — policy filter · claude.ai dedup · env exp
     j(expanded),
   )
   delete process.env.MCP_CRED_PROOF_TOKEN
+  process.env.MCP_CRED_PROOF_TOKEN = 'sekret2'
+  check('env expansion resolves ${env:VAR} the same way', expandEnvVarsInString('Bearer ${env:MCP_CRED_PROOF_TOKEN}').expanded === 'Bearer sekret2', j(expandEnvVarsInString('Bearer ${env:MCP_CRED_PROOF_TOKEN}')))
+  delete process.env.MCP_CRED_PROOF_TOKEN
+  const unset = expandEnvVarsInString('${env:MCP_CRED_PROOF_TOKEN}')
+  check('an unset ${env:VAR} stays literal and is reported missing under its bare name', unset.expanded === '${env:MCP_CRED_PROOF_TOKEN}' && unset.missingVars.join(',') === 'MCP_CRED_PROOF_TOKEN', j(unset))
+  check('${env:VAR:-x} takes the default', expandEnvVarsInString('${env:MCP_CRED_PROOF_TOKEN:-fallback}').expanded === 'fallback')
+  const { getCwd } = await import('../../src/utils/cwd.ts')
+  const { homedir } = await import('node:os')
+  check('${workspaceFolder} is the working directory and ${userHome} the home directory', expandEnvVarsInString('${workspaceFolder}|${userHome}').expanded === `${getCwd()}|${homedir()}` && expandEnvVarsInString('${workspaceFolder}').missingVars.length === 0)
+  const { parseMcpConfig } = await import('../../src/services/mcp/config.ts')
+  process.env.MCP_CRED_PROOF_CLIENT = 'client-123'
+  const parsed = parseMcpConfig({ configObject: { mcpServers: { remote: { type: 'http', url: 'https://mcp.example/${env:MCP_CRED_PROOF_TOKEN:-x}', oauth: { clientId: '${env:MCP_CRED_PROOF_CLIENT}', authServerMetadataUrl: 'https://auth.example/${MCP_CRED_PROOF_TENANT:-acme}/.well-known/oauth-authorization-server' } } } }, expandVars: true, scope: 'project' })
+  const remoteOauth = (parsed.config?.mcpServers.remote as { oauth?: { clientId?: string; authServerMetadataUrl?: string } } | undefined)?.oauth
+  check('oauth.clientId and oauth.authServerMetadataUrl expand like url and headers', remoteOauth?.clientId === 'client-123' && remoteOauth?.authServerMetadataUrl === 'https://auth.example/acme/.well-known/oauth-authorization-server', j(remoteOauth))
+  delete process.env.MCP_CRED_PROOF_CLIENT
+  const { MercuryMcpAuthProvider } = await import('../../src/services/mcp/auth.ts')
+  const unfilled = new MercuryMcpAuthProvider('cred-proof-unfilled', { type: 'http', url: 'https://mcp.example/unfilled', oauth: { clientId: '${MCP_CLIENT_ID}' } } as never)
+  check('an unfilled ${VAR} client id is treated as unset (registration runs, the placeholder is never sent)', unfilled.clientInformation() === undefined)
+  const envForm = new MercuryMcpAuthProvider('cred-proof-env-form', { type: 'http', url: 'https://mcp.example/env-form', oauth: { clientId: '${env:MCP_CLIENT_ID}' } } as never)
+  check('the ${env:VAR} spelling of an unfilled client id is unset too', envForm.clientInformation() === undefined)
+  const filled = new MercuryMcpAuthProvider('cred-proof-filled', { type: 'http', url: 'https://mcp.example/filled', oauth: { clientId: 'real-client-id' } } as never)
+  check('a real configured client id is still used', filled.clientInformation()?.client_id === 'real-client-id', j(filled.clientInformation()))
+  const partial = new MercuryMcpAuthProvider('cred-proof-partial', { type: 'http', url: 'https://mcp.example/partial', oauth: { clientId: 'tenant-${MCP_CLIENT_ID}' } } as never)
+  check('only a whole ${...} reference counts as unfilled; a partial one is sent as written', partial.clientInformation()?.client_id === 'tenant-${MCP_CLIENT_ID}')
 }
 
 section('the SDK auth adapter pin — the exact consumed entry points')

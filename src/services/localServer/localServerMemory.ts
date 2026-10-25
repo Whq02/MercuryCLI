@@ -37,6 +37,19 @@ function numberOf(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined
 }
 
+export const SLIDING_WINDOW_PERIOD_BY_ARCHITECTURE: Readonly<Record<string, number>> = { gemma2: 2, gemma3: 6 }
+
+export function slidingLayerMask(info: Record<string, unknown>, arch: string, layers: number): boolean[] | undefined {
+  if (numberOf(info[`${arch}.attention.sliding_window`]) === undefined) return undefined
+  const patternRaw = info[`${arch}.attention.sliding_window_pattern`]
+  if (Array.isArray(patternRaw)) {
+    return patternRaw.length === layers ? patternRaw.map(v => v === true || v === 1) : undefined
+  }
+  const period = numberOf(patternRaw) ?? SLIDING_WINDOW_PERIOD_BY_ARCHITECTURE[arch]
+  if (period === undefined || !Number.isInteger(period) || period < 1) return undefined
+  return Array.from({ length: layers }, (_, i) => i % period !== period - 1)
+}
+
 export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefined {
   const arch = typeof info['general.architecture'] === 'string' ? (info['general.architecture'] as string) : undefined
   if (!arch) return undefined
@@ -46,31 +59,33 @@ export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefi
   if (blockCount === undefined) return undefined
   const kvRaw = info[`${arch}.attention.head_count_kv`]
   const interval = numberOf(info[`${arch}.full_attention_interval`])
-  let kvHeads: number
-  let attentionLayers: number
-  let sliding: SlidingKvGeometry | undefined
-  if (Array.isArray(kvRaw)) {
-    const perLayer = kvRaw.map(v => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0))
-    const slidingWindow = numberOf(info[`${arch}.attention.sliding_window`])
-    const patternRaw = info[`${arch}.attention.sliding_window_pattern`]
-    const pattern = Array.isArray(patternRaw) && patternRaw.length === perLayer.length && slidingWindow !== undefined ? patternRaw.map(v => v === true) : undefined
+  const slidingWindow = numberOf(info[`${arch}.attention.sliding_window`])
+  const keyLengthSwa = numberOf(info[`${arch}.attention.key_length_swa`]) ?? numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
+  const valueLengthSwa = numberOf(info[`${arch}.attention.value_length_swa`]) ?? keyLengthSwa
+  const splitSliding = (perLayer: number[]): { kvHeads: number; attentionLayers: number; sliding?: SlidingKvGeometry } => {
+    const pattern = slidingLayerMask(info, arch, perLayer.length)
     const global = pattern === undefined ? perLayer : perLayer.map((v, i) => (pattern[i] === true ? 0 : v))
-    kvHeads = global.reduce((sum, v) => sum + v, 0)
-    attentionLayers = global.filter(v => v > 0).length
-    if (pattern !== undefined && slidingWindow !== undefined) {
-      const local = perLayer.map((v, i) => (pattern[i] === true ? v : 0))
-      const localHeads = local.reduce((sum, v) => sum + v, 0)
-      const keyLengthSwa = numberOf(info[`${arch}.attention.key_length_swa`]) ?? numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
-      if (localHeads > 0 && keyLengthSwa !== undefined) {
-        sliding = { kvHeads: localHeads, keyLength: keyLengthSwa, valueLength: numberOf(info[`${arch}.attention.value_length_swa`]) ?? keyLengthSwa, layers: local.filter(v => v > 0).length, window: slidingWindow }
-      }
-    }
+    const split = { kvHeads: global.reduce((sum, v) => sum + v, 0), attentionLayers: global.filter(v => v > 0).length }
+    if (pattern === undefined || slidingWindow === undefined) return split
+    const local = perLayer.map((v, i) => (pattern[i] === true ? v : 0))
+    const localHeads = local.reduce((sum, v) => sum + v, 0)
+    if (localHeads === 0 || keyLengthSwa === undefined) return split
+    return { ...split, sliding: { kvHeads: localHeads, keyLength: keyLengthSwa, valueLength: valueLengthSwa ?? keyLengthSwa, layers: local.filter(v => v > 0).length, window: slidingWindow } }
+  }
+  let split: { kvHeads: number; attentionLayers: number; sliding?: SlidingKvGeometry }
+  if (Array.isArray(kvRaw)) {
+    split = splitSliding(kvRaw.map(v => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0)))
   } else {
     const perLayer = numberOf(kvRaw) ?? headCount
     if (perLayer === undefined) return undefined
-    attentionLayers = interval !== undefined && interval > 1 ? Math.floor(blockCount / interval) : blockCount
-    kvHeads = perLayer * attentionLayers
+    if (slidingWindow !== undefined && (interval === undefined || interval <= 1)) {
+      split = splitSliding(Array.from({ length: blockCount }, () => perLayer))
+    } else {
+      const attentionLayers = interval !== undefined && interval > 1 ? Math.floor(blockCount / interval) : blockCount
+      split = { kvHeads: perLayer * attentionLayers, attentionLayers }
+    }
   }
+  const { kvHeads, attentionLayers, sliding } = split
   const keyLength = numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
   if (keyLength === undefined) return undefined
   const valueLength = numberOf(info[`${arch}.attention.value_length`]) ?? keyLength

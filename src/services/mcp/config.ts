@@ -118,18 +118,27 @@ function expandServerConfig(
     }
   }
   if (type === 'sse' || type === 'http' || type === 'ws') {
-    const remote = config as { url: string; headers?: Record<string, string> }
+    const remote = config as { url: string; headers?: Record<string, string>; oauth?: { clientId?: string; authServerMetadataUrl?: string } }
     const expandedHeaders =
       remote.headers === undefined
         ? undefined
         : Object.fromEntries(
             Object.entries(remote.headers).map(([key, value]) => [key, expand(value)]),
           )
+    const expandedOauth =
+      remote.oauth === undefined
+        ? undefined
+        : {
+            ...remote.oauth,
+            ...(remote.oauth.clientId === undefined ? {} : { clientId: expand(remote.oauth.clientId) }),
+            ...(remote.oauth.authServerMetadataUrl === undefined ? {} : { authServerMetadataUrl: expand(remote.oauth.authServerMetadataUrl) }),
+          }
     return {
       config: {
         ...(config as object),
         url: expand(remote.url),
         ...(expandedHeaders === undefined ? {} : { headers: expandedHeaders }),
+        ...(expandedOauth === undefined ? {} : { oauth: expandedOauth }),
       } as McpServerConfig,
       missingVars: [...missing],
     }

@@ -1868,7 +1868,7 @@ export const FileReadTool = buildTool({
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
         for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
         if (fresh.length > 0) {
-          void Promise.resolve(addSkillDirectories(fresh)).catch(() => undefined)
+          void Promise.resolve(addSkillDirectories(fresh, { filePaths: [fullFilePath], cwd: getCwd() })).catch(() => undefined)
         }
         activateConditionalSkillsForPaths([fullFilePath], getCwd())
       } catch (err) {

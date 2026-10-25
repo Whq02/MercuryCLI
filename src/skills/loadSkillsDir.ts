@@ -210,7 +210,7 @@ export function parseSkillFrontmatterFields(
 }
 
 function parseSkillPathFilters(frontmatter: Record<string, unknown>): string[] | undefined {
-  const raw = frontmatter['paths']
+  const raw = frontmatter['paths'] ?? frontmatter['globs']
   if (raw === undefined || raw === null) return undefined
   const patterns = splitPathInFrontmatter(raw as string | string[])
     .map(pattern => (pattern.endsWith('/**') ? pattern.slice(0, -'/**'.length) : pattern))
@@ -328,24 +328,59 @@ export function estimateSkillFrontmatterTokens(skill: Command): number {
 
 type LoadedSkill = { command: Command; filePath: string; source: string }
 
+const SKILL_WALK_MAX_DEPTH = 8
+
+async function findSkillDirs(dir: string): Promise<string[] | null> {
+  const found: string[] = []
+  const visited = new Set<string>()
+  const walk = async (current: string, depth: number): Promise<boolean> => {
+    let identity = current
+    try {
+      identity = await fsPromises.realpath(current)
+    } catch {
+      identity = current
+    }
+    if (visited.has(identity)) return true
+    visited.add(identity)
+    let entries: Array<{ name: string; isDirectory: () => boolean; isSymbolicLink: () => boolean }>
+    try {
+      entries = await fsPromises.readdir(current, { withFileTypes: true })
+    } catch (error) {
+      if (depth === 0 && !isENOENT(error) && !isFsInaccessible(error as Error)) {
+        logForDebugging(`skills: could not read directory ${current}: ${errorMessage(error)}`)
+      }
+      return false
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+      const child = join(current, entry.name)
+      let holdsSkill = false
+      try {
+        holdsSkill = (await fsPromises.stat(join(child, SKILL_FILE_NAME))).isFile()
+      } catch {
+        holdsSkill = false
+      }
+      if (holdsSkill) {
+        found.push(child)
+        continue
+      }
+      if (depth + 1 < SKILL_WALK_MAX_DEPTH) await walk(child, depth + 1)
+    }
+    return true
+  }
+  return (await walk(dir, 0)) ? found : null
+}
+
 async function loadSkillsFromDir(
   dir: string,
   source: SettingSource | 'extension',
   sourceLabel: string,
 ): Promise<LoadedSkill[]> {
-  let entries: Array<{ name: string; isDirectory: () => boolean; isSymbolicLink: () => boolean }>
-  try {
-    entries = await fsPromises.readdir(dir, { withFileTypes: true })
-  } catch (error) {
-    if (!isENOENT(error) && !isFsInaccessible(error as Error)) {
-      logForDebugging(`skills: could not read directory ${dir}: ${errorMessage(error)}`)
-    }
-    return []
-  }
+  const skillDirs = await findSkillDirs(dir)
+  if (skillDirs === null) return []
   const results = await Promise.all(
-    entries.map(async (entry): Promise<LoadedSkill | null> => {
-      if (!entry.isDirectory() && !entry.isSymbolicLink()) return null
-      const skillDir = join(dir, entry.name)
+    skillDirs.map(async (skillDir): Promise<LoadedSkill | null> => {
+      const entry = { name: basename(skillDir) }
       const skillFile = join(skillDir, SKILL_FILE_NAME)
       let markdown: string
       try {
@@ -408,6 +443,7 @@ async function loadSkillsFromDir(
 
 
 const pendingConditional = new Map<string, Command>()
+const conditionalBases = new Map<string, string>()
 const activatedSkillNames = new Set<string>()
 
 async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
@@ -509,6 +545,7 @@ export function clearSkillCaches(): void {
   loadAllSkillsMemo.cache.clear?.()
   clearMarkdownFileCache()
   pendingConditional.clear()
+  conditionalBases.clear()
   activatedSkillNames.clear()
   skillLoadRefusals.clear()
   forgetHiddenCharacters('skill')
@@ -516,7 +553,7 @@ export function clearSkillCaches(): void {
 }
 
 
-type DynamicSkillEntry = { name: string; filePath: string; mtimeMs: number; command: Command }
+type DynamicSkillEntry = { name: string; key: string; filePath: string; mtimeMs: number; command: Command }
 type DynamicDirRecord =
   | { state: 'missing'; examinedAt: number }
   | { state: 'loaded'; examinedAt: number; entries: DynamicSkillEntry[]; seen: Array<{ name: string; mtimeMs: number }> }
@@ -559,18 +596,12 @@ async function mtimeOf(filePath: string): Promise<number | null> {
 }
 
 async function listSkillFiles(dir: string): Promise<Array<{ name: string; mtimeMs: number }> | null> {
-  let names: string[]
-  try {
-    names = (await fsPromises.readdir(dir, { withFileTypes: true }))
-      .filter(entry => entry.isDirectory() || entry.isSymbolicLink())
-      .map(entry => entry.name)
-  } catch {
-    return null
-  }
+  const skillDirs = await findSkillDirs(dir)
+  if (skillDirs === null) return null
   const seen: Array<{ name: string; mtimeMs: number }> = []
-  for (const name of names) {
-    const mtimeMs = await mtimeOf(join(dir, name, SKILL_FILE_NAME))
-    if (mtimeMs !== null) seen.push({ name, mtimeMs })
+  for (const skillDir of skillDirs) {
+    const mtimeMs = await mtimeOf(join(skillDir, SKILL_FILE_NAME))
+    if (mtimeMs !== null) seen.push({ name: relative(dir, skillDir), mtimeMs })
   }
   return seen
 }
@@ -589,13 +620,32 @@ async function dynamicDirChanged(dir: string, record: Extract<DynamicDirRecord, 
 async function loadDynamicDir(dir: string): Promise<{ entries: DynamicSkillEntry[]; seen: Array<{ name: string; mtimeMs: number }> | null }> {
   const seen = await listSkillFiles(dir)
   const loaded = seen === null ? [] : await loadSkillsFromDir(dir, 'projectSettings', 'dynamic')
-  const entries: DynamicSkillEntry[] = loaded.map(skill => ({
-    name: skill.command.name,
-    filePath: skill.filePath,
-    mtimeMs: seen?.find(entry => entry.name === skill.command.name)?.mtimeMs ?? 0,
-    command: skill.command,
-  }))
+  const entries: DynamicSkillEntry[] = loaded.map(skill => {
+    const key = relative(dir, dirname(skill.filePath))
+    return {
+      name: skill.command.name,
+      key,
+      filePath: skill.filePath,
+      mtimeMs: seen?.find(entry => entry.name === key)?.mtimeMs ?? 0,
+      command: skill.command,
+    }
+  })
   return { entries, seen }
+}
+
+function pathFiltersOf(command: Command): string[] {
+  return (command as { pathFilters?: string[] }).pathFilters ?? []
+}
+
+function seatDynamicEntry(dir: string, entry: DynamicSkillEntry, wasActive: boolean): boolean {
+  if (pathFiltersOf(entry.command).length > 0 && !wasActive && !activatedSkillNames.has(entry.name)) {
+    pendingConditional.set(entry.name, entry.command)
+    conditionalBases.set(entry.name, dirname(dirname(dir)))
+    return false
+  }
+  if (dynamicSkills.get(entry.name) === entry.command) return false
+  dynamicSkills.set(entry.name, entry.command)
+  return true
 }
 
 function applyDynamicDir(
@@ -606,19 +656,25 @@ function applyDynamicDir(
 ): boolean {
   const previous = examinedCandidates.get(dir)
   let changed = false
+  const active = new Set<string>()
   if (previous?.state === 'loaded') {
     for (const old of previous.entries) {
-      if (dynamicSkills.get(old.name) === old.command && !entries.some(entry => entry.name === old.name)) {
-        dynamicSkills.delete(old.name)
-        changed = true
+      const stillProvided = entries.some(entry => entry.name === old.name)
+      if (dynamicSkills.get(old.name) === old.command) {
+        if (stillProvided) active.add(old.name)
+        else {
+          dynamicSkills.delete(old.name)
+          changed = true
+        }
+      }
+      if (pendingConditional.get(old.name) === old.command) {
+        pendingConditional.delete(old.name)
+        conditionalBases.delete(old.name)
       }
     }
   }
   for (const entry of entries) {
-    if (dynamicSkills.get(entry.name) !== entry.command) {
-      dynamicSkills.set(entry.name, entry.command)
-      changed = true
-    }
+    if (seatDynamicEntry(dir, entry, active.has(entry.name))) changed = true
   }
   examinedCandidates.set(dir, seen === null ? { state: 'missing', examinedAt: now } : { state: 'loaded', examinedAt: now, entries, seen })
   return changed
@@ -649,13 +705,20 @@ function pruneDynamicSkillsSync(): void {
         dynamicSkills.delete(entry.name)
         changed = true
       }
+      if (pendingConditional.get(entry.name) === entry.command) {
+        pendingConditional.delete(entry.name)
+        conditionalBases.delete(entry.name)
+      }
       return false
     })
+    for (const entry of survivors) {
+      if (pathFiltersOf(entry.command).length > 0 && dynamicSkills.get(entry.name) !== entry.command && !pendingConditional.has(entry.name)) seatDynamicEntry(dir, entry, false)
+    }
     examinedCandidates.set(dir, {
       state: 'loaded',
       examinedAt: 0,
       entries: survivors,
-      seen: record.seen.filter(was => survivors.some(entry => entry.name === was.name)),
+      seen: record.seen.filter(was => survivors.some(entry => entry.key === was.name)),
     })
   }
   if (changed) skillsLoadedSignal.emit()
@@ -714,7 +777,7 @@ export async function discoverSkillDirsForPaths(
   return discovered.sort((a, b) => b.length - a.length)
 }
 
-export async function addSkillDirectories(dirs: string[]): Promise<void> {
+export async function addSkillDirectories(dirs: string[], touched?: { filePaths: string[]; cwd: string }): Promise<void> {
   if (dynamicSkillsRefused()) return
   if (dirs.length === 0) return
   const now = Date.now()
@@ -728,6 +791,7 @@ export async function addSkillDirectories(dirs: string[]): Promise<void> {
   }
   if (count > 0) logForDebugging(`skills: ${count} dynamic skill(s) from ${dirs.length} directorie(s)`)
   if (changed) skillsLoadedSignal.emit()
+  if (touched !== undefined) activateConditionalSkillsForPaths(touched.filePaths, touched.cwd)
 }
 
 export function getDynamicSkills(): Command[] {
@@ -741,15 +805,17 @@ export function activateConditionalSkillsForPaths(
   if (pendingConditional.size === 0) return []
   const activated: string[] = []
   for (const [name, command] of pendingConditional) {
-    const filters = (command as { pathFilters?: string[] }).pathFilters ?? []
+    const filters = pathFiltersOf(command)
     if (filters.length === 0) continue
     const matcher = ignore().add(filters)
+    const base = conditionalBases.get(name) ?? cwd
     for (const filePath of filePaths) {
-      const rel = isAbsolute(filePath) ? relative(cwd, filePath) : filePath
+      const rel = base === cwd && !isAbsolute(filePath) ? filePath : relative(base, resolve(cwd, filePath))
       if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) continue
       if (matcher.ignores(rel)) {
         dynamicSkills.set(name, command)
         pendingConditional.delete(name)
+        conditionalBases.delete(name)
         activatedSkillNames.add(name)
         activated.push(name)
         logForDebugging(`skills: conditional skill ${name} activated by ${rel}`)
@@ -766,5 +832,6 @@ export function clearDynamicSkills(): void {
   dynamicSkills.clear()
   examinedCandidates.clear()
   pendingConditional.clear()
+  conditionalBases.clear()
   activatedSkillNames.clear()
 }

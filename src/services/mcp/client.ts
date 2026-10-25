@@ -13,6 +13,7 @@ import {
   type ListToolsResult,
   type Tool as McpSdkTool,
 } from './sdk.js'
+import isEqual from 'lodash-es/isEqual.js'
 import memoize from 'lodash-es/memoize.js'
 import { LRUCache } from 'lru-cache'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -957,6 +958,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
         toolDefinition: sdkTool,
         signal: context.abortController.signal,
         parentMessage,
+        toolUseId: context.toolUseId,
         onProgress: onProgress as ((progress: unknown) => void) | undefined,
         setAppState: context.setAppState as unknown as (updater: (prev: unknown) => unknown) => void,
         isNonInteractive: context.options.isNonInteractiveSession,
@@ -1254,10 +1256,26 @@ export async function transformMCPResult(result: unknown, tool: string, name: st
     return { type: 'toolResult', content: String(record.toolResult) }
   }
   if (record && record.structuredContent !== undefined) {
+    const serialized = JSON.stringify(record.structuredContent)
+    const schema = inferCompactSchema(record.structuredContent)
+    const blocks = Array.isArray(record.content) ? record.content : []
+    const restates = (block: unknown): boolean => {
+      const text = (block as { type?: string; text?: unknown } | null)?.type === 'text' ? (block as { text?: unknown }).text : undefined
+      if (typeof text !== 'string') return false
+      try {
+        return isEqual(JSON.parse(text), record.structuredContent)
+      } catch {
+        return false
+      }
+    }
+    if (blocks.every(restates)) return { type: 'structuredContent', content: serialized, schema }
+    const content = await transformResultContent(blocks.filter(block => !restates(block)), name)
+    content.push({ type: 'text', text: serialized } as ContentBlockParam)
     return {
       type: 'structuredContent',
-      content: JSON.stringify(record.structuredContent),
-      schema: inferCompactSchema(record.structuredContent),
+      content,
+      schema,
+      isImage: content.some(block => (block as { type?: string }).type === 'image'),
     }
   }
   if (record && Array.isArray(record.content)) {
@@ -1448,6 +1466,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   toolDefinition?: McpSdkTool
   signal: AbortSignal
   parentMessage?: AssistantMessage
+  toolUseId?: string
   onProgress?: (progress: unknown) => void
   setAppState?: (updater: (prev: unknown) => unknown) => void
   isNonInteractive?: boolean
@@ -1456,8 +1475,8 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
 }): Promise<MCPToolCallResult> {
   const { client, tool, args, signal, parentMessage, toolDefinition } = params
   const parentContent = parentMessage?.message.content
-  let toolUseId: string | undefined
-  if (Array.isArray(parentContent)) {
+  let toolUseId: string | undefined = params.toolUseId
+  if (toolUseId === undefined && Array.isArray(parentContent)) {
     const wireName = wireSafeMcpToolName(client.name, tool)
     for (const block of parentContent) {
       const b = block as { type?: string; id?: string; name?: string }

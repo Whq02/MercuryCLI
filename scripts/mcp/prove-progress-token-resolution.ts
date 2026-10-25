@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
@@ -19,7 +20,7 @@ seatInProcessServer(mcp, sdkClient)
 
 type Call = { toolUseId: string | undefined; progress: Array<Record<string, unknown>> }
 
-async function drive(tool: string, parentContent: unknown[]): Promise<Call> {
+async function drive(tool: string, parentContent: unknown[], toolUseId?: string): Promise<Call> {
   const progress: Array<Record<string, unknown>> = []
   const parentMessage = { message: { content: parentContent } } as never
   const result: Call = { toolUseId: 'UNSET', progress } as never
@@ -29,6 +30,7 @@ async function drive(tool: string, parentContent: unknown[]): Promise<Call> {
     args: {},
     signal: new AbortController().signal,
     parentMessage,
+    ...(toolUseId === undefined ? {} : { toolUseId }),
     onProgress: (event: unknown) => progress.push(event as Record<string, unknown>),
     callFn: async (_c: unknown, toolUseId: string | undefined) => {
       result.toolUseId = toolUseId
@@ -79,6 +81,22 @@ console.log('L4 controls')
   check('a tool_use-first message still resolves (the old happy path)', lead.toolUseId === 'toolu_LEAD', `resolved=${String(lead.toolUseId)}`)
   const none = await drive('epsilon', [{ type: 'text', text: 'no call here' }])
   check('no matching block yields undefined — no fabricated id, no progress sink', none.toolUseId === undefined && none.progress.length === 0, `resolved=${String(none.toolUseId)} progress=${none.progress.length}`)
+}
+
+console.log('L5 the same tool called twice in one message — the call context names its own block')
+{
+  const content = [
+    { type: 'tool_use', id: 'toolu_SAME_1', name: wire('search'), input: { q: 'a' } },
+    { type: 'tool_use', id: 'toolu_SAME_2', name: wire('search'), input: { q: 'b' } },
+  ]
+  const [one, two] = await Promise.all([drive('search', content, 'toolu_SAME_1'), drive('search', content, 'toolu_SAME_2')])
+  check('the first call keeps its own id', one.toolUseId === 'toolu_SAME_1', `resolved=${String(one.toolUseId)}`)
+  check('the second call keeps its own id — never the first block of the same name', two.toolUseId === 'toolu_SAME_2', `resolved=${String(two.toolUseId)}`)
+  check('their progress routes are distinct', one.progress.every(p => p.toolUseID === 'toolu_SAME_1') && two.progress.every(p => p.toolUseID === 'toolu_SAME_2') && one.progress.length > 0 && two.progress.length > 0)
+  const scanned = await drive('search', content)
+  check('control: without the call context the name scan still answers the first block', scanned.toolUseId === 'toolu_SAME_1', `resolved=${String(scanned.toolUseId)}`)
+  const source = readFileSync(join(SRC, 'services/mcp/client.ts'), 'utf8')
+  check('the MCP tool hands its call context id to the retry road (source pin)', source.includes('toolUseId: context.toolUseId,'))
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

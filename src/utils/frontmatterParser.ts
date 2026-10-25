@@ -21,6 +21,7 @@ export type FrontmatterData = {
   context?: 'inline' | 'fork' | null
   agent?: string | null
   paths?: string | string[] | null
+  globs?: string | string[] | null
   shell?: string | null
   [key: string]: unknown
 }

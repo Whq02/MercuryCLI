@@ -73,6 +73,10 @@ export const outputSchema = lazySchema(() =>
         .literal('inline')
         .optional()
         .describe('The skill expanded inline into the conversation'),
+      alreadyLoaded: z
+        .literal(true)
+        .optional()
+        .describe('The same expansion is already in the conversation; the body was not sent again'),
     }),
     z.object({
       success: z.boolean().describe('Whether the skill run completed'),
@@ -224,6 +228,14 @@ function ruleMatchesSkill(ruleContent: string, commandName: string): boolean {
 
 function isPromptCommand(command: Command): command is Command & PromptCommand {
   return command.type === 'prompt'
+}
+
+export function expansionBodyOf(message: Message): string | null {
+  if (message.type !== 'user' || message.isMeta !== true || !Array.isArray(message.message.content)) return null
+  const text = message.message.content
+    .map(block => (block.type === 'text' ? (block as { text: string }).text : ''))
+    .join('\n')
+  return text.trim() === '' ? null : text
 }
 
 function messageCarriesToolActivity(message: Message): boolean {
@@ -427,13 +439,25 @@ export const SkillTool = buildTool({
       }
       return true
     })
-    const newMessages = tagMessagesWithToolUseID(survivors as never[], parentToolUseId) as unknown as Message[]
+    const priorBodies = new Set((context.messages ?? []).map(expansionBodyOf).filter((text): text is string => text !== null))
+    const alreadyLoaded = survivors.some(message => {
+      const body = expansionBodyOf(message as Message)
+      return body !== null && priorBodies.has(body)
+    })
+    const fresh = alreadyLoaded
+      ? survivors.filter(message => {
+          const body = expansionBodyOf(message as Message)
+          return body === null || !priorBodies.has(body)
+        })
+      : survivors
+    const newMessages = tagMessagesWithToolUseID(fresh as never[], parentToolUseId) as unknown as Message[]
 
     const data: Output = {
       success: true,
       commandName: name,
       ...(allowedTools.length > 0 ? { allowedTools } : {}),
       ...(model ? { model } : {}),
+      ...(alreadyLoaded ? { alreadyLoaded: true as const } : {}),
     }
 
     return {
@@ -462,7 +486,9 @@ export const SkillTool = buildTool({
     const content =
       output.status === 'forked'
         ? `Skill "${output.commandName}" completed as a forked execution.\n\n${output.result}`
-        : `Launching skill: ${output.commandName}`
+        : output.alreadyLoaded === true
+          ? `Skill "${output.commandName}" is already loaded in this conversation; follow the instructions it gave above.`
+          : `Launching skill: ${output.commandName}`
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,

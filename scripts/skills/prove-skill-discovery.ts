@@ -30,9 +30,9 @@ const BODY = [
   `session mercury=${MERCURY_SESSION_TOKEN}`,
   `session other=${OTHER_SESSION_TOKEN}`,
 ].join('\n')
-function skill(dir: string, name: string): void {
+function skill(dir: string, name: string, extra = ''): void {
   mkdirSync(join(dir, name), { recursive: true })
-  writeFileSync(join(dir, name, 'SKILL.md'), `---\nname: ${name}\ndescription: proof skill ${name}\n---\n${BODY}\n`)
+  writeFileSync(join(dir, name, 'SKILL.md'), `---\nname: ${name}\ndescription: proof skill ${name}\n${extra}---\n${BODY}\n`)
 }
 skill(join(project, '.mercury', 'skills'), 'project-real')
 skill(join(project, OTHER_HOME, 'skills'), 'project-other')
@@ -40,6 +40,13 @@ skill(join(configHome, 'skills'), 'user-real')
 skill(join(home, OTHER_HOME, 'skills'), 'user-other')
 skill(join(project, 'sub', '.mercury', 'skills'), 'dyn-real')
 skill(join(project, 'sub', OTHER_HOME, 'skills'), 'dyn-other')
+skill(join(project, '.mercury', 'skills', 'shipping'), 'land-it')
+skill(join(project, '.mercury', 'skills', 'debugging', 'strategies'), 'tdd')
+skill(join(project, '.mercury', 'skills', 'project-real', 'references'), 'not-a-skill')
+skill(join(project, OTHER_HOME, 'skills', 'shipping'), 'other-nested')
+skill(join(project, '.mercury', 'skills'), 'scoped-globs', 'globs: "src/**/*.tsx"\n')
+skill(join(project, 'sub', '.mercury', 'skills'), 'dyn-cond', 'paths: "lib/**"\n')
+skill(join(project, 'sub2', '.mercury', 'skills'), 'dyn-cond-touched', 'paths: "lib/**"\n')
 
 const loader = await import('../../src/skills/loadSkillsDir.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
@@ -115,6 +122,31 @@ check(
   'twin control: every absent skill has a same-shaped Mercury twin that loaded',
   names.has('project-real') && names.has('user-real') && dynamic.has('dyn-real'),
 )
+
+console.log('[4] nested category folders, globs: frontmatter, and a monorepo skill scoped to its package')
+check('a skill one category folder down is found: shipping/land-it', names.has('land-it'), [...names].join(', '))
+check('a skill two category folders down is found: debugging/strategies/tdd', names.has('tdd'), [...names].join(', '))
+const landIt = commands.find(c => c.name === 'land-it')
+check('the nested skill keeps the leaf folder as its name and base directory', landIt !== undefined && (landIt as { skillRoot?: string }).skillRoot === join(project, '.mercury', 'skills', 'shipping', 'land-it'), String((landIt as { skillRoot?: string } | undefined)?.skillRoot))
+check("a SKILL.md inside a skill's own subfolder is not a second skill", !names.has('not-a-skill'))
+check("a nested folder under a foreign tool's home is still never read", !names.has('other-nested'))
+check('a globs: skill is withheld from the catalogue until a matching file is touched', !names.has('scoped-globs') && !dynamic.has('scoped-globs'))
+const unrelated = loader.activateConditionalSkillsForPaths([join('src', 'app', 'main.ts')], project)
+check('a file outside the globs does not activate it', !unrelated.includes('scoped-globs'), unrelated.join(', '))
+const activated = loader.activateConditionalSkillsForPaths([join('src', 'app', 'Main.tsx')], project)
+check('a matching file activates the globs: skill', activated.includes('scoped-globs') && loader.getDynamicSkills().some(c => c.name === 'scoped-globs'), activated.join(', '))
+check('the package skill with paths: is withheld, not seated on discovery', !loader.getDynamicSkills().some(c => c.name === 'dyn-cond'))
+const rootLib = loader.activateConditionalSkillsForPaths([join('lib', 'a.ts')], project)
+check("a path under the project root's lib/ does not match the package's lib/**", !rootLib.includes('dyn-cond'), rootLib.join(', '))
+const packageLib = loader.activateConditionalSkillsForPaths([join(project, 'sub', 'lib', 'a.ts')], project)
+check("a path under the package's lib/ activates it (filters anchor at the package root)", packageLib.includes('dyn-cond') && loader.getDynamicSkills().some(c => c.name === 'dyn-cond'), packageLib.join(', '))
+const touchedFile = join(project, 'sub2', 'lib', 'b.ts')
+mkdirSync(join(project, 'sub2', 'lib'), { recursive: true })
+writeFileSync(touchedFile, 'export const b = 1\n')
+const found = await loader.discoverSkillDirsForPaths([touchedFile], project)
+check('the second package is discovered from the touch', found.includes(join(project, 'sub2', '.mercury', 'skills')), found.join(', '))
+await loader.addSkillDirectories(found, { filePaths: [touchedFile], cwd: project })
+check('a discovered conditional skill is tested against the triggering file at once', loader.getDynamicSkills().some(c => c.name === 'dyn-cond-touched'), loader.getDynamicSkills().map(c => c.name).join(', '))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n ✅ SKILL DISCOVERY — GREEN' : `\n ❌ ${failures} FAILED`)

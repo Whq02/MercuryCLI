@@ -72,7 +72,9 @@ export function ggufHeaderBytes({ architecture, kv = {}, tensors = [], padding =
   const parts = [Buffer.from('GGUF'), u32(3), u64(tensors.length), u64(entries.length)]
   for (const [key, value] of entries) {
     parts.push(ggufString(key))
-    if (Array.isArray(value)) { parts.push(u32(9), u32(8), u64(value.length)); for (const item of value) parts.push(ggufString(item)) }
+    if (Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'number')) { parts.push(u32(9), u32(4), u64(value.length)); for (const item of value) parts.push(u32(item)) }
+    else if (Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'boolean')) { parts.push(u32(9), u32(7), u64(value.length)); for (const item of value) parts.push(Buffer.from([item ? 1 : 0])) }
+    else if (Array.isArray(value)) { parts.push(u32(9), u32(8), u64(value.length)); for (const item of value) parts.push(ggufString(item)) }
     else if (typeof value === 'number') parts.push(u32(4), u32(value))
     else if (typeof value === 'boolean') parts.push(u32(7), Buffer.from([value ? 1 : 0]))
     else parts.push(u32(8), ggufString(value))

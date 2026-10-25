@@ -1,6 +1,7 @@
 import engineTable from '../../../assets/host/llamacpp-engine.json' with { type: 'json' }
 
-interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, string | number | boolean>; tensors: string[]; types?: number[]; headerBytes: number }
+type GgufValue = string | number | boolean | Array<number | boolean>
+interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, GgufValue>; tensors: string[]; types?: number[]; headerBytes: number }
 interface EngineTable { llamacpp: string; architectures: string[]; tensors: string[]; types: Record<string, number>; typeCount: number }
 type GgufParse = { state: 'ok'; header: GgufHeader } | { state: 'more' } | { state: 'bad'; reason: string }
 type GgufHeaderRead = { ok: true; header: GgufHeader; bytes: number } | { ok: false; status?: number; words: string; bad?: boolean }
@@ -13,6 +14,7 @@ const GGML_MAX_DIMS = 4
 const FIRST_CHUNK = 256 * 1024
 const READ_TIMEOUT_MS = 20_000
 const SCALAR_SIZE: Readonly<Record<number, number>> = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 }
+const SCALAR_ARRAY_KEEP = 1024
 
 class NeedMore extends Error {}
 class Cursor {
@@ -50,15 +52,21 @@ class Cursor {
     this.pos += length
     return text
   }
-  skipArray(): void {
+  array(): Array<number | boolean> | undefined {
     const type = this.u32()
     const count = this.u64()
-    if (type === 8) { for (let i = 0; i < count; i++) this.string(); return }
-    if (type === 9) { for (let i = 0; i < count; i++) this.skipArray(); return }
+    if (type === 8) { for (let i = 0; i < count; i++) this.string(); return undefined }
+    if (type === 9) { for (let i = 0; i < count; i++) this.array(); return undefined }
     const size = SCALAR_SIZE[type]
     if (size === undefined) throw new Error('unknown GGUF array type ' + type)
-    this.need(count * size)
-    this.pos += count * size
+    if (count > SCALAR_ARRAY_KEEP) {
+      this.need(count * size)
+      this.pos += count * size
+      return undefined
+    }
+    const values: Array<number | boolean> = []
+    for (let i = 0; i < count; i++) values.push(this.scalar(type))
+    return values
   }
 }
 
@@ -73,12 +81,12 @@ export function parseGgufHeader(bytes: Uint8Array): GgufParse {
     const tensorCount = cursor.u64()
     const kvCount = cursor.u64()
     if (tensorCount > 1_000_000 || kvCount > 1_000_000) return { state: 'bad', reason: 'the GGUF header names an impossible count' }
-    const kv: Record<string, string | number | boolean> = {}
+    const kv: Record<string, GgufValue> = {}
     for (let i = 0; i < kvCount; i++) {
       const key = cursor.string()
       const type = cursor.u32()
       if (type === 8) { const value = cursor.string(); if (value.length <= 200) kv[key] = value }
-      else if (type === 9) cursor.skipArray()
+      else if (type === 9) { const values = cursor.array(); if (values !== undefined) kv[key] = values }
       else kv[key] = cursor.scalar(type)
     }
     const tensors: string[] = []
