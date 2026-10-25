@@ -22,7 +22,7 @@ VITALS                  │ │ ╭───────────────
                         │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
                         │ │   GPT — sign in                                                                          │ │
-                        │ │   ↓ 78 more                                                                              │ │
+                        │ │   ↓ 77 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
