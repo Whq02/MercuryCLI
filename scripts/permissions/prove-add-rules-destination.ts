@@ -112,7 +112,7 @@ section('§1 ONE RULE — the title, the question, the spelled rule and the thre
   const user = rowOf(lines, 'User settings')
   check('the destinations come in SOURCES order: local, checked in, user', local >= 0 && project > local && user > project, lines.join(' | '))
   check('the user destination is described by its tilde path', has(lines, '~/') || has(lines, 'settings.json'), lines.join(' | '))
-  check('the project destinations are described by paths relative to the project', has(lines, '.mercury/settings.local.json') && has(lines, '.mercury/settings.json'), lines.join(' | '))
+  check('the project destinations are described by paths relative to the project', has(lines, join('.mercury', 'settings.local.json')) && has(lines, join('.mercury', 'settings.json')), lines.join(' | '))
   one.close()
 }
 

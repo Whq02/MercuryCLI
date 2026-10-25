@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 
 const psWords = (line: string): string[] => {
   const words: string[] = []
@@ -27,7 +28,7 @@ export function bankDownloadWords(command: string, args: string[]): string[] | u
     const syntax = spawnSync('bash', ['-n', '-c', args[1]], { encoding: 'utf8' })
     assert.equal(syntax.status, 0, syntax.stderr)
     const line = args[1].split('\n').find(row => row.includes(' download '))!
-    const parsed = spawnSync('python3', ['-c', 'import json,shlex,sys; print(json.dumps(shlex.split(sys.argv[1])))', line], { encoding: 'utf8' })
+    const parsed = spawnSync(PYTHON3, ['-c', 'import json,shlex,sys; print(json.dumps(shlex.split(sys.argv[1])))', line], { encoding: 'utf8' })
     assert.equal(parsed.status, 0, parsed.stderr)
     return JSON.parse(parsed.stdout)
   }

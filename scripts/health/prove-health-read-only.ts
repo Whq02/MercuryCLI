@@ -35,7 +35,7 @@ function homeFiles(home: string): Map<string, number> {
       let st
       try { st = statSync(p) } catch { continue }
       if (st.isDirectory()) walk(p)
-      else out.set(p.slice(home.length + 1), st.mtimeMs)
+      else out.set(p.slice(home.length + 1).replaceAll('\\', '/'), st.mtimeMs)
     }
   }
   if (existsSync(home)) walk(home)

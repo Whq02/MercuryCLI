@@ -42,6 +42,7 @@ const { createStore } = await import('../../src/state/store.js')
 const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
 const StdinContext = (await import('../../src/ink/components/StdinContext.js')).default
 const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { toTildePath } = await import('../../src/utils/path.js')
 
 const PROJECT = realpathSync(mkdtempSync(join(tmpdir(), 'hunt-shell-')))
 const SCRATCH_DIR = join(PROJECT, 'scratch-dir')
@@ -112,7 +113,7 @@ async function mount(columns = 140): Promise<{ frame: () => string; settle: () =
   }
 }
 
-const folderLine = (frame: string): string => frame.split("\n").map(line => line.replace(/^[│\s]+/, "").replace(/[│\s]+$/, "")).find(line => /^in (?:\/|~\/)/.test(line)) ?? "(no folder line)"
+const folderLine = (frame: string): string => frame.split("\n").map(line => line.replace(/^[│\s]+/, "").replace(/[│\s]+$/, "")).find(line => /^in (?:\/|~\/|[A-Za-z]:\\)/.test(line)) ?? "(no folder line)"
 
 try {
   section('§1 SH-08 · the session has moved into a subfolder (a cd): the card names the folder the command runs in, not the boot folder')
@@ -121,30 +122,30 @@ try {
   const frame = card.frame()
   check('the Bash card mounted with its question', frame.includes('Bash command') && frame.includes('Do you want to proceed'), frame.slice(0, 300))
   check('the card carries a folder line', folderLine(frame) !== '(no folder line)', frame)
-  check('the folder line names the subfolder the command runs in', folderLine(frame) === `in ${SCRATCH_DIR}`, folderLine(frame))
-  check('the folder line never names the boot folder alone', folderLine(frame) !== `in ${PROJECT}`, folderLine(frame))
+  check('the folder line names the subfolder the command runs in', folderLine(frame) === `in ${toTildePath(SCRATCH_DIR)}`, folderLine(frame))
+  check('the folder line never names the boot folder alone', folderLine(frame) !== `in ${toTildePath(PROJECT)}`, folderLine(frame))
 
   section('§2 the ground moves while the card is up — the line follows the session folder')
   facts.cwd = PROJECT
   emitFocusedSessionConnectorChanged()
   await card.settle()
-  check('back at the project root the line reads the root', folderLine(card.frame()) === `in ${PROJECT}`, folderLine(card.frame()))
+  check('back at the project root the line reads the root', folderLine(card.frame()) === `in ${toTildePath(PROJECT)}`, folderLine(card.frame()))
   facts.cwd = SCRATCH_DIR
   emitFocusedSessionConnectorChanged()
   await card.settle()
-  check('into the subfolder again the line follows', folderLine(card.frame()) === `in ${SCRATCH_DIR}`, folderLine(card.frame()))
+  check('into the subfolder again the line follows', folderLine(card.frame()) === `in ${toTildePath(SCRATCH_DIR)}`, folderLine(card.frame()))
   card.close()
 
   section('§3 control: a session that never moved names its boot folder (cwd and originalCwd agree)')
   facts.cwd = PROJECT
   const still = await mount()
-  check('the unmoved session names the project folder', folderLine(still.frame()) === `in ${PROJECT}`, folderLine(still.frame()))
+  check('the unmoved session names the project folder', folderLine(still.frame()) === `in ${toTildePath(PROJECT)}`, folderLine(still.frame()))
   still.close()
 
   for (const cwd of [SCRATCH_DIR, 'scratch-dir']) {
     toolUseConfirm.input = { ...toolUseConfirm.input, cwd } as typeof toolUseConfirm.input
     const perCall = await mount()
-    check('a per-call cwd names the run folder without moving the session', folderLine(perCall.frame()) === `in ${SCRATCH_DIR}` && facts.cwd === PROJECT, perCall.frame())
+    check('a per-call cwd names the run folder without moving the session', folderLine(perCall.frame()) === `in ${toTildePath(SCRATCH_DIR)}` && facts.cwd === PROJECT, perCall.frame())
     perCall.close()
   }
 } finally {

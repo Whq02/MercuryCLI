@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'no
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { bashSyntax } from './bashSyntax.mjs'
+import { PYTHON3 } from '../lib/python3.ts'
 const sample = name => JSON.parse(readFileSync(new URL('./fixtures/' + name + '.json', import.meta.url), 'utf8'))
 export const liveCatalogue = sample('catalog-gpus-secure-count1')
 const livePod = sample('pod-get-running')
@@ -191,7 +192,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
   const commands = []
   const children = new Set()
   const local = modelState ? mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'ssh-engine-')) : undefined
-  const shell = text => { const parsed = spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
+  const shell = text => { const parsed = spawnSync(PYTHON3, ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' }); assert.equal(parsed.status, 0, parsed.stderr); return JSON.parse(parsed.stdout) }
   const state = { weights: new Map(), weightFetches: 0, sampledChecks: 0, fullChecks: 0, corruptWeights: false, stallDownload: 0, checkTransport: false, refuse: false, failEngine: false, holdHealth: false, failRetune: false, failRestore: false, retuned: false, restored: false, restarts: 0, script: '', backup: '', gpus: null, docker: true, goneEngines: new Set(), log: 'MERCURY_STEP installing\nMERCURY_STEP building llama.cpp\nMERCURY_STEP downloading weights\n' }
   const runner = {
     async run(command, args, signal, timeout) {
@@ -227,7 +228,7 @@ export function fakeSshRunner(modelBaseUrl, actualRunner, modelState) {
       }
       if (local && remote.startsWith('python3 -c ')) {
         const source = shell(remote)[2].replace(/p = pathlib.Path\([^\n]+\)/, 'p = pathlib.Path(' + JSON.stringify(local) + ')').replace("engine_url = 'http://127.0.0.1:30000'", 'engine_url = ' + JSON.stringify(modelBaseUrl.replace(/\/v1$/, '')))
-        const rewritten = await new Promise(resolve => { const child = spawn('python3', ['-c', source], { stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = ''; child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data }); child.on('close', status => resolve({ status, stdout, stderr })) })
+        const rewritten = await new Promise(resolve => { const child = spawn(PYTHON3, ['-c', source], { stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = ''; child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data }); child.on('close', status => resolve({ status, stdout, stderr })) })
         output = rewritten.stdout
         if (rewritten.status !== 0) throw new Error('ssh exited ' + rewritten.status + '. ' + rewritten.stdout + rewritten.stderr)
         if (remote.includes('engine.pre-tune')) {

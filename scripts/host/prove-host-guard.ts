@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
@@ -46,12 +47,12 @@ const notices = (sessionId: string): string[] => {
   try { return readdirSync(dir).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(dir, name), 'utf8'))).filter(row => row.sessionId === sessionId).map(row => row.words) } catch { return [] }
 }
 const shell = (text: string): string[] => {
-  const parsed = spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' })
+  const parsed = spawnSync(PYTHON3, ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', text], { encoding: 'utf8' })
   assert.equal(parsed.status, 0, parsed.stderr)
   return JSON.parse(parsed.stdout)
 }
 const python = (script: string, folder: string, onOutput: (text: string) => void): Promise<{ code: number | null; text: string }> => new Promise((resolve, reject) => {
-  const child = spawn('python3', ['-u', '-c', script], { cwd: folder, env: { ...process.env, PYTHONPATH: folder }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(PYTHON3, ['-u', '-c', script], { cwd: folder, env: { ...process.env, PYTHONPATH: folder }, stdio: ['ignore', 'pipe', 'pipe'] })
   let text = ''
   const timer = setTimeout(() => child.kill(), 10000)
   child.stdout.on('data', chunk => { text += String(chunk); onOutput(String(chunk)) })

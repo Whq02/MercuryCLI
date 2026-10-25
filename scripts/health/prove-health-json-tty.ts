@@ -30,6 +30,7 @@ const nonPass = (cert: Cert): string =>
 const scratchHome = mkdtempSync(join(tmpdir(), 'health-tty-home-'))
 const scratch = mkdtempSync(join(tmpdir(), 'health-tty-'))
 const NO_CREDENTIAL = { ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined, MERCURY_OAUTH_TOKEN: undefined }
+const POSIX_PTY_ONLY = process.platform === 'win32'
 const PTY_DRIVER = 'import os, pty, sys; st = pty.spawn(sys.argv[1:]); sys.exit(os.waitstatus_to_exitcode(st) if hasattr(os, "waitstatus_to_exitcode") else (st >> 8))'
 
 const firstJsonObject = (text: string): Cert | null => {
@@ -99,9 +100,10 @@ try {
     mkdirSync(dir, { recursive: true })
     const pipedCert = pipedRun(dir, ['health', '--json'], NO_CREDENTIAL)
     check('the piped run produced a record', pipedCert !== null)
-    const tty = ptyRun(dir, ['health', '--json'], NO_CREDENTIAL)
-    const ttyCert = firstJsonObject(tty.out)
-    check('the tty run produced a record (a python pty)', ttyCert !== null, `no balanced record in the transcript — tail: ${JSON.stringify(tty.out.slice(-300))}`)
+    if (POSIX_PTY_ONLY) console.log('  [SKIP] the tty legs drive a POSIX python pty (pty.spawn needs fork and termios); on win32 the piped leg runs alone')
+    const tty = POSIX_PTY_ONLY ? null : ptyRun(dir, ['health', '--json'], NO_CREDENTIAL)
+    const ttyCert = tty === null ? null : firstJsonObject(tty.out)
+    if (tty !== null) check('the tty run produced a record (a python pty)', ttyCert !== null, `no balanced record in the transcript — tail: ${JSON.stringify(tty.out.slice(-300))}`)
     if (pipedCert !== null && ttyCert !== null) {
       const pipedRow = byId(pipedCert, 'iface-terminal')
       const ttyRow = byId(ttyCert, 'iface-terminal')
@@ -119,10 +121,13 @@ try {
   {
     const dir = join(scratch, 'only-tty')
     mkdirSync(dir, { recursive: true })
-    const r = ptyRun(dir, ['health', '--only', 'build-identity'], {})
-    const out = r.out.replace(/\r/g, '')
-    check('PTY --only exits unaided (no parked interactive view)', !r.threw, `threw; tail: ${JSON.stringify(out.slice(-200))}`)
-    check('…printing the one check, not the panel', out.includes('Mercury build'), out.slice(0, 200))
+    if (POSIX_PTY_ONLY) console.log('  [SKIP] the --only leg drives the same POSIX python pty; it runs on a POSIX host')
+    else {
+      const r = ptyRun(dir, ['health', '--only', 'build-identity'], {})
+      const out = r.out.replace(/\r/g, '')
+      check('PTY --only exits unaided (no parked interactive view)', !r.threw, `threw; tail: ${JSON.stringify(out.slice(-200))}`)
+      check('…printing the one check, not the panel', out.includes('Mercury build'), out.slice(0, 200))
+    }
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

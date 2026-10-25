@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -89,7 +90,7 @@ try {
   assert.equal((await measureRecipe({ recipe, endpoint: 'https://user:password@example.test/v1' })).ok, false)
   console.log('PASS cancellation and credential-bearing URLs cannot certify a recipe')
   const cli = async (...args: string[]): Promise<{ rc: number | null; stdout: string; stderr: string }> => await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [new URL('./measure-recipe.ts', import.meta.url).pathname, ...args], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [fileURLToPath(new URL('./measure-recipe.ts', import.meta.url)), ...args], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', chunk => { stdout += chunk })

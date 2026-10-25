@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
@@ -26,7 +27,7 @@ try {
       assert.equal(command, 'ssh')
       const remote = args.at(-1)!
       if (remote.includes('printf %s')) {
-        const parsed = spawnSync('python3', ['-c', 'import json,shlex,sys; print(json.dumps(shlex.split(sys.argv[1])))', remote], { encoding: 'utf8' })
+        const parsed = spawnSync(PYTHON3, ['-c', 'import json,shlex,sys; print(json.dumps(shlex.split(sys.argv[1])))', remote], { encoding: 'utf8' })
         assert.equal(parsed.status, 0, parsed.stderr)
         const tokens: string[] = JSON.parse(parsed.stdout)
         script = tokens[tokens.indexOf('printf') + 2]!

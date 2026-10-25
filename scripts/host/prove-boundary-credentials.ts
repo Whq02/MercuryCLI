@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,6 +38,7 @@ if (childAt !== -1) {
   const home = mkdtempSync(join(outer, 'credentials-'))
   process.env.MERCURY_CONFIG_DIR = home
   process.env.HOME = home
+  if (process.platform === 'win32') process.env.USERPROFILE = home
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
   delete process.env.MERCURY_HOME
   delete process.env.HF_TOKEN
@@ -67,7 +69,7 @@ if (childAt !== -1) {
     const selected = queueHostBank(record('selected'))
     const secret = secretPath(selected)
     check('an env-selected credential becomes a private reference, never job-record plaintext', Boolean(secret) && !JSON.stringify(selected).includes(expected) && selected.huggingfaceCredential?.source === 'captured')
-    check('the private capture is owner-only and does not overwrite the saved sign-in', Boolean(secret && (statSync(secret).mode & 0o777) === 0o600) && readStoredHuggingfaceApiKey() === 'fixture-other-stored-token')
+    check('the private capture is owner-only and does not overwrite the saved sign-in', Boolean(secret && ownerOnlyFile(secret)) && readStoredHuggingfaceApiKey() === 'fixture-other-stored-token')
     const delivered = await child('selected')
     check('the far side uses the selected token, not an unrelated saved account', delivered.received)
     check('downloader errors cannot leak the selected token into job logs', delivered.redacted)

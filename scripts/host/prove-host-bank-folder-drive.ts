@@ -6,6 +6,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 let mounted: Mounted | undefined
 try {
   const { bankDoor } = await import(f.root + '/src/services/host/fastLoad.ts')

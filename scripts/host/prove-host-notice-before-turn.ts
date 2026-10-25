@@ -19,7 +19,7 @@ const bundle = resolve(at < 0 ? join(root, 'dist/mercury.mjs') : process.argv[at
 const fixture = await startFixtureApi([{ kind: 'text', text: 'HOST-READY-SEEN' }, { kind: 'text', text: 'HOST-FAILURE-SEEN' }])
 const sessionId = randomUUID()
 const runner = hostRunner({
-  dist: bundle, node: process.execPath.endsWith('/bun') ? Bun.which('node')! : process.execPath, home, cwd,
+  dist: bundle, node: /[\\/]bun(?:\.exe)?$/.test(process.execPath) ? Bun.which('node')! : process.execPath, home, cwd,
   argv: ['--session-id', sessionId],
   env: { HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CONCOURSE_WORKER: '1', MERCURY_SESSION_KIND: 'oculus', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: fixture.url, BROWSER: '/usr/bin/true' },
 })

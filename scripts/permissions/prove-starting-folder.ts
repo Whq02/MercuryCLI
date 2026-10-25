@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { slashed } from '../lib/platformPath.ts'
 import type { Tool, ToolUseContext } from '../../src/Tool.js'
 import type { PermissionMode } from '../../src/types/permissions.js'
 
@@ -92,7 +93,7 @@ try {
       for (const [tool, input] of [
         [FileWriteTool, { file_path, content: 'written\n' }],
         [FileEditTool, { file_path, old_string: 'before', new_string: 'after' }],
-        [BashTool, { command: `mkdir ${join(directory, 'new-dir')}` }],
+        [BashTool, { command: `mkdir ${slashed(join(directory, 'new-dir'))}` }],
       ] as Array<[Tool, Record<string, unknown>]>) {
         const result = await channel(tool, input, mode)
         const expected = mode === 'default' || (mode === 'implement' && place === 'outside') ? 1 : 0

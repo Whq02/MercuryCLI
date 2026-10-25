@@ -34,7 +34,9 @@ export function writeMdmProbeMemo(present: boolean, home?: string): void {
 
 export function recordMdmProbeOutcome(raw: RawReadResult, platform: string = process.platform, home?: string): void {
   if (platform !== 'win32') return
-  writeMdmProbeMemo(raw.hklmStdout !== null || raw.hkcuStdout !== null, home)
+  const present = raw.hklmStdout !== null || raw.hkcuStdout !== null
+  if (readMdmProbeMemo(home)?.present === present) return
+  writeMdmProbeMemo(present, home)
 }
 
 export function mdmBootAwaitsRawRead(platform: string = process.platform, home?: string): boolean {

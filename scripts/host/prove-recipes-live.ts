@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { HostRecipe } from '../../src/services/host/recipes.ts'
@@ -51,7 +52,7 @@ const freshHome = (label: string): string => {
 const ids = (rows: readonly HostRecipe[]): string => rows.map(entry => entry.id).join(',')
 const canonical = (value: unknown): string => JSON.stringify(value, (_key, item: unknown) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => (a < b ? -1 : 1))) : item)
 const cacheOf = (): { checkedAt: number; url: string; document?: unknown } => JSON.parse(readFileSync(hostRecipesCachePath(), 'utf8'))
-const ownerOnly = (path: string): boolean => (statSync(path).mode & 0o777) === 0o600
+const ownerOnly = (path: string): boolean => ownerOnlyFile(path)
 const noTemps = (): boolean => readdirSync(dirname(hostRecipesCachePath())).every(name => !/^\.recipes\.json\..*\.tmp$/.test(name))
 const row = (id: string): HostRecipe => structuredClone(HOST_RECIPES.find(entry => entry.id === id)!)
 const unverifiedLast = (rows: readonly HostRecipe[]): HostRecipe[] => [...rows].sort((a, b) => Number(a.verified.by === 'unverified') - Number(b.verified.by === 'unverified'))

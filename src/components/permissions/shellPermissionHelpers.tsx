@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { posix, sep as platformSep, win32 } from 'node:path'
+import { posix, win32 } from 'node:path'
 import { Text } from '../../ink.js'
 import { getPlatform } from '../../utils/platform.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
@@ -22,7 +22,7 @@ export function displayFolderOfRule(cleaned: string, spelling: FolderSpelling = 
 }
 
 export function folderSeparator(spelling: FolderSpelling = folderSpelling()): string {
-  return spelling === 'windows' ? '' : platformSep
+  return spelling === 'windows' ? '' : posix.sep
 }
 
 function pathDisplayName(path: string): string {

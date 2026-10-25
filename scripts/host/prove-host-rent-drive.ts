@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { join, resolve } from 'node:path'
 import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
@@ -110,7 +111,7 @@ try {
   check('registration retains SGLang dialect and affinity', settings.compatProvider['pod-fixture-pod-1'].dialect === 'sglang' && settings.compatProvider['pod-fixture-pod-1'].sessionAffinityHeader === 'x-session-id')
   check('Runpod key never reaches settings, URL, or SSH commands', !settingsRaw.includes(rp.key) && !JSON.stringify(rp.requests).includes(rp.key) && !JSON.stringify(ssh.commands).includes(rp.key))
   check('account keys are not replaced; public key injected into pod', rp.state.keys.length === 0 && rp.state.createBodies[0].env.PUBLIC_KEY.startsWith('ssh-ed25519 '))
-  check('private key exists with owner-only permissions', existsSync(join(f.home, 'host/keys/id_ed25519')) && (statSync(join(f.home, 'host/keys/id_ed25519')).mode & 0o777) === 0o600)
+  check('private key exists with owner-only permissions', existsSync(join(f.home, 'host/keys/id_ed25519')) && ownerOnlyFile(join(f.home, 'host/keys/id_ed25519')))
   check('remote engine starts detached on loopback with the documented model', ssh.commands.some((c: any) => c.command === 'ssh' && c.args.at(-1).includes('nohup setsid') && c.args.at(-1).includes('Qwen/Qwen3.8-27B-FP8') && c.args.at(-1).includes('127.0.0.1')))
   check('local tunnel is a real child forwarder', ssh.commands.some((c: any) => c.command === 'tunnel'))
   const firstBase = settings.compatProvider['pod-fixture-pod-1'].baseUrl

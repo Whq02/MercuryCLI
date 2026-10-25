@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -8,7 +9,7 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/pr
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const root = new URL('../../', import.meta.url).pathname
+const root = fileURLToPath(new URL('../../', import.meta.url))
 assert.ok(existsSync(join(root, 'src/services/host/boxes.ts')), 'own computers are first-class recorded targets')
 const { discoverBox, readBox, listBoxes } = await import('../../src/services/host/boxes.js')
 const { boxInspectionScript, windowsBoxInspectionScript } = await import('../../src/services/host/ssh.js')
@@ -33,7 +34,7 @@ assert.equal(readBox('fixture')!.target!.host, 'fixture.invalid')
 assert.equal(JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR, 'host/boxes/fixture.json'), 'utf8')).memoryGb, 48)
 const local = await discoverBox({ name: 'this-computer', kind: 'this-computer' }, runner, signal)
 assert.equal(local.os, 'darwin')
-assert.equal(commands[1]!.command, '/bin/sh')
+assert.equal(commands[1]!.command, process.platform === 'win32' ? 'powershell.exe' : '/bin/sh')
 assert.equal(listBoxes().length, 2)
 const os = await import('node:os')
 const actualFacts = 'OS ' + (os.platform() === 'win32' ? 'windows' : os.platform()) + '\nARCH ' + os.arch() + '\nHOME ' + process.env.MERCURY_CONFIG_DIR + '\nMEMORY ' + os.totalmem() + '\n'

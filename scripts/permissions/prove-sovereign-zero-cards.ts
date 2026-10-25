@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { getPlatform } from '../../src/utils/platform.js'
+import { relativeSlashed } from '../lib/platformPath.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
@@ -90,7 +91,7 @@ section('§0 the law in source: one posture predicate, one card road')
     for (const entry of readdirSync(dir)) {
       const path = join(dir, entry)
       if (statSync(path).isDirectory()) walk(path)
-      else if (/\.(ts|tsx)$/.test(entry) && /\bpushToQueue\(/.test(readFileSync(path, 'utf8'))) pushers.push(path.slice(ROOT.length + 1))
+      else if (/\.(ts|tsx)$/.test(entry) && /\bpushToQueue\(/.test(readFileSync(path, 'utf8'))) pushers.push(relativeSlashed(ROOT, path))
     }
   }
   walk(join(ROOT, 'src'))
@@ -100,7 +101,7 @@ section('§0 the law in source: one posture predicate, one card road')
     for (const entry of readdirSync(dir)) {
       const path = join(dir, entry)
       if (statSync(path).isDirectory()) walkTools(path)
-      else if (/\.(ts|tsx)$/.test(entry) && /requiresUserInteraction\(\)\s*(?::\s*boolean\s*)?\{/.test(readFileSync(path, 'utf8'))) declaring.push(path.slice(ROOT.length + 1))
+      else if (/\.(ts|tsx)$/.test(entry) && /requiresUserInteraction\(\)\s*(?::\s*boolean\s*)?\{/.test(readFileSync(path, 'utf8'))) declaring.push(relativeSlashed(ROOT, path))
     }
   }
   walkTools(join(ROOT, 'src', 'tools'))

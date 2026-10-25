@@ -122,7 +122,8 @@ section("§4 THE ROW'S SCOPE (RELEASE-29-WINDOWS R29W-02): the record is per pro
     }
     check('health --json from a folder never opened interactively, with the env arming sovereign, carries the posture row', row !== undefined, `status=${String(r.status)} ${(r.stderr ?? '').slice(0, 300)}`)
     check('the row warns that no record exists FOR THIS PROJECT, naming where the record comes from', row?.status === 'warn' && (row.evidence ?? '').includes('NO posture record exists yet for this project') && (row.evidence ?? '').includes("interactive boot in the project's own folder"), row?.evidence)
-    check("the remedy names this project's folder and says an interactive Mercury open elsewhere records that folder's (the box had one open)", (row?.fix ?? '').includes(`in this project (${project}`) && (row?.fix ?? '').includes("another folder records that folder's"), row?.fix)
+    const { normalizePathForConfigKey } = await import('../../src/utils/path.ts')
+    check("the remedy names this project's folder and says an interactive Mercury open elsewhere records that folder's (the box had one open)", (row?.fix ?? '').includes(`in this project (${normalizePathForConfigKey(project)}`) && (row?.fix ?? '').includes("another folder records that folder's"), row?.fix)
   }
 }
 

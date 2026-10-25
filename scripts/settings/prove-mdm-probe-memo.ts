@@ -77,6 +77,11 @@ section('M4 the completed read writes the record — win32 only; either hive cou
   check('win32, an HKCU value (even an empty payload) ⇒ present (conservative: a successful reg exit is a value)', memo.readMdmProbeMemo(h)?.present === true)
   const t0 = memo.readMdmProbeMemo(h)?.checkedAt ?? 0
   check('checkedAt is a recent timestamp', Math.abs(Date.now() - t0) < 60_000)
+  const steady = readFileSync(memo.mdmProbeMemoPath(h), 'utf8')
+  const settle = Date.now() + 5
+  while (Date.now() < settle) { void settle }
+  memo.recordMdmProbeOutcome(hkcuRead, 'win32', h)
+  check('win32, the same outcome again leaves the record untouched (a steady-state boot or health run writes nothing under the home)', readFileSync(memo.mdmProbeMemoPath(h), 'utf8') === steady)
 }
 
 section('M5 the barrier shape — the skip arm never waits on the spawns; the await arm (the control) does')

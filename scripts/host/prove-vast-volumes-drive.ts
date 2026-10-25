@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { closeSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -28,7 +29,7 @@ const smallFiles: Record<string, Buffer> = {
 }
 const lfsSmall: Record<string, Buffer> = { 'inference/examples/images/carrots.jpeg': randomBytes(212_495) }
 const shardSizes = Array.from({ length: 48 }, (_, i) => i < 47 ? 10_000_000_000 : SHARD_BYTES - 47 * 10_000_000_000)
-const sparse = (path: string, size: number) => { mkdirSync(join(path, '..'), { recursive: true }); const fd = openSync(path, 'w'); ftruncateSync(fd, size); closeSync(fd) }
+const sparse = (path: string, size: number) => { mkdirSync(join(path, '..'), { recursive: true }); const fd = openSync(path, 'w'); if (process.platform === 'win32') execFileSync('fsutil', ['sparse', 'setflag', path], { stdio: 'ignore' }); ftruncateSync(fd, size); closeSync(fd) }
 function ownerFolder(path: string) {
   rmSync(path, { recursive: true, force: true })
   const sums: string[] = []
@@ -137,7 +138,7 @@ try {
   check('the volume record carries the machine, the size, the rate and the monthly amount, the bank-built manifest and a full check on the volume; the download ran once on the instance', kept.state === 'kept' && kept.machineId === 9103 && kept.size === 556 && kept.storageCost === 0.2 && kept.price === 111.2 && kept.recipeRow?.weightManifest?.revision === REVISION && kept.verifiedSums?.check === 'full' && kept.verifiedSums.bytes === SHARD_BYTES + Object.values(smallFiles).reduce((n, data) => n + data.length, 0) + Object.values(lfsSmall).reduce((n, data) => n + data.length, 0) && ssh.state.weightFetches === 1 && ssh.state.fullChecks === 1)
   check('the notice names the Vast.ai machine, the terminated temporary instance and the volume’s billing', notices().some(words => words.includes('weights kept on Vast.ai machine 9103 (volume ' + kept.id + ')') && words.includes('temporary instance 7001 terminated (Vast.ai no longer lists it)') && words.includes('$111.20/month for its 556 GB')))
   await close(); await openModel(); await until('Bank · banked on ' + join('~', 'mercury-model-bank') + ' · Vast.ai machine 9103')
-  check('after preparation the Bank row names the volume machine and bill, the weights line names the local folder and the rental row keeps its price', flat().includes('Bank · banked on ' + join('~', 'mercury-model-bank') + ' · Vast.ai machine 9103 · $111.20/month for its 556 GB ($0.20/GB-month, the machine’s rate), with or without an instance') && flat().includes('WEIGHTS · 510 GB · banked on ~/mercury-model-bank') && flat().includes('Rent · Vast.ai 4× B200 · $9.31/hr · datacenter · machine 9103'))
+  check('after preparation the Bank row names the volume machine and bill, the weights line names the local folder and the rental row keeps its price', flat().includes('Bank · banked on ' + join('~', 'mercury-model-bank') + ' · Vast.ai machine 9103 · $111.20/month for its 556 GB ($0.20/GB-month, the machine’s rate), with or without an instance') && flat().includes('WEIGHTS · 510 GB · banked on ' + join('~', 'mercury-model-bank')) && flat().includes('Rent · Vast.ai 4× B200 · $9.31/hr · datacenter · machine 9103'))
   noKeys('the model screen after the preparation')
   await close()
   rmSync(driveBank, { recursive: true, force: true })

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, statSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
@@ -58,7 +59,7 @@ try {
   secrets.writeStoredVastApiKey(' fixture-vast ')
   secrets.writeStoredLambdaApiKey(' fixture-lambda ')
   check('both key slots trim, coexist and preserve the Runpod key', secrets.readStoredVastApiKey() === 'fixture-vast' && secrets.readStoredLambdaApiKey() === 'fixture-lambda' && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
-  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(home) && (statSync(secrets.providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
+  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(home) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
   secrets.writeStoredVastApiKey(null); secrets.writeStoredLambdaApiKey(' ')
   check('keys clear independently without losing another vendor', secrets.readStoredVastApiKey() === undefined && secrets.readStoredLambdaApiKey() === undefined && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
   check('no vendor secrets select a model family', !existsSync(join(home, '.sign-ins.json')))

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync, statSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
@@ -182,7 +183,7 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     check('popup termination also verifies absence', fixture.state.pods.size === 0 && !hostRecords().some((row: any) => row.id === record.id))
     await Promise.all(jobs)
     const secrets = await import(f.root + '/src/services/providers/providerSecrets.ts')
-    check('key is private and independently removable', (statSync(secrets.providerSecretsPathForDisplay()).mode & 0o777) === 0o600 && registry.vendorKey(vendor) === fixture.key)
+    check('key is private and independently removable', ownerOnlyFile(secrets.providerSecretsPathForDisplay()) && registry.vendorKey(vendor) === fixture.key)
     registry.saveVendorKey(vendor, null)
     check('removed key is gone', registry.vendorKey(vendor) === undefined)
     console.log(vendor.toUpperCase() + ' DRIVE GREEN — ' + checks + ' checks; fixtures only; no live rental')

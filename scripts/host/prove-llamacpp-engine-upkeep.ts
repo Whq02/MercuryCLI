@@ -21,7 +21,7 @@ const { parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine, LLAMACPP
 const { LLAMACPP_ENGINE_SHA, LLAMACPP_ENGINE_IMAGE } = await import('../../src/services/host/recipes.ts')
 const { engineProblems, imageStampProblems, readRegistryImage } = await import('./export-llamacpp-engine.ts')
 const asset = JSON.parse(readFileSync(join(root, 'assets/host/llamacpp-engine.json'), 'utf8')) as Parameters<typeof engineProblems>[0]['asset']
-const dockerfile = readFileSync(join(root, 'scripts/host/Dockerfile.llamacpp'), 'utf8')
+const dockerfile = readFileSync(join(root, 'scripts/host/Dockerfile.llamacpp'), 'utf8').replaceAll('\r\n', '\n')
 const workflow = readFileSync(join(root, '.github/workflows/engine-image.yml'), 'utf8')
 const short = LLAMACPP_ENGINE_SHA.slice(0, 7)
 const table = LLAMACPP_ENGINE_TABLE

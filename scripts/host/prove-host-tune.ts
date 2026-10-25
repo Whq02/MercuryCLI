@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, mkdirSync, writeFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs'
@@ -133,7 +134,7 @@ try {
     mounted.unmount(); mounted = undefined
   }
   check('preferences persist all four choices with a timestamp', tune.readTunePreferences(modelTitle)?.quality === glm.id && tune.readTunePreferences(modelTitle)?.contextPerConversation === 1048576 && tune.readTunePreferences(modelTitle)?.effort === 'high' && Boolean(tune.readTunePreferences(modelTitle)?.updatedAt))
-  check('preferences are private', (statSync(prefsPath).mode & 0o777) === 0o600)
+  check('preferences are private', ownerOnlyFile(prefsPath))
   rp.state.customGpus = liveCatalogue.gpus.filter((gpu: any) => gpu.id === offer.gpuId).map((gpu: any) => ({ ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }))
   writeStoredRunpodApiKey(rp.key)
   let job: Promise<void> | undefined

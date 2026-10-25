@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { tmpdir, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'tstore-home-')))
@@ -44,9 +45,12 @@ if (process.argv.includes('--live')) {
     const denied = await storeRow()
     chmodSync(live, 0o644)
     check('a session file that refuses writes FAILS naming the file', denied?.status === 'fail' && denied.evidence.includes(live) && denied.evidence.includes('not writable') && denied.evidence.includes('recorded'), `${denied?.status}: ${denied?.evidence}`)
-    chmodSync(live, 0o200)
+    const principal = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${userInfo().username}` : userInfo().username
+    if (process.platform === 'win32') execFileSync('icacls', [live, '/deny', `${principal}:(RD)`], { stdio: 'pipe' })
+    else chmodSync(live, 0o200)
     const unreadable = await storeRow()
-    chmodSync(live, 0o644)
+    if (process.platform === 'win32') execFileSync('icacls', [live, '/remove:d', principal], { stdio: 'pipe' })
+    else chmodSync(live, 0o644)
     check('…and one that refuses reads says so', unreadable?.status === 'fail' && unreadable.evidence.includes('not readable'), `${unreadable?.status}: ${unreadable?.evidence}`)
   }
   rmSync(live)

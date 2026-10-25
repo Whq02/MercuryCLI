@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'uhg-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -37,6 +38,7 @@ writeFileSync(
 
 const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd } = await import('../../src/bootstrap/state.js')
 const { setCwd } = await import('../../src/utils/Shell.js')
+const { normalizePathForConfigKey } = await import('../../src/utils/path.js')
 const trustModule = (await import('../../src/utils/config/trust.js')) as unknown as {
   untrustedWorkspaceHeadless?: () => boolean
   resetTrustDialogAcceptedCacheForTesting: () => void
@@ -177,7 +179,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
     const LIVE_HOME = realpathSync(mkdtempSync(join(tmpdir(), 'uhg-live-home-')))
     const LIVE_PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'uhg-live-proj-')))
     mkdirSync(join(LIVE_PROJ, '.mercury'), { recursive: true })
-    const marker = (name: string): string => join(LIVE_PROJ, name)
+    const marker = (name: string): string => slashed(join(LIVE_PROJ, name))
     writeFileSync(
       join(LIVE_PROJ, '.mercury', 'settings.json'),
       JSON.stringify({
@@ -228,7 +230,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
 
     writeFileSync(
       join(LIVE_HOME, '.mercury.json'),
-      JSON.stringify({ projects: { [LIVE_PROJ]: { hasTrustDialogAccepted: true } } }),
+      JSON.stringify({ projects: { [normalizePathForConfigKey(LIVE_PROJ)]: { hasTrustDialogAccepted: true } } }),
     )
     rmSync(marker('user-marker'), { force: true })
     const trustedRun = run(['run', 'hi'])

@@ -4,7 +4,7 @@ import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import React from 'react'
 import stripAnsi from 'strip-ansi'
@@ -125,13 +125,14 @@ section('§4 an edit folder beside a read folder: each folder is named under the
   const READ_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'card-grant-read-')))
   const readRule = createReadRuleSuggestion(READ_DIR)!
   check('the read suggestion is a Read rule on the folder', readRule.type === 'addRules' && readRule.rules.every(rule => rule.toolName === 'Read'), JSON.stringify(readRule))
-  const editName = PROJECT.split('/').pop() ?? ''
-  const readName = READ_DIR.split('/').pop() ?? ''
+  const editName = basename(PROJECT)
+  const readName = basename(READ_DIR)
+  const sep = process.platform === 'win32' ? '' : '/'
   const mixed = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(PROJECT, 'localSettings')!, readRule], 'Bash'))
-  check('the edit folder is named under "file edits in"', new RegExp(`allow file edits in ${editName}/`).test(mixed), mixed)
+  check('the edit folder is named under "file edits in"', new RegExp(`allow file edits in ${editName}${sep} `).test(mixed), mixed)
   const [editPart, readPart] = mixed.split(' and reading from ')
-  check('the read folder is named under "reading from", never under file edits', readPart === `${readName}/ in this project` && editPart !== undefined && editPart.includes(editName) && !editPart.includes(readName), mixed)
-  check('the read folder is never listed as an edit folder', !mixed.includes(`${editName}/ and ${readName}/`), mixed)
+  check('the read folder is named under "reading from", never under file edits', readPart === `${readName}${sep} in this project` && editPart !== undefined && editPart.includes(editName) && !editPart.includes(readName), mixed)
+  check('the read folder is never listed as an edit folder', !mixed.includes(`${editName}${sep} and ${readName}${sep}`), mixed)
   const withCommand = await renderLabel(generateShellSuggestionsLabel([readRule, { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'cat *' }], behavior: 'allow', destination: 'localSettings' }], 'Bash'))
   check('one read folder plus one command: the grant is reading, not file edits', /^Yes, and allow reading from .* plus cat commands in /.test(withCommand) && !withCommand.includes('file edits'), withCommand)
   rmSync(READ_DIR, { recursive: true, force: true })

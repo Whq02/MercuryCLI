@@ -25,7 +25,7 @@ if (!process.argv.includes('--child')) {
   mkdirSync(CONFIG, { recursive: true })
   const { MERCURY_HOME: _home, MERCURY_ERROR_REPORTING: _reporting, NODE_ENV: _env, ...rest } = process.env
   const child = Bun.spawnSync([process.execPath, import.meta.path, '--child', SCRATCH], {
-    env: { ...rest, HOME, USERPROFILE: HOME, XDG_CACHE_HOME: join(HOME, '.cache'), MERCURY_CONFIG_DIR: CONFIG, DEBUG: '1' },
+    env: { ...rest, HOME, USERPROFILE: HOME, XDG_CACHE_HOME: join(HOME, '.cache'), LOCALAPPDATA: join(HOME, 'AppData', 'Local'), MERCURY_CONFIG_DIR: CONFIG, DEBUG: '1' },
     stdout: 'inherit',
     stderr: 'inherit',
   })

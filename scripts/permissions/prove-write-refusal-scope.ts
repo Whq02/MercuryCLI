@@ -3,6 +3,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'write-permission-words-')))
 const project = join(scratch, 'project')
@@ -24,7 +25,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 try {
   const ctx = getEmptyToolPermissionContext()
   for (const [place, target] of [['inside', project], ['outside', outside]]) {
-    const result = (await checkPathConstraints({ command: `mkdir ${join(target!, 'new')}` }, project, ctx))
+    const result = (await checkPathConstraints({ command: `mkdir ${slashed(join(target!, 'new'))}` }, project, ctx))
     const words = 'message' in result ? result.message : ''
     check(`${place}: ordinary permission ask, not a folder refusal`, result.behavior === 'ask' && /approval/.test(words) && !/may only|grants reads only|ADDED/.test(words), words)
     check(`${place}: approval is actionable`, /permission card/.test(words))

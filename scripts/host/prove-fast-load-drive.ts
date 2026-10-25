@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, statSync, truncateSync, unlinkSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, truncateSync, unlinkSync } from 'node:fs'
+import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
@@ -20,6 +22,7 @@ if (frames) mkdirSync(frames, { recursive: true })
 const f = await llmhostFixture()
 f.state.dialect = 'sglang'; f.state.window = 131072
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 const rp = await runpodFixture()
 const originalFetch = globalThis.fetch
 const external: string[] = []
@@ -118,7 +121,7 @@ try {
   check('external disk resize updates its recorded monthly price', volumes.readKeptVolume(kept.id)?.price === 7 && volumes.volumeLabel(rp.state.volumes.get(kept.id)).includes('$7.00/month'))
   rp.state.volumes.get(kept.id).size = 80
   await volumes.reconcileVolumes(api, signal)
-  check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && (statSync(join(f.home, 'host/volumes', kept.id + '.json')).mode & 0o777) === 0o600)
+  check('worker records verified sums, sizes, fill pod and private record permissions', Boolean(kept.verifiedSums?.sha256) && kept.verifiedSums!.bytes === Math.round(qwen.weightsGb * 1e9) && kept.filledBy === 'fixture-pod-1' && ownerOnlyFile(join(f.home, 'host/volumes', kept.id + '.json')))
   check('preparation does not build or start an inference engine', ssh.state.weightFetches === 1 && !ssh.commands.some((r: any) => r.args.at(-1)?.includes('nohup setsid')))
   await close(); open(); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await select('Qwen3.8-27B'); await until('✓ EU-NL-1'); await capture('04-kept-bank'); await close()
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await heading('Rent from which vendor?'); await choose('Runpod'); await heading('Optional spending budget'); m.push(KEY.enter); await until('Qwen3.8-27B'); await choose('Qwen3.8-27B'); await heading('Choose a GPU shape'); await choose('RTX PRO 6000'); await heading('Confirm the hourly price'); await capture('05-kept-rental-confirm')
@@ -340,7 +343,7 @@ try {
   const bytes = Buffer.from('verified weights')
   writeFileSync(join(tiny, 'model.gguf'), bytes)
   const manifest = { model: 'fixture/tiny', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }] }
-  const verify = (options: { fully?: boolean; sampleManifestSha256?: string } = {}) => spawnSync('python3', ['-c', weightCheckScript(manifest, tiny, false, options)], { encoding: 'utf8' })
+  const verify = (options: { fully?: boolean; sampleManifestSha256?: string } = {}) => spawnSync(PYTHON3, ['-c', weightCheckScript(manifest, tiny, false, options)], { encoding: 'utf8' })
   const firstCheck = verify()
   check('real verification executes SHA256 and writes sizes plus SHA256SUMS', firstCheck.status === 0 && readFileSync(join(tiny, 'SHA256SUMS'), 'utf8').includes(manifest.files[0]!.sha256) && JSON.parse(readFileSync(join(tiny, 'SIZES.json'), 'utf8'))[0][1] === bytes.length)
   const firstReceipt = JSON.parse(firstCheck.stdout.split('\n').find(line => line.startsWith('MERCURY_WEIGHTS '))!.slice('MERCURY_WEIGHTS '.length))
@@ -366,7 +369,7 @@ try {
   const fillManifest = { model: 'fixture/fill', include: '', revision: 'd'.repeat(40), files: [{ path: 'model.gguf', size: payload.length, sha256: createHash('sha256').update(payload).digest('hex') }] }
   const fill = (name: string, mode: string, extra: NonNullable<Parameters<typeof weightCheckScript>[3]>) => {
     const started = Date.now()
-    const run = spawnSync('python3', ['-c', weightCheckScript(fillManifest, join(f.home, name), true, { stallSeconds: 0.5, stallBytes: 1000, stallPollSeconds: 0.05, netDevPath: netDev, ...extra })], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PYTHONPATH: join(f.home, 'fake-hub'), FAKE_HF_MODE: mode, FAKE_HF_SOURCE: source } })
+    const run = spawnSync(PYTHON3, ['-c', weightCheckScript(fillManifest, join(f.home, name), true, { stallSeconds: 0.5, stallBytes: 1000, stallPollSeconds: 0.05, netDevPath: netDev, ...extra })], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PYTHONPATH: join(f.home, 'fake-hub'), FAKE_HF_MODE: mode, FAKE_HF_SOURCE: source } })
     return { status: run.status, stdout: run.stdout ?? '', seconds: (Date.now() - started) / 1000, report: JSON.parse(/MERCURY_STALL (\{.*\})/.exec(run.stdout ?? '')?.[1] ?? 'null') as { reason: string; bytes: number } | null }
   }
   const stopped = fill('fill-stall', 'stall', {})
@@ -384,12 +387,12 @@ try {
   for (const file of sparseFiles) { writeFileSync(join(sparse, file.path), ''); truncateSync(join(sparse, file.path), file.size) }
   const sparseManifest = { model: 'fixture/sparse', include: '', revision: 'd'.repeat(40), files: sparseFiles.map(file => ({ ...file, sha256: zerosHash(file.size) })) }
   const counted = "import pathlib as _pl, atexit as _ax\n_read = [0]\n_open = _pl.Path.open\nclass _Counted:\n    def __init__(self, f): self.f = f\n    def read(self, n=-1):\n        b = self.f.read(n)\n        _read[0] += len(b)\n        return b\n    def __getattr__(self, name): return getattr(self.f, name)\n    def __enter__(self): return self\n    def __exit__(self, *a): return self.f.__exit__(*a)\ndef _counted_open(self, mode='r', *a, **k):\n    f = _open(self, mode, *a, **k)\n    return _Counted(f) if 'r' in mode and 'b' in mode else f\n_pl.Path.open = _counted_open\n_ax.register(lambda: print('BYTES_READ ' + str(_read[0])))\n"
-  const sparseFill = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false)], { encoding: 'utf8', timeout: 120_000 })
+  const sparseFill = spawnSync(PYTHON3, ['-c', weightCheckScript(sparseManifest, sparse, false)], { encoding: 'utf8', timeout: 120_000 })
   const sparseAnchor = JSON.parse(sparseFill.stdout.split('\n').find(line => line.startsWith('MERCURY_WEIGHTS '))!.slice('MERCURY_WEIGHTS '.length)).sampleManifestSha256 as string
   const samplesRaw = readFileSync(join(sparse, 'SAMPLES.json'), 'utf8')
   const recorded = JSON.parse(samplesRaw) as { samples: { path: string; size: number; mtimeNs: string; regions: number[][]; sampleSha256: string }[] }
   check('the fill records each file’s sample positions: head, tail and eight fixed-seed 1 MB blocks, or the whole of a small file', recorded.samples[0]!.regions.length === 10 && JSON.stringify(recorded.samples[0]!.regions.slice(0, 2)) === JSON.stringify([[0, 64 * MiB], [2048 * MiB - 64 * MiB, 64 * MiB]]) && recorded.samples[0]!.regions.slice(2).every(([offset, count]) => count === MiB && offset! >= 0 && offset! + MiB <= 2048 * MiB) && JSON.stringify(recorded.samples[2]!.regions) === JSON.stringify([[0, 1000]]))
-  const warmCount = spawnSync('python3', ['-c', counted + weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: sparseAnchor })], { encoding: 'utf8', timeout: 120_000 })
+  const warmCount = spawnSync(PYTHON3, ['-c', counted + weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: sparseAnchor })], { encoding: 'utf8', timeout: 120_000 })
   const bytesRead = Number(/BYTES_READ (\d+)/.exec(warmCount.stdout)?.[1])
   const regionBytes = recorded.samples.reduce((sum, row) => sum + row.regions.reduce((n, [, count]) => n + count!, 0), 0)
   const expectedRead = regionBytes + Buffer.byteLength(samplesRaw) + readFileSync(join(sparse, 'SHA256SUMS')).length
@@ -397,7 +400,7 @@ try {
   const moved = recorded.samples.map(row => row.path !== 'big.gguf' ? row : (() => { const regions = [...row.regions.slice(0, 2), ...Array.from({ length: 8 }, (_, index) => [(index + 1) * 200 * MiB, MiB])]; const hash = createHash('sha256'); for (const [offset, count] of regions) { hash.update(offset + ':' + count + ':'); hash.update(Buffer.alloc(count!)) } return { ...row, regions, sampleSha256: hash.digest('hex') } })())
   const movedRaw = JSON.stringify({ ...JSON.parse(samplesRaw), samples: moved })
   writeFileSync(join(sparse, 'SAMPLES.json'), movedRaw)
-  const movedCheck = spawnSync('python3', ['-c', weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: createHash('sha256').update(movedRaw).digest('hex') })], { encoding: 'utf8', timeout: 120_000 })
+  const movedCheck = spawnSync(PYTHON3, ['-c', weightCheckScript(sparseManifest, sparse, false, { sampleManifestSha256: createHash('sha256').update(movedRaw).digest('hex') })], { encoding: 'utf8', timeout: 120_000 })
   check('the warm check hashes the positions written in the anchored manifest, not positions re-derived on the pod', movedCheck.status === 0 && movedCheck.stdout.includes('sampled check passed') && !movedCheck.stdout.includes('full check running'))
   const engineWords = volumes.fastLoadEstimate(gguf, { ...kept, state: 'kept' })
   check('kept-weight estimate retains engine and loading times', engineWords.includes('engine ~1 min') && engineWords.includes('weights kept') && engineWords.includes('loads ~3 min'))

@@ -11,6 +11,7 @@ import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 const vast = await vastFixture()
 const lambda = await lambdaFixture()
 const fetchBefore = globalThis.fetch
@@ -78,16 +79,16 @@ try {
       const row = question!.rows!.find(row => row.label.startsWith('Rent · ' + label))!
       assert.ok(row)
       assert.ok(row.label.includes('1× H100 · $') && row.label.includes('/hr') && !/uploads|downloads/.test(row.label), 'the rental row names its shape and hourly price without transfer narration')
-      assert.ok(question!.found.includes('WEIGHTS · 0 KB · banked on ~/mercury-model-bank'), 'the weights summary names the banked files without promising a download')
+      assert.ok(question!.found.includes('WEIGHTS · 0 KB · banked on ' + join('~', 'mercury-model-bank')), 'the weights summary names the banked files without promising a download')
       await choose(row.value); await step('rent-confirm')
-      assert.equal(question!.rows!.find(row => row.value === 'weights-source')!.label, 'Weights: Bank · ~/mercury-model-bank · upload ' + safe.bankUploadEstimate(recipe) + ' — change', 'the confirmation weights row matches the saved upload choice')
+      assert.equal(question!.rows!.find(row => row.value === 'weights-source')!.label, 'Weights: Bank · ' + join('~', 'mercury-model-bank') + ' · upload ' + safe.bankUploadEstimate(recipe) + ' — change', 'the confirmation weights row matches the saved upload choice')
       assert.ok(question!.willRun.includes('Billing starts now and continues after closing.'), 'the upload confirmation says when billing starts')
       assert.equal(vast.state.creates + lambda.state.creates, 0)
       await close(); await open()
     }
     await close()
     const volumes = await import('../../src/services/host/volumes.ts')
-    for (const [state, machineId, sourceWords] of [['preparing', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · downloads first'], ['kept', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · ~'], ['kept', 9999, 'Weights: Bank · ~/mercury-model-bank · upload ']] as const) {
+    for (const [state, machineId, sourceWords] of [['preparing', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · downloads first'], ['kept', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · ~'], ['kept', 9999, 'Weights: Bank · ' + join('~', 'mercury-model-bank') + ' · upload ']] as const) {
       vast.state.volumes.set(20199999, { id: 20199999, label: 'fixture-kept', machine_id: machineId, disk_space: 20, storage_cost: 0.2, status: 'active', start_date: 1792490400 })
       volumes.writeKeptVolume({ id: '20199999', name: 'fixture-kept', model: recipe.model, include: '', recipeRow: recipe, kind: 'vast', machineId, dataCenter: 'Vast.ai machine ' + machineId, size: 20, price: 4, storageCost: 0.2, createdAt: new Date().toISOString(), state })
       await open()

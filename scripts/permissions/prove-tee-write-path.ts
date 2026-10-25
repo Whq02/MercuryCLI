@@ -2,6 +2,7 @@
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'tee-write-path-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -23,10 +24,10 @@ const section = (t: string): void => {
 }
 
 const OUTSIDE = realpathSync(mkdtempSync(join(tmpdir(), 'tee-write-path-out-')))
-const out = join(OUTSIDE, 'written.txt')
+const out = slashed(join(OUTSIDE, 'written.txt'))
 const cwd = process.cwd()
-const inside = join(cwd, 'tee-write-path-probe.txt')
-const insideCopy = join(cwd, 'tee-write-path-copy.txt')
+const inside = slashed(join(cwd, 'tee-write-path-probe.txt'))
+const insideCopy = slashed(join(cwd, 'tee-write-path-copy.txt'))
 const ctxIn = (mode: string, denyRules: string[] = []): Ctx =>
   ({ mode, alwaysAllowRules: {}, alwaysDenyRules: denyRules.length > 0 ? { session: denyRules } : {}, alwaysAskRules: {}, additionalWorkingDirectories: new Map() }) as unknown as Ctx
 const decideIn = async (ctx: Ctx, command: string): Promise<string> => (await checkPathConstraints({ command }, cwd, ctx)).behavior
@@ -43,7 +44,7 @@ check('tee with several files holds on the outside one', (await decide(`echo x |
 check('tee to a file inside the working directory passes through', (await decide(`echo x | tee ${inside}`)) === 'passthrough', (await decide(`echo x | tee ${inside}`)))
 check('tee -a to a file inside the working directory passes through', (await decide(`echo x | tee -a ${inside}`)) === 'passthrough', (await decide(`echo x | tee -a ${inside}`)))
 check('tee to /dev/null passes through (the redirection road exempts it too)', (await decide('echo x | tee /dev/null')) === 'passthrough', (await decide('echo x | tee /dev/null')))
-check('tee inside a compound command with a cd is held (the final directory is unknown)', (await decide(`cd ${OUTSIDE} && echo x | tee written.txt`)) !== 'passthrough', (await decide(`cd ${OUTSIDE} && echo x | tee written.txt`)))
+check('tee inside a compound command with a cd is held (the final directory is unknown)', (await decide(`cd ${slashed(OUTSIDE)} && echo x | tee written.txt`)) !== 'passthrough', (await decide(`cd ${slashed(OUTSIDE)} && echo x | tee written.txt`)))
 check("in the mode that asks before every write, tee inside the working directory answers as the redirection does", (await decideIn(plain, `echo x | tee ${inside}`)) === (await decideIn(plain, `echo x > ${inside}`)), `${(await decideIn(plain, `echo x | tee ${inside}`))} vs ${(await decideIn(plain, `echo x > ${inside}`))}`)
 
 section('§2 dd writes through of=: the same road')
@@ -57,7 +58,7 @@ check('mv to an outside file is held for approval', (await decide(`mv ${inside} 
 check('cp inside the working directory passes through', (await decide(`cp ${inside} ${insideCopy}`)) === 'passthrough', (await decide(`cp ${inside} ${insideCopy}`)))
 
 section('§4 a deny rule on the target refuses tee and dd as it refuses a redirection')
-const denied = ctxIn('implement', [`Edit(//${OUTSIDE.replace(/^\/+/, '')}/**)`])
+const denied = ctxIn('implement', [`Edit(//${process.platform === 'win32' ? `${OUTSIDE[0]}/${slashed(OUTSIDE.slice(3))}` : OUTSIDE.replace(/^\/+/, '')}/**)`])
 check('control: the redirection to the denied directory is refused by the rule', (await decideIn(denied, `echo x > ${out}`)) === 'deny', (await decideIn(denied, `echo x > ${out}`)))
 check('tee to the denied directory is refused by the rule', (await decideIn(denied, `echo x | tee ${out}`)) === 'deny', (await decideIn(denied, `echo x | tee ${out}`)))
 check('dd of= the denied directory is refused by the rule', (await decideIn(denied, `dd if=/dev/zero of=${out}`)) === 'deny', (await decideIn(denied, `dd if=/dev/zero of=${out}`)))

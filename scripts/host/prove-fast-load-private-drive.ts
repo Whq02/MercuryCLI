@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { closeSync, ftruncateSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const home = join(process.env.MERCURY_CONFIG_DIR, 'home')
 mkdirSync(home, { recursive: true })
 process.env.HOME = home
+if (process.platform === 'win32') process.env.USERPROFILE = home
+const TILDE_BANK = '~' + sep + 'mercury-model-bank'
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
 const sha256 = (data: Buffer | string): string => createHash('sha256').update(data).digest('hex')
@@ -34,7 +37,7 @@ const smallFiles: Record<string, Buffer> = {
 const lfsSmall: Record<string, Buffer> = { 'inference/examples/images/carrots.jpeg': randomBytes(212_495) }
 const shardSizes = Array.from({ length: 48 }, (_, i) => i < 47 ? 10_000_000_000 : SHARD_BYTES - 47 * 10_000_000_000)
 assert.equal(shardSizes.reduce((n, s) => n + s, 0), SHARD_BYTES)
-const sparse = (path: string, size: number) => { mkdirSync(join(path, '..'), { recursive: true }); const fd = openSync(path, 'w'); ftruncateSync(fd, size); closeSync(fd) }
+const sparse = (path: string, size: number) => { mkdirSync(join(path, '..'), { recursive: true }); const fd = openSync(path, 'w'); if (process.platform === 'win32') execFileSync('fsutil', ['sparse', 'setflag', path], { stdio: 'ignore' }); ftruncateSync(fd, size); closeSync(fd) }
 const tinyWeights = Buffer.from(JSON.stringify({ weight_map: { a: 'model-00001-of-00001.safetensors' } }))
 const tinyShard = randomBytes(4096)
 tinyRow.weightsGb = +((tinyShard.length + tinyWeights.length + 2) / 1e9).toFixed(9)
@@ -74,7 +77,7 @@ const owner = recipes.find(row => row.id === 'deepseek41-uncensored-b200')!
 const tiny = recipes.find(row => row.id === 'tiny-private-b200')!
 check('the private rows load from host/private-recipes.json with no manifest, no revision, 510.3 GB and the 4× B200 shape', Boolean(owner) && owner.weightManifest === undefined && owner.weightsGb === 510.3 && owner.count === 4 && owner.gpu === 'B200' && recipes.filter(row => row.model === MODEL).length === 3)
 check('the rounding rule: a manifest total rounds to the row’s weightsGb as written, exact for the shipped nine-decimal rows', bytesMatchRecipe(510296921671, 510.3) && bytesMatchRecipe(510311037316, 510.3) && !bytesMatchRecipe(510360000000, 510.3) && !bytesMatchRecipe(510240000000, 510.3) && bytesMatchRecipe(510311045295, 510.311045295) && !bytesMatchRecipe(510311045296, 510.311045295) && bytesMatchRecipe(4096, 4096 / 1e9) && !bytesMatchRecipe(4097, 4096 / 1e9))
-assert.ok(bank.bankCandidates().every(path => path.startsWith(home + '/')) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home')
+assert.ok(bank.bankCandidates().every(path => path.startsWith(home + sep)) && bank.bankFolder() === undefined, 'the proof looks for a bank only inside its scratch home')
 check('with no bank folder on this computer the private row has no manifest and the row says so', keptWeights.pinnedWeightManifest(owner) === undefined && keptWeights.weightManifestWords(owner) === 'no bank folder on this computer · b banks the weights' && !bank.bankState(owner).banked)
 const bankFolder = join(home, 'mercury-model-bank')
 const canonical = bank.bankModelFolder(bankFolder, owner)
@@ -84,7 +87,7 @@ check('the owner’s folder shape (SHA256SUMS over the 49 LFS files, config and 
 check('the manifest carries the model, the empty include, the receipts’ revision and the folder’s bytes, which round to the row’s 510.3 GB', manifest!.model === MODEL && manifest!.include === '' && manifest!.revision === REVISION && manifest!.files.reduce((n, file) => n + file.size, 0) === SHARD_BYTES + smallBytes && bytesMatchRecipe(SHARD_BYTES + smallBytes, 510.3))
 check('the manifest is the same object for the three private rows of the model and comes from the bank', keptWeights.resolvedWeightManifest(owner)?.source === 'bank' && keptWeights.pinnedWeightManifest(recipes.find(row => row.id === 'deepseek41-uncensored-gb300')!) === manifest)
 const state = bank.bankState(owner)
-check('the Bank names the banked folder while the sealed files remain eligible to mirror', state.banked && state.sealed && state.pinned && state.missing === 0 && state.files === manifest!.files.length && state.path === canonical && bank.bankRowWords(owner, state) === 'Bank · banked on ~/mercury-model-bank')
+check('the Bank names the banked folder while the sealed files remain eligible to mirror', state.banked && state.sealed && state.pinned && state.missing === 0 && state.files === manifest!.files.length && state.path === canonical && bank.bankRowWords(owner, state) === 'Bank · banked on ' + TILDE_BANK)
 check('the model’s weight files for a bank job are the manifest’s, read as sealed by the bank, so a verification is reported against the download, not a pinned manifest', bank.bankFiles(owner, canonical).pinned && bank.bankFiles(owner, canonical).sealedByBank && bank.bankDownloadPlan(owner).revision === REVISION && bank.bankDownloadPlan(owner).include.length === manifest!.files.length)
 const repoNamed = join(bankFolder, MODEL.split('/')[1]!)
 renameSync(canonical, repoNamed)
@@ -93,7 +96,7 @@ renameSync(repoNamed, canonical)
 ownerFolder(canonical, { sums: false })
 check('a folder with no SHA256SUMS stays ineligible and the Bank row offers to bank its weights', keptWeights.pinnedWeightManifest(owner) === undefined && keptWeights.weightManifestWords(owner) === 'no SHA256SUMS in ' + canonical + ' · b banks the weights and seals one' && !bank.bankState(owner).banked && bank.bankRowWords(owner) === 'Bank · b to bank · 510 GB')
 ownerFolder(canonical, { receipts: false })
-check('a receipt-less folder keeps the missing revision in its detail and the Bank row names the folder', keptWeights.pinnedWeightManifest(owner) === undefined && keptWeights.weightManifestWords(owner) === 'no Hugging Face revision is recorded for the bank · b bank again records one' && bank.bankRowWords(owner) === 'Bank · banked on ~/mercury-model-bank')
+check('a receipt-less folder keeps the missing revision in its detail and the Bank row names the folder', keptWeights.pinnedWeightManifest(owner) === undefined && keptWeights.weightManifestWords(owner) === 'no Hugging Face revision is recorded for the bank · b bank again records one' && bank.bankRowWords(owner) === 'Bank · banked on ' + TILDE_BANK)
 writePrivate([privateRow('deepseek41-uncensored-b200', 'B200', 180, { source: 'https://huggingface.co/' + MODEL + '/tree/' + 'f'.repeat(40) }), tinyRow])
 check('a recipe whose source names a revision lends it to a receipt-less bank', keptWeights.pinnedWeightManifest(currentHostRecipes().find(row => row.id === 'deepseek41-uncensored-b200')!)?.revision === 'f'.repeat(40))
 writePrivate([privateRow('deepseek41-uncensored-b200', 'B200', 180, { weightsGb: 400 }), tinyRow])
@@ -133,6 +136,7 @@ const { runpodFixture, fakeSshRunner, liveCatalogue } = await import('./runpodFi
 const f = await llmhostFixture()
 f.state.dialect = 'sglang'; f.state.window = 131072
 process.env.HOME = f.home
+if (process.platform === 'win32') process.env.USERPROFILE = f.home
 const rp = await runpodFixture()
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
@@ -194,7 +198,7 @@ try {
   const noKeys = (name: string) => check(name + ' renders without errors or keys', !screen().includes('RENDER ERROR') && !screen().includes(rp.key))
   const openModel = async () => { open(); await heading('Which model?'); await choose('DeepSeek-V4.1-Flash UNCENSORED'); await heading('DeepSeek-V4.1-Flash UNCENSORED'); await until('WEIGHTS') }
   await openModel()
-  check('the private model shows the banked folder and weight size with m mirror in the action keys', flat().includes('Bank · banked on ~/mercury-model-bank') && flat().includes('m mirror') && flat().includes('WEIGHTS · 510 GB · banked on ~/mercury-model-bank') && !flat().includes('mirroring unavailable'))
+  check('the private model shows the banked folder and weight size with m mirror in the action keys', flat().includes('Bank · banked on ' + TILDE_BANK) && flat().includes('m mirror') && flat().includes('WEIGHTS · 510 GB · banked on ' + TILDE_BANK) && !flat().includes('mirroring unavailable'))
   noKeys('the private model screen')
   await choose('Connect Runpod'); await heading('Runpod API key'); mounted!.push(rp.key); await until('********'); mounted!.push(KEY.enter)
   await until('No stock · watch')
@@ -215,7 +219,7 @@ try {
   check('the disk’s row pins the bank-built manifest, and the pod verified exactly those files and bytes against it', kept.state === 'kept' && kept.dataCenter === 'EU-NL-1' && kept.size === 650 && kept.recipeRow?.weightManifest?.revision === REVISION && kept.recipeRow.weightManifest.files.length === liveManifest.files.length && kept.verifiedSums?.files === liveManifest.files.length && kept.verifiedSums.bytes === liveManifest.files.reduce((n, file) => n + file.size, 0) && kept.verifiedSums.check === 'full' && ssh.state.weightFetches === 1 && ssh.state.fullChecks === 1)
   check('the fill pod’s own record carried the fill shape and the pinned manifest, not the 4× B200 shape', notices().some(words => words.includes('weights kept on ' + kept.id) && words.includes('temporary pod fixture-pod-1 terminated')) && rp.requests.some((request: any) => request.method === 'POST' && request.path === '/v2/pods' && request.body.gpu.count === 1))
   await close(); await openModel(); await until(kept.id + ' · kept')
-  check('after the mirror the Bank row names the kept disk while the weights line names the local folder', flat().includes('Bank · banked on ~/mercury-model-bank · ' + kept.id + ' · kept') && flat().includes('WEIGHTS · 510 GB · banked on ~/mercury-model-bank'))
+  check('after the mirror the Bank row names the kept disk while the weights line names the local folder', flat().includes('Bank · banked on ' + TILDE_BANK + ' · ' + kept.id + ' · kept') && flat().includes('WEIGHTS · 510 GB · banked on ' + TILDE_BANK))
   noKeys('the model screen after the mirror')
   await close()
   open(); await heading('Which model?'); await choose('More options'); await heading('Where should the model run?'); await choose('Bank · your weights'); await heading('Bank'); await select('DeepSeek-V4.1-Flash UNCENSORE'); await until('✓ EU-NL-1')

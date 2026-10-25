@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const launchDir = process.cwd()
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'grant-persist-home-')))
@@ -30,7 +31,7 @@ const OUTSIDE = realpathSync(mkdtempSync(join(tmpdir(), 'grant-persist-out-')))
 
 section('§1 THE MINTED DESTINATION')
 {
-  const result = (await checkPathConstraints({ command: `touch ${join(OUTSIDE, 't.txt')}` }, PROJ, emptyCtx())) as {
+  const result = (await checkPathConstraints({ command: `touch ${slashed(join(OUTSIDE, 't.txt'))}` }, PROJ, emptyCtx())) as {
     suggestions?: Array<{ type: string; destination?: string; directories?: string[] }>
   }
   const dirSuggestion = (result.suggestions ?? []).find(s => s.type === 'addRules')
@@ -51,7 +52,7 @@ section('§2 THE PERSISTED WRITE')
   }
   check(
     'the ordinary Edit rule lands in settings.local.json without another root',
-    (written.guardrails?.allow ?? []).includes(`Edit(/${OUTSIDE}/**)`) && !Object.hasOwn(written.guardrails ?? {}, 'additionalDirectories'),
+    (written.guardrails?.allow ?? []).includes(`Edit(${process.platform === 'win32' ? `//${OUTSIDE[0]}/${slashed(OUTSIDE.slice(3))}` : `/${OUTSIDE}`}/**)`) && !Object.hasOwn(written.guardrails ?? {}, 'additionalDirectories'),
     JSON.stringify(written.guardrails),
   )
 }

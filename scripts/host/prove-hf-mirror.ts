@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +24,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
   const hf = await hfFixture()
   const rp = await runpodFixture()
   process.env.HOME = f.home
+  if (process.platform === 'win32') process.env.USERPROFILE = f.home
   const originalFetch = globalThis.fetch
   globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
@@ -82,10 +84,10 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--worker-recipe'], { env: process.env, encoding: 'utf8' })
     assert.equal(child.status, 0, child.stderr)
     check('a fresh worker restores the same trusted manifest from its queued recipe record', JSON.stringify(JSON.parse(child.stdout.trim().split('\n').at(-1)!)) === JSON.stringify(manifest))
-    const python = spawnSync('python3', ['-c', weightCheckScript(manifest, local, false, { fully: true })], { encoding: 'utf8' })
+    const python = spawnSync(PYTHON3, ['-c', weightCheckScript(manifest, local, false, { fully: true })], { encoding: 'utf8' })
     check('the real volume-verification script accepts the actual trusted bytes', python.status === 0 && python.stdout.includes('MERCURY_WEIGHTS'))
     writeFileSync(join(local, manifest.files[0]!.path), Buffer.alloc(bytes[0]!.length))
-    const corrupt = spawnSync('python3', ['-c', weightCheckScript(manifest, local, false, { fully: true })], { encoding: 'utf8' })
+    const corrupt = spawnSync(PYTHON3, ['-c', weightCheckScript(manifest, local, false, { fully: true })], { encoding: 'utf8' })
     check('the same verification rejects a same-size corrupt shard', corrupt.status !== 0 && corrupt.stderr.includes('Kept weights failed pinned SHA256/sizes verification'))
     writeFileSync(join(local, manifest.files[0]!.path), bytes[0]!)
     check('an embedded manifest rejects path traversal, missing hashes and a moving revision', !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ ...manifest.files[0], path: '../escape.gguf' }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ path: 'empty.gguf', size: 1 }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, revision: 'main' } }).success)

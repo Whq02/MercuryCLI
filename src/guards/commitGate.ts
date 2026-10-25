@@ -360,7 +360,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
     const parsed = parseGeneratedAssetsMap(workingMap)
     if (parsed.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${parsed.errors.join('; ')} — fix the map before committing.`
   }
-  if (indexedMap !== null && workingMap !== indexedMap) return `Generated-asset map differs from the index (${GENERATED_ASSETS_MAP}). Stage or undo its changes separately before committing.`
+  if (indexedMap !== null && workingMap?.replaceAll('\r\n', '\n') !== indexedMap.replaceAll('\r\n', '\n')) return `Generated-asset map differs from the index (${GENERATED_ASSETS_MAP}). Stage or undo its changes separately before committing.`
   const mapSelection = commitSelection(commitSeg.text)
   const limited = mapSelection.paths.length > 0 && !mapSelection.include
   const mapSelected = limited && commitPathsOf(root, commitSeg.text, directory).includes(GENERATED_ASSETS_MAP)

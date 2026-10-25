@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { PYTHON3 } from '../lib/python3.ts'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -80,9 +81,9 @@ try {
       ssh!.commands.push({ command, args })
       const parse = spawnSync('bash', ['-n', '-c', remote], { encoding: 'utf8' })
       assert.equal(parse.status, 0, parse.stderr)
-      const tokens = JSON.parse(spawnSync('python3', ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', remote], { encoding: 'utf8' }).stdout) as string[]
+      const tokens = JSON.parse(spawnSync(PYTHON3, ['-c', 'import json, shlex, sys; print(json.dumps(shlex.split(sys.argv[1])))', remote], { encoding: 'utf8' }).stdout) as string[]
       const script = tokens.find(token => token.includes('MERCURY_PRIVATE_WEIGHTS '))!
-      const python = spawnSync('python3', ['-c', 'import ast, sys; ast.parse(sys.argv[1])', script], { encoding: 'utf8' })
+      const python = spawnSync(PYTHON3, ['-c', 'import ast, sys; ast.parse(sys.argv[1])', script], { encoding: 'utf8' })
       assert.equal(python.status, 0, python.stderr)
       privateDownloads.push(script)
       return 'MERCURY_STEP downloading weights · 0.00 GB of 0.00 GB\nMERCURY_PRIVATE_WEIGHTS {"repo":"' + MIRROR + '"}\n'

@@ -188,7 +188,7 @@ try {
   const offline = screen()
   check('with Hugging Face down the verified list stands and the section says so, never an error popup', offline.includes('HUGGING FACE · ' + HF_OFFLINE_WORDS) && offline.includes('DeepSeek-V4.1-Flash-1017') && offline.includes('DeepSeek-V4-Pro-0813') && !offline.includes('RENDER ERROR') && mounted!.lines().slice(0, 4).join(' ').includes('Which model?'))
   await capture('120-offline')
-  mounted!.push(KEY.esc); await until(HF_SEARCH_PLACEHOLDER)
+  mounted!.push(KEY.esc); await until(HF_SEARCH_PLACEHOLDER); await gone('HUGGING FACE')
   check('esc clears the query even when Hugging Face was down', popup.isSettingsPopupOpen() && !screen().includes('HUGGING FACE'))
   await close()
   hf.state.down = false
