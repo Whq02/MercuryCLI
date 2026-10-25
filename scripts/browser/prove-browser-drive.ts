@@ -857,7 +857,61 @@ console.log('§20 the secretRef credential road')
   check('the env road outranks the file road', envWins.state === 'ok' && envWins.source === 'env' && envWins.value === 'env-wins-value')
   delete process.env.MERCURY_BROWSER_SECRET_FILE_SECRET
   delete process.env.MERCURY_BROWSER_SECRET_TEST_LOGIN
-  rmSync(secretsDir, { recursive: true, force: true })
+  const originalHome = process.env.MERCURY_CONFIG_DIR
+  process.env.MERCURY_CONFIG_DIR = secretsDir
+  const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
+  const addOtp = () => page().evaluate(() => {
+    const field = document.createElement('input')
+    field.id = 'saved-otp'
+    field.autocomplete = 'one-time-code'
+    document.body.appendChild(field)
+  })
+  try {
+    writeFileSync(secretsFile, JSON.stringify({ SAVED_OTP: { origin: A, totp: seed } }))
+    chmodSync(secretsFile, 0o600)
+    await addOtp()
+    const otpInput = { op: 'type', selector: '#saved-otp', secretRef: 'SAVED_OTP', clear: true } as ToolInput
+    check('a saved TOTP still asks for its secret+origin pairing', (await perm(otpInput)).behavior === 'ask')
+    const beforeCode = resolveBrowserSecret('SAVED_OTP', { origin: A })
+    const otpFill = await run(otpInput)
+    const afterCode = resolveBrowserSecret('SAVED_OTP', { origin: A })
+    const otpLanded = await page().$eval('#saved-otp', el => (el as HTMLInputElement).value)
+    check('the existing secretRef call fills a freshly minted code into the real OTP field', otpFill.outcome === 'succeeded' && [beforeCode, afterCode].some(code => code.state === 'ok' && code.value === otpLanded), otpFill.result)
+    check('the seed and minted code stay out of the result and console ring', !JSON.stringify([otpFill, await run({ op: 'console' })]).includes(seed) && !otpFill.result.includes(otpLanded))
+    check('the saved TOTP pairing rides on its exact origin', (await perm(otpInput)).behavior === 'allow')
+    await run({ op: 'open', url: `${B}/` })
+    await addOtp()
+    const { approveSecretPairing } = await import('../../src/services/browser/browserSession.ts')
+    approveSecretPairing(OWNER, 'SAVED_OTP', B)
+    await perm(otpInput)
+    const wrongOrigin = await run(otpInput)
+    check('even an approved pairing cannot mint a saved login code on a different origin', wrongOrigin.outcome === 'failed' && await page().$eval('#saved-otp', el => (el as HTMLInputElement).value) === '', wrongOrigin.result)
+    await run({ op: 'open', url: `${A}/` })
+    await addOtp()
+    await page().$eval('#saved-otp', el => { (el as HTMLInputElement).value = 'old-code' })
+    const keyboard = page().keyboard
+    const press = keyboard.press.bind(keyboard)
+    keyboard.press = async (...args) => {
+      await press(...args)
+      if (args[0] === 'Backspace') {
+        await page().goto(`${B}/`)
+        await addOtp()
+        await page().focus('#saved-otp')
+      }
+    }
+    try {
+      await perm(otpInput)
+      const drift = await run(otpInput)
+      check('navigation during clear never delivers a saved code to the new origin', drift.outcome === 'failed' && await page().$eval('#saved-otp', el => (el as HTMLInputElement).value) === '', drift.result)
+      check('the interrupted fill grants no pairing on the new origin', !secretPairingApproved(OWNER, 'SAVED_OTP', B))
+    } finally {
+      keyboard.press = press
+    }
+  } finally {
+    if (originalHome === undefined) delete process.env.MERCURY_CONFIG_DIR
+    else process.env.MERCURY_CONFIG_DIR = originalHome
+    rmSync(secretsDir, { recursive: true, force: true })
+  }
 }
 
 console.log('§13 close')

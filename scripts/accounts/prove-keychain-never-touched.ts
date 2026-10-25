@@ -89,6 +89,14 @@ auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
 check('the removed key answers none again', auth.getApiKeyFromConfigOrMacOSKeychain() === null)
 untouched('the legacy managed-key read / save / remove')
 
+const { resolveBrowserSecret } = await import('../../src/services/browser/browserSecrets.ts')
+writeFileSync(join(HOME, 'browser-secrets.json'), JSON.stringify({ LOGIN: 'fixture-browser-login', OTP: { origin: 'https://login.example', totp: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' } }), { mode: 0o600 })
+const login = resolveBrowserSecret('LOGIN')
+const otp = resolveBrowserSecret('OTP', { origin: 'https://login.example' })
+check('the browser password resolves from the file under the pin', login.state === 'ok' && login.source === 'file')
+check('the browser TOTP resolves from the file under the pin', otp.state === 'ok' && otp.source === 'file' && /^\d{6}$/.test(otp.value))
+untouched('browser password and TOTP resolution')
+
 section('§3 — the built artifact boots under the seam and never reaches the keychain tool')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
@@ -158,13 +166,14 @@ section('§5 — every `security` spawn site in src names the rule')
   const SPAWN = /(?:spawnSync|spawn|execFileSync|execFile|execFileNoThrow)\(\s*['"]security['"]/
   const spawners = files.filter(f => SPAWN.test(readFileSync(join(ROOT, f), 'utf8'))).sort()
   const EXPECTED = [
+    'src/services/browser/browserSecrets.ts',
     'src/utils/auth.ts',
     'src/utils/authPortable.ts',
     'src/utils/secureStorage/keychainPrefetch.ts',
     'src/utils/secureStorage/macOsKeychainStorage.ts',
   ]
   check(
-    'the keychain tool is spawned from exactly the four known roads',
+    'the keychain tool is spawned from exactly the five known roads',
     JSON.stringify(spawners) === JSON.stringify(EXPECTED),
     spawners.join(', '),
   )

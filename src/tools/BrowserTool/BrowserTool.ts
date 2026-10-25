@@ -1283,13 +1283,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           if (typeof input.secretRef === 'string') {
-            const resolved = resolveBrowserSecret(input.secretRef)
-            if (resolved.state !== 'ok') {
-              result = `type refused: ${resolved.note}`
-              outcome = 'failed'
-              break
-            }
-            secretInPlay = { value: resolved.value, ref: input.secretRef }
+            const secretOrigin = originOf(s.page.url())
             const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
             if (await isDisabledTarget(requested)) {
               result = `type refused: ${input.selector} is disabled — nothing filled`
@@ -1315,6 +1309,13 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               outcome = 'failed'
               break
             }
+            const resolved = resolveBrowserSecret(input.secretRef, { origin: secretOrigin })
+            if (resolved.state !== 'ok') {
+              result = `type refused: ${resolved.note}`
+              outcome = 'failed'
+              break
+            }
+            secretInPlay = { value: resolved.value, ref: input.secretRef }
             if (input.clear === true) {
               await s.page.evaluate(() => {
                 let active: Element | null = document.activeElement
@@ -1338,10 +1339,37 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               outcome = 'failed'
               break
             }
-            await humanTypeText(s, resolved.value)
-            if (input.enter === true) await s.page.keyboard.press('Enter')
-            approveSecretPairing(owner, input.secretRef, originOf(s.page.url()))
-            result = `type: filled secret ${input.secretRef} into ${probe.desc}${input.enter === true ? ' + Enter' : ''} at ${pageWhere(s)}`
+            if (resolved.origin !== undefined) {
+              const filled = await requested.evaluate((el, origin, value) => {
+                let active: Element | null = document.activeElement
+                while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
+                if (location.origin !== origin || !el.isConnected || active !== el) return false
+                const field = el as HTMLInputElement | HTMLTextAreaElement
+                if (field.disabled || field.readOnly) return false
+                const prototype = el.tagName === 'INPUT' ? HTMLInputElement.prototype : el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : null
+                if (prototype !== null) {
+                  const start = field.selectionStart ?? field.value.length
+                  const end = field.selectionEnd ?? start
+                  const next = field.value.slice(0, start) + value + field.value.slice(end)
+                  Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(field, next)
+                } else if ((el as HTMLElement).isContentEditable) {
+                  el.textContent = (el.textContent ?? '') + value
+                } else return false
+                el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText' }))
+                return true
+              }, resolved.origin, resolved.value)
+              if (!filled) {
+                result = `type refused mid-act: focus moved to ${stillHeld.desc} before the fill — nothing filled`
+                outcome = 'failed'
+                break
+              }
+            } else {
+              await humanTypeText(s, resolved.value)
+            }
+            const entered = input.enter === true && (resolved.origin === undefined || originOf(s.page.url()) === resolved.origin)
+            if (entered) await s.page.keyboard.press('Enter')
+            approveSecretPairing(owner, input.secretRef, resolved.origin ?? originOf(s.page.url()))
+            result = `type: filled secret ${input.secretRef} into ${probe.desc}${entered ? ' + Enter' : ''} at ${pageWhere(s)}`
             outcome = 'succeeded'
             break
           }
