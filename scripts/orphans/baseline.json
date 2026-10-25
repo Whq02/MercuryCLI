@@ -159,6 +159,11 @@
       "reason": "The mercury:// ONE-scheme grammar owner. Its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which live-imports it to pin that the mercury scheme parses and every other scheme is refused. The OS handler machinery is deliberately not built in this tree (deepLink/registerProtocol.ts's own note)."
     },
     {
+      "file": "src/utils/deepLink/registerProtocol.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The OS protocol-handler identity owner for the mercury:// scheme (the bundle id and the handler name). No registration machinery is built in this tree, so no runtime path imports it; its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which pins that the OS registration claims only the Mercury identity. Its last type-only reference left with fold 44bc."
+    },
+    {
       "file": "src/utils/messages/appendRow.ts",
       "class": "superseded-unreachable",
       "reason": "The one-uuid-one-row append law's reference implementation — the runner's one-writer architecture closes the doubled-turn class live; transcript-rows/prove-append-identity and render-migration/prove-doubles-growth-curve drive this unit as the law's spec; re-point or move with the law named, then delete (a named deferral)."

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const README = join(ROOT, 'README.md')
-const LINE = /^Mercury CLI is designed, built and maintained by \*\*Waleed Al Qusous\*\* as its sole developer — seven months from the first line to this release, (\d+) public releases, ([\d,]+) lines of TypeScript and ([\d,]+) proofs, built with the AI agents it now runs\./m
+const LINE = /^Mercury CLI is designed, built and maintained by \*\*Waleed Al Qusous\*\* as its sole developer: seven months from the first line to this release, (\d+) public releases, ([\d,]+) lines of TypeScript and ([\d,]+) proofs, built with the AI agents it now runs\./m
 
 function walk(dir, keep) {
   const out = []
@@ -17,7 +17,7 @@ function walk(dir, keep) {
   return out
 }
 
-export function authorFacts(root = ROOT) {
+function authorFacts(root = ROOT) {
   const releases = readdirSync(join(root, 'docs', 'releases'))
     .filter(name => name.endsWith('.md') && name !== 'README.md')
     .filter(name => /^# .* — published \d{4}-\d{2}-\d{2}/.test(readFileSync(join(root, 'docs', 'releases', name), 'utf8').split('\n')[0] ?? '')).length
@@ -29,7 +29,7 @@ export function authorFacts(root = ROOT) {
 
 export function authorLine(facts) {
   const n = value => value.toLocaleString('en-US')
-  return `Mercury CLI is designed, built and maintained by **Waleed Al Qusous** as its sole developer — seven months from the first line to this release, ${facts.releases} public releases, ${n(facts.sourceLines)} lines of TypeScript and ${n(facts.proofs)} proofs, built with the AI agents it now runs.`
+  return `Mercury CLI is designed, built and maintained by **Waleed Al Qusous** as its sole developer: seven months from the first line to this release, ${facts.releases} public releases, ${n(facts.sourceLines)} lines of TypeScript and ${n(facts.proofs)} proofs, built with the AI agents it now runs.`
 }
 
 export function readmeAuthorState(root = ROOT) {

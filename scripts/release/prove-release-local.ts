@@ -140,7 +140,7 @@ const logOf = (step: string): string => {
 check('the packager smoked the friend path inside the script run', logOf('package').includes('packaged + friend-path smoked'))
 check(`the packager signed with the throwaway key ${keyId}`, logOf('package').includes(`signed: key ${keyId}`))
 check('the verify step read the archive back at full depth and found it signed by that key', logOf('verify').includes(`signed by key ${keyId}`) && logOf('verify').includes('(deep, exit 0)'))
-check('the verify step read the licence documents back out of the archive', logOf('verify').includes('ride verbatim'))
+check('the verify step read the licence documents back out of the archive', logOf('verify').includes('Apache License 2.0 — LICENSE.md; NOTICE; TRADEMARKS.md'))
 check('the bridge journey drove the update verbs against the candidate bundle', /PASS|pass/.test(logOf('bridge-journey')) && !/FAIL/.test(logOf('bridge-journey')))
 
 const extractScript = join(scratch, 'extract-script')
