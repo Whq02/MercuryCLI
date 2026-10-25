@@ -1,6 +1,5 @@
 
 import { mkdirSync } from 'fs'
-import { join } from 'path'
 import * as React from 'react'
 import { use, useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -59,8 +58,8 @@ export function MemoryFileSelector({
     {
       id: 'memory',
       flip: () => {
-        updateSettingsForSource('userSettings', { memory: { enabled: !mnemeOn } })
-        setMnemeOn(value => !value)
+        const { error } = updateSettingsForSource('userSettings', { memory: { enabled: !mnemeOn } })
+        if (error === null) setMnemeOn(!mnemeOn)
       },
     },
   ]

@@ -21,8 +21,6 @@ import {
   type SettingSource,
 } from '../../utils/settings/constants.js'
 import { plural } from '../../utils/stringUtils.js'
-import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
-import { Dialog } from '../design-system/Dialog.js'
 import { FAINT, IVORY } from '../mercury-ui/theme.js'
 import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
 

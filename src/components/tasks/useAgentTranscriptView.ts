@@ -30,12 +30,15 @@ export function useAgentTranscriptView(opts: {
   const [readState, setReadState] = useState<AgentReadState>({ status: 'idle' })
   const lastReadRef = useRef(0)
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const firstReadRef = useRef(true)
+  const readVersionRef = useRef(0)
   const identityRef = useRef('')
   identityRef.current = `${transcriptDir}|${agentId ?? ''}`
 
   const doRead = useCallback(async (): Promise<void> => {
     if (!agentId) return
     const issuedFor = `${transcriptDir}|${agentId}`
+    const readVersion = ++readVersionRef.current
     const file =
       resolveAgentTranscriptFile([transcriptDir, ...(fallbackDirs ?? [])], agentId) ??
       agentTranscriptFile(transcriptDir, agentId)
@@ -43,12 +46,13 @@ export function useAgentTranscriptView(opts: {
       readAgentTranscript(file),
       readAgentMeta(path.dirname(file), agentId),
     ])
-    if (identityRef.current !== issuedFor) return
+    if (identityRef.current !== issuedFor || readVersion !== readVersionRef.current) return
     setReadState({ status: view ? 'done' : 'missing', view, meta })
   }, [agentId, transcriptDir, fallbackDirs])
 
   useEffect(() => {
     setReadState({ status: 'idle' })
+    firstReadRef.current = true
     if (pendingRef.current) {
       clearTimeout(pendingRef.current)
       pendingRef.current = null
@@ -56,18 +60,12 @@ export function useAgentTranscriptView(opts: {
   }, [agentId, transcriptDir])
 
   useEffect(() => {
-    if (!enabled || !agentId || readState.status !== 'idle') return
-    lastReadRef.current = Date.now()
-    setReadState({ status: 'loading' })
-    void doRead()
-  }, [enabled, agentId, doRead, readState.status])
-
-  useEffect(() => {
     if (!enabled || !agentId) return
-    if (liveState !== 'start' && liveState !== 'progress') return
     const now = Date.now()
     const sinceLast = now - lastReadRef.current
-    if (sinceLast >= REREAD_THROTTLE_MS) {
+    if (firstReadRef.current || (liveState !== 'start' && liveState !== 'progress') || sinceLast >= REREAD_THROTTLE_MS) {
+      if (firstReadRef.current) setReadState({ status: 'loading' })
+      firstReadRef.current = false
       lastReadRef.current = now
       void doRead()
     } else if (!pendingRef.current) {
@@ -78,6 +76,7 @@ export function useAgentTranscriptView(opts: {
       }, REREAD_THROTTLE_MS - sinceLast)
     }
     return () => {
+      readVersionRef.current++
       if (pendingRef.current) {
         clearTimeout(pendingRef.current)
         pendingRef.current = null

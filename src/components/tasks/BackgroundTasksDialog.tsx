@@ -421,7 +421,7 @@ export function BackgroundTasksDialog({
   useEffect(() => {
     if (detailTaskId === undefined) return
     const task = tasks[detailTaskId]
-    if (task !== undefined && isManageableTask(task)) return
+    if (task !== undefined && (isManageableTask(task) || isLocalShellTask(task))) return
     if (task === undefined && roster.rows.some(w => w.id === detailTaskId)) return
     if (task !== undefined && isLocalWorkflowTask(task)) {
       const timer = setTimeout(() => {

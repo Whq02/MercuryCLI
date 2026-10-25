@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
-import { useAppStateStore } from '../../state/AppState.js'
+import { useAppState } from '../../state/AppState.js'
 import { HOOK_EVENTS, type HookEvent } from '../../utils/hooks/contract.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { listHooks, type HookRow } from '../../utils/hooks/hooksSettings.js'
@@ -13,7 +13,6 @@ import {
   sortedMatchesForEvent,
 } from '../../utils/hooks/hooksConfigManager.js'
 import { hooksDisabled, managedHooksOnly } from '../../utils/hooks/hooksConfigSnapshot.js'
-import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   getRelativeSettingsFilePathForSource,
   getSettingsFilePathForSource,
@@ -47,19 +46,10 @@ export function HooksConfigMenu({
   toolNames: string[]
   onExit: LocalJSXCommandOnDone
 }): React.ReactNode {
-  const store = useAppStateStore()
+  const appState = useAppState(state => state)
   const [mode, setMode] = useState<Mode>({ id: 'select-event' })
 
-  const [policy, setPolicy] = useState(readPolicyAnswers)
-  useEffect(
-    () =>
-      settingsChangeDetector.subscribe(source => {
-        if (source === 'policySettings') setPolicy(readPolicyAnswers())
-      }),
-    [],
-  )
-
-  const appState = store.getState()
+  const policy = useMemo(readPolicyAnswers, [appState])
   const totalCount = useMemo(() => listHooks(appState).length, [appState])
 
   const availableToolNames = useMemo(

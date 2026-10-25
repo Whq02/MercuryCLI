@@ -1,11 +1,10 @@
 
 import figures from 'figures'
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 import { Box, Text } from '../../ink.js'
 import { PopupListViewport, popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
-import Link from '../../ink/components/Link.js'
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { ElicitationRequestEvent } from '../../services/mcp/elicitationHandler.js'
@@ -365,7 +364,7 @@ function FormElicitationDialog({
           }
         })
         .catch(() => {
-          if (!unmountedRef.current) patchField(field.name, { resolving: false })
+          if (!unmountedRef.current && !controller.signal.aborted) patchField(field.name, { resolving: false })
         })
     }
     if (immediately) run()
@@ -378,11 +377,18 @@ function FormElicitationDialog({
   }
 
   const commitText = (field: FieldState, text: string) => {
+    const timer = resolveTimersRef.current.get(field.name)
+    if (timer !== undefined) clearTimeout(timer)
+    resolveTimersRef.current.delete(field.name)
+    resolveAbortsRef.current.get(field.name)?.abort()
+    resolveAbortsRef.current.delete(field.name)
+    patchField(field.name, { resolving: false })
     typedSinceResolveRef.current.add(field.name)
     const type = (field.schema as { type?: string }).type
     if (text === '') {
       if (type === 'string' && field.value !== undefined) {
-        patchField(field.name, { text, value: '', error: undefined })
+        const result = validateElicitationInput(text, field.schema)
+        patchField(field.name, { text, value: result.isValid ? result.value : undefined, error: result.error })
       } else {
         patchField(field.name, { text, value: undefined, error: undefined })
       }
@@ -429,8 +435,8 @@ function FormElicitationDialog({
     return undefined
   }
 
-  const moveCursor = (delta: 1 | -1) => {
-    commitOnLeave(cursor)
+  const moveCursor = (delta: 1 | -1, commit = true) => {
+    if (commit) commitOnLeave(cursor)
     setCursor(previous => (previous + delta + fields.length + 2) % (fields.length + 2))
   }
 
@@ -587,7 +593,7 @@ function FormElicitationDialog({
           patchField(field.name, { value, error: undefined })
         }
         setAccordionOpen(false)
-        moveCursor(1)
+        moveCursor(1, field.kind !== 'multi')
       } else if (input && !key.ctrl && !key.meta) {
         typeahead(field, input)
       }

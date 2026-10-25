@@ -152,10 +152,11 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
         } catch {
           stamp = 'absent'
         }
+        stamp = `${file}|${agentId}|${stamp}`
         if (stamp === lastStamp.current) return
-        lastStamp.current = stamp
-        const rows = stamp === 'absent' ? EMPTY : await readCrewmateTranscriptFile(file, agentId)
+        const rows = stamp.endsWith('|absent') ? EMPTY : await readCrewmateTranscriptFile(file, agentId)
         if (!alive) return
+        lastStamp.current = stamp
         pruneLandedCrewmateLines(taskId, landedUserTexts(rows))
         setDisk({ taskId, rows, read: true })
       } finally {

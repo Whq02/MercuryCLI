@@ -53,7 +53,7 @@ export function AsyncAgentDetailDialog({
   const exitState = useExitOnCtrlCD(useKeybindings)
 
   useInput((input, key, event) => {
-    if (input === ' ') {
+    if (key.escape || input === ' ') {
       event.stopImmediatePropagation()
       onDone()
       return

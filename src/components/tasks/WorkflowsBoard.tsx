@@ -626,7 +626,8 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     const loader = createPastRunsLoader({
       list: () => listWorkflowRunsDetailed(cwd),
       apply: listing => {
-        setPastRuns(prev => (sameRunListing(prev, listing.rows) ? prev : listing.rows))
+        const hasLiveClaim = listing.rows.some(row => row.status === 'running' || row.status === 'paused')
+        setPastRuns(prev => (!hasLiveClaim && sameRunListing(prev, listing.rows) ? prev : listing.rows))
         setUnreadableRuns(listing.unreadable)
         setPastLoaded(true)
       },
