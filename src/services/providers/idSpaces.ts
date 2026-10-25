@@ -20,6 +20,7 @@ export type CallModelRoute =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -50,6 +51,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'minimax', barePrefixes: ['minimax-'], bareAliases: ['minimax'] },
   { route: 'cohere', barePrefixes: ['command-', 'north-', 'c4ai-aya-'], bareAliases: ['cohere'] },
   { route: 'groq', qualifiedPrefix: 'groq/', innerGrammar: 'named' },
+  { route: 'melious', qualifiedPrefix: 'melious/', innerGrammar: 'named' },
   { route: 'cerebras', qualifiedPrefix: 'cerebras/', innerGrammar: 'named' },
   { route: 'fireworks', qualifiedPrefix: 'fireworks/', innerGrammar: 'named' },
   { route: 'qwen', barePrefixes: ['qwen-', 'qwen3', 'qwen2', 'qwq-', 'qvq-'], bareAliases: ['qwen'] },

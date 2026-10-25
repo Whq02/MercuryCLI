@@ -36,6 +36,7 @@ import { storeMinimaxApiKeyLogin } from '../services/providers/minimax/minimaxLo
 import { storeTogetherApiKeyLogin } from '../services/providers/together/togetherLogin.js';
 import { storeCohereApiKeyLogin } from '../services/providers/cohere/cohereLogin.js';
 import { storeGroqApiKeyLogin } from '../services/providers/groq/groqLogin.js';
+import { storeMeliousApiKeyLogin } from '../services/providers/melious/meliousLogin.js';
 import { storeCerebrasApiKeyLogin } from '../services/providers/cerebras/cerebrasLogin.js';
 import { storeFireworksApiKeyLogin } from '../services/providers/fireworks/fireworksLogin.js';
 import { QWEN_KEY_KINDS_SHORT, storeQwenApiKeyLogin } from '../services/providers/qwen/qwenLogin.js';
@@ -483,6 +484,7 @@ export type FaceKeyLegId =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -610,6 +612,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'Mistral Admin API key (optional)';
     case 'groq':
       return 'Groq API key';
+    case 'melious':
+      return 'Melious AI API key';
     case 'cerebras':
       return 'Cerebras API key';
     case 'fireworks':
@@ -659,6 +663,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins. Enterprise plans issue it at backoffice.mistral.ai.';
     case 'groq':
       return 'Checked on the model list first; stored auth-scoped (mode 600); GROQ_API_KEY wins. Text models only.';
+    case 'melious':
+      return 'MELIOUS_API_KEY wins over a stored key.';
     case 'cerebras':
       return 'Checked on the model list first; stored auth-scoped (mode 600); CEREBRAS_API_KEY wins. Text models only.';
     case 'fireworks':
@@ -709,6 +715,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a Mistral Admin API key' };
     case 'groq':
       return { stores: 'a Groq API key' };
+    case 'melious':
+      return { stores: 'a Melious AI API key' };
     case 'cerebras':
       return { stores: 'a Cerebras API key' };
     case 'fireworks':
@@ -741,7 +749,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'mistral-admin' && note === null) lines.push(...wrapPlain(MISTRAL_ADMIN_KEY_PAGE, DETAIL_W));
   if (leg === 'nous' && note === null) lines.push(...wrapClauses(keyPageLine('nous'), DETAIL_W));
   if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
-  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
+  if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'melious' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1421,6 +1429,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'together':
       case 'cohere':
       case 'groq':
+      case 'melious':
         setFlow({ kind: 'key', leg: arm.row.value, note: null, storing: false });
         return;
       case 'cerebras':
@@ -1587,6 +1596,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'together') void storeTogetherApiKeyLogin(value).then(settle);
     else if (leg === 'cohere') void storeCohereApiKeyLogin(value).then(settle);
     else if (leg === 'groq') void storeGroqApiKeyLogin(value).then(settle);
+    else if (leg === 'melious') void storeMeliousApiKeyLogin(value).then(settle);
     else if (leg === 'cerebras') void storeCerebrasApiKeyLogin(value).then(settle);
     else if (leg === 'fireworks') void storeFireworksApiKeyLogin(value).then(settle);
     else if (leg === 'qwen') void storeQwenApiKeyLogin(value).then(settle);

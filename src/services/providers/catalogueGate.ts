@@ -9,6 +9,7 @@ import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
 import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { resolveMeliousApiKey } from './melious/meliousAccounts.js'
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
 import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
@@ -17,7 +18,7 @@ import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen' | 'openai-compat'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | 'openai-compat'
 
 type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -46,6 +47,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   together: 'Together AI',
   cohere: 'Cohere',
   groq: 'Groq',
+  melious: 'Melious AI',
   cerebras: 'Cerebras',
   fireworks: 'Fireworks',
   qwen: 'Qwen',
@@ -103,6 +105,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       return resolveCohereApiKey(env) !== undefined
     case 'groq':
       return resolveGroqApiKey(env) !== undefined
+    case 'melious':
+      return resolveMeliousApiKey(env) !== undefined
     case 'cerebras':
       return resolveCerebrasApiKey(env) !== undefined
     case 'fireworks':

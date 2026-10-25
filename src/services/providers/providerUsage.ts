@@ -2014,6 +2014,10 @@ function deriveUsageForProvider(
     const { groqUsageView } = require('./groq/groqUsageState.js') as typeof import('./groq/groqUsageState.js')
     return groqUsageView(spend, reads?.laneCredentialed?.(provider))
   }
+  if (provider === 'melious') {
+    const { meliousUsageView } = require('./melious/meliousUsageState.js') as typeof import('./melious/meliousUsageState.js')
+    return meliousUsageView(spend, reads?.laneCredentialed?.(provider))
+  }
   if (provider === 'cerebras') {
     const { cerebrasUsageView } = require('./cerebras/cerebrasUsageState.js') as typeof import('./cerebras/cerebrasUsageState.js')
     return cerebrasUsageView(spend, reads?.laneCredentialed?.(provider))

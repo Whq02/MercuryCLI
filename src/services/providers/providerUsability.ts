@@ -24,6 +24,7 @@ export type ProviderId =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -64,6 +65,7 @@ export interface ProviderUsabilityReads {
   togetherKeyPresent?: () => boolean
   cohereKeyPresent?: () => boolean
   groqKeyPresent?: () => boolean
+  meliousKeyPresent?: () => boolean
   cerebrasKeyPresent?: () => boolean
   fireworksKeyPresent?: () => boolean
   qwenKeyPresent?: () => boolean
@@ -200,6 +202,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     groqKeyPresent: () => {
       const { resolveGroqApiKey } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
       return resolveGroqApiKey() !== undefined
+    },
+    meliousKeyPresent: () => {
+      const { resolveMeliousApiKey } = require('./melious/meliousAccounts.js') as typeof import('./melious/meliousAccounts.js')
+      return resolveMeliousApiKey() !== undefined
     },
     cerebrasKeyPresent: () => {
       const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
@@ -409,6 +415,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const together = keyLane('together', reads.togetherKeyPresent?.() ?? false, 'no Together AI API key — /logins together (or TOGETHER_API_KEY)')
   const cohere = keyLane('cohere', reads.cohereKeyPresent?.() ?? false, 'no Cohere API key — /logins cohere (or COHERE_API_KEY)')
   const groq = keyLane('groq', reads.groqKeyPresent?.() ?? false, 'no Groq API key — /logins groq (or GROQ_API_KEY)')
+  const melious = keyLane('melious', reads.meliousKeyPresent?.() ?? false, 'no Melious AI API key — /logins melious (or MELIOUS_API_KEY)')
   const cerebras = keyLane('cerebras', reads.cerebrasKeyPresent?.() ?? false, 'no Cerebras API key — /logins cerebras (or CEREBRAS_API_KEY)')
   const fireworks = keyLane('fireworks', reads.fireworksKeyPresent?.() ?? false, 'no Fireworks API key — /logins fireworks (or FIREWORKS_API_KEY)')
   const qwen = keyLane('qwen', reads.qwenKeyPresent?.() ?? false, 'no QwenCloud or Model Studio API key — /logins qwen (or DASHSCOPE_API_KEY)')
@@ -526,6 +533,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     together: applyLaneBilling(together),
     cohere: applyLaneBilling(cohere),
     groq: applyLaneBilling(groq),
+    melious: applyLaneBilling(melious),
     cerebras: applyLaneBilling(cerebras),
     fireworks: applyLaneBilling(fireworks),
     qwen: applyLaneBilling(qwen),

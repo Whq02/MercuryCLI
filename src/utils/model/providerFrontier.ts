@@ -78,6 +78,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'zen':
       case 'together':
       case 'groq':
+      case 'melious':
       case 'cerebras':
       case 'fireworks':
         return undefined

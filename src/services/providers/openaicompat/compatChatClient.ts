@@ -146,6 +146,8 @@ export interface CompatFault {
   inStream?: true
   status?: number
   parameter?: string
+  errorType?: string
+  classification?: 'authentication_failed' | 'billing_error' | 'rate_limit' | 'server_error' | 'invalid_request'
   retryAfterMs?: number
   outage?: OutageCause
 }
@@ -221,6 +223,7 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
     code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
     ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
+    ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
     retryable: status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
@@ -257,6 +260,8 @@ export interface CompatStreamOptions {
   timers?: StreamTimers
   local?: LocalStreamLaw
   imagesSupported?: boolean
+  requireDone?: boolean
+  onResponseChunk?(chunk: unknown): void
   deferral?: CompatDeferralFacts
 }
 
@@ -418,6 +423,7 @@ export async function* streamCompatChat(
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
   let finished = false
+  let sawDone = false
   let servedSeen: string | undefined
 
   try {
@@ -771,6 +777,11 @@ export async function* streamCompatChat(
         chunkHadEvent = true
         const payload = item.event.data
         if (payload.trim() === '[DONE]') {
+          sawDone = true
+          if (!finished && options.requireDone) {
+            yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'no-finish', message: 'stream ended without finish_reason', retryable: false } }
+            break readLoop
+          }
           if (!finished) {
             finished = true
             yield { type: 'finish', reason: 'stop', rawReason: 'stop', toolCalls: finalizeToolCalls(toolAcc) }
@@ -792,6 +803,7 @@ export async function* streamCompatChat(
           }
           continue
         }
+        try { options.onResponseChunk?.(parsed) } catch {}
         for (const event of decodeChunk(parsed, toolAcc)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             if (tokenWait) { tokenWait = false; publish(null) }
@@ -847,7 +859,9 @@ export async function* streamCompatChat(
         yield { type: 'stream-fault', fault: envelope }
       }
     }
-    if (!finished) {
+    if (options.requireDone && !sawDone) {
+      yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'no-done', message: 'stream ended without [DONE]', retryable: false } }
+    } else if (!finished) {
       yield {
         type: 'stream-fault',
         fault: {
@@ -938,6 +952,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
         message,
         retryable: false,
         ...(numericCode !== undefined ? { status: numericCode } : {}),
+        ...(typeof errRecord?.type === 'string' ? { errorType: errRecord.type } : {}),
       },
     })
   }

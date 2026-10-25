@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 76 settings · 1 set by you                                     │ │
+NEXT                │ │ orchard · 77 settings · 1 set by you                                     │ │
   · /workflows — cr…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -17,7 +17,7 @@ VITALS              │ │   Session concourse                 on              
                     │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   DuckDuckGo page scraping          on                                 ↓ │ │
-                    │ │ ↓ 65 more                                                                │ │
+                    │ │ ↓ 66 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

@@ -50,6 +50,7 @@ import { MinimaxConnect } from './MinimaxConnect.js'
 import { TogetherConnect } from './TogetherConnect.js'
 import { CohereConnect } from './CohereConnect.js'
 import { GroqConnect } from '../services/providers/groq/GroqConnect.js'
+import { MeliousConnect } from '../services/providers/melious/MeliousConnect.js'
 import { CerebrasConnect } from '../services/providers/cerebras/CerebrasConnect.js'
 import { FireworksConnect } from '../services/providers/fireworks/FireworksConnect.js'
 import { QwenConnect } from '../services/providers/qwen/QwenConnect.js'
@@ -94,6 +95,7 @@ type EngineLeg =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -267,7 +269,7 @@ export function ConsoleOAuthFlow({
       return
     }
     if (value.startsWith('compat/') && loginFamilyRows({ engineLegs: true }).some(row => row.value === value)) { setLeg(value as `compat/${string}`); return }
-    if (value === 'anthropic' || value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'cerebras' || value === 'fireworks' || value === 'qwen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') setLeg(value)
+    if (value === 'anthropic' || value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'zen' || value === 'minimax' || value === 'together' || value === 'cohere' || value === 'groq' || value === 'melious' || value === 'cerebras' || value === 'fireworks' || value === 'qwen' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') setLeg(value)
   }
   if (accountFamily !== null) return frame(
     <LoginAccountCard
@@ -367,6 +369,9 @@ export function ConsoleOAuthFlow({
       case 'groq':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>Groq login unavailable here.</Text>)
         return frame(<GroqConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+      case 'melious':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Melious login unavailable here.</Text>)
+        return frame(<MeliousConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
       case 'cerebras':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>Cerebras login unavailable here.</Text>)
         return frame(<CerebrasConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -687,6 +692,7 @@ export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = 
   { id: 'together', label: 'Together AI' },
   { id: 'cohere', label: 'Cohere' },
   { id: 'groq', label: 'Groq' },
+  { id: 'melious', label: 'Melious AI' },
   { id: 'cerebras', label: 'Cerebras' },
   { id: 'fireworks', label: 'Fireworks' },
   { id: 'qwen', label: 'Qwen' },

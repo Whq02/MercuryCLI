@@ -52,6 +52,7 @@ export type CacheLane =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'

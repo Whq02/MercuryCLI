@@ -33,6 +33,7 @@ export function modelHasRecordedFacts(model: string): boolean {
     case 'cohere': return Boolean(require('../../services/providers/cohere/coherePins.js').cohereDisplayPin(model))
     case 'qwen': return Boolean(require('../../services/providers/qwen/qwenPins.js').qwenDisplayPin(model))
     case 'groq': return Boolean(require('../../services/providers/groq/groqPins.js').groqDisplayPin(model))
+    case 'melious': return Boolean(require('../../services/providers/melious/meliousCatalogue.js').meliousListedModel(model))
     case 'cerebras': return Boolean(require('../../services/providers/cerebras/cerebrasPins.js').cerebrasDisplayPin(model))
     case 'fireworks': return Boolean(require('../../services/providers/fireworks/fireworksPins.js').fireworksDisplayPin(model))
     default: {

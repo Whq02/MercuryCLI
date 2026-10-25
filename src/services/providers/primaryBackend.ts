@@ -34,7 +34,9 @@ import { resolveTogetherApiKey } from './together/togetherAccounts.js'
 import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
 import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
 import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
+import { meliousCallModel, meliousLiveProofState } from './melious/meliousCallModel.js'
 import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { resolveMeliousApiKey } from './melious/meliousAccounts.js'
 import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
 import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
 import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
@@ -74,6 +76,7 @@ export type PrimaryBackendId =
   | 'together-chat'
   | 'cohere-chat'
   | 'groq-chat'
+  | 'melious-chat'
   | 'cerebras-chat'
   | 'fireworks-chat'
   | 'qwen-chat'
@@ -101,6 +104,7 @@ export interface AgentRuntimeRef {
     | 'together'
     | 'cohere'
     | 'groq'
+    | 'melious'
     | 'cerebras'
     | 'fireworks'
     | 'qwen'
@@ -122,6 +126,7 @@ export interface AgentRuntimeRef {
     | { kind: 'mistral' }
     | { kind: 'zen' }
     | { kind: 'groq' }
+    | { kind: 'melious' }
     | { kind: 'cerebras' }
     | { kind: 'fireworks' }
     | { kind: 'qwen' }
@@ -318,6 +323,17 @@ const groqBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const meliousBackend: PrimaryAgentBackend = {
+  id: 'melious-chat', provider: 'melious', label: 'Melious AI (gateway, in-process)',
+  callModel: meliousCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMeliousApiKey()) return { state: 'unavailable', reason: 'no API key (/logins melious, or MELIOUS_API_KEY)' }
+    const proof = meliousLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const cerebrasBackend: PrimaryAgentBackend = {
   id: 'cerebras-chat', provider: 'cerebras', label: 'Cerebras (gateway, in-process)',
   callModel: cerebrasCallModel,
@@ -484,6 +500,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   together: togetherBackend,
   cohere: cohereBackend,
   groq: groqBackend,
+  melious: meliousBackend,
   cerebras: cerebrasBackend,
   fireworks: fireworksBackend,
   qwen: qwenBackend,
@@ -547,6 +564,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'cohere' }
   } else if (route === 'groq') {
     family = { kind: 'groq' }
+  } else if (route === 'melious') {
+    family = { kind: 'melious' }
   } else if (route === 'cerebras') {
     family = { kind: 'cerebras' }
   } else if (route === 'fireworks') {

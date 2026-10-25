@@ -20,6 +20,7 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   together: ['TOGETHER_API_KEY', 'TOGETHER_AI_API_KEY'],
   cohere: ['COHERE_API_KEY', 'CO_API_KEY'],
   groq: ['GROQ_API_KEY'],
+  melious: ['MELIOUS_API_KEY'],
   cerebras: ['CEREBRAS_API_KEY'],
   fireworks: ['FIREWORKS_API_KEY'],
   qwen: ['DASHSCOPE_API_KEY'],
@@ -33,7 +34,7 @@ export type CredentialValueShape = { readonly pattern: RegExp; readonly marker: 
 
 export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, CredentialValueShape> = {
   anthropic: { pattern: /(?<![A-Za-z0-9"'])sk-ant-[A-Za-z0-9_-]{10,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_API_KEY]' },
-  openai: { pattern: /(?<![A-Za-z0-9"'])sk-(?!ant-|or-v1-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_OPENAI_KEY]' },
+  openai: { pattern: /(?<![A-Za-z0-9"'])sk-(?!ant-|or-v1-|mel-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_OPENAI_KEY]' },
   zai: null,
   moonshot: null,
   deepseek: null,
@@ -51,6 +52,7 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   together: null,
   cohere: null,
   groq: null,
+  melious: { pattern: /(?<![A-Za-z0-9"'])sk-mel-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_MELIOUS_KEY]' },
   cerebras: null,
   fireworks: null,
   qwen: null,

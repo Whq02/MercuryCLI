@@ -1,0 +1,49 @@
+{
+  "sources": {
+    "catalogue": "https://melious.ai/docs/reference/models",
+    "model": "https://melious.ai/hub/models/glm-5.3",
+    "chat": "https://melious.ai/docs/reference/chat-completions",
+    "streaming": "https://melious.ai/docs/guides/streaming",
+    "tools": "https://melious.ai/docs/guides/tool-calling",
+    "rates": "https://melious.ai/docs/concepts/rate-limits",
+    "errors": "https://melious.ai/docs/concepts/errors"
+  },
+  "models": {
+    "data": [
+      {
+        "id": "glm-5.3",
+        "_meta": {
+          "type": "chat",
+          "capabilities": { "streaming": true, "function_calling": true, "vision": false, "reasoning": true },
+          "input_modalities": ["text"],
+          "context_length": 1000000,
+          "max_output_tokens": null,
+          "reasoning_type": "hybrid",
+          "reasoning_effort": "high",
+          "pricing": { "input_cost_per_million_eur": 1, "output_cost_per_million_eur": 3, "cache_read_cost_per_million_eur": 0.2, "currency": "EUR" }
+        }
+      }
+    ]
+  },
+  "usageChunk": {
+    "id": "chatcmpl-...",
+    "object": "chat.completion.chunk",
+    "created": 1699999999,
+    "model": "glm-5.3",
+    "choices": [],
+    "usage": {
+      "prompt_tokens": 12,
+      "completion_tokens": 7,
+      "total_tokens": 19,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "prompt_tokens_details": { "cached_tokens": 0 },
+      "completion_tokens_details": { "reasoning_tokens": 0 }
+    },
+    "environment_impact": { "energy_kwh": 0.00015, "carbon_g_co2": 0.06, "water_liters": 0, "renewable_percent": 100, "pue": 1.2, "provider_id": "melious", "location": "FI" },
+    "billing_cost": { "energy": "2.62", "credits": "0.000262", "paid_with": "credits" }
+  },
+  "rateHeaders": { "X-RateLimit-Limit": "120", "X-RateLimit-Remaining": "119", "X-RateLimit-Reset": "1792800060" },
+  "throttle": { "code": "RATE_LIMIT_EXCEEDED", "message": "Too many requests. Please try again later.", "details": { "retry_after": 3 } },
+  "modelError": { "error": { "message": "The model does not exist or you do not have access to it.", "type": "invalid_request_error", "param": null, "code": "model_not_found" } }
+}

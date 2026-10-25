@@ -41,6 +41,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   together: 'Together AI',
   cohere: 'Cohere',
   groq: 'Groq',
+  melious: 'Melious AI',
   cerebras: 'Cerebras',
   fireworks: 'Fireworks',
   qwen: 'Qwen',

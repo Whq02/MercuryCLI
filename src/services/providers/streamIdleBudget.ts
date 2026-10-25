@@ -50,6 +50,7 @@ function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quie
     case 'together':
     case 'cohere':
     case 'groq':
+    case 'melious':
     case 'cerebras':
     case 'fireworks':
     case 'qwen':

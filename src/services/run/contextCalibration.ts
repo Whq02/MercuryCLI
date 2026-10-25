@@ -19,6 +19,7 @@ export const CODEC_EPOCHS = Object.freeze({
   together: 1,
   cohere: 1,
   groq: 1,
+  melious: 1,
   cerebras: 1,
   fireworks: 1,
   qwen: 1,

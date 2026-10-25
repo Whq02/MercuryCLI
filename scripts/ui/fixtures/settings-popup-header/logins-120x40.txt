@@ -27,7 +27,7 @@ VITALS                  │ │ ❯ Anthropic — Claude subscription or Console
                         │ │   Together AI — API key                                                                  │ │
                         │ │   Cohere — API key                                                                       │ │
                         │ │   Groq — API key                                                                         │ │
-                        │ │   Cerebras — API key                                                                   ↓ │ │
+                        │ │   Melious AI — API key                                                                 ↓ │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ move · pgup/pgdn page · ↵ select · esc back · click outside closes                    │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

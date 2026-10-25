@@ -122,6 +122,7 @@ type CompatLaneId =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -154,6 +155,7 @@ export interface CompatLaneProfile {
   usageForSettlement?(usage: CompatUsage): CompatUsage
   policyFaultNote?(fault: CompatFault, extra: Record<string, unknown> | undefined): string | undefined
   leadingNotes?: readonly string[]
+  partialFaultPolicy?: 'stop'
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
   credentialHint: string
@@ -288,8 +290,9 @@ function vendorWordClass(code: string): TypedError | undefined {
 }
 
 export function compatFaultToTypedError(
-  fault: Pick<CompatFault, 'code'> & { kind: string; status?: number },
+  fault: Pick<CompatFault, 'code' | 'classification'> & { kind: string; status?: number },
 ): TypedError {
+  if (fault.classification !== undefined) return fault.classification
   const { kind, code, status } = fault
   const word = vendorWordClass(code)
   if (word === 'authentication_failed' || word === 'billing_error' || word === 'rate_limit') {
@@ -1389,6 +1392,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
+  if (fault && profile.partialFaultPolicy === 'stop') return { kind: 'fault', fault, retryEligible: false }
   if (fault && (retryTemporary || retryStream)) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(

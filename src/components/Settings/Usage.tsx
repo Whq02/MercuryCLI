@@ -421,6 +421,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
     limitsNote: 'A trial key is rate-limited for evaluation; a production key bills pay-as-you-go, with spend shown at dashboard.cohere.com — no polled meter exists here.',
   },
   groq: { title: 'Groq usage', connect: '/logins groq adds an API key (GROQ_API_KEY works too)', limitsNote: 'Rate limits are read from response headers; account spend is shown at console.groq.com/dashboard/usage.' },
+  melious: { title: 'Melious AI usage', connect: '/logins melious adds an API key (MELIOUS_API_KEY works too)', limitsNote: 'Melious AI bills in EUR; melious.ai/account/usage shows account spend.' },
   cerebras: { title: 'Cerebras usage', connect: '/logins cerebras adds an API key (CEREBRAS_API_KEY works too)', limitsNote: 'The session ledger counts tokens and spend; the cloud console shows account limits and credits.' },
   fireworks: { title: 'Fireworks usage', connect: '/logins fireworks adds an API key (FIREWORKS_API_KEY works too)', limitsNote: 'The session ledger counts spend and response headers state TPM limits; app.fireworks.ai/account/billing shows account credits.' },
   qwen: { title: 'Qwen usage', connect: '/logins qwen adds a QwenCloud or Model Studio API key (DASHSCOPE_API_KEY works too)', limitsNote: 'Neither QwenCloud nor Model Studio states a usage, balance or quota endpoint an API key can read; the session ledger counts this key\'s tokens and spend, and the QwenCloud or Model Studio console shows the account.' },

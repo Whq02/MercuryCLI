@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -350,6 +350,15 @@ function groqFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     return { family: 'groq', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedGroqCatalogue(env)) : { kind: 'no-credential' } }
   })
 }
+function meliousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => []
+  return guarded('melious', name, typed, () => {
+    const { resolveMeliousAccount } = require('./melious/meliousAccounts.js') as typeof import('./melious/meliousAccounts.js')
+    const { getCachedMeliousCatalogue } = require('./melious/meliousCatalogue.js') as typeof import('./melious/meliousCatalogue.js')
+    const account = resolveMeliousAccount(env)
+    return { family: 'melious', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMeliousCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
 function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const typed = (): string[] => (require('./cerebras/cerebrasPins.js') as typeof import('./cerebras/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
   return guarded('cerebras', name, typed, () => {
@@ -398,6 +407,7 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     togetherFact(name('together'), env),
     cohereFact(name('cohere'), env),
     groqFact(name('groq'), env),
+    meliousFact(name('melious'), env),
     cerebrasFact(name('cerebras'), env),
     fireworksFact(name('fireworks'), env),
     qwenFact(name('qwen'), env),

@@ -565,6 +565,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     signIn: 'Add a Cohere API key via /logins cohere, or export COHERE_API_KEY',
   },
   groq: { label: 'Groq', signIn: 'Add a Groq API key via /logins groq, or export GROQ_API_KEY' },
+  melious: { label: 'Melious AI', signIn: 'Add a Melious AI API key via /logins melious, or export MELIOUS_API_KEY' },
   cerebras: { label: 'Cerebras', signIn: 'Add a Cerebras API key via /logins cerebras, or export CEREBRAS_API_KEY' },
   fireworks: { label: 'Fireworks', signIn: 'Add a Fireworks API key via /logins fireworks, or export FIREWORKS_API_KEY' },
   qwen: { label: 'Qwen', signIn: 'Add a QwenCloud or Model Studio API key via /logins qwen, or export DASHSCOPE_API_KEY' },

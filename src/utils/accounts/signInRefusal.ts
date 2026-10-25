@@ -42,6 +42,7 @@ function currentCredential(family: string): Credential | undefined {
       case 'together': return keyCredential(require('../../services/providers/together/togetherAccounts.js').resolveTogetherApiKey())
       case 'cohere': return keyCredential(require('../../services/providers/cohere/cohereAccounts.js').resolveCohereApiKey())
       case 'groq': return keyCredential(require('../../services/providers/groq/groqAccounts.js').resolveGroqApiKey())
+      case 'melious': return keyCredential(require('../../services/providers/melious/meliousAccounts.js').resolveMeliousApiKey())
       case 'cerebras': return keyCredential(require('../../services/providers/cerebras/cerebrasAccounts.js').resolveCerebrasApiKey())
       case 'fireworks': return keyCredential(require('../../services/providers/fireworks/fireworksAccounts.js').resolveFireworksApiKey())
       case 'qwen': return keyCredential(require('../../services/providers/qwen/qwenAccounts.js').resolveQwenCredentialSnapshot())

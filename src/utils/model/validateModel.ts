@@ -33,6 +33,7 @@ async function validateNonAnthropicModel(
     | 'together'
     | 'cohere'
     | 'groq'
+    | 'melious'
     | 'cerebras'
     | 'fireworks'
     | 'qwen',
@@ -313,6 +314,17 @@ async function validateNonAnthropicModel(
     const snapshot = getCachedGroqCatalogue()
     if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins groq replaces the key.' }
     if (snapshot?.models.length ? !groqListedModel(snapshot, wire) : !groqDisplayPin(wire)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Groq text catalogue.' }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'melious') {
+    const { resolveMeliousAccount } = await import('../../services/providers/melious/meliousAccounts.js')
+    if (!resolveMeliousAccount()) return { valid: false, error: 'Melious is unavailable — no API key (/logins melious, or set MELIOUS_API_KEY).' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('melious')
+    const { getCachedMeliousCatalogue, meliousListedModel } = await import('../../services/providers/melious/meliousCatalogue.js')
+    const snapshot = getCachedMeliousCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: snapshot.lastError + ' — /logins melious replaces the key.' }
+    if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.lastError && !meliousListedModel(trimmed)) return { valid: false, error: 'Model "' + trimmed + '" is not listed by the available Melious AI chat catalogue.' }
     return { valid: true, skipCache: true }
   }
   if (route === 'cerebras') {

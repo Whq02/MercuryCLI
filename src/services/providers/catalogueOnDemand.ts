@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -106,6 +106,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('groq').allowed) return false
         if (!force && !nothingUsable(getCachedGroqCatalogue())) return false
         await bounded(refreshGroqCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'melious': {
+        const { getCachedMeliousCatalogue, refreshMeliousCatalogue } = await import('./melious/meliousCatalogue.js')
+        if (!catalogueTrafficVerdict('melious').allowed) return false
+        if (!force && !nothingUsable(getCachedMeliousCatalogue())) return false
+        await bounded(refreshMeliousCatalogue({ force }), boundMs)
         return true
       }
       case 'cerebras': {

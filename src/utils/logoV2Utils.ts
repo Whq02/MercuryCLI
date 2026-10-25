@@ -70,6 +70,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'together') return 'Together AI prepaid balance billing'
       if (route === 'cohere') return 'Cohere pay-as-you-go billing'
       if (route === 'groq') return 'Groq API billing'
+      if (route === 'melious') return 'Melious AI API billing'
       if (route === 'cerebras') return 'Cerebras API billing'
       if (route === 'fireworks') return 'Fireworks API billing'
       if (route === 'qwen') return 'QwenCloud or Model Studio pay-as-you-go or plan billing'

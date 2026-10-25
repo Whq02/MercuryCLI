@@ -22,6 +22,7 @@
 # gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/**
 # gate-watch: scripts/providers/lib/openweights-fixture.ts src/services/providers/minimax/** src/services/providers/together/** src/services/providers/cohere/**
 # gate-watch: src/services/providers/qwen/**
+# gate-watch: src/services/providers/melious/** scripts/providers/fixtures/melious-documented-2026-10-24.json
 # gate-watch: src/services/api/client.ts src/services/api/sdkErrors.ts scripts/provider-compat/anthropicRoadCapture.ts scripts/provider-compat/anthropicTransportChecks.ts scripts/provider-compat/fixtures/**
 # gate-watch: scripts/compact/overflowFixture.ts src/services/api/outputFit.ts src/query/transitions.ts
 # gate-watch: src/services/providers/cacheFieldRetry.ts src/utils/config.ts src/utils/systemPromptType.ts src/Tool.ts assets/host/recipes.json

@@ -260,6 +260,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   together: model => recorded(engineTier(togetherDisplayPin(model))),
   cohere: model => recorded(engineTier(cohereDisplayPin(model))),
   groq: model => recorded(engineTier(groqDisplayPin(model))),
+  melious: () => undefined,
   cerebras: model => recorded(engineTier(cerebrasDisplayPin(model))),
   fireworks: model => recorded(engineTier(fireworksDisplayPin(model))),
   qwen: model => recorded(engineTier(qwenDisplayPin(model))),
@@ -335,6 +336,7 @@ export function formatModelPricing(costs: ModelCosts): string {
 }
 
 export function getModelPricingString(model: string): string | undefined {
+  if (declaredRouteOf(model) === 'melious') return (require('../services/providers/melious/meliousCatalogue.js') as typeof import('../services/providers/melious/meliousCatalogue.js')).meliousPricingString(model)
   const resolved = resolveModelPricing(model)
   return resolved.basis === 'recorded' || resolved.basis === 'floor' ? formatModelPricing(resolved.costs) : undefined
 }

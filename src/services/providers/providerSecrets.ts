@@ -33,6 +33,7 @@ interface ProviderSecretsFile {
   togetherApiKey?: string
   cohereApiKey?: string
   groqApiKey?: string
+  meliousApiKey?: string
   cerebrasApiKey?: string
   fireworksApiKey?: string
   qwenApiKey?: string
@@ -188,6 +189,7 @@ type StoredKeyField =
   | 'localApiKey'
   | 'zenApiKey'
   | 'groqApiKey'
+  | 'meliousApiKey'
   | 'cerebrasApiKey'
   | 'fireworksApiKey'
   | 'qwenApiKey'
@@ -230,6 +232,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   togetherApiKey: 'together',
   cohereApiKey: 'cohere',
   groqApiKey: 'groq',
+  meliousApiKey: 'melious',
   cerebrasApiKey: 'cerebras',
   fireworksApiKey: 'fireworks',
   qwenApiKey: 'qwen',
@@ -372,6 +375,12 @@ export function readStoredGroqApiKey(): string | undefined {
 }
 export function writeStoredGroqApiKey(key: string | null): void {
   writeStoredKey('groqApiKey', key)
+}
+export function readStoredMeliousApiKey(): string | undefined {
+  return readStoredKey('meliousApiKey')
+}
+export function writeStoredMeliousApiKey(key: string | null): void {
+  writeStoredKey('meliousApiKey', key)
 }
 export function readStoredCerebrasApiKey(): string | undefined {
   return readStoredKey('cerebrasApiKey')
@@ -520,6 +529,7 @@ export function credentialEnvNames(): readonly string[] {
     'COHERE_API_KEY',
     'CO_API_KEY',
     'GROQ_API_KEY',
+    'MELIOUS_API_KEY',
     'CEREBRAS_API_KEY',
     'FIREWORKS_API_KEY',
     'DASHSCOPE_API_KEY',

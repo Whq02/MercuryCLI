@@ -62,7 +62,7 @@ export interface KnownModelsReference {
   providers: KnownProviderPage[]
 }
 
-const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'] as const
+const SIGN_IN_FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'gemini', 'openrouter', 'huggingface', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
 
 function windowWords(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toString().replace(/\.0$/, '')}M window`
@@ -105,6 +105,13 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
       if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
       if (source.kind === 'pins') return { kind: 'static', words: groqCatalogueSourceWords(env)! }
       const error = getCachedGroqCatalogue(env)?.lastError
+      return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
+    }
+    case 'melious': {
+      const { meliousCatalogueRows, getCachedMeliousCatalogue } = await import('../../providers/melious/meliousCatalogue.js')
+      const { source } = meliousCatalogueRows(env)
+      if (source.kind === 'live') return { kind: 'live', count: source.count, readAt: stamp(source.fetchedAtMs) }
+      const error = getCachedMeliousCatalogue(env)?.lastError
       return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
     }
     case 'cerebras': {

@@ -19,6 +19,7 @@ export type LoginFamilyValue =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -60,6 +61,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Together AI — API key', value: 'together' as const },
           { label: 'Cohere — API key', value: 'cohere' as const },
           { label: 'Groq — API key', value: 'groq' as const },
+          { label: 'Melious AI — API key', value: 'melious' as const },
           { label: 'Cerebras — API key', value: 'cerebras' as const },
           { label: 'Fireworks — API key', value: 'fireworks' as const },
           { label: 'Qwen — QwenCloud or Model Studio API key', value: 'qwen' as const },
@@ -111,6 +113,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   together: 'api.together.ai/settings',
   cohere: 'dashboard.cohere.com/api-keys',
   groq: 'console.groq.com/keys',
+  melious: 'melious.ai/account/api/keys',
   cerebras: 'cloud.cerebras.ai',
   fireworks: 'app.fireworks.ai/api-keys',
   qwen: 'modelstudio.alibabacloud.com',
@@ -147,6 +150,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'together':
     case 'cohere':
     case 'groq':
+    case 'melious':
     case 'cerebras':
     case 'fireworks':
     case 'qwen':

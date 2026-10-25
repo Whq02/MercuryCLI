@@ -110,6 +110,12 @@ export interface GroqDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface MeliousDiscovery {
+  provider: 'melious'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CerebrasDiscovery {
   provider: 'cerebras'
   probedAtMs: number
@@ -176,6 +182,7 @@ export type ProviderDiscovery =
   | TogetherDiscovery
   | CohereDiscovery
   | GroqDiscovery
+  | MeliousDiscovery
   | CerebrasDiscovery
   | FireworksDiscovery
   | QwenDiscovery
@@ -352,6 +359,11 @@ function probeGroq(io: DiscoveryIo): GroqDiscovery {
   const { resolveGroqApiKey } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
   const key = resolveGroqApiKey(io.env as NodeJS.ProcessEnv)
   return { provider: 'groq', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+function probeMelious(io: DiscoveryIo): MeliousDiscovery {
+  const { resolveMeliousApiKey } = require('./melious/meliousAccounts.js') as typeof import('./melious/meliousAccounts.js')
+  const key = resolveMeliousApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'melious', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 function probeCerebras(io: DiscoveryIo): CerebrasDiscovery {
   const { resolveCerebrasApiKey } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
@@ -537,6 +549,8 @@ export function refreshProviderDiscovery(
                                         ? probeCohere(io)
                                         : id === 'groq'
                                           ? probeGroq(io)
+                                        : id === 'melious'
+                                          ? probeMelious(io)
                                           : id === 'cerebras'
                                             ? probeCerebras(io)
                                             : id === 'fireworks'

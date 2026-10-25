@@ -25,6 +25,7 @@ import { minimaxCallModel } from './minimax/minimaxCallModel.js'
 import { togetherCallModel } from './together/togetherCallModel.js'
 import { cohereCallModel } from './cohere/cohereCallModel.js'
 import { groqCallModel } from './groq/groqCallModel.js'
+import { meliousCallModel } from './melious/meliousCallModel.js'
 import { cerebrasCallModel } from './cerebras/cerebrasCallModel.js'
 import { fireworksCallModel } from './fireworks/fireworksCallModel.js'
 import { qwenCallModel } from './qwen/qwenCallModel.js'
@@ -179,6 +180,9 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       return
     case 'groq':
       yield* groqCallModel(request)
+      return
+    case 'melious':
+      yield* meliousCallModel(request)
       return
     case 'cerebras':
       yield* cerebrasCallModel(request)

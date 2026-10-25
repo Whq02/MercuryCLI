@@ -28,7 +28,9 @@ import { cohereCatalogueEntries, cohereCatalogueEntry } from '../../services/pro
 import { isTogetherModelId } from '../../services/providers/together/togetherPins.js'
 import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { isGroqModelId } from '../../services/providers/groq/groqPins.js'
+import { isMeliousModelId } from '../../services/providers/melious/meliousCatalogue.js'
 import { groqCatalogueEntries, groqCatalogueEntry } from '../../services/providers/groq/groqAdapter.js'
+import { meliousCatalogueEntries, meliousCatalogueEntry } from '../../services/providers/melious/meliousAdapter.js'
 import { isCerebrasModelId } from '../../services/providers/cerebras/cerebrasPins.js'
 import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../services/providers/cerebras/cerebrasAdapter.js'
 import { isFireworksModelId } from '../../services/providers/fireworks/fireworksPins.js'
@@ -60,7 +62,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -100,6 +102,7 @@ export function isExactEngineModelId(v: unknown): v is string {
     isZenModelId(v) ||
     isTogetherModelId(v) ||
     isGroqModelId(v) ||
+    isMeliousModelId(v) ||
     isCerebrasModelId(v) ||
     isFireworksModelId(v) ||
     isGoogleRosterModelId(v)
@@ -167,6 +170,7 @@ type EngineProvider =
   | 'together'
   | 'cohere'
   | 'groq'
+  | 'melious'
   | 'cerebras'
   | 'fireworks'
   | 'qwen'
@@ -195,6 +199,7 @@ const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
   together: '/logins together',
   cohere: '/logins cohere',
   groq: '/logins groq',
+  melious: '/logins melious',
   cerebras: '/logins cerebras',
   fireworks: '/logins fireworks',
   qwen: '/logins qwen',
@@ -401,6 +406,14 @@ async function resolveGroqClassDispatch(): Promise<EngineDispatch> {
   if (!head) throw new Error("The Groq text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
   return { backend: 'groq', model: head.id, displayLabel: head.displayLabel }
 }
+async function resolveMeliousClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'melious') return { backend: 'melious', model: main, displayLabel: meliousCatalogueEntry(main)?.displayLabel ?? main }
+  if (!meliousCatalogueEntries().length) await readCatalogueIfPending('melious')
+  const head = meliousCatalogueEntries()[0]
+  if (!head) throw new Error("The Melious text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'melious', model: head.id, displayLabel: head.displayLabel }
+}
 async function resolveCerebrasClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'cerebras') return { backend: 'cerebras', model: main, displayLabel: cerebrasCatalogueEntry(main)?.displayLabel ?? main }
@@ -558,6 +571,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('groq')
       return resolveGroqClassDispatch()
     }
+    if (modelParam === 'melious') {
+      await requireProviderAvailable('melious')
+      return resolveMeliousClassDispatch()
+    }
     if (modelParam === 'cerebras') {
       await requireProviderAvailable('cerebras')
       return resolveCerebrasClassDispatch()
@@ -657,6 +674,13 @@ export async function resolveEngineDispatch(
       const row = groqCatalogueEntry(id)
       if (!row) throw new Error(`Groq model '${id}' is not on the available text list (${groqCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
       return { backend: 'groq', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isMeliousModelId(id)) {
+      await requireProviderAvailable('melious')
+      if (!meliousCatalogueEntry(id)) await readCatalogueIfPending('melious')
+      const row = meliousCatalogueEntry(id)
+      if (!row) throw new Error(`Melious model '${id}' is not on the available text list (${meliousCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'melious', model: row.id, displayLabel: row.displayLabel }
     }
     if (isCerebrasModelId(id)) {
       await requireProviderAvailable('cerebras')

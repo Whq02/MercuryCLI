@@ -966,6 +966,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'together-chat') return 'add a Together AI API key via /logins together (or set TOGETHER_API_KEY)'
   if (backendId === 'cohere-chat') return 'add a Cohere API key via /logins cohere (or set COHERE_API_KEY)'
   if (backendId === 'groq-chat') return 'add a Groq API key via /logins groq (or set GROQ_API_KEY)'
+  if (backendId === 'melious-chat') return 'add a Melious AI API key via /logins melious (or set MELIOUS_API_KEY)'
   if (backendId === 'cerebras-chat') return 'add a Cerebras API key via /logins cerebras (or set CEREBRAS_API_KEY)'
   if (backendId === 'fireworks-chat') return 'add a Fireworks API key via /logins fireworks (or set FIREWORKS_API_KEY)'
   if (backendId === 'qwen-chat') return 'add a QwenCloud or Model Studio API key via /logins qwen (or set DASHSCOPE_API_KEY)'
@@ -991,6 +992,7 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'together/probe/probe',
   'cohere',
   'groq/probe',
+  'melious/probe',
   'cerebras/probe',
   'fireworks/probe',
   'qwen',

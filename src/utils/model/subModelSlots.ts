@@ -159,6 +159,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins cohere', note: 'connect — /logins (API key)' }
     case 'groq':
       return { command: '/logins groq', note: 'connect — /logins (API key)' }
+    case 'melious':
+      return { command: '/logins melious', note: 'connect — /logins (API key)' }
     case 'cerebras':
       return { command: '/logins cerebras', note: 'connect — /logins (API key)' }
     case 'fireworks':

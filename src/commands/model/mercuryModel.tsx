@@ -26,7 +26,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, CEREBRAS_MODEL_GROUP, FIREWORKS_MODEL_GROUP, QWEN_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, MINIMAX_MODEL_GROUP, TOGETHER_MODEL_GROUP, COHERE_MODEL_GROUP, GROQ_MODEL_GROUP, MELIOUS_MODEL_GROUP, CEREBRAS_MODEL_GROUP, FIREWORKS_MODEL_GROUP, QWEN_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -118,7 +118,9 @@ import { resolveTogetherApiKey, togetherApiBase } from '../../services/providers
 import { getCachedCohereCatalogue, refreshCohereCatalogue, type CohereCatalogueSnapshot } from '../../services/providers/cohere/cohereCatalogue.js'
 import { cohereApiBase, resolveCohereApiKey } from '../../services/providers/cohere/cohereAccounts.js'
 import { getCachedGroqCatalogue, refreshGroqCatalogue, type GroqCatalogueSnapshot } from '../../services/providers/groq/groqCatalogue.js'
+import { getCachedMeliousCatalogue, refreshMeliousCatalogue, type MeliousCatalogueSnapshot } from '../../services/providers/melious/meliousCatalogue.js'
 import { groqApiBase, resolveGroqApiKey } from '../../services/providers/groq/groqAccounts.js'
+import { meliousApiBase, resolveMeliousApiKey } from '../../services/providers/melious/meliousAccounts.js'
 import { getCachedCerebrasCatalogue, refreshCerebrasCatalogue, type CerebrasCatalogueSnapshot } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import { cerebrasApiBase, resolveCerebrasApiKey } from '../../services/providers/cerebras/cerebrasAccounts.js'
 import { getCachedFireworksCatalogue, refreshFireworksCatalogue, type FireworksCatalogueSnapshot } from '../../services/providers/fireworks/fireworksCatalogue.js'
@@ -447,6 +449,18 @@ const GROQ_ROAD: CatalogueRoad<GroqCatalogueSnapshot> = {
   failed: snapshot => snapshot.lastError !== undefined,
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
+const MELIOUS_ROAD: CatalogueRoad<MeliousCatalogueSnapshot> = {
+  family: 'Melious AI',
+  identity: () => {
+    const key = resolveMeliousApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${meliousApiBase()}` : undefined
+  },
+  cached: () => getCachedMeliousCatalogue(),
+  refresh: () => refreshMeliousCatalogue({ force: true }),
+  populated: snapshot => snapshot.fetchedAtMs > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
 const CEREBRAS_ROAD: CatalogueRoad<CerebrasCatalogueSnapshot> = {
   family: 'Cerebras',
   identity: () => {
@@ -630,6 +644,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [TOGETHER_MODEL_GROUP]: 'together',
   [COHERE_MODEL_GROUP]: 'cohere',
   [GROQ_MODEL_GROUP]: 'groq',
+  [MELIOUS_MODEL_GROUP]: 'melious',
   [CEREBRAS_MODEL_GROUP]: 'cerebras',
   [FIREWORKS_MODEL_GROUP]: 'fireworks',
   [QWEN_MODEL_GROUP]: 'qwen',
@@ -712,7 +727,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'cerebras' | 'fireworks' | 'qwen'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -749,6 +764,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [TOGETHER_MODEL_GROUP]: keyLaneHeading('together'),
     [COHERE_MODEL_GROUP]: keyLaneHeading('cohere'),
     [GROQ_MODEL_GROUP]: keyLaneHeading('groq'),
+    [MELIOUS_MODEL_GROUP]: keyLaneHeading('melious'),
     [CEREBRAS_MODEL_GROUP]: keyLaneHeading('cerebras'),
     [FIREWORKS_MODEL_GROUP]: keyLaneHeading('fireworks'),
     [QWEN_MODEL_GROUP]: keyLaneHeading('qwen'),
@@ -953,6 +969,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
@@ -1172,7 +1189,7 @@ function MercuryModelWrapper({
           })()
           return
         }
-        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
+        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', melious: 'Melious AI', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
         onDone(
           `${keyLaneLabels[keyLane as keyof typeof keyLaneLabels] ?? keyLane} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
@@ -1349,6 +1366,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
@@ -1454,6 +1472,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
@@ -1548,6 +1567,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)

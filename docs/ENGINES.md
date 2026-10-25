@@ -38,6 +38,7 @@ arm.
 | `together` | `together/<org>/<model>` (qualified; stripped because Together's ids are org/model slugs, so the namespace tells a Together row from a native family's) | Together AI |
 | `cohere` | `command-*`, `north-*`, `c4ai-aya-*`, alias `cohere` (the embed, rerank and classify ids refuse here) | Cohere |
 | `groq` | `groq/<model-id>` (qualified; text models only) | Groq |
+| `melious` | `melious/<model-id>[:speed\|:price\|:eco]` (qualified; chat models) | Melious AI |
 | `cerebras` | `cerebras/<model-id>` (qualified; text models only) | Cerebras |
 | `fireworks` | `fireworks/<model-id>` (qualified; text models only) | Fireworks |
 | `qwen` | `qwen-*`, `qwen3*`, `qwen2*`, `qwq-*`, `qvq-*`, alias `qwen` (QwenCloud and Alibaba Cloud Model Studio's own Qwen text models; the speech, image, video, embedding and rerank ids refuse here) | Qwen |
@@ -427,6 +428,20 @@ Sources read **2026-10-18**: [API reference](https://console.groq.com/docs/api-r
 [rate limits](https://console.groq.com/docs/rate-limits) and
 [spend limits](https://console.groq.com/docs/spend-limits).
 
+Melious AI connects through `/logins melious` or `MELIOUS_API_KEY`, with keys
+from [melious.ai/account/api/keys](https://melious.ai/account/api/keys).
+Give the key `inference.models` and `inference.chat` scopes. `/model` lists
+the account's chat models as `melious/<model-id>`, including `:speed`,
+`:price` and `:eco` routing variants. Text, reasoning, tool calls and token
+usage stream through [Chat Completions](https://melious.ai/docs/reference/chat-completions).
+Reasoning effort, including max, is sent to Melious unchanged. The provider
+serves open-weight models on European infrastructure.
+
+[Catalogue prices](https://melious.ai/docs/reference/models) are the lowest
+available input and output rates in EUR. `/usage` shows token counts, request
+limits and the last request's EUR cost and payment source. Account spend
+is at [melious.ai/account/usage](https://melious.ai/account/usage).
+
 Cerebras connects through `/logins cerebras` or `CEREBRAS_API_KEY`, with
 keys from [cloud.cerebras.ai](https://cloud.cerebras.ai). Its live text
 models use qualified ids such as `cerebras/gpt-oss-120b`; dated pins are
@@ -581,7 +596,7 @@ Three wire families serve the providers:
   `thought_signature` parts across tool rounds on every Gemini credential).
 - **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
   models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
-  MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI, Qwen,
+  MiniMax, Together AI, Cohere, Groq, Melious AI, Cerebras, Fireworks AI, Qwen,
   custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
@@ -995,7 +1010,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   inference key, and its own `/accounts` row removes only that
   key while keeping the inference key. A management key alone cannot run Grok;
 - **meta**: a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
-- **zai, deepseek, zen, local, compat, minimax, together, cohere, groq, cerebras, fireworks, qwen**: env pins and stored keys.
+- **zai, deepseek, zen, local, compat, minimax, together, cohere, groq, melious, cerebras, fireworks, qwen**: env pins and stored keys.
 - **huggingface**: `/logins huggingface` signs in by device code or takes a stored Hub
   token (`HF_TOKEN` takes precedence). Sign-in requests `openid profile inference-api
   write-endpoints`: identity, Inference Providers calls and Inference Endpoints
