@@ -12,8 +12,8 @@ A request such as “fix encrypted reasoning replay on Mercury's OpenRouter road
 ## Resolve the road
 
 - Start at `src/services/providers/callModelRouter.ts`; classification lives in `src/services/providers/idSpaces.ts` and `src/services/providers/routeLaw.ts`. Follow the resolved verdict to its call-model entry, never guess a provider from the displayed label.
-- Qualified `compat/`, `openrouter/`, `huggingface/` and `local/` namespaces win before bare prefixes. `canonicalWireModelId` validates the inner grammar and removes Mercury's carrier prefix and context annotation, not the provider's own slug.
-- Bare `gpt-` routes to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `grok-` to xAI; `muse-` to Meta; `glm-` to Z.AI; `gemini-` to Gemini. Read the current declarations for aliases and live-list admission.
+- Qualified `compat/`, `openrouter/`, `orcarouter/`, `huggingface/`, `local/`, `google/` (non-Gemini roster rows on a Google sign-in), `nous/`, `zen/`, `together/`, `groq/`, `melious/`, `cerebras/` and `fireworks/` namespaces win before bare prefixes. `canonicalWireModelId` validates the inner grammar and removes Mercury's carrier prefix and context annotation, not the provider's own slug; `src/services/providers/fireworks/fireworksPins.ts` expands bare `fireworks/<slug>` shorthand to `accounts/fireworks/models/<slug>` (or `accounts/fireworks/routers/<slug>`).
+- Bare `gpt-` routes to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `grok-` to xAI; `muse-` (and alias `muse`) to Meta; `glm-` to Z.AI; `gemini-` to Gemini; `mistral-`/`ministral-`/`codestral-` to Mistral; `minimax-` to MiniMax; `command-`/`north-`/`c4ai-aya-` to Cohere; `qwen-`/`qwen3`/`qwen2`/`qwq-`/`qvq-` to Qwen. Read `src/services/providers/idSpaces.ts` for family aliases, non-chat exclusions and `LIVE_LIST_FAMILIES` admission.
 - An unknown ID is not an Anthropic identity. `src/services/providers/homeLaneAdmission.ts` owns an explicitly configured gateway or model pin's admission. A failed route never falls through to another provider.
 - Keep the endpoint and credential together across refresh. An API key and a subscription sign-in can use different transports, not merely different headers. Read `references/models.md` before naming an ID, capability, price or limit.
 
@@ -23,10 +23,10 @@ All paths below are checkout paths, not paths under this skill's extracted base 
 
 | Road | Start here | Detail |
 |---|---|---|
-| Anthropic Messages | `src/services/providers/anthropic/streamCore.ts`, `requestParams.ts`, `cacheAndUsage.ts` in the same directory | `references/anthropic-messages.md` |
+| Anthropic Messages | `src/services/providers/anthropic/streamCore.ts`, `requestParams.ts`, `cacheAndUsage.ts`, `anthropicClient.ts` in the same directory | `references/anthropic-messages.md` |
 | OpenAI Responses | `src/services/providers/openai/openaiCallModel.ts`, `openaiClient.ts`, `openaiWire.ts`, `responsesBridge.ts` in the same directory | `references/openai-responses.md` |
-| OpenRouter Responses and routing preferences | `src/services/providers/openrouter/openrouterResponsesTransport.ts`, `openrouterRoutingPolicy.ts` in the same directory | `references/openai-responses.md` |
-| Shared chat runtime and native variants | `src/services/providers/openaicompat/compatChatCallModel.ts`, `compatChatClient.ts`, `compatWire.ts` in the same directory | `references/chat-completions.md` |
+| OpenRouter, xAI subscription, OpenCode Zen and `compat/` Responses | `src/services/providers/openrouter/openrouterResponsesTransport.ts`, `src/services/providers/openrouter/openrouterRoutingPolicy.ts`, `src/services/providers/xai/xaiResponsesTransport.ts`, `src/services/providers/zen/zenResponsesTransport.ts`, `src/services/providers/openaicompat/compatResponsesTransport.ts` | `references/openai-responses.md` |
+| Shared chat runtime, native variants (`zai/`, `gemini/`), rented and local engines | `src/services/providers/openaicompat/compatChatCallModel.ts`, `compatChatClient.ts`, `compatWire.ts`, `compatProbe.ts` in the same directory; `src/services/providers/local/localCallModel.ts`; `src/services/host/vendors/client.ts` | `references/chat-completions.md` |
 | Usage and billing | `src/services/providers/providerUsage.ts`; each family's reader is listed in the references | Never turn a reading into admission policy |
 
 ## Keep Mercury's laws
