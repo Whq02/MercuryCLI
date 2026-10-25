@@ -114,3 +114,4 @@ prove-trust-path-label.ts
 prove-task-transcript-settle.tsx
 prove-memory-toggle-receipt.tsx
 prove-workflow-liveness-refresh.tsx
+prove-sessions-command-routing.ts
