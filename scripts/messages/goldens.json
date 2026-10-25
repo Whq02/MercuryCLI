@@ -10,7 +10,7 @@
  "AUTO_REJECT_MESSAGE/value": "«fn/1»",
  "DONT_ASK_REJECT_MESSAGE/value": "«fn/1»",
  "NO_RESPONSE_REQUESTED/value": "No response requested.",
- "SYNTHETIC_TOOL_RESULT_PLACEHOLDER/value": "[Tool result missing due to internal error]",
+ "SYNTHETIC_TOOL_RESULT_PLACEHOLDER/value": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
  "SYNTHETIC_MODEL/value": "<synthetic>",
  "SYNTHETIC_MESSAGES/value": {
   "«set»": [
@@ -14539,7 +14539,7 @@
    "message": {
     "content": [
      {
-      "content": "[Tool result missing due to internal error]",
+      "content": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
       "is_error": true,
       "tool_use_id": "toolu_0002",
       "type": "tool_result"
@@ -14664,7 +14664,7 @@
    "message": {
     "content": [
      {
-      "content": "[Tool result missing due to internal error]",
+      "content": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
       "is_error": true,
       "tool_use_id": "toolu_0003",
       "type": "tool_result"
@@ -15389,7 +15389,7 @@
    "message": {
     "content": [
      {
-      "content": "[Tool result missing due to internal error]",
+      "content": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
       "is_error": true,
       "tool_use_id": "toolu_0002",
       "type": "tool_result"
@@ -16143,7 +16143,7 @@
    "message": {
     "content": [
      {
-      "content": "[Tool result missing due to internal error]",
+      "content": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
       "is_error": true,
       "tool_use_id": "toolu_0003",
       "type": "tool_result"
@@ -17545,7 +17545,7 @@
    "message": {
     "content": [
      {
-      "content": "[Tool result missing due to internal error]",
+      "content": "No result was recorded for this tool call. It is unknown whether it started or completed. Retry only if it is read-only or idempotent; if it may have side effects, first verify external state or ask the user. Do not retry blindly.",
       "is_error": true,
       "tool_use_id": "toolu_0003",
       "type": "tool_result"
