@@ -27,8 +27,8 @@ const HUNK_CACHE_LIMIT = 4
 function gutterWidthOf(patch: StructuredPatchHunk): number {
   const maxLine = Math.max(
     1,
-    patch.oldStart + patch.oldLines,
-    patch.newStart + patch.newLines,
+    patch.oldStart + patch.oldLines - 1,
+    patch.newStart + patch.newLines - 1,
   )
   return String(maxLine).length + 3
 }

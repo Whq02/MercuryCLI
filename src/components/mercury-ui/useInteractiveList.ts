@@ -172,6 +172,7 @@ export function useInteractiveList<Row>({
         runPrimary(liveRow)
         return
       }
+      if (key.ctrl || key.meta || key.super) return
       for (const a of actions) {
         if (
           (a.key === 'backspace' && (key.backspace || key.delete)) ||

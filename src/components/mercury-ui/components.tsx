@@ -114,7 +114,7 @@ export function CommandCenter({
   const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)
   useInput(
     (_i, key) => {
-      if (key.escape || key.leftArrow) {
+      if (key.escape || (key.leftArrow && closeKeys === 'esc-arrow')) {
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
         onClose()
       }

@@ -50,7 +50,7 @@ export function hunkPatchText(path: string, hunk: StructuredPatchHunk): string {
     [
       `--- a/${path}`,
       `+++ b/${path}`,
-      `@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`,
+      `@@ -${hunk.oldStart - (hunk.oldLines === 0 ? 1 : 0)},${hunk.oldLines} +${hunk.newStart - (hunk.newLines === 0 ? 1 : 0)},${hunk.newLines} @@`,
       ...hunk.lines,
     ].join('\n') + '\n'
   )

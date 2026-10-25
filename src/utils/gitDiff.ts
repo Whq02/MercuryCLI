@@ -119,11 +119,13 @@ function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]> {
       const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line)
       if (hunkHeader) {
         if (open) hunks.push(open)
+        const oldLines = hunkHeader[2] === undefined ? 1 : Number(hunkHeader[2])
+        const newLines = hunkHeader[4] === undefined ? 1 : Number(hunkHeader[4])
         open = {
-          oldStart: Number(hunkHeader[1]),
-          oldLines: hunkHeader[2] === undefined ? 1 : Number(hunkHeader[2]),
-          newStart: Number(hunkHeader[3]),
-          newLines: hunkHeader[4] === undefined ? 1 : Number(hunkHeader[4]),
+          oldStart: Number(hunkHeader[1]) + (oldLines === 0 ? 1 : 0),
+          oldLines,
+          newStart: Number(hunkHeader[3]) + (newLines === 0 ? 1 : 0),
+          newLines,
           lines: [],
         }
         continue

@@ -22,8 +22,6 @@ export function Crab(): React.ReactNode {
   )
 }
 
-const CrabMark = Crab
-
 export function SessionMark(): React.ReactNode {
   const sa = useSessionAccent()
   const { mark } = critterDefForKey(sa.key)

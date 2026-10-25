@@ -127,8 +127,8 @@ async function main(): Promise<void> {
     await settle()
     return {
       frame: (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
-      async key(name: string): Promise<void> {
-        const event = new ink.InputEvent({ name, sequence: name, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
+      async key(name: string, modifiers: { ctrl?: boolean; meta?: boolean; super?: boolean } = {}): Promise<void> {
+        const event = new ink.InputEvent({ name, sequence: name, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false, ...modifiers } as never)
         emitter.emit('input', event)
         await settle()
       },
@@ -207,11 +207,23 @@ async function main(): Promise<void> {
     slot._resetFocusedSessionConnectorForTesting()
   }
 
+  {
+    const seat = seatFixture(running())
+    slot.setFocusedSessionConnector(seat as never)
+    const board = await mount(178, 51)
+    for (const modifier of ['ctrl', 'meta', 'super'] as const) {
+      await board.key('p', { [modifier]: true })
+      check(`${modifier}+p never toggles the session pause gate`, seat.pauseGateCalls.length === 0)
+    }
+    board.close()
+    slot._resetFocusedSessionConnectorForTesting()
+  }
+
   section('L4 the source pins — the key is hosted beside x and r on a view with no text field; the words have one owner')
   {
     const { readFileSync } = await import('node:fs')
     const view = readFileSync(join(ROOT, 'src/components/mercury-ui/screens/CrewView.tsx'), 'utf8')
-    check("the crew view hosts p in the same raw useInput as x and r (no text field on the view)", view.includes("if (input === 'p') {") && view.includes("if (input === 'x' && target !== null && target.running) {") && !/BaseTextInput|<TextInput\b/.test(view))
+    check("the crew view hosts p in the same raw useInput as x and r (no text field on the view)", view.includes("if (input === 'p' && plain) {") && view.includes("if (input === 'x' && plain && target !== null && target.running) {") && !/BaseTextInput|<TextInput\b/.test(view))
     check('the chip is the design-system Chip in the warn tone', view.includes('<Chip tone="warn">{pauseChip}</Chip>'))
     check('the row tail and the status cell read the one owner (crewFacts over the gate module)', view.includes('crewOperatorPauseParts(facts)') && readFileSync(join(ROOT, 'src/services/engine-connector/crewFacts.ts'), 'utf8').includes("from '../../run-core/pauseGate.js'"))
   }

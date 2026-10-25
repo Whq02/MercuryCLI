@@ -120,7 +120,8 @@ export function CrewView({
         : selected?.kind === 'agent'
           ? selected.facts
           : null
-    if (input === 'x' && target !== null && target.running) {
+    const plain = !key.ctrl && !key.meta && !key.super
+    if (input === 'x' && plain && target !== null && target.running) {
       const press = pressCrewStop(stopArm, target.id, Date.now())
       if (!press.fire) {
         setStopArm(press.arm)
@@ -135,7 +136,7 @@ export function CrewView({
         })
       return
     }
-    if (input === 'p') {
+    if (input === 'p' && plain) {
       setStopArm(null)
       const reach = hasFocusedSession()
         ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier, hostedPaused: hostedGate.paused, send: (paused: boolean) => getFocusedSessionConnector().pauseGate(paused) }
@@ -143,7 +144,7 @@ export function CrewView({
       void pressCrewPause(reach, operatorPauseGate).then(receipt => setDoorNote(crewPauseDoorNote(receipt)))
       return
     }
-    if (input === 'c' && !key.ctrl && !key.meta && target !== null && setAppState !== null) {
+    if (input === 'c' && plain && target !== null && setAppState !== null) {
       setStopArm(null)
       if (!crewSettled(target)) {
         setDoorNote({ tone: 'muted', text: crewClearRefusedWords(target) })
@@ -153,7 +154,7 @@ export function CrewView({
       setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
       return
     }
-    if (input === 'r' && target !== null && !target.running) {
+    if (input === 'r' && plain && target !== null && !target.running) {
       setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
       void getFocusedSessionConnector()
         .resumeAgent(target.id)
@@ -192,7 +193,7 @@ export function CrewView({
       onClose()
       return
     }
-    if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
+    if (input === 'm' && plain && selected?.kind === 'agent' && setAppState !== null) {
       if (!pastMount()) return
       setMainChat(selected.facts.id, setAppState)
       enterCrewmateView(selected.facts.id, setAppState)

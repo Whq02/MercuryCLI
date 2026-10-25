@@ -525,7 +525,7 @@ export function ConcourseLayout({
       </Box>
       {(() => {
         const columnHeaderRow = (
-          <Box paddingX={1} flexShrink={0} height={1}>
+          <Box key="columns" paddingX={1} flexShrink={0} height={1}>
             <Box flexGrow={1}>
               <Text color={t.textInstruction}>STATUS & TITLE</Text>
             </Box>

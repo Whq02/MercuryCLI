@@ -1436,13 +1436,14 @@ export function ConcourseScreen({
       coordinatorFocused: region === 'coordinator',
       helpOpen: helpOpenRef.current,
     })
+    const plainConsent = !key.ctrl && !key.meta && !key.super
     if (modalOwner === null && callbacks.daemonOfferArmed?.() === true && callbacks.answerDaemonOffer !== undefined) {
-      if (input === 'y' || input === 'Y') {
+      if (plainConsent && (input === 'y' || input === 'Y')) {
         event.stopImmediatePropagation()
         callbacks.answerDaemonOffer(true)
         return
       }
-      if (input === 'n' || input === 'N' || key.escape) {
+      if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) {
         event.stopImmediatePropagation()
         callbacks.answerDaemonOffer(false)
         return
@@ -1458,14 +1459,14 @@ export function ConcourseScreen({
     }
     if (modalOwner === 'capacity-ask') {
       event.stopImmediatePropagation()
-      if (input === 'y' || input === 'Y') answerCapacityAsk(true)
-      else if (input === 'n' || input === 'N' || key.escape) answerCapacityAsk(false)
+      if (plainConsent && (input === 'y' || input === 'Y')) answerCapacityAsk(true)
+      else if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) answerCapacityAsk(false)
       return
     }
     if (modalOwner === 'trust-ask') {
       event.stopImmediatePropagation()
-      if (input === 'y' || input === 'Y') answerTrustAsk(true)
-      else if (input === 'n' || input === 'N' || key.escape) answerTrustAsk(false)
+      if (plainConsent && (input === 'y' || input === 'Y')) answerTrustAsk(true)
+      else if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) answerTrustAsk(false)
       return
     }
     if (modalOwner !== null && modalOwner !== 'manager-seat-ask' && modalOwner !== 'manager-card') return

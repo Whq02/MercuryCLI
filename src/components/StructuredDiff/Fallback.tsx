@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { NoSelect } from '../../ink/components/NoSelect.js'
@@ -140,29 +139,17 @@ function calculateWordDiffs(
 
 function numberDiffLines(
   lines: LineObject[],
-  startLine: number,
+  oldStart: number,
+  newStart: number,
 ): DiffLine[] {
-  const result: DiffLine[] = []
-  let counter = startLine
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i]!
-    if (line.type === 'remove') {
-      const runStart = counter
-      let runLength = 0
-      while (i < lines.length && lines[i]!.type === 'remove') {
-        result.push({ ...lines[i]!, lineNumber: runStart + runLength })
-        runLength += 1
-        i += 1
-      }
-      counter = runStart
-      continue
-    }
-    result.push({ ...line, lineNumber: counter })
-    counter += 1
-    i += 1
-  }
-  return result
+  let oldLine = oldStart
+  let newLine = newStart
+  return lines.map(line => {
+    if (line.type === 'remove') return { ...line, lineNumber: oldLine++ }
+    if (line.type === 'add') return { ...line, lineNumber: newLine++ }
+    oldLine++
+    return { ...line, lineNumber: newLine++ }
+  })
 }
 
 const WORD_DIFF_MAX_CHANGED_FRACTION = 0.4
@@ -196,6 +183,7 @@ export function StructuredDiffFallback({
   const numbered = numberDiffLines(
     processAdjacentLines(transformLinesToObjects(patch.lines)),
     patch.oldStart,
+    patch.newStart,
   )
 
   const numberColumn =

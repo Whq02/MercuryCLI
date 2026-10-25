@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useMemo, useRef, useState } from 'react'
-import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
+import { AMBER, FAINT, IVORY, TEAL } from '../../mercuryPalette.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
@@ -49,23 +49,6 @@ function ageLabel(t: number): string {
   if (s < 2) return 'just now'
   if (s < 120) return `${s}s ago`
   return `${Math.round(s / 60)}m ago`
-}
-
-function stateTone(state: ReadinessRecord['state']): string {
-  switch (state) {
-    case 'ready':
-      return TEAL
-    case 'failed':
-      return CRIMSON
-    case 'starting':
-    case 'degraded':
-    case 'stale':
-      return AMBER
-    case 'configured':
-      return SECOND
-    default:
-      return FAINT
-  }
 }
 
 function Row({ row, cursor, width, accent }: { row: FlatRow; cursor: boolean; width: number; accent: string }): React.ReactNode {

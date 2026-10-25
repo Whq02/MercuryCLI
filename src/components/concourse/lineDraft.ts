@@ -161,7 +161,7 @@ export function caretVerticalOp(
     if (t < 0 || t >= l.lines.length) return cur
     let offset = 0
     for (let i = 0; i < t; i++) offset += l.lines[i]!.length + 1
-    return { text: cur.text, caret: offset + Math.min(l.caretCol, l.lines[t]!.length) }
+    return { text: cur.text, caret: offset + clampCaret(l.lines[t]!, l.caretCol) }
   }
 }
 

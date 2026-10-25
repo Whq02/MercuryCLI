@@ -4,6 +4,7 @@ import { useRegisterOverlay } from '../../context/overlayContext.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { FloatingPopup } from '../PopupGutter.js'
+import { paneWindow } from '../mercury-ui/paneWindow.js'
 
 export function RowPickModal({
   cols,
@@ -28,7 +29,8 @@ export function RowPickModal({
   useRegisterOverlay('concourse-session-model')
   const [at, setAt] = useState(0)
   const atRef = useRef(0)
-  atRef.current = at
+  const selected = Math.max(0, Math.min(at, options.length - 1))
+  atRef.current = selected
   useInput((_input, key, event) => {
     event.stopImmediatePropagation()
     if (key.escape) {
@@ -36,7 +38,8 @@ export function RowPickModal({
       return
     }
     if (key.upArrow || key.downArrow) {
-      setAt(v => Math.max(0, Math.min(options.length - 1, v + (key.downArrow ? 1 : -1))))
+      atRef.current = Math.max(0, Math.min(options.length - 1, atRef.current + (key.downArrow ? 1 : -1)))
+      setAt(atRef.current)
       return
     }
     if (key.return) {
@@ -46,7 +49,8 @@ export function RowPickModal({
     }
   })
   const width = Math.min(64, Math.max(40, cols - 8))
-  const shown = options.slice(0, Math.max(3, Math.min(10, rows - 10)))
+  const window = paneWindow(options.length, selected, Math.max(3, Math.min(10, rows - 10)))
+  const shown = options.slice(window.start, window.end)
   return (
     <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows }} width={width} borderColor={t.info} paddingX={2}>
       <Box height={1} flexShrink={0}>
@@ -65,8 +69,8 @@ export function RowPickModal({
           >
             {(hover: boolean) => (
               <Text wrap="truncate-end">
-                <Text color={i === at ? t.info : t.textMuted}>{i === at ? '▸ ' : '  '}</Text>
-                <Text color={hover || i === at ? t.textPrimary : t.textSecondary} bold={i === at}>
+                <Text color={window.start + i === selected ? t.info : t.textMuted}>{window.start + i === selected ? '▸ ' : '  '}</Text>
+                <Text color={hover || window.start + i === selected ? t.textPrimary : t.textSecondary} bold={window.start + i === selected}>
                   {o.label}
                 </Text>
               </Text>

@@ -4,7 +4,7 @@ import Text from '../../ink/components/Text.js'
 import type { Color, Styles } from '../../ink/styles.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
-import { isRawColorValue } from './color.js'
+import { resolveThemeColor } from './color.js'
 import { useTheme } from './ThemeProvider.js'
 
 export const TextHoverColorContext = createContext<string | undefined>(
@@ -22,15 +22,6 @@ export type Props = {
   readonly inverse?: boolean
   readonly wrap?: NonNullable<Styles['textWrap']>
   readonly children?: React.ReactNode
-}
-
-function resolveColor(
-  theme: Theme,
-  value: string | undefined,
-): Color | undefined {
-  if (!value) return undefined
-  if (isRawColorValue(value)) return value as Color
-  return theme[value as keyof Theme] as Color | undefined
 }
 
 export default function ThemedText({
@@ -52,17 +43,17 @@ export default function ThemedText({
 
   let resolvedColor: Color | undefined
   if (!color && hoverColor) {
-    resolvedColor = resolveColor(theme, hoverColor)
+    resolvedColor = resolveThemeColor(theme, hoverColor)
   } else if (dimColor) {
     resolvedColor = theme.inactive as Color
   } else {
-    resolvedColor = resolveColor(theme, color)
+    resolvedColor = resolveThemeColor(theme, color)
   }
 
   return (
     <Text
       color={resolvedColor}
-      backgroundColor={resolveColor(theme, backgroundColor)}
+      backgroundColor={resolveThemeColor(theme, backgroundColor)}
       bold={bold}
       italic={italic}
       underline={underline}

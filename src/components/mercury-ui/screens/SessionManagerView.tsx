@@ -99,7 +99,7 @@ export function SessionManagerView({
     )
   }
   return (
-    <CommandCenter view="sessions" onClose={onClose} captureInput={false}>
+    <CommandCenter view="sessions" onClose={onClose} closeKeys="esc">
       <Box marginTop={1}>
         <EmptyState
           title="Session switching needs the interactive chat wiring"

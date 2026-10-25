@@ -134,6 +134,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
         return
       }
       if (!pastGate()) return
+      if (action !== 'activate' && (key.ctrl || key.meta || key.super)) return
       if (onPrimary && (action === 'activate' || (charKeys && primaryChar && input === primaryChar))) {
         event.stopImmediatePropagation()
         const rows = listRef.current
