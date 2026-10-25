@@ -38,7 +38,7 @@ import {
   writeTextContent,
 } from '../../utils/file.js'
 import { buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
-import { interpretCommandResult } from './commandSemantics.js'
+import { exitLine, interpretCommandResult } from './commandSemantics.js'
 import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, EDITOR_TERMINAL_RESULT_NOTE, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand } from './sedEditParser.js'
@@ -635,7 +635,7 @@ async function* runBash(
     const noOutputExpected = isSilentCommand(input.command)
     const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
     if (interpretation.isError && !interruptedByUser && result.code !== 0) {
-      accumulator.append(`\nExited with code ${result.code}`)
+      accumulator.append(`\n${exitLine(result.code, !result.interrupted && result.stderr.trim() === '')}`)
     }
 
     let stderr = ''

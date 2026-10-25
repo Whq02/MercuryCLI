@@ -182,7 +182,7 @@ function summarize(record: TestRunRecord): string {
   const failures = record.cases
     .filter(x => x.outcome === 'failed' || x.outcome === 'errored')
     .slice(0, 10)
-    .map(x => `  ${x.id}${x.file ? ` (${x.file}${x.line ? `:${x.line}` : ''})` : ''}\n    ${(x.message ?? '').split('\n').slice(-2).join(' · ').slice(0, 200)}`)
+    .map(x => `  ${x.id}${x.file ? ` (${x.file}${x.line ? `:${x.line}` : ''})` : ''}\n    ${(x.message ?? '').split('\n').filter(l => l.trim() !== '').slice(-2).join(' · ').slice(0, 200)}`)
   return [
     `ran: ${record.command.join(' ')}${ranIn(record)}`,
     head,

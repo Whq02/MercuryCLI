@@ -81,3 +81,15 @@ export function interpretCommandResult(
   }
   return { isError: false }
 }
+
+const SIGNAL_EXIT_WORDS: Readonly<Record<number, string>> = {
+  134: 'aborted (SIGABRT)',
+  137: 'killed (out of memory or a kill signal)',
+  139: 'crashed (segmentation fault)',
+  143: 'terminated (SIGTERM)',
+}
+
+export function exitLine(exitCode: number, diedOnItsOwn: boolean = true): string {
+  const words = diedOnItsOwn && process.platform !== 'win32' ? SIGNAL_EXIT_WORDS[exitCode] : undefined
+  return words === undefined ? `Exited with code ${exitCode}` : `exit ${exitCode} · ${words}`
+}

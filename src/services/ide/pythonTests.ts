@@ -196,23 +196,38 @@ function realpathOrSelf(p: string): string {
 
 
 const PYTEST_PLUGIN_SOURCE = `
-import json, time
+import json, os, time
 
 class MercuryReport:
-    def __init__(self, out):
+    def __init__(self, out, root):
         self.out = out
+        self.root = os.path.realpath(root)
     def _emit(self, obj):
         self.out.write(json.dumps(obj) + "\\n")
         self.out.flush()
+    def _stop(self, entry, longrepr):
+        crash = getattr(longrepr, "reprcrash", None)
+        path = getattr(crash, "path", None)
+        if not path:
+            return
+        try:
+            rel = os.path.relpath(os.path.realpath(path), self.root)
+            entry["file"] = path if rel.startswith(os.pardir) else rel
+        except ValueError:
+            entry["file"] = path
+        if getattr(crash, "lineno", None) is not None:
+            entry["line"] = int(crash.lineno)
     def pytest_collectreport(self, report):
         if report.failed:
-            self._emit({"t": "collect-error", "id": str(report.nodeid), "message": str(report.longrepr)[:800]})
+            entry = {"t": "collect-error", "id": str(report.nodeid), "message": str(report.longrepr)[-800:]}
+            self._stop(entry, report.longrepr)
+            self._emit(entry)
     def pytest_itemcollected(self, item):
         self._emit({"t": "collect", "id": item.nodeid})
     def pytest_runtest_logreport(self, report):
-        if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
+        if report.when == "call" or report.outcome != "passed":
             outcome = report.outcome  # passed | failed | skipped
-            if report.when == "setup" and report.outcome == "failed":
+            if report.when != "call" and report.outcome == "failed":
                 outcome = "errored"
             entry = {
                 "t": "case",
@@ -221,7 +236,7 @@ class MercuryReport:
                 "durationMs": int(report.duration * 1000),
             }
             if report.longrepr is not None:
-                entry["message"] = str(report.longrepr)[:800]
+                entry["message"] = str(report.longrepr)[-800:]
             try:
                 path, line, _ = report.location
                 entry["file"] = path
@@ -229,11 +244,13 @@ class MercuryReport:
                     entry["line"] = int(line) + 1
             except Exception:
                 pass
+            if outcome != "passed":
+                self._stop(entry, report.longrepr)
             self._emit(entry)
 
 def pytest_configure(config):
     out = open(config.getoption("--mercury-report"), "a")
-    config.pluginmanager.register(MercuryReport(out), "mercury-report")
+    config.pluginmanager.register(MercuryReport(out, str(getattr(config, "rootpath", None) or config.rootdir)), "mercury-report")
 
 def pytest_addoption(parser):
     parser.addoption("--mercury-report", action="store", default="mercury-report.ndjson")
@@ -366,7 +383,7 @@ if __name__ == "__main__":
             entry = {"t": "case", "id": test.id(), "outcome": outcome,
                      "durationMs": int((time.time() - getattr(test, "_mercury_t0", time.time())) * 1000)}
             if err is not None:
-                entry["message"] = self._exc_info_to_string(err, test)[:800]
+                entry["message"] = self._exc_info_to_string(err, test)[-800:]
             fn = getattr(sys.modules.get(type(test).__module__), "__file__", None)
             if fn:
                 entry["file"] = fn
@@ -693,28 +710,27 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
 
   const events = readNdjson(report)
   const cases: TestCaseResult[] = events
-    .filter(e => e.t === 'case' && e.id && e.outcome)
+    .filter(e => e.id && (e.t === 'collect-error' || (e.t === 'case' && e.outcome)))
     .map(e => ({
       id: e.id!,
-      outcome: (['passed', 'failed', 'skipped', 'errored'].includes(e.outcome!) ? e.outcome : 'errored') as TestCaseResult['outcome'],
+      outcome: (e.t === 'case' && ['passed', 'failed', 'skipped', 'errored'].includes(e.outcome!) ? e.outcome : 'errored') as TestCaseResult['outcome'],
       ...(e.message ? { message: e.message } : {}),
       ...(e.file ? { file: e.file } : {}),
       ...(typeof e.line === 'number' ? { line: e.line } : {}),
       ...(typeof e.durationMs === 'number' ? { durationMs: e.durationMs } : {}),
     }))
-  const collectErrors = events.filter(e => e.t === 'collect-error')
   const misses = events.filter(e => e.t === 'no-match' && e.id)
   const counts = {
     passed: cases.filter(c => c.outcome === 'passed').length,
     failed: cases.filter(c => c.outcome === 'failed').length,
     skipped: cases.filter(c => c.outcome === 'skipped').length,
-    errored: cases.filter(c => c.outcome === 'errored').length + collectErrors.length,
+    errored: cases.filter(c => c.outcome === 'errored').length,
   }
   const failures = cases.filter(c => c.outcome === 'failed' || c.outcome === 'errored').map(c => c.id)
 
   const selectionLabel = opts?.selectionLabel ?? (sel.length ? `nodes:${sel.join(',')}`.slice(0, 200) : 'all')
   const missWords = misses.slice(0, 2).map(m => m.message ?? `${m.id} not found`).join(' · ')
-  const noMatchWords = cases.length === 0 && collectErrors.length === 0 ? (misses.length > 0 ? missWords : pythonNoMatchWords(framework, exitCode, output)) : undefined
+  const noMatchWords = cases.length === 0 ? (misses.length > 0 ? missWords : pythonNoMatchWords(framework, exitCode, output)) : undefined
   const testFiles = selectionLabel === 'all' && (noMatchWords !== undefined || framework === 'unittest') ? buildPythonProjectProfile(from).testFrameworks.testFiles : []
   const uncollected =
     framework === 'unittest' && noMatchWords === undefined && cases.length > 0 && selectionLabel === 'all'
@@ -731,11 +747,11 @@ export async function runPythonTests(opts?: RunOptions): Promise<TestRunOutcome>
     verdictNote = `${selectionLabel === 'all' ? 'no test ran' : `no test matched ${selectionLabel}`} — ${noMatchWords}`
   } else if (misses.length > 0) {
     verdictNote = `${misses.length} of the selection matched no test — ${misses.slice(0, 3).map(m => `${m.id}: ${m.message ?? 'not found'}`).join(' · ')}`
-  } else if (cases.length === 0 && collectErrors.length === 0) {
+  } else if (cases.length === 0) {
     verdictNote = `no structured case records arrived (exit ${exitCode ?? 'null'}) — the run is EVIDENCE-FREE, treat as errored`
   } else if (exitCode === 0 && failures.length > 0) {
     verdictNote = 'exit code 0 disagreed with recorded failures — structured records win'
-  } else if (exitCode !== 0 && exitCode !== null && failures.length === 0 && counts.passed > 0 && collectErrors.length === 0) {
+  } else if (exitCode !== 0 && exitCode !== null && failures.length === 0 && counts.passed > 0) {
     verdictNote = `exit ${exitCode} with no recorded failure — inspect the output artifact`
   }
 
