@@ -342,19 +342,26 @@ console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the b
   check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
 }
 
-console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at user scope): the configured servers are the only MCP connects')
+console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at user scope · a stdio server that dies on the revision probe): the configured servers are the only MCP connects')
 {
   const home = join(scratch, 'home-mcp')
   seedFirstRun(home, [cwd])
   const configPath = join(home, '.mercury.json')
   const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
+  const probeExitMode = join(home, 'probe-exit-mode.txt')
+  writeFileSync(probeExitMode, 'exit-before-init')
+  const probeExitSpawns = join(home, 'probe-exit-spawns.log')
   config.mcpServers = {
     'fixture-http': { type: 'http', url: 'http://127.0.0.1:34017/mcp' },
     'fixture-sse': { type: 'sse', url: 'http://127.0.0.1:34018/sse' },
     'fixture-stdio': { type: 'stdio', command: 'node', args: ['-e', 'process.exit(0)'] },
+    'fixture-probe-exit': { type: 'stdio', command: 'node', args: [join(ROOT, 'scripts', 'mcp', '_fixture-stdio-server.mjs')], env: { MCP_FIXTURE_MODE_FILE: probeExitMode, MCP_FIXTURE_SPAWN_LOG: probeExitSpawns } },
   }
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n')
   const result = boot(DIST, home)
+  const probeExitSpawned = existsSync(probeExitSpawns) ? readFileSync(probeExitSpawns, 'utf8').split('\n').filter(line => line !== '').length : 0
+  check('MCP home: the probe-exit server was spawned exactly twice — the probed process and its respawn under the kill owner', probeExitSpawned === 2, `${probeExitSpawned} spawns`)
+  check('MCP home: the probe-exit server connected on its respawn (no startup warning on stderr names it)', !result.stderr.includes('fixture-probe-exit'), result.stderr.trim().slice(0, 300))
   console.log(`     exit ${result.code}${result.signal ? ' signal ' + result.signal : ''}; stderr: ${result.stderr.trim().slice(0, 200).replace(/\n/g, ' ↵ ')}`)
   census('MCP-configured home', result.lines)
   spawnCensus('MCP-configured home')

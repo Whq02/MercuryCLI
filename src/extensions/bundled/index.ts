@@ -36,6 +36,25 @@ function shipped(): BundledExtensionDefinition[] {
   return Object.entries(bundledPayloads).map(([name, files]) => ({ name, root: materialize(name, files), defaultOn: true }))
 }
 
+function craftPlatform(): string {
+  const pinned = process.env.MERCURY_CRAFT_PLATFORM?.trim()
+  if (pinned) return pinned
+  return `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
+}
+
+export function bundledReleaseMissingFor(root: string, name: string): string | null {
+  const lock = join(root, 'server', `${name}.lock.json`)
+  if (!existsSync(lock)) return null
+  let platforms: Record<string, unknown> | undefined
+  try {
+    platforms = (JSON.parse(readFileSync(lock, 'utf8')) as { platforms?: Record<string, unknown> }).platforms
+  } catch {
+    return null
+  }
+  const platform = craftPlatform()
+  return platforms?.[platform] !== undefined ? null : platform
+}
+
 export function bundledRoster(): BundledExtensionDefinition[] {
   const roster = shipped()
   const fixture = process.env.MERCURY_EXTENSIONS_BUNDLED_FIXTURE

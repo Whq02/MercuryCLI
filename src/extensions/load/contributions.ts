@@ -2,11 +2,13 @@ import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync 
 import { basename, delimiter, extname, isAbsolute, join, resolve } from 'node:path'
 import { validateAgentIdentifier } from '../../services/agents/codec.js'
 import { parseFrontmatter, type FrontmatterData } from '../../utils/frontmatterParser.js'
+import { bundledReleaseMissingFor } from '../bundled/index.js'
 import {
   HOOK_EVENT_NAMES,
   type ExtensionManifest,
   type ManifestHook,
   type ManifestServer,
+  parseExtensionId,
   resolveInsideRoot,
   serverRuntimeName,
 } from '../manifest.js'
@@ -360,6 +362,11 @@ export function resolveContributions(
       const isPath = command.includes('/') || command.includes('\\')
       if (isPath ? !existsSync(command) : !probes.onPath(command)) {
         defects.push(`server ${key}: ${command} not on PATH`)
+        continue
+      }
+      const missing = parseExtensionId(id)?.label === 'mercury' ? bundledReleaseMissingFor(root, name) : null
+      if (missing !== null) {
+        defects.push(`server ${key}: no release for ${missing}`)
         continue
       }
     }

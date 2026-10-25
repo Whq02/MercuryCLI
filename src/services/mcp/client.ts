@@ -43,6 +43,7 @@ import { armInactivityDeadline, formatLimit, minutesKnobToMs } from '../../utils
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
+import { isShuttingDown } from '../../utils/gracefulShutdown.js'
 import { getMCPUserAgent } from '../../utils/http.js'
 import { createImageMetadataText, type ImageDimensions, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
@@ -636,6 +637,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         }
         await stdioTransport?.close().catch(() => {})
       })
+      if (isShuttingDown()) spawnRefused = true
     } else {
       throw new Error(`Unsupported MCP server type: ${String(type)}`)
     }
@@ -686,11 +688,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     try {
       await client.connect(transport, prior ? { prior } : undefined)
     } catch (err) {
-      if (stdioTransport === null || prior || !isProbeExitError(err)) throw err
+      if (stdioTransport === null || prior || !isProbeExitError(err) || spawnRefused) throw err
       logMCPDebug(name, 'the server exited on the revision probe — remembered as an older server; connecting again with the handshake')
-      void recordEraVerdict(eraKey, 'legacy')
+      await recordEraVerdict(eraKey, 'legacy')
       await endStdioTree()
       stdioTransport.stderr?.off('data', onStderr)
+      if (spawnRefused) throw err
       stdioTransport = buildStdioTransport()
       transport = stdioTransport
       stdioTransport.stderr?.on('data', onStderr)
@@ -732,7 +735,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     logMCPDebug(name, `protocol ${client.getNegotiatedProtocolVersion() ?? 'unknown'} (${era ?? 'unknown'} era)`)
     if (era !== undefined) void recordEraVerdict(eraKey, era)
   } catch (err) {
-    void clearEraVerdict(eraKey)
+    await clearEraVerdict(eraKey)
+    if (spawnRefused) {
+      releaseSpawnGuard?.()
+      await transport.close().catch(() => {})
+      return { name, type: 'disabled', config: serverRef }
+    }
     if (type === 'sse') logMCPError(name, `SSE connect failed: ${getLoggingSafeMcpBaseUrl(config) ?? '(url withheld)'} ${errorMessage(err)} ${(err as Error)?.stack ?? ''}`)
     else if (type === 'http') logMCPError(name, `HTTP connect failed: ${errorMessage(err)} code=${getErrnoCode(err) ?? 'none'}`)
     else if (type === 'claudeai-proxy') logMCPError(name, `proxy connect failed: ${errorMessage(err)}`)

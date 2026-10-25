@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 
 const exec = promisify(execFile)
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
-export const hostPlatform = () => `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
+export const hostPlatform = () => process.env.MERCURY_CRAFT_PLATFORM?.trim() || `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
 const abort = signal => signal?.throwIfAborted()
 const present = async path => { try { await lstat(path); return true } catch (e) { if (e.code === 'ENOENT') return false; throw e } }
 

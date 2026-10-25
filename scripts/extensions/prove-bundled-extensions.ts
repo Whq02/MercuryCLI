@@ -56,9 +56,9 @@ console.log('============================================================')
 console.log(' bundled extensions — pre-installed, same manifest (built artifact)')
 console.log('============================================================')
 
-console.log('[6] the three Craft extensions ship without application binaries')
+console.log('[6] the three Craft extensions ship without application binaries (read on a platform with a release; the no-release reading is prove-bundled-platform-quiet)')
 {
-  const bare = run(['extensions', 'list', '--json'])
+  const bare = run(['extensions', 'list', '--json'], { MERCURY_CRAFT_PLATFORM: 'linux-x64' })
   check('list --json exits 0', bare.code === 0, bare.stderr.slice(0, 200))
   const parsed = JSON.parse(bare.stdout.slice(bare.stdout.indexOf('{'))) as { extensions: Array<{ name: string; from: string; health: { outcome: string } | null; path: string }> }
   const bundled = parsed.extensions.filter(e => e.from === 'mercury')

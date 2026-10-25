@@ -14,6 +14,8 @@
 # gate-watch: build.ts
 # gate-watch: src/tools/FileEditTool/FileEditTool.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/ChangeSetTool/ChangeSetTool.ts src/tools/AstEditTool/AstEditTool.ts
 # gate-watch: README.md src/commands.ts src/commands/lsp/** src/components/HelpV2/commandDomains.ts src/services/structure/grammarRegistry.ts src/tools/DebugTool/prompt.ts vendor/grammars.lock.json
+# gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts src/services/run/resolveOwner.ts
+# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/BashTool/toolName.ts src/tools/FileReadTool/FileReadTool.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

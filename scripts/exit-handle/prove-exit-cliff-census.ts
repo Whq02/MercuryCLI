@@ -84,16 +84,40 @@ function readTranscript(home: string): string {
   return text
 }
 
+const PROBE_EXIT_FIXTURE = join(ROOT, 'scripts', 'mcp', '_fixture-stdio-server.mjs')
+const PROBE_EXIT_SERVER = 'probe-exit'
+function probeExitServer(home: string): { mcpServers: Record<string, unknown>; spawnLog: string } {
+  const modeFile = join(home, 'probe-exit-mode.txt')
+  writeFileSync(modeFile, 'exit-before-init')
+  const spawnLog = join(home, 'probe-exit-spawns.log')
+  return {
+    spawnLog,
+    mcpServers: {
+      [PROBE_EXIT_SERVER]: { type: 'stdio', command: nodeBin, args: [PROBE_EXIT_FIXTURE], env: { MCP_FIXTURE_MODE_FILE: modeFile, MCP_FIXTURE_SPAWN_LOG: spawnLog } },
+    },
+  }
+}
+const spawnsOf = (log: string): number => (existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(l => l !== '').length : 0)
+
 async function runCase(
   script: string,
   arm: 'drain' | 'poison',
   allowed: string[] = ['Bash', 'Read', 'Glob'],
-): Promise<Run> {
+  withServer = false,
+): Promise<Run & { spawnLog: string | null }> {
   const home = mkdtempSync(join(tmpdir(), `exit-cliff-home-${script}-${arm}-`))
   const fix = mkdtempSync(join(tmpdir(), `exit-cliff-fix-${script}-${arm}-`))
   writeFileSync(join(fix, ONE_TOOL_READ_FILE), '# one-tool read fixture\n\nthe read tool reads this file.\n')
   writeFileSync(join(fix, 'second.md'), '# second markdown\n')
   seedFirstRun(home, [fix, realpathSync(fix)])
+  let spawnLog: string | null = null
+  if (withServer) {
+    const server = probeExitServer(home)
+    spawnLog = server.spawnLog
+    const configPath = join(home, '.mercury.json')
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
+    writeFileSync(configPath, JSON.stringify({ ...config, mcpServers: server.mcpServers }, null, 2) + '\n')
+  }
   const censusPath = join(home, 'census.json')
   for (const d of ['daemon', 'crews']) mkdirSync(join(home, d), { recursive: true })
   const env: Record<string, string> = {
@@ -141,7 +165,7 @@ async function runCase(
   }
   const census = readDump(censusPath)
   const beforeDrain = readDump(`${censusPath}.before-drain.json`)
-  return { script, arm, allowed, rc: exit.rc, signal: exit.signal, stdout, stderr, beforeDrain, census, home, fix }
+  return { script, arm, allowed, rc: exit.rc, signal: exit.signal, stdout, stderr, beforeDrain, census, home, fix, spawnLog }
 }
 
 function describeRequests(reqs: Req[]): string[] {
@@ -149,18 +173,33 @@ function describeRequests(reqs: Req[]): string[] {
 }
 
 const cleanups: string[] = []
-const drainRuns: Run[] = []
+const drainRuns: Array<Run & { spawnLog: string | null }> = []
 for (const script of [ANSWER_TEXT_SCRIPT, ...ONE_TOOL_SCRIPTS]) {
   drainRuns.push(await runCase(script, 'drain'))
 }
 drainRuns.push(await runCase('tool-bash-write', 'drain', ['Read', 'Glob']))
+drainRuns.push(await runCase(ANSWER_TEXT_SCRIPT, 'drain', ['Bash', 'Read', 'Glob'], true))
 const poison = await runCase(ANSWER_TEXT_SCRIPT, 'poison')
 
-section('§1 — the DRAIN arm: six runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch), the census BEFORE the drain and AT the cliff')
+section('§1 — the DRAIN arm: seven runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch · control with a probe-exit stdio server), the census BEFORE the drain and AT the cliff')
 for (const run of drainRuns) {
   cleanups.push(run.home, run.fix)
   const denied = run.script === 'tool-bash-write' && !run.allowed.includes('Bash')
-  const tag = `[${run.script}${denied ? ' DENIED' : ''}]`
+  const tag = `[${run.script}${denied ? ' DENIED' : ''}${run.spawnLog !== null ? ` + ${PROBE_EXIT_SERVER} server` : ''}]`
+  if (run.spawnLog !== null) {
+    const spawned = existsSync(run.spawnLog) ? readFileSync(run.spawnLog, 'utf8').split('\n').filter(l => l !== '').map(Number) : []
+    const alive = spawned.filter(pid => {
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    })
+    check(`${tag} the server was spawned exactly twice: the probed process and its respawn under the kill owner`, spawnsOf(run.spawnLog) === 2, `${spawnsOf(run.spawnLog)} spawns`)
+    check(`${tag} neither spawn outlives the run`, alive.length === 0, `alive: ${alive.join(',')}`)
+    check(`${tag} the server's failure never reached stderr (it connected on its respawn)`, !run.stderr.includes(PROBE_EXIT_SERVER), run.stderr.slice(-300))
+  }
   if (denied) {
     check(
       `${tag} the run ends blocked: exit 1, the settled text on stdout, the one blocked line on stderr naming the tool nobody could answer for`,

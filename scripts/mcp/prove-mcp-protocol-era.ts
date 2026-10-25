@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -247,7 +247,7 @@ section("(7) production's client shape, structurally")
   )
   check(
     'the remembered verdict rides the connect and a failed connect drops it',
-    client.includes('client.connect(transport, prior ? { prior } : undefined)') && client.includes('void clearEraVerdict(eraKey)'),
+    client.includes('client.connect(transport, prior ? { prior } : undefined)') && client.includes('await clearEraVerdict(eraKey)'),
   )
   check(
     'the probe budget is per transport with no re-sends: a third of the connect deadline on stdio (a silent probe there is an older server, and the handshake gets the rest), past the deadline on the remote transports (a silent probe there is an error, and the deadline must speak first)',
@@ -259,11 +259,15 @@ section("(7) production's client shape, structurally")
   )
   check(
     'a stdio server that exits on the probe is remembered as an older server and connected once more with the handshake alone, on a fresh spawn under the same kill owner, inside the one deadline',
-    client.includes('if (stdioTransport === null || prior || !isProbeExitError(err)) throw err') &&
-      client.includes("void recordEraVerdict(eraKey, 'legacy')") &&
-      /await endStdioTree\(\)\s*\n\s*stdioTransport\.stderr\?\.off\('data', onStderr\)\s*\n\s*stdioTransport = buildStdioTransport\(\)/.test(client) &&
+    client.includes('if (stdioTransport === null || prior || !isProbeExitError(err) || spawnRefused) throw err') &&
+      client.includes("await recordEraVerdict(eraKey, 'legacy')") &&
+      /await endStdioTree\(\)\s*\n\s*stdioTransport\.stderr\?\.off\('data', onStderr\)\s*\n\s*if \(spawnRefused\) throw err\s*\n\s*stdioTransport = buildStdioTransport\(\)/.test(client) &&
       client.includes('client = buildClient(false)') &&
       client.includes("error.code === SdkErrorCode.EraNegotiationFailed") && client.includes('/closed during the server\\/discover probe/.test(error.message)'),
+  )
+  check(
+    'a server told to stop is never spawned again: the refusal is read before the verdict is written and again after the awaits, the verdict write is awaited, and a refused connect settles as disabled (the pre-connect refusal\'s own row), never as a failure',
+    /await clearEraVerdict\(eraKey\)[\s\S]{0,400}if \(spawnRefused\) \{\s*\n\s*releaseSpawnGuard\?\.\(\)\s*\n\s*await transport\.close\(\)\.catch\(\(\) => \{\}\)\s*\n\s*return \{ name, type: 'disabled', config: serverRef \}/.test(client),
   )
 }
 
@@ -331,6 +335,45 @@ await (async () => {
   await settled()
   check('the next connect probes afresh and lands on legacy through the in-band refusal', again.type === 'connected' && again.era === 'legacy', JSON.stringify(again))
   await mcp.clearServerCache(NAME, scoped)
+})()
+
+section('(11) a refusal that lands mid-connect, by execution: the shutdown runs the cleanups while the probed spawn is live — no respawn, no child, a disabled row')
+await (async () => {
+  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.js')
+  const alive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const pids = (): number[] => (existsSync(spawnLog) ? readFileSync(spawnLog, 'utf8').split('\n').filter(l => l !== '').map(Number) : [])
+  const holdFile = join(HOME, 'hold')
+  writeFileSync(holdFile, '')
+  const held = { ...(scoped as Record<string, unknown>), env: { ...(scoped as { env: Record<string, string> }).env, MCP_FIXTURE_HOLD_FILE: holdFile } } as never
+  const HELD = 'era-held'
+  const heldKey = mcp.getServerCacheKey(HELD, held)
+  setMode('exit-before-init')
+  const before = spawns()
+  const pending = mcp.reconnectMcpServerImpl(HELD, held)
+  const deadline = Date.now() + 10_000
+  while (spawns() === before && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+  check('the probed process was spawned and holds, the probe in flight', spawns() === before + 1, `${spawns()} spawns`)
+  await runCleanupFunctions()
+  const { client: c } = await pending
+  await settled()
+  check('the connect settles as disabled — never a failure, never a connection', c.type === 'disabled', JSON.stringify({ type: c.type, ...(c.type === 'failed' ? { error: c.error } : {}) }))
+  check('no respawn: the refusal was read on the reconnect road, and the spawn count is unchanged', spawns() === before + 1, `${spawns()} spawns`)
+  const spawned = pids().slice(before)
+  const grace = Date.now() + 2_000
+  while (spawned.some(alive) && Date.now() < grace) await new Promise(resolve => setTimeout(resolve, 20))
+  const stillAlive = spawned.filter(alive)
+  check('no child is alive after the refusal', stillAlive.length === 0, `alive: ${stillAlive.join(',')}`)
+  resetEraVerdictMemo()
+  check('no verdict is remembered for a server the shutdown stopped', (await readEraVerdict(heldKey)) === undefined)
+  rmSync(holdFile, { force: true })
+  await mcp.clearServerCache(HELD, held)
 })()
 
 console.log('\n============================================================')

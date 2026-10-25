@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 
 if (process.env.MCP_FIXTURE_SPAWN_LOG) {
@@ -7,6 +7,9 @@ if (process.env.MCP_FIXTURE_SPAWN_LOG) {
     appendFileSync(process.env.MCP_FIXTURE_SPAWN_LOG, `${process.pid}\n`)
   } catch {
   }
+}
+if (process.env.MCP_FIXTURE_HOLD_FILE) {
+  while (existsSync(process.env.MCP_FIXTURE_HOLD_FILE)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
 }
 let mode = ''
 if (process.env.MCP_FIXTURE_MODE_FILE) {
