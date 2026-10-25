@@ -133,15 +133,12 @@ interface DispatchOutcome {
 export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
   private inFlight = 0
-  private degradedState: { degraded: boolean; reason: string } = {
-    degraded: false,
-    reason: '',
-  }
+  private readonly degradedSeats = new Map<string, string>()
 
   constructor(private readonly opts: RosterOptions) {}
 
   getRespawnState(): { degraded: boolean; reason: string } {
-    return { ...this.degradedState }
+    return { degraded: this.degradedSeats.size > 0, reason: [...this.degradedSeats].map(([seat, why]) => `${seat}: ${why}`).join('; ') }
   }
 
   liveCount(): number {
@@ -271,6 +268,7 @@ export class TaskRoster {
   kill(short: string, signal: NodeJS.Signals = 'SIGTERM'): boolean {
     const h = this.handles.get(short)
     if (!h) return false
+    this.degradedSeats.delete(short)
     const respawnPending = h.longLived?.respawnTimer !== undefined && h.entry.state === 'spawning'
     if (h.longLived) {
       h.longLived.intentionalStop = true
@@ -343,6 +341,7 @@ export class TaskRoster {
       ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
     }
     this.handles.set(short, { entry, done: Promise.resolve(), longLived: ll })
+    this.degradedSeats.delete(short)
     const pid = this.spawnLongLived(short)
     if (pid === undefined) {
       ll.intentionalStop = true
@@ -556,7 +555,7 @@ export class TaskRoster {
     if (!cwdGate.ok) {
       logForDebugging(`[daemon] long-lived ${short} REFUSED — ${cwdGate.reason}`)
       h.entry.outcome = 'degraded'
-      this.degradedState = { degraded: true, reason: `${short}: ${cwdGate.reason}` }
+      this.degradedSeats.set(short, cwdGate.reason)
       recordSpawn({
         kind: 'long-lived-refused',
         id: ll.spec.agentId,
@@ -829,15 +828,16 @@ export class TaskRoster {
           .catch(() => {})
       }
       if (decision.action === 'degrade') {
-        this.degradedState = { degraded: true, reason: `${short}: ${decision.reason}` }
+        this.degradedSeats.set(short, decision.reason)
+        const degradedReason = `${short}: ${decision.reason}`
         h.entry.state = 'crashed'
         h.entry.outcome = 'degraded'
         ledgerExit('degraded', decision.reason)
         stampCrash(false, `crashed — respawns exhausted (${decision.reason})`)
-        logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${this.degradedState.reason}`)
+        logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${degradedReason}`)
         tellCrashed()
         try {
-          this.opts.onDegraded?.(this.degradedState.reason, short)
+          this.opts.onDegraded?.(degradedReason, short)
         } catch {
         }
         return
