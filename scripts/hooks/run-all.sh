@@ -3,7 +3,7 @@
 # gate-watch: src/utils/hooks/**
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/schemas/hooks.ts src/utils/config/trust.ts
 # gate-watch: src/components/hooks/** src/components/messages/AttachmentMessage.tsx
-# gate-watch: src/fabric/entryCodec.ts src/hooks/useSkillsChange.ts src/utils/*
+# gate-watch: src/fabric/entryCodec.ts src/hooks/useSkillsChange.ts src/utils/* src/utils/permissions/decision/commandAnalysis.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStorage/chain.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/settingsCache.ts
 # gate-watch: scripts/lib/fixtureApi.ts src/rows/turn.ts src/Tool.ts src/query.ts src/run-core/**

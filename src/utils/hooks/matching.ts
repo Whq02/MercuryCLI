@@ -10,37 +10,60 @@ import { hookEntryText, hookKindOf } from '../../schemas/hooks.js'
 import { logError } from '../log.js'
 import { pathMatchesRulePattern } from '../permissions/filesystem.js'
 import { matchWildcardPattern, parsePermissionRule } from '../permissions/shellRuleMatching.js'
+import { parseForSecurity, splitCommand, pinnedCommandAnalysis, getAllCommands } from '../permissions/decision/commandAnalysis.js'
+import { namesWholeServerOf } from '../permissions/decision/rules.js'
+import { webFetchRuleMatches } from '../../tools/WebFetchTool/WebFetchTool.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../tools/AgentTool/constants.js'
 import { hooksDisabled, managedHooksOnly, settingsHooksFor, type HookSource, type LayeredHook } from './hooksConfigSnapshot.js'
 import { sessionHooksFor, type HookScope } from './sessionHooks.js'
 
 function nameMatches(name: string, value: string): boolean {
-  return name === value || lspFamilyMatches(name, value)
+  return name === value || lspFamilyMatches(name, value) || namesWholeServerOf(name, value)
 }
 
-function argumentMatches(toolName: string, content: string, input: unknown): boolean {
+async function argumentMatches(toolName: string, content: string, input: unknown): Promise<boolean> {
   const fields = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {}
   switch (ruleArgumentOf(toolName)) {
     case 'command': {
       if (typeof fields.command !== 'string') return false
       const rule = parsePermissionRule(content)
       const command = fields.command.trim()
-      return rule.type === 'exact' ? command === rule.command : matchWildcardPattern(rule.pattern, command)
+      const matches = (candidate: string): boolean => rule.type === 'exact' ? candidate.trim() === rule.command : matchWildcardPattern(rule.pattern, candidate.trim())
+      if (matches(command)) return true
+      if (toolName === 'Bash') {
+        await parseForSecurity(command)
+        return splitCommand(command).some(matches)
+      }
+      const parsed = await pinnedCommandAnalysis.parsePowerShellCommand(command)
+      return parsed.valid && getAllCommands(parsed).some(part => matches(part.text))
     }
     case 'path': {
       const path = fields.file_path ?? fields.notebook_path ?? fields.path
       return typeof path === 'string' && pathMatchesRulePattern(path, content)
     }
+    case 'crewmate':
+      return (fields.crewmate_type ?? MERCURY_CREW_AGENT_TYPE) === content
+    case 'domain':
+      if (typeof fields.url !== 'string') return false
+      try {
+        return webFetchRuleMatches(content, `domain:${new URL(fields.url).hostname}`)
+      } catch {
+        return false
+      }
     default:
       return false
   }
 }
 
-export function matchesPattern(value: string, matcher: string, input?: unknown): boolean {
+export async function matchesPattern(value: string, matcher: string, input?: unknown): Promise<boolean> {
   const shape = matcherShape(matcher)
   if (shape === 'everything') return true
   if (shape === 'names') return matcher.split('|').some(name => nameMatches(name, value))
   if (shape === 'rules') {
-    return (ruleClausesOf(matcher) ?? []).some(clause => nameMatches(clause.toolName, value) && (clause.ruleContent === undefined || argumentMatches(clause.toolName, clause.ruleContent, input)))
+    for (const clause of ruleClausesOf(matcher) ?? []) {
+      if (nameMatches(clause.toolName, value) && (clause.ruleContent === undefined || await argumentMatches(clause.toolName, clause.ruleContent, input))) return true
+    }
+    return false
   }
   try {
     return new RegExp(matcher).test(value)
@@ -139,9 +162,8 @@ export async function matchHooks(
     const candidates = hooksFor(event, scope, options.appState)
     const fields = payload as unknown as Record<string, unknown>
     const value = hookMatchValue(event, fields)
-    const result = dedupeHooks(
-      candidates.filter(hook => hook.entry.match === undefined || value === undefined || matchesPattern(value, hook.entry.match, fields.input)),
-    ).filter(hook => !isHookSpent(hook.id, scope))
+    const matching = await Promise.all(candidates.map(async hook => hook.entry.match === undefined || value === undefined || await matchesPattern(value, hook.entry.match, fields.input)))
+    const result = dedupeHooks(candidates.filter((_, i) => matching[i])).filter(hook => !isHookSpent(hook.id, scope))
     logForDebugging(`${event}: ${result.length} hooks matched${value !== undefined ? ` for "${value}"` : ''} (${candidates.length} before deduplication)`, {
       level: 'verbose',
     })

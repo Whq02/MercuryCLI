@@ -91,5 +91,25 @@ console.log('\n§5 the same numbers from a GGUF header: synthetic bytes through 
   check('an array past 1,024 elements is skipped and the keys after it still read', bigArray.state === 'ok' && bigArray.header.kv['cohere2.big'] === undefined && bigArray.header.kv['cohere2.after'] === 7, JSON.stringify(bigArray.state === 'ok' ? bigArray.header.kv : bigArray))
 }
 
+console.log('\n§6 gpt-oss and gemma3n without a pattern key keep their architecture periods')
+for (const fixture of [
+  { arch: 'gpt-oss', layers: 24, heads: 8, width: 64, window: 128, period: 2, globalLayers: 12, slidingLayers: 12, globalBytes: 805_306_368, slidingBytes: 3_145_728, totalBytes: 808_452_096 },
+  { arch: 'gemma3n', layers: 35, heads: 2, width: 256, window: 512, period: 5, globalLayers: 7, slidingLayers: 28, globalBytes: 469_762_048, slidingBytes: 29_360_128, totalBytes: 499_122_176 },
+]) {
+  const { arch, layers, heads, width, window, period, globalLayers, slidingLayers, globalBytes, slidingBytes, totalBytes } = fixture
+  const header = parseGgufHeader(new Uint8Array(ggufHeaderBytes({ architecture: arch, kv: { [`${arch}.block_count`]: layers, [`${arch}.attention.head_count_kv`]: heads, [`${arch}.attention.key_length`]: width, [`${arch}.attention.value_length`]: width, [`${arch}.attention.sliding_window`]: window }, tensors: [] })))
+  check(`${arch}: the GGUF header has a sliding window and no pattern key`, header.state === 'ok' && header.header.kv[`${arch}.attention.sliding_window_pattern`] === undefined)
+  const info = header.state === 'ok' ? header.header.kv : {}
+  const mask = slidingLayerMask(info, arch, layers)
+  check(`${arch}: only every ${period}th layer is global, starting with a sliding layer`, mask !== undefined && mask.length === layers && mask.every((sliding, i) => sliding === (i % period !== period - 1)), JSON.stringify(mask))
+  const geometry = kvGeometryOf(info)
+  check(`${arch}: ${globalLayers} global layers and ${slidingLayers} sliding layers`, geometry?.attentionLayers === globalLayers && geometry.kvHeads === globalLayers * heads && geometry.sliding?.layers === slidingLayers && geometry.sliding.kvHeads === slidingLayers * heads && geometry.sliding.window === window, JSON.stringify(geometry))
+  check(`${arch}: f16 at 32k = ${globalBytes} + ${slidingBytes} = ${totalBytes} bytes`, globalLayers * heads * (width + width) * 2 * 32_768 === globalBytes && slidingLayers * heads * (width + width) * 2 * window === slidingBytes && geometry !== undefined && kvCacheBytes(geometry, 32_768, 1, 'f16') === totalBytes, String(geometry && kvCacheBytes(geometry, 32_768, 1, 'f16')))
+  const explicit = slidingLayerMask({ ...info, [`${arch}.attention.sliding_window_pattern`]: Array.from({ length: layers }, () => false) }, arch, layers)
+  check(`${arch}: explicit GGUF metadata overrides the architecture default`, explicit?.every(sliding => !sliding) === true)
+  const noWindow = slidingLayerMask({ ...info, [`${arch}.attention.sliding_window`]: undefined }, arch, layers)
+  check(`${arch}: no sliding window means no inferred pattern`, noWindow === undefined)
+}
+
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -328,7 +328,7 @@ export function estimateSkillFrontmatterTokens(skill: Command): number {
 
 type LoadedSkill = { command: Command; filePath: string; source: string }
 
-const SKILL_WALK_MAX_DEPTH = 8
+export const SKILL_WALK_MAX_DEPTH = 8
 
 async function findSkillDirs(dir: string): Promise<string[] | null> {
   const found: string[] = []

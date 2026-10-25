@@ -69,7 +69,8 @@ section('§1 the match: names, a pipe list, a regular expression, everything')
   check('Bash matches the name, the everything entries, not the pipe or the regex', runs(await matchHooks('tool.before', toolPayload('Bash'), scope)) === 'names,everything,star')
   check('Edit matches the pipe list', runs(await matchHooks('tool.before', toolPayload('Edit'), scope)) === 'pipe,everything,star')
   check('mcp__x matches the regular expression', runs(await matchHooks('tool.before', toolPayload('mcp__x'), scope)) === 'regex,everything,star')
-  check('matchesPattern: the LSP family name covers the LSP tools', matchesPattern('LspRead', 'LSP') && !matchesPattern('LspRead', '^LSP$'))
+  check('matchesPattern: the LSP family name covers the LSP tools', (await matchesPattern('LspRead', 'LSP')) && !(await matchesPattern('LspRead', '^LSP$')))
+  check('an empty pipe-list member never widens a name matcher', !(await matchesPattern('Bash', 'Read|')) && (await matchesPattern('Read', 'Read|')))
   check('hasHooksFor answers the cheap question', hasHooksFor('tool.before', scope) && !hasHooksFor('turn.end', scope))
 }
 
@@ -89,11 +90,74 @@ section("§1b a permission rule in the match reads the call's arguments: a shell
   const file = async (tool: string, file_path: string): Promise<string> => runs(await matchHooks('tool.before', call(tool, { file_path }), scope))
   check('Bash(git *) fires for git status and for git -C /x log; Bash(git status) for the exact command only', (await bash('git status')) === 'git-only,exact-status,any-bash,bash-name' && (await bash('git -C /x log')) === 'git-only,any-bash,bash-name', `${await bash('git status')} / ${await bash('git -C /x log')}`)
   check('…and neither fires for ls: the hook is not run, only the name matchers are', (await bash('ls')) === 'any-bash,bash-name', await bash('ls'))
-  check('a compound command is read whole: cd x && git push is not git *', (await bash('cd x && git push')) === 'any-bash,bash-name', await bash('cd x && git push'))
+  check('a compound command matches any subcommand: cd x && git push is git *', (await bash('cd x && git push')) === 'git-only,any-bash,bash-name', await bash('cd x && git push'))
   check('Edit(src/**) fires for src/a.ts under the project, absolute or relative, and not for docs/b.md', (await file('Edit', join(PROJ, 'src/a.ts'))) === 'src-edits' && (await file('Edit', 'src/a.ts')) === 'src-edits' && (await file('Edit', join(PROJ, 'docs/b.md'))) === '', `${await file('Edit', join(PROJ, 'src/a.ts'))} / ${await file('Edit', 'src/a.ts')} / ${await file('Edit', join(PROJ, 'docs/b.md'))}`)
   check('Edit(*.rs)|Write(*.rs) fires for a .rs file through either tool; a Write of a .ts file fires neither clause', (await file('Edit', join(PROJ, 'src/lib.rs'))) === 'src-edits,rust-writes' && (await file('Write', join(PROJ, 'x/main.rs'))) === 'rust-writes' && (await file('Write', join(PROJ, 'src/x.ts'))) === '', `${await file('Edit', join(PROJ, 'src/lib.rs'))} / ${await file('Write', join(PROJ, 'x/main.rs'))} / ${await file('Write', join(PROJ, 'src/x.ts'))}`)
-  check('matchesPattern reads the arguments it is handed, and a rule on one tool never claims another', matchesPattern('Bash', 'Bash(git *)', { command: 'git push' }) && !matchesPattern('Bash', 'Bash(git *)', { command: 'npm test' }) && !matchesPattern('Edit', 'Bash(git *)', { command: 'git push' }) && !matchesPattern('Bash', 'Bash(git *)'))
-  check('a regex keeps its regex meaning: ^(Read|Edit)$ names the tool and is no rule', matchesPattern('Read', '^(Read|Edit)$') && !matchesPattern('Bash', '^(Read|Edit)$'))
+  check('matchesPattern reads the arguments it is handed, and a rule on one tool never claims another', (await matchesPattern('Bash', 'Bash(git *)', { command: 'git push' })) && !(await matchesPattern('Bash', 'Bash(git *)', { command: 'npm test' })) && !(await matchesPattern('Edit', 'Bash(git *)', { command: 'git push' })) && !(await matchesPattern('Bash', 'Bash(git *)')))
+  check('a regex keeps its regex meaning: ^(Read|Edit)$ names the tool and is no rule', (await matchesPattern('Read', '^(Read|Edit)$')) && !(await matchesPattern('Bash', '^(Read|Edit)$')))
+}
+
+section('§1c a push matcher sees compound subcommands, not quoted text or unrelated commands')
+{
+  write(USER, { events: { hooks: { 'tool.before': [{ match: 'Bash(git push *)', run: 'push' }] } } })
+  reload()
+  for (const [command, expected] of [
+    ['cd x && git push', 'push'], ['git status || git push origin main', 'push'],
+    ['git status; git push', 'push'], ['git status\ngit push', 'push'],
+    ['git status | git push', 'push'], ['git status && ls', ''],
+    ['echo "cd x && git push"', ''], ["printf '%s' 'git push'", ''],
+  ]) {
+    const payload = { ...toolPayload('Bash'), input: { command } }
+    check(`${JSON.stringify(command)} selects ${expected || 'no hook'}`, runs(await matchHooks('tool.before', payload, scope)) === expected)
+  }
+  check('an exact rule also matches a subcommand', (await matchesPattern('Bash', 'Bash(git push)', { command: 'cd x && git push' })))
+  const { pinnedCommandAnalysis } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
+  const parsePowerShell = pinnedCommandAnalysis.parsePowerShellCommand
+  const seen: string[] = []
+  pinnedCommandAnalysis.parsePowerShellCommand = Object.assign(async (command: string) => {
+    seen.push(command)
+    return { valid: true, variables: [], errors: [], hasStopParsing: false, originalCommand: command, statements: [{ statementType: 'PipelineAst', text: command, nestedCommands: [], redirections: [], commands: (command.startsWith('Set-Location') ? ['Set-Location x', 'git push origin main'] : [command]).map(text => ({ name: text.split(' ')[0]!, text, nameType: 'application' as const, args: [], elementType: 'CommandAst' })) }] }
+  }, { cache: parsePowerShell.cache })
+  try {
+    check('PowerShell uses its permission parser for subcommands', await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Set-Location x; git push origin main' }))
+    check('PowerShell quoted command text is not a subcommand', !await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Write-Output "git push"' }))
+    check('both PowerShell calls reached the existing parser', seen.join('|') === 'Set-Location x; git push origin main|Write-Output "git push"')
+  } finally {
+    pinnedCommandAnalysis.parsePowerShellCommand = parsePowerShell
+  }
+}
+
+section('§1d permission matcher families: crewmate type, fetch domain and MCP server')
+{
+  write(USER, { events: { hooks: { 'tool.before': [
+    { match: 'Crewmate(mercury-scout)', run: 'scout' },
+    { match: 'WebFetch(domain:example.com)', run: 'site' },
+    { match: 'WebFetch(domain:*.example.com)', run: 'subdomain' },
+    { match: 'mcp__files', run: 'server' },
+    { match: 'mcp__files__*', run: 'server-star' },
+    { match: 'mcp__files__read', run: 'read' },
+  ] } } })
+  reload()
+  for (const [tool, input, expected] of [
+    ['Crewmate', { crewmate_type: 'mercury-scout' }, 'scout'],
+    ['Crewmate', { crewmate_type: 'mercury-builder' }, ''],
+    ['Crewmate', {}, ''],
+    ['WebFetch', { url: 'https://example.com/page' }, 'site'],
+    ['WebFetch', { url: 'https://docs.example.com:8443/page' }, 'subdomain'],
+    ['WebFetch', { url: 'https://example.com.evil.test/page' }, ''],
+    ['WebFetch', { url: 'https://example.com@evil.test/page' }, ''],
+    ['WebFetch', { url: 'not a URL' }, ''],
+    ['mcp__files__read', {}, 'server,server-star,read'],
+    ['mcp__files__write', {}, 'server,server-star'],
+    ['mcp__files_other__read', {}, ''],
+    ['mcp__other__read', {}, ''],
+  ] as Array<[string, Record<string, unknown>, string]>) {
+    check(`${tool} ${JSON.stringify(input)} selects ${expected || 'no hook'}`, runs(await matchHooks('tool.before', { ...toolPayload(tool), input }, scope)) === expected)
+  }
+  check('new matcher families join existing rule clauses', (await matchesPattern('WebFetch', 'Crewmate(mercury-scout)|WebFetch(domain:example.com)|mcp__files__*', { url: 'https://example.com/' })) && (await matchesPattern('mcp__files__write', 'Crewmate(mercury-scout)|WebFetch(domain:example.com)|mcp__files__*')))
+  check('an omitted crewmate type matches the launch default', await matchesPattern('Crewmate', 'Crewmate(mercury-crew)', {}))
+  check('an anchored MCP regex retains regex semantics', !(await matchesPattern('mcp__files__read', '^mcp__files$')))
+  check('Crewmate types are exact, not a glob', !(await matchesPattern('Crewmate', 'Crewmate(mercury-*)', { crewmate_type: 'mercury-scout' })))
 }
 
 section('§2 the layers: every layer runs, an identical entry runs once, the later layer is its source')

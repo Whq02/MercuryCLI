@@ -116,7 +116,7 @@ export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
   return ruleTable(context).byBehavior.ask.map(copyRule)
 }
 
-function namesWholeServerOf(ruleToolName: string, toolName: string): boolean {
+export function namesWholeServerOf(ruleToolName: string, toolName: string): boolean {
   const ruleTarget = mcpInfoFromString(ruleToolName)
   const toolTarget = mcpInfoFromString(toolName)
   if (ruleTarget === null || toolTarget === null) return false

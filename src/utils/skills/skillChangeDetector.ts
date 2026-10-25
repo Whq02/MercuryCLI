@@ -5,7 +5,7 @@ import { dirname, resolve, sep } from 'node:path'
 import * as chokidar from 'chokidar'
 
 import { clearCommandMemoizationCaches, clearCommandsCache } from '../../commands.js'
-import { clearSkillCaches, getProjectSkillsWatchPaths, getSkillsPath, onDynamicSkillsLoaded } from '../../skills/loadSkillsDir.js'
+import { clearSkillCaches, getProjectSkillsWatchPaths, getSkillsPath, onDynamicSkillsLoaded, SKILL_WALK_MAX_DEPTH } from '../../skills/loadSkillsDir.js'
 import { resetSentSkillNames } from '../attachments/skillListing.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
@@ -180,7 +180,7 @@ async function armWatcher(gen: number): Promise<string[]> {
   const built = watcherFactory([...targets].map(resolveWatchRoot), {
     persistent: true,
     ignoreInitial: true,
-    depth: 2,
+    depth: SKILL_WALK_MAX_DEPTH,
     awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
     ignorePermissionErrors: true,
     atomic: true,

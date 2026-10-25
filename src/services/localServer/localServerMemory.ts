@@ -37,7 +37,7 @@ function numberOf(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined
 }
 
-export const SLIDING_WINDOW_PERIOD_BY_ARCHITECTURE: Readonly<Record<string, number>> = { gemma2: 2, gemma3: 6 }
+export const SLIDING_WINDOW_PERIOD_BY_ARCHITECTURE: Readonly<Record<string, number>> = { gemma2: 2, gemma3: 6, 'gpt-oss': 2, gemma3n: 5 }
 
 export function slidingLayerMask(info: Record<string, unknown>, arch: string, layers: number): boolean[] | undefined {
   if (numberOf(info[`${arch}.attention.sliding_window`]) === undefined) return undefined

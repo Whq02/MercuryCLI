@@ -141,6 +141,51 @@ console.log('L7 controls')
   t('the temp tree is where it should be', existsSync(apiSkills))
 }
 
+console.log('L8 category-nested skills hot-reload after boot, through the discovery depth bound')
+{
+  const detector = await import(join(SRC, 'utils/skills/skillChangeDetector.ts'))
+  const { watch } = await import('chokidar')
+  const projectSkills = join(project, '.mercury', 'skills')
+  const cases = [
+    { dir: projectSkills, name: 'top-level' },
+    { dir: join(projectSkills, 'team', 'backend'), name: 'deploy' },
+    { dir: join(projectSkills, 'a', 'b', 'c', 'd', 'e', 'f', 'g'), name: 'depth-eight' },
+  ]
+  for (const { dir, name } of cases) writeSkill(dir, name, 'boot')
+  const before = await skills.getSkillDirCommands(project)
+  t('all three skills load at boot', cases.every(({ name }) => before.some((cmd: Cmd) => cmd.name === name && cmd.description === 'boot')))
+  const ready: Promise<void>[] = []
+  await detector.resetForTesting({
+    debounceMs: 30, stabilityThresholdMs: 50, pollIntervalMs: 20, bunPollIntervalMs: 50,
+    watcherFactory: (paths: string[], options: Parameters<typeof watch>[1]) => {
+      const watcher = watch(paths, options)
+      ready.push(new Promise(resolve => watcher.once('ready', resolve)))
+      return watcher
+    },
+  })
+  try {
+    await detector.initialize()
+    await Promise.all(ready)
+    for (const { dir, name } of cases) {
+      let unsubscribe = (): void => {}
+      let timer: ReturnType<typeof setTimeout>
+      const changed = new Promise<boolean>(resolve => {
+        timer = setTimeout(() => resolve(false), 3000)
+        unsubscribe = detector.subscribe(() => resolve(true))
+      })
+      writeSkill(dir, name, 'edited after boot')
+      const fired = await changed
+      clearTimeout(timer!)
+      unsubscribe()
+      const after = await skills.getSkillDirCommands(project)
+      t(`${name}: the edit fires without a catalogue clear`, fired)
+      t(`${name}: the cached catalogue returns the edited frontmatter`, after.some((cmd: Cmd) => cmd.name === name && cmd.description === 'edited after boot'))
+    }
+  } finally {
+    await detector.dispose()
+  }
+}
+
 rmSync(root, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

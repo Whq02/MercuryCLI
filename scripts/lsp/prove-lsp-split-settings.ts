@@ -37,8 +37,8 @@ for (const selector of ['LSP', 'lsp']) {
   restoreCapability('*', selector)
   check(`${selector} restore releases the family kill`, LSP_TOOLS.every(tool => !isCapabilityKilled(tool.name)))
 }
-check('name and pipe hook matchers cover the family', LSP_TOOLS.every(tool => matchesPattern(tool.name, 'LSP') && matchesPattern(tool.name, 'Edit|LSP')))
-check('a regex keeps its regex meaning, not family semantics', LSP_TOOLS.every(tool => !matchesPattern(tool.name, '^LSP$')))
+check('name and pipe hook matchers cover the family', (await Promise.all(LSP_TOOLS.map(async tool => await matchesPattern(tool.name, 'LSP') && await matchesPattern(tool.name, 'Edit|LSP')))).every(Boolean))
+check('a regex keeps its regex meaning, not family semantics', (await Promise.all(LSP_TOOLS.map(async tool => !await matchesPattern(tool.name, '^LSP$')))).every(Boolean))
 const definition = { source: 'projectSettings' as const, tools: ['LSP'], agentType: 'fixture' }
 const resolved = resolveAgentTools(definition, LSP_TOOLS, true)
 check('agent tools family resolves to exactly all seven', JSON.stringify(resolved.resolvedTools.map(tool => tool.name)) === JSON.stringify(LSP_TOOLS.map(tool => tool.name)))

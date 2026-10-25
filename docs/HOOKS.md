@@ -57,11 +57,16 @@ and may carry:
   `Bash(git *)` and `PowerShell(…)` the command, `Read(…)`, `Edit(…)`,
   `Write(…)`, `NotebookEdit(…)`, `NotebookRead(…)`, `Glob(…)` and `Grep(…)`
   the path, with the patterns a permission rule takes (`Edit(*.ts)`);
-  clauses join with `|` (`Edit(*.rs)|Write(*.rs)`). A command is read whole:
-  `Bash(git push *)` does not match `cd x && git push`. An entry whose match
-  is not a valid regular expression is a named fault and does not load; so is
-  a match on an event that has no match field, a rule with arguments on an
-  event that is not a tool event, and one reading another tool's arguments. A
+  clauses join with `|` (`Edit(*.rs)|Write(*.rs)`). A command rule also matches
+  any subcommand: `Bash(git push *)` matches `cd x && git push`.
+  `Crewmate(mercury-scout)` matches the crewmate type.
+  `WebFetch(domain:example.com)` matches the URL's hostname; `domain:*.example.com`
+  matches its subdomains.
+  `mcp__files` or `mcp__files__*` matches every tool on the `files` MCP server.
+  An entry whose match is not a valid regular expression is a named fault and
+  does not load; so is a match on an event that has no match field, a rule with
+  arguments on an event that is not a tool event, and one reading arguments
+  the permission rules cannot match. A
   `run` hook that cares about something a rule cannot say reads its stdin and
   exits 0 at once when the call is not its business:
   ```sh

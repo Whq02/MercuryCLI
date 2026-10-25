@@ -4,18 +4,21 @@ import { permissionRuleValueFromString } from '../permissions/permissionRulePars
 type MatcherShape = 'everything' | 'names' | 'rules' | 'regex'
 
 const TOOL_NAME = /^[a-zA-Z0-9_]+$/
+const MCP_SERVER_GLOB = /^mcp__[a-zA-Z0-9_]+__\*$/
 const COMMAND_TOOLS: ReadonlySet<string> = new Set(['Bash', 'PowerShell'])
 const PATH_TOOLS: ReadonlySet<string> = new Set(['Read', 'Edit', 'Write', 'NotebookEdit', 'NotebookRead', 'Glob', 'Grep'])
 
-type RuleArgument = 'command' | 'path'
+type RuleArgument = 'command' | 'path' | 'domain' | 'crewmate'
 
 export function ruleArgumentOf(toolName: string): RuleArgument | null {
   if (COMMAND_TOOLS.has(toolName)) return 'command'
   if (PATH_TOOLS.has(toolName)) return 'path'
+  if (toolName === 'WebFetch') return 'domain'
+  if (toolName === 'Crewmate') return 'crewmate'
   return null
 }
 
-const RULE_ARGUMENT_WORDS = `the command of ${[...COMMAND_TOOLS].join(' and ')} and the path of ${[...PATH_TOOLS].slice(0, -1).join(', ')} and ${[...PATH_TOOLS].slice(-1)[0]}`
+const RULE_ARGUMENT_WORDS = `the command of ${[...COMMAND_TOOLS].join(' and ')} and the path of ${[...PATH_TOOLS].slice(0, -1).join(', ')} and ${[...PATH_TOOLS].slice(-1)[0]}, the domain of WebFetch and the type of Crewmate`
 
 function splitClauses(matcher: string): string[] {
   const clauses: string[] = []
@@ -41,12 +44,12 @@ function splitClauses(matcher: string): string[] {
 export function ruleClausesOf(matcher: string): PermissionRuleValue[] | null {
   if (!matcher.includes('(')) return null
   const clauses = splitClauses(matcher).map(clause => permissionRuleValueFromString(clause))
-  return clauses.every(clause => TOOL_NAME.test(clause.toolName)) ? clauses : null
+  return clauses.every(clause => TOOL_NAME.test(clause.toolName) || MCP_SERVER_GLOB.test(clause.toolName)) ? clauses : null
 }
 
 export function matcherShape(matcher: string | undefined): MatcherShape {
   if (!matcher || matcher === '*') return 'everything'
-  if (/^[a-zA-Z0-9_|]+$/.test(matcher)) return 'names'
+  if (/^[a-zA-Z0-9_|]+$/.test(matcher) || matcher.split('|').every(name => TOOL_NAME.test(name) || MCP_SERVER_GLOB.test(name))) return 'names'
   if (ruleClausesOf(matcher) !== null) return 'rules'
   return 'regex'
 }

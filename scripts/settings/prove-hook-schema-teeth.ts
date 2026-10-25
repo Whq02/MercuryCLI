@@ -62,7 +62,8 @@ section('§2 a faulty entry is named and dropped WHOLE; the rest of the file app
     ['model on a run', { run: 'echo', model: 'x' }, /model belongs to a question or crewmate hook/],
     ['a condition field the entry does not have', { match: 'Bash', if: 'Bash(git *)', run: 'echo' }, /Unrecognized key: "if"/],
     ['watch outside file.changed', { watch: ['x'], run: 'echo' }, /watch belongs to file.changed, not tool.before/],
-    ["a rule reading a tool's arguments the matcher cannot read", { match: 'Crewmate(mercury-scout)', run: 'echo' }, /match reads the command of Bash and PowerShell and the path of Read, Edit, Write, NotebookEdit, NotebookRead, Glob and Grep, not the arguments of Crewmate/],
+    ["a rule reading a tool's arguments the matcher cannot read", { match: 'Sleep(10)', run: 'echo' }, /not the arguments of Sleep/],
+    ['MCP arguments have no permission content matcher', { match: 'mcp__files__read(path:src)', run: 'echo' }, /not the arguments of mcp__files__read/],
     ['failClosed on a background hook', { run: 'echo', background: true, failClosed: true }, /failClosed belongs to a foreground hook/],
     ['a wrong-typed failClosed', { run: 'echo', failClosed: 'yes' }, /failClosed: .*expected boolean/],
   ]
@@ -85,6 +86,9 @@ section('§2 a faulty entry is named and dropped WHOLE; the rest of the file app
   check("a rule with arguments on an event that matches a status, not a tool call, is a named fault", ruleOnStatus.errors.length === 1 && /turn.end matches status, not a tool call's arguments: "Bash\(git \*\)"/.test(ruleOnStatus.errors[0]?.message ?? '') && ruleOnStatus.entries.length === 1, errorWords(ruleOnStatus.errors))
   const ruled = parseHooks({ 'tool.before': [{ match: 'Bash(git *)', run: 'echo', failClosed: true }, { match: 'Edit(src/**)|Write(src/**)', question: 'fine? $EVENT' }, { match: 'Bash(*)', run: 'echo all' }], 'permission.ask': [{ match: 'Read(~/secrets/**)', run: 'echo', failClosed: true }] })
   check('a rule with arguments, alone or joined with |, and failClosed on a blockable event parse byte-faithfully', ruled.errors.length === 0 && ruled.entries.length === 3 && ruled.entries[0]?.match === 'Bash(git *)' && ruled.entries[0]?.failClosed === true && ruled.entries[1]?.match === 'Edit(src/**)|Write(src/**)' && (ruled.all['permission.ask'] as Entry[]).length === 1, errorWords(ruled.errors))
+  const families = ['Crewmate(mercury-scout)', 'WebFetch(domain:example.com)', 'WebFetch(domain:*.example.com)', 'mcp__files', 'mcp__files__*', 'Crewmate(mercury-scout)|WebFetch(domain:example.com)|mcp__files__*']
+  const supported = parseHooks({ 'tool.before': families.map(match => ({ match, run: 'echo' })) })
+  check('crewmate type, fetch domain and MCP server matchers load byte-faithfully', supported.errors.length === 0 && JSON.stringify(supported.entries.map(entry => entry.match)) === JSON.stringify(families), errorWords(supported.errors))
 }
 
 section('§3 an unknown event name is a named fault; the other events load')
@@ -123,12 +127,12 @@ section('§5 THE DOCUMENTED GRAMMAR — the schema accepts every match the runti
   const empty = parseHooks({ 'tool.before': [{ match: '', run: 'echo every tool' }] })
   check('"" (the empty match) parses with zero errors and survives', empty.errors.length === 0 && empty.entries[0]?.match === '', errorWords(empty.errors))
   for (const matcher of ['*', '', 'Bash', 'Bash|Read', '^(Read|Edit)$', 'mcp__.*']) {
-    check(`the schema and the runtime agree on ${JSON.stringify(matcher)}`, matcherCompiles(matcher) && (matcher === '' || matcher === '*' ? matchesPattern('Bash', matcher) : matcherShape(matcher) !== 'regex' || matchesPattern('Read', matcher) === new RegExp(matcher).test('Read')))
+    check(`the schema and the runtime agree on ${JSON.stringify(matcher)}`, matcherCompiles(matcher) && (matcher === '' || matcher === '*' ? await matchesPattern('Bash', matcher) : matcherShape(matcher) !== 'regex' || await matchesPattern('Read', matcher) === new RegExp(matcher).test('Read')))
   }
-  check('"*" is the runtime\'s match-everything, never a regex', matcherShape('*') === 'everything' && matchesPattern('Bash', '*') && matchesPattern('Write', '*'))
-  check('an uncompilable regex is refused by both', !matcherCompiles('startu[p') && !matchesPattern('startup', 'startu[p') && parseHooks({ 'tool.before': [{ match: 'startu[p', run: 'echo x' }] }).errors.length > 0)
-  check('a permission rule is its own shape, and the runtime reads it as one', matcherShape('Bash(git *)') === 'rules' && matcherShape('Edit(*.rs)|Write(*.rs)') === 'rules' && matcherCompiles('Bash(git *)') && matchesPattern('Bash', 'Bash(git *)', { command: 'git push' }))
-  check('Bash(*) is the whole tool, as a permission rule reads it, not an uncompilable regex', matcherShape('Bash(*)') === 'rules' && matcherCompiles('Bash(*)') && matchesPattern('Bash', 'Bash(*)', { command: 'ls' }) && parseHooks({ 'tool.before': [{ match: 'Bash(*)', run: 'echo x' }] }).errors.length === 0)
+  check('"*" is the runtime\'s match-everything, never a regex', matcherShape('*') === 'everything' && await matchesPattern('Bash', '*') && await matchesPattern('Write', '*'))
+  check('an uncompilable regex is refused by both', !matcherCompiles('startu[p') && !await matchesPattern('startup', 'startu[p') && parseHooks({ 'tool.before': [{ match: 'startu[p', run: 'echo x' }] }).errors.length > 0)
+  check('a permission rule is its own shape, and the runtime reads it as one', matcherShape('Bash(git *)') === 'rules' && matcherShape('Edit(*.rs)|Write(*.rs)') === 'rules' && matcherCompiles('Bash(git *)') && await matchesPattern('Bash', 'Bash(git *)', { command: 'git push' }))
+  check('Bash(*) is the whole tool, as a permission rule reads it, not an uncompilable regex', matcherShape('Bash(*)') === 'rules' && matcherCompiles('Bash(*)') && await matchesPattern('Bash', 'Bash(*)', { command: 'ls' }) && parseHooks({ 'tool.before': [{ match: 'Bash(*)', run: 'echo x' }] }).errors.length === 0)
   check('a regex with a group is a regex still: no tool name opens it', matcherShape('^(Read|Edit)$') === 'regex' && matcherShape('(Read|Edit)') === 'regex' && matcherShape('mcp__.*') === 'regex')
 }
 
