@@ -11,7 +11,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 
-const { fileGeneration, recordSeenLines, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
+const { fileGeneration, recordSeenLines, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
 const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
@@ -121,6 +121,13 @@ section('R. the refusal names the lines read and the lines the edit touches; a f
   primeRead(ctxWindow, file, { offset: 1, limit: 2 })
   const missing = await validate({ file_path: file, old_string: 'const nowhere = 0', new_string: 'x' }, ctxWindow)
   check('R5 an old_string absent from the file says so instead of guessing lines', !missing.ok && missing.message.includes(LAW) && missing.message.includes('the old_string was not found in the current content, so the lines the edit touches are unknown'), messageOf(missing))
+  const ledgerNow = seenLinesOf(owner, file)?.ranges ?? []
+  const isRead = (n: number): boolean => n <= 2 || ledgerNow.some(range => range.start <= n && n <= range.end)
+  const numberedLines = (text: string): number[] => [...text.matchAll(/^(\d+)\t/gm)].map(m => Number(m[1]))
+  const nearInside = await validate({ file_path: file, old_string: 'const v7 = 7\nconst v8 = 80', new_string: 'x' }, ctxWindow)
+  check('R5b a near miss inside the read lines carries the closest lines with their anchor, and every line it carries was read', isRead(7) && isRead(8) && !isRead(9) && !nearInside.ok && nearInside.message.includes('so the lines the edit touches are unknown — a Read of the file shows what stands.\nThe lines read this session closest to old_string, numbered with their anchor:\n') && /\n7\tconst v7 = 7\n8\tconst v8 = 8\n\(anchor: ra:/.test(nearInside.message) && numberedLines(nearInside.message).length > 0 && numberedLines(nearInside.message).every(isRead), messageOf(nearInside))
+  const nearOutside = await validate({ file_path: file, old_string: 'const v8 = 8\nconst v9 = 90', new_string: 'x' }, ctxWindow)
+  check('R5c a near miss reaching past the read lines carries no unread line (line 9 stays unseen) and never says where an unread new_string stands', !nearOutside.ok && !/\n9\t/.test(nearOutside.message) && numberedLines(nearOutside.message).every(isRead) && !nearOutside.message.includes('new_string already stands') && readFileSync(file, 'utf8').includes('\nx\n'), messageOf(nearOutside))
 
   const heading = await validate({ file_path: file, section: '## Nope', new_string: '## Nope\n' }, ctxWindow)
   check('R6 a section edit whose heading is absent says so in section words', !heading.ok && heading.message.includes('the section heading was not found in the current content'), messageOf(heading))

@@ -102,6 +102,7 @@ import {
   buildEditedLines,
   editResultHead,
   matchRangesOf,
+  noMatchHint,
   notUniqueMessage,
   spellNamedRanges,
 } from './editResult.js'
@@ -368,6 +369,25 @@ function knowledgeBeforeWrite(
     if (window !== null) ranges.push(window)
   }
   return coalesceLineRanges(ranges)
+}
+
+function noMatchWords(
+  context: ToolUseContext,
+  expandedPath: string,
+  displayPath: string,
+  currentContent: string,
+  expectedAnchor: string | undefined,
+  oldString: string,
+  newString: string,
+): string {
+  try {
+    const owner = ownerFromToolUseContext(context)
+    const read = knowledgeBeforeWrite(context, expandedPath, displayPath, currentContent, expectedAnchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
+    const hint = noMatchHint({ content: currentContent, oldString, newString, read, path: expandedPath })
+    return hint === '' ? '' : `\n${hint}`
+  } catch {
+    return ''
+  }
 }
 
 function writtenBytesOf(expandedPath: string, content: string, encoding: BufferEncoding): Buffer {
@@ -995,10 +1015,13 @@ export const FileEditTool = buildTool({
       if (notUnique !== null) return notUnique
     }
     if (knowledge !== null && knowledge.verdict === 'refused') {
+      const words = located !== null && located.kind === 'none' && !knowledge.unread
+        ? noMatchWords(context, expandedPath, input.file_path, currentContent, input.expected_anchor, oldString, newString)
+        : ''
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: knowledge.message,
+        message: `${knowledge.message}${words}`,
         errorCode: 6,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
@@ -1096,10 +1119,11 @@ export const FileEditTool = buildTool({
       const hint = composedElsewhere
         ? ' The file spells this text with another Unicode composition of the same letters (accents stored as separate combining marks, or the reverse) — a Read of the lines carries the file\'s own spelling; copy old_string from it.'
         : ''
+      const words = noMatchWords(context, expandedPath, input.file_path, currentContent, input.expected_anchor, oldString, newString)
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `The old_string was not found in the file.${hint}\nString: ${oldString}`,
+        message: `The old_string was not found in the file.${hint}${words}\nString: ${oldString}`,
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }

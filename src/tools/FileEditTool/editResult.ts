@@ -8,12 +8,14 @@ import {
   linesOutside,
   planReadThrough,
   readWindowBound,
+  renderCarriedWindows,
   spellLineRanges,
   widenLineRanges,
   type CarriedWindow,
   type LineRange,
   type ReadThroughBound,
 } from './readThrough.js'
+import { locateActualString } from './utils.js'
 
 export const EDIT_RESULT_MAX_ROWS = 60
 export const EDIT_RESULT_MAX_RENDERED_CHARS = 6000
@@ -346,4 +348,223 @@ export function matchRangesOf(content: string, actual: string): LineRange[] {
     from = at + actual.length
   }
   return ranges
+}
+
+const NO_MATCH_WINDOWS = 3
+const NO_MATCH_MIN_SIMILARITY = 0.6
+const NO_MATCH_COMMON_LINE = 50
+const NO_MATCH_ANCHOR_HITS = 20
+const NO_MATCH_PAIRS = 3
+
+export type NoMatchInput = { content: string; oldString: string; newString: string; read: readonly LineRange[]; path: string }
+
+type Candidate = { start: number; score: number }
+
+type Spelling = { lines: string[]; keys: string[]; escaped: boolean }
+
+function foldWhitespace(line: string): string {
+  return line.replace(/\s+/g, '')
+}
+
+function bigramsOf(text: string): Map<string, number> {
+  const out = new Map<string, number>()
+  for (let i = 0; i + 1 < text.length; i++) {
+    const pair = text.slice(i, i + 2)
+    out.set(pair, (out.get(pair) ?? 0) + 1)
+  }
+  return out
+}
+
+function lineSimilarity(a: string, b: string): number {
+  if (a === b) return 1
+  if (a.length < 2 || b.length < 2) return 0
+  const left = bigramsOf(a)
+  const right = bigramsOf(b)
+  let shared = 0
+  for (const [pair, count] of left) shared += Math.min(count, right.get(pair) ?? 0)
+  return (2 * shared) / (a.length - 1 + (b.length - 1))
+}
+
+function unescapeWire(text: string): string {
+  return text.replace(/\\([ntr"'\\])/g, (_match, char: string) => (char === 'n' ? '\n' : char === 't' ? '\t' : char === 'r' ? '\r' : char))
+}
+
+function linesOfString(text: string): string[] {
+  return (text.endsWith('\n') ? text.slice(0, -1) : text).split('\n')
+}
+
+function visibleWhitespace(line: string): string {
+  return line.replaceAll('\t', '→').replaceAll(' ', '·')
+}
+
+function closestStarts(fileKeys: readonly string[], readAt: Uint8Array, oldKeys: readonly string[]): Candidate[] {
+  const k = oldKeys.length
+  const n = fileKeys.length
+  if (k === 0 || k > n) return []
+  const index = new Map<string, number[]>()
+  for (let j = 0; j < n; j++) {
+    const key = fileKeys[j]!
+    if (key === '' || readAt[j] === 0) continue
+    const at = index.get(key)
+    if (at === undefined) index.set(key, [j])
+    else at.push(j)
+  }
+  const starts = new Set<number>()
+  let anchor = -1
+  for (let i = 0; i < k; i++) {
+    const key = oldKeys[i]!
+    if (key === '') continue
+    if (anchor === -1 || key.length > oldKeys[anchor]!.length) anchor = i
+    const at = index.get(key)
+    if (at !== undefined && at.length <= NO_MATCH_COMMON_LINE) for (const j of at) starts.add(j - i)
+  }
+  if (anchor === -1) return []
+  const near: Candidate[] = []
+  for (let j = 0; j < n; j++) {
+    if (readAt[j] === 0 || fileKeys[j] === '') continue
+    const score = lineSimilarity(oldKeys[anchor]!, fileKeys[j]!)
+    if (score >= NO_MATCH_MIN_SIMILARITY) near.push({ start: j - anchor, score })
+  }
+  near.sort((a, b) => b.score - a.score || a.start - b.start)
+  for (const hit of near.slice(0, NO_MATCH_ANCHOR_HITS)) starts.add(hit.start)
+  const scored: Candidate[] = []
+  for (const start of starts) {
+    if (start < 0 || start + k > n) continue
+    let total = 0
+    let inside = true
+    for (let i = 0; i < k; i++) {
+      if (readAt[start + i] === 0) {
+        inside = false
+        break
+      }
+      let best = lineSimilarity(oldKeys[i]!, fileKeys[start + i]!)
+      for (const slack of [-1, 1]) {
+        const j = start + i + slack
+        if (best < 1 && j >= 0 && j < n && readAt[j] === 1) best = Math.max(best, lineSimilarity(oldKeys[i]!, fileKeys[j]!))
+      }
+      total += best
+    }
+    if (!inside) continue
+    const score = total / k
+    if (score >= NO_MATCH_MIN_SIMILARITY) scored.push({ start, score })
+  }
+  scored.sort((a, b) => b.score - a.score || a.start - b.start)
+  const chosen: Candidate[] = []
+  for (const candidate of scored) {
+    if (chosen.length === NO_MATCH_WINDOWS) break
+    if (chosen.some(taken => Math.abs(taken.start - candidate.start) < k)) continue
+    chosen.push(candidate)
+  }
+  return chosen
+}
+
+const WORD_CHARACTER = /\w/
+
+function wholeMatchRanges(content: string, actual: string): LineRange[] {
+  const ranges: LineRange[] = []
+  const height = actual.replace(/\n$/, '').split('\n').length - 1
+  let from = 0
+  let line = 1
+  for (let at = content.indexOf(actual); at !== -1; at = content.indexOf(actual, from)) {
+    line += content.slice(from, at).split('\n').length - 1
+    const before = at === 0 ? '' : content[at - 1]!
+    const after = content[at + actual.length] ?? ''
+    const glued =
+      (WORD_CHARACTER.test(actual[0]!) && WORD_CHARACTER.test(before)) ||
+      (WORD_CHARACTER.test(actual[actual.length - 1]!) && WORD_CHARACTER.test(after))
+    if (!glued) ranges.push({ start: line, end: line + height })
+    line += actual.split('\n').length - 1
+    from = at + actual.length
+  }
+  return ranges
+}
+
+function presentAt(content: string, newString: string, read: readonly LineRange[]): LineRange[] {
+  if (newString.trim() === '') return []
+  const located = locateActualString(content, newString)
+  if (located.kind === 'none') return []
+  const ranges = located.kind === 'ambiguous' ? located.matches : wholeMatchRanges(content, located.actual)
+  return ranges.filter(range => linesOutside([range], read).length === 0)
+}
+
+function differenceWords(lines: readonly string[], fileKeys: readonly string[], spelling: Spelling, start: number): string | null {
+  if (!spelling.keys.every((key, i) => key === fileKeys[start + i])) return null
+  const differing = spelling.lines.map((_line, i) => i).filter(i => spelling.lines[i] !== lines[start + i])
+  const sequences = 'old_string spells backslash sequences (\\n, \\t, \\r, \\", \\\', \\\\) where the file has the characters'
+  if (differing.length === 0) {
+    return spelling.escaped
+      ? `They differ from old_string only in escaping: ${sequences}.`
+      : 'They differ from old_string only in the newline after the last line, which the file does not have.'
+  }
+  const named = differing.slice(0, NO_MATCH_PAIRS)
+  const rest = differing.length - named.length
+  const pairs = named.flatMap(i => [`${start + i + 1} file: ${visibleWhitespace(lines[start + i]!)}`, `${start + i + 1} old_string: ${visibleWhitespace(spelling.lines[i]!)}`])
+  const where = `${named.length === 1 ? 'line' : 'lines'} ${spellLineRanges(coalesceLineRanges(named.map(i => ({ start: start + i + 1, end: start + i + 1 }))))}${rest > 0 ? ` (and ${rest} more)` : ''}`
+  const verb = named.length === 1 && rest === 0 ? 'differs' : 'differ'
+  const how = spelling.escaped
+    ? `only in whitespace and escaping — ${sequences}; the file's spelling, then old_string's with its sequences read as characters (→ tab, · space):`
+    : `only in whitespace; the file's spelling, then old_string's (→ tab, · space):`
+  return [`Of these, ${where} ${verb} from old_string ${how}`, ...pairs].join('\n')
+}
+
+export function noMatchHint(input: NoMatchInput): string {
+  const lines = linesOfText(input.content)
+  const lineCount = lines.length
+  const read = coalesceLineRanges(input.read.map(range => ({ start: Math.max(1, range.start), end: Math.min(range.end, lineCount) })))
+  if (lineCount === 0 || read.length === 0) return ''
+  const parts: string[] = []
+  const present = presentAt(input.content, input.newString, read)
+  if (present.length > 0) {
+    const one = present.length === 1 && present[0]!.start === present[0]!.end
+    parts.push(`new_string already stands at ${one ? 'line' : 'lines'} ${spellNamedRanges(present)} — the edit may have landed on an earlier call.`)
+  }
+  const readAt = new Uint8Array(lineCount)
+  for (const range of read) for (let line = range.start; line <= range.end; line++) readAt[line - 1] = 1
+  const fileKeys = lines.map(foldWhitespace)
+  const typed = linesOfString(input.oldString)
+  const unescaped = unescapeWire(input.oldString)
+  const spellings: Spelling[] = [{ lines: typed, keys: typed.map(foldWhitespace), escaped: false }]
+  if (unescaped !== input.oldString) {
+    const escapedLines = linesOfString(unescaped)
+    spellings.push({ lines: escapedLines, keys: escapedLines.map(foldWhitespace), escaped: true })
+  }
+  let best: { windows: Candidate[]; spelling: Spelling } | null = null
+  for (const spelling of spellings) {
+    const windows = closestStarts(fileKeys, readAt, spelling.keys)
+    if (windows.length > 0 && (best === null || windows[0]!.score > best.windows[0]!.score)) best = { windows, spelling }
+  }
+  if (best !== null) {
+    const k = best.spelling.lines.length
+    const bound = editResultBound()
+    let rowsLeft = bound.maxLines
+    let charsLeft = bound.maxRenderedChars ?? Number.POSITIVE_INFINITY
+    const shownRanges: LineRange[] = []
+    for (const window of best.windows) {
+      const range = { start: window.start + 1, end: window.start + k }
+      const within = read.find(seen => seen.start <= range.start && range.end <= seen.end)!
+      const shown = { start: Math.max(within.start, range.start - READ_THROUGH_MARGIN), end: Math.min(within.end, range.end + READ_THROUGH_MARGIN) }
+      const touching = shownRanges.find(taken => taken.start <= shown.end + 1 && shown.start <= taken.end + 1)
+      if (touching === undefined) shownRanges.push(shown)
+      else {
+        touching.start = Math.min(touching.start, shown.start)
+        touching.end = Math.max(touching.end, shown.end)
+      }
+    }
+    const blocks: string[] = []
+    for (const shown of shownRanges) {
+      if (rowsLeft <= 0 || charsLeft <= 0) break
+      const plan = planReadThrough(input.content, [shown], input.path, { maxLines: rowsLeft, maxTokens: bound.maxTokens, maxRenderedChars: charsLeft })
+      if (plan.windows.length === 0) break
+      const block = renderCarriedWindows(plan.windows)
+      blocks.push(block)
+      rowsLeft -= plan.lineCount
+      charsLeft -= block.length
+    }
+    if (blocks.length > 0) {
+      parts.push('The lines read this session closest to old_string, numbered with their anchor:', blocks.join('\n\n'))
+      const difference = differenceWords(lines, fileKeys, best.spelling, best.windows[0]!.start)
+      if (difference !== null) parts.push(difference)
+    }
+  }
+  return parts.join('\n')
 }
