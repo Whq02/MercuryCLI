@@ -1,5 +1,5 @@
 {
-  "base": "da5f3b9b176c3eca43efcc001d957077f5266d39",
+  "base": "fcb2857af98cb1b3c4c7d2a952409887f865862a",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1115,7 +1115,7 @@
     },
     {
       "name": "Service",
-      "description": "Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to stay up (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.\n\nOperations:\n· start — name + command + args (argv array, no shell parsing) + optional readiness: an array of condition objects, e.g. [{kind:\"tcp\",port:3000}] ({kind:\"log\",regex} · {kind:\"tcp\",port} · {kind:\"http\",url,status?,bodyRegex?} · {kind:\"file\",path,contentRegex?} · {kind:\"stable\",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop always suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).\n· wait — block until ready or the deadline; a timeout names exactly the unmet conditions.\n· logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.\n· describe / list — reconciled truth (a dead pid is never reported live).\n· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input.\n· start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.\n· stop / restart — explicit lifecycle; restart reuses the retained spec.\n\nServices are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.",
+      "description": "Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to stay up (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.\n\nOperations:\n· start — name + command + args (argv array, no shell parsing) + optional readiness: an array of condition objects, e.g. [{kind:\"tcp\",port:3000}] ({kind:\"log\",regex} · {kind:\"tcp\",port} · {kind:\"http\",url,status?,bodyRegex?} · {kind:\"file\",path,contentRegex?} · {kind:\"stable\",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop always suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).\n· wait — block until ready or the deadline; a timeout names exactly the unmet conditions.\n· logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.\n· describe / list — reconciled truth (a dead pid is never reported live).\n· input — type to the service (only the spawning session holds it): mode submit writes the text with Enter after it (default), write sends it exactly as given, eof ends the input. The answer carries what the service printed in reply — it waits up to timeoutMs (default 500 ms) for the output to settle or the process to end — with the cursor for op:\"logs\" and the service's state.\n· start with pty:true runs the command inside a pseudo-terminal: a program that needs a terminal sees one (its screen bytes land in the log, read back as plain lines), input types keystrokes to it, and Enter is the terminal's.\n· stop / restart — explicit lifecycle; restart reuses the retained spec.\n\nServices are addressable as mercury://service/<name> (Inspect). Never auto-started: a package.json script is a suggestion you start deliberately.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1315,7 +1315,7 @@
             ]
           },
           "timeoutMs": {
-            "description": "wait: readiness deadline in ms (default 30000, min 100, max 300000; a value outside the bounds is clamped to them and the result says so)",
+            "description": "wait: readiness deadline in ms (default 30000, min 100, max 300000); input: how long to wait for the service's reply in ms (default 500, min 100, max 30000); a value outside the bounds is clamped to them and the result says so",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
@@ -1327,7 +1327,7 @@
             "maximum": 9007199254740991
           },
           "limitLines": {
-            "description": "logs: max lines (default 100)",
+            "description": "logs, input: max lines (default 100)",
             "type": "integer",
             "minimum": 1,
             "maximum": 1000
