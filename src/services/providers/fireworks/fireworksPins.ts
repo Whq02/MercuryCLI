@@ -5,6 +5,7 @@ const EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 interface FireworksDisplayPin {
   id: string
   displayName: string
+  observedAt?: string
   contextWindow?: number
   outputMax?: number
   costInPerMtok?: number
@@ -23,6 +24,7 @@ export const FIREWORKS_DISPLAY_PINS: readonly FireworksDisplayPin[] = [
   { ...base, id: 'accounts/fireworks/models/glm-5p3-flash', displayName: 'GLM 5.3 Flash', contextWindow: 1_000_000, costInPerMtok: 0.15, cachedInPerMtok: 0.03, costOutPerMtok: 0.5 },
   { ...base, id: 'accounts/fireworks/models/deepseek-v4p1-flash', displayName: 'DeepSeek V4.1 Flash', contextWindow: 1_000_000, costInPerMtok: 0.3, cachedInPerMtok: 0.006, costOutPerMtok: 1.2 },
   { ...base, id: 'accounts/fireworks/models/qwen3p8-max', displayName: 'Qwen 3.8 Max', contextWindow: 262_144, costInPerMtok: 2, cachedInPerMtok: 0.25, costOutPerMtok: 6 },
+  { ...base, id: 'accounts/fireworks/models/minimax-m3p1-flash', displayName: 'MiniMax M3.1 Flash', observedAt: '2026-10-25', contextWindow: 1_040_000, efforts: ['low', 'medium', 'high', 'xhigh', 'max'], images: true },
   { ...base, id: 'accounts/fireworks/models/minimax-m3', displayName: 'MiniMax M3', contextWindow: 512_000, costInPerMtok: 0.3, cachedInPerMtok: 0.06, costOutPerMtok: 1.2 },
   { ...base, id: 'accounts/fireworks/models/gpt-oss-120b', displayName: 'GPT OSS 120B', contextWindow: 131_072, costInPerMtok: 0.15, cachedInPerMtok: 0.015, costOutPerMtok: 0.6, efforts: ['low', 'medium', 'high'] },
   { ...base, id: 'accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b', displayName: 'Nemotron 3.5 Lightning 30B', contextWindow: 262_144, costInPerMtok: 0.05, cachedInPerMtok: 0.01, costOutPerMtok: 0.2 },

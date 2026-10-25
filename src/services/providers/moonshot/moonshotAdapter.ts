@@ -1,8 +1,5 @@
 import { getCachedProviderDiscovery, primeMoonshotDiscovery } from '../providerDiscovery.js'
-import {
-  KIMI_EFFORTS,
-  KIMI_EFFORT_MODELS,
-} from './kimiPins.js'
+import { kimiEffortsFor } from './kimiPins.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -24,7 +21,7 @@ export function moonshotCatalogueEntries(): ProviderCatalogueEntry[] {
     displayLabel: row.displayName,
     modelClass: 'kimi' as const,
     ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
-    efforts: KIMI_EFFORT_MODELS.has(row.id) ? [...KIMI_EFFORTS] : [],
+    efforts: [...kimiEffortsFor(row.id)],
     roles: ALL_ROLES,
   }))
 }

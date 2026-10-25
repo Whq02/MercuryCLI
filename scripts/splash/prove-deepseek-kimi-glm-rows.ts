@@ -46,7 +46,7 @@ const glmPins: Pin[] = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displa
 const deepseekRetired: Pin[] = [...DEEPSEEK_RETIRED_ALIASES.keys()].map(id => ({ id, displayName: deepseekDisplayName(id) }))
 const FAMILIES: Family[] = [
   { word: 'deepseek', label: 'DeepSeek', shape: /^deepseek-/, owner: 'src/services/providers/deepseek/deepseekPins.ts', pins: [...DEEPSEEK_DISPLAY_PINS, ...deepseekRetired], head: DEEPSEEK_DISPLAY_PINS[0] },
-  { word: 'kimi', label: 'Kimi', shape: /^(?:kimi-|k3(?:-|$))/, owner: 'src/services/providers/moonshot/kimiPins.ts', pins: [...KIMI_DISPLAY_PINS, ...KIMI_PLAN_PINS], head: KIMI_DISPLAY_PINS[0] },
+  { word: 'kimi', label: 'Kimi', shape: /^(?:kimi-|k3(?:[.-]|$))/, owner: 'src/services/providers/moonshot/kimiPins.ts', pins: [...KIMI_DISPLAY_PINS, ...KIMI_PLAN_PINS], head: KIMI_DISPLAY_PINS[0] },
   { word: 'glm', label: 'GLM', shape: /^glm-/, owner: 'src/services/providers/zai/zaiAdapter.ts', pins: glmPins, head: glmPins[0] },
 ]
 const rowOf = (pin: Pin): string => `${JSON.stringify(pin.id.toLowerCase())}: ${JSON.stringify(pin.displayName)},`

@@ -249,7 +249,8 @@ try {
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('minimax-fixture-absent'))
   modelList = []; await refreshMinimaxCatalogue({ force: true })
   const emptyPins = minimaxCatalogueRows()
-  check('an empty live list falls to the pins labelled as pins, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 6 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
+  const { minimaxDisplayPin } = await import('../../src/services/providers/minimax/minimaxPins.ts')
+  check('an empty live list falls to the pins labelled as pins with each row\'s own date, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 7 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
   before = captures.length
   modelList = MINIMAX_FIXTURE_MODELS
   listStatus = 299; await refreshMinimaxCatalogue({ force: true })
@@ -264,7 +265,7 @@ try {
   process.env.MERCURY_MINIMAX_API_BASE = 'http://127.0.0.1:1/v1'
   await refreshMinimaxCatalogue({ force: true })
   const pinRows = minimaxCatalogueRows()
-  check('with the list unreachable the picker shows the pins, labelled as pins, dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 6 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === '2026-10-17') && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
+  check('with the list unreachable the picker shows the pins, labelled as pins, each dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 7 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list (observed 2026-10-17)') && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
   process.env.MERCURY_MINIMAX_API_BASE = liveBase
   __resetMinimaxCatalogueForTest()
   const aborted = new AbortController(); aborted.abort()

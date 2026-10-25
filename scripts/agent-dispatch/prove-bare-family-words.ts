@@ -208,11 +208,11 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
     { id: 'k3', object: 'model', created: 100, owned_by: 'moonshot' },
   ]
   await moonshot.refreshMoonshotCatalogue({ force: true, fetchImpl: page(planList) })
-  check('the Moonshot list leads with the plan head k3 although its stamp is the oldest', moonshot.moonshotCatalogueRows().rows.map(row => row.id).join(',') === 'k3,k3-256k,kimi-for-coding,kimi-for-coding-highspeed', moonshot.moonshotCatalogueRows().rows.map(row => row.id).join(','))
+  check('the Moonshot list is the served list newest first, each base before its variants — no pinned head', moonshot.moonshotCatalogueRows().rows.map(row => row.id).join(',') === 'kimi-for-coding,kimi-for-coding-highspeed,k3,k3-256k', moonshot.moonshotCatalogueRows().rows.map(row => row.id).join(','))
   let kimi = await agentRoad('kimi')
-  check("'kimi' ⇒ k3 on both roads, labelled K3", kimi.backend === 'moonshot' && kimi.model === 'k3' && kimi.displayLabel === 'K3' && model.parseUserSpecifiedModel('kimi') === 'k3', show(kimi))
+  check("'kimi' ⇒ the newest served row on both roads (kimi-for-coding in this list), labelled by its pin", kimi.backend === 'moonshot' && kimi.model === 'kimi-for-coding' && kimi.displayLabel === 'Kimi For Coding' && model.parseUserSpecifiedModel('kimi') === 'kimi-for-coding', show(kimi))
   const qualified = await moonshot.qualifyMoonshotModel('kimi')
-  check("the Moonshot qualifier resolves the bare word to the head row (the typing door and the wire read it)", qualified.kind === 'ok' && qualified.modelId === 'k3', show(qualified))
+  check("the Moonshot qualifier resolves the bare word to the first served row (the typing door and the wire read it)", qualified.kind === 'ok' && qualified.modelId === 'kimi-for-coding', show(qualified))
   const kimiValid = await validateModel('kimi')
   check("'kimi' validates at the typing door once the list serves a row", kimiValid.valid === true, show(kimiValid))
   chatBodies.length = 0
@@ -229,7 +229,7 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
     const message = item as { isApiErrorMessage?: boolean; message: { content: Array<{ type: string; text?: string }> } }
     settled.push({ api: message.isApiErrorMessage === true, text: message.message.content.map(block => block.text ?? '').join('') })
   }
-  check("a turn handed the bare word 'kimi' puts k3 on the wire and settles clean", chatBodies.length === 1 && chatBodies[0]?.model === 'k3' && settled.some(item => item.text === 'the wire answered') && settled.every(item => !item.api), show({ bodies: chatBodies.map(body => body.model), settled }))
+  check("a turn handed the bare word 'kimi' puts the first served row on the wire and settles clean", chatBodies.length === 1 && chatBodies[0]?.model === 'kimi-for-coding' && settled.some(item => item.text === 'the wire answered') && settled.every(item => !item.api), show({ bodies: chatBodies.map(body => body.model), settled }))
   await moonshot.refreshMoonshotCatalogue({ force: true, fetchImpl: page(planList.slice(0, 2)) })
   kimi = await agentRoad('kimi')
   check("a list without k3: 'kimi' ⇒ the base alias kimi-for-coding on both roads", kimi.model === 'kimi-for-coding' && model.parseUserSpecifiedModel('kimi') === 'kimi-for-coding', show(kimi))

@@ -131,7 +131,7 @@ interface FireworksCatalogueRow {
 type FireworksCatalogueSource = { kind: 'live'; count: number; otherLines: number; fetchedAtMs: number } | { kind: 'pins' } | { kind: 'unread' }
 
 function fireworksPinRows(): FireworksCatalogueRow[] {
-  return FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName, observedAt: FIREWORKS_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
+  return FIREWORKS_DISPLAY_PINS.map(pin => ({ id: fireworksQualifiedId(pin.id), displayName: pin.displayName, observedAt: pin.observedAt ?? FIREWORKS_OBSERVED_AT, contextWindow: pin.contextWindow, listedLive: false }))
 }
 
 export function fireworksCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: FireworksCatalogueRow[]; source: FireworksCatalogueSource } {
@@ -140,7 +140,7 @@ export function fireworksCatalogueRows(env: NodeJS.ProcessEnv = process.env): { 
   if (snapshot.models.length === 0) return !snapshot.lastError?.includes('refused the credential') && (snapshot.fetchedAtMs > 0 || Boolean(snapshot.lastError)) ? { rows: fireworksPinRows(), source: { kind: 'pins' } } : { rows: [], source: { kind: 'unread' } }
   const rows = snapshot.models.map(model => {
     const pin = fireworksDisplayPin(model.id)
-    return { id: fireworksQualifiedId(model.id), displayName: fireworksDisplayName(model.id), observedAt: (pin ? FIREWORKS_OBSERVED_AT : undefined) ?? new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
+    return { id: fireworksQualifiedId(model.id), displayName: fireworksDisplayName(model.id), observedAt: (pin ? pin.observedAt ?? FIREWORKS_OBSERVED_AT : undefined) ?? new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
       ...((model.contextWindow ?? pin?.contextWindow) !== undefined ? { contextWindow: model.contextWindow ?? pin?.contextWindow } : {}), listedLive: true }
   })
   return { rows, source: { kind: 'live', count: rows.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } }

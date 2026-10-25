@@ -261,14 +261,6 @@ function baseAliasLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
   return ordered
 }
 
-const PLAN_HEADS = ['k3', 'k3-256k'] as const
-
-function planHeadLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
-  const head = PLAN_HEADS.map(id => rows.find(row => row.id === id)).find(row => row !== undefined)
-  if (head === undefined) return rows
-  return [head, ...rows.filter(row => row !== head)]
-}
-
 export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MoonshotCatalogueRow[]; source: MoonshotCatalogueSource } {
   if (resolveMoonshotAccount(env) === undefined) {
     return {
@@ -297,7 +289,7 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
       ...(observed !== undefined ? { servedAs: { id: observed.served, displayName: kimiShortName(observed.served) ?? observed.served } } : {}),
     })
   }
-  return { rows: baseAliasLeads(planHeadLeads(rows)), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
+  return { rows: baseAliasLeads(rows), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
 export function moonshotCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {

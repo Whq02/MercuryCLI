@@ -562,6 +562,15 @@ ids; an unreachable catalogue permits a named id with an explicit note.
 An unnamed first chat reads the catalogue within the existing bounded
 allowance; idle boot and explicit model choices remain unchanged.
 
+Each K3-series row's window and reasoning dial are the facts
+platform.kimi.ai states for that id (read 2026-10-25): `kimi-k3.1-pro`,
+`kimi-k3.1-pro-highspeed` and `kimi-k3` have a 1,048,576-token window, an
+output ceiling raisable to 1,048,576 (131,072 by default) and the dial
+`low` · `high` · `max` (default `max`) with thinking always on; a Kimi
+sign-in's `k3.1-pro`, `k3.1-pro-highspeed` and `k3` have the 1,048,576-token
+window and `k3-256k` a 262,144-token window, all with the same dial and
+default `high`.
+
 Kimi models whose live catalogue declares dynamic-tool support use the
 end-of-messages deferral form: admitted schemas append as system tool rows,
 while the initial tools array and earlier messages stay unchanged. This

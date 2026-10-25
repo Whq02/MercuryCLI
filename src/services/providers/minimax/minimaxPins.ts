@@ -9,7 +9,7 @@ interface MinimaxDisplayPin {
   displayName: string
   observedAt: string
   contextWindow: number
-  outputMax: number
+  outputMax?: number
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
@@ -29,6 +29,7 @@ const m2 = { observedAt: MINIMAX_OBSERVED_AT, contextWindow: 204_800, outputMax:
 export const MINIMAX_DISPLAY_PINS: readonly MinimaxDisplayPin[] = [
   { ...m3, id: 'minimax-m3', wireId: 'MiniMax-M3', displayName: 'MiniMax M3', thinking: 'toggle', efforts: [],
     costInPerMtok: 0.3, costOutPerMtok: 1.2, cachedInPerMtok: 0.06, longContextThreshold: 512_000, longContext: { costInPerMtok: 0.6, costOutPerMtok: 2.4, cachedInPerMtok: 0.12 } },
+  { id: 'minimax-m3.1-flash', wireId: 'MiniMax-M3.1-Flash', displayName: 'MiniMax M3.1 Flash', observedAt: '2026-10-25', contextWindow: 1_000_000, tools: true, images: true, thinking: 'tunable', efforts: MINIMAX_EFFORTS },
   { ...m3, id: 'minimax-m3.1-flash-preview', wireId: 'MiniMax-M3.1-Flash-Preview', displayName: 'MiniMax M3.1 Flash (preview, M Plan)', thinking: 'tunable', efforts: MINIMAX_EFFORTS, planOnly: true },
   { ...m2, id: 'minimax-m2.7', wireId: 'MiniMax-M2.7', displayName: 'MiniMax M2.7', costInPerMtok: 0.3, costOutPerMtok: 1.2, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375 },
   { ...m2, id: 'minimax-m2.7-highspeed', wireId: 'MiniMax-M2.7-highspeed', displayName: 'MiniMax M2.7 Highspeed', costInPerMtok: 0.6, costOutPerMtok: 2.4, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375 },

@@ -35,9 +35,9 @@ import {
 } from '../../services/providers/zai/glmPins.js'
 import {
   isKimiModelId,
+  kimiDefaultEffort,
   kimiDisplayPin,
-  KIMI_EFFORTS,
-  KIMI_EFFORT_MODELS,
+  kimiEffortsFor,
 } from '../../services/providers/moonshot/kimiPins.js'
 import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
 import { isXaiModelId } from '../../services/providers/xai/xaiPins.js'
@@ -335,8 +335,10 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   }
   const route = declaredRouteOf(model)
   if (isKimiModelId(model) || route === 'moonshot') {
-    return KIMI_EFFORT_MODELS.has(model.trim().toLowerCase())
-      ? { kind: 'provider', source: 'kimi', vocabulary: [...KIMI_EFFORTS], thinkingGated: false }
+    const vocabulary = kimiEffortsFor(model)
+    const defaultEffort = kimiDefaultEffort(model)
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'kimi', vocabulary: [...vocabulary], ...(defaultEffort !== undefined ? { defaultEffort } : {}), thinkingGated: false }
       : { kind: 'none', source: 'kimi' }
   }
   if (isDeepseekModelId(model) || route === 'deepseek') {

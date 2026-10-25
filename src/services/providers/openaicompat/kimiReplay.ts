@@ -6,7 +6,7 @@ import type { ZaiWireMessage } from '../zai/zaiClient.js'
 
 export function isKimiK3WireModel(model: string): boolean {
   const id = model.toLowerCase()
-  return KIMI_K3_MODELS.has(id) || id === 'moonshotai/kimi-k3'
+  return KIMI_K3_MODELS.has(id) || id === 'moonshotai/kimi-k3' || id === 'moonshotai/kimi-k3.1-pro'
 }
 
 export function kimiReplayProjection(content: unknown): string {
