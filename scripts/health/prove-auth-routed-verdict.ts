@@ -133,7 +133,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
   })
   check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}`)
   const providers = (engineRouted.json?.providers ?? []) as Array<{ id: string; kind: string; source: string; present: boolean }>
-  check('one row per declared family (twenty-three including Anthropic)', providers.length === 23 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
+  check('one row per declared family (twenty-four including Anthropic)', providers.length === 24 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
   check(
     'each row carries id, kind, source, present — and no value is secret-shaped',
     providers.every(p => typeof p.id === 'string' && typeof p.kind === 'string' && typeof p.source === 'string' && typeof p.present === 'boolean') &&

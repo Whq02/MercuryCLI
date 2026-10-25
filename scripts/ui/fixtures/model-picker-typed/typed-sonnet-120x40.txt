@@ -3,10 +3,10 @@ WORKBENCH               │╭────────────────�
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model · 3 of 22 match                                                          │ │
-  · /workflows — crewma…│ │ / sonnet                                                                                 │ │
-  · /health — health ce…│ │                                                                                          │ │
+  · /workflows…         │ │ / sonnet                                                                                 │ │
+  · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 3 of 12                                                  │ │
-  · /mission — set a mi…│ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+  · /mission — set a…   │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
                         │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
 FILES · project         │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
   ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │

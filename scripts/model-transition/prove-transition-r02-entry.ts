@@ -33,7 +33,7 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
   const providerRows = families.filter(row => !row.value.startsWith('compat/'))
   const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
   const endpointRows = configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => `compat/${endpoint.name}`)
-  check('the owner carries exactly twenty provider sign-in rows (one Anthropic row, its two roads behind the arm pick)', providerRows.length === 20 && families.filter(row => row.value === 'anthropic').length === 1 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen'].every(id => families.some(row => row.value === id)), `providers=${providerRows.length}`)
+  check('the owner carries exactly twenty-two provider sign-in rows (one Anthropic row, its two roads behind the arm pick)', providerRows.length === 22 && families.filter(row => row.value === 'anthropic').length === 1 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'].every(id => families.some(row => row.value === id)), `providers=${providerRows.length}`)
   check('the named endpoints each add exactly their own sign-in row, including the fixture endpoint', endpointRows.includes('compat/entryfixture') && JSON.stringify(families.filter(row => row.value.startsWith('compat/')).map(row => row.value)) === JSON.stringify(endpointRows), JSON.stringify(endpointRows))
   check(
     'every owner family is nameable — /logins <family> resolves each row value',

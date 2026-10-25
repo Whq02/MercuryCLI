@@ -1035,12 +1035,6 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   const groqCredentialed = reads.groqKeyPresent?.() ?? false
   if (groqCredentialed && groqRows.length === 0 && groqState.kind === 'live') {
     out.push({ value: keyConnectValue('groq'), label: 'Groq — no models listed', group: GROQ_MODEL_GROUP, description: 'the live list serves no text model — /logins groq checks the key', descriptionForModel: 'The Groq account returned an empty text model list; no Groq model is selectable.' })
-  }
-  const orcarouterRows = keyLanePins('orcarouter')
-  const orcarouterState = keyLaneListState('orcarouter')
-  const orcarouterCredentialed = reads.orcarouterKeyPresent?.() ?? false
-  if (orcarouterCredentialed && orcarouterRows.length === 0 && orcarouterState.kind === 'live') {
-    out.push({ value: keyConnectValue('orcarouter'), label: 'OrcaRouter — no models listed', group: ORCAROUTER_MODEL_GROUP, description: 'the live list serves no text model — /logins orcarouter checks the key', descriptionForModel: 'The OrcaRouter account returned an empty text model list; no OrcaRouter model is selectable.' })
   } else {
     out.push(...keyLaneGroupRows({ group: GROQ_MODEL_GROUP, providerName: 'Groq', connectValue: keyConnectValue('groq'), connectHint: 'opens /logins groq (GROQ_API_KEY works too)', keyPresent: groqCredentialed, pins: groqRows, listState: groqState, engineWords: 'the Groq text models' }))
   }
@@ -1051,6 +1045,14 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
     out.push({ value: keyConnectValue('melious'), label: 'Melious AI — no models listed', group: MELIOUS_MODEL_GROUP, description: '/logins melious checks the key' })
   } else {
     out.push(...keyLaneGroupRows({ group: MELIOUS_MODEL_GROUP, providerName: 'Melious AI', connectValue: keyConnectValue('melious'), connectHint: 'opens /logins melious (MELIOUS_API_KEY works too)', keyPresent: meliousCredentialed, pins: meliousRows, listState: meliousState, engineWords: 'the Melious AI chat models' }))
+  }
+  const orcarouterRows = keyLanePins('orcarouter')
+  const orcarouterState = keyLaneListState('orcarouter')
+  const orcarouterCredentialed = reads.orcarouterKeyPresent?.() ?? false
+  if (orcarouterCredentialed && orcarouterRows.length === 0 && orcarouterState.kind === 'live') {
+    out.push({ value: keyConnectValue('orcarouter'), label: 'OrcaRouter — no models listed', group: ORCAROUTER_MODEL_GROUP, description: 'the live list serves no text model — /logins orcarouter checks the key', descriptionForModel: 'The OrcaRouter account returned an empty text model list; no OrcaRouter model is selectable.' })
+  } else {
+    out.push(...keyLaneGroupRows({ group: ORCAROUTER_MODEL_GROUP, providerName: 'OrcaRouter', connectValue: keyConnectValue('orcarouter'), connectHint: 'opens /logins orcarouter (ORCAROUTER_API_KEY works too)', keyPresent: orcarouterCredentialed, pins: orcarouterRows, listState: orcarouterState, engineWords: 'the OrcaRouter gateway' }))
   }
   const cerebrasRows = keyLanePins('cerebras')
   const cerebrasState = keyLaneListState('cerebras')

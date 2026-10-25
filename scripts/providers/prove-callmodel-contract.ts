@@ -31,6 +31,8 @@ const FAMILY_ROADS = [
   'togetherCallModel',
   'cohereCallModel',
   'groqCallModel',
+  'meliousCallModel',
+  'orcarouterCallModel',
   'cerebrasCallModel',
   'fireworksCallModel',
   'qwenCallModel',

@@ -75,3 +75,6 @@ prove-shell-live-tail.ts
 prove-beta40-help.ts
 prove-help-general-keys.ts
 prove-everyday-words.ts
+prove-boot-hint-glyphs.ts
+prove-rail-whole-words.ts
+prove-rtl-row-border.ts

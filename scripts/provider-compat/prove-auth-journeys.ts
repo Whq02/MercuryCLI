@@ -283,7 +283,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares twenty-two families including Anthropic', FAMILIES.length === 22)
+check('the route law declares twenty-four families including Anthropic', FAMILIES.length === 24)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -310,6 +310,8 @@ const FAMILY_MODEL: Record<string, string> = {
   together: 'together/moonshotai/Kimi-K3',
   cohere: 'command-a-plus-05-2026',
   groq: 'groq/openai/gpt-oss-120b',
+  melious: 'melious/glm-5.3',
+  orcarouter: 'orcarouter/orcarouter/auto',
   cerebras: 'cerebras/gpt-oss-120b',
   fireworks: 'fireworks/gpt-oss-120b',
   qwen: 'qwen3.8-max',

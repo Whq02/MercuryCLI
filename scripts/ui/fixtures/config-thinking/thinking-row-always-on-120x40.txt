@@ -2,11 +2,11 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 77 settings · 2 set by you                                                     │ │
-  · /workflows — crewma…│ │                                                                                          │ │
-  · /health — health ce…│ │ / think                                                                                  │ │
+NEXT                    │ │ project · 78 settings · 2 set by you                                                     │ │
+  · /workflows…         │ │                                                                                          │ │
+  · /health — health…   │ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ › Thinking                          n/a — Sonnet 5.5 keeps thinking on                   │ │
+  · /mission — set a…   │ │ › Thinking                          n/a — Sonnet 5.5 keeps thinking on                   │ │
                         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
 FILES · project         │ │ lever.                                                                                   │ │
   ↵ or click · browse   │ │                                                                                          │ │

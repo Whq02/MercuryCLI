@@ -3,10 +3,10 @@ WORKBENCH               │╭────────────────�
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model                                                                          │ │
-  · /workflows — crewma…│ │ / type to search by name or id                                                           │ │
-  · /health — health ce…│ │                                                                                          │ │
+  · /workflows…         │ │ / type to search by name or id                                                           │ │
+  · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 12 live                                                  │ │
-  · /mission — set a mi…│ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
+  · /mission — set a…   │ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
                         │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
 FILES · project         │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
   ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
@@ -22,7 +22,7 @@ VITALS                  │ │ ╭───────────────
                         │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
                         │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
                         │ │   GPT — sign in                                                                          │ │
-                        │ │   ↓ 74 more                                                                              │ │
+                        │ │   ↓ 76 more                                                                              │ │
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │

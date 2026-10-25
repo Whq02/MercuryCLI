@@ -9,31 +9,31 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Mistral — API key                        │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Anthropic — Claude subscription or Cons…      op@example.com │  │ Mistral API key                            │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ API key: console.mistral.ai/api-keys       │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ — sign in, API Keys, create,               │
-   │                                                                │  │ paste it here.                             │
-   │ available                                                      │  │ Proven on the model list first; stored     │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ auth-scoped (mode 600);                    │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ MISTRAL_API_KEY wins. An optional          │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ Admin API key follows for /usage.          │
-   │   DeepSeek — API key                             not signed in │  │ key: ▌                                     │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  │ ↵ stores it · esc back                     │
-   │   Meta — Muse Code sign-in or API key            not signed in │  ╰────────────────────────────────────────────╯
-   │ ❯ Mistral — API key                              not signed in │  ╭────────────────────────────────────────────╮
-   │   Nous Portal — sign-in or API key               not signed in │  │ LOGINS                                     │
-   │   MiniMax — API key or M Plan key                not signed in │  │ Families   20                              │
-   │   Together AI — API key                          not signed in │  │ Signed in  4 of 20                         │
-   │   Cohere — API key                               not signed in │  │ Ready      4 lanes                         │
-   │   Groq — API key                                 not signed in │  ╰────────────────────────────────────────────╯
-   │   Cerebras — API key                             not signed in │  ╭────────────────────────────────────────────╮
-   │   Fireworks — API key                            not signed in │  │ ENVIRONMENT                                │
-   │   Qwen — QwenCloud or Model Studio API key       not signed in │  │ Mercury    Opus 5                          │
-   │   OpenCode Zen — API key                         not signed in │  │ Critter    Octopus                         │
-   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
+   │ … 2 more above                                                 │  │ ❯ Mistral — API key                        │
+   │   Anthropic — Claude subscription or Cons…      op@example.com │  │                                            │
+   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ Mistral API key                            │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ API key: console.mistral.ai/api-keys       │
+   │                                                                │  │ — sign in, API Keys, create,               │
+   │ available                                                      │  │ paste it here.                             │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │ Proven on the model list first; stored     │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ auth-scoped (mode 600);                    │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ MISTRAL_API_KEY wins. An optional          │
+   │   DeepSeek — API key                             not signed in │  │ Admin API key follows for /usage.          │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  │ key: ▌                                     │
+   │   Meta — Muse Code sign-in or API key            not signed in │  │ ↵ stores it · esc back                     │
+   │ ❯ Mistral — API key                              not signed in │  ╰────────────────────────────────────────────╯
+   │   Nous Portal — sign-in or API key               not signed in │  ╭────────────────────────────────────────────╮
+   │   MiniMax — API key or M Plan key                not signed in │  │ LOGINS                                     │
+   │   Together AI — API key                          not signed in │  │ Families   22                              │
+   │   Cohere — API key                               not signed in │  │ Signed in  4 of 22                         │
+   │   Groq — API key                                 not signed in │  │ Ready      4 lanes                         │
+   │   Melious AI — API key                           not signed in │  ╰────────────────────────────────────────────╯
+   │   OrcaRouter — device-code sign-in or API…       not signed in │  ╭────────────────────────────────────────────╮
+   │   Cerebras — API key                             not signed in │  │ ENVIRONMENT                                │
+   │   Fireworks — API key                            not signed in │  │ Mercury    Opus 5                          │
+   │   Qwen — QwenCloud or Model Studio API key       not signed in │  │ Critter    Octopus                         │
+   │ … 1 more below                                                 │  │ Dir        orchard-src                     │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  paste Mistral API key                                                                       │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

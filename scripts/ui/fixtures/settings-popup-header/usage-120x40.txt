@@ -3,10 +3,10 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows — crewma…│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
-  · /health — health ce…│ │ API usage session on · 0 subscriptions signed in                                         │ │
+  · /workflows…         │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  · /health — health…   │ │ API usage session on · 0 subscriptions signed in                                         │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ Anthropic usage                                                                          │ │
+  · /mission — set a…   │ │ Anthropic usage                                                                          │ │
                         │ │ API key · …-key                                                                          │ │
 FILES · orchard         │ │ credits: not reported by the provider                                                    │ │
   ↵ or click · browse   │ │                                                                                          │ │
@@ -27,7 +27,7 @@ VITALS                  │ │ none — /logins anthropic connects a subscripti
                         │ │ works too).                                                                              │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
-                        │ │ ↓ 20 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · … │ │
+                        │ │ ↓ 21 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · … │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ scroll · pgup/pgdn page · esc or click outside closes                                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

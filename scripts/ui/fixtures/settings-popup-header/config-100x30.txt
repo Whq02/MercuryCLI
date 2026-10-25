@@ -2,22 +2,22 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 77 settings · 1 set by you                                     │ │
-  · /workflows — cr…│ │                                                                          │ │
+NEXT                │ │ orchard · 78 settings · 1 set by you                                     │ │
+  · /workflows…     │ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
-  ↵ or click · brow…│ │ › Auto-compact                      on                                   │ │
+  ↵ or click…       │ │ › Auto-compact                      on                                   │ │
                     │ │   Auto-compact window               auto                                 │ │
 VITALS              │ │   Session concourse                 on                                   │ │
   · spend —         │ │   Seats                             17 · this machine's reading          │ │
   · ctx — · —       │ │   Tips                              on                                   │ │
-  · health — run /h…│ │   Reduced motion                    off                                  │ │
+  · health — run…   │ │   Reduced motion                    off                                  │ │
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Zen mode — rails hidden           off                                  │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   DuckDuckGo page scraping          on                                 ↓ │ │
-                    │ │ ↓ 66 more                                                                │ │
+                    │ │ ↓ 67 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

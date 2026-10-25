@@ -3,15 +3,15 @@ WORKBENCH           │                                                         
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · logins                                                   │ │
 NEXT                │ │                                                                          │ │
-  · /workflows — cr…│ │                                                                          │ │
+  · /workflows…     │ │                                                                          │ │
                     │ │ Sign in                                                                  │ │
 FILES · orchard     │ │                                                                          │ │
-  ↵ or click · brow…│ │ Choose a provider to sign in.                                            │ │
+  ↵ or click…       │ │ Choose a provider to sign in.                                            │ │
                     │ │                                                                          │ │
 VITALS              │ │   OpenAI — ChatGPT subscription or API key                               │ │
   · spend —         │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key           │ │
   · ctx — · —       │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
-  · health — run /h…│ │   OpenRouter — browser sign-in or API key                                │ │
+  · health — run…   │ │   OpenRouter — browser sign-in or API key                                │ │
                     │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — sign-in or Hub token                                    │ │
                     │ │   Kimi (Moonshot) — device-code sign-in or API key                       │ │

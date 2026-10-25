@@ -9,31 +9,31 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Anthropic — Claude subscription or Cons… │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │ ❯ Anthropic — Claude subscription or Cons…      op@example.com │  │ A browser window has been opened —         │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ finish signing in there.                   │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Browser did not open? Use this URL:        │
-   │                                                                │  │ https://console.example.test/authorize     │
-   │ available                                                      │  │ ?code=elided                               │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ c copies the URL                           │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ Paste code here if prompted:               │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ code: ••••••▌                              │
-   │   DeepSeek — API key                             not signed in │  │ esc cancels the wait                       │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  │                                            │
-   │   Meta — Muse Code sign-in or API key            not signed in │  ╰────────────────────────────────────────────╯
-   │   Mistral — API key                              not signed in │  ╭────────────────────────────────────────────╮
-   │   Nous Portal — sign-in or API key               not signed in │  │ LOGINS                                     │
-   │   MiniMax — API key or M Plan key                not signed in │  │ Families   20                              │
-   │   Together AI — API key                          not signed in │  │ Signed in  4 of 20                         │
-   │   Cohere — API key                               not signed in │  │ Ready      4 lanes                         │
-   │   Groq — API key                                 not signed in │  ╰────────────────────────────────────────────╯
-   │   Cerebras — API key                             not signed in │  ╭────────────────────────────────────────────╮
-   │   Fireworks — API key                            not signed in │  │ ENVIRONMENT                                │
-   │   Qwen — QwenCloud or Model Studio API key       not signed in │  │ Mercury    Opus 5                          │
-   │   OpenCode Zen — API key                         not signed in │  │ Critter    Octopus                         │
-   ╰────────────────────────────────────────────────────────────────╯  │ Dir        orchard-src                     │
-                                                                       ╰────────────────────────────────────────────╯
+   │                                                                │  │ ❯ Anthropic — Claude subscription or Cons… │
+   │ signed in                                                      │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ A browser window has been opened —         │
+   │ ❯ Anthropic — Claude subscription or Cons…      op@example.com │  │ finish signing in there.                   │
+   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ Browser did not open? Use this URL:        │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ https://console.example.test/authorize     │
+   │                                                                │  │ ?code=elided                               │
+   │ available                                                      │  │ c copies the URL                           │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │ Paste code here if prompted:               │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ code: ••••••▌                              │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ esc cancels the wait                       │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
+   │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
+   │   Mistral — API key                              not signed in │  │ LOGINS                                     │
+   │   Nous Portal — sign-in or API key               not signed in │  │ Families   22                              │
+   │   MiniMax — API key or M Plan key                not signed in │  │ Signed in  4 of 22                         │
+   │   Together AI — API key                          not signed in │  │ Ready      4 lanes                         │
+   │   Cohere — API key                               not signed in │  ╰────────────────────────────────────────────╯
+   │   Groq — API key                                 not signed in │  ╭────────────────────────────────────────────╮
+   │   Melious AI — API key                           not signed in │  │ ENVIRONMENT                                │
+   │   OrcaRouter — device-code sign-in or API…       not signed in │  │ Mercury    Opus 5                          │
+   │   Cerebras — API key                             not signed in │  │ Critter    Octopus                         │
+   │ … 3 more below                                                 │  │ Dir        orchard-src                     │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  waiting on the browser sign-in                                                              │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

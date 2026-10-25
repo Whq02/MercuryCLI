@@ -3,10 +3,10 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows — crewma…│ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
-  · /health — health ce…│ │                                                                                          │ │
+  · /workflows…         │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ Sign in                                                                                  │ │
+  · /mission — set a…   │ │ Sign in                                                                                  │ │
                         │ │                                                                                          │ │
 FILES · orchard         │ │ Choose a provider to sign in.                                                            │ │
   ↵ or click · browse   │ │                                                                                          │ │

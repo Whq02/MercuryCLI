@@ -35,7 +35,7 @@ await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 
 await stub('../../src/utils/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
 await stub('../../src/utils/browser.js', { openBrowser: async () => { throw new Error('Unexpected browser') } })
 await stub('../../src/components/tasks/useFocusedWork.js', { focusedRunnerPresence: () => 'live' })
-const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'cerebras', 'fireworks', 'qwen']
+const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen']
 await stub('../../src/services/providers/providerUsability.js', { resolveProviderUsability: () => Object.fromEntries(ids.map(id => [id, { usable: false, credential: 'none', blockers: ['not signed in'], limit: 'allowed' }])) })
 await stub('../../src/services/providers/accountSlots.js', { deriveFamilySlotGroups: () => ids.map(id => ({ family: { id, available: true, credentialed: false }, slots: [] })) })
 await stub('../../src/services/providers/providerUsage.js', { activeSourceUsage: () => ({ tier: null }), providerFamilyPresences: () => [] })

@@ -2,11 +2,11 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 77 settings · 1 set by you                                                     │ │
-  · /workflows — crewma…│ │                                                                                          │ │
-  · /health — health ce…│ │ / Search settings…                                                                       │ │
+NEXT                    │ │ orchard · 78 settings · 1 set by you                                                     │ │
+  · /workflows…         │ │                                                                                          │ │
+  · /health — health…   │ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ › Auto-compact                      on                                                   │ │
+  · /mission — set a…   │ │ › Auto-compact                      on                                                   │ │
                         │ │   Auto-compact window               auto                                                 │ │
 FILES · orchard         │ │   Session concourse                 on                                                   │ │
   ↵ or click · browse   │ │   Seats                             17 · this machine's reading                          │ │
@@ -27,7 +27,7 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                 ↓ │ │
-                        │ │ ↓ 56 more                                                                                │ │
+                        │ │ ↓ 57 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes│ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

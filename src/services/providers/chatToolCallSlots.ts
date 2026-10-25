@@ -10,7 +10,7 @@ export function toolCallId(value: unknown): string | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
 }
 
-export function isJsonArgumentsClosed(raw: string): boolean {
+function isJsonArgumentsClosed(raw: string): boolean {
   const stack: string[] = []
   let quoted = false
   let escaped = false

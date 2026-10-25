@@ -152,6 +152,8 @@ section('§2 the four account states — the rows each family paints on /model')
         'Mercury — Together AI models',
         'Mercury — Cohere models',
         'Mercury — Groq models',
+        'Mercury — Melious AI models',
+        'Mercury — OrcaRouter models',
         'Mercury — Cerebras models',
         'Mercury — Fireworks models',
         'Mercury — Qwen models',

@@ -171,6 +171,7 @@ src/services/providers/cerebras/cerebrasCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/cohere/cohereCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/fireworks/fireworksCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/groq/groqCatalogue.ts :: cache :: ttl-bounded
+src/services/providers/melious/meliousCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/qwen/qwenCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/deepseek/deepseekCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
@@ -188,6 +189,8 @@ src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bo
 src/services/providers/openaicompat/compatCatalogue.ts :: cache :: keyed-by-truth
 src/services/providers/openaicompat/compatProbe.ts :: llamacppSlotsCache :: invalidator=invalidateLlamacppTotalSlots
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/orcarouter/orcarouterCatalogue.ts :: cache :: ttl-bounded
+src/services/providers/orcarouter/orcarouterUsageState.ts :: cache :: ttl-bounded
 src/services/providers/providerKeyCommand.ts :: cache :: invalidator=invalidateProviderKeyCommand
 src/services/providers/providerIdentityLine.ts :: memo :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded

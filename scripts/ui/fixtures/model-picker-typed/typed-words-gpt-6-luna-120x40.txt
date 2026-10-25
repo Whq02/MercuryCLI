@@ -3,10 +3,10 @@ WORKBENCH               │╭────────────────�
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model · 0 of 22 match                                                          │ │
-  · /workflows — crewma…│ │ / gpt 6 luna                                                                             │ │
-  · /health — health ce…│ │                                                                                          │ │
+  · /workflows…         │ │ / gpt 6 luna                                                                             │ │
+  · /health — health…   │ │                                                                                          │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ context —  · tier API billing                                                            │ │
+  · /mission — set a…   │ │ context —  · tier API billing                                                            │ │
                         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
 FILES · project         │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
   ↵ or click · browse   │ │ below                                                                                    │ │

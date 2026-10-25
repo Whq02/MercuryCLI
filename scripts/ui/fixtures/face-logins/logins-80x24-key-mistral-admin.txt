@@ -17,7 +17,7 @@
     MiniMax — API key or M Plan key           not signed in
     Together AI — API key                     not signed in
     Cohere — API key                          not signed in
-  ↓ 5 more
+  ↓ 7 more
 
   Mistral · not signed in
   ↵ store key · empty/esc skip

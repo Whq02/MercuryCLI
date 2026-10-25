@@ -5,6 +5,7 @@ import { rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import fixture from './fixtures/melious-documented-2026-10-24.json'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_CONFIG_DIR = proofHome
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

@@ -3,21 +3,21 @@ WORKBENCH           │                                                         
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
 NEXT                │ │ API usage session on · 0 subscriptions signed in                         │ │
-  · /workflows — cr…│ │                                                                          │ │
+  · /workflows…     │ │                                                                          │ │
                     │ │ Anthropic usage                                                          │ │
 FILES · orchard     │ │ API key · …-key                                                          │ │
-  ↵ or click · brow…│ │ credits: not reported by the provider                                    │ │
+  ↵ or click…       │ │ credits: not reported by the provider                                    │ │
                     │ │                                                                          │ │
 VITALS              │ │ Subscription                                                             │ │
   · spend —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
   · ctx — · —       │ │                                                                          │ │
-  · health — run /h…│ │ API key                                                                  │ │
+  · health — run…   │ │ API key                                                                  │ │
                     │ │ Anthropic API key (ANTHROPIC_API_KEY)                                    │ │
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
                     │ │ console is the view                                                      │ │
                     │ │                                                                          │ │
                     │ │                                                                          │ │
-                    │ │ ↓ 22 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
+                    │ │ ↓ 23 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ scroll · pgup/pgdn page · esc or click outside closes                 │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

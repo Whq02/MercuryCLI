@@ -2,11 +2,11 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 77 settings · 2 set by you                                                     │ │
-  · /workflows — crewma…│ │                                                                                          │ │
-  · /health — health ce…│ │ / think                                                                                  │ │
+NEXT                    │ │ project · 78 settings · 2 set by you                                                     │ │
+  · /workflows…         │ │                                                                                          │ │
+  · /health — health…   │ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ › Thinking                          on                                                   │ │
+  · /mission — set a…   │ │ › Thinking                          on                                                   │ │
                         │ │   the model reasons before it answers; on is the default · off asks the model not to —   │ │
 FILES · project         │ │ Sonnet 5.5 and Opus 5.5 keep thinking on regardless · engine.reasoning in settings       │ │
   ↵ or click · browse   │ │                                                                                          │ │

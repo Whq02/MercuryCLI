@@ -2,11 +2,11 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 77 settings · 2 set by you                                                     │ │
-  · /workflows — crewma…│ │                                                                                          │ │
-  · /health — health ce…│ │ / theme                                                                                  │ │
+NEXT                    │ │ project · 78 settings · 2 set by you                                                     │ │
+  · /workflows…         │ │                                                                                          │ │
+  · /health — health…   │ │ / theme                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ › Theme                             Oasis dark                                           │ │
+  · /mission — set a…   │ │ › Theme                             Oasis dark                                           │ │
                         │ │                                                                                          │ │
 FILES · project         │ │                                                                                          │ │
   ↵ or click · browse   │ │                                                                                          │ │

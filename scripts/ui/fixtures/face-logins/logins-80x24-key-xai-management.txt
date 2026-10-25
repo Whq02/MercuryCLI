@@ -17,7 +17,7 @@
      Nous Portal — sign-in or API key          not signed in
      MiniMax — API key or M Plan key           not signed in
      Together AI — API key                     not signed in
-   ↓ 6 more
+   ↓ 8 more
 
    xAI · not signed in
    ↵ store key · empty/esc skip
