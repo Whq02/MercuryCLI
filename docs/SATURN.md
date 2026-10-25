@@ -85,11 +85,11 @@ next fire time, or with the daemon's refusal; `onParked` included, and an option
 chat row and the list show in place of the id), `CronList`,
 `CronDelete`, and `ScheduleWakeup` (a single self-paced wake, the tool the
 session uses to pause and resume later). A self-paced wake takes the
-queue arm: a session you parked is never woken by its own wake.
+wake arm (`onParked: "wake"`): a parked session keeps its scheduled wakes, and a due self-paced wake wakes the session that set it.
 A self-paced wake lives for the turn that asked for it: when
-you interrupt, park or stop the session, its pending self-paced wakes (and
+you interrupt or stop the session, its pending self-paced wakes (and
 any fire already held for them) are dropped with a receipt saying why, and
-the board's row is removed with them; your own schedules on that session stay.
+the board's row is removed with them; parking preserves them, and your own schedules on that session stay.
 `CronCreate` asks the daemon's schedule writer directly. An unconfirmed
 answer calls for `CronList` before retrying; older daemons take the edit on
 the session's facts channel without confirming it. Other edits use that facts
@@ -127,10 +127,9 @@ signed-in identity as a label, never a token or key. One verdict function
 judges the account at schedule time and again at every fire: ready, expiring before the fire (the
 schedule-time warning; an expiry with a refresh token is ready), expired,
 signed-out (a keyless account's equivalent is `unreachable` when the backing server
-is gone), or rate-limited (a usage window the
-session's own runner saw closed counts as rate-limited for the Anthropic, OpenAI,
-Gemini, OpenRouter and Hugging Face families alike, each read from its own
-window fact).
+is gone), or rate-limited (a standing limit window the
+ticker observed for that family; a session's own usage-window note stays out of
+dispatch admission).
 
 A fire whose account is not ready is **held**, typed and receipted, never
 silently dropped and never run on another family: `"held: sign-in expired —

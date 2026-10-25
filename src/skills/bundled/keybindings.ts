@@ -101,14 +101,14 @@ export function registerKeybindingsSkill(): void {
           '```json',
           formatExample(),
           '```',
-          'Each entry maps a keystroke pattern to one of three values: a built-in action id from the actions table, `command:<name>` to run that slash command as if typed, or null to unbind a default.',
+          'Each entry maps a keystroke pattern to one of three values: a built-in action id from the actions table, `command:<name>` to run that slash command as if typed (in a Chat or Global block), or null to unbind a default.',
           'Do not add a $schema key: Mercury publishes no schema for this file, and the only published schema under this filename describes another product\'s action vocabulary, so an editor would flag every Mercury action id as invalid.',
         ].join('\n'),
         [
           'Keystroke grammar (case-insensitive):',
           '- modifiers joined with +: ctrl (control), alt (opt, option), shift, meta, and cmd (command, super, win) — cmd is its own modifier, not a spelling of meta.',
           '- named keys and aliases: esc/escape, enter/return, tab, space, backspace, delete, up, down, left, right (arrow glyphs also parse), pageup, pagedown, home, end.',
-          '- a chord sequence is keystrokes separated by spaces, e.g. "ctrl+x p". A pending chord has no timer: it waits until a keystroke completes it, and Escape or any non-matching key cancels it.',
+          '- a chord sequence is keystrokes separated by spaces, e.g. "ctrl+x p". A pending chord waits 2 seconds (with a one-shot 2-second grace window where a completing key still finishes the chord while a non-completing key types normally); while pending, Escape or any non-matching key cancels it.',
           '- longer chords win: a sequence prefix shadows an exact binding on the same keystroke, so never give a chord prefix its own action — that action would never fire.',
         ].join('\n'),
         [
@@ -120,7 +120,7 @@ export function registerKeybindingsSkill(): void {
           '- Check requested keys against the reserved lists below, and prefer plain ctrl chords or chord sequences for portability — some modifier combinations only arrive in terminals with virtual-key encoding, and /keys knows what the current terminal delivers.',
         ].join('\n'),
         [
-          'After writing: /health reports the keybindings section and /keys shows the effective map. Findings print as "Keybinding error/warning: …" lines, one per finding, each with a fix suggestion. The finding kinds are parse_error, duplicate, reserved, invalid_context and invalid_action; errors mark entries that cannot take effect, warnings mark likely conflicts.',
+          'After writing: /health reports the Keybindings row (warning count and first finding) and /keys shows the effective map; a reload with issues also raises a session notification pointing to /health. The finding kinds are parse_error, duplicate, reserved, invalid_context and invalid_action; errors mark entries that cannot take effect, warnings mark likely conflicts.',
         ].join('\n'),
         `Reserved shortcuts:\n${reservedTable()}`,
         `Available contexts:\n${contextsTable()}`,

@@ -1,6 +1,6 @@
 # Engines: the provider estate
 
-Mercury runs models across 20 sign-in provider families plus local servers
+Mercury runs models across 22 sign-in provider families plus local servers
 and custom endpoints, with per-family credentials, model lists, usage meters
 and web tools.
 

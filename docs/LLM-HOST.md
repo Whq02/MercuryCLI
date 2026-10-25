@@ -1,6 +1,6 @@
 # Run or connect a model: `/llmhost` and `mercury host`
 
-<!-- answers: Search Hugging Face or pick a shipped recipe in `/llmhost`, bank weights and mirror Runpod volumes, rent a GPU on Runpod, Vast.ai or Lambda, run a model with `mercury host`, or connect a running server. -->
+<!-- answers: Search Hugging Face or pick a shipped recipe in `/llmhost`, bank weights and mirror Runpod volumes, rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda or DigitalOcean), run `mercury host`, or connect a running server. -->
 
 Run `/llmhost` in the foreground chat. **Which model?** lists 32 models across
 78 recipes alongside Hugging Face search. Rows show the model, where it can run

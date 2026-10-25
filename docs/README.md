@@ -41,9 +41,9 @@ map and `/keybindings` opens your keybindings file.
 
 ## Providers and models
 
-- [ENGINES.md](ENGINES.md): Mercury runs models across 20 sign-in provider families plus local servers and custom endpoints, with per-family credentials, model lists, usage meters and web tools.
+- [ENGINES.md](ENGINES.md): Mercury runs models across 22 sign-in provider families plus local servers and custom endpoints, with per-family credentials, model lists, usage meters and web tools.
 - [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup` finds or installs Ollama, picks a model that fits your memory, sets its context window and checks a reply.
-- [LLM-HOST.md](LLM-HOST.md): `/llmhost` and `mercury host` search Hugging Face or pick a shipped recipe, open the Bank to store weights locally and mirror Runpod fast-load volumes, rent a GPU (Runpod, Vast.ai or Lambda), run a model on your own computer, or connect an existing server and add it to `/model`.
+- [LLM-HOST.md](LLM-HOST.md): `/llmhost` and `mercury host` search Hugging Face or pick a shipped recipe, open the Bank to store weights locally and mirror Runpod fast-load volumes, rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda or DigitalOcean), run a model on your own computer, or connect an existing server and add it to `/model`.
 - [ADVISOR.md](ADVISOR.md): a second model's notes for the working chat, the per-chat switch, model choice, interval and spend.
 
 ## Health and the runtime
