@@ -6,9 +6,12 @@ import { getInitialSettings } from '../settings/settings.js'
 import { logForDebugging } from '../debug.js'
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
+  CHOOSE_A_MODEL_ID,
+  CHOOSE_A_MODEL_WORDS,
   computedDefault,
   describeComputedDefaultLabel,
   describeComputedDefaultRow,
+  isChooseAModel,
 } from './computedDefault.js'
 import { getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
@@ -150,6 +153,8 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       break
   }
 
+  if (isChooseAModel(lowered)) return CHOOSE_A_MODEL_ID
+
   const familyRow = resolveBareFamilyWord(lowered)
   if (familyRow !== undefined) {
     return reattach(familyRow)
@@ -271,6 +276,7 @@ function resolvedStringToKey(): Map<string, string> {
 
 export function getPublicModelDisplayName(model: string): string | null {
   const bare = normalizeModelStringForAPI(model)
+  if (isChooseAModel(bare)) return CHOOSE_A_MODEL_WORDS
   const hasSuffix = hasContext1mSuffix(model)
   const key = resolvedStringToKey().get(bare)
   if (key !== undefined) {

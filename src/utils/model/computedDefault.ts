@@ -10,6 +10,14 @@ export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
 export const NO_USABLE_ROW = 'no usable row yet'
 
+export const CHOOSE_A_MODEL_ID = 'choose-a-model'
+export const CHOOSE_A_MODEL_WORDS = 'choose a model'
+export const CHOOSE_A_MODEL_DOOR = `${CHOOSE_A_MODEL_WORDS} · /model`
+
+export function isChooseAModel(model: string | null | undefined): boolean {
+  return typeof model === 'string' && model.trim().toLowerCase() === CHOOSE_A_MODEL_ID
+}
+
 export interface CredentialFact {
   family: string
   at: number | null
@@ -324,10 +332,8 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
 }
 
 function liveKeyless(): KeylessFact {
-  const { frontierOperatorDecision } =
-    require('./frontierPolicy.js') as typeof import('./frontierPolicy.js')
   return {
-    setting: frontierOperatorDecision().setting,
+    setting: CHOOSE_A_MODEL_ID,
     why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default',
   }
 }

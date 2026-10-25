@@ -43,6 +43,19 @@ const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefine
   const preference = recipe && (vendor === 'vast' || vendor === 'lambda') ? bankUploadPreference(recipe) : undefined
   return preference ? { kind: 'bank', folder: preference.folder } : { kind: 'huggingface' }
 }
+export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>, model: string): Promise<boolean> {
+  if (!record.sessionId) return false
+  try {
+    const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
+    const live = Object.values(readSessionWorkers()).some(row => row.sessionId === record.sessionId && row.endedAt === undefined && row.stoppedAt === undefined && row.parkedAt === undefined)
+    if (!live) return false
+    const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+    const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model } as never, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
+    return reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'queued')
+  } catch {
+    return false
+  }
+}
 function watchedSourceFor(source: WeightsSource | undefined, hit: HostVendorId, managed: boolean, volume: KeptVolume | undefined): { source?: WeightsSource; skip?: string } {
   if (!source) return {}
   if (source.kind === 'volume') return volume ? { source: { kind: 'volume', volumeId: volume.id } } : { skip: 'your kept volume is not on that machine' }
@@ -449,7 +462,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
     mark('ready')
     const record = patchHostRecord(id, { jobState: 'ready', engineDeath: undefined, linkLost: undefined, ...(loadedWeights ? { loadedWeights } : {}) })!
-    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record))
+    const switched = await switchRentingSession(record, result.model)
+    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record, switched))
     if (options.keepAlive !== false) {
       const reconnects = 5
       const reconnect = async (why: string): Promise<void> => {

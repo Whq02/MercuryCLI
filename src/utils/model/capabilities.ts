@@ -12,6 +12,7 @@ import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { getCanonicalName } from './model.js'
+import { isChooseAModel } from './computedDefault.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
@@ -289,6 +290,7 @@ export type EffortVocabularyView =
         | 'cerebras'
         | 'fireworks'
         | 'qwen'
+        | 'choose-a-model'
       defaultEffort?: string
     }
 
@@ -297,6 +299,7 @@ const FIRST_PARTY_LADDER_TO_MAX: readonly EffortLevel[] = ['low', 'medium', 'hig
 const UNKNOWN_ID_LADDER: readonly EffortLevel[] = ['low', 'medium', 'high']
 
 function baseEffortVocabularyFor(model: string): EffortVocabularyView {
+  if (isChooseAModel(model)) return { kind: 'none', source: 'choose-a-model' }
   const gpt = gptEffortVocabularyView(model)
   switch (gpt.state) {
     case 'live':

@@ -34,6 +34,7 @@ import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
+import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../../utils/model/computedDefault.js'
 
 export {
   classifyModelRoute,
@@ -100,6 +101,7 @@ async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict>
 }
 
 export async function modelRefusalBeforeAnyRequest(model: string): Promise<string | null> {
+  if (isChooseAModel(model)) return null
   const verdict = await classifyAfterLiveLists(model)
   if (verdict.kind === 'absence') return null
   if (verdict.kind === 'unrecognised' || verdict.route === 'anthropic') return homeLaneAdmissionRefusal(model)
@@ -111,6 +113,10 @@ export async function* routedCallModel(params: CallModelParams): CallModelStream
 }
 
 async function* dispatchRoute(params: CallModelParams): CallModelStream {
+  if (isChooseAModel(params.options.model)) {
+    yield createAssistantAPIErrorMessage({ content: CHOOSE_A_MODEL_DOOR, error: 'authentication_failed' })
+    return
+  }
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
     yield createAssistantAPIErrorMessage({

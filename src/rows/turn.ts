@@ -12,6 +12,7 @@ import type { QueryParams } from '../run-core/turn-machine.js'
 import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { INVALID_API_KEY_ERROR_MESSAGE } from '../services/api/errors.js'
+import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
 import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
@@ -1118,7 +1119,7 @@ export class Conversation {
       message = OUTCOME_SENTENCES.interrupted({})
     } else if (terminal.reason === 'model_error' || endedOnApiError) {
       message = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : terminal.reason === 'model_error' ? (terminal.error instanceof Error ? terminal.error.message : String(terminal.error ?? 'The model call failed')) : 'The model call failed'
-      if (message === INVALID_API_KEY_ERROR_MESSAGE) message = `${message}, ${localRoadBesideSignIn()}`
+      if (message === INVALID_API_KEY_ERROR_MESSAGE || message === CHOOSE_A_MODEL_DOOR) message = `${message}, ${localRoadBesideSignIn()}`
     } else if (cut !== null) {
       message = cut === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${turnCutOf(this.abortController.signal.reason).detail ?? 'the run was aborted'}`
     } else if (terminal.reason === 'max_turns') {

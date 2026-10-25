@@ -159,7 +159,7 @@ export function hostPaidPodWords(pod: { id: string; name: string; status: string
   return `${identity} · ${record?.step?.startsWith('paused') ? 'paused' : pod.status.toLowerCase()} · $${pod.cost.toFixed(2)}/hr${cost ? ' · ' + cost : ''}`
 }
 
-export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }): string {
+export function hostReadyWords(label: string, model: string, record: { price: number; startedAt: string }, switched = false): string {
   const hours = Math.max(0, Date.now() - Date.parse(record.startedAt)) / 3600_000
-  return `${label} ready · /model ${model}\n~$${(record.price * hours).toFixed(2)} so far + storage.`
+  return `${label} ready · ${switched ? 'now your model' : '/model ' + model}\n~$${(record.price * hours).toFixed(2)} so far + storage.`
 }

@@ -66,7 +66,7 @@ console.log('§1 no sign-in, no local server: the headless refusal names the sig
   const run = await wall('none')
   const message = run.outcome?.error?.message ?? ''
   check('the turn fails on the auth class', run.outcome?.status === 'failed' && run.outcome.error?.class === 'auth', JSON.stringify(run.outcome ?? run.err.slice(-400)))
-  check('the message keeps the pinned logged-out words first', message.startsWith('Not logged in · Please run /logins'), message)
+  check('the message leads with the model door (choose a model · /model) — the keyless default is the "choose a model" entry', message.startsWith('choose a model · /model, '), message)
   check('…and names the local road: /localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)', message.includes('or run a local model — /localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)'), message)
   check('the message is one line', !message.includes('\n'), message)
 }
@@ -89,14 +89,14 @@ console.log('§2 no sign-in, a local server answering with models: the refusal n
   server.stop(true)
   const message = run.outcome?.error?.message ?? ''
   check('the turn still fails on the auth class (the default model is a hosted one)', run.outcome?.status === 'failed' && run.outcome.error?.class === 'auth', JSON.stringify(run.outcome ?? run.err.slice(-400)))
-  check('the message names the switch a script user can make: --model local/<name>, with the server and its model count', message.startsWith('Not logged in · Please run /logins') && message.includes('or run a local model with --model local/<name> (Ollama 0.40.5 (2))'), message)
+  check('the message names the switch a script user can make: --model local/<name>, with the server and its model count', message.startsWith('choose a model · /model, ') && message.includes('or run a local model with --model local/<name> (Ollama 0.40.5 (2))'), message)
 }
 
 console.log('§3 the words have one owner')
 {
   const { localRoadBesideSignIn, LOCAL_SETUP_WORDS } = await import('../../src/services/providers/local/localAccounts.ts')
   const turnSource = await Bun.file(join(import.meta.dir, '../../src/rows/turn.ts')).text()
-  check('rows/turn.ts reads the clause from localAccounts, beside the pinned constant', turnSource.includes('if (message === INVALID_API_KEY_ERROR_MESSAGE) message = `${message}, ${localRoadBesideSignIn()}`'))
+  check('rows/turn.ts reads the clause from localAccounts, beside the pinned constants', turnSource.includes('if (message === INVALID_API_KEY_ERROR_MESSAGE || message === CHOOSE_A_MODEL_DOOR) message = `${message}, ${localRoadBesideSignIn()}`'))
   check('the clause without a server is the /localsetup words the sign-in wall\'s readiness row uses', localRoadBesideSignIn(undefined) === `or run a local model — ${LOCAL_SETUP_WORDS}`)
 }
 

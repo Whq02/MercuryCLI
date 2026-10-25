@@ -68,6 +68,8 @@ const { SIGN_IN_LEDGER_FILE, readSignInLedger, readSignInRecord, recordSignIn, s
   '../../src/utils/accounts/signInLedger.ts'
 )
 const {
+  CHOOSE_A_MODEL_ID,
+  CHOOSE_A_MODEL_WORDS,
   NO_SIGN_IN_REASON,
   NO_SIGN_IN_ROW,
   NO_USABLE_ROW,
@@ -83,10 +85,10 @@ const {
 } = await import('../../src/utils/model/computedDefault.ts')
 type ComputedDefaultFacts = import('../../src/utils/model/computedDefault.ts').ComputedDefaultFacts
 type LaneRowVerdict = import('../../src/utils/model/computedDefault.ts').LaneRowVerdict
-const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel } =
+const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel, renderModelChip, renderModelName } =
   await import('../../src/utils/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-const { frontierOperatorDecision } = await import('../../src/utils/model/frontierPolicy.ts')
+const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
 const { getModelOptions, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
@@ -270,7 +272,8 @@ section('§4 the live chain in a scratch home')
 {
   const keyless = computedDefault()
   check('a home with no credential anywhere answers keyless — no provider, the "no sign-in yet" row', keyless.source === 'keyless' && keyless.considered.length === 0 && keyless.provider === null && keyless.row === NO_SIGN_IN_ROW, JSON.stringify(keyless.considered))
-  check('…on the placeholder that stands today (the first-party decision\'s setting) — the harness\'s model string', keyless.setting === frontierOperatorDecision().setting && getDefaultEngineModelSetting() === keyless.setting, `${keyless.setting} vs ${frontierOperatorDecision().setting}`)
+  check('…on the "choose a model" entry — the harness\'s model string, a model no provider declares', keyless.setting === CHOOSE_A_MODEL_ID && getDefaultEngineModelSetting() === keyless.setting && getEngineModel() === CHOOSE_A_MODEL_ID && recognizeModelId(keyless.setting).kind === 'unrecognised', `${keyless.setting} · ${getEngineModel()}`)
+  check('…whose display name is the words every surface paints', renderModelName(CHOOSE_A_MODEL_ID) === CHOOSE_A_MODEL_WORDS && renderModelChip(CHOOSE_A_MODEL_ID) === CHOOSE_A_MODEL_WORDS && !/opus|sonnet|haiku|claude|gpt|gemini/i.test(renderModelChip(getEngineModel())), renderModelChip(getEngineModel()))
   check('a keyless home has no recommended default option', getModelOptions().every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'))
   check('/model\'s label says no sign-in yet', renderDefaultModelLabel() === 'no sign-in yet (default — /logins signs a provider in)', renderDefaultModelLabel())
   check('the most recent sign-in family is none', mostRecentSignInFamily() === undefined)

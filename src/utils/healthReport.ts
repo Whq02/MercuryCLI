@@ -78,7 +78,7 @@ import {
   describeFrontierDecision,
   frontierOperatorDecision,
 } from './model/frontierPolicy.js'
-import { computedDefault, describeComputedDefault, mostRecentSignInFamily } from './model/computedDefault.js'
+import { CHOOSE_A_MODEL_WORDS, computedDefault, describeComputedDefault, isChooseAModel, mostRecentSignInFamily } from './model/computedDefault.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import {
   getInstructionBundle,
@@ -2506,7 +2506,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } catch {
               pin = undefined
             }
-            if (recognizeModelId(session).kind === 'unrecognised') {
+            if (!isChooseAModel(session) && recognizeModelId(session).kind === 'unrecognised') {
               return {
                 status: 'warn',
                 evidence: `session model ${session}${pin && pin !== session ? ` · settings pin ${pin}` : ''} — ${unrecognisedModelIdReason(session)}`,
@@ -2514,7 +2514,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             if (!pin) {
-              return { status: 'ok', evidence: `session model ${unresolvedDefaultRow() ?? session} · no settings pin` }
+              return { status: 'ok', evidence: `session model ${unresolvedDefaultRow() ?? (isChooseAModel(session) ? CHOOSE_A_MODEL_WORDS : session)} · no settings pin` }
             }
             let pinResolved = pin
             try {

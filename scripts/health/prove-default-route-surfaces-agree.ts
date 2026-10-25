@@ -217,7 +217,7 @@ try {
   {
     const s = await surfaces(home('keyless'))
     check('no credential: auth status routes to anthropic and exits 1', s.auth?.routedProvider === 'anthropic' && s.authRan.status === 1, `${String(s.auth?.routedProvider)} exit=${s.authRan.status}`)
-    check('…and Model pins names the Anthropic default', /^session model claude-\S+ · no settings pin$/.test(s.row('model')?.evidence ?? ''), JSON.stringify(s.row('model')))
+    check('…and Model pins names the "choose a model" entry, never a provider\'s model', s.row('model')?.evidence === 'session model choose a model · no settings pin' && s.row('model')?.status === 'ok', JSON.stringify(s.row('model')))
   }
   {
     const s = await surfaces(home('deepseek', { DEEPSEEK_API_KEY: 'fixture-deepseek-key' }))

@@ -1,6 +1,6 @@
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -177,6 +177,10 @@ function composeArms(
   credentials: CredentialReads,
   route: string,
 ): { session: WorkerArmAvailabilityV1; crew: WorkerArmAvailabilityV1 } {
+  if (isChooseAModel(modelId)) {
+    const refused: WorkerArmAvailabilityV1 = { availability: 'refused', refusal: NO_ACCOUNT_REFUSAL, detail: NO_ACCOUNT_DETAIL, action: NO_ACCOUNT_ACTION }
+    return { session: refused, crew: refused }
+  }
   if (route === 'unrecognised') {
     const refused: WorkerArmAvailabilityV1 = {
       availability: 'refused',
@@ -289,7 +293,7 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
     const arms = composeArms(operatorDefaultId, credentials, declaredRouteOf(operatorDefaultId) ?? 'unrecognised')
     entries.unshift({
       modelId: operatorDefaultId,
-      displayName: `${operatorDefaultId} · default`,
+      displayName: isChooseAModel(operatorDefaultId) ? CHOOSE_A_MODEL_WORDS : `${operatorDefaultId} · default`,
       ...arms,
       ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
       isOperatorDefault: true,

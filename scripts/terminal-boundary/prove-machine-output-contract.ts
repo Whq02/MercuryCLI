@@ -387,7 +387,7 @@ section('L13 — no credentials: an operational error, exit 1, the refusal where
   const noKey = { dropKeys: ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL'], extraEnv: { MERCURY_CREDENTIAL_STORE: 'file' } }
   const text = await runDist(['run', 'hello', '--max-turns', '1'], noKey)
   check('text: exit 1', text.exit === 1, String(text.exit))
-  check('text: the refusal rides stderr and names the sign-in', /Not logged in/.test(text.stderr), text.stderr.slice(0, 120))
+  check('text: the refusal rides stderr and names the model door (the keyless default is the "choose a model" entry)', /choose a model · \/model/.test(text.stderr), text.stderr.slice(0, 120))
   check('text: stdout carries zero bytes', text.stdout.length === 0, text.stdout.slice(0, 80))
   const json = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'json'], noKey)
   let parsed: { type?: string; status?: string; error?: { message?: string } } | null = null
@@ -397,7 +397,7 @@ section('L13 — no credentials: an operational error, exit 1, the refusal where
     parsed = null
   }
   check('json: exit 1', json.exit === 1, String(json.exit))
-  check('json: stdout is one outcome object naming the sign-in', parsed !== null && parsed.type === 'outcome' && parsed.status !== 'completed' && /Not logged in/.test(String(parsed.error?.message)), json.stdout.slice(0, 160))
+  check('json: stdout is one outcome object naming the model door', parsed !== null && parsed.type === 'outcome' && parsed.status !== 'completed' && /choose a model · \/model/.test(String(parsed.error?.message)), json.stdout.slice(0, 160))
   const sj = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'rows'], noKey)
   const { parsed: frames, bad } = parseLines(sj)
   const result = frames.find(f => f.type === 'outcome') as { status?: string } | undefined

@@ -264,8 +264,10 @@ disk never attaches to a Vast.ai instance.
    the weights, starts the engine on remote loopback, opens a local SSH tunnel,
    registers the provider (`compat/pod-<id>/<model>`), and checks a reply. If
    you close `/llmhost` with `Esc` or click outside, setup keeps running in the
-   background and posts a chat notice when the model is ready (with the
-   `/model compat/pod-<id>/<model>` command) or if setup stops.
+   background and posts a chat notice when the model is ready or if setup
+   stops. The chat that rented the machine switches to its model when it is
+   ready; a chat that has since closed gets the `/model compat/pod-<id>/<model>`
+   command instead.
 
 ### Watch for stock across connected providers
 

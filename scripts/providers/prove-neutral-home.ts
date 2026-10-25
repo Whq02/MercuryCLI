@@ -403,12 +403,12 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const facedId = wm.defaultWorkerModelId(facedRegistry, 'session')
   const faced = await wm.validateWorkerModelChoice(facedId, 'session')
   const facedLine = faced.ok ? 'ok' : `${faced.reason} · ${faced.action ?? ''} — ${faced.detail ?? ''}`
-  check("LIVE: the registry's keyless seed spelled out as a NAMED id is the operator's own pick — its family's own door (base: the two-door sentence)",
-    !faced.ok && faced.reason === 'no-credential:anthropic' && /\/logins anthropic/.test(faced.action ?? ''), facedLine)
-  check('…naming ITS family and no other on that line', /anthropic/i.test(facedLine) && !/openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
+  check("LIVE: the registry's keyless seed is the 'choose a model' entry — a model no provider declares, so spelled out as a NAMED id it keeps the two-door sentence (base: the first-party fallback's own door)",
+    facedId === 'choose-a-model' && !faced.ok && faced.reason === 'no-credential:any' && faced.action === '/logins to choose an account or connect an API key', facedLine)
+  check('…naming no family on that line', !/anthropic|claude|opus|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
   const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.js')
   const spoken = operatorFacingBirthReason(`model refused (${faced.ok ? '' : faced.reason}) · ${faced.ok ? '' : faced.action ?? ''} — ${faced.ok ? '' : faced.detail ?? ''} (got "${facedId}")`)
-  check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the imperative kept", !/ask the operator/.test(spoken) && /run \/logins anthropic/.test(spoken), spoken)
+  check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the door kept", !/ask the operator/.test(spoken) && /\/logins to choose an account/.test(spoken), spoken)
   const otherEntry = facedRegistry.entries.find(e => e.modelId !== facedId && e.session.availability !== 'available')
   if (otherEntry !== undefined) {
     const named = await wm.validateWorkerModelChoice(otherEntry.modelId, 'session')

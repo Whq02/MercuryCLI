@@ -56,12 +56,15 @@ try {
     ['restart-summary', watches.composeRestartLine({ reason: 'update', build: installed, watches: [watch], shells: [shell] })],
     ['rented', 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'],
     ['ready', hostReadyWords('GLM-5.3-Flash', 'compat/pod-fixture/GLM-5.3-Flash', { price: 8.99, startedAt: new Date(Date.now() - 3600_000).toISOString() })],
+    ['ready-switched', hostReadyWords('GLM-5.3-Flash', 'compat/pod-fixture/GLM-5.3-Flash', { price: 8.99, startedAt: new Date(Date.now() - 3600_000).toISOString() }, true)],
     ['idle-slot', idle.words],
     ['needs-key', loginsActionFor('openai-compat', 'x')],
   ] as const
   check('busy refusal names the safe wait action without mid-turn jargon or destructive esc advice', busy.reason.includes('Wait for it to finish, then run /restart.') && !busy.reason.includes('Press esc') && !busy.reason.includes('mid-turn'))
   check('current refusal is a complete sentence', current.reason.includes('Nothing needs restarting.'))
   check('notice wording avoids internal names', lines.every(([, text]) => !/\b(?:seat|kit|concourse|re-arm|receipt)\b/i.test(text)))
+  const lineOf = (name: string): string => lines.find(([key]) => key === name)?.[1] ?? ''
+  check('the ready notice names the /model door when the session was not switched, and the fact when it was', lineOf('ready').startsWith('GLM-5.3-Flash ready · /model compat/pod-fixture/GLM-5.3-Flash\n~$') && lineOf('ready-switched').startsWith('GLM-5.3-Flash ready · now your model\n~$') && !lineOf('ready-switched').includes('/model') && lineOf('ready-switched').endsWith(' so far + storage.'))
   check('build notice says what restarts will stop', lines[0][1].includes('watches and background shells') && lines[0][1].includes('/restart'))
   for (const cols of [120, 80]) {
     for (const [name, text] of lines) {

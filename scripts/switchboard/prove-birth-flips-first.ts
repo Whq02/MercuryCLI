@@ -104,7 +104,7 @@ section('§3 a live keyless home — the unnamed session admits keyless; the cre
   const { getEngineModel } = await import('../../src/utils/model/model.ts')
   const placeholder = getEngineModel()
   const named = await wm.validateWorkerModelChoice(placeholder, 'session')
-  check(`the placeholder spelled out ('${placeholder}') is a NAMED Claude id on a keyless home — its own family's door (no product door spells it: bornSession drops every model there)`, !named.ok && named.reason === 'no-credential:anthropic' && String(named.action).includes('/logins anthropic'), text(named))
+  check(`the keyless entry spelled out ('${placeholder}') is the "choose a model" dud — no family to name, so it keeps the two-door sentence (no product door spells it: bornSession drops every model there)`, placeholder === 'choose-a-model' && !named.ok && named.reason === wm.NO_ACCOUNT_REFUSAL && String(named.action).includes('/logins to choose an account'), text(named))
   const crew = await wm.validateWorkerModelChoice(undefined, 'crew')
   check('a keyless CREW seat refuses with the two-door sentence, naming no family', !crew.ok && crew.reason === wm.NO_ACCOUNT_REFUSAL && String(crew.action).includes('/logins to choose an account'), text(crew))
   const other = await wm.validateWorkerModelChoice('claude-sonnet-5', 'session')

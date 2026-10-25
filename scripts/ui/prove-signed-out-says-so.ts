@@ -12,7 +12,7 @@ const ROWS = 40
 const FACE_READY = '↑↓ choose'
 const COMPOSER_READY = 'Type a prompt'
 const PROMPT = 'hello there'
-const SIGNED_OUT_ANSWER = 'Not logged in'
+const SIGNED_OUT_ANSWER = 'choose a model · /model'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -75,7 +75,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
         const answer = painted(run, SIGNED_OUT_ANSWER, chatPaint?.ts ?? 0)
         const afterSend = screenAfter(run, answer)
         if (afterSend) saveFrame(`${tag}-after-send`, afterSend)
-        check(`${tag}: a prompt sent while signed out answers with the way in (/logins), not a provider error`, afterSend !== null && afterSend.some(l => l.includes(PROMPT)) && rowsWith(afterSend, '/logins').length > 0 && !/401|authentication_error|invalid x-api-key|ECONNREFUSED/.test(afterSend.join('\n')), afterSend === null ? `the answer never painted · ${unfired(run)}` : rowsWith(afterSend, PROMPT).concat(rowsWith(afterSend, 'logins')).join(' | '))
+        check(`${tag}: a prompt sent while signed out answers with the model door (${SIGNED_OUT_ANSWER}) beside the status row's /logins, not a provider error`, afterSend !== null && afterSend.some(l => l.includes(PROMPT)) && rowsWith(afterSend, SIGNED_OUT_ANSWER).length === 1 && rowsWith(afterSend, '/logins').length > 0 && !/401|authentication_error|invalid x-api-key|ECONNREFUSED|API Error/.test(afterSend.join('\n')), afterSend === null ? `the answer never painted · ${unfired(run)}` : rowsWith(afterSend, PROMPT).concat(rowsWith(afterSend, 'logins')).join(' | '))
       }
     } else {
       check(`${tag}: the Logins row counts the sign-in and never says not signed in`, rowsWith(home, 'Logins').some(l => /\d+ of \d+ signed in/.test(l)) && !(home ?? []).some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
