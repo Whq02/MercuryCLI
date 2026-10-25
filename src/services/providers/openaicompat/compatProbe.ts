@@ -310,6 +310,17 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       if (tokens) contextWindows[row.id.trim()] = tokens
       const modalities = record(row.architecture)?.input_modalities ?? row.input_modalities
       if (Array.isArray(modalities) && modalities.length > 0 && modalities.every(value => typeof value === 'string')) capabilities[row.id.trim()] = { images: modalities.includes('image') }
+      const metadata = record(row.metadata)
+      const levels = row.supported_reasoning_levels ?? metadata?.supported_reasoning_levels
+      const defaultLevel = row.default_reasoning_level ?? metadata?.default_reasoning_level
+      const values = Array.isArray(levels) ? levels : typeof defaultLevel === 'string' ? [defaultLevel] : undefined
+      if (values !== undefined) {
+        efforts[row.id.trim()] = [...new Set(values.flatMap(value => {
+          const level = typeof value === 'string' ? value : record(value)?.effort ?? record(value)?.value ?? record(value)?.level
+          return typeof level === 'string' && level.trim() ? [level.trim()] : []
+        }))]
+        if (efforts[row.id.trim()]!.length > 0) capabilities[row.id.trim()] = { ...capabilities[row.id.trim()], reasoning: true }
+      }
     }
     const [sglang, llama, ollama] = await Promise.all([
       opts.detect || endpoint.dialect === 'sglang' ? sglangModelInfo() : undefined,
@@ -368,7 +379,8 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
       for (const id of models) {
         const served = Array.isArray(ps?.models) ? ps.models.find((row: any) => row.name === id || row.model === id) : undefined
         const info = await optional('/api/show', { model: id })
-        efforts[id] = Array.isArray(info?.thinking?.values) ? info.thinking.values.filter((value: unknown): value is string => typeof value === 'string') : []
+        if (Array.isArray(info?.thinking?.values)) efforts[id] = info.thinking.values.filter((value: unknown): value is string => typeof value === 'string')
+        else efforts[id] ??= []
         if (Array.isArray(info?.capabilities)) capabilities[id] = {
           ...capabilities[id],
           images: info.capabilities.includes('vision'),

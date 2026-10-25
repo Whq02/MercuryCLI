@@ -5,7 +5,7 @@ import stripAnsi from 'strip-ansi'
 import { BLOCKQUOTE_BAR } from '../constants/figures.js'
 import { color } from '../components/design-system/color.js'
 import { supportsHyperlinks } from '../ink/session/capabilities.js'
-import { createHyperlink } from './hyperlink.js'
+import { createHyperlink, linkifyCodeUrls } from './hyperlink.js'
 import { stripPromptXMLTags } from './messages.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import sliceAnsi from './sliceAnsi.js'
@@ -170,15 +170,15 @@ export function formatToken(
 
     case 'code': {
       const code = token as Tokens.Code
-      if (!highlight) return `${code.text}\n`
+      if (!highlight) return `${linkifyCodeUrls(code.text)}\n`
       const lang = code.lang?.trim() ?? ''
       if (lang && highlight.supportsLanguage(lang)) {
-        return `${highlight.highlight(code.text, { language: lang })}\n`
+        return `${linkifyCodeUrls(highlight.highlight(code.text, { language: lang }))}\n`
       }
       if (lang) {
         logForDebugging(`markdown: unsupported code fence language ${lang}`)
       }
-      return `${highlight.highlight(code.text, { language: 'plaintext' })}\n`
+      return `${linkifyCodeUrls(highlight.highlight(code.text, { language: 'plaintext' }))}\n`
     }
 
     case 'codespan':

@@ -46,6 +46,7 @@ ${languageLines}
 - A runtime idle for ${EVAL_IDLE_TTL_MS / 60_000} minutes is reaped; the next cell starts fresh and its result says so — re-run your setup cell.
 
 ## In-cell helpers (both languages)
+- JS: \`await tool.<Name>(...)\`, \`await agent(prompt, ...)\`, and \`await completion(prompt, ...)\` resolve async calls. Python helpers are synchronous: no await.
 - \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object).${inspect} A call obeys the session's permission mode exactly like your direct calls — one that asks the operator waits. It raises into the cell only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward): handle it or let the cell fail; do not retry a denial.
 - \`tool.Bash({command})\` — only for a command whose output the cell itself goes on to process; a command run for its own sake is a direct Bash call. A command that ran returns \`{code, stdout, stderr}\` whatever it exited: \`code\` is the exit code (null while it runs in the background), \`stdout\` is the one interleaved capture, \`stderr\` is always \`''\`. A non-zero exit is a value, never a raise.
 - \`tool.attempt.<Name>(...)\` (JS) / \`tool.attempt('<Name>', ...)\` (both) — the same call with its error as a value: \`{ok: true, value}\` or \`{ok: false, error}\`.

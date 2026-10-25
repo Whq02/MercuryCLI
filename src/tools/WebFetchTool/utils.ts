@@ -45,7 +45,7 @@ export function clearWebFetchCache(): void {
 
 
 function validateURL(url: string): boolean {
-  if (url.length > MAX_URL_LENGTH) return false
+  if (url.length > MAX_URL_LENGTH || /^https?:[\\/]*[^/?#]*\\/i.test(url.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '').replace(/[\t\r\n]/g, ''))) return false
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -58,6 +58,7 @@ function validateURL(url: string): boolean {
 }
 
 export function isPreapprovedUrl(url: string): boolean {
+  if (!validateURL(url)) return false
   try {
     const parsed = new URL(url)
     return isPreapprovedHost(parsed.hostname, parsed.pathname)
@@ -72,6 +73,8 @@ async function convertHtmlToMarkdown(html: string): Promise<string> {
   if (!markdownConverter) {
     const { default: TurndownService } = await import('turndown')
     const service = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+    const escape = service.escape.bind(service)
+    service.escape = text => escape(text).replace(/(?<=[\p{L}\p{N}])(?:\\_)+(?=[\p{L}\p{N}])/gu, value => value.replaceAll('\\_', '_'))
     addTableRule(service)
     markdownConverter = service
   }

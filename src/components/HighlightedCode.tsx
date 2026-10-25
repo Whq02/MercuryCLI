@@ -7,6 +7,7 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { HighlightedCodeFallback } from './HighlightedCode/Fallback.js'
 import { Suspense } from 'react'
 
+import { linkifyCodeUrls } from '../utils/hyperlink.js'
 export const HighlightedCode = memo(function HighlightedCode({
   code,
   filePath,
@@ -64,7 +65,7 @@ export const HighlightedCode = memo(function HighlightedCode({
               {'  '}
             </Text>
           </NoSelect>
-          <Suspense fallback={<Ansi dimColor={dim}>{line === '' ? ' ' : line}</Ansi>}>
+          <Suspense fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(line === '' ? ' ' : line)}</Ansi>}>
             <HighlightedCodeFallback
               code={line === '' ? ' ' : line}
               filePath={filePath}

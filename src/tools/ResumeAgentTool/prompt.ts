@@ -1,7 +1,7 @@
-export const DESCRIPTION = 'Give a crewmate of this session a new turn by its id or name, resuming it from its transcript if it has finished.'
+export const DESCRIPTION = 'Give a crewmate of this session a new turn by its id or name, resuming it from its transcript if it has finished; interrupt: true cuts a running turn to start the new one.'
 
 export function getPrompt(): string {
-  return `Give a crewmate of this session more work: your message becomes its next turn. A crewmate that has finished (completed, failed or stopped) is resumed from its transcript in the background, with its full context. A running crewmate is never started twice: it reads the message at its next tool boundary.
+  return `Give a crewmate of this session more work: your message becomes its next turn. A crewmate that has finished (completed, failed or stopped) is resumed from its transcript in the background, with its full context. A running crewmate is never started twice: it reads the message at its next tool boundary, unless interrupt: true cuts that turn and starts the new one after saving the partial transcript.
 
 Example: { "to": "researcher", "message": "Now map the token refresh path the same way." }
 

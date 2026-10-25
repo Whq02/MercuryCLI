@@ -418,9 +418,22 @@ async function probeTarget(target: { kind: LocalServerKind; root: string }, io: 
 export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<LocalDiscoverySnapshot> {
   const env = io.env ?? process.env
   const targets = localProbeTargets(env)
-  const results = await Promise.all(targets.map(t => probeTarget(t, io).catch(() => undefined)))
+  let targetCount = targets.length
+  const results = await Promise.all(targets.map(async target => {
+    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || env.MERCURY_LOCAL_PROBE_TARGETS?.trim()) return probeTarget(target, io).catch(() => undefined)
+    let answered = false
+    const fetchImpl = io.fetchImpl ?? getApiFetch()
+    const first = await probeLlamaCpp(target.root, { ...io, fetchImpl: (async (...args: Parameters<typeof fetch>) => {
+      const response = await fetchImpl(...args)
+      answered = true
+      return response
+    }) as typeof fetch })
+    if (first || answered || io.signal?.aborted) return first
+    targetCount++
+    return probeLlamaCpp('http://127.0.0.1:9931', io)
+  }).map(probe => probe.catch(() => undefined)))
   const servers = results.filter((s): s is LocalServerRecord => s !== undefined)
-  return { servers, probedAtMs: io.now?.() ?? Date.now(), targetCount: targets.length }
+  return { servers, probedAtMs: io.now?.() ?? Date.now(), targetCount }
 }
 
 

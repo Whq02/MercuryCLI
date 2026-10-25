@@ -101,6 +101,19 @@ for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof 
   check(`${tool.name} refuses unknown with the session names`, !(await call(tool, 'nobody-here')).success)
 }
 check('main cannot deliver to itself', !(await call(SendMessageTool, 'MAIN')).success)
+if (ResumeAgentTool) {
+  for (const to of [id, 'researcher']) {
+    const before = pending(id).length
+    const controller = (state.tasks[id] as unknown as { abortController: AbortController }).abortController
+    const refusal = await ResumeAgentTool.call({ to, message: 'do not interrupt myself', interrupt: true } as never, context(id))
+    check('interrupt refuses self without aborting or queuing', !refusal.data.success && !controller.signal.aborted && pending(id).length === before)
+  }
+  const deaf = launch('ignores-interrupt')
+  const controller = (state.tasks[deaf] as unknown as { abortController: AbortController }).abortController
+  const refusal = await ResumeAgentTool.call({ to: 'ignores-interrupt', message: 'must not start twice', interrupt: true } as never, context())
+  check('an interrupt that has not settled refuses without starting a second turn or queuing a hidden retry', !refusal.data.success && refusal.data.message.includes('has not ended') && controller.signal.aborted && state.tasks[deaf]?.status === 'running' && (pending(deaf) ?? []).length === 0)
+  stop(deaf)
+}
 const sender = launch('sender')
 check('a crewmate delivers to main with the exact timing words', (await call(SendMessageTool, 'MAIN', 'hello', sender)).message === 'Delivered to the main agent; it reads it at its next tool boundary, or between turns starts a turn for it.')
 if (ResumeAgentTool) {
@@ -171,7 +184,7 @@ check('SendMessage prompt equals the new contract without TaskUpdate', getPrompt
 check('TaskUpdate line remains conditional', getPrompt(new Set(['TaskUpdate'])) === expectedSend + '\n- Structured status updates belong in TaskUpdate, not in a SendMessage message.')
 const expectedSchemas = [
   { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to send to: the id its launch receipt names or the name its launch gave it; "main" from a background crewmate reaches the agent that launched it' }, message: { type: 'string', description: 'The message' } }, required: ['to', 'message'] },
-  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] } }, required: ['to', 'message'] },
+  { type: 'object', properties: { to: { type: 'string', description: 'The crewmate to resume: the id its launch receipt names or the name its launch gave it' }, message: { type: 'string', description: 'Its next turn: what to do, written as you would brief it' }, model: { description: 'Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.', type: 'string' }, effort: { description: 'Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.', type: 'string', enum: ['low', 'medium', 'high', 'xhigh', 'max'] }, interrupt: { description: 'Interrupt a running turn and start this message as its next turn; omitted or false, deliver it at the next tool boundary.', type: 'boolean' } }, required: ['to', 'message'] },
 ]
 for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   if (!tool) continue
@@ -181,7 +194,7 @@ for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   const description = await tool.prompt({ tools: [] } as never)
   const bytes = Buffer.byteLength(JSON.stringify({ name: tool.name, description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
   console.log(`${tool.name} definition bytes=${bytes}`)
-  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 1783][index])
+  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 2050][index])
   check(`${tool.name} is deferred with a search hint`, tool.shouldDefer === true && Boolean(tool.searchHint))
 }
 for (const task of Object.values(state.tasks)) if (task.type === 'local_agent') stop(task.id)

@@ -8,8 +8,8 @@ import type { CompatDialect } from './compatProbe.js'
 import { LOCAL_SERVER_EFFORTS } from './compatWire.js'
 
 export function hostModelEfforts(wireModel: string, dialect: CompatDialect, reported?: readonly string[]): readonly string[] {
-  if (dialect === 'lmstudio' || dialect === 'responses') return []
   if (reported !== undefined) return reported.filter(isRankedWireEffort)
+  if (dialect === 'lmstudio' || dialect === 'responses') return []
   if (dialect === 'ollama') return []
   const id = wireModel.toLowerCase().split(':')[0]!
   const recipe = [...currentHostRecipes(), ...HOST_RECIPES].find(row => row.model.toLowerCase() === id && row.efforts !== undefined)

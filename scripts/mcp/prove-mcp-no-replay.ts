@@ -27,6 +27,7 @@ let calls = 0
 const invocations: unknown[] = []
 let mode: 'drop' | 'timeout' | 'reject' | 'ok' = 'drop'
 let rejected = false
+const cancelled: unknown[] = []
 const server = createServer(async (req, res) => {
   if (req.method !== 'POST') { res.writeHead(405).end(); return }
   let raw = ''
@@ -36,6 +37,7 @@ const server = createServer(async (req, res) => {
   if (msg.method === 'server/discover') { res.writeHead(404).end(); return }
   if (msg.method === 'initialize') { reply({ protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'action-fixture', version: '1' } }); return }
   if (msg.method === 'tools/list') { reply({ tools: [{ name: 'record', description: 'Records an action', inputSchema: { type: 'object', properties: {} } }] }); return }
+  if (msg.method === 'notifications/cancelled') cancelled.push(msg.params.requestId)
   if (msg.method !== 'tools/call') { res.writeHead(202).end(); return }
   if (mode === 'reject' && !rejected) { rejected = true; res.writeHead(404).end(JSON.stringify({ error: { code: -32001, message: 'Session not found' } })); return }
   calls++
@@ -53,6 +55,14 @@ try {
     mode = testMode; calls = 0
     const connection = await mcp.connectToServer(`action-fixture-${testMode}`, config)
     if (connection.type !== 'connected') throw new Error(JSON.stringify(connection))
+    let requestSignal: AbortSignal | undefined
+    if (testMode === 'timeout') {
+      const callTool = connection.client.callTool.bind(connection.client)
+      connection.client.callTool = ((params, options) => {
+        requestSignal = options?.signal
+        return callTool(params, { ...options, timeout: 10_000 })
+      }) as typeof connection.client.callTool
+    }
     const tools = await mcp.fetchToolsForClient(connection)
     const tool = tools[0]!
     let text = ''; let failed = false
@@ -67,6 +77,13 @@ try {
       check(`${testMode}: error survives tool wrapper`, failed)
       check(`${testMode}: unknown outcome names action and recovery`, /unknown outcome/i.test(text) && text.includes('action-fixture') && text.includes('record') && text.includes('inspect the effect before retrying'))
       if (process.env.PROOF_RESULT_DIR) writeFileSync(join(process.env.PROOF_RESULT_DIR, `mcp-${testMode}.json`), JSON.stringify({ error: text.replace(/^\w+: /, '') }))
+    }
+    if (testMode === 'timeout') {
+      check('local timeout aborts the SDK request signal before returning', requestSignal?.aborted === true)
+      const id = (invocations.at(-1) as { msg: { id: unknown } }).msg.id
+      const deadline = Date.now() + 1_000
+      while (!cancelled.includes(id) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+      check('local timeout sends notifications/cancelled for the original request', cancelled.includes(id))
     }
     await mcp.clearServerCache(`action-fixture-${testMode}`, config)
   }

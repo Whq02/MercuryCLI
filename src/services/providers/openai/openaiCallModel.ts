@@ -144,6 +144,7 @@ export function openaiLiveProofState(): { at: number; model: string } | null {
 
 const OPENAI_MAX_ATTEMPTS = 2
 const OPENAI_RETRY_BACKOFF_MS = 400
+const MODEL_NOT_FOUND_CODE = /(?:^|[_-])model_not_found$/
 
 export function openaiRetryDelayMs(attempt: number): number {
   return OPENAI_RETRY_BACKOFF_MS * attempt
@@ -163,6 +164,7 @@ export function effortVocabularyRefusalOf(
 export function openaiFaultToTypedError(
   fault: Pick<import('./openaiWire.js').OpenaiFault, 'kind' | 'code'> & { status?: number },
 ): NonNullable<AssistantMessage['error']> {
+  if (MODEL_NOT_FOUND_CODE.test(fault.code)) return 'invalid_request'
   if (fault.kind === 'usage-limit') return 'rate_limit'
   if (fault.status !== undefined) {
     if (fault.status === 401 || fault.status === 403) return 'authentication_failed'
@@ -876,7 +878,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       if (signal.aborted) return
       continue
     }
-    if (outcome.fault.kind === 'usage-limit') {
+    if (outcome.fault.kind === 'usage-limit' && typed === 'rate_limit') {
       noteOpenaiSourceIdentity(auth.account.kind, openaiSourceIdentity(auth.account.kind))
       recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)
       const slotAppendix = ((): string => {
@@ -1292,7 +1294,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     return { kind: 'fault', fault, retryEligible: true }
   }
   const typedEnd =
-    fault !== undefined && !finish && !retryTemporary
+    fault !== undefined && !finish && !retryTemporary && !MODEL_NOT_FOUND_CODE.test(fault.code)
       ? typedStreamEndOf({
           fault,
           provider: 'OpenAI',
@@ -1449,6 +1451,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
+  if (fault && MODEL_NOT_FOUND_CODE.test(fault.code)) return { kind: 'fault', fault, retryEligible: false }
   if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(

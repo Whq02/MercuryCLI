@@ -107,7 +107,7 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   jq: args => extractPatternCommand(args, JQ_CONSUMING, null),
   git: extractGitOperands,
   tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
-  dd: args => args.filter(a => a.startsWith('of=') && a !== 'of=/dev/null').map(a => a.slice(3)),
+  dd: args => args.filter(a => a.startsWith('of=') && !/^of=\/dev\/(?:null|stdout|stderr|fd\/[12])$/.test(a)).map(a => a.slice(3)),
   awk: extractAwkOperands,
   mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
   mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,

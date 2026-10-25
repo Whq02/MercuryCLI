@@ -9,11 +9,11 @@ const PERMANENT_CODES: ReadonlySet<string> = new Set([
   'payment_required', 'billing_error', 'insufficient_credits', 'insufficient_quota',
   'quota_exceeded', 'quota_exhausted', 'billing_hard_limit_reached',
   'invalid_request', 'invalid_request_error', 'invalid_prompt', 'context_length_exceeded',
-  'max_tokens_exceeded', 'token_limit_exceeded', 'string_too_long', 'not_found',
+  'max_tokens_exceeded', 'token_limit_exceeded', 'string_too_long', 'not_found', 'model_not_found',
   'precondition_failed', 'payload_too_large', 'unprocessable',
   'content_policy_violation', 'content_filter', 'refusal', 'sensitive',
 ])
-const PERMANENT_CODE_FAMILY = /(?:^|_)(?:auth|authentication|unauthenticated|unauthorized|forbidden|permission|billing|payment|quota|credits?|invalid_request|invalid_prompt|content_policy|content_filter|safety)(?:_|$)/
+const PERMANENT_CODE_FAMILY = /(?:^|[_-])(?:auth|authentication|unauthenticated|unauthorized|forbidden|permission|billing|payment|quota|credits?|invalid_request|invalid_prompt|model_not_found|content_policy|content_filter|safety)(?:_|$)/
 const PERMANENT_WORDS = /\b(?:authenticat(?:ion|e|ed)|unauthorized|forbidden|permission denied|invalid credentials?|invalid (?:api[ -]?)?key|(?:invalid|expired|revoked) (?:access )?token|billing|payment required|insufficient (?:credits?|quota|balance|funds)|(?:credits?|quota|balance|funds) (?:exhausted|exceeded|depleted)|(?:invalid|malformed|bad) (?:request|prompt)|content (?:policy|filter)|safety (?:policy|filter)|policy violation)\b/i
 const TEMPORARY_WORDS = [
   /\bat capacity\b/i,

@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { queuePendingMessage, speakAgentMessageFrame } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queuePendingMessage, speakAgentMessageFrame } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { errorMessage } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { liveAgentOwner } from '../AgentTool/resumeAgent.js'
@@ -11,14 +11,17 @@ import { renderToolResultMessage, renderToolUseMessage } from '../SendMessageToo
 import { RESUME_AGENT_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
+import { stopAgentByOperator } from '../../services/agents/operatorStop.js'
+import { flushSessionStorage } from '../../utils/sessionStorage.js'
 
 type ResumeAgentToolOutput = MessageOutput
-type Input = CrewMessageInput & { model?: string; effort?: EffortLevel }
+type Input = CrewMessageInput & { model?: string; effort?: EffortLevel; interrupt?: boolean }
 const inputSchema = lazySchema(() => z.object({
   to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it'),
   message: z.string().describe('Its next turn: what to do, written as you would brief it'),
   model: z.string().optional().describe('Model for the resumed turn of a finished crewmate; omitted, its recorded model stays. Read mercury://models for available ids.'),
   effort: z.enum(EFFORT_LEVELS).optional().describe('Effort for the resumed turn; omitted, its recorded effort stays. Max is admitted; an unsupported lower tier is refused, not clamped.'),
+  interrupt: z.boolean().optional().describe('Interrupt a running turn and start this message as its next turn; omitted or false, deliver it at the next tool boundary.'),
 }))
 type InputSchema = ReturnType<typeof inputSchema>
 const outputSchema = lazySchema(() => z.object({ success: z.boolean(), message: z.string() }))
@@ -49,8 +52,20 @@ export const ResumeAgentTool = buildTool({
       if (owner !== null) return { data: { success: false, message: `${owner.words} Model and effort overrides apply only to a finished crewmate; nothing was queued.` } }
     }
     if (address.task?.status === 'running') {
-      queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
-      return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
+      if (!input.interrupt) {
+        queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
+        return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
+      }
+      const stopped = await stopAgentByOperator(address.agentId, {
+        getAppState: context.getAppState,
+        setAppState: context.setAppStateForTasks ?? context.setAppState,
+      }, { reason: AGENT_INTERRUPT_BY_OPERATOR })
+      if (stopped.outcome === 'refused') return { data: { success: false, message: stopped.reason } }
+      await flushSessionStorage()
+      context.abortController.signal.throwIfAborted()
+      const task = context.getAppState().tasks[address.agentId]
+      if (isLocalAgentTask(task)) address.task = task
+      else delete address.task
     }
     const workflow = await messageWorkflowWorker(address, input.message)
     if (workflow !== undefined) return { data: workflow }

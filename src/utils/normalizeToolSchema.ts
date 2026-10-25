@@ -115,22 +115,38 @@ function walkLane(lane: SchemaLane, node: unknown, tree: RenameTree | null, dept
   return out
 }
 
-function objectBranches(node: SchemaNode): SchemaNode[] | null {
-  const branches = (node.anyOf ?? node.oneOf) as unknown
+function objectBranches(branches: unknown, intersection: boolean): SchemaNode[] | null {
   if (!Array.isArray(branches)) return null
-  const kept = branches.filter((branch): branch is SchemaNode => isRecord(branch) && branch.type !== 'null')
+  const kept = branches.filter((branch): branch is SchemaNode => isRecord(branch) && (intersection || branch.type !== 'null'))
   return kept.length > 0 && kept.every(branch => branch.type === 'object' || isRecord(branch.properties)) ? kept : null
 }
 
 function rootForLane(lane: SchemaLane, node: SchemaNode): SchemaNode {
   if (lane !== 'anthropic-strict' && lane !== 'responses') return node
-  const branches = objectBranches(node)
-  if (branches === null) return node
-  const { anyOf: _anyOf, oneOf: _oneOf, ...rest } = node
-  if (branches.length === 1) return { ...rest, ...branches[0] }
-  const properties: SchemaNode = {}
-  for (const branch of branches) if (isRecord(branch.properties)) for (const [key, child] of Object.entries(branch.properties)) if (!(key in properties)) properties[key] = child
-  return { ...rest, type: 'object', properties }
+  let out = node
+  for (const combinator of ['anyOf', 'oneOf', 'allOf'] as const) {
+    const branches = objectBranches(out[combinator], combinator === 'allOf')
+    if (branches === null) continue
+    const { [combinator]: _branches, ...rest } = out
+    const variants = new Map<string, unknown[]>()
+    for (const branch of branches) {
+      if (!isRecord(branch.properties)) continue
+      for (const [key, child] of Object.entries(branch.properties)) {
+        const values = variants.get(key) ?? []
+        if (!values.some(value => JSON.stringify(value) === JSON.stringify(child))) values.push(child)
+        variants.set(key, values)
+      }
+    }
+    const properties: SchemaNode = { ...(isRecord(rest.properties) ? rest.properties : {}) }
+    for (const [key, values] of variants) {
+      const merged = values.length === 1 ? values[0] : { [combinator === 'allOf' ? 'allOf' : 'anyOf']: values }
+      properties[key] = Object.hasOwn(properties, key) && JSON.stringify(properties[key]) !== JSON.stringify(merged) ? { allOf: [properties[key], merged] } : merged
+    }
+    const requiredOf = (branch: SchemaNode): string[] => Array.isArray(branch.required) ? branch.required.filter((key): key is string => typeof key === 'string') : []
+    const required = [...new Set([...requiredOf(rest), ...(combinator === 'allOf' ? branches.flatMap(requiredOf) : requiredOf(branches[0]!).filter(key => branches.every(branch => requiredOf(branch).includes(key))))])]
+    out = { ...rest, ...(branches.length === 1 ? branches[0] : {}), type: 'object', properties, ...(required.length > 0 ? { required } : {}) }
+  }
+  return out
 }
 
 function parsedCopy(schema: SchemaNode, serialized: string | undefined): SchemaNode {

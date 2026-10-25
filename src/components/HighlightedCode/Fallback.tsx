@@ -8,6 +8,7 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { hashPair } from '../../utils/hash.js'
 
+import { linkifyCodeUrls } from '../../utils/hyperlink.js'
 const highlightCache = new Map<string, string>()
 const HIGHLIGHT_CACHE_LIMIT = 500
 
@@ -71,8 +72,8 @@ function AsyncHighlight({
   dim: boolean
 }): React.ReactNode {
   const api = use(getCliHighlightPromise())
-  if (!api) return <Ansi dimColor={dim}>{code}</Ansi>
-  return <Ansi dimColor={dim}>{cachedHighlight(api, code, language)}</Ansi>
+  if (!api) return <Ansi dimColor={dim}>{linkifyCodeUrls(code)}</Ansi>
+  return <Ansi dimColor={dim}>{linkifyCodeUrls(cachedHighlight(api, code, language))}</Ansi>
 }
 
 export function HighlightedCodeFallback({
@@ -87,9 +88,9 @@ export function HighlightedCodeFallback({
   skipColoring?: boolean
 }): React.ReactNode {
   const text = detabbed(code)
-  if (skipColoring) return <Ansi dimColor={dim}>{text}</Ansi>
+  if (skipColoring) return <Ansi dimColor={dim}>{linkifyCodeUrls(text)}</Ansi>
   return (
-    <Suspense fallback={<Ansi dimColor={dim}>{text}</Ansi>}>
+    <Suspense fallback={<Ansi dimColor={dim}>{linkifyCodeUrls(text)}</Ansi>}>
       <AsyncHighlight code={text} language={languageOf(filePath)} dim={dim} />
     </Suspense>
   )
