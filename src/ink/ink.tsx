@@ -705,6 +705,7 @@ export default class Ink {
       now - this.lastRenderTime > 30_000
     ) {
       this.resetFramesForAltScreen()
+      this.needsEraseBeforePaint = true
       this.ledger.contaminate('self-heal');
     }
     this.lastRenderTime = now

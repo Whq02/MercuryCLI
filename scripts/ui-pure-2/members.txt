@@ -75,3 +75,4 @@ prove-uncaused-claims.ts
 prove-usage-family-meters.ts
 prove-viewport-route-repaint.ts
 prove-visual-baseline-timing.ts
+prove-frame-replacement.ts
