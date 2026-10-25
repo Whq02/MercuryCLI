@@ -20,7 +20,7 @@ Mercury được dùng để xây dựng chính Mercury, chạy nhiều phiên v
 
 ![Một prompt gửi đến bộ điều phối trên bảng phiên sẽ khởi chạy hai phiên, mỗi phiên trong một worktree riêng; một phiên hỏi trước khi chỉnh sửa, và cả hai đều kết thúc với các thay đổi sẵn sàng để xem xét.](../media/session-board-stream.gif)
 
-Mercury có mã nguồn công khai (source-available) theo Business Source License 1.1, và các SDK trong [sdk/](../../sdk/) và [sdk-py/](../../sdk-py/) được cấp phép theo Apache License 2.0. Xem [Giấy phép](#giấy-phép) để biết điều khoản sử dụng trong môi trường sản xuất.
+Mercury là mã nguồn mở theo Apache License 2.0, cũng như các SDK trong [sdk/](../../sdk/) và [sdk-py/](../../sdk-py/).
 
 ## Cài đặt
 
@@ -425,16 +425,6 @@ Báo cáo các vấn đề bảo mật một cách riêng tư qua tab Security c
 
 ## Giấy phép
 
-Mercury CLI được cấp phép theo Business Source License 1.1 (`BUSL-1.1`) cùng Mercury Community Production Grant trong [LICENSE.md](../../LICENSE.md). Các SDK TypeScript và Python trong [sdk/](../../sdk/) và [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` trên npm và PyPI) được cấp phép riêng theo Apache License 2.0 (`Apache-2.0`), mỗi SDK theo tệp LICENSE đi kèm ([sdk/LICENSE](../../sdk/LICENSE) và [sdk-py/LICENSE](../../sdk-py/LICENSE)), và không thuộc Licensed Work.
+Mercury CLI được cấp phép theo Apache License 2.0 (`Apache-2.0`) trong [LICENSE.md](../../LICENSE.md). Các SDK TypeScript và Python trong [sdk/](../../sdk/) và [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` trên npm và PyPI) cũng được cấp phép theo Apache License 2.0 (`Apache-2.0`), mỗi SDK theo tệp LICENSE đi kèm ([sdk/LICENSE](../../sdk/LICENSE) và [sdk-py/LICENSE](../../sdk-py/LICENSE)).
 
-Mercury có mã nguồn công khai (source-available) theo Business Source License 1.1, cùng Mercury Community Production Grant. Giấy phép nằm trong [LICENSE.md](../../LICENSE.md), kèm theo [điều khoản sản xuất](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) và [chính sách nhãn hiệu](../../TRADEMARKS.md). Nội dung văn bản giấy phép có hiệu lực; đây chỉ là bản tóm tắt.
-
-Bạn được đọc, sao chép, sửa đổi và fork mã nguồn. Các cá nhân và tổ chức dưới cả hai ngưỡng cộng đồng có thể dùng Mercury trong sản xuất miễn phí để xây dựng và bán sản phẩm của riêng họ, kể cả sản phẩm thương mại. Cả doanh thu hợp nhất hằng năm lẫn tổng vốn bên ngoài đều phải dưới US$1.000.000.
-
-Người dùng đủ điều kiện đạt một trong hai ngưỡng sẽ được hưởng thời gian ân hạn 90 ngày. Sau đó, công việc sản phẩm mới, bao gồm chức năng mới đáng kể, cần một giấy phép thương mại. Các sản phẩm đã có trong sản xuất khi đạt ngưỡng vẫn có thể được bảo trì bằng các phiên bản Mercury đã lấy trước khi hết thời gian ân hạn, theo các điều khoản bảo trì của giấy phép.
-
-Bán, white-label hoặc lưu trữ (hosting) Mercury cho bên thứ ba, hoặc cung cấp một sản phẩm thay thế cho nó, đều cần giấy phép thương mại, bất kể doanh thu hay nguồn vốn của bạn.
-
-Mỗi phiên bản chuyển sang Apache License 2.0 vào Change Date (Ngày thay đổi) riêng của nó, ba năm sau khi phiên bản đó được phát hành.
-
-Để xin giấy phép thương mại và quyền sử dụng nhãn hiệu, truy cập [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Các giấy phép của bên thứ ba đi kèm được liệt kê trong [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+Việc sử dụng tên và nhãn hiệu Mercury tuân theo [chính sách nhãn hiệu](../../TRADEMARKS.md). Các giấy phép của bên thứ ba đi kèm được liệt kê trong [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

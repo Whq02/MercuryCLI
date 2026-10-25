@@ -22,7 +22,7 @@ Mercury CLI (mercury-cli.ai، وحزمة npm باسم `mercury-tech-cli`) يُش
 
 ![prompt واحد إلى المنسّق على لوحة الجلسات يُطلق جلستين، كلٌّ منهما في worktree الخاصة بها؛ تسأل إحداهما قبل التعديل، وتنتهي كلتاهما بتغييرات جاهزة للمراجعة](../media/session-board-stream.gif)
 
-Mercury متاح بشيفرته المصدرية بموجب Business Source License 1.1، وتُرخَّص حزم SDK الموجودة في [sdk/](../../sdk/) و [sdk-py/](../../sdk-py/) بموجب Apache License 2.0. راجع [الترخيص](#الترخيص) لمعرفة شروط الاستخدام في بيئات الإنتاج.
+Mercury مفتوح المصدر بموجب Apache License 2.0، وكذلك حزم SDK الموجودة في [sdk/](../../sdk/) و [sdk-py/](../../sdk-py/).
 
 ## التثبيت
 
@@ -459,18 +459,8 @@ docker run --rm mercury --version
 
 ## الترخيص
 
-تُرخَّص Mercury CLI بموجب Business Source License 1.1 (`BUSL-1.1`) مع Mercury Community Production Grant الوارد في [LICENSE.md](../../LICENSE.md). وتُرخَّص حزمتا SDK للغتي TypeScript و Python الموجودتان في [sdk/](../../sdk/) و [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` على npm و PyPI) بموجب Apache License 2.0 (`Apache-2.0`)، كلٌّ منهما بموجب ملف LICENSE الذي يحمله ([sdk/LICENSE](../../sdk/LICENSE) و [sdk-py/LICENSE](../../sdk-py/LICENSE))، ولا تُعدّان جزءًا من Licensed Work (العمل المرخَّص).
+تُرخَّص Mercury CLI بموجب Apache License 2.0 (`Apache-2.0`) الواردة في [LICENSE.md](../../LICENSE.md). وتُرخَّص حزمتا SDK للغتي TypeScript و Python الموجودتان في [sdk/](../../sdk/) و [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` على npm و PyPI) كذلك بموجب Apache License 2.0 (`Apache-2.0`)، كلٌّ منهما بموجب ملف LICENSE الذي يحمله ([sdk/LICENSE](../../sdk/LICENSE) و [sdk-py/LICENSE](../../sdk-py/LICENSE)).
 
-Mercury متاح بشيفرته المصدرية بموجب Business Source License 1.1، مع Mercury Community Production Grant. ويوجد الترخيص في [LICENSE.md](../../LICENSE.md)، ومعه [شروط الإنتاج](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) المرافِقة و [سياسة العلامات التجارية](../../TRADEMARKS.md). نص الترخيص هو المرجع، وما هنا ملخص.
-
-يحق لك قراءة الشيفرة المصدرية ونسخها وتعديلها وتفريعها (fork). يمكن للأفراد والمؤسسات الواقعة دون كلا حدّي المجتمع استخدام Mercury في الإنتاج مجانًا لبناء منتجاتهم الخاصة وبيعها، بما فيها المنتجات التجارية. ويجب أن يكون كلٌّ من الإيرادات السنوية المجمّعة والتمويل الخارجي الإجمالي أقل من US$1,000,000.
-
-يحصل المستخدم المؤهَّل الذي يبلغ أيًا من الحدّين على فترة سماح مدتها 90 يومًا. وبعدها، يتطلب العمل الجديد على المنتج، بما فيه الوظائف الجديدة الجوهرية، ترخيصًا تجاريًا. ويمكن الاستمرار في صيانة المنتجات التي كانت في الإنتاج عند بلوغ الحدّ، باستخدام إصدارات Mercury التي حصلت عليها قبل انتهاء فترة السماح، وفق شروط الصيانة في الترخيص.
-
-يتطلب بيع Mercury نفسه، أو إعادة تسويقه بعلامة تجارية غيرك (white-labelling)، أو استضافته لصالح أطراف ثالثة، أو تقديم بديل له، ترخيصًا تجاريًا بصرف النظر عن إيراداتك أو تمويلك.
-
-يتحوّل كل إصدار إلى Apache License 2.0 في Change Date (تاريخ التغيير) الخاص به، أي بعد ثلاث سنوات من تاريخ إصداره.
-
-للترخيص التجاري وإذن استخدام العلامة التجارية، زُر [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). وتُدرج تراخيص الأطراف الثالثة المرفقة في [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+يخضع استخدام اسم Mercury وعلاماته لـ [سياسة العلامات التجارية](../../TRADEMARKS.md). وتُدرج تراخيص الأطراف الثالثة المرفقة في [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
 
 </div>

@@ -20,7 +20,7 @@ Mercury দিয়ে Mercury তৈরি করা হয়, দীর্�
 
 ![সেশন বোর্ডে সমন্বয়কারীকে একটি প্রম্পট দিলে দুটি সেশন চালু হয়, প্রতিটি নিজের worktree-তে। একটি সম্পাদনার আগে জিজ্ঞেস করে, আর দুটিই পর্যালোচনার জন্য প্রস্তুত পরিবর্তন নিয়ে শেষ হয়](../media/session-board-stream.gif)
 
-Mercury-এর সোর্স কোড Business Source License 1.1-এর অধীনে উপলব্ধ। আর [sdk/](../../sdk/) ও [sdk-py/](../../sdk-py/)-এর SDK গুলো Apache License 2.0-এর অধীনে লাইসেন্সপ্রাপ্ত। প্রোডাকশনে ব্যবহারের শর্তের জন্য [লাইসেন্স](#লাইসেন্স) দেখুন।
+Mercury Apache License 2.0-এর অধীনে ওপেন সোর্স, এবং [sdk/](../../sdk/) ও [sdk-py/](../../sdk-py/)-এর SDK গুলোও তা-ই।
 
 ## ইনস্টল
 
@@ -425,16 +425,6 @@ bug, provider/model বা feature request টেমপ্লেট ব্যব
 
 ## লাইসেন্স
 
-Mercury CLI Business Source License 1.1 (`BUSL-1.1`)-এর অধীনে লাইসেন্সপ্রাপ্ত, সঙ্গে [LICENSE.md](../../LICENSE.md)-এর Mercury Community Production Grant। TypeScript ও Python SDK-গুলো [sdk/](../../sdk/) ও [sdk-py/](../../sdk-py/)-এ (npm ও PyPI-তে `mercury-cli-sdk`) আলাদাভাবে Apache License 2.0 (`Apache-2.0`)-এর অধীনে লাইসেন্সপ্রাপ্ত; প্রতিটি তার সঙ্গের LICENSE ফাইল অনুযায়ী ([sdk/LICENSE](../../sdk/LICENSE) ও [sdk-py/LICENSE](../../sdk-py/LICENSE))। এগুলো Licensed Work-এর অংশ নয়।
+Mercury CLI [LICENSE.md](../../LICENSE.md)-এ দেওয়া Apache License 2.0 (`Apache-2.0`)-এর অধীনে লাইসেন্সপ্রাপ্ত। [sdk/](../../sdk/) ও [sdk-py/](../../sdk-py/)-এর TypeScript ও Python SDK-গুলোও (npm ও PyPI-তে `mercury-cli-sdk`) Apache License 2.0 (`Apache-2.0`)-এর অধীনে লাইসেন্সপ্রাপ্ত; প্রতিটি তার সঙ্গের LICENSE ফাইল অনুযায়ী ([sdk/LICENSE](../../sdk/LICENSE) ও [sdk-py/LICENSE](../../sdk-py/LICENSE))।
 
-Mercury-র সোর্স কোড Business Source License 1.1-এর অধীনে উপলব্ধ, সঙ্গে Mercury Community Production Grant। লাইসেন্সটি আছে [LICENSE.md](../../LICENSE.md)-এ, এর সঙ্গী [প্রোডাকশন শর্তাবলি](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) ও [ট্রেডমার্ক নীতি](../../TRADEMARKS.md)-সহ। লাইসেন্সের মূল পাঠই প্রযোজ্য; এটি একটি সারসংক্ষেপ।
-
-আপনি সোর্স পড়তে, কপি করতে, পরিবর্তন করতে ও fork করতে পারেন। দুটি কমিউনিটি সীমার কোনোটিই ছাড়িয়ে না যাওয়া ব্যক্তি ও সংস্থা প্রোডাকশনে Mercury বিনামূল্যে ব্যবহার করে নিজেদের পণ্য বানাতে ও বিক্রি করতে পারে, বাণিজ্যিক পণ্যসহ। একত্রিত বার্ষিক আয় ও মোট বাহ্যিক তহবিল, দুটিই US$1,000,000-এর নিচে হতে হবে।
-
-যোগ্য কোনো ব্যবহারকারী যেকোনো একটি সীমায় পৌঁছালে তিনি 90 দিনের গ্রেস পিরিয়ড পান। এরপর নতুন পণ্যের কাজে, যার মধ্যে উল্লেখযোগ্য নতুন কার্যকারিতাও আছে, বাণিজ্যিক লাইসেন্স লাগে। সীমায় পৌঁছানোর সময় যেসব পণ্য প্রোডাকশনে ছিল, সেগুলো গ্রেস পিরিয়ড শেষ হওয়ার আগে পাওয়া Mercury সংস্করণ ব্যবহার করে এখনও রক্ষণাবেক্ষণ করা যায়, লাইসেন্সের রক্ষণাবেক্ষণ শর্তের অধীনে।
-
-Mercury নিজেই বিক্রি করা, তৃতীয় পক্ষের জন্য white-label করা বা হোস্ট করা, অথবা এর বিকল্প সরবরাহ করা, আপনার আয় বা তহবিল যা-ই হোক না কেন, একটি বাণিজ্যিক লাইসেন্স দাবি করে।
-
-প্রতিটি সংস্করণ তার নিজস্ব Change Date-এ Apache License 2.0-তে রূপান্তরিত হয়; সেই সংস্করণের রিলিজের তিন বছর পরে।
-
-বাণিজ্যিক লাইসেন্স ও ট্রেডমার্ক অনুমতির জন্য [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing) দেখুন। বান্ডল করা তৃতীয়-পক্ষের লাইসেন্সগুলো [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)-এ তালিকাভুক্ত।
+Mercury-এর নাম ও চিহ্নের ব্যবহার [ট্রেডমার্ক নীতি](../../TRADEMARKS.md)-র অধীন। বান্ডল করা তৃতীয়-পক্ষের লাইসেন্সগুলো [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)-এ তালিকাভুক্ত।

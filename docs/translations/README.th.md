@@ -20,7 +20,7 @@ Mercury ถูกใช้เพื่อสร้าง Mercury เอง โ�
 
 ![พรอมต์ที่ส่งให้ตัวประสานงานบนกระดานเซสชันจะเปิดสองเซสชัน แต่ละเซสชันอยู่ใน worktree ของตัวเอง เซสชันหนึ่งถามก่อนแก้ไข และทั้งสองเซสชันจบงานพร้อมให้ตรวจสอบการเปลี่ยนแปลง](../media/session-board-stream.gif)
 
-Mercury เป็นซอฟต์แวร์แบบ source-available ภายใต้ Business Source License 1.1 และ SDK ใน [sdk/](../../sdk/) กับ [sdk-py/](../../sdk-py/) อยู่ภายใต้ Apache License 2.0 ดูเงื่อนไขการใช้งานจริงได้ที่ [ใบอนุญาต](#ใบอนุญาต)
+Mercury เป็นซอฟต์แวร์โอเพนซอร์สภายใต้ Apache License 2.0 เช่นเดียวกับ SDK ใน [sdk/](../../sdk/) และ [sdk-py/](../../sdk-py/)
 
 ## การติดตั้ง
 
@@ -425,16 +425,6 @@ docker run --rm mercury --version
 
 ## ใบอนุญาต
 
-Mercury CLI ได้รับอนุญาตภายใต้ Business Source License 1.1 (`BUSL-1.1`) พร้อม Mercury Community Production Grant ใน [LICENSE.md](../../LICENSE.md) SDK ของ TypeScript และ Python ใน [sdk/](../../sdk/) และ [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` บน npm และ PyPI) ได้รับอนุญาตแยกต่างหากภายใต้ Apache License 2.0 (`Apache-2.0`) ตามไฟล์ LICENSE ที่แต่ละตัวมาด้วย ([sdk/LICENSE](../../sdk/LICENSE) และ [sdk-py/LICENSE](../../sdk-py/LICENSE)) และไม่ได้เป็นส่วนหนึ่งของ Licensed Work
+Mercury CLI ได้รับอนุญาตภายใต้ Apache License 2.0 (`Apache-2.0`) ใน [LICENSE.md](../../LICENSE.md) SDK ของ TypeScript และ Python ใน [sdk/](../../sdk/) และ [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` บน npm และ PyPI) ได้รับอนุญาตภายใต้ Apache License 2.0 (`Apache-2.0`) เช่นกัน ตามไฟล์ LICENSE ที่แต่ละตัวมาด้วย ([sdk/LICENSE](../../sdk/LICENSE) และ [sdk-py/LICENSE](../../sdk-py/LICENSE))
 
-Mercury เป็นซอฟต์แวร์แบบ source-available ภายใต้ Business Source License 1.1 พร้อม Mercury Community Production Grant ใบอนุญาตอยู่ใน [LICENSE.md](../../LICENSE.md) พร้อมด้วย [เงื่อนไขการใช้งานจริง](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) และ [นโยบายเครื่องหมายการค้า](../../TRADEMARKS.md) ข้อความใบอนุญาตมีผลบังคับ และนี่เป็นเพียงบทสรุป
-
-คุณสามารถอ่าน คัดลอก แก้ไข และ fork ซอร์สได้ บุคคลและองค์กรที่ต่ำกว่าเกณฑ์ชุมชนทั้งสองข้อสามารถใช้ Mercury ในการใช้งานจริงได้ฟรี เพื่อสร้างและขายผลิตภัณฑ์ของตนเอง รวมถึงผลิตภัณฑ์เชิงพาณิชย์ ทั้งรายได้รวมประจำปีและเงินทุนภายนอกทั้งหมดต้องต่ำกว่า US$1,000,000
-
-ผู้ใช้ที่มีคุณสมบัติซึ่งถึงเกณฑ์ข้อใดข้อหนึ่งจะได้รับช่วงผ่อนผัน 90 วัน หลังจากนั้น งานผลิตภัณฑ์ใหม่ รวมถึงฟังก์ชันใหม่จำนวนมาก ต้องมีใบอนุญาตเชิงพาณิชย์ ผลิตภัณฑ์ที่อยู่ในการใช้งานจริงอยู่แล้วเมื่อถึงเกณฑ์ ยังคงดูแลรักษาต่อได้โดยใช้เวอร์ชัน Mercury ที่ได้มาก่อนที่ช่วงผ่อนผันจะสิ้นสุด ภายใต้เงื่อนไขการดูแลรักษาของใบอนุญาต
-
-การขาย การติดป้ายแบรนด์ใหม่ (white-label) หรือการโฮสต์ตัว Mercury เองให้บุคคลที่สาม หรือการเสนอผลิตภัณฑ์ทดแทนมัน ต้องมีใบอนุญาตเชิงพาณิชย์ ไม่ว่ารายได้หรือเงินทุนของคุณจะเป็นเท่าไร
-
-แต่ละเวอร์ชันจะเปลี่ยนเป็น Apache License 2.0 ในวัน Change Date ของตัวเอง ซึ่งคือสามปีหลังจากเวอร์ชันนั้นออกเผยแพร่
-
-สำหรับใบอนุญาตเชิงพาณิชย์และการอนุญาตใช้เครื่องหมายการค้า เข้าชม [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing) ใบอนุญาตของบุคคลที่สามที่รวมมาจะแสดงอยู่ใน [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)
+การใช้ชื่อและเครื่องหมายของ Mercury อยู่ภายใต้ [นโยบายเครื่องหมายการค้า](../../TRADEMARKS.md) ใบอนุญาตของบุคคลที่สามที่รวมมาจะแสดงอยู่ใน [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)

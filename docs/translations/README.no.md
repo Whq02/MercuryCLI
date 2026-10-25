@@ -20,7 +20,7 @@ Mercury brukes til å bygge Mercury, med flere økter og modeller over lange opp
 
 ![Én prompt til koordinatoren på øktbordet starter to økter, hver i sitt eget worktree; den ene spør før den redigerer, og begge avslutter med endringer klare til gjennomgang](../media/session-board-stream.gif)
 
-Mercury er source-available under Business Source License 1.1, og SDK-ene i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/) er lisensiert under Apache License 2.0. Se [Lisens](#lisens) for vilkårene for produksjonsbruk.
+Mercury er åpen kildekode under Apache License 2.0, på samme måte som SDK-ene i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/).
 
 ## Installasjon
 
@@ -425,16 +425,6 @@ Rapporter sikkerhetsproblemer privat via repositoryets fane Security. Hold dem u
 
 ## Lisens
 
-Mercury CLI er lisensiert under Business Source License 1.1 (`BUSL-1.1`) med Mercury Community Production Grant i [LICENSE.md](../../LICENSE.md). TypeScript- og Python-SDK-ene i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` på npm og PyPI) er lisensiert separat under Apache License 2.0 (`Apache-2.0`), hver under LICENSE-filen de har med seg ([sdk/LICENSE](../../sdk/LICENSE) og [sdk-py/LICENSE](../../sdk-py/LICENSE)), og er ikke en del av Licensed Work.
+Mercury CLI er lisensiert under Apache License 2.0 (`Apache-2.0`) i [LICENSE.md](../../LICENSE.md). TypeScript- og Python-SDK-ene i [sdk/](../../sdk/) og [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` på npm og PyPI) er også lisensiert under Apache License 2.0 (`Apache-2.0`), hver under LICENSE-filen de har med seg ([sdk/LICENSE](../../sdk/LICENSE) og [sdk-py/LICENSE](../../sdk-py/LICENSE)).
 
-Mercury er source-available under Business Source License 1.1, med Mercury Community Production Grant. Lisensen finnes i [LICENSE.md](../../LICENSE.md), med de tilhørende [produksjonsvilkårene](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) og [varemerkepolicyen](../../TRADEMARKS.md). Lisensteksten er den som gjelder; dette er et sammendrag.
-
-Du kan lese, kopiere, endre og forke kildekoden. Enkeltpersoner og organisasjoner under begge community-terskelverdiene kan bruke Mercury i produksjon gratis til å bygge og selge egne produkter, også kommersielle. Både konsolidert årlig omsetning og samlet ekstern finansiering må være under US$1 000 000.
-
-En kvalifisert bruker som når en av terskelverdiene, får en karenstid på 90 dager. Etter det krever ny produktutvikling, inkludert vesentlig ny funksjonalitet, en kommersiell lisens. Produkter som allerede var i produksjon da terskelverdien ble nådd, kan fortsatt vedlikeholdes med Mercury-versjoner som ble hentet før karenstiden var over, underlagt lisensens vedlikeholdsvilkår.
-
-Å selge, white-labelling eller drifte Mercury selv for tredjeparter, eller tilby en erstatning for det, krever en kommersiell lisens uavhengig av din omsetning eller finansiering.
-
-Hver versjon går over til Apache License 2.0 på sin egen Change Date, tre år etter den versjonens utgivelse.
-
-For kommersiell lisensiering og varemerketillatelse, besøk [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Medfølgende tredjepartslisenser er listet i [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+Bruk av Mercurys navn og varemerker dekkes av [varemerkepolicyen](../../TRADEMARKS.md). Medfølgende tredjepartslisenser er listet i [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

@@ -20,7 +20,7 @@ Mercury sert à construire Mercury, en faisant tourner plusieurs sessions et plu
 
 ![Un seul prompt envoyé au coordinateur du tableau des sessions lance deux sessions, chacune dans son propre worktree ; l'une demande une confirmation avant de modifier, et les deux se terminent avec leurs modifications prêtes à être relues](../media/session-board-stream.gif)
 
-Mercury est à code source disponible sous la Business Source License 1.1, et les SDK situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/) sont placés sous la licence Apache 2.0. Voir [Licence](#licence) pour les conditions d'utilisation en production.
+Mercury est open source sous la licence Apache 2.0, tout comme les SDK situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/).
 
 ## Installation
 
@@ -425,16 +425,6 @@ Signalez les problèmes de sécurité en privé, via l'onglet Security du dépô
 
 ## Licence
 
-Mercury CLI est placé sous la Business Source License 1.1 (`BUSL-1.1`), avec le Mercury Community Production Grant prévu dans [LICENSE.md](../../LICENSE.md). Les SDK TypeScript et Python situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` sur npm et PyPI) sont placés séparément sous la licence Apache 2.0 (`Apache-2.0`), chacun par le fichier LICENSE qu'il contient ([sdk/LICENSE](../../sdk/LICENSE) et [sdk-py/LICENSE](../../sdk-py/LICENSE)), et ne font pas partie du Licensed Work.
+Mercury CLI est placé sous la licence Apache 2.0 (`Apache-2.0`), qui figure dans [LICENSE.md](../../LICENSE.md). Les SDK TypeScript et Python situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` sur npm et PyPI) sont également placés sous la licence Apache 2.0 (`Apache-2.0`), chacun par le fichier LICENSE qu'il contient ([sdk/LICENSE](../../sdk/LICENSE) et [sdk-py/LICENSE](../../sdk-py/LICENSE)).
 
-Mercury est à code source disponible sous la Business Source License 1.1, avec le Mercury Community Production Grant. La licence figure dans [LICENSE.md](../../LICENSE.md), accompagnée de ses [conditions de production](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) et de sa [politique de marque](../../TRADEMARKS.md). Le texte de la licence fait foi ; le présent document n'en est qu'un résumé.
-
-Vous pouvez lire, copier, modifier et forker le code source. Les particuliers et les organisations situés en dessous des deux seuils communautaires peuvent utiliser Mercury en production gratuitement, pour construire et vendre leurs propres produits, y compris des produits commerciaux. Le chiffre d'affaires annuel consolidé et le total des financements externes doivent tous deux être inférieurs à US$1 000 000.
-
-Un utilisateur éligible qui atteint l'un des seuils bénéficie d'une période de grâce de 90 jours. Ensuite, tout nouveau travail sur le produit, y compris les fonctionnalités nouvelles substantielles, exige une licence commerciale. Les produits déjà en production au moment où le seuil a été atteint peuvent encore être maintenus avec les versions de Mercury obtenues avant la fin de la période de grâce, sous réserve des conditions de maintenance de la licence.
-
-Vendre, revendre en marque blanche ou héberger Mercury lui-même pour des tiers, ou proposer un produit de substitution, exige une licence commerciale, quels que soient votre chiffre d'affaires ou vos financements.
-
-Chaque version passe à la licence Apache 2.0 à sa propre Change Date, trois ans après la publication de cette version.
-
-Pour la licence commerciale et l'autorisation d'usage de la marque, rendez-vous sur [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Les licences tierces incluses sont listées dans [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+L'usage du nom et des marques Mercury relève de la [politique de marque](../../TRADEMARKS.md). Les licences tierces incluses sont listées dans [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

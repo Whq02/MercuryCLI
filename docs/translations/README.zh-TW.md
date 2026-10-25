@@ -20,7 +20,7 @@ Mercury 被用來建置 Mercury 本身，同時執行多個工作階段與模型
 
 ![在工作階段看板上向協調者發出一則提示，即可啟動兩個工作階段，各自在獨立的工作樹中執行；其中一個會先詢問再編輯，兩個工作階段完成後都會準備好可供審閱的變更](../media/session-board-stream.gif)
 
-Mercury 以 Business Source License 1.1 提供原始碼可用（source-available）授權，而 [sdk/](../../sdk/) 與 [sdk-py/](../../sdk-py/) 中的 SDK 則以 Apache License 2.0 授權。正式環境的使用條款請見 [授權](#授權)。
+Mercury 以 Apache License 2.0 開源授權，[sdk/](../../sdk/) 與 [sdk-py/](../../sdk-py/) 中的 SDK 亦同。
 
 ## 安裝
 
@@ -425,16 +425,6 @@ docker run --rm mercury --version
 
 ## 授權
 
-Mercury CLI 依 Business Source License 1.1（`BUSL-1.1`）授權，並附帶 [LICENSE.md](../../LICENSE.md) 中的 Mercury Community Production Grant。[sdk/](../../sdk/) 與 [sdk-py/](../../sdk-py/) 中的 TypeScript 與 Python SDK（於 npm 與 PyPI 上以 `mercury-cli-sdk` 發佈）則另依 Apache License 2.0（`Apache-2.0`）授權，各自由其所附的 LICENSE 檔案（[sdk/LICENSE](../../sdk/LICENSE) 與 [sdk-py/LICENSE](../../sdk-py/LICENSE)）管轄，且不屬於 Licensed Work（授權作品）。
+Mercury CLI 依 [LICENSE.md](../../LICENSE.md) 中的 Apache License 2.0（`Apache-2.0`）授權。[sdk/](../../sdk/) 與 [sdk-py/](../../sdk-py/) 中的 TypeScript 與 Python SDK（於 npm 與 PyPI 上以 `mercury-cli-sdk` 發佈）同樣依 Apache License 2.0（`Apache-2.0`）授權，各自由其所附的 LICENSE 檔案（[sdk/LICENSE](../../sdk/LICENSE) 與 [sdk-py/LICENSE](../../sdk-py/LICENSE)）管轄。
 
-Mercury 以 Business Source License 1.1 提供原始碼可用（source-available）授權，並附帶 Mercury Community Production Grant。授權全文見 [LICENSE.md](../../LICENSE.md)，其配套的[生產條款](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md)與[商標政策](../../TRADEMARKS.md)亦一併適用。以授權條文為準；本節僅為摘要。
-
-你可以閱讀、複製、修改與分支（fork）原始碼。低於兩項社群門檻的個人與組織，可免費在正式環境中使用 Mercury，以建置並銷售自己的產品，包括商業產品。合併後的年度營收與外部募資總額都必須低於 1,000,000 美元（US$1,000,000）。
-
-符合條件的使用者一旦達到任一門檻，將獲得 90 天的寬限期。寬限期之後，新的產品開發（包括實質的新功能）需要商業授權。在達到門檻時已投入正式環境的產品，仍可使用寬限期結束前取得的 Mercury 版本進行維護，但須遵守授權中的維護條款。
-
-為第三方銷售、貼牌（white-label）或代管 Mercury 本身，或提供其替代品，無論你的營收或募資情況如何，皆需商業授權。
-
-每個版本都會在其各自的 Change Date（變更日）改採 Apache License 2.0 授權，即該版本發佈後三年。
-
-商業授權與商標使用許可，請造訪 [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing)。隨附的第三方授權列於 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)。
+Mercury 名稱與標誌的使用適用[商標政策](../../TRADEMARKS.md)。隨附的第三方授權列於 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)。

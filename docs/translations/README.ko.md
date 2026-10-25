@@ -20,7 +20,7 @@ Mercury는 Mercury 자체를 만드는 데 사용되며, 긴 작업에 걸쳐 �
 
 ![세션 보드의 코디네이터에게 프롬프트 한 번을 보내면 각각 자체 워크트리에서 세션 두 개가 시작됩니다. 한쪽은 편집하기 전에 확인을 요청하고, 두 세션 모두 검토할 수 있는 변경 사항을 준비한 채 끝납니다.](../media/session-board-stream.gif)
 
-Mercury는 Business Source License 1.1로 소스가 공개(source-available)되어 있으며, [sdk/](../../sdk/)와 [sdk-py/](../../sdk-py/)의 SDK는 Apache License 2.0에 따라 라이선스됩니다. 프로덕션 사용 조건은 [라이선스](#라이선스)를 참조합니다.
+Mercury는 Apache License 2.0에 따른 오픈 소스이며, [sdk/](../../sdk/)와 [sdk-py/](../../sdk-py/)의 SDK도 마찬가지입니다.
 
 ## 설치
 
@@ -425,16 +425,6 @@ Mercury 안에서 `/bug <what happened>`를 실행하면, 로그인된 GitHub CL
 
 ## 라이선스
 
-Mercury CLI는 [LICENSE.md](../../LICENSE.md)에 있는 Mercury Community Production Grant와 함께 Business Source License 1.1(`BUSL-1.1`)에 따라 라이선스가 부여됩니다. [sdk/](../../sdk/) 및 [sdk-py/](../../sdk-py/)의 TypeScript 및 Python SDK(npm과 PyPI의 `mercury-cli-sdk`)는 Apache License 2.0(`Apache-2.0`)에 따라 별도로 라이선스되며, 각 SDK에 포함된 LICENSE 파일([sdk/LICENSE](../../sdk/LICENSE), [sdk-py/LICENSE](../../sdk-py/LICENSE))을 따릅니다. 이 SDK들은 Licensed Work(라이선스 대상 작업)에 속하지 않습니다.
+Mercury CLI는 [LICENSE.md](../../LICENSE.md)에 있는 Apache License 2.0(`Apache-2.0`)에 따라 라이선스가 부여됩니다. [sdk/](../../sdk/) 및 [sdk-py/](../../sdk-py/)의 TypeScript 및 Python SDK(npm과 PyPI의 `mercury-cli-sdk`)도 Apache License 2.0(`Apache-2.0`)에 따라 라이선스되며, 각 SDK에 포함된 LICENSE 파일([sdk/LICENSE](../../sdk/LICENSE), [sdk-py/LICENSE](../../sdk-py/LICENSE))을 따릅니다.
 
-Mercury는 Mercury Community Production Grant와 함께 Business Source License 1.1에 따라 소스가 공개(source-available)되어 있습니다. 라이선스 원문은 [LICENSE.md](../../LICENSE.md)에 있으며, 함께 제공되는 [프로덕션 조건](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md)과 [상표 정책](../../TRADEMARKS.md)도 있습니다. 라이선스 원문이 우선하며, 이 문서는 요약입니다.
-
-소스를 읽고, 복사하고, 수정하고, 포크할 수 있습니다. 두 커뮤니티 기준(threshold) 미만인 개인과 조직은 자신의 제품을 만들고 판매하기 위해(상업 제품 포함) Mercury를 프로덕션에서 무료로 사용할 수 있습니다. 연간 통합 매출과 총 외부 자금 조달액이 모두 US$1,000,000 미만이어야 합니다.
-
-두 기준 중 어느 하나에 도달한 해당 사용자는 90일의 유예 기간을 받습니다. 그 이후에는 상당한 신규 기능을 포함한 새로운 제품 작업에 상업용 라이선스가 필요합니다. 기준에 도달했을 때 이미 프로덕션에 있던 제품은, 유예 기간이 끝나기 전에 입수한 Mercury 버전을 사용해 계속 유지보수할 수 있으며, 이때 라이선스의 유지보수 조건을 따릅니다.
-
-Mercury 자체를 제3자를 위해 판매하거나, 화이트 라벨링하거나, 호스팅하거나, 그 대체품을 제공하려면 매출이나 투자금과 관계없이 상업용 라이선스가 필요합니다.
-
-각 버전은 자체 Change Date, 즉 해당 버전 출시 3년 후에 Apache License 2.0으로 바뀝니다.
-
-상업용 라이선스와 상표 사용 허가는 [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing)에서 확인합니다. 번들로 포함된 제3자 라이선스는 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)에 나열되어 있습니다.
+Mercury 이름과 표장의 사용에는 [상표 정책](../../TRADEMARKS.md)이 적용됩니다. 번들로 포함된 제3자 라이선스는 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)에 나열되어 있습니다.

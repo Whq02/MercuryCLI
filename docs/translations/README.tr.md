@@ -20,7 +20,7 @@ Mercury, uzun görevler boyunca birden fazla oturum ve model çalıştırarak Me
 
 ![Oturum panosunda koordinatöre tek bir istem verildiğinde, her biri kendi worktree'sinde olmak üzere iki oturum başlar; biri düzenlemeden önce soru sorar, ikisi de incelemeye hazır değişikliklerle tamamlanır](../media/session-board-stream.gif)
 
-Mercury, Business Source License 1.1 kapsamında kaynak kodu erişilebilir durumdadır; [sdk/](../../sdk/) ve [sdk-py/](../../sdk-py/) içindeki SDK'lar ise Apache License 2.0 kapsamında lisanslanmıştır. Üretimde kullanım koşulları için [Lisans](#lisans) bölümüne bakın.
+Mercury, [sdk/](../../sdk/) ve [sdk-py/](../../sdk-py/) içindeki SDK'lar gibi Apache License 2.0 kapsamında açık kaynaklıdır.
 
 ## Kurulum
 
@@ -425,16 +425,6 @@ Güvenlik sorunlarını depodaki Security sekmesi üzerinden özel olarak bildir
 
 ## Lisans
 
-Mercury CLI, [LICENSE.md](../../LICENSE.md) içindeki Mercury Community Production Grant ile birlikte Business Source License 1.1 (`BUSL-1.1`) kapsamında lisanslanmıştır. TypeScript ve Python SDK'ları, [sdk/](../../sdk/) ve [sdk-py/](../../sdk-py/) içinde (npm ve PyPI'de `mercury-cli-sdk`), Apache License 2.0 (`Apache-2.0`) kapsamında ayrı olarak lisanslanmıştır; her biri kendi taşıdığı LICENSE dosyasıyla lisanslanır ([sdk/LICENSE](../../sdk/LICENSE) ve [sdk-py/LICENSE](../../sdk-py/LICENSE)) ve Licensed Work'ün (Lisanslı Çalışma) parçası değildir.
+Mercury CLI, [LICENSE.md](../../LICENSE.md) içindeki Apache License 2.0 (`Apache-2.0`) kapsamında lisanslanmıştır. [sdk/](../../sdk/) ve [sdk-py/](../../sdk-py/) içindeki TypeScript ve Python SDK'ları (npm ve PyPI'de `mercury-cli-sdk`) da kendi taşıdıkları LICENSE dosyalarıyla ([sdk/LICENSE](../../sdk/LICENSE) ve [sdk-py/LICENSE](../../sdk-py/LICENSE)) Apache License 2.0 (`Apache-2.0`) kapsamında lisanslanmıştır.
 
-Mercury, Mercury Community Production Grant ile birlikte Business Source License 1.1 kapsamında kaynak kodu erişilebilir durumdadır. Lisans [LICENSE.md](../../LICENSE.md) dosyasındadır; yanında [üretim koşulları](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) ve [marka politikası](../../TRADEMARKS.md) da bulunur. Lisans metni geçerlidir; bu bölüm bir özettir.
-
-Kaynak kodunu okuyabilir, kopyalayabilir, değiştirebilir ve fork edebilirsiniz. Her iki topluluk eşiğinin de altında kalan kişi ve kuruluşlar, Mercury'yi üretimde ücretsiz olarak kullanarak kendi ürünlerini, ticari ürünler dahil, geliştirip satabilir. Hem konsolide yıllık gelir hem de toplam dış finansman US$1.000.000'ın altında olmalıdır.
-
-Eşiklerden birine ulaşan uygun bir kullanıcı 90 günlük bir ek süre alır. Bundan sonra, önemli yeni işlevsellik dahil, yeni ürün çalışmaları ticari bir lisans gerektirir. Eşik aşıldığında zaten üretimde olan ürünler, ek sürenin bitmesinden önce elde edilmiş Mercury sürümleri kullanılarak, lisansın bakım koşullarına tabi olarak hâlâ sürdürülebilir.
-
-Mercury'nin kendisini üçüncü taraflar için satmak, beyaz etiketlemek (white-label) veya barındırmak ya da bunun yerine bir alternatif sunmak, gelirinizden veya finansmanınızdan bağımsız olarak ticari bir lisans gerektirir.
-
-Her sürüm kendi Change Date tarihinde, o sürümün yayımlanmasından üç yıl sonra Apache License 2.0'a geçer.
-
-Ticari lisanslama ve marka izni için [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing) adresini ziyaret edin. Paketlenmiş üçüncü taraf lisansları [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) dosyasında listelenmiştir.
+Mercury adının ve markalarının kullanımı [marka politikası](../../TRADEMARKS.md) kapsamındadır. Paketlenmiş üçüncü taraf lisansları [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) dosyasında listelenmiştir.

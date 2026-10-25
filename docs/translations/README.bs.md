@@ -20,7 +20,7 @@ Mercury se koristi za izgradnju Mercury-ja, pokrećući više sesija i modela to
 
 ![Jedan prompt koordinatoru na tabli sesija pokreće dvije sesije, svaku u vlastitom worktree-u; jedna pita prije uređivanja, a obje završavaju sa spremnim promjenama za pregled](../media/session-board-stream.gif)
 
-Mercury je dostupan s izvornim kodom (source-available) pod licencom Business Source License 1.1, a SDK-ovi u [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/) licencirani su pod Apache License 2.0. Uslove za produkcijsku upotrebu pogledajte u odjeljku [Licenca](#licenca).
+Mercury je otvorenog koda (open source) pod licencom Apache License 2.0, kao i SDK-ovi u [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/).
 
 ## Instalacija
 
@@ -425,16 +425,6 @@ Sigurnosne probleme prijavljujte privatno, preko kartice Security repozitorija. 
 
 ## Licenca
 
-Mercury CLI je licenciran pod Business Source License 1.1 (`BUSL-1.1`) uz Mercury Community Production Grant u [LICENSE.md](../../LICENSE.md). TypeScript i Python SDK-ovi u [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` na npm-u i PyPI-ju) licencirani su zasebno pod Apache License 2.0 (`Apache-2.0`), svaki prema LICENSE datoteci koju nosi ([sdk/LICENSE](../../sdk/LICENSE) i [sdk-py/LICENSE](../../sdk-py/LICENSE)), i nisu dio Licensed Work (licenciranog djela).
+Mercury CLI je licenciran pod Apache License 2.0 (`Apache-2.0`) u [LICENSE.md](../../LICENSE.md). TypeScript i Python SDK-ovi u [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/) (`mercury-cli-sdk` na npm-u i PyPI-ju) takođe su licencirani pod Apache License 2.0 (`Apache-2.0`), svaki prema LICENSE datoteci koju nosi ([sdk/LICENSE](../../sdk/LICENSE) i [sdk-py/LICENSE](../../sdk-py/LICENSE)).
 
-Mercury je dostupan s izvornim kodom pod Business Source License 1.1, uz Mercury Community Production Grant. Licenca se nalazi u [LICENSE.md](../../LICENSE.md), uz prateće [uslove za produkciju](../../MERCURY-COMMUNITY-PRODUCTION-TERMS.md) i [politiku zaštitnih znakova](../../TRADEMARKS.md). Mjerodavan je tekst licence; ovo je sažetak.
-
-Možete čitati, kopirati, mijenjati i forkovati izvorni kod. Pojedinci i organizacije ispod oba pragova zajednice mogu besplatno koristiti Mercury u produkciji za izradu i prodaju vlastitih proizvoda, uključujući komercijalne proizvode. I konsolidovani godišnji prihod i ukupno vanjsko finansiranje moraju biti niži od US$1.000.000.
-
-Korisnik koji ispunjava uslove i dostigne bilo koji od pragova dobija 90-dnevni grejs period. Nakon toga, svaki novi rad na proizvodu, uključujući značajne nove funkcije, zahtijeva komercijalnu licencu. Proizvodi koji su već bili u produkciji kada je prag dostignut i dalje se mogu održavati korištenjem verzija Mercury-ja nabavljenih prije isteka grejs perioda, uz uslove održavanja iz licence.
-
-Prodaja, white-label ili hostovanje samog Mercury-ja za treće strane, ili ponuda njegove zamjene, zahtijeva komercijalnu licencu bez obzira na vaš prihod ili finansiranje.
-
-Svaka verzija prelazi na Apache License 2.0 na vlastiti Change Date (datum promjene), tri godine nakon objavljivanja te verzije.
-
-Za komercijalnu licencu i dozvolu za zaštitni znak posjetite [mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Ugrađene licence trećih strana navedene su u [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+Upotreba imena i zaštitnih znakova Mercury-ja uređena je [politikom zaštitnih znakova](../../TRADEMARKS.md). Ugrađene licence trećih strana navedene su u [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
