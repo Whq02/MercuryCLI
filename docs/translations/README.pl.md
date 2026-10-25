@@ -18,7 +18,7 @@ Agent czyta i edytuje pliki, uruchamia polecenia powłoki, przechodzi krok po kr
 
 Mercury służy do budowania samego Mercury: uruchamia wiele sesji i modeli podczas długich zadań. Trudne jest śledzenie tej pracy: co jeszcze działa, co się zmieniło i co wymaga decyzji. Każda sesja zapisuje własną notatkę przekazania po zakończeniu, a następna sesja odczytuje ją raz na starcie razem z moimi przypiętymi regułami, co zapobiega zatruwaniu kontekstu między sesjami.
 
-![Jeden prompt wysłany do koordynatora na tablicy sesji uruchamia dwie sesje, każda we własnym worktree; jedna pyta przed edycją, a obie kończą z gotowymi do przeglądu zmianami](../media/session-board.gif)
+![Jeden prompt wysłany do koordynatora na tablicy sesji uruchamia dwie sesje, każda we własnym worktree; jedna pyta przed edycją, a obie kończą z gotowymi do przeglądu zmianami](../media/session-board-stream.gif)
 
 Mercury ma dostępny kod źródłowy na licencji Business Source License 1.1, a SDK w [sdk/](../../sdk/) i [sdk-py/](../../sdk-py/) są objęte licencją Apache License 2.0. Warunki użytku produkcyjnego znajdziesz w sekcji [Licencja](#licencja).
 

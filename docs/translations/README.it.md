@@ -18,7 +18,7 @@ Un agente legge e modifica i file, esegue comandi di shell, avanza passo passo n
 
 Mercury viene usato per sviluppare Mercury, con più sessioni e modelli su attività lunghe. Tenere traccia di questo lavoro è la parte difficile: che cosa è ancora in esecuzione, che cosa è cambiato e che cosa richiede una decisione. Ogni sessione scrive la propria nota di handoff alla fine, e la sessione successiva legge quella nota una sola volta all'avvio, insieme alle mie regole fissate, evitando che il contesto si contamini da una sessione all'altra.
 
-![Un prompt al coordinatore nella bacheca delle sessioni avvia due sessioni, ciascuna nel proprio worktree; una chiede conferma prima di modificare e tutte e due finiscono con le modifiche pronte da rivedere](../media/session-board.gif)
+![Un prompt al coordinatore nella bacheca delle sessioni avvia due sessioni, ciascuna nel proprio worktree; una chiede conferma prima di modificare e tutte e due finiscono con le modifiche pronte da rivedere](../media/session-board-stream.gif)
 
 Mercury è disponibile come codice sorgente sotto la Business Source License 1.1, e gli SDK in [sdk/](../../sdk/) e [sdk-py/](../../sdk-py/) sono concessi in licenza sotto la Apache License 2.0. Vedi [Licenza](#licenza) per le condizioni d'uso in produzione.
 

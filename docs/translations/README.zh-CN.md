@@ -18,7 +18,7 @@ Mercury CLI（mercury-cli.ai，npm 包 `mercury-tech-cli`）在终端里运行 A
 
 Mercury 被用来构建 Mercury 本身，同时运行多个会话和模型来完成长时间任务。难点在于跟踪这些工作：哪些仍在运行，哪些已经改动，哪些需要决定。每个会话结束时都会写下自己的交接笔记；下一个会话启动时会读取一次该笔记，并与我的置顶规则一起加载，从而防止会话之间的上下文污染。
 
-![在会话看板上对协调者发一条提示，即可启动两个会话，每个会话在各自的工作树中运行；其中一个会先询问再编辑，两个会话完成后都会准备好可供审阅的改动](../media/session-board.gif)
+![在会话看板上对协调者发一条提示，即可启动两个会话，每个会话在各自的工作树中运行；其中一个会先询问再编辑，两个会话完成后都会准备好可供审阅的改动](../media/session-board-stream.gif)
 
 Mercury 以 Business Source License 1.1 提供源码可用（source-available）授权，[sdk/](../../sdk/) 与 [sdk-py/](../../sdk-py/) 中的 SDK 则以 Apache License 2.0 授权。生产使用条款请见 [许可证](#许可证)。
 

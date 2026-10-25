@@ -18,7 +18,7 @@ Un agent lit et modifie des fichiers, exécute des commandes shell, parcourt pas
 
 Mercury sert à construire Mercury, en faisant tourner plusieurs sessions et plusieurs modèles sur de longues tâches. Le plus dur est de suivre ce travail : ce qui tourne encore, ce qui a changé et ce qui demande une décision. Chaque session rédige sa propre note de passation à la fin, et la session suivante lit cette note une seule fois au démarrage, avec mes règles épinglées ; la contamination du contexte d'une session à l'autre est ainsi évitée.
 
-![Un seul prompt envoyé au coordinateur du tableau des sessions lance deux sessions, chacune dans son propre worktree ; l'une demande une confirmation avant de modifier, et les deux se terminent avec leurs modifications prêtes à être relues](../media/session-board.gif)
+![Un seul prompt envoyé au coordinateur du tableau des sessions lance deux sessions, chacune dans son propre worktree ; l'une demande une confirmation avant de modifier, et les deux se terminent avec leurs modifications prêtes à être relues](../media/session-board-stream.gif)
 
 Mercury est à code source disponible sous la Business Source License 1.1, et les SDK situés dans [sdk/](../../sdk/) et [sdk-py/](../../sdk-py/) sont placés sous la licence Apache 2.0. Voir [Licence](#licence) pour les conditions d'utilisation en production.
 
