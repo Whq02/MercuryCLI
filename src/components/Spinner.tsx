@@ -22,6 +22,7 @@ import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { sampleSpinnerVerb } from '../constants/spinnerVerbs.js'
+import { WAITING_VERB } from '../utils/cockpit/toolVerb.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { WorkCapsuleContext } from './mercury-ui/WorkCapsule.js'
 import { useNowTick } from './mercury-ui/components.js'
@@ -64,6 +65,7 @@ export type SpinnerWithVerbProps = {
   hasActiveTools: boolean
   activeToolCount: number
   activeToolLabel?: string | null
+  waitingOnCrewmates?: boolean
   leaderIsIdle?: boolean
 }
 
@@ -100,6 +102,7 @@ export function SpinnerWithVerb({
   hasActiveTools,
   activeToolCount,
   activeToolLabel,
+  waitingOnCrewmates = false,
 }: SpinnerWithVerbProps): React.ReactNode {
   const { columns } = useTerminalSize()
   const inCockpit = useContext(CockpitActiveContext)
@@ -128,6 +131,8 @@ export function SpinnerWithVerb({
     chosenVerb = overrideMessage
   } else if (hasActiveTools && activeToolLabel) {
     chosenVerb = activeToolLabel
+  } else if (waitingOnCrewmates) {
+    chosenVerb = WAITING_VERB
   } else {
     chosenVerb = whimsyVerb
   }

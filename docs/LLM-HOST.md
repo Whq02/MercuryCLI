@@ -417,7 +417,8 @@ times, and the detail row names the failed request and cause and shows **Retry**
   weights disk (`Keep the weights disk (<price>)` or
   `Delete the weights disk too`). Terminating a pod also removes its model
   entry from `/model`.
-- **Logs and Resume setup:** inspect the vendor log tail or restart a paused
+- **Logs and Resume setup:** read the last lines of the engine log on the
+  machine (the vendor's log when Mercury has none for it) or restart a paused
   setup job.
 
 Multi-node clusters and in-place `Tune` reloads are supported on Runpod only;

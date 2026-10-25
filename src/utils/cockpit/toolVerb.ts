@@ -2,6 +2,7 @@
 import { pathTailLabel as tail } from '../pathLabel.js'
 
 const MAX_DETAIL = 24
+export const WAITING_VERB = 'Waiting'
 
 function clip(s: string): string {
   const flat = s.trim().replace(/\s+/g, ' ')
@@ -61,7 +62,7 @@ export function toolVerbFor(
     case 'ProviderSearch':
       return 'Searching the web'
     case 'Crewmate':
-      return 'Delegating'
+      return WAITING_VERB
     default:
       return undefined
   }

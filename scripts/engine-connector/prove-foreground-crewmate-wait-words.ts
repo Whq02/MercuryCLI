@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -13,8 +13,9 @@ const argument = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../..'))
-const scratchHome = process.env.MERCURY_CONFIG_DIR === undefined ? mkdtempSync(join(tmpdir(), 'crewmate-wait-words-')) : null
-if (scratchHome !== null) process.env.MERCURY_CONFIG_DIR = scratchHome
+const scratchHome = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'crewmate-wait-words-'))
+process.env.MERCURY_CONFIG_DIR = scratchHome
+writeFileSync(join(scratchHome, 'settings.json'), JSON.stringify({ activity: { verbs: { mode: 'replace', verbs: ['Scuttling'] } } }))
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.MERCURY_REDUCED_MOTION = '1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -75,12 +76,12 @@ async function main(): Promise<void> {
     check('a Workflow call reads its kind', wait('Workflow', [{ id: 'wf-1', kind: 'workflow', name: 'the pipeline', status: 'running', startTime: t0 }]) === 'waiting on 1 workflow', String(wait('Workflow', [])))
     check('a Read in flight paints no wait words (its verb stands)', wait('Read', rows) === null)
     check('no tool in flight paints no wait words', wait(undefined, rows) === null)
-    check('a delegation call with nothing running answers null (the verb Delegating stands)', wait('Crewmate', []) === null && wait('Crewmate', landed) === null)
+    check('a delegation call with nothing running answers null (the verb Waiting stands)', wait('Crewmate', []) === null && wait('Crewmate', landed) === null)
     check('a parked ask rides the words', wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }]) === 'waiting on 1 crewmate · 1 ask', String(wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }])))
     const active = lawful ? verbs.activeToolCall(crewmateTurn, inFlight) : undefined
     check('the newest in-flight call is the Crewmate (the Read before it settled)', active?.name === 'Crewmate' && active.input?.description === 'the probe', JSON.stringify(active))
     check('the delegation names: Crewmate and Workflow, nothing else', lawful && verbs.isDelegationToolName('Crewmate') && verbs.isDelegationToolName('Workflow') && !verbs.isDelegationToolName('Read') && !verbs.isDelegationToolName(undefined))
-    check('the verb law is unchanged beneath it', verbs.activeToolVerb(crewmateTurn, inFlight) === 'Delegating' && verbs.activeToolVerb(readTurn, new Set(['t3'])) === 'Reading live.ts')
+    check('the verb law is unchanged beneath it', verbs.activeToolVerb(crewmateTurn, inFlight) === 'Waiting' && verbs.activeToolVerb(readTurn, new Set(['t3'])) === 'Reading live.ts')
     check('the background wait keeps its own words', bar.waitingStatusWords({ ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }) === WORDS)
   }
 
@@ -91,7 +92,7 @@ async function main(): Promise<void> {
       await new Promise<void>(resolveTick => setTimeout(resolveTick, 5))
     }
   }
-  async function paint(live: SessionLiveV1, messages: readonly unknown[], work: readonly WorkRowV1[]): Promise<string> {
+  async function paint(live: SessionLiveV1, messages: readonly unknown[], work: readonly WorkRowV1[], waitingOnCrewmates = live.phase === 'waiting'): Promise<string> {
     const emitter = new ink.EventEmitter()
     const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
     const stream = new PassThrough()
@@ -117,6 +118,7 @@ async function main(): Promise<void> {
       hasActiveTools: live.inProgressToolUseIDs.size > 0,
       activeToolCount: live.inProgressToolUseIDs.size,
       activeToolLabel: verbs.activeToolVerb(messages, live.inProgressToolUseIDs) ?? null,
+      waitingOnCrewmates,
       leaderIsIdle: false,
     } as never)
     const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(AppStoreContext.Provider, { value: store }, spinner))
@@ -135,13 +137,16 @@ async function main(): Promise<void> {
   const background: SessionLiveV1 = { ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }
   const foregroundFrame = await paint(foreground, crewmateTurn, rows)
   console.log(`  foreground crewmate: ${JSON.stringify(foregroundFrame.trim())}`)
-  check('the foreground delegation keeps its tool verb and output count', foregroundFrame.includes('Delegating…') && foregroundFrame.includes('↓ 1.7k') && !foregroundFrame.includes('waiting on'), foregroundFrame.trim())
+  check('the foreground delegation reads Waiting with its output count', foregroundFrame.includes('Waiting…') && foregroundFrame.includes('↓ 1.7k') && !foregroundFrame.includes('waiting on'), foregroundFrame.trim())
   const backgroundFrame = await paint(background, crewmateTurn, rows)
   console.log(`  background wait:     ${JSON.stringify(backgroundFrame.trim())}`)
-  check('the background wait keeps a verb and its existing count, not a sentence', backgroundFrame.includes('…') && backgroundFrame.includes('↓ 1.7k') && !backgroundFrame.includes('waiting on'), backgroundFrame.trim())
+  check('the background wait reads Waiting with its existing count, not a sentence', backgroundFrame.includes('Waiting…') && backgroundFrame.includes('↓ 1.7k') && !backgroundFrame.includes('waiting on'), backgroundFrame.trim())
+  const thinkingFrame = await paint(background, crewmateTurn, rows, false)
+  console.log(`  the same row, thinking: ${JSON.stringify(thinkingFrame.trim())}`)
+  check('the waiting row differs from the thinking row only in the verb', thinkingFrame.includes('Scuttling…') && thinkingFrame.replace('Scuttling', 'Waiting') === backgroundFrame, JSON.stringify({ thinking: thinkingFrame.trim(), waiting: backgroundFrame.trim() }))
   const bareFrame = await paint(foreground, crewmateTurn, [])
   console.log(`  nothing on the roster: ${JSON.stringify(bareFrame.trim())}`)
-  check('a delegation call with no running row keeps the verb Delegating…', bareFrame.includes('Delegating…'), bareFrame.trim())
+  check('a delegation call with no running row keeps the verb Waiting…', bareFrame.includes('Waiting…'), bareFrame.trim())
   const readFrame = await paint({ ...foreground, inProgressToolUseIDs: new Set(['t3']) }, readTurn, rows)
   console.log(`  a Read in flight:      ${JSON.stringify(readFrame.trim())}`)
   check('a Read in flight beside a running shell keeps its own verb', readFrame.includes('Reading live.ts…') && !readFrame.includes('waiting on'), readFrame.trim())
@@ -166,6 +171,6 @@ async function main(): Promise<void> {
 try {
   await main()
 } finally {
-  if (scratchHome !== null) rmSync(scratchHome, { recursive: true, force: true })
+  rmSync(scratchHome, { recursive: true, force: true })
 }
 process.exit(failures === 0 ? 0 : 1)

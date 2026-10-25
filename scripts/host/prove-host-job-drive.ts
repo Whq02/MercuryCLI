@@ -123,7 +123,7 @@ try {
   const service = reconcileRecord(join(f.home, 'host'), 'host-' + id)!
   check('setup lives in the project Service owner, not the popup process', service.spec.lifecycle === 'project' && service.pid !== process.pid && service.pid !== daemon!.pid)
   check('worker advances and tails the engine log while popup is closed', await waitFor(() => readHostRecord(id)?.step?.startsWith('downloading weights') ?? false, 15000))
-  open(); await screen('Where should the model run?'); await choose(id); await screen('Machine controls'); await screen('so far')
+  open(); await screen('Where should the model run?'); await choose(id); await screen('Machine controls'); await screen('downloading weights on the machine'); await screen('so far')
   await capture('01-mid-job')
   check('reopening shows live progress without restarting', readHostRecord(id)!.generation === generation && readHostRecord(id)!.jobState === 'running')
   m.push('\x1b[<0;1;44M\x1b[<0;1;44m')

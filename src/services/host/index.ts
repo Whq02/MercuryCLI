@@ -225,7 +225,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
     }).join(' · ') || 'No vendors connected; connect a vendor to read its account.'
     const mark = (): void => {
       if (!pod) return
-      emit({ title: words.manage, words: record?.error ?? '', host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(api?.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.jobState === 'paused' ? 'paused · Resume or Terminate' : record?.step === 'ready' ? 'ready' : undefined } })
+      emit({ title: words.manage, words: record?.error ?? '', host: { id: pod.id, managed: api?.capabilities.managed, price: pod.cost, startedAt: pod.startedAt ?? pod.createdAt, status: record?.status ?? pod.status, canResume: Boolean(api?.capabilities.managed && pod.status === 'EXITED' || record && !hostJobRunning(record) && record.status === 'RUNNING'), canTune: Boolean(vendor === 'runpod' && record?.provider && record.target && record.status === 'RUNNING' && !pod.family), step: record?.jobState === 'paused' ? 'paused · Resume or Terminate' : record?.step === 'ready' ? 'ready' : record && ['queued', 'starting', 'running'].includes(record.jobState ?? '') ? record.step : undefined } })
     }
     const finish = async (): Promise<LlmHostResult> => {
       if (!pod || !api) return saved ?? stopped()
@@ -240,7 +240,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         const latest = readHostRecord(pod.id)
         if (latest?.status === 'TERMINATED') return { ok: false, words: latest.error ?? 'Instance terminated.' }
         if (!action || action === 'close') return { ...(saved ?? { ok: true }), words: keepWords(pod, vendor) }
-        if (action === 'logs') { emit({ title: api.label + ' logs', words: await api.logs(pod.id) }); continue }
+        if (action === 'logs') { const engineLog = record ? hostLogTail(record) : ''; emit({ title: engineLog ? 'Engine log' : api.label + ' logs', words: engineLog || await api.logs(pod.id) }); continue }
         if (action === 'tune' && record) {
           runpodOnly(api, 'Tune reload')
           const { runTune } = await import('./tune.js')

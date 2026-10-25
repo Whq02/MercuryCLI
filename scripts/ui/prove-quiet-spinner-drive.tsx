@@ -141,7 +141,7 @@ if (child) {
     : child === 'reply-streaming' ? spin(streaming, { overrideMessage: 'Hashing the oasis' })
     : child === 'long-prefill' ? spin(prefill, { overrideMessage: 'Parsing the dunes' })
     : child === 'one-tool' || child === 'several-tools' ? spin(frozen, { mode: 'tool-use', hasActiveTools: true, activeToolCount: child === 'one-tool' ? 1 : 3, activeToolLabel: 'Reading fixture.ts' })
-    : child === 'waiting-on-crewmates' ? spin(frozen, { mode: 'requesting', compactWarning: beforeWait && compact, overrideMessage: beforeWait ? compact ? statusLine(live, { wait: null } as never, null, true) : waitingStatusWords(live) : null })
+    : child === 'waiting-on-crewmates' ? spin(frozen, { mode: 'requesting', waitingOnCrewmates: live.phase === 'waiting', compactWarning: beforeWait && compact, overrideMessage: beforeWait ? compact ? statusLine(live, { wait: null } as never, null, true) : waitingStatusWords(live) : null })
     : child === 'crew-view' ? h(CrewView, { onClose: noop, popup: true })
     : child === 'reconnect' ? spin(reconnect, { overrideMessage: 'Parsing the dunes' })
     : child === 'permission-ask' ? h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext, onDone: noop, onReject: noop, verbose: false, workerBadge: { name: 'checks', color: 'blue' } } as never)
@@ -204,7 +204,7 @@ if (child) {
         if (scene === 'reply-streaming') check(`${cols}: streaming rate appears`, /tok\/s/.test(text))
         if (scene === 'long-prefill') check(`${cols}: known zero survives`, text.includes('↓ 0'))
         if (scene === 'reconnect') check(`${cols}: actual recovery remains`, text.includes('reconnecting 2 of 5'))
-        if (scene === 'waiting-on-crewmates') check(`${cols}: verb replaces delegation sentence`, text.includes('Fencing the wolves') && !text.includes('waiting on'))
+        if (scene === 'waiting-on-crewmates') check(`${cols}: the verb reads Waiting, not a delegation sentence`, text.includes('Waiting…') && !text.includes('Fencing the wolves') && !text.includes('waiting on'))
         if (scene === 'still') check(`${cols}: still row stays bare`, text.trim() === '✶ compacting context')
       }
     }

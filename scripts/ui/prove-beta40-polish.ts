@@ -90,7 +90,7 @@ try {
   await choose('Confirm $2.49/hr'); await until('Machine controls')
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.step?.startsWith('downloading weights'), 10000))
   patchHostRecord('fixture-pod-1', { startedAt: new Date(Date.now() - 3600_000).toISOString(), step: 'downloading weights 18.70 GB of 187 GB' })
-  await until('so far'); await capture(m, 'host-setup-log')
+  await until('so far'); await until('downloading weights 18.70 GB of 187 GB'); await capture(m, 'host-setup-log')
   check('setup tells Escape closes without cancelling the job', m.screen().includes('billing continues'))
   await close()
   open(); await untilPlain('Which model?'); await choose('Machines I’m paying for'); await until('Runpod: 1 pods'); await until('fixture-pod-1'); await capture(m, 'host-paid-pods')

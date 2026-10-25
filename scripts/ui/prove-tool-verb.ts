@@ -21,7 +21,7 @@ const cases: Array<[string, Record<string, unknown> | undefined, string | undefi
   ['NotebookEdit', { notebook_path: '/n/b.ipynb' }, 'Editing b.ipynb'],
   ['WebFetch', { url: 'https://docs.anthropic.com/x/y' }, 'Fetching docs.anthropic.com'],
   ['WebSearch', { query: 'x' }, 'Searching the web'],
-  ['Crewmate', {}, 'Delegating'],
+  ['Crewmate', {}, 'Waiting'],
   ['Task', {}, undefined],
   ['mcp__weird__tool', { a: 1 }, undefined],
   ['SomethingNew', undefined, undefined],

@@ -139,8 +139,10 @@ try {
   await close()
 
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
-  await until('live Runpod stock'); await choose('Qwen3.8-27B'); await heading('Confirm the hourly price'); await choose('Confirm $2.49/hr')
-  await heading('Machine controls'); capture('12-popup-close-keeps-pod'); await close()
+  await until('live Runpod stock'); await choose('Qwen3.8-27B'); await heading('Confirm the hourly price'); ssh.state.holdHealth = true; await choose('Confirm $2.49/hr')
+  await heading('Machine controls'); await until('downloading weights on the machine'); await until('so far'); capture('12-popup-close-keeps-pod')
+  check('Machine controls shows the running setup step while the engine loads', readHostRecord('fixture-pod-2')?.jobState === 'running' && m.screen().includes('downloading weights on the machine'))
+  ssh.state.holdHealth = false; await close()
   assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000))
   check('closing popup never silently deletes a pod', rp.state.pods.has('fixture-pod-2') && rp.state.deletes === 1)
   check('pod identity survives on disk outside settings', readFileSync(join(f.home, 'host/pods/fixture-pod-2.json'), 'utf8').includes('fixture-pod-2'))

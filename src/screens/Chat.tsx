@@ -2098,6 +2098,7 @@ export function Chat({
         hasActiveTools={viewInProgressToolUseIDs.size > 0}
         activeToolCount={viewInProgressToolUseIDs.size}
         activeToolLabel={activeToolVerb(messages, viewInProgressToolUseIDs)}
+        waitingOnCrewmates={seatLive.phase === 'waiting'}
         leaderIsIdle={!isLoading}
       />
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
