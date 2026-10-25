@@ -89,9 +89,9 @@ export const HookEndingSchema = lazySchema(() =>
 )
 export type HookEnding = z.infer<ReturnType<typeof HookEndingSchema>>
 
-const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { status: 'failed' }>, event: string) => string> = {
+const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { status: 'failed' }>, event: string, blocks: boolean) => string> = {
   cancelled: () => 'was cancelled',
-  timed_out: (ending, event) => `timed out${ending.detail ? ` after ${ending.detail}` : ''} and was killed; the ${event} it guarded proceeded`,
+  timed_out: (ending, event, blocks) => `timed out${ending.detail ? ` after ${ending.detail}` : ''} and was killed${blocks ? '' : `; the ${event} it guarded proceeded`}`,
   exit: ending => `failed with exit ${ending.exit_code}: ${ending.detail || 'no stderr output'}`,
   spawn: ending => `could not run${ending.detail ? `: ${ending.detail}` : ''}`,
   answer: ending => `answered outside the answer shape${ending.detail ? `: ${ending.detail}` : ''}`,
@@ -102,10 +102,10 @@ export const HOOK_FAILED_CODE = HOOK_NOTICE_CODES.failed
 export const TOOL_WITHHELD_CODE = 'tool_withheld'
 export const MCP_SERVER_FAILED_CODE = 'mcp_server_failed'
 
-export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string }): string {
+export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string; blocks?: boolean }): string {
   const who = `hook ${hook.name} (${hook.event})`
   if (ending.status === 'ok') return `${who} ended with exit 0`
-  return `${who} ${HOOK_ENDING_WORDS[ending.class](ending, hook.event)}`
+  return `${who} ${HOOK_ENDING_WORDS[ending.class](ending, hook.event, hook.blocks === true)}`
 }
 
 const envelopeFields = {

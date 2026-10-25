@@ -59,6 +59,7 @@ if (reminder !== null) {
   tally.check('a clean lane on reachable commits reads clean, and names the day the janitor takes it (seven days after its last change)', a.state === 'clean' && Math.abs(a.janitorAt - (a.changedAt + reminder.CREW_JANITOR_DAYS * DAY)) < 1000, JSON.stringify(a))
   const b = await reminder.crewWorktreeLeftoverOf({ name: 'mate-b', path: dirty.worktreePath, branch: dirty.worktreeBranch, gitRoot: dirty.gitRoot }, now)
   tally.check('a lane with an untracked file reads uncommitted and names the file', b.state === 'uncommitted' && b.detail.includes('notes.txt'), JSON.stringify(b))
+  tally.check("the leftover carries the lane's HEAD as git spells it short", a.head === git(clean.worktreePath, 'rev-parse', '--short', 'HEAD') && b.head === a.head && a.head !== null && a.head.length >= 7, JSON.stringify({ a: a.head, b: b.head }))
   const c = await reminder.crewWorktreeLeftoverOf({ name: 'mate-c', path: ahead.worktreePath, branch: ahead.worktreeBranch, gitRoot: ahead.gitRoot }, now)
   tally.check('a lane with a commit reachable from no other branch reads unreachable and counts it', c.state === 'unreachable' && /1 commit/.test(c.detail), JSON.stringify(c))
   const lineA = reminder.crewWorktreeReminderLine(a, now)

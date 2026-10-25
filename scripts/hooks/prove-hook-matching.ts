@@ -73,6 +73,29 @@ section('§1 the match: names, a pipe list, a regular expression, everything')
   check('hasHooksFor answers the cheap question', hasHooksFor('tool.before', scope) && !hasHooksFor('turn.end', scope))
 }
 
+section("§1b a permission rule in the match reads the call's arguments: a shell tool's command, a file tool's path")
+{
+  write(USER, { events: { hooks: { 'tool.before': [
+    { match: 'Bash(git *)', run: 'git-only' },
+    { match: 'Bash(git status)', run: 'exact-status' },
+    { match: 'Edit(src/**)', run: 'src-edits' },
+    { match: 'Edit(*.rs)|Write(*.rs)', run: 'rust-writes' },
+    { match: 'Bash(*)', run: 'any-bash' },
+    { match: 'Bash', run: 'bash-name' },
+  ] } } })
+  reload()
+  const call = (tool: string, input: Record<string, unknown>) => ({ ...base, event: 'tool.before' as const, tool, input, call_id: 'c1' })
+  const bash = async (command: string): Promise<string> => runs(await matchHooks('tool.before', call('Bash', { command }), scope))
+  const file = async (tool: string, file_path: string): Promise<string> => runs(await matchHooks('tool.before', call(tool, { file_path }), scope))
+  check('Bash(git *) fires for git status and for git -C /x log; Bash(git status) for the exact command only', (await bash('git status')) === 'git-only,exact-status,any-bash,bash-name' && (await bash('git -C /x log')) === 'git-only,any-bash,bash-name', `${await bash('git status')} / ${await bash('git -C /x log')}`)
+  check('…and neither fires for ls: the hook is not run, only the name matchers are', (await bash('ls')) === 'any-bash,bash-name', await bash('ls'))
+  check('a compound command is read whole: cd x && git push is not git *', (await bash('cd x && git push')) === 'any-bash,bash-name', await bash('cd x && git push'))
+  check('Edit(src/**) fires for src/a.ts under the project, absolute or relative, and not for docs/b.md', (await file('Edit', join(PROJ, 'src/a.ts'))) === 'src-edits' && (await file('Edit', 'src/a.ts')) === 'src-edits' && (await file('Edit', join(PROJ, 'docs/b.md'))) === '', `${await file('Edit', join(PROJ, 'src/a.ts'))} / ${await file('Edit', 'src/a.ts')} / ${await file('Edit', join(PROJ, 'docs/b.md'))}`)
+  check('Edit(*.rs)|Write(*.rs) fires for a .rs file through either tool; a Write of a .ts file fires neither clause', (await file('Edit', join(PROJ, 'src/lib.rs'))) === 'src-edits,rust-writes' && (await file('Write', join(PROJ, 'x/main.rs'))) === 'rust-writes' && (await file('Write', join(PROJ, 'src/x.ts'))) === '', `${await file('Edit', join(PROJ, 'src/lib.rs'))} / ${await file('Write', join(PROJ, 'x/main.rs'))} / ${await file('Write', join(PROJ, 'src/x.ts'))}`)
+  check('matchesPattern reads the arguments it is handed, and a rule on one tool never claims another', matchesPattern('Bash', 'Bash(git *)', { command: 'git push' }) && !matchesPattern('Bash', 'Bash(git *)', { command: 'npm test' }) && !matchesPattern('Edit', 'Bash(git *)', { command: 'git push' }) && !matchesPattern('Bash', 'Bash(git *)'))
+  check('a regex keeps its regex meaning: ^(Read|Edit)$ names the tool and is no rule', matchesPattern('Read', '^(Read|Edit)$') && !matchesPattern('Bash', '^(Read|Edit)$'))
+}
+
 section('§2 the layers: every layer runs, an identical entry runs once, the later layer is its source')
 {
   write(USER, { events: { hooks: { 'tool.before': [{ match: 'Bash', run: 'shared' }, { match: 'Bash', run: 'user-only' }] } } })

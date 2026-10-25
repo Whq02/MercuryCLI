@@ -715,7 +715,7 @@
                   "type": "string"
                 },
                 "match": {
-                  "description": "Names (Bash, Read|Edit) or a regular expression, matched against the event's match field",
+                  "description": "Names (Bash, Read|Edit), a regular expression, or on a tool event a permission rule reading the call's arguments (Bash(git *), Edit(src/**)), matched against the event's match field",
                   "type": "string"
                 },
                 "shell": {
@@ -746,6 +746,10 @@
                 },
                 "once": {
                   "description": "Runs once in a session, then stands down",
+                  "type": "boolean"
+                },
+                "failClosed": {
+                  "description": "A hook that could not run, timed out, failed or answered outside the shape blocks the moment with its failure line; without it the moment proceeds",
                   "type": "boolean"
                 },
                 "watch": {

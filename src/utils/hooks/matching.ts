@@ -2,20 +2,45 @@ import { createHash } from 'node:crypto'
 import { logForDebugging } from '../debug.js'
 import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import { getRegisteredHooks } from '../../bootstrap/state.js'
-import { matcherShape } from './matcherGrammar.js'
+import { matcherShape, ruleArgumentOf, ruleClausesOf } from './matcherGrammar.js'
 import { hookMatchValue, type HookEvent, type HookPayload } from './contract.js'
 import type { AppState } from '../../state/AppState.js'
 import type { HookEntry } from '../settings/types.js'
 import { hookEntryText, hookKindOf } from '../../schemas/hooks.js'
 import { logError } from '../log.js'
+import { pathMatchesRulePattern } from '../permissions/filesystem.js'
+import { matchWildcardPattern, parsePermissionRule } from '../permissions/shellRuleMatching.js'
 import { hooksDisabled, managedHooksOnly, settingsHooksFor, type HookSource, type LayeredHook } from './hooksConfigSnapshot.js'
 import { sessionHooksFor, type HookScope } from './sessionHooks.js'
 
-export function matchesPattern(value: string, matcher: string): boolean {
+function nameMatches(name: string, value: string): boolean {
+  return name === value || lspFamilyMatches(name, value)
+}
+
+function argumentMatches(toolName: string, content: string, input: unknown): boolean {
+  const fields = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {}
+  switch (ruleArgumentOf(toolName)) {
+    case 'command': {
+      if (typeof fields.command !== 'string') return false
+      const rule = parsePermissionRule(content)
+      const command = fields.command.trim()
+      return rule.type === 'exact' ? command === rule.command : matchWildcardPattern(rule.pattern, command)
+    }
+    case 'path': {
+      const path = fields.file_path ?? fields.notebook_path ?? fields.path
+      return typeof path === 'string' && pathMatchesRulePattern(path, content)
+    }
+    default:
+      return false
+  }
+}
+
+export function matchesPattern(value: string, matcher: string, input?: unknown): boolean {
   const shape = matcherShape(matcher)
   if (shape === 'everything') return true
-  if (shape === 'names') {
-    return matcher.split('|').some(name => name === value || lspFamilyMatches(name, value))
+  if (shape === 'names') return matcher.split('|').some(name => nameMatches(name, value))
+  if (shape === 'rules') {
+    return (ruleClausesOf(matcher) ?? []).some(clause => nameMatches(clause.toolName, value) && (clause.ruleContent === undefined || argumentMatches(clause.toolName, clause.ruleContent, input)))
   }
   try {
     return new RegExp(matcher).test(value)
@@ -112,9 +137,10 @@ export async function matchHooks(
 ): Promise<MatchedHook[]> {
   try {
     const candidates = hooksFor(event, scope, options.appState)
-    const value = hookMatchValue(event, payload as unknown as Record<string, unknown>)
+    const fields = payload as unknown as Record<string, unknown>
+    const value = hookMatchValue(event, fields)
     const result = dedupeHooks(
-      candidates.filter(hook => hook.entry.match === undefined || value === undefined || matchesPattern(value, hook.entry.match)),
+      candidates.filter(hook => hook.entry.match === undefined || value === undefined || matchesPattern(value, hook.entry.match, fields.input)),
     ).filter(hook => !isHookSpent(hook.id, scope))
     logForDebugging(`${event}: ${result.length} hooks matched${value !== undefined ? ` for "${value}"` : ''} (${candidates.length} before deduplication)`, {
       level: 'verbose',

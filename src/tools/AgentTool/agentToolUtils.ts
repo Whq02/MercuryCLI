@@ -618,6 +618,48 @@ export function landedWritesOf(messages: readonly Message[]): string[] {
   return landed
 }
 
+const LAST_TOOL_CALLS = 5
+const CALL_ARGUMENTS_CLIP = 120
+
+function argumentsFirstLine(input: unknown): string {
+  const text =
+    typeof input === 'object' && input !== null && !Array.isArray(input)
+      ? Object.entries(input as Record<string, unknown>)
+          .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value) ?? ''}`)
+          .join(', ')
+      : JSON.stringify(input) ?? ''
+  const line = text.split('\n')[0] ?? ''
+  const chars = [...line]
+  return chars.length > CALL_ARGUMENTS_CLIP ? `${chars.slice(0, CALL_ARGUMENTS_CLIP).join('')}…` : line
+}
+
+export function lastToolCallsOf(messages: readonly Message[], limit = LAST_TOOL_CALLS): string[] {
+  const calls: Array<{ line: string; outcome: string }> = []
+  const byId = new Map<string, { line: string; outcome: string }>()
+  for (const message of messages) {
+    if (message.type === 'assistant') {
+      const content = message.message.content
+      if (!Array.isArray(content)) continue
+      for (const block of content) {
+        if (block.type !== 'tool_use') continue
+        const call = { line: `${block.name}(${argumentsFirstLine(block.input)})`, outcome: 'no result' }
+        calls.push(call)
+        byId.set(block.id, call)
+      }
+      continue
+    }
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result') continue
+      const call = byId.get(block.tool_use_id)
+      if (call !== undefined) call.outcome = block.is_error === true ? 'error' : 'ok'
+    }
+  }
+  return calls.slice(-limit).map(call => `${call.line} → ${call.outcome}`)
+}
+
 export function extractPartialResult(
   messages: readonly Message[],
 ): string | undefined {
@@ -1182,7 +1224,7 @@ export async function runAsyncAgentLifecycle(args: {
       taskId,
       description,
       status: declined ? 'failed' : 'completed',
-      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
+      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated), lastCalls: lastToolCallsOf(accumulated) } : {}),
       ...(windowPause !== null
         ? {
             summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
@@ -1241,6 +1283,7 @@ export async function runAsyncAgentLifecycle(args: {
         finalMessage: partialResult,
         usage,
         landedWrites: landedWritesOf(accumulated),
+        lastCalls: lastToolCallsOf(accumulated),
         ...(stopReason !== undefined ? { stopReason } : {}),
         ...(stopStatusWord !== undefined ? { statusWord: stopStatusWord } : {}),
         ...worktreeResult,
@@ -1281,6 +1324,7 @@ export async function runAsyncAgentLifecycle(args: {
       finalMessage: partialResult,
       usage,
       landedWrites: landedWritesOf(accumulated),
+      lastCalls: lastToolCallsOf(accumulated),
       setAppState: rootSetAppState,
       controller: args.abortController,
       replyTarget: args.replyTarget,

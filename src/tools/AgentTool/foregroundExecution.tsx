@@ -73,6 +73,7 @@ import {
   finalizeAgentTool,
   getLastToolUseName,
   landedWritesOf,
+  lastToolCallsOf,
   PROMOTED_NARRATION_NOTE,
   structuredResultBlock,
   type AgentToolResult,
@@ -105,6 +106,7 @@ type ForegroundAgentResult = {
         status: 'failed'
         error: string
         prompt: string
+        lastCalls: string[]
       } & WorktreeFields)
     | {
         isAsync: true
@@ -336,7 +338,7 @@ export async function runForegroundAgentExecution(
         taskId: backgroundedTaskId,
         description,
         status: declined ? 'failed' : 'completed',
-        ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages) } : {}),
+        ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages), lastCalls: lastToolCallsOf(agentMessages) } : {}),
         ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
         setAppState: rootSetAppState,
         finalMessage,
@@ -380,6 +382,7 @@ export async function runForegroundAgentExecution(
           finalMessage: partialResult,
           usage,
           landedWrites: landedWritesOf(agentMessages),
+          lastCalls: lastToolCallsOf(agentMessages),
           ...(stopReason !== undefined ? { stopReason } : {}),
           ...worktreeResult,
           ...(envelopeBlock ? { envelopeBlock } : {}),
@@ -416,6 +419,7 @@ export async function runForegroundAgentExecution(
         finalMessage: partialResult,
         usage,
         landedWrites: landedWritesOf(agentMessages),
+        lastCalls: lastToolCallsOf(agentMessages),
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
@@ -713,6 +717,7 @@ export async function runForegroundAgentExecution(
           status: 'failed' as const,
           error: failureText,
           prompt,
+          lastCalls: lastToolCallsOf(agentMessages),
           ...finalized,
           ...worktreeFields,
         }

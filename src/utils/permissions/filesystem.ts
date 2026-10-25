@@ -619,6 +619,16 @@ function walkMatchingRules(
   return found
 }
 
+export function pathMatchesRulePattern(path: string, pattern: string, source: PermissionRule['source'] = 'session'): boolean {
+  const { root, relative: rel } = rootForPattern(pattern, source)
+  const expanded = expandPath(path)
+  const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
+  const relative = relativePath(root === null ? getCwd() : root, candidatePath)
+  if (relative === '' || /^\.+(?:\/|$)/.test(relative)) return false
+  const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
+  return ignore().add(stripped).test(relative).ignored
+}
+
 export function normalizePatternsToPath(
   patternsByRoot: Map<string | null, string[]>,
   root: string,

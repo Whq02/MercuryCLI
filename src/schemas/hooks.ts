@@ -10,20 +10,21 @@ import {
   type HookEvent,
   type HookKind,
 } from '../utils/hooks/contract.js'
-import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
+import { matcherArgumentFault, matcherCompiles, matcherShape } from '../utils/hooks/matcherGrammar.js'
 
 const entryShape = () => ({
   run: z.string().min(1).optional().describe('A shell command; the payload arrives on stdin'),
   question: z.string().min(1).optional().describe('A question a model answers; $EVENT is replaced by the payload JSON'),
   crewmate: z.string().min(1).optional().describe('A brief a crewmate with tools checks; $EVENT as above'),
   name: z.string().optional().describe('The words every line about the hook uses, and the status row while it runs'),
-  match: z.string().optional().describe("Names (Bash, Read|Edit) or a regular expression, matched against the event's match field"),
+  match: z.string().optional().describe("Names (Bash, Read|Edit), a regular expression, or on a tool event a permission rule reading the call's arguments (Bash(git *), Edit(src/**)), matched against the event's match field"),
   shell: z.enum(SHELL_TYPES).optional().describe('The shell a command runs in; bash unless set'),
   model: z.string().optional().describe('The model a question or crewmate hook runs on'),
   timeout: z.number().positive().max(HOOK_TIMEOUT_MAX_S).optional().describe('Seconds before the hook is ended: 600 for a run, 30 for a question, 60 for a crewmate'),
   background: z.boolean().optional().describe('A run hook that does not hold the moment; its answer arrives at the next turn'),
   wake: z.boolean().optional().describe('A background run hook whose block wakes the model'),
   once: z.boolean().optional().describe('Runs once in a session, then stands down'),
+  failClosed: z.boolean().optional().describe('A hook that could not run, timed out, failed or answered outside the shape blocks the moment with its failure line; without it the moment proceeds'),
   watch: z.array(z.string().min(1)).optional().describe('file.changed only: the files to watch, relative to the project'),
 })
 
@@ -58,7 +59,10 @@ function hookEntryFaults(entry: HookEntry): string[] {
   } else if (entry.model !== undefined) {
     faults.push('model belongs to a question or crewmate hook')
   }
+  if (entry.failClosed !== undefined && (entry.background === true || entry.wake === true)) faults.push('failClosed belongs to a foreground hook; a background hook cannot block')
   if (!matcherCompiles(entry.match)) faults.push(`match is not a valid regular expression: ${JSON.stringify(entry.match)}`)
+  const argumentFault = matcherArgumentFault(entry.match)
+  if (argumentFault !== null) faults.push(argumentFault)
   return faults
 }
 
@@ -66,6 +70,8 @@ function hookEntryEventFaults(event: HookEvent, entry: HookEntry): string[] {
   const faults: string[] = []
   const row = hookEventTable[event]
   if (entry.match !== undefined && row.match === undefined) faults.push(`${event} has no match field; remove match`)
+  if (matcherShape(entry.match) === 'rules' && row.match !== undefined && row.match !== 'tool') faults.push(`${event} matches ${row.match}, not a tool call's arguments: ${JSON.stringify(entry.match)}`)
+  if (entry.failClosed !== undefined && !row.answers.includes('block')) faults.push(`${event} cannot be blocked; remove failClosed`)
   if (entry.watch !== undefined && row.watchable !== true) faults.push(`watch belongs to file.changed, not ${event}`)
   const kind = hookKindOf(entry)
   if (!hookKindsOf(event).includes(kind)) faults.push(`${event} runs ${hookKindsOf(event).join(' and ')} hooks only`)

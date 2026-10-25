@@ -18,6 +18,7 @@ import type { Tools } from '../../Tool.js'
 import { findToolByName, safeSearchOrReadClassification } from '../../Tool.js'
 import { createAbortController } from '../../utils/abortController.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
+import { crewWorktreeLeftoverNoted } from '../../utils/crew/crewWorktreeReminder.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
@@ -1037,6 +1038,7 @@ export function enqueueAgentNotification(args: {
   stopReason?: string
   statusWord?: string
   landedWrites?: readonly string[]
+  lastCalls?: readonly string[]
   controller?: AbortController
   replyTarget?: 'parent' | 'operator'
 }): void {
@@ -1079,11 +1081,13 @@ export function enqueueAgentNotification(args: {
   const usageSection = args.usage
     ? `\n<usage><total_tokens>${args.usage.totalTokens}</total_tokens><tool_uses>${args.usage.toolUses}</tool_uses><duration_ms>${args.usage.durationMs}</duration_ms></usage>`
     : ''
+  const leftover = args.worktreePath ? crewWorktreeLeftoverNoted(args.worktreePath) : null
   const worktreeSection = args.worktreePath
     ? `\n<worktree><worktreePath>${args.worktreePath}</worktreePath>${
         args.worktreeBranch ? `<worktreeBranch>${args.worktreeBranch}</worktreeBranch>` : ''
-      }</worktree>`
+      }${leftover?.head ? `<worktreeHead>${leftover.head}</worktreeHead>` : ''}${leftover !== null ? `<worktreeState>${leftover.detail}</worktreeState>` : ''}</worktree>`
     : ''
+  const lastCallsSection = args.lastCalls !== undefined && args.lastCalls.length > 0 ? `\n<last_tool_calls>\n${args.lastCalls.join('\n')}\n</last_tool_calls>` : ''
   const envelopeSection = args.envelopeBlock ? `\n${args.envelopeBlock}` : ''
 
   const prefix = `<${TASK_NOTIFICATION_TAG}>
@@ -1091,7 +1095,7 @@ export function enqueueAgentNotification(args: {
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
 <${STATUS_TAG}>${args.statusWord ?? args.status}</${STATUS_TAG}>
 <${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${structuredSection}`
-  const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${envelopeSection}
+  const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${lastCallsSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
   enqueuePendingNotification({

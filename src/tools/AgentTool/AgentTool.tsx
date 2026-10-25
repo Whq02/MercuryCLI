@@ -256,6 +256,7 @@ export const outputSchema = lazySchema(() => {
       status: z.literal('failed'),
       error: z.string(),
       prompt: z.string(),
+      lastCalls: z.array(z.string()).optional(),
       worktreePath: z.string().optional(),
       worktreeBranch: z.string().optional(),
     }),
@@ -356,6 +357,13 @@ function usageBlock(data: {
 
 function continuationHint(agentId: string, name?: string): string {
   return `agentId: ${agentId} (internal — do not mention it to the user). To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
+}
+
+function worktreeKeptLine(data: { worktreePath?: string; worktreeBranch?: string }): string | null {
+  if (!data.worktreePath) return null
+  const leftover = crewWorktreeLeftoverNoted(data.worktreePath)
+  const at = [data.worktreeBranch ? `branch ${data.worktreeBranch}` : '', leftover?.head ? `@ ${leftover.head}` : ''].filter(Boolean).join(' ')
+  return `Worktree kept: ${data.worktreePath}${at ? ` (${at})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`
 }
 
 
@@ -808,6 +816,7 @@ export const AgentTool = buildTool({
       outcome?: { status: string; promotedNarration?: boolean }
       agentType?: string
       error?: string
+      lastCalls?: string[]
       worktreePath?: string
       worktreeBranch?: string
       agentName?: string
@@ -865,10 +874,13 @@ export const AgentTool = buildTool({
               },
             ]),
       ]
+      const kept = worktreeKeptLine(data)
       const failedTrailer = [
         `Crewmate execution failed: ${data.error ?? 'unknown error'}`,
         'Output above was captured before the failure as partial work and must not be read as a conclusion; its work is kept on the crewmate\'s transcript.',
         continuationHint(String(data.agentId ?? '')),
+        ...(kept !== null ? [kept] : []),
+        ...(data.lastCalls !== undefined && data.lastCalls.length > 0 ? [`Last tool calls:\n${data.lastCalls.map(call => `  ${call}`).join('\n')}`] : []),
         usageBlock(data),
       ]
       const failedEnvelope = envelopeFor(data)
@@ -915,12 +927,8 @@ export const AgentTool = buildTool({
         }
       }
       const trailerParts = [continuationHint(String(data.agentId ?? ''))]
-      if (data.worktreePath) {
-        const leftover = crewWorktreeLeftoverNoted(data.worktreePath)
-        trailerParts.push(
-          `Worktree kept: ${data.worktreePath}${data.worktreeBranch ? ` (branch ${data.worktreeBranch})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`,
-        )
-      }
+      const kept = worktreeKeptLine(data)
+      if (kept !== null) trailerParts.push(kept)
       trailerParts.push(usageBlock(data))
       const envelope = envelopeFor(data)
       if (envelope) trailerParts.push(formatEnvelopeBlock(envelope))

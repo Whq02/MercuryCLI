@@ -200,6 +200,8 @@ const hookEventTableRows = {
         name: z.string().optional(),
         status: z.enum(CREWMATE_END_STATUSES),
         reason: z.string().optional().describe("The error's words or the stop's"),
+        answer: z.string().optional().describe("The crewmate's final text"),
+        worktree_path: z.string().optional().describe('The worktree the crewmate worked in, when it had one'),
         crewmate_transcript_path: z.string().optional(),
         usage: UsageSchema().optional(),
       }),

@@ -236,6 +236,45 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
   setIsInteractive(false)
 }
 
+{
+  const { registerHookCallbacks, clearRegisteredExtensionHooks } = await import('../../src/bootstrap/state.ts')
+  const { hookPermissionOutcomeOf } = await import('../../src/services/tools/toolHooks.ts')
+  install({ 'tool.before': [
+    { name: 'closed gate', run: 'no-such-binary-for-this-proof --closed', failClosed: true },
+    { name: 'open gate', run: 'no-such-binary-for-this-proof --open' },
+    { name: 'slow closed', run: 'sleep 20', timeout: 1, failClosed: true },
+    { name: 'closed answer', run: 'echo "{not json"', failClosed: true },
+  ] })
+  clearRegisteredExtensionHooks()
+  registerHookCallbacks({ 'tool.before': [{ hooks: [{ name: 'lost extension', run: 'echo never', failClosed: true }], extensionName: 'ext', extensionRoot: join(root, 'no-such-extension-root'), extensionId: 'ext-id' }] } as never)
+  const result = await fireHooks('tool.before', { call_id: 'c3', tool: 'Bash', input: { command: 'git status' } }, { scope })
+  clearRegisteredExtensionHooks()
+  const by = Object.fromEntries(result.outcomes.map(o => [o.name, o.state as { kind: string; line?: string; answer?: { block?: string } }]))
+  const blockOf = (name: string): string => by[name]?.answer?.block ?? ''
+  check('a failClosed hook whose command is not found blocks the moment with its failure line as the words', by['closed gate']?.kind === 'answered' && blockOf('closed gate').startsWith('hook closed gate (tool.before) failed with exit 127'), JSON.stringify(by['closed gate']))
+  check('the same hook without failClosed fails open as before: a failed line and no block', by['open gate']?.kind === 'failed' && String(by['open gate']?.line).includes('failed with exit 127'), JSON.stringify(by['open gate']))
+  check('a failClosed hook that times out blocks, and its words no longer say the moment proceeded', by['slow closed']?.kind === 'answered' && blockOf('slow closed').includes('timed out after 1s and was killed') && !blockOf('slow closed').includes('proceeded'), JSON.stringify(by['slow closed']))
+  check('a failClosed hook that answers outside the shape blocks too', by['closed answer']?.kind === 'answered' && blockOf('closed answer').includes('does not parse'), JSON.stringify(by['closed answer']))
+  check('a failClosed hook whose process cannot start (its extension folder is gone) blocks with the could-not-run line', by['lost extension']?.kind === 'answered' && blockOf('lost extension').includes('could not run') && blockOf('lost extension').includes('Extension folder does not exist'), JSON.stringify(by['lost extension']))
+  check('the fold joins every block and the tool road reads a deny', result.answer.block !== undefined && result.answer.block.split('\n').length === 4 && hookPermissionOutcomeOf(result, 'Bash')?.behavior === 'deny', String(result.answer.block))
+  const rows = hookRowsOfResult(result)
+  check('the rows: four block rows and one failed row, nothing silent', rows.filter(r => r.outcome === 'block').length === 4 && rows.filter(r => r.outcome === 'failed').length === 1, JSON.stringify(rows.map(r => `${r.outcome}:${r.name}`)))
+  install({ 'turn.end': [{ name: 'cannot close', run: 'exit 1', failClosed: true }, { name: 'open end', run: 'exit 1' }] })
+  const end = await fireHooks('turn.end', { turn_id: 't', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 } }, { scope })
+  check('failClosed on an event no answer may block is refused at the door; the plain entry beside it runs and fails open', end.outcomes.length === 1 && end.outcomes[0]!.name === 'open end' && end.outcomes[0]!.state.kind === 'failed' && end.answer.block === undefined, end.outcomes.map(o => `${o.name}:${o.state.kind}`).join(','))
+}
+
+{
+  install({ 'crewmate.end': [{ name: 'end reader', run: `cat > ${q(join(root, 'crewmate-end.json'))}; ` + say({ notice: 'the crewmate ended' }) }] })
+  const usage = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
+  const result = await fireHooks('crewmate.end', { name: 'helper', status: 'finished', answer: 'all done', worktree_path: join(root, 'lane'), crewmate_transcript_path: join(root, 'agent.jsonl'), usage }, { scope, crewmateType: 'mercury-crew' })
+  const payload = JSON.parse(readFileSync(join(root, 'crewmate-end.json'), 'utf8')) as Record<string, unknown>
+  check('crewmate.end carries the answer and the worktree path beside the status, the reason road and the transcript', payload.status === 'finished' && payload.answer === 'all done' && payload.worktree_path === join(root, 'lane') && payload.crewmate_transcript_path === join(root, 'agent.jsonl') && payload.crewmate_type === 'mercury-crew', JSON.stringify(payload))
+  check('a notice answered on crewmate.end is read', result.answer.notices.includes('the crewmate ended'), JSON.stringify(result.answer))
+  const runAgentSrc = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8')
+  check("the crewmate's end hands its answer and worktree to the event and banks the outcomes on the off-turn road the file watcher uses", runAgentSrc.includes('bankHookOutcomes(ended.outcomes)') && /worktree_path: worktreePath/.test(runAgentSrc) && /answer: crewmateRun\.answer/.test(runAgentSrc))
+}
+
 clearTimeout(watchdog)
 rmSync(root, { recursive: true, force: true })
 console.log(failures === 0 ? 'HOOK FIRE GREEN' : `${failures} HOOK FIRE FAILURE(S)`)

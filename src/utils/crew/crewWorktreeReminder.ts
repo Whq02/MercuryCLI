@@ -15,6 +15,7 @@ export interface CrewWorktreeLeftoverV1 {
   name: string
   path: string
   branch: string | null
+  head: string | null
   gitRoot: string | null
   state: CrewWorktreeLeftoverState
   detail: string
@@ -52,10 +53,12 @@ export async function crewWorktreeLeftoverOf(
     changedAt = nowMs
   }
   const verdict = await worktreeRemovalSafe(lane.path, lane.branch)
+  const head = await execFileNoThrowWithCwd(gitExe(), ['rev-parse', '--short', 'HEAD'], { cwd: lane.path })
   return {
     name: lane.name,
     path: lane.path,
     branch: lane.branch ?? null,
+    head: head.code === 0 && head.stdout.trim() !== '' ? head.stdout.trim() : null,
     gitRoot: lane.gitRoot ?? null,
     state: verdict.safe ? 'clean' : verdict.state,
     detail: verdict.safe ? 'clean and reachable' : verdict.detail,

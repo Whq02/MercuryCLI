@@ -62,6 +62,9 @@ section('§2 a faulty entry is named and dropped WHOLE; the rest of the file app
     ['model on a run', { run: 'echo', model: 'x' }, /model belongs to a question or crewmate hook/],
     ['a condition field the entry does not have', { match: 'Bash', if: 'Bash(git *)', run: 'echo' }, /Unrecognized key: "if"/],
     ['watch outside file.changed', { watch: ['x'], run: 'echo' }, /watch belongs to file.changed, not tool.before/],
+    ["a rule reading a tool's arguments the matcher cannot read", { match: 'Crewmate(mercury-scout)', run: 'echo' }, /match reads the command of Bash and PowerShell and the path of Read, Edit, Write, NotebookEdit, NotebookRead, Glob and Grep, not the arguments of Crewmate/],
+    ['failClosed on a background hook', { run: 'echo', background: true, failClosed: true }, /failClosed belongs to a foreground hook/],
+    ['a wrong-typed failClosed', { run: 'echo', failClosed: 'yes' }, /failClosed: .*expected boolean/],
   ]
   for (const [label, bad, words] of cases) {
     const result = parseHooks({ 'tool.before': [bad, { match: 'Bash', run: 'echo fine' }] })
@@ -76,6 +79,12 @@ section('§2 a faulty entry is named and dropped WHOLE; the rest of the file app
   check('background on session.end is a named fault (the runner is leaving); the other entry stays', foreground.errors.length === 1 && /session.end runs in the foreground/.test(foreground.errors[0]?.message ?? '') && foreground.entries.length === 1, errorWords(foreground.errors))
   const path = parseHooks({ 'tool.after': [{ run: 'echo fine' }, { match: '(', run: 'x' }] }, 'tool.after')
   check('the fault names its path: events.hooks.tool.after.1', path.errors[0]?.path === 'events.hooks.tool.after.1', JSON.stringify(path.errors))
+  const closedEnd = parseHooks({ 'turn.end': [{ match: 'failed', run: 'echo', failClosed: true }, { match: 'failed', run: 'echo fine' }] }, 'turn.end')
+  check('failClosed on an event no answer may block is a named fault; the plain entry stays', closedEnd.errors.length === 1 && /turn.end cannot be blocked; remove failClosed/.test(closedEnd.errors[0]?.message ?? '') && closedEnd.entries.length === 1, errorWords(closedEnd.errors))
+  const ruleOnStatus = parseHooks({ 'turn.end': [{ match: 'Bash(git *)', run: 'echo' }, { match: 'failed', run: 'echo fine' }] }, 'turn.end')
+  check("a rule with arguments on an event that matches a status, not a tool call, is a named fault", ruleOnStatus.errors.length === 1 && /turn.end matches status, not a tool call's arguments: "Bash\(git \*\)"/.test(ruleOnStatus.errors[0]?.message ?? '') && ruleOnStatus.entries.length === 1, errorWords(ruleOnStatus.errors))
+  const ruled = parseHooks({ 'tool.before': [{ match: 'Bash(git *)', run: 'echo', failClosed: true }, { match: 'Edit(src/**)|Write(src/**)', question: 'fine? $EVENT' }, { match: 'Bash(*)', run: 'echo all' }], 'permission.ask': [{ match: 'Read(~/secrets/**)', run: 'echo', failClosed: true }] })
+  check('a rule with arguments, alone or joined with |, and failClosed on a blockable event parse byte-faithfully', ruled.errors.length === 0 && ruled.entries.length === 3 && ruled.entries[0]?.match === 'Bash(git *)' && ruled.entries[0]?.failClosed === true && ruled.entries[1]?.match === 'Edit(src/**)|Write(src/**)' && (ruled.all['permission.ask'] as Entry[]).length === 1, errorWords(ruled.errors))
 }
 
 section('§3 an unknown event name is a named fault; the other events load')
@@ -118,6 +127,9 @@ section('§5 THE DOCUMENTED GRAMMAR — the schema accepts every match the runti
   }
   check('"*" is the runtime\'s match-everything, never a regex', matcherShape('*') === 'everything' && matchesPattern('Bash', '*') && matchesPattern('Write', '*'))
   check('an uncompilable regex is refused by both', !matcherCompiles('startu[p') && !matchesPattern('startup', 'startu[p') && parseHooks({ 'tool.before': [{ match: 'startu[p', run: 'echo x' }] }).errors.length > 0)
+  check('a permission rule is its own shape, and the runtime reads it as one', matcherShape('Bash(git *)') === 'rules' && matcherShape('Edit(*.rs)|Write(*.rs)') === 'rules' && matcherCompiles('Bash(git *)') && matchesPattern('Bash', 'Bash(git *)', { command: 'git push' }))
+  check('Bash(*) is the whole tool, as a permission rule reads it, not an uncompilable regex', matcherShape('Bash(*)') === 'rules' && matcherCompiles('Bash(*)') && matchesPattern('Bash', 'Bash(*)', { command: 'ls' }) && parseHooks({ 'tool.before': [{ match: 'Bash(*)', run: 'echo x' }] }).errors.length === 0)
+  check('a regex with a group is a regex still: no tool name opens it', matcherShape('^(Read|Edit)$') === 'regex' && matcherShape('(Read|Edit)') === 'regex' && matcherShape('mcp__.*') === 'regex')
 }
 
 rmSync(HOME, { recursive: true, force: true })

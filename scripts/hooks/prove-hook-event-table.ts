@@ -41,7 +41,7 @@ const fields: Record<(typeof EVENTS)[number], Record<string, unknown>> = {
   'permission.ask': { tool: 'Bash', input: {}, call_id: 'c1' },
   'permission.decided': { tool: 'Bash', input: {}, call_id: 'c1', decision: 'denied', by: 'rule' },
   'crewmate.start': { prompt: 'do it', model: 'm', directory: '/w' },
-  'crewmate.end': { status: 'finished' },
+  'crewmate.end': { status: 'finished', answer: 'done', worktree_path: '/w/.mercury/worktrees/agent-a1' },
   'compaction.before': { trigger: 'manual', tokens: 100 },
   'compaction.after': { method: 'summary', trigger: 'auto', tokens_before: 100, tokens_after: 10 },
   'session.start': { reason: 'new', model: 'm' },

@@ -52,11 +52,18 @@ and may carry:
   ended.
 - `match`: names (`Bash`, `Read|Edit`) or a regular expression, matched
   against the event's match field. Absent, or `*`, matches
-  everything. An entry whose match is not a valid regular expression is a
-  named fault and does not load; so is a match on an event that has no match
-  field. `match` is the one filter: a hook on a tool fires on every call of
-  that tool, and a `run` hook that cares about one kind of call reads its
-  stdin and exits 0 at once when the call is not its business:
+  everything. On a tool event (`tool.before`, `tool.after`, `permission.ask`,
+  `permission.decided`) a permission rule reads the call's arguments as well:
+  `Bash(git *)` and `PowerShell(…)` the command, `Read(…)`, `Edit(…)`,
+  `Write(…)`, `NotebookEdit(…)`, `NotebookRead(…)`, `Glob(…)` and `Grep(…)`
+  the path, with the patterns a permission rule takes (`Edit(src/**)`);
+  clauses join with `|` (`Edit(*.rs)|Write(*.rs)`). A command is read whole:
+  `Bash(git push *)` does not match `cd x && git push`. An entry whose match
+  is not a valid regular expression is a named fault and does not load; so is
+  a match on an event that has no match field, a rule with arguments on an
+  event that is not a tool event, and one reading another tool's arguments. A
+  `run` hook that cares about something a rule cannot say reads its stdin and
+  exits 0 at once when the call is not its business:
   ```sh
   #!/bin/sh
   input=$(cat)
@@ -78,6 +85,10 @@ and may carry:
   model with the words.
 - `once`: the hook runs once in a session, then stands down for the rest of
   it. Mercury never edits a settings file.
+- `failClosed`: a hook that could not run, timed out, exited with any other
+  code or answered outside the shape blocks the moment, its failure line as
+  the words; only on an event an answer may `block`, never with `background`
+  or `wake`. Without it the moment proceeds.
 - `watch`: `file.changed` only; the files to watch, relative to the project.
 
 An entry with a fault (an unknown field, a wrong type, a field that belongs
@@ -142,7 +153,7 @@ own run key inside a crewmate. The event adds its own fields:
 | `permission.ask` | a permission ask is about to reach the operator, or a crewmate that cannot ask would be denied | `tool`, `input`, `call_id`, `suggestions` | `tool` | `permission: "allow"` (with `input` and `rules`), `block` (a deny), `stop`; silence lets the ask go on |
 | `permission.decided` | a tool call's permission was decided without the hook's own answer | `tool`, `input`, `call_id`, `decision` (`allowed`, `denied`), `by` (`rule`, `mode`, `hook`, `operator`, `safety`, `other`), `reason` | `tool` | nothing |
 | `crewmate.start` | a crewmate is launched; the crewmate fields name it | `name`, `prompt`, `model`, `directory` | `crewmate_type` | `context` (words the crewmate reads before its first turn) |
-| `crewmate.end` | a crewmate ended | `name`, `status` (`finished`, `failed`, `stopped`), `reason`, `crewmate_transcript_path`, `usage` | `status` | nothing |
+| `crewmate.end` | a crewmate ended | `name`, `status` (`finished`, `failed`, `stopped`), `reason`, `answer`, `worktree_path`, `crewmate_transcript_path`, `usage` | `status` | nothing |
 | `compaction.before` | the conversation is about to be summarised; it cannot be blocked | `trigger` (`manual`, `auto`, `overflow`), `instructions`, `tokens` | `trigger` | `instructions` (guidance appended to the summariser's) |
 | `compaction.after` | a compaction rung landed: the summary, the memory notes, or the digest that cleared old tool results | `method` (`summary`, `notes`, `digest`), `trigger`, `tokens_before`, `tokens_after`, `summary` | `method` | `context` (words re-added after the cut) |
 | `session.start` | a session's runner came up | `reason` (`new`, `resumed`), `model` | `reason` | `context`, `prompt` (the session's first prompt, new sessions only), `watch`; and the environment file |
@@ -185,7 +196,8 @@ A `run` hook answers with its exit code and its stdout:
   `context` the model reads);
 - exit 2: the moment is blocked and stderr is the words; stdout is not read;
 - any other exit, a timeout, a kill or a command that could not run: the
-  hook failed, the moment proceeds, and you see one line naming
+  hook failed, the moment proceeds (a `failClosed` hook blocks it instead,
+  the line below as the words), and you see one line naming
   the hook, the event and what happened. Invalid JSON that does not match the answer shape
   is treated as a failure. A hook need not read its input.
 

@@ -50,6 +50,7 @@ import {
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
+import { bankHookOutcomes } from '../../utils/hooks/background.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
@@ -769,17 +770,20 @@ export async function* runAgent(
         },
         { scope: hookScope, toolUseContext: childContextRef.current ?? toolUseContext, crewmateType: agentDefinition.agentType, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
       )
-      await fireHooks(
+      const ended = await fireHooks(
         'crewmate.end',
         {
           ...(name !== undefined ? { name } : {}),
           status: status === 'failed' ? 'failed' : aborted ? 'stopped' : 'finished',
           ...(crewmateRun.reason !== undefined ? { reason: crewmateRun.reason } : aborted ? { reason: agentStopReasonOf(abortController.signal.reason) ?? 'stopped' } : {}),
+          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
+          ...(worktreePath !== undefined ? { worktree_path: worktreePath } : {}),
           crewmate_transcript_path: getAgentTranscriptPath(agentId),
           usage,
         },
         { scope: { sessionId: hookScope.sessionId }, toolUseContext, crewmateType: agentDefinition.agentType },
       )
+      bankHookOutcomes(ended.outcomes)
     } catch (error) {
       logForDebugging(`runAgent: the end-of-crewmate hooks failed: ${errorMessage(error)}`)
     }

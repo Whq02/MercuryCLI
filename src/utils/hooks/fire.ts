@@ -14,7 +14,7 @@ import { jsonStringify } from '../slowOperations.js'
 import { foldAnswers, readAnswerObject, readStdoutAnswer, type FoldedAnswer, type HookOutcome, type ReadAnswer } from './answer.js'
 import { startBackgroundHook } from './background.js'
 import { startCommandHook, type CommandHookSource } from './commandRunner.js'
-import { hookAnswerSchema, hookEventTable, hookKindsOf, HOOK_TIMEOUT_DEFAULT_S, type HookAnswer, type HookEvent, type HookPayload } from './contract.js'
+import { hookAnswerFieldsOf, hookAnswerSchema, hookEventTable, hookKindsOf, HOOK_TIMEOUT_DEFAULT_S, type HookAnswer, type HookEvent, type HookPayload } from './contract.js'
 import { runCrewmateHook } from './crewmateRunner.js'
 import { emitHookResponse, emitHookStarted, getHookRunContext, hookProgressReporter } from './hookEvents.js'
 import { claimOnceHook, matchHooks, type MatchedHook } from './matching.js'
@@ -79,26 +79,34 @@ function clockOf(entry: HookEntry, budgetMs: number | undefined): number {
   return budgetMs !== undefined ? Math.min(own, budgetMs) : own
 }
 
-function failedLine(ending: Extract<HookEnding, { status: 'failed' }>, name: string, event: HookEvent): string {
-  return hookEndingSentence(ending, { name, event })
+function failedLine(ending: Extract<HookEnding, { status: 'failed' }>, name: string, event: HookEvent, blocks = false): string {
+  return hookEndingSentence(ending, { name, event, blocks })
 }
 
-function readToState(event: HookEvent, name: string, read: ReadAnswer): HookOutcome['state'] {
+function failsClosed(entry: HookEntry, event: HookEvent): boolean {
+  return entry.failClosed === true && hookAnswerFieldsOf(event).includes('block')
+}
+
+function closeFailed(state: HookOutcome['state'], blocks: boolean): HookOutcome['state'] {
+  return blocks && state.kind === 'failed' ? { kind: 'answered', answer: { block: state.line } } : state
+}
+
+function readToState(event: HookEvent, name: string, read: ReadAnswer, blocks: boolean): HookOutcome['state'] {
   if (read.kind === 'answer') return { kind: 'answered', answer: read.answer }
   if (read.kind === 'text') return { kind: 'text', text: read.text }
-  return { kind: 'failed', line: failedLine({ status: 'failed', class: 'answer', exit_code: 0, detail: read.fault }, name, event) }
+  return { kind: 'failed', line: failedLine({ status: 'failed', class: 'answer', exit_code: 0, detail: read.fault }, name, event, blocks) }
 }
 
-function modelEndToState(event: HookEvent, name: string, end: ModelHookEnd, timeoutMs: number): HookOutcome['state'] {
+function modelEndToState(event: HookEvent, name: string, end: ModelHookEnd, timeoutMs: number, blocks: boolean): HookOutcome['state'] {
   switch (end.kind) {
     case 'answered':
-      return readToState(event, name, readAnswerObject(event, end.answer))
+      return readToState(event, name, readAnswerObject(event, end.answer), blocks)
     case 'timed_out':
-      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'timed_out', exit_code: 1, detail: secondsWord(timeoutMs) }, name, event) }
+      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'timed_out', exit_code: 1, detail: secondsWord(timeoutMs) }, name, event, blocks) }
     case 'cancelled':
-      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'cancelled', exit_code: 1 }, name, event) }
+      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'cancelled', exit_code: 1 }, name, event, blocks) }
     default:
-      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: end.detail }, name, event) }
+      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: end.detail }, name, event, blocks) }
   }
 }
 
@@ -121,16 +129,18 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
   const hookId = randomUUID()
   const kind = hookKindOf(entry)
   const timeoutMs = clockOf(entry, options.budgetMs)
+  const blocks = failsClosed(entry, event)
   const startedAt = Date.now()
   emitHookStarted(hookId, name, event)
-  const outcome = (state: HookOutcome['state'], durationMs = Date.now() - startedAt): HookOutcome => {
+  const outcome = (ended: HookOutcome['state'], durationMs = Date.now() - startedAt): HookOutcome => {
+    const state = closeFailed(ended, blocks)
     const row: HookOutcome = { id: match.id, name, event, source: match.source, durationMs, state }
     const words = outputOf(state)
     emitHookResponse({ hookId, hookName: name, hookEvent: event, output: words, stdout: state.kind === 'text' ? state.text : '', stderr: state.kind === 'failed' ? state.line : '', outcome: state.kind === 'failed' ? 'error' : 'success' })
     return row
   }
   if (!hookKindsOf(event).includes(kind)) {
-    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: `${event} runs ${hookKindsOf(event).join(' and ')} hooks only` }, name, event) })
+    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: `${event} runs ${hookKindsOf(event).join(' and ')} hooks only` }, name, event, blocks) })
   }
   if (kind === 'run') {
     const progress = hookProgressReporter({ hookId, hookName: name, hookEvent: event })
@@ -151,21 +161,21 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
       return { id: match.id, name, event, source: match.source, durationMs: 0, state: { kind: 'background' } }
     }
     const end = await process.result
-    if (end.kind === 'ended') return outcome({ kind: 'failed', line: failedLine(end.ending, name, event) }, end.durationMs)
-    if (end.code === 0) return outcome(readToState(event, name, readStdoutAnswer(event, end.stdout)), end.durationMs)
+    if (end.kind === 'ended') return outcome({ kind: 'failed', line: failedLine(end.ending, name, event, blocks) }, end.durationMs)
+    if (end.code === 0) return outcome(readToState(event, name, readStdoutAnswer(event, end.stdout), blocks), end.durationMs)
     if (end.code === 2) {
       const words = end.stderr.trim() || `${name} blocked ${event} without a word`
-      return outcome(readToState(event, name, readAnswerObject(event, { block: words })), end.durationMs)
+      return outcome(readToState(event, name, readAnswerObject(event, { block: words }), blocks), end.durationMs)
     }
     if (match.source.kind === 'extension') recordHookFailure(match.source.id, entry.run ?? '', `exit ${end.code}`)
-    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'exit', exit_code: end.code, detail: end.stderr.trim() }, name, event) }, end.durationMs)
+    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'exit', exit_code: end.code, detail: end.stderr.trim() }, name, event, blocks) }, end.durationMs)
   }
   if (options.toolUseContext === undefined) {
-    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: `a ${kind} hook needs a model seat, and ${event} fired without one here` }, name, event) })
+    return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: `a ${kind} hook needs a model seat, and ${event} fired without one here` }, name, event, blocks) })
   }
   const run = { text: entry.question ?? entry.crewmate ?? '', name, event, payloadJson, answerSchema: hookAnswerSchema(event), model: entry.model, timeoutMs, signal: options.signal, toolUseContext: options.toolUseContext }
   const end = kind === 'question' ? await runQuestionHook(run) : await runCrewmateHook(run)
-  return outcome(modelEndToState(event, name, end, timeoutMs), end.durationMs)
+  return outcome(modelEndToState(event, name, end, timeoutMs, blocks), end.durationMs)
 }
 
 export type PreparedHooks = { names: string[]; timeoutsS: number[]; run: () => Promise<HookFireResult> }
@@ -192,9 +202,10 @@ export async function prepareHooks<E extends HookEvent>(event: E, fields: HookFi
       const live = matched.filter(match => match.entry.once !== true || claimOnceHook(match.id, options.scope))
       const outcomes = await Promise.all(live.map((match, index) => runOne(event, match, payloadJson, index, options).catch(error => {
         const name = hookEntryName(match.entry)
-        const line = failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: error instanceof Error ? error.message : String(error) }, name, event)
+        const blocks = failsClosed(match.entry, event)
+        const line = failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: error instanceof Error ? error.message : String(error) }, name, event, blocks)
         logForDebugging(line, { level: 'error' })
-        return { id: match.id, name, event, source: match.source, durationMs: 0, state: { kind: 'failed', line } } satisfies HookOutcome
+        return { id: match.id, name, event, source: match.source, durationMs: 0, state: closeFailed({ kind: 'failed', line }, blocks) } satisfies HookOutcome
       })))
       return { event, answer: foldAnswers(event, outcomes), outcomes }
     },
