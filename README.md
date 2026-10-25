@@ -8,7 +8,7 @@
 </h1>
 
 <p align="center">
-  Runs AI coding agents in your terminal, inside your own git repositories on macOS, Linux and Windows.
+  A terminal-native environment for AI coding agents, inside your own git repositories on macOS, Linux and Windows.
 </p>
 
 <p align="center">
