@@ -3,7 +3,14 @@ import { modelRefusalBeforeAnyRequest } from '../../services/providers/callModel
 import { compatModelRefusal } from '../../services/providers/openaicompat/compatAccounts.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../utils/crew/engineDispatch.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 
+function compatRefusalAfterReread(model: string): string | undefined {
+  const refusal = compatModelRefusal(model)
+  if (refusal === undefined || !refusal.includes('has no configured endpoint')) return refusal
+  resetSettingsCache()
+  return compatModelRefusal(model)
+}
 export async function resolveHeadlessModel(requested: string): Promise<string> {
   const word = requested.trim().toLowerCase()
   let model: string
@@ -13,7 +20,7 @@ export async function resolveHeadlessModel(requested: string): Promise<string> {
     model = dispatch.model
   } else model = parseUserSpecifiedModel(requested)
   const refusal = model.toLowerCase().startsWith('compat/')
-    ? compatModelRefusal(model)
+    ? compatRefusalAfterReread(model)
     : await modelRefusalBeforeAnyRequest(model)
   if (refusal) throw new Error(refusal)
   return model

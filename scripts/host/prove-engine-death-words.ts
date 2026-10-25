@@ -8,7 +8,7 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 pinSourceRef()
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'engine-death-'))
-const { waitHostEngine, engineDeathWords } = await import('../../src/services/host/ssh.ts')
+const { waitHostEngine, engineDeathWords, engineDeathAfterReady } = await import('../../src/services/host/ssh.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 
 const glm = HOST_RECIPES.find(row => row.id === 'glm53-flash-gguf-b300')!
@@ -79,6 +79,51 @@ try {
   const plain = engineDeathWords(['MERCURY_STEP starting engine', 'engine exited with status 137', 'MERCURY_ENGINE_EXITED'].join('\n'), { engine: 'vllm' })
   assert.equal(plain, 'the engine died loading the weights: engine exited with status 137')
   console.log('PASS the words from a captured text alone: first error line, else the plain tail')
+
+  const allocatorWarning = '[rank0]:[W1025 09:12:09.038337802 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 71303168 bytes (free: 12779520, total: 85019590656).'
+  const vllm = { ...recipe, engine: 'vllm' as const }
+  const loadingGptOss = ['MERCURY_STEP starting engine', 'INFO 10-25 09:11:27 [api_server.py:1234] vLLM API server version 0.32.0', 'INFO 10-25 09:11:40 [gpu_model_runner.py:2001] Loading model from scratch...', allocatorWarning, allocatorWarning.replace('09:12:09.038337802', '09:12:09.041122009'), allocatorWarning.replace('09:12:09.038337802', '09:12:09.044873211')]
+  const served = [...loadingGptOss, 'INFO 10-25 09:14:17 [api_server.py:1600] Starting vLLM API server 0 on http://127.0.0.1:30000', 'INFO:     Application startup complete.']
+  const liveRunner = (health: () => boolean) => ({
+    ...runner,
+    async run(command: string, args: string[]): Promise<string> {
+      if (args.at(-1)!.includes('/health')) { if (health()) return 'ok'; throw new Error('fixture engine not answering yet') }
+      return runner.run(command, args)
+    },
+  })
+  const engineScript = join(remoteDir, 'engine.sh')
+  writeFileSync(engineScript, 'sleep 60\n')
+  const engine = spawn('bash', [engineScript], { stdio: 'ignore' })
+  try {
+    writeFileSync(join(remoteDir, 'engine.pid'), engine.pid + '\n')
+    writeFileSync(join(remoteDir, 'engine.log'), loadingGptOss.join('\n') + '\n')
+    const seen: string[] = []
+    let polls = 0
+    const before = commands.length
+    await waitHostEngine({ host: '127.0.0.1' }, vllm, liveRunner(() => { polls++; if (polls === 3) writeFileSync(join(remoteDir, 'engine.log'), served.join('\n') + '\n'); return polls >= 4 }), new AbortController().signal, 10, 8000, text => seen.push(text))
+    const polled = commands.slice(before).filter(command => command.startsWith('tail -n 8 '))
+    assert.ok(polled.length >= 4, 'the wait kept polling a living engine through the allocator warnings: ' + polled.length)
+    assert.ok(!seen.join('\n').includes('MERCURY_ENGINE_CAUSE') && !seen.join('\n').includes('MERCURY_ENGINE_EXITED'), 'no cause and no exit were read from a living engine that only warned: ' + seen.join('\n'))
+    console.log('PASS the driver’s run: the allocator’s OOM warnings on a living engine are not a death; the wait goes on until the engine answers')
+  } finally { engine.kill() }
+  await new Promise(resolve => engine.once('exit', resolve))
+
+  writeFileSync(join(remoteDir, 'engine.pid'), '2147483646\n')
+  const warnedThenDied = await death([...loadingGptOss, 'torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.75 GiB. GPU 0 has a total capacity of 79.19 GiB of which 1.23 GiB is free.', 'ERROR 10-25 09:12:40 [core.py:812] EngineCore failed to start.'])
+  assert.ok(warnedThenDied.words.startsWith('the engine died loading the weights: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.75 GiB.') && warnedThenDied.words.includes('choose a larger GPU shape'), 'a real out-of-memory death after the warnings names the fatal line, never the warning: ' + warnedThenDied.words)
+  assert.ok(!warnedThenDied.words.includes('CUDACachingAllocator'), warnedThenDied.words)
+  console.log('PASS a fatal out-of-memory line after the warnings leads the notice; the warning never does')
+
+  writeFileSync(join(remoteDir, 'engine.log'), [...served, 'INFO 10-25 09:38:40 [launcher.py:80] Shutting down FastAPI HTTP server.', 'INFO:     Shutting down', 'INFO:     Application shutdown complete.'].join('\n') + '\n')
+  const stopped = await engineDeathAfterReady({ host: '127.0.0.1' }, vllm, runner, new AbortController().signal)
+  assert.ok(stopped, 'a gone engine process is a death after ready')
+  assert.ok(stopped.facts.oom === false && !stopped.message.includes('ran out of GPU memory') && !stopped.message.includes('CUDACachingAllocator') && !stopped.message.includes('shorter conversation'), 'a stop after ready is not an out-of-memory death and quotes no earlier warning: ' + stopped.message)
+  assert.ok(stopped.message.startsWith('the engine died after setup: '), stopped.message)
+  console.log('PASS an engine stopped after ready: no out-of-memory verdict, no warning quoted, no advice to shrink the context')
+
+  const secondGeneration = await death(['MERCURY_STEP starting engine', 'CUDA error: out of memory', '  current device: 0', 'Aborted (core dumped)', 'MERCURY_STEP starting engine', 'llama_model_load: error loading model: unable to read file /workspace/mercury-host/fixture-death/weights/glm5.3-Flash-combined-iq4_xs.gguf', 'Aborted (core dumped)'])
+  assert.ok(secondGeneration.words.startsWith('the engine died loading the weights: llama_model_load: error loading model: unable to read file') && !secondGeneration.words.includes('too small'), 'the cause is read from the last start, never from the generation before it: ' + secondGeneration.words)
+  console.log('PASS after a Resume the cause comes from the current engine’s lines, not the generation before')
   console.log('ENGINE DEATH WORDS GREEN — the poll command ran in a real shell against a fixture of the owner’s log; no network, no GPU')
 } finally {
   rmSync(scratch, { recursive: true, force: true })

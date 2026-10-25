@@ -86,25 +86,32 @@ export async function inspectSsh(target: SshTarget, runner: HostRunner, signal: 
 export function fitsSsh(recipe: HostRecipe, gpus: { name: string; memory: number }[]): boolean { return gpus.filter(gpu => recipeFits(recipe, gpu.name, gpu.memory, recipe.count)).length >= recipe.count }
 const engineCausePattern = /GGML_ASSERT|terminate called|what\(\):|error loading model|failed to load (?:model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|\bOOM\b|\.(?:c|cpp|cu|cuh|h|hpp):\d+: /i
 const engineCauseGrep = 'GGML_ASSERT|terminate called|error loading model|failed to load (model|weights)|llama_model_load: error|CUDA error|CUDA_ERROR_|out of memory|OutOfMemoryError|(^|[^A-Za-z])OOM([^A-Za-z]|$)|\\.(c|cpp|cu|cuh|h|hpp):[0-9]+: '
+const engineWarningPattern = /^(?:\[rank\d+\]:)?\[W\d{4} |\b[A-Za-z]*Warning\b|\bWARN(?:ING)?\b/
+const engineWarningGrep = '(^|[^A-Za-z])(\\[rank[0-9]+\\]:)?\\[W[0-9]{4} |[A-Za-z]*Warning([^A-Za-z]|$)|(^|[^A-Za-z])WARN(ING)?([^A-Za-z]|$)'
+const fatalEngineLine = (line: string): boolean => Boolean(line) && !line.startsWith('MERCURY_') && engineCausePattern.test(line) && !engineWarningPattern.test(line)
+const ENGINE_START_MARK = 'MERCURY_STEP starting engine'
 const stackFramePattern = /^(?:(?:\S+\([^()]*\))?\[0x[0-9a-f]+\]|#\d+\s+0x[0-9a-f]+\b.*|\[New LWP \d+\]|Thread \d+ \(Thread 0x[0-9a-f]+.*|\[Thread debugging using libthread_db enabled\]|Using host libthread_db library .*)$/
 const unknownLayoutPattern = /unknown model architecture|unsupported model architecture|missing tensor info mapping|wrong number of tensors|are not supported for now|unsupported architecture/i
 function engineCauseCommand(engineLog: string): string {
   const log = quote(engineLog)
-  return 'grep -i -m 1 -A 1 -E ' + quote(engineCauseGrep) + ' ' + log + ' 2>/dev/null | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_CAUSE /') + '; unused="$(grep -c ' + quote('unused tensor') + ' ' + log + ' 2>/dev/null)"; if test "${unused:-0}" -gt 0 2>/dev/null; then printf ' + quote('MERCURY_UNUSED_TENSORS %s %s\\n') + ' "$unused" "$(grep -m 1 -o ' + quote('unused tensor [^ ]*') + ' ' + log + ' | cut -d" " -f3)"; fi'
+  const sinceStart = 'tail -n "+${start:-1}" ' + log + ' 2>/dev/null'
+  return 'start="$(grep -n -F ' + quote(ENGINE_START_MARK) + ' ' + log + ' 2>/dev/null | tail -n 1 | cut -d: -f1)"; at="$(' + sinceStart + ' | grep -n -i -E ' + quote(engineCauseGrep) + ' | grep -v -E ' + quote(engineWarningGrep) + ' | head -n 1 | cut -d: -f1)"; if test -n "$at"; then ' + sinceStart + ' | sed -n "${at},$((at+1))p" | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_CAUSE /') + '; fi; unused="$(grep -c ' + quote('unused tensor') + ' ' + log + ' 2>/dev/null)"; if test "${unused:-0}" -gt 0 2>/dev/null; then printf ' + quote('MERCURY_UNUSED_TENSORS %s %s\\n') + ' "$unused" "$(grep -m 1 -o ' + quote('unused tensor [^ ]*') + ' ' + log + ' | cut -d" " -f3)"; fi'
     + '; grep -o -E ' + quote('max_total_num_tokens=[0-9]+.*') + ' ' + log + ' 2>/dev/null | tail -n 1 | cut -c1-300 | sed ' + quote('s/^/MERCURY_ENGINE_PLAN /') + '; grep -E ' + quote('(Prefill|Decode) batch') + ' ' + log + ' 2>/dev/null | tail -n 1 | cut -c1-400 | sed ' + quote('s/^/MERCURY_ENGINE_BATCH /')
 }
 const oomPattern = /out of memory|OutOfMemoryError|\bOOM\b/i
 function engineCause(text: string): { cause?: string; tail: string; unused?: { count: number; example?: string }; oom: boolean } {
   const lines = text.split('\n').map(line => line.trim())
   const marked = lines.filter(line => line.startsWith('MERCURY_ENGINE_CAUSE ')).map(line => line.slice('MERCURY_ENGINE_CAUSE '.length).trim())
-  let cause = marked[0] || lines.find(line => line && !line.startsWith('MERCURY_') && engineCausePattern.test(line))
-  const next = marked[0] ? marked[1] : cause ? lines[lines.indexOf(cause) + 1]?.trim() : undefined
+  const markedCause = marked[0] && !engineWarningPattern.test(marked[0]) ? marked[0] : undefined
+  const sinceStart = lines.slice(lines.findLastIndex(line => line.startsWith(ENGINE_START_MARK)) + 1)
+  let cause = markedCause || sinceStart.find(fatalEngineLine)
+  const next = markedCause ? marked[1] : cause ? sinceStart[sinceStart.indexOf(cause) + 1]?.trim() : undefined
   if (cause && next && /^what\(\):/.test(next)) cause += ' · ' + next.replace(/^what\(\):\s*/, '')
   const unusedMark = /^MERCURY_UNUSED_TENSORS (\d+)(?: (\S+))?$/m.exec(text)
   const unusedLines = lines.filter(line => /unused tensor/.test(line))
   const unused = unusedMark ? { count: Number(unusedMark[1]), example: unusedMark[2] } : unusedLines.length ? { count: unusedLines.length, example: /unused tensor (\S+)/.exec(unusedLines[0]!)?.[1] } : undefined
-  const tail = lines.filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:' && !stackFramePattern.test(line) && !/unused tensor/.test(line)).slice(-8).join(' · ')
-  return { cause, tail, unused, oom: oomPattern.test(text) }
+  const tail = lines.filter(line => line && !line.startsWith('MERCURY_') && line !== 'launch.log:' && !stackFramePattern.test(line) && !/unused tensor/.test(line) && !engineWarningPattern.test(line)).slice(-8).join(' · ')
+  return { cause, tail, unused, oom: Boolean(cause && oomPattern.test(cause)) }
 }
 export function engineDeathWords(text: string, recipe: Pick<HostRecipe, 'engine'>): string {
   const { cause, tail, unused, oom } = engineCause(text)
@@ -144,7 +151,7 @@ export function engineDeathAfterReadyWords(text: string): HostEngineDeath {
 }
 function engineFailure(text: string, recipe: HostRecipe, exited = false): Error | undefined {
   if (/MERCURY_(STALL|PARTIAL) /.test(text)) return new Error(downloadFailure(text, recipe).words)
-  if (!exited && !text.split('\n').some(line => !line.startsWith('MERCURY_') && engineCausePattern.test(line)) && !/^MERCURY_ENGINE_CAUSE /m.test(text)) return
+  if (!exited && !engineCause(text).cause) return
   return new Error(engineDeathWords(text, recipe))
 }
 export const engineCacheExports = (cache: string): string => 'mkdir -p ' + quote(cache) + '\n' + [['SGLANG_CACHE_DIR', cache + '/sglang'], ['SGLANG_DG_CACHE_DIR', cache + '/sglang/deep_gemm'], ['SGL_DG_CACHE_DIR', cache + '/sglang/deep_gemm'], ['DG_JIT_CACHE_DIR', cache + '/deep_gemm'], ['FLASHINFER_WORKSPACE_BASE', cache], ['TORCHINDUCTOR_CACHE_DIR', cache + '/inductor'], ['TRITON_CACHE_DIR', cache + '/triton'], ['CUDA_CACHE_PATH', cache + '/nv'], ['TILELANG_CACHE_DIR', cache + '/tilelang'], ['VLLM_CACHE_ROOT', cache + '/vllm']].map(([name, value]) => 'export ' + name + '=' + quote(value!) + '\n').join('') + "echo 'MERCURY_STEP engine cache on the kept volume · compiled kernels can be reused on later boots; graph capture still runs'\n"
@@ -206,7 +213,7 @@ export async function startHostEngine(target: SshTarget, recipe: HostRecipe, run
 const ENGINE_PROGRESS_GRACE_MS = 10 * 60_000
 function enginePollCommand(dir: string): string {
   const pid = '"$(cat ' + quote(dir + '/engine.pid') + ')"'
-  return 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -q -i -E ' + quote(engineCauseGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'
+  return 'tail -n 8 ' + quote(dir + '/engine.log') + '; tail -n 8 ' + quote(dir + '/launch.log') + ' 2>/dev/null; dead=; if ! kill -0 ' + pid + ' 2>/dev/null || ! ps -p ' + pid + ' -o args= | grep -F -- ' + quote(dir + '/engine.sh') + ' >/dev/null; then echo MERCURY_ENGINE_EXITED; dead=1; fi; if test -n "$dead" || tail -n 8 ' + quote(dir + '/engine.log') + ' 2>/dev/null | grep -i -E ' + quote(engineCauseGrep) + ' | grep -q -v -E ' + quote(engineWarningGrep) + '; then ' + engineCauseCommand(dir + '/engine.log') + '; fi'
 }
 export async function engineDeathAfterReady(target: SshTarget, recipe: HostRecipe, runner: HostRunner, signal: AbortSignal, onLog?: (text: string) => void): Promise<HostEngineDeath | undefined> {
   const log = await runner.run('ssh', [...sshArguments(target), enginePollCommand('/workspace/mercury-host/' + recipe.id)], signal)
@@ -390,7 +397,7 @@ if strays:
     unchanged('another engine for these weights is running as process ' + str(strays[0]))
 if not restore and (group is None or not serving()):
     unchanged('the engine is not serving; Tune reloads a running engine, and Resume setup starts a stopped one')
-next_script = 'set -e\\n' + ''.join(line + '\\n' for line in text.splitlines() if line.startswith('export ')) + shlex.join(engine) + '\\nwait\\n'
+next_script = 'set -e\\n' + ''.join(line + '\\n' for line in text.splitlines() if line.startswith('export ')) + ${JSON.stringify("echo '" + ENGINE_START_MARK + "'\n")} + shlex.join(engine) + '\\nwait\\n'
 if restore and group is not None and script.read_text() == next_script:
     unchanged('the launch script was never changed')
 if not restore:

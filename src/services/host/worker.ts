@@ -43,18 +43,34 @@ const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefine
   const preference = recipe && (vendor === 'vast' || vendor === 'lambda') ? bankUploadPreference(recipe) : undefined
   return preference ? { kind: 'bank', folder: preference.folder } : { kind: 'huggingface' }
 }
+async function rentingSessionRow(record: Pick<HostRecord, 'sessionId'>): Promise<{ modelKey?: string } | undefined> {
+  if (!record.sessionId) return undefined
+  try {
+    const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
+    return Object.values(readSessionWorkers()).find(row => row.sessionId === record.sessionId && row.endedAt === undefined && row.stoppedAt === undefined && row.parkedAt === undefined)
+  } catch {
+    return undefined
+  }
+}
+export async function rentingSessionModel(record: Pick<HostRecord, 'sessionId'>): Promise<string | undefined> {
+  return (await rentingSessionRow(record))?.modelKey
+}
 export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>, model: string): Promise<boolean> {
   if (!record.sessionId) return false
   try {
-    const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
-    const live = Object.values(readSessionWorkers()).some(row => row.sessionId === record.sessionId && row.endedAt === undefined && row.stoppedAt === undefined && row.parkedAt === undefined)
-    if (!live) return false
+    if (!(await rentingSessionRow(record))) return false
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model } as never, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
     return reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'queued')
   } catch {
     return false
   }
+}
+export async function restoreRentingSession(record: Pick<HostRecord, 'sessionId' | 'sessionModel' | 'sessionModelBefore'>): Promise<boolean> {
+  if (!record.sessionModelBefore || !record.sessionModel) return false
+  const row = await rentingSessionRow(record)
+  if (!row || row.modelKey !== record.sessionModel) return false
+  return switchRentingSession(record, record.sessionModelBefore)
 }
 function watchedSourceFor(source: WeightsSource | undefined, hit: HostVendorId, managed: boolean, volume: KeptVolume | undefined): { source?: WeightsSource; skip?: string } {
   if (!source) return {}
@@ -462,8 +478,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
     mark('ready')
     const record = patchHostRecord(id, { jobState: 'ready', engineDeath: undefined, linkLost: undefined, ...(loadedWeights ? { loadedWeights } : {}) })!
+    const modelBefore = await rentingSessionModel(record)
     const switched = await switchRentingSession(record, result.model)
     hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record, switched))
+    if (switched && modelBefore && modelBefore !== result.model && !record.sessionModelBefore) patchHostRecord(id, { sessionModelBefore: modelBefore, sessionModel: result.model })
     if (options.keepAlive !== false) {
       const reconnects = 5
       const reconnect = async (why: string): Promise<void> => {

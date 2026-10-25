@@ -61,6 +61,7 @@ export interface DeferralWireVerdict {
     | 'model-below-native-floor'
     | 'gateway-probed-native'
     | 'first-party-refused'
+    | 'self-hosted-engine'
 }
 
 export function gatewayHost(env: Record<string, string | undefined> = process.env): string | null {
@@ -98,11 +99,24 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
   if (capability === 'text-append' && !textAppendAccepted(verdict.route, model)) {
     return { form: 'text', why: 'model-without-dynamic-tools' }
   }
+  if (verdict.route === 'openai-compat' && compatEndpointIsSelfHosted(model, reads.env)) return { form: 'text-append', why: 'self-hosted-engine' }
   return { form: capability, why: 'route-table' }
 }
 
 function textAppendAccepted(route: CallModelRoute, model: string): boolean {
   return route === 'moonshot' ? kimiSupportsDynamicToolLoading(model) : true
+}
+
+const SELF_HOSTED_DIALECTS: ReadonlySet<string> = new Set(['vllm', 'sglang', 'llamacpp', 'ollama', 'lmstudio'])
+
+function compatEndpointIsSelfHosted(model: string, env?: Record<string, string | undefined>): boolean {
+  try {
+    const { compatModelEndpoint } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
+    const endpoint = compatModelEndpoint(model, env as NodeJS.ProcessEnv | undefined)?.endpoint
+    return endpoint !== undefined && (endpoint.hostPodId !== undefined || (endpoint.dialect !== undefined && SELF_HOSTED_DIALECTS.has(endpoint.dialect)))
+  } catch {
+    return false
+  }
 }
 
 export const OPENAI_NATIVE_DEFERRAL_FLOOR = { major: 5, minor: 4 } as const

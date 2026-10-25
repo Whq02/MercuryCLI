@@ -99,8 +99,8 @@ try {
     'torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.75 GiB. GPU 3 has a total capacity of 178.35 GiB of which 2.23 GiB is free.',
     '/workspace/mercury-host/' + offer.recipe.id + "/engine.sh: line 87: 14233 Killed                  'sglang' 'serve' '--model-path' '/workspace/mercury-host/" + offer.recipe.id + "/weights'",
   ]
-  const engineLine = 'memory allocation failed with OOM on device 1 while trying to allocate 8.9 GB (free: 4.0 GB, total: 191.5 GB)'
-  check('the engine line loses its log prefixes and reads its byte counts in GB', shortEngineLine?.(ownerRun[7]!) === engineLine, shortEngineLine?.(ownerRun[7]!))
+  const engineLine = 'torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.75 GiB. GPU 3 has a total capacity of 178.35 GiB of which 2.23 GiB is free'
+  check('the engine line loses its log prefixes and reads its byte counts in GB', shortEngineLine?.(ownerRun[7]!) === 'memory allocation failed with OOM on device 1 while trying to allocate 8.9 GB (free: 4.0 GB, total: 191.5 GB)', shortEngineLine?.(ownerRun[7]!))
   const oomWords = 'the engine ran out of GPU memory at 154k tokens of context · the recipe’s budget was 1M · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits'
   check('the out-of-memory sentence reads the tokens held and the budget from the engine’s plan and batch lines', hostEngineOomWords?.({ contextTokens: Math.round(0.09 * 1754112), budgetTokens: 1048576 }) === oomWords)
 
@@ -126,7 +126,7 @@ try {
   const posted = notices(pod.id).filter(row => !row.words.includes('ready · /model'))
   for (const row of posted) console.log('  notice · ' + (/<summary>([^]*?)<\/summary>/.exec(row.words)?.[1] ?? row.words))
   const expectedWords = machine + ' · the engine died after setup: ' + engineLine + ' · ' + oomWords + ' · paused, $' + pod.cost.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
-  check('the poll ran the product’s own read: the plan, the batch and the cause lines reached the worker', polls.some(out => out.includes('MERCURY_ENGINE_EXITED') && out.includes('MERCURY_ENGINE_PLAN max_total_num_tokens=1754112') && out.includes('MERCURY_ENGINE_BATCH ') && out.includes('MERCURY_ENGINE_CAUSE [rank1]')), polls.at(-1))
+  check('the poll ran the product’s own read: the plan, the batch and the cause lines reached the worker, the cause being the fatal line and never the warning', polls.some(out => out.includes('MERCURY_ENGINE_EXITED') && out.includes('MERCURY_ENGINE_PLAN max_total_num_tokens=1754112') && out.includes('MERCURY_ENGINE_BATCH ') && out.includes('MERCURY_ENGINE_CAUSE torch.OutOfMemoryError') && !out.includes('MERCURY_ENGINE_CAUSE [rank1]')), polls.at(-1))
   check('an engine death after ready pauses the record with the machine up: no terminate, the pod still listed, status RUNNING', paused.jobState === 'paused' && paused.status === 'RUNNING' && rp.state.deletes === deletesAtStart && rp.state.pods.has(pod.id), JSON.stringify({ jobState: paused.jobState, status: paused.status }))
   check('the record carries the engine’s own facts: the line, the OOM, the tokens held, the budget and the pool', paused.engineDeath?.line === engineLine && paused.engineDeath.oom === true && paused.engineDeath.contextTokens === Math.round(0.09 * 1754112) && paused.engineDeath.budgetTokens === 1048576 && paused.engineDeath.poolTokens === 1754112 && paused.advancedAt === paused.engineDeath.at, JSON.stringify(paused.engineDeath))
   check('the record’s words say what happened in the engine’s terms, never that the shape was too small', paused.error === expectedWords && !paused.error.includes('too small'), paused.error)

@@ -224,9 +224,10 @@ try {
   const postsBeforeConfirm = posts()
   await choose('Confirm $2.49/hr')
   await heading('Choose a GPU shape · live Runpod stock')
-  await until('Runpod could not place 1× RTX PRO 6000 · no pod was created')
+  await until('Runpod could not place 1× RTX PRO 6000 · $2.49/hr · no pod was created · nothing bills')
   await until('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr')
   check('confirm never re-reads stock before creating and a 400 refusal returns to fresh offers (one catalogue read per GPU count the single-machine rows ask: 1, 2, 4 and 8) with Runpod’s reason and no pod created', posts() === postsBeforeConfirm + 1 && rp.state.creates === 1 && rp.state.catalogReads === readsBeforeConfirm + 4 && m.screen().includes('Choose a GPU shape · live Runpod stock'))
+  check('the failed placement stays on the shape list the user is now reading: the price that failed, no pod, nothing bills', m.screen().includes('could not place 1× RTX PRO 6000 · $2.49/hr') && m.screen().includes('no pod was created · nothing bills') && m.screen().includes('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr'))
   await close()
 
   rp.state.customGpus = [

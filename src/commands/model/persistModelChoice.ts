@@ -1,9 +1,15 @@
 import type { EffortLevel } from '../../utils/effortLadder.js'
 import type { ModelSetting } from '../../utils/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
+import { compatModelEndpoint } from '../../services/providers/openaicompat/compatAccounts.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 
-type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
+type ModelChoiceOutcome = 'saved' | 'session' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
+
+function isRentedHostModel(setting: ModelSetting): boolean {
+  if (setting === null || !setting.toLowerCase().startsWith('compat/')) return false
+  try { return Boolean(compatModelEndpoint(setting)?.endpoint.hostPodId) } catch { return false }
+}
 
 type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }
 
@@ -31,9 +37,10 @@ export function persistEffortChoice(level: EffortLevel): PersistedEffortChoice {
 }
 
 export function persistModelChoice(setting: ModelSetting): PersistedModelChoice {
+  const unchanged = (): void => {}
+  if (isRentedHostModel(setting)) return { outcome: 'session', sentence: '', restore: unchanged }
   const stored = getInitialSettings().engine?.model
   const saved: ModelSetting = stored !== undefined && stored !== '' ? stored : null
-  const unchanged = (): void => {}
   if (saved !== setting) {
     const { error } = updateSettingsForSource('userSettings', { engine: { model: setting ?? undefined } })
     if (error) return { outcome: 'refused', sentence: refusedSentence(error), restore: unchanged }

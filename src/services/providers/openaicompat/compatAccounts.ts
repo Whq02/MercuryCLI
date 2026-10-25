@@ -100,7 +100,17 @@ function compatEndpointAccount(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv)
     return { kind: 'api-key', label: key.source === 'env' ? `${endpoint.label} — ${envName} (env)` : `${endpoint.label} — API key (stored, auth-scoped)`, keySource: key.source }
   }
   if (configuredProviderKeyCommand(`compat:${endpoint.name}`)) return undefined
-  return { kind: 'keyless', label: `${endpoint.label} — no key (local/auth-free endpoint)` }
+  const rental = endpoint.hostPodId ? rentedMachineWords(endpoint.hostPodId) : undefined
+  return { kind: 'keyless', label: rental ? `${endpoint.label} — ${rental} (no key)` : `${endpoint.label} — no key (local/auth-free endpoint)` }
+}
+
+function rentedMachineWords(hostPodId: string): string | undefined {
+  try {
+    const { readHostRecord } = require('../../host/store.js') as typeof import('../../host/store.js')
+    const { hostMachineName } = require('../../../commands/llmhost/words.js') as typeof import('../../../commands/llmhost/words.js')
+    const record = readHostRecord(hostPodId)
+    return record ? hostMachineName(record.vendor ?? 'runpod', record.id) + ' · $' + record.price.toFixed(2) + '/hr' : undefined
+  } catch { return undefined }
 }
 
 export function resolveCompatAccount(env: NodeJS.ProcessEnv = process.env, name?: string): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {

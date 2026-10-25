@@ -152,7 +152,7 @@ function NotificationsColumn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
-  const tokenUsage = tokenCountWithEstimation(messages)
+  const tokenUsage = tokenCountWithEstimation(messages, engineModel)
   const showTokenCount = verbose && !sessionBlocked && !compact
 
   const editorConfigured = process.env.VISUAL ?? process.env.EDITOR

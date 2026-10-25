@@ -157,7 +157,7 @@ try {
     const { result, events, steps } = await manual(manualPod.id, action, 5000, () => { rp.state.failNext = { route: action === 'stop' ? 'GET /v2/pods/' + manualPod.id : 'GET /v2/pods', status: 503, times: 2 } })
     const waiting = action === 'terminate' ? 'terminating' : 'stopping'
     check('manual ' + action + ' shows the wait on the pod row and retries two listing 503s with words, then confirms', steps.some(step => step === waiting) && steps.filter(step => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(step)).length === 2 && rp.state.failNext.times === 0 && (action === 'terminate'
-      ? result.ok && result.words === LLM_HOST_WORDS.terminatedPod && rp.state.deletes === deletes + 1 && !rp.state.pods.has(manualPod.id) && !readHostRecord(manualPod.id)
+      ? result.ok && /^Machine terminated · its disk is deleted · ~\$\d+\.\d{2} \+ storage\.$/.test(result.words) && rp.state.deletes === deletes + 1 && !rp.state.pods.has(manualPod.id) && !readHostRecord(manualPod.id)
       : result.ok && rp.state.stops === stops + 1 && rp.state.pods.get(manualPod.id)?.status === 'EXITED' && readHostRecord(manualPod.id)?.status === 'EXITED' && !events.some(words => words.includes('compute may still bill'))))
     rp.state.failNext = null
     closeHostTunnel(manualPod.id)

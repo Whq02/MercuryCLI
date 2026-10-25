@@ -11,7 +11,7 @@ import { currentHostRecipes } from './recipesFile.js'
 import { choosePrivateRecipesFile, privateRecipesRow, PRIVATE_RECIPES_ROW } from './privateRecipes.js'
 import { compatModelEndpoint } from '../providers/openaicompat/compatAccounts.js'
 import { createHostResource, getHostResource, listHostResources, terminateHostResource, hostClusterRecord, hostCreateRefusal, hostResourceKind, hostResourceLabel, hostShape } from './cluster.js'
-import { heavyWeights, hostPriceLines, hostShortStorageWords, hostStorageWords } from './costs.js'
+import { heavyWeights, hostPriceLines, hostShortStorageWords, hostSpendSoFar, hostStorageWords } from './costs.js'
 import { cents, type RunpodClient, type HostOffer, type HostPod } from './runpod.js'
 import { closeHostTunnel, ensureHostKey, fitsSsh, hostRunner, inspectSsh, localKeyPath, openHostTunnel, sshAliases, sshArguments, startHostEngine, waitHostEngine, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRecords, readHostRecord, removeHostRecord, writeHostRecord, type HostRecord } from './store.js'
@@ -285,6 +285,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           for (const endpoint of configuredCompatEndpoints()) {
             if (endpoint.hostPodId === pod.id || endpoint.name === record?.provider) removeLlmHostProvider(endpoint.name)
           }
+          if (record) { const { restoreRentingSession } = await import('./worker.js'); await restoreRentingSession(record) }
           removeHostRecord(pod.id)
           if (weightsChoice === 'delete' && volumeId) {
             const vastApi = vastClient()
@@ -294,7 +295,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
               return { ok: false, words: detail }
             }
           }
-          const endedWords = api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod
+          const spent = hostSpendSoFar([{ status: 'RUNNING', cost: pod.cost, startedAt: pod.startedAt, createdAt: pod.createdAt }])
+          const endedWords = api.capabilities.managed ? 'HF endpoint terminated · no compute bills.' : words.terminatedPod.replace(/\.$/, '') + ' · ~$' + spent.toFixed(2) + ' + storage.'
           emit({ title: words.manage, words: endedWords, host: { id: pod.id, managed: api.capabilities.managed, price: 0, startedAt: pod.createdAt, status: 'TERMINATED' } })
           return { ...(saved ?? { ok: true }), words: endedWords }
         }
@@ -525,6 +527,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         let offer: HostOffer | undefined
         let chosenModel: string | undefined
         let forceShapeList = false
+        let placementFailure: string | undefined
         for (;;) {
           const offers = (await api.offers(signal)).filter(offer => vendor !== 'runpod' || volumeFitsOffer(offer))
           const clusterFailure = vendor === 'runpod' ? runpodOnly(api, 'Clusters').clusterReadError() : undefined
@@ -572,7 +575,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           } else if (modelOffers.length === 1 && !forceShapeList) {
             offer = modelOffers[0]!
           } else {
-            const selectedShape = await question({ step: 'offers', title: vendor === 'runpod' ? words.shapes : 'Choose a GPU shape · live ' + api.label + ' stock', found: chosenModel + ' · ' + (modelOffers.length ? stockWords : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: formatHostOfferLabel(row.recipe, shape(row.recipe) + ' · ' + price(row.price) + (heavyWeights(row.recipe) ? ' · ' + hostShortStorageWords(row.recipe) : '') + ' · ' + (vendor === 'runpod' ? 'Secure Cloud' : api!.label) + (row.dataCenter ? ' · ' + row.dataCenter : '') + (row.hostingType ? ' · ' + row.hostingType : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') + (row.machineId ? ' · machine ' + row.machineId + (vastKeptVolumes().some(volume => volume.state === 'kept' && volume.machineId === row.machineId && volume.model === row.recipe.model && volume.include === (row.recipe.include ?? '')) ? ' · boots from your volume' : '') : '')) })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+            const selectedShape = await question({ step: 'offers', title: vendor === 'runpod' ? words.shapes : 'Choose a GPU shape · live ' + api.label + ' stock', found: (placementFailure ? placementFailure + '\n' : '') + chosenModel + ' · ' + (modelOffers.length ? stockWords : 'no stock now'), willRun: '', initial: modelOffers.length ? '0' : undefined, rows: [...modelOffers.map((row, index) => ({ value: String(index), label: formatHostOfferLabel(row.recipe, shape(row.recipe) + ' · ' + price(row.price) + (heavyWeights(row.recipe) ? ' · ' + hostShortStorageWords(row.recipe) : '') + ' · ' + (vendor === 'runpod' ? 'Secure Cloud' : api!.label) + (row.dataCenter ? ' · ' + row.dataCenter : '') + (row.hostingType ? ' · ' + row.hostingType : '') + (budget ? ' · ~' + (budget / row.price).toFixed(1) + 'h for $' + budget : '') + (row.machineId ? ' · machine ' + row.machineId + (vastKeptVolumes().some(volume => volume.state === 'kept' && volume.machineId === row.machineId && volume.model === row.recipe.model && volume.include === (row.recipe.include ?? '')) ? ' · boots from your volume' : '') : '')) })), ...(modelOffers.length === 0 ? [{ value: 'watch', label: words.watchConfirm }] : []), { value: 'models', label: 'Choose another model' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'cancel', label: words.cancel }] })
+            placementFailure = undefined
             if (!selectedShape || selectedShape === 'cancel') return stopped()
             if (selectedShape === 'models') { chosenModel = undefined; forceShapeList = false; continue }
             if (selectedShape === 'refresh') continue
@@ -604,7 +608,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             const privateWords = source.kind === 'private-repo' ? 'The machine downloads ' + source.repo + ' with your Hugging Face sign-in. ' : ''
             if (vendor === 'runpod') return {
               willRun: privateWords + consent,
-              lines: [...(hostPriceLines(row.recipe, row.price) ?? [row.recipe.diskGb + ' GB disk extra (rate unavailable).']), ...((row.recipe.nodes ?? 1) > 1 ? [] : [vendorStorage(vendor)])],
+              lines: [...(hostPriceLines(row.recipe, row.price) ?? [row.recipe.diskGb + ' GB disk extra · Runpod bills it per GB-month (runpod.io/pricing).']), ...((row.recipe.nodes ?? 1) > 1 ? [] : [vendorStorage(vendor)])],
               confirmLabel: 'Confirm ' + price(row.price) + (kept ? ' + ' + volumePrice(kept) + ' disk (bills without a pod)' : ' + storage') + ' · create this ' + hostResourceKind(row.recipe),
             }
             return {
@@ -644,7 +648,8 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
             pendingName = ''
             if (signal.aborted || ![400, 410].includes(refusal.status ?? 0)) throw error
             selectedRental = undefined
-            emit({ title: words.creating, words: api.label + ' could not place ' + shape(offer.recipe) + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + ' · no ' + hostResourceKind(offer.recipe) + ' was created' + (refusal.detail ? ' · ' + refusal.detail : '') })
+            placementFailure = api.label + ' could not place ' + shape(offer.recipe) + ' · ' + price(offer.price) + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + ' · no ' + hostResourceKind(offer.recipe) + ' was created · nothing bills' + (refusal.detail ? ' · ' + refusal.detail : '')
+            emit({ title: words.creating, words: placementFailure })
             forceShapeList = true
             continue
           }

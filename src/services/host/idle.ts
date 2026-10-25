@@ -64,6 +64,7 @@ async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): 
     if (record.cluster) await terminateHostResource(runpodOnly(api, 'Clusters'), { id: record.id, name: record.name, status: record.status, cost: record.price, createdAt: record.startedAt, family: record.cluster }, read)
     else await terminateVerified(api, record.id, read, api.label)
     if (record.provider) { const { removeLlmHostProvider } = await import('../llmHost/index.js'); removeLlmHostProvider(record.provider) }
+    { const { restoreRentingSession } = await import('./worker.js'); await restoreRentingSession(record) }
     const volume = record.volumeId ? readKeptVolume(record.volumeId) : undefined
     if (volume && volume.preparingPod === record.id) writeKeptVolume({ ...volume, preparingPod: undefined })
     const disk = volume && volume.state !== 'gone' ? 'weights disk ' + volume.id + ' is kept and bills ' + keptDiskPrice(volume) : record.volumeId ? 'weights disk billing is not verified; check your account' : ''

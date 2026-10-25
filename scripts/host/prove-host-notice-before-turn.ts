@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -34,15 +34,27 @@ try {
   hostNotice(record, 'ready', ready)
   const visible = await runner.waitFor('ready notice paints in a blank hosted session without an operator prompt', row => row.type === 'task' && row.summary === ready, 12000)
   assert.equal(visible.status, 'completed')
-  await runner.waitFor('ready notice wakes the model without operator input', row => row.type === 'outcome', 20000)
-  assert.equal(fixture.messageRequests().length, 1, 'the settled ready notice starts exactly one model request')
+  const paused = 'HOST-PAUSED-BEFORE-FIRST-PROMPT · setup paused · $3.99/hr still billing · Resume or Terminate in /llmhost'
+  hostNotice({ ...record, generation: 'paused-generation' }, 'paused', paused)
+  const pausedRow = await runner.waitFor('a pause notice paints the same way', row => row.type === 'task' && row.summary === paused, 12000)
+  assert.equal(pausedRow.status, 'stopped')
   hostNotice(record, 'failed', 'HOST-FAILURE-BEFORE-FIRST-PROMPT · setup stopped')
   const failed = await runner.waitFor('failure notice also paints before the first prompt', row => row.type === 'task' && row.summary === 'HOST-FAILURE-BEFORE-FIRST-PROMPT · setup stopped', 12000)
   assert.equal(failed.status, 'failed')
-  await runner.waitFor('failure notice wakes the model once when it arrives', () => runner.rows.filter(row => row.type === 'outcome').length === 2, 20000)
-  assert.equal(fixture.messageRequests().length, 2, 'two settled notices make two timely turns, not a deferred batch')
+  const terminated = 'HOST-TERMINATED-BEFORE-FIRST-PROMPT · Machine terminated · its disk is deleted.'
+  hostNotice({ ...record, generation: 'ended-generation' }, 'ended', terminated)
+  await runner.waitFor('a terminate notice paints too', row => row.type === 'task' && row.summary === terminated, 12000)
+  await new Promise(resolve => setTimeout(resolve, 6000))
+  assert.equal(fixture.messageRequests().length, 0, 'a ready, a pause, a failure and a terminate notice make zero model requests')
+  assert.equal(runner.rows.filter(row => row.type === 'outcome').length, 0, 'no turn opened for a host notice')
   assert.equal(runner.rows.filter(row => row.type === 'task' && row.summary === ready).length, 1)
   assert.equal(runner.rows.filter(row => row.type === 'task' && row.summary === failed.summary).length, 1)
+  const transcripts = readdirSync(join(home, 'projects'), { recursive: true }).map(String).filter(name => name.endsWith(sessionId + '.jsonl'))
+  assert.equal(transcripts.length, 1, 'the session transcript exists: ' + transcripts.join(', '))
+  const recorded = readFileSync(join(home, 'projects', transcripts[0]!), 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { actor?: { role?: string }; annotations?: { isVirtual?: boolean; origin?: { kind?: string } }; payload?: { kind?: string; content?: unknown } })
+  const noticeRows = recorded.filter(row => row.payload?.kind === 'input' && typeof row.payload.content === 'string' && row.payload.content.includes('<task-id>host-'))
+  assert.equal(noticeRows.length, 4, 'each notice is recorded once as a transcript row: ' + noticeRows.length)
+  assert.ok(noticeRows.every(row => row.annotations?.isVirtual === true && row.annotations.origin?.kind === 'task-notification'), 'every recorded notice row is virtual on the notification lane: painted for the user, never sent to the model')
   resetCommandQueue()
   const own = { ...record, sessionId: 'classification-only' }
   for (const kind of ['ready', 'failed', 'rented', 'expired', 'ended']) hostNotice({ ...own, generation: kind }, kind, kind + ' message')
@@ -55,6 +67,6 @@ try {
   }
   deliverHostNotices(own.sessionId)
   assert.equal(getCommandQueue().length, 5, 'reopening does not deliver a notice twice')
-  assert.equal(fixture.messageRequests().length, 2)
-  console.log('HOST NOTICE BEFORE TURN GREEN · blank built runner paints ready and failed notices before first input, each wakes the model once, and delivery never repeats')
+  assert.equal(fixture.messageRequests().length, 0)
+  console.log('HOST NOTICE BEFORE TURN GREEN · blank built runner paints ready, paused, failed and terminate notices before first input, none wakes the model, each is recorded once, and delivery never repeats')
 } finally { await runner.stop(); await fixture.close() }

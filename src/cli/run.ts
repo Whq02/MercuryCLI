@@ -214,7 +214,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isHostNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -697,7 +697,6 @@ export async function runHeadless(
     void sessionWiringModules().catch(() => {})
   }
 
-
   const hookFirstPrompt = takeFirstPrompt()
   if (hookFirstPrompt) {
     io.prependUserMessage(hookFirstPrompt)
@@ -1170,7 +1169,6 @@ export async function runHeadless(
     },
   })
 
-
   const isMainThreadCommand = (command: QueuedCommand): boolean =>
     command.agentId === undefined
   const takeMainThread = (): QueuedCommand | undefined => dequeue(isMainThreadCommand)
@@ -1186,12 +1184,34 @@ export async function runHeadless(
     return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
   }
 
+  const recordHostNoticeRows = async (notices: readonly QueuedCommand[]): Promise<void> => {
+    const { createUserMessage } = await import('../utils/messages/factories.js')
+    const rows = notices.map(notice => createUserMessage({ content: notice.value, isVirtual: true, origin: { kind: 'task-notification' }, ...(notice.uuid !== undefined ? { uuid: notice.uuid } : {}) }))
+    messages.push(...rows)
+    await recordTranscript(rows, undefined, messages).catch((error: unknown) => {
+      logForDebugging(`host notice: the row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
+    })
+  }
+  let turnReachedModel = false
   const executeTurn = async (
     command: QueuedCommand,
     batch: QueuedCommand[],
     onMessage: (message: RowDraft) => void,
     initialNotices: QueuedCommand[] = [],
   ): Promise<void> => {
+    const members = batch.length > 0 ? batch : [command]
+    turnReachedModel = false
+    if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
+      const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
+      emitCommandNotifications(hostNotices)
+      await recordHostNoticeRows(hostNotices)
+      const spoken = members.filter(member => !isHostNotice(member))
+      initialNotices = initialNotices.filter(member => !isHostNotice(member))
+      if (spoken.length === 0) return
+      batch = spoken.length > 1 ? spoken : []
+      command = spoken.length > 1 ? { ...spoken[0]!, value: foldNotificationValues(spoken.map(member => member.value)), uuid: spoken.findLast(member => member.uuid !== undefined)?.uuid ?? spoken[0]!.uuid } : spoken[0]!
+    }
+    turnReachedModel = true
     const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
     const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
@@ -1530,7 +1550,7 @@ export async function runHeadless(
     onTurnSettled: command => {
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
-      void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
+      if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
       getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))),

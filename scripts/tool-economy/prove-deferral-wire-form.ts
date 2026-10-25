@@ -67,6 +67,22 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   const olderKimi = wire.deferralWireFormFor('kimi-k2.6')
   check('a Kimi model without dynamic tool loading (kimi-k2.6) reads the text form, and says why', olderKimi.form === 'text' && olderKimi.why === 'model-without-dynamic-tools' && wire.supportsToolDeferral('kimi-k2.6') === false, `${olderKimi.form}/${olderKimi.why}`)
   check('the append form defers (supportsToolDeferral) on kimi-k3; the zai row stays text and does not defer (the live measurement ruled: the cache held but GLM never called a text-declared tool)', wire.supportsToolDeferral('kimi-k3') === true && wire.deferralWireFormFor('glm-5.3').form === 'text' && wire.supportsToolDeferral('glm-5.3') === false)
+  const { writeFileSync } = await import('node:fs')
+  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ compatProvider: {
+    'pod-odoqvdb23009eo': { baseUrl: 'http://127.0.0.1:9/pod/v1', hostPodId: 'odoqvdb23009eo', dialect: 'vllm' },
+    'studio': { baseUrl: 'http://127.0.0.1:9/studio/v1', dialect: 'llamacpp' },
+    'hosted-api': { baseUrl: 'http://127.0.0.1:9/hosted/v1', dialect: 'chat-completions' },
+    'plain': { baseUrl: 'http://127.0.0.1:9/plain/v1' },
+  } }) + '\n')
+  resetSettingsCache()
+  const rented = wire.deferralWireFormFor('compat/pod-odoqvdb23009eo/openai/gpt-oss-120b')
+  check('a rented machine behind a compat endpoint → text-append (self-hosted-engine), and it defers', rented.form === 'text-append' && rented.why === 'self-hosted-engine' && wire.supportsToolDeferral('compat/pod-odoqvdb23009eo/openai/gpt-oss-120b') === true, `${rented.form}/${rented.why}`)
+  const studio = wire.deferralWireFormFor('compat/studio/GLM-5.3-Flash')
+  check('a self-hosted engine dialect (llama.cpp) behind a compat endpoint → text-append, and it defers', studio.form === 'text-append' && studio.why === 'self-hosted-engine' && wire.supportsToolDeferral('compat/studio/GLM-5.3-Flash') === true, `${studio.form}/${studio.why}`)
+  const hostedApi = wire.deferralWireFormFor('compat/hosted-api/some-model')
+  const plainEndpoint = wire.deferralWireFormFor('compat/plain/some-model')
+  check('a hosted third-party API behind the compat slot keeps the text form and does not defer', hostedApi.form === 'text' && hostedApi.why === 'route-table' && plainEndpoint.form === 'text' && wire.supportsToolDeferral('compat/plain/some-model') === false, `${hostedApi.form}/${hostedApi.why} ${plainEndpoint.form}`)
   const stranger = wire.deferralWireFormFor('mystery-model-9000')
   check('an unrecognised id reads the home lane evidence (first-party here ⇒ block)', stranger.form === 'block' && stranger.why === 'first-party-contract')
   const absent = wire.deferralWireFormFor('')

@@ -391,3 +391,9 @@ export function isHeldNotice(cmd: QueuedCommand): boolean {
 export function isOperatorLine(cmd: QueuedCommand): boolean {
   return (cmd.mode === 'prompt' || cmd.mode === 'bash') && cmd.isMeta !== true
 }
+
+const HOST_NOTICE_ID = /<task-id>host-[0-9a-f]{64}<\/task-id>/
+
+export function isHostNotice(cmd: QueuedCommand): boolean {
+  return cmd.mode === 'task-notification' && HOST_NOTICE_ID.test(textOfCommand(cmd))
+}

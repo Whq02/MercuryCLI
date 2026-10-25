@@ -1404,7 +1404,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       return
     }
     const saved = persistModelChoice(id)
-    if (saved.outcome !== 'saved') {
+    if (saved.outcome !== 'saved' && saved.outcome !== 'session') {
       setNotice(saved.sentence)
       return
     }

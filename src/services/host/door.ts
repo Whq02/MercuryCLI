@@ -6,7 +6,7 @@ import { HOST_VENDORS, vendorKey, vendorLabel, vendorStorage, vendorKeyNotice, t
 import { vendorKeyRows } from './vendorKeys.js'
 import { bankRowWords, bankState, weightsLine } from './bank.js'
 import { BANK_KEYS, type BankActionKind } from './fastLoad.js'
-import { LLM_HOST_SEARCH_MIN_CHARS, hostNoStockWords, hostRunningCountWords, hostSetupEstimate, hostVendorKeysWords } from '../../commands/llmhost/words.js'
+import { LLM_HOST_SEARCH_MIN_CHARS, hostMachineName, hostNoStockWords, hostRunningCountWords, hostSetupEstimate, hostVendorKeysWords } from '../../commands/llmhost/words.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { configuredCompatEndpoints, resolveCompatApiKey, isCompatEndpointCredentialed } from '../providers/openaicompat/compatAccounts.js'
 import { inspectCompatServer } from '../providers/openaicompat/compatProbe.js'
@@ -127,7 +127,7 @@ function readyWords(recipe: HostRecipe): string {
   return hostSetupEstimate(recipe)
 }
 function rentalSentence(offer: HostOffer, thinking = thinkingWords(offer.recipe)): string {
-  return modelTitle(offer.recipe) + ' · ' + shape(offer.recipe) + ' · ' + hourly(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + '\n' + qualityWords(offer.recipe) + ' · ' + conversationWords(offer.recipe) + ' · thinking ' + thinking + '\n' + offer.recipe.diskGb + ' GB disk extra (rate unavailable). Billing starts now and continues after closing.'
+  return modelTitle(offer.recipe) + ' · ' + shape(offer.recipe) + ' · ' + hourly(offer.price) + (offer.dataCenter ? ' · ' + offer.dataCenter : '') + '\n' + qualityWords(offer.recipe) + ' · ' + conversationWords(offer.recipe) + ' · thinking ' + thinking + '\n' + offer.recipe.diskGb + ' GB disk extra · Runpod bills it per GB-month (runpod.io/pricing). Billing starts now and continues after closing.'
 }
 export function modelDoorRoad(road: LlmHostRoad, title: string): LlmHostRoad {
   return async (ask, emit, signal) => {
@@ -276,7 +276,7 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
       const runningRecipe = live && recipes.find(recipe => recipe.id === live.recipe)
       const stamp = stampRank(variants)
       const derived = variants.every(recipe => recipe.verified.by === 'unverified' && recipe.id.startsWith('hf-'))
-      const where = (live && runningRecipe ? 'running on your machine ' + live.id + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
+      const where = (live && runningRecipe ? 'running on ' + hostMachineName(live.vendor ?? 'runpod', live.id) + ' · ' + hourly(live.price) + ' · ' + conversationWords(runningRecipe) + ' — switch →'
         : own ? 'fits ' + boxName(own) + ' (' + own.memoryGb + ' GB) — start here →'
         : cheapest ? cheapestVendor + ' ' + shape(cheapest.recipe) + ' · ' + hourly(cheapest.price) + ' · in stock'
         : offers === undefined ? 'Runpod · ' + (offerError ? 'stock unavailable · retry →' : 'connect →') : hostNoStockWords(stockVendors))

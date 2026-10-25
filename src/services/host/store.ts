@@ -27,6 +27,7 @@ export interface HostRecord {
   volumeId?: string; prepareWeightsOnly?: boolean; verifyWeightsFully?: boolean; weightsCheck?: string
   weightsSource?: WeightsSource
   loadedWeights?: string
+  sessionModelBefore?: string; sessionModel?: string
   engineDeath?: HostEngineDeathFacts
   linkLost?: true
   cluster?: HostCluster

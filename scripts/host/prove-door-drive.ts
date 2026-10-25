@@ -98,7 +98,7 @@ try {
   const screen1 = modelPages.join('\n')
   check('Screen 1 has one row per model, with no filenames', names.every(name => modelRows.filter(line => line.includes(name.padEnd(Math.max(...names.map(name => name.length))) + ' · ')).length === 1) && !/\.gguf|UD-Q/.test(screen1))
   const at = (needle: string): number => { const index = screen1.indexOf(needle); assert.ok(index >= 0, 'Screen 1 carries ' + needle); return index }
-  check('running first, then cheapest stock, then no stock', at('running on your machine') < at('in stock') && at('in stock') < at('no stock'))
+  check('running first, then cheapest stock, then no stock', at('running on Runpod pod') < at('in stock') && at('in stock') < at('no stock'))
   check('cursor starts on the already-paid model', selected().includes('GLM-5.3-Flash'))
   const screenTop = mounted!.screen()
   await walk('My computers'); const screenEnd = mounted!.screen(); await walk('GLM-5.3-Flash', KEY.up)
@@ -133,7 +133,7 @@ try {
   await heading('Confirm the hourly price')
   await capture('120-fallback-confirm')
   const confirm = mounted!.screen().replace(/[│\s]+/g, ' ')
-  check('confirm retains rate, disk, quality, source and billing consequences', ['$2.49/hr', '80 GB disk', 'rate unavailable', 'Qwen3.8-27B', '8-bit FP8', 'Weights: Hugging Face', 'Billing starts now', 'continues after closing', 'terminate deletes'].every(text => confirm.toLowerCase().includes(text.toLowerCase())) && !/documented|not measured/.test(confirm))
+  check('confirm retains rate, disk, quality, source and billing consequences', ['$2.49/hr', '80 GB disk', 'per GB-month (runpod.io/pricing)', 'Qwen3.8-27B', '8-bit FP8', 'Weights: Hugging Face', 'Billing starts now', 'continues after closing', 'terminate deletes'].every(text => confirm.toLowerCase().includes(text.toLowerCase())) && !/documented|not measured/.test(confirm))
   check('money confirmation preselects nothing and still has no create', !selected() && rp.state.creates === 0)
   await choose('Confirm $2.49/hr'); await heading('Machine controls')
   check('confirmation uses the existing create exactly once and queues setup', rp.state.creates === 1 && queued.length === 1 && readHostRecord(queued[0]!)?.jobState === 'queued' && readHostRecord(queued[0]!)?.recipe === 'qwen38-27b-rtx-pro-6000')
