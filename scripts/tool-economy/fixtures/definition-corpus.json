@@ -1,5 +1,5 @@
 {
-  "base": "9814ea38d44050abb0ea1fd443c81ea083e447f4",
+  "base": "da5f3b9b176c3eca43efcc001d957077f5266d39",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1765,7 +1765,7 @@
     },
     {
       "name": "ChangeSet",
-      "description": "Use this over Edit when the same change spans several files: one coordinated review and apply.\n\nAtomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.\n\nOperations:\n1. { op: \"apply\", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.\n2. { op: \"preview\", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: \"apply\", plan_id: \"cs-…\" }. A drifted file refuses the whole apply with current anchors and exact reread instructions.\n3. { op: \"status\", plan_id } — plan state + per-file freshness.\n4. { op: \"discard\", plan_id } — retire a prepared plan.\n\nEach changes[] member targets one existing text file with the Edit hunk vocabulary:\n  { file_path, expected_anchor (required — the \"(anchor: …)\" value from your Read), hunks: [{ lines: \"N\" | \"N-M\", replace, insert?: \"before\"|\"after\" }] }\nHunks are 1-based against the anchored snapshot and must be disjoint; \"\" deletes the range; insert takes a single anchor line.\n\nThe contract:\n· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;\n· a normal apply reaches the complete planned state, verified by reread;\n· a midway interruption is journaled and deterministically reconciled at the next boot;\n· if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.\n\nAlready-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.\n\nBounds (an exceeded bound names the limit and the smallest recovery): 16 files/set · 32 hunks/file · 128 hunks/set · 4MB staged content/set · 16 retained plans · 30-minute plan lifetime.\n\nNot this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash) · deletion/moves (Bash / lsp.pathRename).",
+      "description": "Use this over Edit when the same change spans several files: one coordinated review and apply.\n\nAtomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.\n\nOperations:\n1. { op: \"apply\", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.\n2. { op: \"preview\", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: \"apply\", plan_id: \"cs-…\" }. A drifted file refuses the whole apply with current anchors and exact reread instructions.\n3. { op: \"status\", plan_id } — plan state + per-file freshness.\n4. { op: \"discard\", plan_id } — retire a prepared plan.\n\nEach changes[] member targets one existing text file with the Edit hunk vocabulary:\n  { file_path, expected_anchor (required — the \"(anchor: …)\" value from your Read), hunks: [{ lines: \"N\" | \"N-M\", replace, insert?: \"before\"|\"after\" }], op?: \"edit\" | \"delete\" | \"move\", new_path? }\nHunks are 1-based against the anchored snapshot and must be disjoint; \"\" deletes the range; insert takes a single anchor line. op \"delete\" removes the file (no hunks); op \"move\" renames it to new_path, which must not exist, after any hunks. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.\n\nThe contract:\n· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;\n· a normal apply reaches the complete planned state, verified by reread;\n· a midway interruption is journaled and deterministically reconciled at the next boot;\n· if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.\n\nAlready-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.\n\nBounds (an exceeded bound names the limit and the smallest recovery): 16 files/set · 32 hunks/file · 128 hunks/set · 4MB staged content/set · 16 retained plans · 30-minute plan lifetime.\n\nNot this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1794,7 +1794,7 @@
                   "description": "REQUIRED staleness anchor from a prior Read of this file (the \"(anchor: …)\" value)"
                 },
                 "hunks": {
-                  "minItems": 1,
+                  "description": "Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); required for op \"edit\" (the default), optional for a move, none for a delete",
                   "type": "array",
                   "items": {
                     "type": "object",
@@ -1821,14 +1821,25 @@
                       "replace"
                     ],
                     "additionalProperties": false
-                  },
-                  "description": "Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary)"
+                  }
+                },
+                "op": {
+                  "description": "\"edit\" (default) applies the hunks; \"delete\" removes the file (no hunks); \"move\" renames it to new_path after any hunks",
+                  "type": "string",
+                  "enum": [
+                    "edit",
+                    "delete",
+                    "move"
+                  ]
+                },
+                "new_path": {
+                  "description": "move: the absolute destination path, which must not exist",
+                  "type": "string"
                 }
               },
               "required": [
                 "file_path",
-                "expected_anchor",
-                "hunks"
+                "expected_anchor"
               ],
               "additionalProperties": false
             }
