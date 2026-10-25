@@ -38,9 +38,11 @@ writeFileSync(join(real, 'target.txt'), 'p\nsee a/b: c\nneedle here\nq\n')
 const link = join(base, 'link')
 symlinkSync(real, link, 'junction')
 
+const triggers = new Set<string>()
 const context = {
   abortController: new AbortController(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
+  nestedMemoryAttachmentTriggers: triggers,
 } as never
 type Answer = { data: { content?: string; numLines?: number; numFiles: number; numMatches?: number; filenames: string[]; appliedLimit?: number; appliedOffset?: number; incomplete?: string } }
 const search = async (cwd: string, input: Record<string, unknown>): Promise<Answer> =>
@@ -166,11 +168,15 @@ try {
     numbered('multi.txt', ':', 6, 'MARK7 two/x: y'),
   ].sort()
   check('a content search without context lists its hits under their relative paths', j([...lines(plain)].sort()) === j(plainWant) && plain.data.numLines === 7, j(lines(plain)))
+  const landed = ['notes.txt', 'grep-colon.txt', '2024-01-15-notes.md', join('sub', 'deep.txt'), 'ratio.txt', 'multi.txt'].map(file => join(dir, file))
+  check('a content search names every file it landed in, by absolute path, for the folder\'s MERCURY.md / AGENTS.md and path-scoped rules (RED on the base: only Read did)', landed.every(file => triggers.has(file)), j([...triggers]))
+  triggers.clear()
   const counted = await search(dir, { pattern: 'MARK', output_mode: 'count' })
   const countWant = ['notes.txt:1', 'grep-colon.txt:1', '2024-01-15-notes.md:1', `${deepPath}:1`, 'ratio.txt:1', 'multi.txt:2'].sort()
   check('count mode answers its tallies per relative path', j([...lines(counted)].sort()) === j(countWant) && counted.data.numMatches === 7 && counted.data.numFiles === 6, j({ lines: lines(counted), numMatches: counted.data.numMatches, numFiles: counted.data.numFiles }))
   const listed = await search(dir, { pattern: 'MARK' })
   check('the file list answers the relative paths', j([...listed.data.filenames].sort()) === j(['notes.txt', 'grep-colon.txt', '2024-01-15-notes.md', deepPath, 'ratio.txt', 'multi.txt'].sort()), j(listed.data.filenames))
+  check('a count or file-list search names no file (no line of theirs was shown)', triggers.size === 0, j([...triggers]))
   const none = await search(dir, { pattern: 'NOSUCHWORD', output_mode: 'content', '-C': 1 })
   check('a search with context and no hit answers an empty content', (none.data.content ?? '') === '' && none.data.numLines === 0, j(none.data))
 } catch (error) {

@@ -1137,6 +1137,7 @@ export const FileEditTool = buildTool({
     if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       await discoverSkillsForPath(context, expandedPath)
     }
+    context.nestedMemoryAttachmentTriggers?.add(expandedPath)
     const parentDir = expandedPath.split(/[\\/]/).slice(0, -1).join('/')
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)

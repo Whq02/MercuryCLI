@@ -224,6 +224,7 @@ export const FileWriteTool = buildTool({
     } catch (err) {
       logError(err)
     }
+    context.nestedMemoryAttachmentTriggers?.add(expandedPath)
 
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)

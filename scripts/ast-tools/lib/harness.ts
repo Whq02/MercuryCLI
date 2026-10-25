@@ -77,6 +77,7 @@ export async function makeContext(tools: unknown[], opts: ProverContextOptions =
     agentId: undefined,
     toolDecisions: new Map(),
     readFileState,
+    nestedMemoryAttachmentTriggers: new Set<string>(),
     setResponseLength: () => {},
     updateFileHistoryState,
     updateAttributionState: () => {},

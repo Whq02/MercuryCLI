@@ -232,6 +232,9 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       return fail(failureWords(err, filePath))
     }
   }
+  try {
+    await manager.revalidateOpenDocuments()
+  } catch {}
   if (operation === 'workspaceSymbol') {
     const query = input.query!
     let startPath = filePath

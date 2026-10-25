@@ -248,5 +248,23 @@ section('the whole-file Write of the same text over a CRLF file changes nothing:
   check('the LF spelling of the same lines settles as no change and the file keeps every CRLF (RED on the base: a 5-line rewrite to LF)', same.ok && /No changes were made/.test(textOf(same)) && disk(kind.file) === kind.bytes, textOf(same).slice(0, 200))
 }
 
+section('a write names its path for the folder\'s MERCURY.md / AGENTS.md and path-scoped rules, as a Read does')
+{
+  type Triggers = { nestedMemoryAttachmentTriggers: Set<string> }
+  const fresh = join(repo, 'sub', 'brand-new.txt')
+  const ctx = makeContext()
+  const wrote = await run(FileWriteTool, { file_path: fresh, content: 'new here\n' }, ctx)
+  check('Write of a new file with no prior read names the path (RED on the base: only Read did)', wrote.ok && (ctx as unknown as Triggers).nestedMemoryAttachmentTriggers.has(fresh), textOf(wrote).slice(0, 200))
+  const kind = KINDS.find(k => k.id === 'bom')!
+  restore(kind.file)
+  const path = join(repo, kind.file)
+  const ctx2 = makeContext()
+  const read = await run(FileReadTool, { file_path: path }, ctx2)
+  ;(ctx2 as unknown as Triggers).nestedMemoryAttachmentTriggers.clear()
+  const applied = await run(ChangeSetTool, { op: 'apply', changes: [{ file_path: path, expected_anchor: anchorOf(textOf(read)), hunks: [{ lines: '2', replace: 'WORLD LINE' }] }] }, ctx2)
+  check('ChangeSet apply names every committed path (RED on the base: only Read did)', applied.ok && (ctx2 as unknown as Triggers).nestedMemoryAttachmentTriggers.has(path), textOf(applied).slice(0, 200))
+  restore(kind.file)
+}
+
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

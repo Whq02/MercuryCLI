@@ -79,6 +79,8 @@ section('§3 — apply asks like Edit does; the receipt')
   check('an anchor per written file for patch chaining', /src\/stats\.ts — 1 rewrite \(anchor: /.test(a.text), a.text.slice(0, 300))
   const fresh = allowed.readFileState.get(join(root, 'rename/src/stats.ts')) as { content?: string } | undefined
   check('readFileState refreshed with the written bytes', fresh?.content === read('rename/src/stats.ts'))
+  const named = allowed.ctx.nestedMemoryAttachmentTriggers as Set<string>
+  check('every written path is named for its folder\'s MERCURY.md / AGENTS.md and path-scoped rules, as a Read names it (RED on the base: only Read did)', named.has(join(root, 'rename/src/stats.ts')) && named.has(join(root, 'rename/src/report.ts')) && !named.has(join(root, 'rename/src/records.ts')), JSON.stringify([...named]))
   check('changedPaths are the exact absolute paths', Array.isArray(a.data?.changedPaths) && (a.data!.changedPaths as string[]).length === 2 && (a.data!.changedPaths as string[]).every(p => p.startsWith(root)), JSON.stringify(a.data?.changedPaths))
   const receipt = receipts.find(r => r.operation === 'file.astEdit')
   check('ONE change receipt minted with operation file.astEdit and the paths', receipts.filter(r => r.operation === 'file.astEdit').length === 1 && receipt !== undefined && receipt.changedPaths.length === 2, JSON.stringify(receipts))

@@ -77,12 +77,27 @@ export function normalizeWorkspaceEdit(
   }
 
   const files = [...byUri.entries()]
-    .map(([uri, edits]) => (created.has(uri) ? { uri, edits, create: true } : { uri, edits }))
+    .map(([uri, edits]) => ({ uri, edits: collapseRepeatedEdits(edits), ...(created.has(uri) ? { create: true } : {}) }))
     .filter(f => f.edits.length > 0 || f.create === true)
   if (files.length === 0) {
     return { ok: false, reason: 'edit set is empty — nothing to apply' }
   }
   return { ok: true, files }
+}
+
+function collapseRepeatedEdits(edits: LspTextEditLike[]): LspTextEditLike[] {
+  const seen = new Set<string>()
+  const kept: LspTextEditLike[] = []
+  for (const edit of edits) {
+    const { start, end } = edit.range
+    if (start.line !== end.line || start.character !== end.character) {
+      const key = `${start.line}:${start.character}-${end.line}:${end.character}\u0000${edit.newText}`
+      if (seen.has(key)) continue
+      seen.add(key)
+    }
+    kept.push(edit)
+  }
+  return kept
 }
 
 function lineStartsOf(text: string): number[] {

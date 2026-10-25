@@ -63,6 +63,20 @@ check(
   JSON.stringify(symbols).slice(0, 160),
 )
 
+console.log('§1b LspRead on an OPEN document answers from disk: a navigation query revalidates before it is sent')
+const { LspReadTool } = await import('../../src/tools/LSPTool/LSPTool.js')
+const toolPath = path.join(scratch, 'tool-reval.ts')
+writeFileSync(toolPath, v1)
+await manager.openFile(toolPath, v1)
+writeFileSync(toolPath, 'export function seenByLspRead(): number {\n  return 3\n}\nexport const one = 1\n')
+const toolContext = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: {} }), options: { tools: [] } } as never
+const toolAnswer = (await LspReadTool.call({ operation: 'documentSymbol', filePath: toolPath } as never, toolContext, null as never, undefined as never)) as { data: { result: string } }
+check(
+  'LspRead documentSymbol on an already-open file names the symbol that exists only in the on-disk rewrite (RED on the base: the open document was never re-read)',
+  toolAnswer.data.result.includes('seenByLspRead'),
+  toolAnswer.data.result.slice(0, 200),
+)
+
 console.log('§2 200 unchanged documents: zero resyncs, zero closes')
 const bulkDir = path.join(scratch, 'bulk')
 mkdirSync(bulkDir)
@@ -109,6 +123,11 @@ check('the document is left as it was', manager.getDocumentVersion(bigPath) === 
 console.log('§5 the wiring')
 const ops = readFileSync(path.join(repo, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
 check('runMercuryLspOp revalidates at op entry', /runMercuryLspOp[\s\S]{0,900}revalidateOpenDocuments/.test(ops))
+const toolSrc = readFileSync(path.join(repo, 'src/tools/LSPTool/LSPTool.ts'), 'utf8')
+const bridgeAt = toolSrc.indexOf('if (MERCURY_BRIDGE_OPERATIONS.has(operation)) {')
+const revalidateAt = toolSrc.indexOf('await manager.revalidateOpenDocuments()')
+const symbolAt = toolSrc.indexOf("if (operation === 'workspaceSymbol') {")
+check('runLspOperation revalidates once, after the bridge dispatch (which revalidates on its own) and before every navigation and symbol query', bridgeAt !== -1 && revalidateAt > bridgeAt && symbolAt > revalidateAt, `${bridgeAt} ${revalidateAt} ${symbolAt}`)
 const drain = readFileSync(path.join(repo, 'src/utils/attachments/diagnostics.ts'), 'utf8')
 check('the diagnostics drain revalidates before delivering', drain.includes('revalidateOpenDocuments'))
 const mgrSrc = readFileSync(path.join(repo, 'src/services/lsp/LSPServerManager.ts'), 'utf8')

@@ -46,6 +46,26 @@ function check(name: string, ok: boolean, detail?: string): void {
   )
 }
 {
+  const text = 'const abc = 1\n'
+  const replace = { range: rangeOf(text, 'abc'), newText: 'xyz' }
+  const r = normalizeWorkspaceEdit({
+    changes: { 'file:///a.ts': [replace] },
+    documentChanges: [
+      { textDocument: { uri: 'file:///a.ts', version: 3 }, edits: [{ ...replace }] },
+      { textDocument: { uri: 'file:///a.ts', version: 3 }, edits: [{ ...replace }] },
+    ],
+  })
+  const applied = r.ok ? applyEditsToText(text, r.files[0]!.edits) : undefined
+  check(
+    'normalize: the same replacement listed three times for one URI (changes + two TextDocumentEdit blocks) collapses to one, and the file applies (RED on the base: refused as overlapping)',
+    r.ok && r.files.length === 1 && r.files[0]!.edits.length === 1 && applied?.ok === true && applied.text === 'const xyz = 1\n',
+    r.ok ? `${r.files[0]!.edits.length} edits; ${applied?.ok ? applied.text : (applied as { reason: string } | undefined)?.reason}` : r.reason,
+  )
+  const insert = { range: r0(), newText: 'x' }
+  const twice = normalizeWorkspaceEdit({ changes: { 'file:///a.ts': [insert, { ...insert }] } })
+  check('normalize: two identical pure insertions are kept as sent, in order', twice.ok && twice.files[0]!.edits.length === 2)
+}
+{
   const r = normalizeWorkspaceEdit({})
   check('normalize: empty edit refused', !r.ok)
 }

@@ -824,6 +824,7 @@ async function runApply(
   const syncFailures: string[] = []
   const freshAnchors: Array<{ path: string; anchor: string }> = []
   for (const t of changedTargets) {
+    context.nestedMemoryAttachmentTriggers?.add(t.canonicalPath)
     if (t.fileOp === 'delete') {
       context.readFileState.delete(t.canonicalPath)
       dropSeenLines(owner, t.canonicalPath)
@@ -832,6 +833,7 @@ async function runApply(
     }
     const landedPath = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
     if (t.fileOp === 'move') {
+      context.nestedMemoryAttachmentTriggers?.add(landedPath)
       context.readFileState.delete(t.canonicalPath)
       if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
     }

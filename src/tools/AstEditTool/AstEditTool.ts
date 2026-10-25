@@ -459,6 +459,7 @@ export const AstEditTool = buildTool({
     const syncFailures: string[] = []
     const anchors = new Map<string, string>()
     for (const f of plan.files) {
+      context.nestedMemoryAttachmentTriggers?.add(f.abs)
       context.readFileState.set(f.abs, {
         content: f.after,
         timestamp: getFileModificationTime(f.abs),

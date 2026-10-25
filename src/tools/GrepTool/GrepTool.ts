@@ -563,6 +563,7 @@ export const GrepTool = buildTool({
             const omitted = /^\[Omitted long (?:matching|context) line\]$/.test(line.slice(m[0].length))
             recordSeenLines(owner, file, generation, number, 1, omitted ? [{ line: number, visibleChars: 0 }] : [])
           }
+          for (const [file, generation] of generations) if (generation !== null) context.nestedMemoryAttachmentTriggers?.add(file)
         } catch {
         }
       }
