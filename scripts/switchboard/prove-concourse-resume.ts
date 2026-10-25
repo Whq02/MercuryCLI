@@ -222,7 +222,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   seedChat(P_WEEK, S_W1, 'this week one', 1 * 60 * 60_000)
   seedChat(P_WEEK, S_W2, 'this week two', 2 * DAY)
   seedChat(P_WEEK, S_W3, 'this week three', 6 * DAY)
-  for (let i = 1; i <= 14; i++) seedChat(P_WEEK, sid(`o${i}`), `older ${i}`, (7 + i) * DAY)
+  for (let i = 1; i <= 14; i++) seedChat(P_WEEK, sid(`e${i}`), `older ${i}`, (7 + i) * DAY)
   seedWorkers([liveRecord('concourse-w1', S_W1, P_WEEK)])
   const snap = await buildFor(P_WEEK)
   const parked = snap.groups.find(g => g.id === 'parked')?.rows ?? []
@@ -234,8 +234,8 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   check('the older line is ONE honest line, LAST in the group, counting the census (17 chats − 2 painted − 1 record-owned = 14 enumerable)', line !== undefined && parked[parked.length - 1] === line && line.title === '14 older chats · ↵ to browse', line?.title)
   check('the older line is a door, not a session: parked state, no transcript, no age, no owner', line?.state === 'parked' && line.transcriptPath === undefined && line.ageLabel === null && line.ownerLabel === null && line.workspaceDir === undefined)
   const P_CAP = join(SCRATCH, 'proj-cap-week')
-  for (let i = 1; i <= 12; i++) seedChat(P_CAP, sid(`w${i}`), `week ${i}`, i * 60 * 60_000)
-  for (let i = 1; i <= 5; i++) seedChat(P_CAP, sid(`x${i}`), `old ${i}`, (9 + i) * DAY)
+  for (let i = 1; i <= 12; i++) seedChat(P_CAP, sid(`a${i}`), `week ${i}`, i * 60 * 60_000)
+  for (let i = 1; i <= 5; i++) seedChat(P_CAP, sid(`b${i}`), `old ${i}`, (9 + i) * DAY)
   seedWorkers([])
   const capped = (await buildFor(P_CAP)).groups.find(g => g.id === 'parked')?.rows ?? []
   const cappedRows = capped.filter(r => !r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX))

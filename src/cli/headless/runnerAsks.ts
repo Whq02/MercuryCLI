@@ -41,10 +41,11 @@ class AskAborted extends Error {
 
 type ToolAskParams = PermissionRequestParams
 
-type AskAnswer = PermissionAnswer & { unanswered?: true }
+type AskAnswer = PermissionAnswer & { unanswered?: true; rechecked?: PermissionDecision }
+type AskOptions = { signal?: AbortSignal; key: string; recheck?: () => Promise<PermissionDecision | undefined> }
 
 interface AskChannel {
-  askPermission(params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<AskAnswer>
+  askPermission(params: PermissionRequestParams, opts: AskOptions): Promise<AskAnswer>
   parkedAsks(): number
 }
 
@@ -52,6 +53,7 @@ export interface AskHost extends AskChannel {
   createCanUseTool(onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn
   handleElicitation(serverName: string, message: string, requestedSchema?: Record<string, unknown>, signal?: AbortSignal, mode?: 'form' | 'url', url?: string, elicitationId?: string): Promise<ElicitResult>
   denyPendingPermissionRequests(cause: string): number
+  recheckPendingPermissionRequests(): Promise<void>
   pendingControlRequestCount(): number
   setOnControlRequestSent(cb: (() => void) | undefined): void
   setOnControlRequestResolved(cb: (() => void) | undefined): void
@@ -170,7 +172,15 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
         ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),
         ...(wireMode !== undefined ? { mode: wireMode } : {}),
       }
-      const requestPromise = channel.askPermission(params, { signal: requestController.signal, key })
+      const requestPromise = channel.askPermission(params, {
+        signal: requestController.signal,
+        key,
+        recheck: async () => {
+          const context = toolUseContext.getAppState().toolPermissionContext
+          const fresh = await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseID)
+          return toolUseContext.getAppState().toolPermissionContext === context ? fresh : undefined
+        },
+      })
       if (askLimit > 0) {
         awayTimer = setTimeout(() => {
           away = true
@@ -213,7 +223,7 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
       }
 
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
-      return decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
+      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
     } catch (error) {
       if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
@@ -238,6 +248,7 @@ type ParkedAsk = {
   id: number | null
   toolName: string
   settle: (answer: AskAnswer) => void
+  recheck: () => Promise<void>
 }
 
 export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): AskHost {
@@ -245,7 +256,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
   let onParked: (() => void) | undefined
   let onSettled: (() => void) | undefined
 
-  const askPermission = (params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<AskAnswer> => {
+  const askPermission = (params: PermissionRequestParams, opts: AskOptions): Promise<AskAnswer> => {
     if (peer.closed) return Promise.reject(new PeerClosed('permission/request', 'the runner door is closed'))
     if (opts.signal?.aborted) return Promise.reject(new AskAborted('the ask was aborted before it was sent'))
     return new Promise<AskAnswer>((resolve, reject) => {
@@ -260,6 +271,15 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
           if (entry.id !== null) peer.cancel(entry.id, 'settled by the runner')
           onSettled?.()
           resolve(answer)
+        },
+        recheck: async () => {
+          if (settled || opts.signal?.aborted || opts.recheck === undefined) return
+          try {
+            const decision = await opts.recheck()
+            if (!settled && !opts.signal?.aborted && decision?.behavior === 'allow') entry.settle({ outcome: 'allow', rechecked: decision })
+          } catch (error) {
+            logForDebugging(`permission recheck failed for ${entry.toolName}: ${error instanceof Error ? error.message : String(error)}`)
+          }
         },
       }
       parked.set(opts.key, entry)
@@ -324,6 +344,9 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
       }
       return settledCount
     },
+    async recheckPendingPermissionRequests() {
+      await Promise.all([...parked.values()].map(entry => entry.recheck()))
+    },
     pendingControlRequestCount: () => peer.pendingCount,
     setOnControlRequestSent: cb => {
       onParked = cb
@@ -348,6 +371,7 @@ export function createRuleOnlyAsks(): AskHost {
     createCanUseTool: () => canUseTool,
     handleElicitation: () => Promise.resolve({ action: 'cancel' } as ElicitResult),
     denyPendingPermissionRequests: () => 0,
+    recheckPendingPermissionRequests: async () => {},
     pendingControlRequestCount: () => 0,
     setOnControlRequestSent: () => {},
     setOnControlRequestResolved: () => {},

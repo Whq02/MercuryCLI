@@ -8,7 +8,7 @@ import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { getProjectsDir } from './sessionStorage/paths.js'
-import { getProjectDir } from './sessionStoragePortable.js'
+import { getProjectDir, validateUuid } from './sessionStoragePortable.js'
 
 export interface BootProjectFact {
   dir: string
@@ -153,7 +153,7 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
   const card = names.includes(PROJECT_CARD_FILE) ? readProjectCard(store) : null
   const candidates: Array<{ file: string; mtime: number; size: number }> = []
   for (const f of names) {
-    if (!f.endsWith('.jsonl') || f === skip) continue
+    if (!isSessionFile(f) || f === skip) continue
     try {
       const st = statSync(join(store, f))
       candidates.push({ file: join(store, f), mtime: st.mtimeMs, size: st.size })
@@ -170,6 +170,10 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
   if (picked === null && candidates.length > HUSK_WALK) picked = candidates[HUSK_WALK] ?? null
   if (picked === null && card === null) return null
   return { card, newest: picked }
+}
+
+function isSessionFile(file: string): boolean {
+  return file.endsWith('.jsonl') && validateUuid(sessionIdOf(file)) !== null
 }
 
 function sessionIdOf(file: string): string {
@@ -204,7 +208,7 @@ export function projectChatCount(projectDir: string, opts: { excludeSessionId?: 
     const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
     let n = 0
     for (const f of readdirSync(home)) {
-      if (!f.endsWith('.jsonl') || f === skip) continue
+      if (!isSessionFile(f) || f === skip) continue
       try {
         if (statSync(join(home, f)).size > 0) n++
       } catch {
@@ -227,7 +231,7 @@ export function parkedSessionsOf(
     const since = opts.withinMs !== undefined ? (opts.nowMs ?? Date.now()) - opts.withinMs : Number.NEGATIVE_INFINITY
     const candidates: Array<{ file: string; mtime: number; size: number }> = []
     for (const f of readdirSync(home)) {
-      if (!f.endsWith('.jsonl') || f === skip) continue
+      if (!isSessionFile(f) || f === skip) continue
       try {
         const st = statSync(join(home, f))
         if (st.size > 0 && st.mtimeMs >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })

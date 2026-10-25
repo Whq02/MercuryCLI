@@ -1990,6 +1990,7 @@ export async function runHeadless(
       const nextContext = resolved.context
       setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
       markSessionPermissionMode(nextContext.mode)
+      void asks.recheckPendingPermissionRequests()
       return { mode: params.mode }
     },
     'session/set_model': async (params, ref) => {

@@ -42,6 +42,18 @@ export type SessionFactsResult = {
       unpriced_turns: number
       last_used_at_ms?: number
     }>
+    context?: {
+      model: string
+      used_tokens: null | number
+      used_pct: null | number
+      fill_source: null | 'usage' | 'estimate'
+      window: number
+      window_source: 'operator' | 'suffix-1m' | 'live-current' | 'static-pin' | 'capability' | 'beta-header' | 'fallback'
+      window_pinned: boolean
+      window_reason?: string
+      compact_at_pct: null | number
+      left_until_compact_pct: null | number
+    }
     limit_warning?: null | {
       provider: string
       text: string
@@ -197,7 +209,7 @@ export type SessionFactsResult = {
         label: string
         state: string
         agentId?: string
-        waiting?: null | 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
+        waiting?: null | 'operator' | 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
         pausedBy?: null | string
       }>
     }>

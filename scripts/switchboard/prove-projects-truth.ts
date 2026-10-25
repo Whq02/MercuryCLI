@@ -140,6 +140,46 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   check('T5 the Continue form rides the same truth (cwdProject = the real session)', facts.cwdProject?.sessionId === SID_REAL)
 }
 
+{
+  const { mkdirSync, utimesSync, writeFileSync, rmSync } = await import('node:fs')
+  const { mock } = await import('bun:test')
+  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+  const { scanBootCardFacts, parkedSessionsOf, projectChatCount, projectIdentity, PROJECT_CARD_FILE } = await import('../../src/utils/bootCardFacts.ts')
+  const project = join(process.env.MERCURY_CONFIG_DIR!, 'repo-receipts')
+  mkdirSync(project)
+  const store = getProjectDir(project)
+  mkdirSync(store, { recursive: true })
+  const sessionId = '00000000-aaaa-4000-8000-000000000015'
+  const transcript = join(store, `${sessionId}.jsonl`)
+  const sidecar = join(store, `${sessionId}.receipts.jsonl`)
+  writeFileSync(join(store, PROJECT_CARD_FILE), JSON.stringify({ schema: 1, dir: project, firstChatAt: Date.now(), firstSessionId: sessionId }))
+  writeFileSync(transcript, JSON.stringify({ cwd: project, kind: 'input', sessionId }) + '\n')
+  const old = new Date(Date.now() - 60_000)
+  utimesSync(transcript, old, old)
+  writeFileSync(sidecar, JSON.stringify({ kind: 'receipt', id: 'receipt-1' }) + '\n')
+  check('T6 Continue chooses the transcript, never its newer receipts sidecar', scanBootCardFacts(project).cwdProject?.sessionId === sessionId)
+  check('T6 the project identity chooses the same transcript', projectIdentity(project).newestChat?.transcriptPath === transcript)
+  check('T6 the parked list contains exactly one session', JSON.stringify(parkedSessionsOf(project).map(row => row.sessionId)) === JSON.stringify([sessionId]))
+  check('T6 the chat count excludes the sidecar', projectChatCount(project) === 1)
+  check('T6 excluding the session does not offer its sidecar', scanBootCardFacts(project, sessionId).cwdProject === null && parkedSessionsOf(project, { excludeSessionId: sessionId }).length === 0 && projectChatCount(project, { excludeSessionId: sessionId }) === 0)
+  rmSync(transcript)
+  check('T6 a sidecar alone offers no Continue session', scanBootCardFacts(project).cwdProject === null && projectIdentity(project).newestChat === null && parkedSessionsOf(project).length === 0 && projectChatCount(project) === 0)
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
+  let lookups = 0
+  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
+  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  for (const id of [`${sessionId}.receipts`, 'not-a-session', '']) {
+    try {
+      const resumed = await focusResumedSession(id, sidecar)
+      check('T6 an invalid resume id refuses before admission with the existing unknown-session words', !resumed.ok && resumed.reason === 'no live session record owns this id' && await resumed.admitted === false && await resumed.refusal === 'no live session record owns this id')
+    } catch (error) {
+      check('T6 an invalid resume id refuses before admission', false, String(error))
+    }
+  }
+  check('T6 an invalid resume never consults or launches a runner', lookups === 0)
+  mock.restore()
+}
+
 if (failures > 0) {
   console.log(`\nprove-projects-truth: ${failures} FAILURE(S)`)
   process.exit(1)

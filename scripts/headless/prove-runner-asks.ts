@@ -54,6 +54,7 @@ type Harness = {
   waitAsk: () => Promise<Ask>
   closeHost: () => void
   runnerClosed: () => boolean
+  ready: Promise<unknown>
 }
 
 function makeHarness(opts: { allow?: string[]; deny?: string[]; elicitation?: boolean } = {}): Harness {
@@ -90,7 +91,7 @@ function makeHarness(opts: { allow?: string[]; deny?: string[]; elicitation?: bo
     cancels.push(params)
   })
   runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '1.0.0', pid: process.pid }, session_id: 'sid' }))
-  void host.request('initialize', { protocol: 1, host: { name: 'proof', version: '0' }, capabilities })
+  const ready = host.request('initialize', { protocol: 1, host: { name: 'proof', version: '0' }, capabilities })
   let state: Record<string, unknown> = {
     toolPermissionContext: {
       ...getEmptyToolPermissionContext(),
@@ -136,6 +137,7 @@ function makeHarness(opts: { allow?: string[]; deny?: string[]; elicitation?: bo
       toRunner.end()
     },
     runnerClosed: () => runner.closed,
+    ready,
   }
 }
 
@@ -312,6 +314,60 @@ section('R9 — the host closes the door while an ask is parked: the ask settles
   check('the runner peer is closed and nothing stays pending', h.runnerClosed() && h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
 }
 
+section('R10 — rechecking a new mode releases every allowed ask and preserves questions and denials')
+{
+  const h = makeHarness()
+  let settledCount = 0
+  h.asks.setOnControlRequestResolved(() => { settledCount++ })
+  const question = { ...TOOL, name: 'QuestionProbe', requiresUserInteraction: () => true }
+  const denied = { ...TOOL, name: 'DeniedProbe' }
+  const inputs = [{ file: 'first' }, { file: 'second' }]
+  const allowed = inputs.map((input, index) => h.asks.createCanUseTool()(TOOL as never, input, h.ctx as never, ASSISTANT, `mode-${index}`))
+  const heldQuestion = h.asks.createCanUseTool()(question as never, {}, h.ctx as never, ASSISTANT, 'question')
+  const heldDeny = h.asks.createCanUseTool()(denied as never, {}, h.ctx as never, ASSISTANT, 'denied')
+  for (let i = 0; i < 100 && h.hostSaw.length < 4; i++) await settle(10)
+  check('all four asks reached the host', h.hostSaw.length === 4 && h.asks.parkedAsks() === 4)
+  await h.asks.recheckPendingPermissionRequests()
+  check('an unchanged mode leaves every ask queued', h.asks.parkedAsks() === 4)
+  const setState = h.ctx.setAppState as (f: (p: any) => any) => void
+  setState(previous => ({ ...previous, toolPermissionContext: { ...previous.toolPermissionContext, mode: 'sovereign', alwaysDenyRules: { session: ['DeniedProbe'] } } }))
+  await Promise.all([h.asks.recheckPendingPermissionRequests(), h.asks.recheckPendingPermissionRequests()])
+  const decisions = await Promise.all(allowed)
+  check('all allowed asks resolve with their original inputs', decisions.every((d, index) => d.behavior === 'allow' && j(d.updatedInput) === j(inputs[index])), j(decisions))
+  check('a mode release is not recorded as a human approval', decisions.every(d => d.decisionReason?.type === 'mode'))
+  await settle(20)
+  check('the released asks disappear on the host wire exactly once each', h.withdrawn.size === 2 && settledCount === 2 && h.asks.parkedAsks() === 2, j({ withdrawn: [...h.withdrawn], settledCount }))
+  check('the mandatory question and newly denied tool still wait for the host', h.hostSaw.filter(ask => ['QuestionProbe', 'DeniedProbe'].includes(String(ask.params.tool_name))).every(ask => !h.withdrawn.has(ask.id)))
+  h.asks.denyPendingPermissionRequests('proof cleanup')
+  await Promise.all([heldQuestion, heldDeny])
+  h.closeHost()
+}
+
+section('R11 — a host answer or abort during a recheck wins over the late allow')
+for (const winner of ['host', 'abort'] as const) {
+  const h = makeHarness()
+  let release = (): void => {}
+  const waiting = new Promise<void>(resolve => { release = resolve })
+  let rechecking = false
+  const tool = { ...TOOL, checkPermissions: async () => {
+    if (!rechecking) return { behavior: 'ask', message: 'plain ask' }
+    await waiting
+    return { behavior: 'allow', updatedInput: { changed: true } }
+  } }
+  const pending = h.asks.createCanUseTool()(tool as never, {}, h.ctx as never, ASSISTANT, winner)
+  const ask = await h.waitAsk()
+  rechecking = true
+  const rechecked = h.asks.recheckPendingPermissionRequests()
+  await settle(10)
+  if (winner === 'host') h.answer(ask.id, { outcome: 'deny', message: 'operator denied' })
+  else (h.ctx.abortController as AbortController).abort()
+  const decision = await pending
+  release()
+  await rechecked
+  check(`${winner} beats the late allowing recheck`, decision.behavior === 'deny' && h.asks.parkedAsks() === 0, j(decision))
+  h.closeHost()
+}
+
 section("N1 — the ask has one kind: the wire schema refuses kind: network as any unknown kind, and the ask host carries no network callback")
 {
   const { PermissionRequestParamsSchema } = await import('../../src/runner/wire/methods.ts')
@@ -322,6 +378,7 @@ section("N1 — the ask has one kind: the wire schema refuses kind: network as a
   check('…with the same verdict an unknown kind gets', !unknown.success && network.success === unknown.success)
   const h = makeHarness()
   check('the ask host has no network callback', !('createSandboxAskCallback' in h.asks))
+  await h.ready
   h.closeHost()
   await settle(20)
 }
@@ -332,6 +389,7 @@ section('E1 — elicitation: answered cancel at once when the host declared none
   const t0 = Date.now()
   const answer = await silent.asks.handleElicitation('fixture-server', 'Which one?', { type: 'object' }, undefined, 'form')
   check('without the capability the answer is cancel, at once, and nothing reaches the host', answer.action === 'cancel' && Date.now() - t0 < 200 && silent.hostSaw.length === 0, j(answer))
+  await silent.ready
   silent.closeHost()
   const spoken = makeHarness({ elicitation: true })
   const p = spoken.asks.handleElicitation('fixture-server', 'Which one?', { type: 'object', properties: { a: { type: 'string' } } }, undefined, 'form')

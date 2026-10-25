@@ -208,6 +208,39 @@ await guarded(async () => {
   rmSync(scratch.cwd, { recursive: true, force: true })
 })
 
+section('§5 a mode change releases a waiting tool without a manual answer')
+await guarded(async () => {
+  const scratch = scratchHome('runner-mode-recheck-')
+  const target = join(scratch.cwd, 'allowed-by-mode.txt')
+  const api = await startFixtureApi([
+    { kind: 'tool_use', name: 'Write', input: { file_path: target, content: 'allowed by implement\n' } },
+    { kind: 'text', text: 'MODE-RELEASED.' },
+  ])
+  const host = hostRunner({ dist: DIST, node, cwd: scratch.cwd, home: scratch.home, env: { ...scratch.env, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CREDENTIAL_STORE: 'file' }, argv: ['--model', 'claude-opus-4-8'] })
+  try {
+    await host.initialize({}, 90_000)
+    await host.prompt('write the file')
+    const ask = await host.waitForAsk('the waiting write', 60_000)
+    check('the write waits in default mode', ask.params.tool_name === 'Write' && !existsSync(target))
+    const refusedMode = await errorOf(host.request('session/set_mode', { mode: 'sovereign' }, 10_000))
+    check('an unconsented mode change leaves the ask waiting', refusedMode?.code === RPC_REFUSED && !host.withdrawn.has(ask.id) && !existsSync(target), j(refusedMode))
+    const mode = await host.request('session/set_mode', { mode: 'implement' }, 10_000)
+    check('the allowing mode change lands', mode.mode === 'implement')
+    try {
+      const outcome = await host.waitFor('the mode-released write', row => row.type === 'outcome', 10_000)
+      check('the tool finishes without answering the card by hand', outcome.status === 'completed' && existsSync(target), j(outcome))
+    } catch (error) {
+      check('the tool finishes without answering the card by hand', false, String(error))
+    }
+    check('the host withdraws the released permission card', host.withdrawn.has(ask.id))
+  } finally {
+    await host.stop()
+    await api.close()
+    rmSync(scratch.home, { recursive: true, force: true })
+    rmSync(scratch.cwd, { recursive: true, force: true })
+  }
+})
+
 console.log('')
 if (failures > 0) {
   console.log(`❌ runner door: ${failures} FAILURE(S)`)

@@ -12,6 +12,7 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
+import type { ContextFillView } from '../../utils/contextFill.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 
@@ -111,6 +112,10 @@ type LimitWarningFactV1 = {
   text: string
 }
 
+interface ContextFactsV1 extends ContextFillView {
+  model: string
+}
+
 export type UsageFactsV1 = {
   totalCostUSD: number
   totalAPIDurationMs: number
@@ -124,7 +129,7 @@ export type UsageFactsV1 = {
   hasUnknownModelCost: boolean
   unpricedTurns?: number
   modelSpend?: ModelSpendRowV1[]
-  context?: import('../../utils/contextFill.js').ContextFillView & { model: string }
+  context?: ContextFactsV1
   limitWarning?: LimitWarningFactV1 | null
   openaiObserved?: {
     primary?: OpenaiObservedBandV1

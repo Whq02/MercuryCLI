@@ -5,6 +5,7 @@ import type { PermissionMode } from '../../types/permissions.js'
 import { emitFocusedSessionConnectorChanged, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
+import { validateUuid } from '../../utils/sessionStoragePortable.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -134,6 +135,10 @@ async function focusResumedSessionLanding(
   transcriptPath: string | undefined,
   opts?: ResumeOptions,
 ): Promise<ResumeOutcome> {
+  if (validateUuid(sessionId) === null) {
+    const reason = 'no live session record owns this id'
+    return { ok: false, reason, admitted: Promise.resolve(false), refusal: Promise.resolve(reason) }
+  }
   const workers = await import('../../daemon/concourseWorkers.js')
   const launch = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
