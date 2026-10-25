@@ -47,7 +47,7 @@
 An agent reads and edits files, runs shell commands, steps through tests and debuggers, and checks the results. You choose the model provider, the model, and what the agent is allowed to do:
 
 - **Multi-session Concourse and isolated worktrees:** run multiple sessions side by side on the Session Concourse (`/concourse`), and delegate parallel work to cross-provider crewmates (`Crewmate`) in isolated `git worktree` checkouts with project file leases so parallel agents do not overwrite each other.
-- **20 model providers, `/llmhost` and `/localsetup`:** keep all 20 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Cerebras, Fireworks AI) and switch providers and models mid-chat. Open `/llmhost` to pick a model, check its quantization, `conversations × context` split and thinking level, and run it on a rented GPU (Runpod, Vast.ai or Lambda), on your own computer (`mercury host`), or on an existing server. Or run `/localsetup` to install or connect Ollama alongside LM Studio, vLLM and llama.cpp.
+- **22 model providers, `/llmhost` and `/localsetup`:** keep all 22 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen, Qwen, MiniMax, Together AI, Cohere, Groq, Melious AI, OrcaRouter, Cerebras, Fireworks AI) and switch providers and models mid-chat. Open `/llmhost` to pick a model, check its quantization, `conversations × context` split and thinking level, and run it on a rented GPU (Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda or DigitalOcean), on your own computer (`mercury host`), or on an existing server. Or run `/localsetup` to install or connect Ollama alongside LM Studio, vLLM and llama.cpp.
 - **Mneme hybrid RAG project memory:** uses an on-device 118 MB BGE semantic embedding model (`bge-base-en-v1.5`) with BM25 word ranking and citation tracking, verbatim pinned rules, branch-aware startup context, write-time contradiction checks, session handoff notes, and the `/memory page` browser graph.
 - **Compiler, AST and DAP debugging tools:** connects LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) for stepping into failing Python, Node, Go and Rust tests, and persistent Python and JavaScript `Eval` cells.
 - **Keyless `WebSearch` and markdown `WebFetch`:** searches through provider-native search, Brave or Tavily keys, official APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG and keyless DuckDuckGo, and fetches public documentation as markdown within a 38,000-character call budget.
@@ -475,7 +475,8 @@ uses its own protocol, credentials and error handling, and requests never fall
 back to another provider. See [docs/ENGINES.md](docs/ENGINES.md).
 
 `/llmhost` lists the models you can host and shows where each one can run right
-now: on a GPU rented from Runpod, Vast.ai or Lambda, on your own computer or a
+now: on a GPU rented from Runpod, Vast.ai, Lambda, Hugging Face Inference
+Endpoints, Hyperstack, Verda or DigitalOcean, on your own computer or a
 saved SSH computer (`mercury host`), or on an existing model server. Each model
 page shows quantization options, how the GPU-memory budget divides across
 parallel conversations (`conversations × context`), and the default thinking
@@ -950,7 +951,7 @@ commands.
 
 | Command | What it does |
 | --- | --- |
-| `/llmhost` | Choose a model to rent on Runpod, Vast.ai or Lambda, run on your own computer, or connect an existing server. |
+| `/llmhost` | Choose a model to rent on Runpod, Vast.ai, Lambda, Hugging Face Inference Endpoints, Hyperstack, Verda or DigitalOcean, run on your own computer, or connect an existing server. |
 | `/restart` | Move this chat to the installed Mercury build; running watches and background shells stop. |
 | `/mcp` | Inspect servers, sign in, browse each server’s tools and parameters, reconnect, or toggle a server for this chat. |
 
