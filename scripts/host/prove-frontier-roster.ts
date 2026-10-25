@@ -5,7 +5,7 @@ import { exportHostRecipesJson } from '../../src/services/host/recipesFile.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const shipped = JSON.parse(exportHostRecipesJson()).recipes as HostRecipe[]
-const added = HOST_RECIPES.filter(row => row.verified.on === '2026-10-22')
+const added = HOST_RECIPES.filter(row => row.verified.on === '2026-10-22' || row.id.startsWith('hy4-preview-') || row.model === 'thinkingmachines/Inkling-NVFP4')
 const manifests = JSON.parse(readFileSync(new URL('../../assets/host/weights.json', import.meta.url), 'utf8')) as Array<{ model: string; revision: string; files: Array<{ size: number }> }>
 let failures = 0
 let checks = 0
@@ -53,6 +53,16 @@ for (const id of ['step5-preview-b300', 'step5-preview-h200', 'nemotron35-super-
   assert.equal(row.verified.on, '2026-10-22')
   assert.equal(row.verified.source, row.source)
   assert.ok(row.verification.startsWith('verified · '))
+})
+for (const row of HOST_RECIPES.filter(row => row.id.startsWith('hy4-preview-'))) check(row.id + ' serves the 262144-token hardware budget (SGLang Hy4-Preview, read 2026-10-25)', () => {
+  assert.match(row.label, /770B/)
+  assert.equal(row.context, 262144)
+  assert.equal(value(row, '--context-length'), '262144')
+  assert.equal(row.verified.on, '2026-10-25')
+})
+for (const row of HOST_RECIPES.filter(row => row.model === 'thinkingmachines/Inkling-NVFP4')) check(row.id + ' has 975B parameters and xhigh (SGLang Inkling, read 2026-10-25)', () => {
+  assert.match(row.label, /975B/)
+  assert.deepEqual(row.efforts?.levels, ['low', 'medium', 'high', 'xhigh', 'max'])
 })
 console.log(`FRONTIER ROSTER ${failures ? 'RED' : 'GREEN'} — ${checks} checks, ${failures} failed`)
 process.exitCode = failures ? 1 : 0

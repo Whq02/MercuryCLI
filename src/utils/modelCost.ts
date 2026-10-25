@@ -18,7 +18,7 @@ import { cohereDisplayPin } from '../services/providers/cohere/coherePins.js'
 import { groqDisplayPin } from '../services/providers/groq/groqPins.js'
 import { cerebrasDisplayPin } from '../services/providers/cerebras/cerebrasPins.js'
 import { fireworksDisplayPin } from '../services/providers/fireworks/fireworksPins.js'
-import { qwenDisplayPin } from '../services/providers/qwen/qwenPins.js'
+import { qwenDisplayPin, qwenPriceTierFor } from '../services/providers/qwen/qwenPins.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
@@ -63,6 +63,12 @@ export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
 }
+const COST_SONNET_5_5 = {
+  ...COST_TIER_2_10,
+  promptCacheReadTokens: 0.1,
+  observedAt: '2026-10-25',
+  source: 'https://platform.claude.com/docs/en/about-claude/pricing',
+}
 const COST_HAIKU_35: ModelCosts = {
   inputTokens: 0.8,
   outputTokens: 4,
@@ -94,7 +100,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-sonnet-4-5': COST_TIER_3_15,
   'claude-sonnet-4-6': COST_TIER_3_15,
   'claude-sonnet-5': COST_TIER_2_10,
-  'claude-sonnet-5-5': COST_TIER_2_10,
+  'claude-sonnet-5-5': COST_SONNET_5_5,
   'claude-opus-4': COST_TIER_15_75,
   'claude-opus-4-1': COST_TIER_15_75,
   'claude-opus-4-5': COST_TIER_5_25,
@@ -269,7 +275,10 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   cerebras: model => recorded(engineTier(cerebrasDisplayPin(model))),
   fireworks: model => recorded(engineTier(fireworksDisplayPin(model))),
-  qwen: model => recorded(engineTier(qwenDisplayPin(model))),
+  qwen: (model, promptTokens) => {
+    const pin = qwenDisplayPin(model)
+    return pin === undefined ? undefined : recorded(engineTier(qwenPriceTierFor(pin, promptTokens)))
+  },
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number; startedAtMs?: number }): ResolvedModelPricing {

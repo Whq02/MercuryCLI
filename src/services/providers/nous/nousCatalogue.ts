@@ -279,12 +279,17 @@ export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = proces
   return found ?? slug
 }
 
-export const NOUS_PORTAL_RECOMMENDED: readonly string[] = [
-  'anthropic/claude-sonnet-4.6',
-  'openai/gpt-5.5-pro',
-  'google/gemini-3.1-pro-preview',
-  'deepseek/deepseek-v4-pro',
-]
+const NOUS_PORTAL_RECOMMENDATION = {
+  observedAt: '2026-10-25',
+  source: 'https://inference-api.nousresearch.com/v1/models',
+  ids: [
+    'anthropic/claude-sonnet-5.5',
+    'openai/gpt-6.1-sol',
+    'google/gemini-4-argon',
+    'deepseek/deepseek-v4.1-flash-1017',
+  ],
+}
+export const NOUS_PORTAL_RECOMMENDED: readonly string[] = NOUS_PORTAL_RECOMMENDATION.ids
 
 export const NOUS_MODEL_GROUP = 'Mercury — Nous Portal models'
 export const NOUS_CONNECT_OPTION_VALUE = '__mercury_nous_connect__'

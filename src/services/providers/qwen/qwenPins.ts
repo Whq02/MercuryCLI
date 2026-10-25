@@ -7,6 +7,9 @@ interface QwenDisplayPin {
   id: string
   wireId?: string
   displayName: string
+  observedAt?: string
+  source?: string
+  longPrompt?: readonly { aboveInputTokens: number; costInPerMtok: number; costOutPerMtok: number; cachedInPerMtok: number; cacheWritePerMtok: number }[]
   contextWindow?: number
   outputMax?: number
   costInPerMtok?: number
@@ -30,12 +33,12 @@ const QWEN_CODING_PLAN_ROUTER_ID = 'qwen-auto'
 export const QWEN_DISPLAY_PINS: readonly QwenDisplayPin[] = [
   { ...flagship, id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', efforts: QWEN_EFFORTS, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, codingPlan: true },
   { ...flagship, id: 'qwen3.7-max', displayName: 'Qwen3.7 Max', images: false, costInPerMtok: 2.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.25, cacheWritePerMtok: 3.125, codingPlan: true },
-  { ...flagship, id: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', costInPerMtok: 0.4, costOutPerMtok: 1.6, cachedInPerMtok: 0.08, cacheWritePerMtok: 0.5, codingPlan: true },
+  { ...flagship, id: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.4, costOutPerMtok: 1.6, cachedInPerMtok: 0.08, cacheWritePerMtok: 0.5, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1.2, costOutPerMtok: 4.8, cachedInPerMtok: 0.24, cacheWritePerMtok: 1.5 }] },
   { ...flagship, id: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', efforts: QWEN_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016, cacheWritePerMtok: 0.2, codingPlan: true },
   { ...flagship, id: 'qwen3.8-omni-flash', displayName: 'Qwen3.8 Omni Flash', efforts: QWEN_EFFORTS, costInPerMtok: 0.15, costOutPerMtok: 0.47, cachedInPerMtok: 0.016 },
-  { ...flagship, id: 'qwen3.7-flash', displayName: 'Qwen3.7 Flash', costInPerMtok: 0.03, costOutPerMtok: 0.13, cachedInPerMtok: 0.006, cacheWritePerMtok: 0.038 },
-  { ...flagship, id: 'qwen3.6-flash', displayName: 'Qwen3.6 Flash', outputMax: 65_536, preservesThinking: false, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025, cacheWritePerMtok: 0.3125, codingPlan: true },
-  { id: 'qwen3-coder-flash', displayName: 'Qwen3 Coder Flash', contextWindow: 1_000_000, outputMax: 65_536, costInPerMtok: 0.3, costOutPerMtok: 1.5, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375, thinking: 'none', preservesThinking: false, efforts: [], images: false },
+  { ...flagship, id: 'qwen3.7-flash', displayName: 'Qwen3.7 Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', costInPerMtok: 0.03, costOutPerMtok: 0.13, cachedInPerMtok: 0.006, cacheWritePerMtok: 0.0375, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 0.2, costOutPerMtok: 0.8, cachedInPerMtok: 0.04, cacheWritePerMtok: 0.25 }, { aboveInputTokens: 32_000, costInPerMtok: 0.1, costOutPerMtok: 0.4, cachedInPerMtok: 0.02, cacheWritePerMtok: 0.125 }] },
+  { ...flagship, id: 'qwen3.6-flash', displayName: 'Qwen3.6 Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/model-pricing', outputMax: 65_536, preservesThinking: false, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025, cacheWritePerMtok: 0.3125, codingPlan: true, longPrompt: [{ aboveInputTokens: 256_000, costInPerMtok: 1, costOutPerMtok: 4, cachedInPerMtok: 0.1, cacheWritePerMtok: 1.25 }] },
+  { id: 'qwen3-coder-flash', displayName: 'Qwen3 Coder Flash', observedAt: '2026-10-25', source: 'https://www.alibabacloud.com/help/en/model-studio/text-generation-model', contextWindow: 1_000_000, outputMax: 65_536, costInPerMtok: 0.3, costOutPerMtok: 1.5, cachedInPerMtok: 0.06, cacheWritePerMtok: 0.375, thinking: 'hybrid', preservesThinking: false, efforts: [], images: false },
   { id: QWEN_CODING_PLAN_ROUTER_ID, wireId: 'auto', displayName: 'Auto (the plan picks the model)', thinking: 'hybrid', preservesThinking: false, efforts: [], images: false, codingPlan: true, codingPlanOnly: true },
 ]
 
@@ -69,6 +72,9 @@ export function qwenDisplayPin(id: string): QwenDisplayPin | undefined {
   return QWEN_DISPLAY_PINS.find(pin => pin.id === bare)
 }
 
+export function qwenPriceTierFor(pin: QwenDisplayPin, promptTokens: number | undefined): Pick<QwenDisplayPin, 'costInPerMtok' | 'costOutPerMtok' | 'cachedInPerMtok' | 'cacheWritePerMtok'> {
+  return pin.longPrompt?.find(tier => promptTokens !== undefined && promptTokens > tier.aboveInputTokens) ?? pin
+}
 export function qwenDisplayName(id: string): string {
   return qwenDisplayPin(id)?.displayName ?? bareId(id)
 }

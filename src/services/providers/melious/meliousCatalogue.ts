@@ -149,7 +149,7 @@ export function meliousOutputMaxFor(id: string): number | undefined { return mel
 export function meliousCatalogueRows(env: NodeJS.ProcessEnv = process.env) {
   const snapshot = getCachedMeliousCatalogue(env)
   const rows = (snapshot?.models ?? []).flatMap(model => {
-    const ids = model.id.includes(':') ? [model.id] : [model.id, ...['speed', 'price', 'eco'].map(flavor => `${model.id}:${flavor}`)]
+    const ids = model.id.includes(':') ? [model.id] : [model.id, ...['speed', 'price', 'eco', 'batch'].map(flavor => `${model.id}:${flavor}`)]
     return ids.map(id => ({ id: `melious/${id}`, displayName: id, observedAt: new Date(snapshot!.fetchedAtMs).toISOString().slice(0, 10), contextWindow: model.contextWindow, listedLive: true }))
   })
   return { rows, source: snapshot && snapshot.fetchedAtMs > 0 ? { kind: 'live' as const, count: snapshot.models.length, otherLines: snapshot.otherLines, fetchedAtMs: snapshot.fetchedAtMs } : { kind: 'unread' as const } }

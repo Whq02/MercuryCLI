@@ -25,6 +25,7 @@ interface HuggingfaceDisplayPin {
   id: string
   displayName: string
   observedAt: string
+  source?: string
   contextWindow?: number
   supportsTools: boolean
   priceFloorInPerMtok?: number
@@ -44,11 +45,12 @@ export const HUGGINGFACE_DISPLAY_PINS: readonly HuggingfaceDisplayPin[] = [
   {
     id: 'Qwen/Qwen3.8-2.4T-A95B',
     displayName: 'Qwen3.8 2.4T-A95B',
-    observedAt: '2026-08-22',
-    contextWindow: 1_010_000,
+    observedAt: '2026-10-25',
+    source: 'https://router.huggingface.co/v1/models',
+    contextWindow: 1_000_000,
     supportsTools: true,
-    priceFloorInPerMtok: 2.5,
-    priceFloorOutPerMtok: 6.25,
+    priceFloorInPerMtok: 2,
+    priceFloorOutPerMtok: 6.0,
   },
   {
     id: 'moonshotai/Kimi-K3',
@@ -71,10 +73,11 @@ export const HUGGINGFACE_DISPLAY_PINS: readonly HuggingfaceDisplayPin[] = [
   {
     id: 'deepseek-ai/DeepSeek-V4-Flash-0731',
     displayName: 'DeepSeek V4 Flash (0731)',
-    observedAt: '2026-08-22',
+    observedAt: '2026-10-25',
+    source: 'https://router.huggingface.co/v1/models',
     contextWindow: 1_048_576,
     supportsTools: true,
-    priceFloorInPerMtok: 0.08,
+    priceFloorInPerMtok: 0.06,
     priceFloorOutPerMtok: 0.18,
   },
   {
@@ -116,12 +119,22 @@ export const HUGGINGFACE_DISPLAY_PINS: readonly HuggingfaceDisplayPin[] = [
   {
     id: 'google/gemma-4-31B-it',
     displayName: 'Gemma 4 31B',
-    observedAt: '2026-08-22',
+    observedAt: '2026-10-25',
+    source: 'https://router.huggingface.co/v1/models',
     contextWindow: 262_144,
     supportsTools: true,
-    priceFloorInPerMtok: 0.13,
-    priceFloorOutPerMtok: 0.38,
+    priceFloorInPerMtok: 0.14,
+    priceFloorOutPerMtok: 0.4,
   },
+  { id: 'deepseek-ai/DeepSeek-V4-Pro', displayName: 'DeepSeek V4 Pro', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 1.3, priceFloorOutPerMtok: 2.6 },
+  { id: 'deepseek-ai/DeepSeek-V4.1-Flash-1017', displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.3, priceFloorOutPerMtok: 1.2 },
+  { id: 'deepseek-ai/DeepSeek-V4.1-Flash', displayName: 'DeepSeek V4.1 Flash', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.2, priceFloorOutPerMtok: 0.6 },
+  { id: 'Qwen/Qwen3.8-27B', displayName: 'Qwen3.8 27B', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_000_000, supportsTools: true, priceFloorInPerMtok: 0.2, priceFloorOutPerMtok: 1.49 },
+  { id: 'meta-models/Muse-Spark-Open-816B-A42B', displayName: 'Muse Spark Open 816B', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 1.25, priceFloorOutPerMtok: 4.25 },
+  { id: 'reflection/Beam-1.0-501B-A23B', displayName: 'Beam 1.0 501B', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.4, priceFloorOutPerMtok: 1.2 },
+  { id: 'nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4', displayName: 'Nemotron 3.5 Super VL 120B', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.2, priceFloorOutPerMtok: 0.5 },
+  { id: 'zai-org/GLM-5.3-Flash', displayName: 'GLM-5.3-Flash', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.15, priceFloorOutPerMtok: 0.5 },
+  { id: 'zai-org/GLM-5.3', displayName: 'GLM-5.3', observedAt: '2026-10-25', source: 'https://router.huggingface.co/v1/models', contextWindow: 1_048_576, supportsTools: true, priceFloorInPerMtok: 0.9, priceFloorOutPerMtok: 4 },
 ]
 
 export function huggingfaceDisplayPin(id: string): HuggingfaceDisplayPin | undefined {

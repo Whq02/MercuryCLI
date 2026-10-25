@@ -68,7 +68,7 @@ try {
   check('the rows are the list, newest creation first, the flagship family leading', ids(cat.zaiCatalogueRows().rows) === LIVE_IDS_NEWEST_FIRST, ids(cat.zaiCatalogueRows().rows))
   check('the source is live and counts every row', cat.zaiCatalogueRows().source.kind === 'live' && (cat.zaiCatalogueRows().source as { count: number }).count === 11 && cat.zaiCatalogueSourceWords() === '11 models live')
   const flash = cat.zaiCatalogueRows().rows.find(row => row.id === 'glm-5.3-flash')
-  check('glm-5.3-flash reads its pin: GLM-5.3-Flash, 1M window, listed live, dated by the docs read', flash?.displayName === 'GLM-5.3-Flash' && flash.contextWindow === 1_000_000 && flash.listedLive === true && flash.liveUnknown === undefined && flash.observedAt === '2026-10-05', JSON.stringify(flash))
+  check('glm-5.3-flash reads its pin: GLM-5.3-Flash, 1M window, listed live, dated by docs.z.ai chat-completion, read 2026-10-25', flash?.displayName === 'GLM-5.3-Flash' && flash.contextWindow === 1_000_000 && flash.listedLive === true && flash.liveUnknown === undefined && flash.observedAt === '2026-10-25', JSON.stringify(flash))
   const turbo = cat.zaiCatalogueRows().rows.find(row => row.id === 'glm-5-turbo')
   check('an id the docs never name is live and unknown: raw spelling, no window, dated by the fetch', turbo?.displayName === 'GLM-5-Turbo' && turbo.contextWindow === undefined && turbo.liveUnknown === true && /^\d{4}-\d{2}-\d{2}$/.test(turbo.observedAt), JSON.stringify(turbo))
   check('cachedLiveIds names every listed id', [...cat.cachedLiveIds()].sort().join(',') === FIXTURE.data.map(row => row.id).sort().join(','))

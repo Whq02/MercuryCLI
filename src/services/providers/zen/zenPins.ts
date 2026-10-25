@@ -8,8 +8,10 @@ export interface ZenDisplayPin {
   id: string
   displayName: string
   shape: ZenWireShape
-  contextWindow: number
-  outputMax: number
+  observedAt?: string
+  source?: string
+  contextWindow?: number
+  outputMax?: number
   costInPerMtok: number
   costOutPerMtok: number
   cachedInPerMtok?: number
@@ -52,6 +54,7 @@ export const ZEN_DISPLAY_PINS: readonly ZenDisplayPin[] = [
   { id: 'grok-4.7', displayName: 'Grok 4.7', shape: 'responses', contextWindow: 500_000, outputMax: 500_000, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.5, longContextThreshold: 200_000, longContext: { costInPerMtok: 4, costOutPerMtok: 12, cachedInPerMtok: 1 }, efforts: ['low', 'medium', 'high', 'xhigh'], images: true },
   { id: 'grok-4.6', displayName: 'Grok 4.6', shape: 'responses', contextWindow: 500_000, outputMax: 500_000, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.5, longContextThreshold: 200_000, longContext: { costInPerMtok: 4, costOutPerMtok: 12, cachedInPerMtok: 1 }, efforts: ['low', 'medium', 'high', 'xhigh'], images: true },
   { id: 'grok-4.5', displayName: 'Grok 4.5', shape: 'responses', contextWindow: 500_000, outputMax: 500_000, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.3, longContextThreshold: 200_000, longContext: { costInPerMtok: 4, costOutPerMtok: 12, cachedInPerMtok: 0.6 }, efforts: ['low', 'medium', 'high'], images: true },
+  { id: 'muse-wonder-1.0', displayName: 'Muse Wonder 1.0', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'responses', costInPerMtok: 4, costOutPerMtok: 20, cachedInPerMtok: 0.2 },
   { id: 'muse-spark-1.3', displayName: 'Muse Spark 1.3', shape: 'responses', contextWindow: 1_048_576, outputMax: 131_072, costInPerMtok: 1.25, costOutPerMtok: 4.25, cachedInPerMtok: 0.15, efforts: ['minimal', 'low', 'medium', 'high', 'xhigh'], images: true },
   { id: 'muse-spark-1.2', displayName: 'Muse Spark 1.2', shape: 'responses', contextWindow: 1_048_576, outputMax: 131_072, costInPerMtok: 1.25, costOutPerMtok: 4.25, cachedInPerMtok: 0.15, efforts: ['minimal', 'low', 'medium', 'high', 'xhigh'], images: true },
   { id: 'mistral-large-4', displayName: 'Mistral Large 4', shape: 'chat', contextWindow: 524_288, outputMax: 262_144, costInPerMtok: 0.68, costOutPerMtok: 2.09, cachedInPerMtok: 0.07, efforts: ['none', 'high'], images: true },
@@ -72,6 +75,11 @@ export const ZEN_DISPLAY_PINS: readonly ZenDisplayPin[] = [
   { id: 'kimi-k2.6', displayName: 'Kimi K2.6', shape: 'chat', contextWindow: 262_144, outputMax: 65_536, costInPerMtok: 0.95, costOutPerMtok: 4, cachedInPerMtok: 0.16, thinkingToggle: true, images: true },
   { id: 'kimi-k2.5', displayName: 'Kimi K2.5', shape: 'chat', contextWindow: 262_144, outputMax: 65_536, costInPerMtok: 0.6, costOutPerMtok: 3, cachedInPerMtok: 0.1, thinkingToggle: true, images: true },
   { id: 'qwen3.8-max', displayName: 'Qwen3.8 Max', shape: 'chat', contextWindow: 262_144, outputMax: 131_072, costInPerMtok: 2, costOutPerMtok: 6, cachedInPerMtok: 0.25, cacheWritePerMtok: 2.5, thinkingToggle: true, images: true },
+  { id: 'glm-5.3-flash-free', displayName: 'GLM 5.3 Flash Free', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'chat', costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
+  { id: 'deepseek-v4.1-flash-free', displayName: 'DeepSeek V4.1 Flash Free', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'chat', costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
+  { id: 'beam-free', displayName: 'Beam Free', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'chat', costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
+  { id: 'flint-40b-free', displayName: 'Flint 40B Free', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'chat', costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
+  { id: 'nemotron-3.5-super-vl-free', displayName: 'Nemotron 3.5 Super VL Free', observedAt: '2026-10-25', source: 'https://opencode.ai/docs/zen/', shape: 'chat', costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
   { id: 'big-pickle', displayName: 'Big Pickle', shape: 'chat', contextWindow: 200_000, outputMax: 32_000, costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, free: true },
   { id: 'exo-free', displayName: 'Exo Free', shape: 'chat', contextWindow: 1_048_576, outputMax: 131_072, costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, efforts: ['high'], images: true, free: true },
   { id: 'muse-spark-1.3-contributor-free', displayName: 'Muse Spark 1.3 Contributor Free', shape: 'responses', contextWindow: 1_048_576, outputMax: 131_072, costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0, efforts: ['minimal', 'low', 'medium', 'high', 'xhigh'], images: true, free: true },
@@ -113,7 +121,7 @@ export function zenDisplayName(id: string): string {
 const ANTHROPIC_SHAPE_RE = /^(?:claude-|qwen3\.5-plus|qwen3\.6-plus|qwen3\.7-|qwen3\.8-flash)/i
 const GOOGLE_SHAPE_RE = /^gemini-/i
 const SYSTEMONE_SHAPE_RE = /^jev-/i
-const RESPONSES_SHAPE_RE = /^(?:gpt-|grok-|muse-spark-)/i
+const RESPONSES_SHAPE_RE = /^(?:gpt-|grok-|muse-spark-|muse-wonder-)/i
 
 export function zenServedShapeOf(id: string): ZenServedShape {
   const pin = zenDisplayPin(id)

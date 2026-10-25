@@ -79,10 +79,10 @@ async function main(): Promise<void> {
     )
     await serveList([...OWNER_LIST, 'gpt-6-mini'])
     check('openai on a list that serves a mini row: that row (the provider names its small tier)', providerSmallFastFact('openai')?.modelId === 'gpt-6-mini', JSON.stringify(providerSmallFastFact('openai')))
-    await serveList(['gpt-5.5'])
+    await serveList(['gpt-99-fixture-unpriced'])
     check('openai on a list with no priced row and no mini: silence, so the session model rides', providerSmallFastFact('openai') === undefined, JSON.stringify(providerSmallFastFact('openai')))
     await serveList(['gpt-5.4-mini', 'gpt-5.6-luna'])
-    check('openai on a list that still serves gpt-5.4-mini: that row (served, and named small by the provider)', providerSmallFastFact('openai')?.modelId === 'gpt-5.4-mini', JSON.stringify(providerSmallFastFact('openai')))
+    check('priced GPT-5.4 Mini costs more than 5.6 Luna (developers.openai.com pricing, read 2026-10-25)', providerSmallFastFact('openai')?.modelId === 'gpt-5.6-luna', JSON.stringify(providerSmallFastFact('openai')))
     await serveList(null)
     for (const route of ['zai', 'moonshot', 'deepseek', 'gemini', 'openrouter', 'openai-compat', 'huggingface', 'local'] as const) {
       check(`${route}: silence (no owner records a small tier)`, providerSmallFastFact(route) === undefined)
@@ -115,6 +115,7 @@ async function main(): Promise<void> {
   {
     const small = smallFastModelFor('claude-opus-5')
     check('anthropic session → the small tier', small.toLowerCase().includes('haiku'), small)
+    process.env.MERCURY_MODEL = 'claude-opus-5'
     const viaDefault = sessionSmallFastModel()
     check(
       'sessionSmallFastModel: the pinned-home default session rides the small tier (main-loop convenience)',
@@ -158,7 +159,7 @@ async function main(): Promise<void> {
   await serveList(null)
   section('§3 sessionLightModel — the hook-agent tier')
   {
-    delete process.env.MERCURY_MODEL
+    process.env.MERCURY_MODEL = 'claude-opus-5'
     const anthropicLight = sessionLightModel()
     check(
       'anthropic session: the mid-class owner (the crewmate runner default unchanged)',

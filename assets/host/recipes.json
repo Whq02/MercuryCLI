@@ -1593,7 +1593,7 @@
     },
     {
       "id": "hy4-preview-bf16-b300",
-      "label": "Hy4-preview 780B · BF16",
+      "label": "Hy4-preview 770B · BF16",
       "model": "tencent/Hy4-preview",
       "gpu": "B300",
       "count": 8,
@@ -1603,6 +1603,8 @@
       "image": "lmsysorg/sglang:hy4-preview",
       "cuda": "13.0",
       "flags": [
+        "--context-length",
+        "262144",
         "--tp",
         "8",
         "--reasoning-parser",
@@ -1620,11 +1622,11 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
-      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verification": "Apache-2.0",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
-        "note": "verified",
+        "on": "2026-10-25",
+        "note": "262,144-token serving context from the hardware sizing table; the model supports 1M positions",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
       },
       "efforts": {
@@ -1638,12 +1640,12 @@
           "source": "https://huggingface.co/tencent/Hy4-preview/blob/main/chat_template.jinja"
         }
       },
-      "context": 1048576,
-      "contextPerSlot": 1048576
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "hy4-preview-mxfp8-b200",
-      "label": "Hy4-preview 780B · MXFP8",
+      "label": "Hy4-preview 770B · MXFP8",
       "model": "tencent/Hy4-preview-FP8",
       "gpu": "B200",
       "count": 8,
@@ -1653,6 +1655,8 @@
       "image": "lmsysorg/sglang:hy4-preview",
       "cuda": "13.0",
       "flags": [
+        "--context-length",
+        "262144",
         "--tp",
         "8",
         "--moe-runner-backend",
@@ -1674,11 +1678,11 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
-      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verification": "Apache-2.0",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
-        "note": "verified",
+        "on": "2026-10-25",
+        "note": "262,144-token serving context from the hardware sizing table; the model supports 1M positions",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
       },
       "efforts": {
@@ -1692,12 +1696,12 @@
           "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
         }
       },
-      "context": 1048576,
-      "contextPerSlot": 1048576
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "hy4-preview-mxfp8-b300",
-      "label": "Hy4-preview 780B · MXFP8",
+      "label": "Hy4-preview 770B · MXFP8",
       "model": "tencent/Hy4-preview-FP8",
       "gpu": "B300",
       "count": 4,
@@ -1707,6 +1711,8 @@
       "image": "lmsysorg/sglang:hy4-preview",
       "cuda": "13.0",
       "flags": [
+        "--context-length",
+        "262144",
         "--tp",
         "4",
         "--moe-runner-backend",
@@ -1728,11 +1734,11 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
-      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verification": "Apache-2.0",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
-        "note": "verified",
+        "on": "2026-10-25",
+        "note": "262,144-token serving context from the hardware sizing table; the model supports 1M positions",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
       },
       "efforts": {
@@ -1746,12 +1752,12 @@
           "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
         }
       },
-      "context": 1048576,
-      "contextPerSlot": 1048576
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "hy4-preview-mxfp8-gb300",
-      "label": "Hy4-preview 780B · MXFP8",
+      "label": "Hy4-preview 770B · MXFP8",
       "model": "tencent/Hy4-preview-FP8",
       "gpu": "GB300",
       "count": 4,
@@ -1761,6 +1767,8 @@
       "image": "lmsysorg/sglang:hy4-preview",
       "cuda": "13.0",
       "flags": [
+        "--context-length",
+        "262144",
         "--tp",
         "4",
         "--moe-runner-backend",
@@ -1782,11 +1790,11 @@
         "--enable-cache-report"
       ],
       "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview",
-      "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
+      "verification": "Apache-2.0",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
-        "note": "verified",
+        "on": "2026-10-25",
+        "note": "262,144-token serving context from the hardware sizing table; the model supports 1M positions",
         "source": "https://docs.sglang.io/cookbook/autoregressive/Tencent/Hy4-Preview"
       },
       "efforts": {
@@ -1800,12 +1808,12 @@
           "source": "https://huggingface.co/tencent/Hy4-preview-FP8/blob/main/chat_template.jinja"
         }
       },
-      "context": 1048576,
-      "contextPerSlot": 1048576
+      "context": 262144,
+      "contextPerSlot": 262144
     },
     {
       "id": "inkling-nvfp4-b200",
-      "label": "Inkling 952B · NVFP4",
+      "label": "Inkling 975B · NVFP4",
       "model": "thinkingmachines/Inkling-NVFP4",
       "gpu": "B200",
       "count": 8,
@@ -1848,7 +1856,7 @@
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
+        "on": "2026-10-25",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
       },
@@ -1857,13 +1865,14 @@
           "low",
           "medium",
           "high",
+          "xhigh",
           "max"
         ],
         "verified": {
           "by": "documented",
-          "on": "2026-10-22",
-          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
-          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+          "on": "2026-10-25",
+          "note": "none, minimal, low, medium, high, xhigh and max map to 0, 0.1, 0.2, 0.7, 0.9, 0.99 and 0.99; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
         }
       },
       "context": 1048576,
@@ -1871,7 +1880,7 @@
     },
     {
       "id": "inkling-nvfp4-b300",
-      "label": "Inkling 952B · NVFP4",
+      "label": "Inkling 975B · NVFP4",
       "model": "thinkingmachines/Inkling-NVFP4",
       "gpu": "B300",
       "count": 8,
@@ -1914,7 +1923,7 @@
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
+        "on": "2026-10-25",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
       },
@@ -1923,13 +1932,14 @@
           "low",
           "medium",
           "high",
+          "xhigh",
           "max"
         ],
         "verified": {
           "by": "documented",
-          "on": "2026-10-22",
-          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
-          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+          "on": "2026-10-25",
+          "note": "none, minimal, low, medium, high, xhigh and max map to 0, 0.1, 0.2, 0.7, 0.9, 0.99 and 0.99; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
         }
       },
       "context": 1048576,
@@ -1937,7 +1947,7 @@
     },
     {
       "id": "inkling-nvfp4-gb300",
-      "label": "Inkling 952B · NVFP4",
+      "label": "Inkling 975B · NVFP4",
       "model": "thinkingmachines/Inkling-NVFP4",
       "gpu": "GB300",
       "count": 4,
@@ -1980,7 +1990,7 @@
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
+        "on": "2026-10-25",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
       },
@@ -1989,13 +1999,14 @@
           "low",
           "medium",
           "high",
+          "xhigh",
           "max"
         ],
         "verified": {
           "by": "documented",
-          "on": "2026-10-22",
-          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
-          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+          "on": "2026-10-25",
+          "note": "none, minimal, low, medium, high, xhigh and max map to 0, 0.1, 0.2, 0.7, 0.9, 0.99 and 0.99; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
         }
       },
       "context": 1048576,
@@ -2003,7 +2014,7 @@
     },
     {
       "id": "inkling-nvfp4-h200",
-      "label": "Inkling 952B · NVFP4",
+      "label": "Inkling 975B · NVFP4",
       "model": "thinkingmachines/Inkling-NVFP4",
       "gpu": "H200",
       "count": 8,
@@ -2046,7 +2057,7 @@
       "verification": "verified · Apache-2.0 · configured 1M context, capacity not measured",
       "verified": {
         "by": "documented",
-        "on": "2026-10-22",
+        "on": "2026-10-25",
         "note": "verified",
         "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
       },
@@ -2055,13 +2066,14 @@
           "low",
           "medium",
           "high",
+          "xhigh",
           "max"
         ],
         "verified": {
           "by": "documented",
-          "on": "2026-10-22",
-          "note": "low, medium, high and max map to 0.2, 0.7, 0.9 and 0.99; high is the default; none, minimal and numbers in [0, 0.99] are also accepted",
-          "source": "https://huggingface.co/thinkingmachines/Inkling-NVFP4/blob/main/chat_template.jinja"
+          "on": "2026-10-25",
+          "note": "none, minimal, low, medium, high, xhigh and max map to 0, 0.1, 0.2, 0.7, 0.9, 0.99 and 0.99; high is the default",
+          "source": "https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling"
         }
       },
       "context": 1048576,

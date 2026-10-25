@@ -44,7 +44,7 @@ const check = (name: string, value: unknown): void => { assert.ok(value, name); 
 try {
   check('zen/<id> is a declared qualified namespace that strips to the vendor id', classifyModelRoute('zen/glm-5.3').kind === 'route' && (classifyModelRoute('zen/glm-5.3') as { route: string }).route === 'zen' && canonicalWireModelId('zen/glm-5.3').ok && (canonicalWireModelId('zen/glm-5.3') as { wireId: string }).wireId === 'glm-5.3')
   check('a bare gateway id keeps its native family: glm-5.3 is Z.AI, gpt-5.5 is OpenAI', (classifyModelRoute('glm-5.3') as { route: string }).route === 'zai' && (classifyModelRoute('gpt-5.5') as { route: string }).route === 'openai')
-  check('every pinned id is served in a shape this road carries, and 60 are pinned', ZEN_DISPLAY_PINS.length === 60 && ZEN_DISPLAY_PINS.every(pin => pin.shape === zenServedShapeOf(pin.id)))
+  check('every pinned id is served in a shape this road carries, and 66 are pinned (opencode.ai/docs/zen, read 2026-10-25)', ZEN_DISPLAY_PINS.length === 66 && ZEN_DISPLAY_PINS.every(pin => pin.shape === zenServedShapeOf(pin.id)))
   check('the shape law reads the vendor table: Claude and Qwen 3.7 ride Anthropic, Gemini rides Google, Jev rides System One', zenServedShapeOf('claude-fable-5-1') === 'anthropic' && zenServedShapeOf('qwen3.7-max') === 'anthropic' && zenServedShapeOf('gemini-3.1-pro') === 'google' && zenServedShapeOf('jev-1.13') === 'systemone' && zenServedShapeOf('fixture-unpinned-model') === 'chat')
   check('the key configures a Zen backend but is not a claimed live turn', resolvePrimaryAgentBackend('zen/glm-5.3')?.id === 'zen-gateway' && resolvePrimaryAgentBackend('zen/glm-5.3')?.readiness().state === 'configured' && resolveProviderUsability().zen.usable)
   await refreshZenCatalogue({ force: true })

@@ -62,6 +62,20 @@ try {
     check(`${family}: a smaller stated fact never lowers the pinned window, ceiling, reasoning or images`, smaller.context.window === pinned.context.window && smaller.context.outputMax === pinned.context.outputMax && smaller.thinking.supported === pinned.thinking.supported && smaller.media.images === pinned.media.images)
   }
   set({})
+  for (const [id, input, output, cached] of [
+    ['gpt-6.1-sol', 2, 10, 0.1], ['gpt-6-sol', 2, 10, 0.2], ['gpt-6-luna', 0.1, 0.5, 0.01],
+    ['gpt-5.4-mini', 0.75, 4.5, 0.075], ['gpt-5.4-nano', 0.2, 1.25, 0.02],
+  ] as const) {
+    const rate = pricing.resolveModelPricing(id)
+    check(`${id} records the OpenAI rates (developers.openai.com/api/docs/pricing, read 2026-10-25)`, rate.basis === 'recorded' && rate.costs.inputTokens === input && rate.costs.outputTokens === output && rate.costs.promptCacheReadTokens === cached)
+  }
+  check('MiniMax GA records $0.15/$0.60/$0.015 (platform.minimax.io/docs/pricing/overview.md, read 2026-10-25)', pricing.resolveModelPricing('minimax-m3.1-flash').costs.promptCacheReadTokens === 0.015 && pricing.resolveModelPricing('minimax-m3.1-flash').costs.outputTokens === 0.6)
+  for (const id of ['zai-org/GLM-5.3-Flash', 'deepseek-ai/DeepSeek-V4.1-Flash-1017', 'Qwen/Qwen3.5-9B', 'meta-models/Muse-Spark-Open-816B-A42B', 'thinkingmachines/Inkling']) {
+    check(`${id} receives images on Together (together.ai/pricing, read 2026-10-25)`, capabilities.modelReceivesImageBlocks(`together/${id}`))
+  }
+  for (const id of ['tiny-aya-global', 'tiny-aya-earth', 'tiny-aya-fire', 'tiny-aya-water']) {
+    check(`${id} has 8K context and output (docs.cohere.com/docs/tiny-aya, read 2026-10-25)`, capabilities.getContextWindowForModel(id) === 8_000 && capabilities.getModelMaxOutputTokens(id).upperLimit === 8_000)
+  }
   const known = 'claude-opus-5-5'
   const fresh = 'deepseek-fixture-new'
   const before = capabilities.resolveModelCapabilities(known)

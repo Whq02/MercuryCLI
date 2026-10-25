@@ -118,7 +118,7 @@ check('rig: the Gemini fixture catalogue landed', gemini.getCachedGeminiCatalogu
 check('rig: the Ollama fixture was discovered', localCatalogue.localRecordFor('local/qwen3:8b')?.server === 'ollama')
 check('rig: the OpenRouter rows state their top_provider.max_completion_tokens', openrouter.openrouterMaxCompletionTokensFor('openrouter/wide/fixture-two-hundred') === 200_000 && openrouter.openrouterMaxCompletionTokensFor('openrouter/wide/fixture-ninety-six') === 96_000 && openrouter.openrouterMaxCompletionTokensFor('openrouter/wide/fixture-unstated') === undefined)
 check('rig: the Gemini rows state their outputTokenLimit', gemini.geminiOutputTokenLimitFor('gemini-fixture-wide') === 131_072 && gemini.geminiOutputTokenLimitFor('gemini-fixture-ninety-six') === 96_000 && gemini.geminiOutputTokenLimitFor('gemini-fixture-lite') === undefined)
-check('rig: the GPT display pins state outputMax on the 5.6/6 rows and nothing on gpt-5.5', gptPins.gptDisplayPin('gpt-5.6-sol')?.outputMax === 128_000 && gptPins.gptDisplayPin('gpt-6-astra')?.outputMax === 128_000 && gptPins.gptDisplayPin('gpt-5.5') !== undefined && gptPins.gptDisplayPin('gpt-5.5')?.outputMax === undefined)
+check('rig: the GPT display pins state 128K output on 5.5/5.6/6 (developers.openai.com models, read 2026-10-25)', gptPins.gptDisplayPin('gpt-5.6-sol')?.outputMax === 128_000 && gptPins.gptDisplayPin('gpt-6-astra')?.outputMax === 128_000 && gptPins.gptDisplayPin('gpt-5.5') !== undefined && gptPins.gptDisplayPin('gpt-5.5')?.outputMax === 128_000)
 
 type Pair = { default: number; upperLimit: number }
 const pair = (m: string): Pair => caps.getModelMaxOutputTokens(m)
@@ -143,7 +143,8 @@ section('§1 the owner: getModelMaxOutputTokens per family — default = min(sta
   unstated('gemini-fixture-lite', 'a Gemini row stating no outputTokenLimit')
   stated('gpt-5.6-sol', 128_000, 'the GPT display pin outputMax')
   stated('gpt-6-astra', 128_000, 'the GPT display pin outputMax')
-  unstated('gpt-5.5', 'a GPT pin recording no outputMax')
+  stated('gpt-5.5', 128_000, 'developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25')
+  unstated('gpt-5.5-cyber', 'a pricing-only GPT pin with no documented outputMax')
   stated('claude-fable-5-1', 128_000, 'the first-party table')
   stated('claude-opus-5-5', 128_000, 'the first-party table')
   stated('claude-opus-5', 128_000, 'the first-party table')

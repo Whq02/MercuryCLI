@@ -41,7 +41,7 @@ try {
   check('the face names the usage-endpoint check and the env precedence', keyLegTitle('zen') === 'OpenCode Zen API key' && keyLegStoreLine('zen').includes('usage endpoint first') && keyLegStoreLine('zen').includes('OPENCODE_API_KEY wins') && keyPromptPaneLines('zen', null, 8, false).join(' ').includes('opencode.ai/auth'))
   check('the picker carries the Zen group with a connect row while signed out', getModelOptions().some(option => option.group === ZEN_MODEL_GROUP && option.value === keyConnectValue('zen')) && parseKeyConnectValue(keyConnectValue('zen')) === 'zen')
   check('the one env spelling is the vendor\'s', PROVIDER_CREDENTIAL_ENV_VARS.zen.join() === 'OPENCODE_API_KEY')
-  check('the 60 pins split into the two shapes this road carries, prices at the vendor\'s table', ZEN_DISPLAY_PINS.filter(pin => pin.shape === 'responses').length === 32 && ZEN_DISPLAY_PINS.filter(pin => pin.shape === 'chat').length === 28 && zenDisplayPin('glm-5.3')?.costInPerMtok === 1.4 && zenDisplayPin('gpt-6-astra')?.longContext?.costInPerMtok === 20 && zenDisplayPin('mistral-large-4')?.costOutPerMtok === 2.09)
+  check('the 66 pins (opencode.ai/docs/zen, read 2026-10-25) split into the two shapes this road carries, prices at the vendor\'s table', ZEN_DISPLAY_PINS.filter(pin => pin.shape === 'responses').length === 33 && ZEN_DISPLAY_PINS.filter(pin => pin.shape === 'chat').length === 33 && zenDisplayPin('glm-5.3')?.costInPerMtok === 1.4 && zenDisplayPin('gpt-6-astra')?.longContext?.costInPerMtok === 20 && zenDisplayPin('mistral-large-4')?.costOutPerMtok === 2.09)
   const pricing = resolveModelPricing('zen/gpt-6-astra', { promptTokens: 300_000 })
   check('pricing rides the zen owner with the long-context tier past 272K; free rows price at zero', pricing.costs?.inputTokens === 20 && pricing.costs?.outputTokens === 75 && resolveModelPricing('zen/gpt-6-astra', { promptTokens: 1000 }).costs?.inputTokens === 10 && resolveModelPricing('zen/big-pickle').costs?.inputTokens === 0 && zenIsFreeModel('zen/big-pickle') && zenIsFreeModel('zen/space-bunny-free'))
   const effort = effortVocabularyFor('zen/gpt-5.5')
@@ -54,7 +54,7 @@ try {
   check('the key makes Zen usable, not another provider', resolveProviderUsability().zen.usable && !resolveProviderUsability().meta.usable)
   const discovery = await refreshProviderDiscovery('zen', { force: true })
   check('discovery records Zen rather than falling through to another family', discovery?.provider === 'zen' && discovery.keyPresent && discovery.keySource === 'env')
-  check('the typed-id ledger carries a Zen fact beside the other families', readModelListFacts().some(fact => fact.family === 'zen' && fact.typed.length === 60))
+  check('the typed-id ledger carries a Zen fact beside the other families', readModelListFacts().some(fact => fact.family === 'zen' && fact.typed.length === 66))
   const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'ResponsesTransport', 'UsageState'].map(part => `src/services/providers/zen/zen${part}.ts`)
   files.push('src/services/providers/zen/zenAdapter.ts')
   for (const file of files) {

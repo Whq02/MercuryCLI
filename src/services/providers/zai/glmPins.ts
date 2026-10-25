@@ -22,7 +22,7 @@ export function isGlmModelId(model: string): boolean {
 const GLM_VISION_ID = /^glm-\d+(?:\.\d+)?v(?:-|\[|$)/
 
 export function glmTakesImages(model: string): boolean {
-  return GLM_VISION_ID.test(model.trim().toLowerCase())
+  return glmDisplayPin(model)?.images === true || GLM_VISION_ID.test(model.trim().toLowerCase())
 }
 
 export function glmAcceptsEffort(model: string, effort: string): boolean {
@@ -39,14 +39,21 @@ interface GlmDisplayPin {
   id: string
   displayName: string
   observedAt: string
+  source?: string
+  images?: boolean
   contextWindow?: number
   outputMax?: number
 }
 
 export const GLM_DISPLAY_PINS: readonly GlmDisplayPin[] = [
   { id: 'glm-5.3', displayName: 'GLM-5.3', observedAt: '2026-10-05', contextWindow: 1_000_000, outputMax: 131_072 },
-  { id: 'glm-5.3-flash', displayName: 'GLM-5.3-Flash', observedAt: '2026-10-05', contextWindow: 1_000_000, outputMax: 131_072 },
-  { id: 'glm-5.3-flashx', displayName: 'GLM-5.3-FlashX', observedAt: '2026-10-05', contextWindow: 1_000_000, outputMax: 131_072 },
+  { id: 'glm-5.3-flash', displayName: 'GLM-5.3-Flash', observedAt: '2026-10-25', source: 'https://docs.z.ai/api-reference/llm/chat-completion', contextWindow: 1_000_000, outputMax: 131_072, images: true },
+  { id: 'glm-5.3-flashx', displayName: 'GLM-5.3-FlashX', observedAt: '2026-10-25', source: 'https://docs.z.ai/api-reference/llm/chat-completion', contextWindow: 1_000_000, outputMax: 131_072, images: true },
+  { id: 'glm-5.3-flashx-legal', displayName: 'GLM-5.3-FlashX-Legal', observedAt: '2026-10-25', source: 'https://docs.z.ai/guides/overview/pricing' },
+  { id: 'glm-4.6v', displayName: 'GLM-4.6V', observedAt: '2026-10-25', source: 'https://docs.z.ai/guides/overview/pricing', images: true },
+  { id: 'glm-4.6v-flashx', displayName: 'GLM-4.6V-FlashX', observedAt: '2026-10-25', source: 'https://docs.z.ai/guides/overview/pricing', images: true },
+  { id: 'glm-4.6v-flash', displayName: 'GLM-4.6V-Flash', observedAt: '2026-10-25', source: 'https://docs.z.ai/guides/overview/pricing', images: true },
+  { id: 'glm-4.5v', displayName: 'GLM-4.5V', observedAt: '2026-10-25', source: 'https://docs.z.ai/guides/overview/pricing', images: true },
   { id: 'glm-5.2', displayName: 'GLM-5.2', observedAt: '2026-10-05', contextWindow: 1_000_000, outputMax: 131_072 },
   { id: 'glm-5.1', displayName: 'GLM-5.1', observedAt: '2026-10-05', contextWindow: 200_000, outputMax: 131_072 },
   { id: 'glm-5', displayName: 'GLM-5', observedAt: '2026-10-05', contextWindow: 200_000, outputMax: 131_072 },
@@ -96,6 +103,11 @@ export const GLM_PRICE_PINS: readonly GlmPricePin[] = [
   { id: 'glm-5.3', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 1.4, costOutPerMtok: 4.4, cachedInPerMtok: 0.26 },
   { id: 'glm-5.3-flash', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 0.15, costOutPerMtok: 0.5, cachedInPerMtok: 0.03 },
   { id: 'glm-5.3-flashx', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 0.37, costOutPerMtok: 1.25, cachedInPerMtok: 0.075 },
+  { id: 'glm-5.3-flashx-legal', observedAt: '2026-10-25', source: GLM_PRICING_PAGE, costInPerMtok: 0.37, costOutPerMtok: 1.25, cachedInPerMtok: 0.075 },
+  { id: 'glm-4.6v', observedAt: '2026-10-25', source: GLM_PRICING_PAGE, costInPerMtok: 0.3, costOutPerMtok: 0.9, cachedInPerMtok: 0.05 },
+  { id: 'glm-4.6v-flashx', observedAt: '2026-10-25', source: GLM_PRICING_PAGE, costInPerMtok: 0.04, costOutPerMtok: 0.4, cachedInPerMtok: 0.004 },
+  { id: 'glm-4.6v-flash', observedAt: '2026-10-25', source: GLM_PRICING_PAGE, costInPerMtok: 0, costOutPerMtok: 0, cachedInPerMtok: 0 },
+  { id: 'glm-4.5v', observedAt: '2026-10-25', source: GLM_PRICING_PAGE, costInPerMtok: 0.6, costOutPerMtok: 1.8, cachedInPerMtok: 0.11 },
   { id: 'glm-5.2', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 1.4, costOutPerMtok: 4.4, cachedInPerMtok: 0.26 },
   { id: 'glm-5.1', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 1.4, costOutPerMtok: 4.4, cachedInPerMtok: 0.26 },
   { id: 'glm-5', observedAt: '2026-10-05', source: GLM_PRICING_PAGE, costInPerMtok: 1, costOutPerMtok: 3.2, cachedInPerMtok: 0.2 },

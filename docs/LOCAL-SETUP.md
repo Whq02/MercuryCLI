@@ -85,7 +85,7 @@ everything as it stands.
    `35B-A3B MoE · 3B active · coding`), each sized against your machine by the same fit rule the
    window step uses (the published weights plus the KV cache at the trained
    maximum against the memory usable for models): `pull 17 GB · fits · 256k`,
-   `pull 6.6 GB · fits · 128k`, or `pull 81 GB · does not fit`. A size the
+   `pull 6.6 GB · fits · 256k`, or `pull 81 GB · does not fit`. A size the
    server already lists is not listed twice. When no local model is set up
    yet, the tested `qwen3.5:9b` row is marked `the tested one` (a suggestion,
    never a choice made for you). No row is pre-chosen: `↑↓` moves onto a row,

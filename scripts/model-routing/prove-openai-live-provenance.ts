@@ -119,7 +119,7 @@ section('§2 the account\'s list holds the off-grammar id: it qualifies, paints 
   check('the unserved pins still paint visible-but-unavailable with the resolver\'s reason', GPT_DISPLAY_PINS.filter(p => p.id !== SOL).every(p => { const row = openai.find(o => o.value === p.id); return row !== undefined && typeof row.unavailable === 'string' && row.unavailable.includes('not served by the connected') }))
 
   const frontier = providerFrontierFact('openai')
-  check('the frontier fact ranks the dated pins by the grammar and never names the unparsed row', frontier !== undefined && frontier.modelId !== OFF && frontier.modelId === 'gpt-6-astra', JSON.stringify(frontier))
+  check('the frontier ranks the dated GPT-6.1 Sol pin, never the unparsed row (developers.openai.com models, read 2026-10-25)', frontier !== undefined && frontier.modelId !== OFF && frontier.modelId === 'gpt-6.1-sol', JSON.stringify(frontier))
   check('the light fact never names the unparsed row', providerLightFact('openai')?.modelId !== OFF, JSON.stringify(providerLightFact('openai')))
   const small = providerSmallFastFact('openai')
   check('the small-fast fact prices from the served parsed rows and never names the unparsed row', small?.modelId === SOL, JSON.stringify(small))

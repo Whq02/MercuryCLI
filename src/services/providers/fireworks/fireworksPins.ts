@@ -6,6 +6,7 @@ interface FireworksDisplayPin {
   id: string
   displayName: string
   observedAt?: string
+  source?: string
   contextWindow?: number
   outputMax?: number
   costInPerMtok?: number
@@ -29,7 +30,9 @@ export const FIREWORKS_DISPLAY_PINS: readonly FireworksDisplayPin[] = [
   { ...base, id: 'accounts/fireworks/models/gpt-oss-120b', displayName: 'GPT OSS 120B', contextWindow: 131_072, costInPerMtok: 0.15, cachedInPerMtok: 0.015, costOutPerMtok: 0.6, efforts: ['low', 'medium', 'high'] },
   { ...base, id: 'accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b', displayName: 'Nemotron 3.5 Lightning 30B', contextWindow: 262_144, costInPerMtok: 0.05, cachedInPerMtok: 0.01, costOutPerMtok: 0.2 },
   { ...base, id: 'accounts/fireworks/models/nemotron-3-ultra-nvfp4', displayName: 'Nemotron 3 Ultra (preview)', contextWindow: 1_000_000, costInPerMtok: 0.6, cachedInPerMtok: 0.12, costOutPerMtok: 2.4 },
-  { ...base, id: 'accounts/fireworks/routers/kimi-fast-latest', displayName: 'Kimi Fast (Fire Pass)', contextWindow: 1_040_000 },
+  { ...base, id: 'accounts/fireworks/routers/kimi-fast-latest', displayName: 'Kimi Fast (Fire Pass)', contextWindow: 1_040_000, observedAt: '2026-10-25', source: 'https://docs.fireworks.ai/firepass', outputMax: 131_072, images: true },
+  { ...base, id: 'accounts/fireworks/models/muse-spark-open', displayName: 'Muse Spark Open', observedAt: '2026-10-25', source: 'https://docs.fireworks.ai/serverless/pricing', costInPerMtok: 1.25, cachedInPerMtok: 0.15, costOutPerMtok: 4.25 },
+  { ...base, id: 'accounts/fireworks/models/deepseek-v4p1-flash-1017', displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-25', source: 'https://docs.fireworks.ai/serverless/pricing', costInPerMtok: 0.3, cachedInPerMtok: 0.006, costOutPerMtok: 1.2 },
 ]
 
 export function isFireworksModelId(model: string): boolean {

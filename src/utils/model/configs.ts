@@ -2,6 +2,8 @@
 export type ModelConfig = {
   firstParty: string
   canonical?: string
+  observedAt?: string
+  source?: string
 }
 
 export const ALL_MODEL_CONFIGS = {
@@ -79,6 +81,12 @@ export const ALL_MODEL_CONFIGS = {
   mythos5: {
     firstParty: 'claude-mythos-5',
     canonical: 'claude-fable-5',
+  },
+  mythos51: {
+    firstParty: 'claude-mythos-5-1',
+    canonical: 'claude-fable-5-1',
+    observedAt: '2026-10-25',
+    source: 'https://platform.claude.com/docs/en/models/mythos-5-1/overview',
   },
 } as const satisfies Record<string, ModelConfig>
 

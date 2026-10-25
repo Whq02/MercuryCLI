@@ -3,18 +3,19 @@ const COHERE_EFFORTS = ['none', 'high'] as const
 
 export function isCohereModelId(model: string): boolean {
   const id = model.trim().toLowerCase()
-  return id === 'cohere' || /^(?:command-|north-|c4ai-aya-)/.test(id)
+  return id === 'cohere' || /^(?:command-|north-|c4ai-aya-|tiny-aya-)/.test(id)
 }
 
 export function isCohereChatModelId(model: string): boolean {
   const id = model.trim().toLowerCase()
-  return /^(?:command-|north-|c4ai-aya-)/.test(id) && !/(?:embed|rerank|classify)/.test(id)
+  return /^(?:command-|north-|c4ai-aya-|tiny-aya-)/.test(id) && !/(?:embed|rerank|classify)/.test(id)
 }
 
 interface CohereDisplayPin {
   id: string
   displayName: string
   observedAt: string
+  source?: string
   contextWindow: number
   outputMax: number
   costInPerMtok?: number
@@ -38,6 +39,12 @@ export const COHERE_DISPLAY_PINS: readonly CohereDisplayPin[] = [
   { ...facts, id: 'command-r-08-2024', displayName: 'Command R', contextWindow: 128_000, outputMax: 4_000, costInPerMtok: 0.15, costOutPerMtok: 0.6 },
   { ...facts, id: 'command-r7b-12-2024', displayName: 'Command R7B', contextWindow: 128_000, outputMax: 4_000 },
   { ...facts, id: 'c4ai-aya-expanse-32b', displayName: 'Aya Expanse 32B', contextWindow: 128_000, outputMax: 4_000, costInPerMtok: 0.5, costOutPerMtok: 1.5 },
+  { ...facts, id: 'tiny-aya-global', displayName: 'Tiny Aya Global', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/tiny-aya', contextWindow: 8_000, outputMax: 8_000, tools: false },
+  { ...facts, id: 'tiny-aya-earth', displayName: 'Tiny Aya Earth', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/tiny-aya', contextWindow: 8_000, outputMax: 8_000, tools: false },
+  { ...facts, id: 'tiny-aya-fire', displayName: 'Tiny Aya Fire', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/tiny-aya', contextWindow: 8_000, outputMax: 8_000, tools: false },
+  { ...facts, id: 'tiny-aya-water', displayName: 'Tiny Aya Water', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/tiny-aya', contextWindow: 8_000, outputMax: 8_000, tools: false },
+  { ...facts, id: 'command-a-translate-08-2025', displayName: 'Command A Translate', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/models', contextWindow: 8_000, outputMax: 8_000, tools: false },
+  { ...facts, id: 'north-small-translate-09-2026', displayName: 'North Small Translate', observedAt: '2026-10-25', source: 'https://docs.cohere.com/docs/models', contextWindow: 16_000, outputMax: 16_000, tools: false },
 ]
 
 function bareId(id: string): string {

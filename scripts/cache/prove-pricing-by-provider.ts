@@ -59,6 +59,16 @@ section('§1 one owner per route — each family prices at its own recorded rate
   const sonnet = cost.resolveModelPricing('claude-sonnet-5')
   check('first-party: claude-sonnet-5 at the 2/10 tier, basis recorded', sonnet.basis === 'recorded' && sonnet.costs.inputTokens === 2 && sonnet.costs.outputTokens === 10)
 
+  check('Sonnet 5.5 cache reads cost $0.10 (platform.claude.com/docs/en/about-claude/pricing, read 2026-10-25)', cost.resolveModelPricing('claude-sonnet-5-5').costs.promptCacheReadTokens === 0.1)
+  check('Mythos 5.1 uses the $10/$50/$0.25 mirror tier (platform.claude.com pricing, read 2026-10-25)', cost.resolveModelPricing('claude-mythos-5-1').basis === 'recorded' && cost.resolveModelPricing('claude-mythos-5-1').costs.promptCacheReadTokens === 0.25)
+  check('GPT-5.5 is priced at $5/$30, not unpriced (developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25)', cost.resolveModelPricing('gpt-5.5').basis === 'recorded' && cost.resolveModelPricing('gpt-5.5').costs.inputTokens === 5 && cost.resolveModelPricing('gpt-5.5').costs.outputTokens === 30)
+  const argon = geminiPricePin('gemini-4-argon')!
+  check('Argon introductory $2/$10 becomes $4/$20 on December 1 (ai.google.dev pricing, read 2026-10-25)', geminiPriceTierFor(argon, undefined, '2026-11-30').costInPerMtok === 2 && geminiPriceTierFor(argon, undefined, '2026-12-01').costOutPerMtok === 20)
+  for (const [id, boundary, input, output] of [['qwen3.7-plus', 256_000, 1.2, 4.8], ['qwen3.7-flash', 32_000, 0.1, 0.4], ['qwen3.7-flash', 256_000, 0.2, 0.8], ['qwen3.6-flash', 256_000, 1, 4]] as const) {
+    const below = cost.resolveModelPricing(id, { promptTokens: boundary })
+    const above = cost.resolveModelPricing(id, { promptTokens: boundary + 1 })
+    check(`${id} crosses ${boundary} at $${input}/$${output} (alibabacloud.com model-pricing, read 2026-10-25)`, below.costs.inputTokens < above.costs.inputTokens && above.costs.inputTokens === input && above.costs.outputTokens === output)
+  }
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
   check('openai: gpt-5.6-sol at its pin, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gpt.costInPerMtok && gptPricing.costs.outputTokens === gpt.costOutPerMtok)
@@ -144,7 +154,7 @@ section('§1 one owner per route — each family prices at its own recorded rate
 
 section('§2 no owner prices another family\'s turn — unpriced is zero, never a tier')
 {
-  for (const id of ['compat/fixture-model', 'glm-9.9-nonesuch', 'gemini-2.5-pro-preview-05-06', 'gpt-5.5', 'huggingface/nobody/nothing', 'openrouter/nobody/nothing', 'no-family-declares-this']) {
+  for (const id of ['compat/fixture-model', 'glm-9.9-nonesuch', 'gemini-2.5-pro-preview-05-06', 'gpt-99-fixture-unpriced', 'huggingface/nobody/nothing', 'openrouter/nobody/nothing', 'no-family-declares-this']) {
     flagReset()
     const resolved = cost.resolveModelPricing(id)
     const priced = cost.calculateUSDCost(id, usage(100_000, 10_000))

@@ -48,11 +48,11 @@ const partsOf = (request: { messages: readonly unknown[] }): string[] =>
     Array.isArray(row.content) ? (row.content as Array<{ type?: string }>).map(part => String(part.type)) : [],
   )
 
-section('§1 the Z.AI route declares images only for a GLM vision id; the text models answer false')
-for (const id of ['glm-5.3', 'glm-5.3-flash', 'glm-5.3-flashx', 'glm-5.2', 'glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5', 'glm-4.5-air']) {
+section('§1 GLM vision and 5.3 Flash receive images (docs.z.ai/api-reference/llm/chat-completion, read 2026-10-25)')
+for (const id of ['glm-5.3', 'glm-5.2', 'glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5', 'glm-4.5-air']) {
   check(`${id} receives no image blocks`, modelReceivesImageBlocks(id) === false && glmTakesImages(id) === false)
 }
-for (const id of ['glm-4.6v', 'glm-4.5v', 'GLM-4.6V', 'glm-4.1v-thinking-flash']) {
+for (const id of ['glm-5.3-flash', 'glm-5.3-flashx', 'glm-4.6v', 'glm-4.5v', 'GLM-4.6V', 'glm-4.1v-thinking-flash']) {
   check(`${id} is the vision family and receives image blocks`, modelReceivesImageBlocks(id) === true && glmTakesImages(id) === true)
 }
 check('the compat gate follows the route (glm-5.3 → no images, glm-4.6v → images)', imagesSupportedForCompatModel('glm-5.3') === false && imagesSupportedForCompatModel('glm-4.6v') === true)
@@ -65,8 +65,10 @@ section('§2 a tool result with a screenshot goes to a text GLM as words — no 
   const tool = rows.find(row => row.role === 'tool') as { content?: unknown } | undefined
   check('no image_url part leaves for glm-5.3', !parts.includes('image_url') && !requestCarriesImage(request.messages), parts.join(','))
   check('the tool row keeps the text line and names the image it could not carry', typeof tool?.content === 'string' && tool.content.includes(RESULT_LINE) && tool.content.includes('[image]'), JSON.stringify(tool))
-  const vision = buildZaiChatRequest({ model: 'glm-4.6v', messages: [assistantTurn as never, resultTurn as never], imagesSupported: imagesSupportedForCompatModel('glm-4.6v') })
-  check('the vision model still gets the image_url part', partsOf(vision).includes('image_url'), partsOf(vision).join(','))
+  for (const model of ['glm-4.6v', 'glm-5.3-flash', 'glm-5.3-flashx']) {
+    const vision = buildZaiChatRequest({ model, messages: [assistantTurn as never, resultTurn as never], imagesSupported: imagesSupportedForCompatModel(model) })
+    check(`${model} gets the image_url part (docs.z.ai chat-completion, read 2026-10-25)`, partsOf(vision).includes('image_url'), partsOf(vision).join(','))
+  }
 }
 
 section("§3 Z.AI's refusal wording is read as an image refusal, so the recovery road fires")

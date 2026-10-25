@@ -32,7 +32,7 @@ const gptIds = GPT_DISPLAY_PINS.map(p => p.id)
 const glmIds = GLM_STATIC_CATALOGUE.map(e => e.id)
 const glmTable = GLM_PRICE_PINS.map(p => p.id)
 const glmDated = GLM_PRICE_PINS.map(p => p.observedAt).sort().at(-1) ?? ''
-const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
+const OWNER_LIST = [...gptIds]
 const anthropicIds = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel(), model.getSmallFastModel()].map(id => model.normalizeModelStringForAPI(id)))]
 const KEYS = { anthropic: 'proof-key-ci-gate-not-a-real-key', openai: 'fixture-openai-key-0001', gemini: 'fixture-gemini-key-0001', deepseek: 'fixture-deepseek-key-0001', openrouter: 'fixture-openrouter-key-0001', hf: 'fixture-hf-token-0001', zai: 'fixture-zai-key-0001', moonshot: 'fixture-moonshot-key-0001', chatgpt: 'fixture-chatgpt-access-token-0001', zen: 'sk-fixture-zen-key-0001-000000000000000000000000000000000000000000000000' }
 

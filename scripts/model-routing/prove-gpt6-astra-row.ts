@@ -169,7 +169,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   check('uncredentialed, the budget is the pinned window (a dated record, not a live claim)', getContextWindowForModel(ID) === 1_050_000, String(getContextWindowForModel(ID)))
 
   const frontier = providerFrontierFact('openai')
-  check(`the openai frontier fact is the row (the newest by the grammar): ${NAME}`, frontier?.modelId === ID && frontier.displayName === NAME, JSON.stringify(frontier))
+  check('the grammar ranks GPT-6.1 Sol above 6 (developers.openai.com/api/docs/models, read 2026-10-25)', frontier?.modelId === 'gpt-6.1-sol' && frontier.displayName === 'GPT-6.1 Sol', JSON.stringify(frontier))
   const light = providerLightFact('openai')
   check('uncredentialed, the openai light fact is silence: a live list names the tier, never the typed table', light === undefined, JSON.stringify(light))
 }
@@ -271,8 +271,8 @@ process.env.OPENAI_API_KEY = 'prover-key'
   resetComputedDefaultMemo()
   const decision = computedDefault()
   check(
-    'an OpenAI sign-in as the most recent ⇒ the fresh-session default lands on the row (the recorded frontier, served)',
-    decision.setting === ID && decision.provider === 'openai' && decision.source === 'sign-in' && decision.why.includes('the recorded frontier'),
+    'an OpenAI sign-in as the most recent ⇒ the fresh-session default lands on the served Astra row (GPT-6.1 Sol is not in this fixture list)',
+    decision.setting === ID && decision.provider === 'openai' && decision.source === 'sign-in' && decision.why.includes('the first row this sign-in can use'),
     JSON.stringify({ setting: decision.setting, provider: decision.provider, source: decision.source, why: decision.why }),
   )
 
