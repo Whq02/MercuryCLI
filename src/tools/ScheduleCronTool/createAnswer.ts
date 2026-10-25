@@ -1,3 +1,4 @@
+import { SATURN_SCHEDULE_CAP } from '../../daemon/saturn.js'
 import type { ScheduleEditAnswer } from '../../services/saturn/sessionScheduleBridge.js'
 import type { CreateOutput } from './CronCreateTool.js'
 import { createLocalTime, createUntil } from './createTime.js'
@@ -7,7 +8,7 @@ export function scheduleRefusal(detail: string): string {
   const next = family ? `The schedule would run on this session's model, and no ${family} account is connected: tell the user, and call CronCreate again once one is.`
     : detail.includes('unknown-family:') ? "This session's model names no provider Mercury can schedule on: tell the user; retrying on this session will not help."
     : detail.includes('unreachable:local') ? 'The local model server is not answering: tell the user, and call CronCreate again once it answers.'
-    : detail.includes('already holds 50 schedules') ? 'Call CronList, remove one with CronDelete, then call CronCreate again.'
+    : detail.includes(`already holds ${SATURN_SCHEDULE_CAP} schedules`) ? 'Call CronList, remove one with CronDelete, then call CronCreate again.'
     : detail.includes('unknown-session:') ? 'The daemon holds no live record for this session (it has ended): tell the user; nothing can be scheduled on it.'
     : detail.includes('could not mint an unused id') ? 'Call CronCreate once more.'
     : 'Fix what it names, then call CronCreate again.'

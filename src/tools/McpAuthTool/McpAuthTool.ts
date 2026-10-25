@@ -63,7 +63,7 @@ export function createMcpAuthTool(
             ...excludeCommandsByServer(prev.mcp.commands, serverName),
             ...report.commands,
           ]
-          let resources = prev.mcp.resources
+          let resources = excludeResourcesByServer(prev.mcp.resources, serverName)
           if (report.resources && report.resources.length > 0) {
             resources = { ...resources, [serverName]: report.resources }
           }

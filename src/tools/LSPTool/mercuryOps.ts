@@ -2,7 +2,7 @@
 import type { Dirent } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { createHash, type UUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -16,6 +16,7 @@ import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import {
   clearDeliveredDiagnosticsForFile,
+  foldDriveCase,
   snapshotDiagnosticsBeforeWrite,
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
@@ -390,7 +391,7 @@ async function harvestPublishedReports(
       const plain = event.file.uri.startsWith('file://')
         ? event.file.uri.slice('file://'.length)
         : event.file.uri
-      if (plain !== abs) return
+      if (registry.foldDriveCase(plain) !== registry.foldDriveCase(abs)) return
       if (collect().length === serverNames.length) finish()
     })
   })
@@ -534,7 +535,7 @@ type DiagnosticStabilization =
   | { state: 'timed-out'; waitedMs: number }
 
 function uriMatchesFile(uri: string, absolutePath: string): boolean {
-  return uri.endsWith(absolutePath) || uri.includes(absolutePath)
+  return foldDriveCase(uri).endsWith(foldDriveCase(absolutePath))
 }
 
 export async function awaitDiagnosticStabilization(
@@ -2526,11 +2527,12 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   try {
     const readFileState = env.context.readFileState
     if (isDirectory) {
-      const prefix = oldPath.endsWith('/') ? oldPath : `${oldPath}/`
+      const root = resolve(oldPath)
+      const prefix = root.endsWith(sep) ? root : `${root}${sep}`
       for (const [key, value] of [...readFileState.entries()]) {
-        if (key === oldPath || key.startsWith(prefix)) {
+        if (key === root || key.startsWith(prefix)) {
           readFileState.delete(key)
-          readFileState.set(newPath + key.slice(oldPath.length), value)
+          readFileState.set(newPath + key.slice(root.length), value)
         }
       }
     } else {

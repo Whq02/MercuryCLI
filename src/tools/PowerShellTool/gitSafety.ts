@@ -64,7 +64,8 @@ function resolveCurrentDirectoryReentry(normalised: string): string {
 function resolveEscapingPath(normalised: string): string | null {
   if (!(normalised.startsWith('../') || normalised.startsWith('/') || /^[a-z]:/.test(normalised))) return null
   const cwd = getShellCwd().toLowerCase().replace(/\\/g, '/')
-  const resolved = posixNormalise(cwd + '/' + normalised)
+  const drive = /^[a-z]:/.exec(cwd)?.[0] ?? ''
+  const resolved = posixNormalise(normalised.startsWith('../') ? `${cwd}/${normalised}` : normalised.startsWith('/') ? `${drive}${normalised}` : normalised)
   if (resolved === cwd) return '.'
   if (resolved.startsWith(cwd + '/')) return resolved.slice(cwd.length + 1)
   return null

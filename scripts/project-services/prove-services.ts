@@ -243,6 +243,12 @@ section('T. the Service tool end-to-end')
   })
   check('T1 tool start succeeds with the ref line',
     t1.effect.outcome === 'succeeded' && t1.data.result.includes('mercury://service/tool-web'))
+  {
+    const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
+    const record = readRecord(getOriginalCwd(), 'tool-web')
+    check('T1a the started service is owned by this Mercury session id',
+      record?.ownerSessionId === String(getSessionId()) && record.ownerSessionId !== 'session' && record.ownerSessionId !== SESSION, JSON.stringify({ owner: record?.ownerSessionId, session: getSessionId() }))
+  }
   const t2 = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 10_000 })
   check('T2 tool wait reaches READY', t2.data.result.includes('READY'))
   const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')

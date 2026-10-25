@@ -329,5 +329,3 @@ Everything inspectable: mercury://journey/<id> · mercury://execution/<id> · pe
     return result
   },
 })
-
-export { journeysEnabled as isJourneyToolCatalogEnabled }

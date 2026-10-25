@@ -324,7 +324,7 @@ async function runOp(
           outcome: 'no-change',
         }
       }
-      const lines = f.text.split('\n')
+      const lines = f.text === '' ? [] : f.text.replace(/\n$/, '').split('\n')
       const shown = lines.slice(0, 60)
       return {
         result: [
@@ -711,5 +711,3 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
     return result
   },
 })
-
-export { gitGraphEnabled as isGitToolCatalogEnabled }

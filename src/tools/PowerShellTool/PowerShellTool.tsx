@@ -4,7 +4,6 @@ import { POWERSHELL_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { getCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
 import { exec, resolveShellCwd } from '../../utils/Shell.js'
 import { sessionEnvNoticeForResult } from '../shared/sessionEnvNotice.js'
@@ -20,9 +19,8 @@ import {
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { ShellError, errorMessage } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
-import { formatDuration } from '../../utils/format.js'
 import { detectGitOperation, trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
-import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
+import { buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
 import { getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
 import { describeMaxOutputChars } from '../BashTool/prompt.js'
@@ -152,6 +150,7 @@ async function* runPowerShell(
   agentId: string | undefined,
 ): AsyncGenerator<{ toolUseID: string; data: PowerShellProgress }, Out, void> {
   const abortController = context.abortController
+  const setTaskState = context.setAppStateForTasks ?? context.setAppState
   const isMainThread = agentId === undefined
   const requestedTimeout = input.timeout
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
@@ -204,7 +203,7 @@ async function* runPowerShell(
 
   const startBackgrounding = async (fromTrigger?: (id: string) => void): Promise<void> => {
     if (foregroundTaskId !== null) {
-      const converted = backgroundExistingForegroundTask(foregroundTaskId, shellCommand, input.description ?? input.command, context.setAppState, context.toolUseId)
+      const converted = backgroundExistingForegroundTask(foregroundTaskId, shellCommand, input.description ?? input.command, setTaskState, context.toolUseId)
       if (!converted) return
       backgroundId = foregroundTaskId
       fromTrigger?.(backgroundId)
@@ -212,7 +211,7 @@ async function* runPowerShell(
     }
     const handle = await spawnShellTask(
       { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
-      { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: context.setAppState },
+      { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
     if (handle.accepted === false) return
     backgroundId = handle.taskId
@@ -228,7 +227,7 @@ async function* runPowerShell(
   if (input.run_in_background && !BACKGROUND_TASKS_DISABLED) {
     const handle = await spawnShellTask(
       { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
-      { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: context.setAppState },
+      { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
     if (handle.accepted === false) {
       const result = await shellCommand.result
@@ -265,13 +264,13 @@ async function* runPowerShell(
       const settled = outcome === 'done' ? await shellCommand.result : null
 
       if (settled && settled.backgroundTaskId !== undefined) {
-        markTaskNotified(settled.backgroundTaskId, context.setAppState)
+        markTaskNotified(settled.backgroundTaskId, setTaskState)
         const reconstructed = settled.outputFilePath && !shellCommand.taskOutput.outputFileRedundant ? { ...settled } : settled
         shellCommand.cleanup()
         return await postProcess({ ...reconstructed, backgroundTaskId: undefined })
       }
       if (settled) {
-        if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, context.setAppState)
+        if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, setTaskState)
         shellCommand.cleanup()
         return await postProcess(settled)
       }
@@ -296,7 +295,7 @@ async function* runPowerShell(
       const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
       if (!BACKGROUND_TASKS_DISABLED && backgroundId === undefined && Date.now() - startedAt >= QUIET_WINDOW_MS && context.setToolJSX) {
         if (foregroundTaskId === null) {
-          foregroundTaskId = registerForeground({ command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId }, context.setAppState, context.toolUseId)
+          foregroundTaskId = registerForeground({ command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId }, setTaskState, context.toolUseId)
         }
         context.setToolJSX({ jsx: <BackgroundHint />, shouldHidePromptInput: false, shouldContinueAnimation: true, showSpinner: true })
       }

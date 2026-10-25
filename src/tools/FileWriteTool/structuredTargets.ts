@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { crc32, deflateRawSync } from 'node:zlib'
 
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -351,10 +351,13 @@ function rebuildZipArchive(archive: ZipArchive | null, entryName: string, rawByt
 }
 
 function replaceFileAtomically(hostPath: string, bytes: Buffer): void {
-  const tmpPath = `${hostPath}.mercury-${process.pid}-${Date.now().toString(36)}.tmp`
+  const existing = statSync(hostPath, { throwIfNoEntry: false })
+  const target = existing === undefined ? hostPath : realpathSync(hostPath)
+  const tmpPath = `${target}.mercury-${process.pid}-${Date.now().toString(36)}.tmp`
   try {
     writeFileSync(tmpPath, bytes)
-    renameSync(tmpPath, hostPath)
+    if (existing !== undefined) chmodSync(tmpPath, existing.mode)
+    renameSync(tmpPath, target)
   } catch (err) {
     try {
       unlinkSync(tmpPath)
@@ -538,7 +541,7 @@ function applyRowChanges(
   selector: SqliteRowSelector,
   changes: RowChange[],
 ): { inserted: boolean; keyAfter: string | number | bigint | null } {
-  const q = (name: string) => `"${name}"`
+  const q = (name: string) => `"${name.replace(/"/g, '""')}"`
   const keyBefore = state.row === null ? null : bindable(state.row[state.matchColumn])
   const keyChange = changes.find(c => c.column === state.matchColumn)
   const keyAfter = keyChange !== undefined ? keyChange.value : keyBefore
@@ -574,7 +577,8 @@ function lineSpanOf(content: string, needle: string): { start: number; end: numb
   const at = content.indexOf(needle)
   if (at === -1 || needle === '') return null
   const start = content.slice(0, at).split('\n').length
-  return { start, end: start + needle.split('\n').length - 1 }
+  const lastLine = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
+  return { start, end: Math.min(start + needle.split('\n').length - 1, lastLine) }
 }
 
 type ReadEvidence = 'known' | 'stale' | 'unread'

@@ -169,6 +169,34 @@ console.log('§B the self-wake rule: the model, a one-shot, a fire, a wake spell
   const landed = ((rawRecord().schedules ?? []) as Schedule[]).find(s => s.id === applied.scheduleId)
   check('B9 applied through the one writer as the model, the landed row IS a self-wake', applied.outcome === 'applied' && landed !== undefined && isSaturnSelfWake(landed), JSON.stringify({ applied, landed }))
   bridge._resetScheduleBridgeForTesting()
+
+  const wakeOf = async (delaySeconds: number): Promise<{ before: number; after: number; atMs: number; delay: number; human: string }> => {
+    bridge._resetScheduleBridgeForTesting()
+    bridge.markScheduleSeatObserved()
+    const before = Date.now()
+    const out = (await ScheduleWakeupTool.call({ delaySeconds, prompt: 'the next unit' } as never, {} as never)) as { data: { delaySeconds: number; humanSchedule: string } }
+    const after = Date.now()
+    const pending = bridge.takePendingScheduleEdits()[0] as { schedule: { when: { kind: string; atMs: number } } }
+    bridge._resetScheduleBridgeForTesting()
+    return { before, after, atMs: pending.schedule.when.atMs, delay: out.data.delaySeconds, human: out.data.humanSchedule }
+  }
+  const cronOf = (atMs: number): string => {
+    const d = new Date(atMs)
+    return `${d.getMinutes()} ${d.getHours()} ${d.getDate()} ${d.getMonth() + 1} *`
+  }
+  for (const [asked, expected] of [[900, 900], [61, 61], [10, 60], [0, 60], [99_999, 3600], [Number.NaN, 60]] as Array<[number, number]>) {
+    const w = await wakeOf(asked)
+    const earliest = w.before + expected * 1000
+    const latest = w.after + expected * 1000 + MIN
+    check(`B10 delay ${asked} → ${expected}s: the stored instant is a whole minute, at or after now + delay and under a minute past it`, w.delay === expected && w.atMs % MIN === 0 && w.atMs >= earliest && w.atMs < latest, JSON.stringify({ asked, delay: w.delay, atMs: w.atMs, earliest, latest, seconds: new Date(w.atMs).getSeconds() }))
+    check(`B11 delay ${asked}: the displayed schedule pins the stored instant's own minute`, w.human === cronToHuman(cronOf(w.atMs)), JSON.stringify({ human: w.human, fromInstant: cronToHuman(cronOf(w.atMs)) }))
+  }
+  {
+    const target = Math.ceil(Date.now() / MIN) * MIN + 2 * MIN
+    const delaySeconds = Math.round((target - Date.now()) / 1000)
+    const w = await wakeOf(delaySeconds)
+    check('B12 a delay that lands within a second of a whole minute stores that minute or the next, never two ahead', w.atMs === target || w.atMs === target + MIN, JSON.stringify({ target, atMs: w.atMs }))
+  }
 }
 
 console.log('§C the drop: the self-wake and its held fire leave, everything else stands')

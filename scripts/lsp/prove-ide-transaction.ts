@@ -170,6 +170,18 @@ async function main(): Promise<void> {
       quietWindowMs: 100,
     })
     check('push silence → timed-out (never a fabricated clean)', silent.state === 'timed-out')
+    for (const [awaited, sibling] of [['/tmp/push-lane/a.ts', '/tmp/push-lane/a.tsx'], ['/tmp/push-lane/x.py', '/tmp/push-lane/x.pyi'], ['/tmp/push-lane/b.ts', '/tmp/push-lane/sub/b.ts']]) {
+      const waiting = awaitDiagnosticStabilization(fakeManager, awaited, { deadlineMs: 400, quietWindowMs: 100 })
+      setTimeout(() => registerPendingLSPDiagnostic({ serverName: 'fake', files: [{ uri: `file://${sibling}`, diagnostics: [{ severity: 'Error', message: 'not yours' }] } as never] }), 50)
+      const outcome = await waiting
+      check(`a publish for ${sibling} does not settle the wait on ${awaited} (timed-out, not fresh)`, outcome.state === 'timed-out', JSON.stringify(outcome))
+    }
+    {
+      const waiting = awaitDiagnosticStabilization(fakeManager, '/tmp/push-lane/c.ts', { deadlineMs: 1_500, quietWindowMs: 100 })
+      setTimeout(() => registerPendingLSPDiagnostic({ serverName: 'fake', files: [{ uri: 'file:///tmp/push-lane/c.ts', diagnostics: [] } as never] }), 50)
+      const outcome = await waiting
+      check('control: a publish for the file itself (a clean one) still settles fresh with zero counts', outcome.state === 'fresh' && outcome.total === 0, JSON.stringify(outcome))
+    }
     check('no manager server → unsupported', (await awaitDiagnosticStabilization({ getServerForFile: () => undefined } as never, '/x')).state === 'unsupported')
   }
 

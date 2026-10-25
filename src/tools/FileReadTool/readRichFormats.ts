@@ -628,7 +628,7 @@ function decodeXmlEntities(text: string): string {
         const code = entity.startsWith('#x')
           ? Number.parseInt(entity.slice(2), 16)
           : Number.parseInt(entity.slice(1), 10)
-        return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : full
+        return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : full
       }
     }
   })
@@ -1009,7 +1009,7 @@ function extractRtfText(rtf: string): string {
           } else if (word === 'u' && param !== undefined) {
             let code = Number.parseInt(param, 10)
             if (code < 0) code += 65536
-            if (code > 0) out.push(String.fromCodePoint(code))
+            if (code > 0 && code <= 0x10ffff) out.push(String.fromCodePoint(code))
             if (rtf[i] === '?') i++
           }
         }
@@ -1252,8 +1252,8 @@ export async function renderSqliteTarget(
   } catch {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
     const copy = join(scratch, basename(dbPath))
-    copyFileSync(dbPath, copy)
     try {
+      copyFileSync(dbPath, copy)
       db = await openReadOnly(copy)
     } catch (error) {
       rmSync(scratch, { recursive: true, force: true })

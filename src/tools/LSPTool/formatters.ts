@@ -292,33 +292,6 @@ export function formatWorkspaceSymbolResult(
   return lines.join('\n')
 }
 
-function formatHierarchyItem(item: CallHierarchyItem, workingDirectory?: string): string {
-  const detail = item.detail ? ` [${item.detail}]` : ''
-  if (!item.uri) {
-    logForDebugging('LSP formatter: call-hierarchy item with no URI')
-    return `${item.name} (${symbolKindName(item.kind)}) ${UNKNOWN_LOCATION}${detail}`
-  }
-  const path = displayPath(uriToPath(item.uri), workingDirectory)
-  return `${item.name} (${symbolKindName(item.kind)}) ${path}:${item.range.start.line + 1}${detail}`
-}
-
-function formatPrepareCallHierarchyResult(
-  result: CallHierarchyItem[] | null,
-  workingDirectory?: string,
-): string {
-  if (!result || result.length === 0) {
-    return 'No call-hierarchy item found at this position.'
-  }
-  if (result.length === 1) {
-    return `Call hierarchy item: ${formatHierarchyItem(result[0]!, workingDirectory)}`
-  }
-  const lines = [`Call-hierarchy items at this position (${result.length}):`]
-  for (const item of result) {
-    lines.push(`  ${formatHierarchyItem(item, workingDirectory)}`)
-  }
-  return lines.join('\n')
-}
-
 function formatCalls(
   calls: Array<IncomingCall | OutgoingCall>,
   direction: 'incoming' | 'outgoing',

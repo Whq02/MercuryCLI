@@ -302,9 +302,11 @@ export const SkillTool = buildTool({
     const commands = await getCommandUniverse(context)
     const command = findCommand(name, commands)
     const permissionContext = context.getAppState().toolPermissionContext
+    const names = command === undefined ? [name] : [name, command.name, getCommandName(command), ...(command.aliases ?? [])]
+    const ruleNamesSkill = (content: string): boolean => names.some(candidate => ruleMatchesSkill(content, candidate))
 
     for (const [content, rule] of getRuleByContentsForToolName(permissionContext, SKILL_TOOL_NAME, 'deny')) {
-      if (ruleMatchesSkill(content, name)) {
+      if (ruleNamesSkill(content)) {
         return {
           behavior: 'deny' as const,
           message: ruleSentence(`The ${name} skill`, 'deny', rule),
@@ -313,7 +315,7 @@ export const SkillTool = buildTool({
       }
     }
     for (const [content, rule] of getRuleByContentsForToolName(permissionContext, SKILL_TOOL_NAME, 'allow')) {
-      if (ruleMatchesSkill(content, name)) {
+      if (ruleNamesSkill(content)) {
         return {
           behavior: 'allow' as const,
           updatedInput: input,

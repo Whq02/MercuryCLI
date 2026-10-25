@@ -189,6 +189,48 @@ section('§7 a compact single-line notebook and a CRLF notebook')
   check('…and the edit touches the cell\'s source lines only', deltaCrlf.changed.length === 1 && deltaCrlf.removed.length === 0 && deltaCrlf.added.length === 0 && JSON.stringify(parse(c.after).cells[2]?.source) === '["print(2)"]', JSON.stringify(deltaCrlf))
 }
 
+section('§8 call() refuses an unknown or out-of-range cell_id itself — validation skipped (a //-shaped path) or stale, cell 0 is never the fallback')
+{
+  type Refusal = { data: Record<string, unknown>; effect: { outcome: string }; after: string; result: string }
+  async function callOnly(fileText: string, pathOf: (path: string) => string, input: Omit<Input, 'notebook_path'>): Promise<Refusal> {
+    const path = join(SCRATCH, `nb-${++counter}.ipynb`)
+    writeFileSync(path, fileText)
+    const spelled = pathOf(path)
+    const validation = await NotebookEditTool.validateInput({ notebook_path: spelled, ...input } as never, context)
+    if (validation.result === false) throw new Error(`validateInput refused: ${validation.message}`)
+    const out = await NotebookEditTool.call({ notebook_path: spelled, ...input } as never, context, undefined as never, parent)
+    const block = NotebookEditTool.mapToolResultToToolResultBlockParam(out.data as never, 'notebook-edit') as { content: string }
+    return { data: out.data as Record<string, unknown>, effect: out.effect as { outcome: string }, after: readFileSync(path, 'utf8'), result: block.content }
+  }
+  const unc = (path: string): string => `/${path}`
+  if (process.platform !== 'win32') {
+    const del = await callOnly(AIR, unc, { cell_id: 'nope', edit_mode: 'delete', new_source: '' })
+    check('delete of an unknown id through a //-shaped path (validation skipped) leaves the notebook byte-identical', del.after === AIR && parse(del.after).cells.length === 2, clip(del.after))
+    check('…and answers the validation refusal, never "Deleted cell nope"', del.data.error === 'Cell with ID "nope" not found in notebook.' && del.effect.outcome === 'failed' && !/^Deleted/.test(del.result), JSON.stringify({ error: del.data.error, result: del.result }))
+    const rep = await callOnly(AIR, unc, { cell_id: 'cell-7', edit_mode: 'replace', new_source: 'print(0)' })
+    check('replace at an out-of-range index leaves the notebook byte-identical and names the index', rep.after === AIR && rep.data.error === 'Cell index 7 is out of range for this notebook.' && rep.effect.outcome === 'failed', JSON.stringify(rep.data.error))
+    const missing = await callOnly(AIR, unc, { edit_mode: 'replace', new_source: 'print(0)' })
+    check('replace with no cell_id leaves the notebook byte-identical and says the id is required', missing.after === AIR && missing.data.error === 'cell_id is required for edit_mode=replace and edit_mode=delete.', JSON.stringify(missing.data.error))
+    const byIndex = await callOnly(AIR, unc, { cell_id: 'cell-1', edit_mode: 'replace', new_source: 'print(9)' })
+    check('control: a valid positional id still edits that cell through the same road', sourceText(parse(byIndex.after).cells[1]?.source) === 'print(9)' && byIndex.data.error === '' && byIndex.effect.outcome === 'succeeded', clip(byIndex.after))
+  }
+  const path = join(SCRATCH, `nb-${++counter}.ipynb`)
+  writeFileSync(path, AIR)
+  const stale = await NotebookEditTool.call({ notebook_path: path, cell_id: 'gone', edit_mode: 'delete', new_source: '' } as never, context, undefined as never, parent)
+  check('a cell id that vanished after validation (call() alone) deletes nothing', readFileSync(path, 'utf8') === AIR && (stale.data as Record<string, unknown>).error === 'Cell with ID "gone" not found in notebook.', clip(readFileSync(path, 'utf8')))
+}
+
+section('§9 a cell_type change carries the nbformat-4 fields of its new type')
+{
+  const toCode = await edit(JUPYTER, { cell_id: 'm1', edit_mode: 'replace', cell_type: 'code', new_source: 'x = 1' })
+  const codeCell = parse(toCode.after).cells[0] as Record<string, unknown>
+  check('markdown → code gains outputs [] and execution_count null', codeCell.cell_type === 'code' && JSON.stringify(codeCell.outputs) === '[]' && codeCell.execution_count === null && sourceText(codeCell.source) === 'x = 1', JSON.stringify(codeCell))
+  const toMarkdown = await edit(JUPYTER, { cell_id: 'k1', edit_mode: 'replace', cell_type: 'markdown', new_source: '# Was code' })
+  const mdCell = parse(toMarkdown.after).cells[1] as Record<string, unknown>
+  check('code → markdown drops outputs and execution_count (nbformat forbids them on a markdown cell)', mdCell.cell_type === 'markdown' && !('outputs' in mdCell) && !('execution_count' in mdCell) && sourceText(mdCell.source) === '# Was code', JSON.stringify(mdCell))
+  check('…and keeps the cell metadata', JSON.stringify((mdCell.metadata as Record<string, unknown>).tags) === '["keep"]')
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 rmSync(process.env.MERCURY_CONFIG_DIR as string, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL NOTEBOOK-EDIT PROOFS PASS' : `\n${failures} NOTEBOOK-EDIT PROOF(S) FAILED`)

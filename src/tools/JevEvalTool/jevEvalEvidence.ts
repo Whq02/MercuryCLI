@@ -314,6 +314,7 @@ function readEvidenceFile(index: number, given: string): FileRead {
   } catch (error) {
     return refuse(`evidence[${index}].file.path ${path} could not be read (${error instanceof Error ? error.message : String(error)}); nothing was sent`)
   }
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
   const where = { index, name: basename(path), unit: 'line' }
   if (text.includes('\0')) return refuse(`${jevEvalAt(where)} holds a NUL byte; a file of evidence is text; nothing was sent`)
   if (text.trim() === '') return refuse(`${jevEvalAt(where)} is empty; nothing was sent`)

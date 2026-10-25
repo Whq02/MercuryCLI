@@ -140,6 +140,24 @@ try {
         elapsedMs < 200,
       rFifty.ok ? `elapsed=${elapsedMs.toFixed(1)}ms` : rFifty.error,
     )
+
+    const utf16Path = join(root, 'ps51.log')
+    const utf16Lines = Array.from({ length: 60_000 }, (_, i) => `entry ${i + 1} — Zeile ${i + 1}\r\n`)
+    const utf16Body = Buffer.from(utf16Lines.join(''), 'utf16le')
+    writeFileSync(utf16Path, Buffer.concat([Buffer.from([0xff, 0xfe]), utf16Body]))
+    check('4d. the UTF-16LE fixture is over the 2 MB fast-road threshold', utf16Body.length > 2 * 1024 * 1024, `${utf16Body.length} bytes`)
+    const rUtfTail = await runRead({ file_path: utf16Path, offset: -2 })
+    check(
+      '4d. offset: -2 on a UTF-16LE (FF FE) file over 2 MB decodes clean text — no NUL-interleaving, no kept \\r — exactly as the same file under 2 MB reads',
+      rUtfTail.ok && /^59999\tentry 59999 — Zeile 59999\n60000\tentry 60000 — Zeile 60000\n\[lines 59999-60000 of 60000/.test(rUtfTail.body) && !rUtfTail.body.includes('\u0000') && !rUtfTail.body.includes('\r'),
+      rUtfTail.ok ? JSON.stringify(rUtfTail.body.slice(0, 200)) : rUtfTail.error,
+    )
+    const rUtfRanges = await runRead({ file_path: utf16Path, ranges: ['-2'] })
+    check(
+      '4e. ranges ["-2"] on the same file reads the same two lines clean',
+      rUtfRanges.ok && rUtfRanges.body.includes('59999\tentry 59999 — Zeile 59999') && rUtfRanges.body.includes('60000\tentry 60000 — Zeile 60000') && !rUtfRanges.body.includes('\u0000') && !rUtfRanges.body.includes('\r'),
+      rUtfRanges.ok ? JSON.stringify(rUtfRanges.body.slice(0, 200)) : rUtfRanges.error,
+    )
   }
 } finally {
   rmSync(root, { recursive: true, force: true })

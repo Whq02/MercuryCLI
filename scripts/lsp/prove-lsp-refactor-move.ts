@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { bootWorkspace, makeChecker } from './refactorsHarness.js'
 
 const t = makeChecker('prove-lsp-refactor-move')
@@ -89,6 +90,17 @@ try {
   t.check('every importer names the new path', [IDX, LOUD, R].every(rel => /text\/greeting\.js/.test(ws.text(rel))))
   const cleanAfterFileMove = await Promise.all([IDX, LOUD, APP, M, NEW_G, TARGET].map(clean))
   t.check('the importers and the moved module are clean afterwards', cleanAfterFileMove.every(Boolean), JSON.stringify(cleanAfterFileMove))
+
+  t.section('M6 pathRename of a directory re-keys every read-state entry under it to the same relative path, whatever the spelling of the directory')
+  const NOTE = 'refactors/src/standalone/note.ts'
+  const MOVED_NOTE = 'refactors/src/moved/note.ts'
+  mkdirSync(dirname(ws.abs(NOTE)), { recursive: true })
+  writeFileSync(ws.abs(NOTE), 'export const note = 1\n')
+  ws.read(NOTE)
+  const dirMoved = await ws.op({ operation: 'pathRename', filePath: `${ws.abs('refactors/src/standalone')}/`, newPath: ws.abs('refactors/src/moved'), apply: true })
+  t.check('the directory moved (its path spelled with a trailing slash)', dirMoved.applied === true && existsSync(ws.abs(MOVED_NOTE)) && !existsSync(ws.abs(NOTE)), dirMoved.result.slice(0, 300))
+  const keys = [...ws.readFileState.keys()]
+  t.check('the read-state entry follows to <dir>/moved/note.ts — never to movednote.ts', ws.readFileState.has(ws.abs(MOVED_NOTE)) && !ws.readFileState.has(ws.abs(NOTE)) && !keys.some(key => key.endsWith('movednote.ts')), JSON.stringify(keys.filter(key => /moved|standalone/.test(key))))
 } catch (error) {
   t.check('no exception escaped', false, error instanceof Error ? (error.stack ?? error.message) : String(error))
 } finally {

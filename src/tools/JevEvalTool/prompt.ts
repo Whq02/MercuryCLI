@@ -1,6 +1,6 @@
 import { JEV_STATUS_KINDS, JEV_SUBAGENT_CALL_BUDGET, JEV_SUBAGENT_PACE_PER_MINUTE, type JevStatusKind } from '../../services/jev/jevContract.js'
 import { JEV_STATUS_HEADWORDS, jevStatusIsFinalForSession } from '../../services/jev/jevStatus.js'
-import { JEV_EVAL_CONFIDENCE_FLOOR, JEV_EVAL_FILE_KEY, JEV_EVAL_ID_COLUMN, JEV_EVAL_MAX_FILE_BYTES, JEV_EVAL_MAX_ROWS, JEV_EVAL_PARAGRAPH_FACT, JEV_EVAL_ROW_POSITION_PREFIX, JEV_EVAL_TABLE_KEY } from './constants.js'
+import { JEV_EVAL_CONFIDENCE_FLOOR, JEV_EVAL_FILE_KEY, JEV_EVAL_ID_COLUMN, JEV_EVAL_ROW_POSITION_PREFIX, JEV_EVAL_TABLE_KEY } from './constants.js'
 
 export const JEV_EVAL_SEARCH_HINT = 'Jev second opinion: rank hypotheses, judge calls, check proposals'
 

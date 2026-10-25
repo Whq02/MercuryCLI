@@ -5,7 +5,6 @@ import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
-import { APOLLO_REVIEW_TOOL_NAME } from '../ApolloReviewTool/constants.js'
 import {
   isSaturnExemptEnabled,
   SATURN_EXEMPT_TOOL,
@@ -21,7 +20,6 @@ function isMcpToolLike(tool: Tool): boolean {
 
 export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   void permissionMode
-  void APOLLO_REVIEW_TOOL_NAME
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false

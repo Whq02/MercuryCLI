@@ -15,7 +15,6 @@ import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import {
   getPipelineSegments,
   getAllCommands,
-  hasCommandNamed,
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
@@ -384,5 +383,3 @@ function parsedHasScriptBlocks(parsed: ParsedPowerShellCommand): boolean {
 function other(reason: string): PermissionDecisionReason {
   return { type: 'other', reason }
 }
-
-void hasCommandNamed

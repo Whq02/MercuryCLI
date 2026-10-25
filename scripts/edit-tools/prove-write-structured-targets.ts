@@ -910,5 +910,73 @@ section('refusals. Every way to abuse or break the row, driven and refused')
   }
 }
 
+section('S3. The host archive keeps its mode and its symlink; a partial Read covers an edit at the entry\'s final newline; a quoted SQLite identifier binds')
+{
+  _resetSeenLinesForTesting()
+  const { lstatSync: lstat, symlinkSync } = await import('node:fs')
+  if (process.platform !== 'win32') {
+    const strict = join(fixtures, 'strict.zip')
+    writeFileSync(strict, buildZip([{ name: 'secret.txt', content: 'top\n' }]))
+    chmodSync(strict, 0o600)
+    const ctx = makeContext()
+    await read({ file_path: `${strict}:secret.txt` }, ctx)
+    const rewritten = await write({ file_path: `${strict}:secret.txt`, content: 'top secret\n' }, ctx)
+    check(
+      'S3.1 rewriting an entry of a 0600 archive keeps the archive 0600 (the temp file takes the archive\'s mode before the rename)',
+      rewritten.ok && (statSync(strict).mode & 0o777) === 0o600 && zipText(bytesOf(strict), 'secret.txt') === 'top secret\n',
+      `${words(rewritten)} mode=${(statSync(strict).mode & 0o777).toString(8)}`,
+    )
+
+    const real = join(fixtures, 'real.zip')
+    const link = join(fixtures, 'link.zip')
+    writeFileSync(real, buildZip([{ name: 'a.txt', content: 'one\n' }]))
+    symlinkSync(real, link)
+    const ctx2 = makeContext()
+    await read({ file_path: `${link}:a.txt` }, ctx2)
+    const throughLink = await write({ file_path: `${link}:a.txt`, content: 'two\n' }, ctx2)
+    check(
+      'S3.2 writing an entry through a symlinked archive writes THROUGH the link: the link stays a link and the real archive carries the entry',
+      throughLink.ok && lstat(link).isSymbolicLink() && zipText(bytesOf(real), 'a.txt') === 'two\n',
+      `${words(throughLink)} link=${lstat(link).isSymbolicLink()} real=${JSON.stringify(zipText(bytesOf(real), 'a.txt'))}`,
+    )
+  }
+
+  const tenZip = join(fixtures, 'ten.zip')
+  const tenLines = Array.from({ length: 10 }, (_, i) => `v${i + 1}\n`).join('')
+  writeFileSync(tenZip, buildZip([{ name: 'ten.txt', content: tenLines }]))
+  const ctx3 = makeContext()
+  const window = await read({ file_path: `${tenZip}:ten.txt`, offset: 8, limit: 3 }, ctx3)
+  const lastLine = await edit({ file_path: `${tenZip}:ten.txt`, old_string: 'v10\n', new_string: 'v10 — last\n' }, ctx3)
+  check(
+    'S3.3 after Read(offset 8, limit 3) of a 10-line entry, an Edit whose old_string ends at the final newline touches lines 8–10 only and lands (no phantom line 11)',
+    window.ok && lastLine.ok && zipText(bytesOf(tenZip), 'ten.txt') === `${tenLines.slice(0, -'v10\n'.length)}v10 — last\n`,
+    `${words(window)} / ${words(lastLine)}`,
+  )
+
+  const quotedDb = join(fixtures, 'quoted.sqlite')
+  {
+    const db = new Database(quotedDb)
+    db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, "we""ird" TEXT); INSERT INTO t (id, "we""ird") VALUES (1, \'a\');')
+    db.close()
+  }
+  const ctx4 = makeContext()
+  const inserted = await write({ file_path: `${quotedDb}:t/2`, content: JSON.stringify({ 'we"ird': 'b' }) }, ctx4)
+  const rowRead = await read({ file_path: `${quotedDb}:t/1` }, ctx4)
+  const updated = await edit({ file_path: `${quotedDb}:t/1`, old_string: '"we\\"ird": "a"', new_string: '"we\\"ird": "c"' }, ctx4)
+  const rows = ((): Array<Record<string, unknown>> => {
+    const d = new Database(quotedDb, { readonly: true })
+    try {
+      return d.prepare('SELECT id, "we""ird" AS w FROM t ORDER BY id').all() as Array<Record<string, unknown>>
+    } finally {
+      d.close()
+    }
+  })()
+  check(
+    'S3.4 a column whose name holds a double quote is quoted with the quote doubled: the INSERT and the UPDATE both land',
+    inserted.ok && rowRead.ok && updated.ok && JSON.stringify(rows) === JSON.stringify([{ id: 1, w: 'c' }, { id: 2, w: 'b' }]),
+    `${words(inserted)} / ${words(rowRead)} / ${words(updated)} rows=${JSON.stringify(rows)}`,
+  )
+}
+
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -177,8 +177,6 @@ export const ExitWorktreeTool = buildTool({
     const tmuxSessionName = session.tmuxSessionName
     const projectRootMoved = getOriginalCwd() === getProjectRoot()
 
-    const counts = (await countWorktreeChanges(session)) ?? { files: 0, commits: 0 }
-
     if (input.action === 'keep') {
       await keepWorktree()
       restoreSessionState(originalCwd, projectRootMoved)
@@ -200,6 +198,7 @@ export const ExitWorktreeTool = buildTool({
       return { data }
     }
 
+    const counts = (await countWorktreeChanges(session)) ?? { files: 0, commits: 0 }
     if (tmuxSessionName) {
       await execFileNoThrow('tmux', ['kill-session', '-t', tmuxSessionName])
     }

@@ -21,7 +21,7 @@ import {
   waitForReady,
 } from '../../services/projectServices/serviceManager.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -333,14 +333,7 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
   },
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
-    const sessionId = (() => {
-      try {
-        const state = context.getAppState() as { sessionId?: string }
-        return String(state.sessionId ?? 'session')
-      } catch {
-        return 'session'
-      }
-    })()
+    const sessionId = String(getSessionId())
     let output: Output
     try {
       output = await runOp(input, sessionId, ownerFromToolUseContext(context))

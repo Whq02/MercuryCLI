@@ -102,6 +102,14 @@ function refuse(message: string, errorCode: number): ValidationResult {
   return { result: false, message, errorCode }
 }
 
+function cellRefusal(cells: NotebookCell[], cellId: string | undefined, editMode: EditMode | undefined): { message: string; errorCode: number } | null {
+  if (!cellId) return editMode === 'insert' ? null : { message: 'cell_id is required for edit_mode=replace and edit_mode=delete.', errorCode: 7 }
+  if (cells.some(cell => cell.id === cellId)) return null
+  const index = parseCellId(cellId)
+  if (index === undefined) return { message: `Cell with ID "${cellId}" not found in notebook.`, errorCode: 8 }
+  return index < 0 || index >= cells.length ? { message: `Cell index ${index} is out of range for this notebook.`, errorCode: 7 } : null
+}
+
 function effectFor(
   outcome: 'succeeded' | 'failed',
   startedAt: number,
@@ -211,26 +219,8 @@ export const NotebookEditTool = buildTool({
       return refuse('Notebook is not valid JSON.', 6)
     }
 
-    if (!cell_id && edit_mode !== 'insert') {
-      return refuse('cell_id is required for edit_mode=replace and edit_mode=delete.', 7)
-    }
-
-    if (cell_id) {
-      const cells = Array.isArray(parsed.cells) ? parsed.cells : []
-      const byId = cells.findIndex(cell => cell.id === cell_id)
-      if (byId === -1) {
-        const index = parseCellId(cell_id)
-        if (index !== undefined) {
-          if (index < 0 || index >= cells.length) {
-            return refuse(`Cell index ${index} is out of range for this notebook.`, 7)
-          }
-        } else {
-          return refuse(`Cell with ID "${cell_id}" not found in notebook.`, 8)
-        }
-      }
-    }
-
-    return { result: true }
+    const refusal = cellRefusal(Array.isArray(parsed.cells) ? parsed.cells : [], cell_id, edit_mode)
+    return refusal === null ? { result: true } : refuse(refusal.message, refusal.errorCode)
   },
   async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage: AssistantMessage) {
     const startedAt = Date.now()
@@ -267,6 +257,10 @@ export const NotebookEditTool = buildTool({
 
       const cells: NotebookCell[] = Array.isArray(notebook.cells) ? notebook.cells : (notebook.cells = [])
       const language = notebookLanguage(notebook)
+      const refusal = cellRefusal(cells, cell_id, edit_mode)
+      if (refusal !== null) {
+        return { data: failurePayload(input, resolvedPath, refusal.message), effect: effectFor('failed', startedAt, [], refusal.message) }
+      }
 
       let mode: EditMode = edit_mode ?? 'replace'
       let effectiveCellType = cell_type
@@ -324,6 +318,13 @@ export const NotebookEditTool = buildTool({
         }
         if (effectiveCellType && effectiveCellType !== target.cell_type) {
           target.cell_type = effectiveCellType
+          if (effectiveCellType === 'code') {
+            target.execution_count = null
+            target.outputs = []
+          } else {
+            delete target.execution_count
+            delete target.outputs
+          }
         }
       }
 

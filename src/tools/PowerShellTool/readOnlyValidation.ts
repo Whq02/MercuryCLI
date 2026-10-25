@@ -18,7 +18,6 @@ import {
 import { COMMON_PARAMETERS } from './commonParameters.js'
 import { getPlatform } from '../../utils/platform.js'
 
-const PS_DASH_CHARS = '-–—―'
 const PS_DASH_RE = /[-–—―]/
 
 type CommandConfig = {
@@ -236,8 +235,7 @@ function validatePsFlags(canonical: string, element: ParsedCommandElement, confi
       : arg.startsWith('-') || (getPlatform() === 'windows' && arg.startsWith('/'))
     if (!isParam) continue
     if (!safeFlags || safeFlags.length === 0) return false
-    let name = isCmdlet ? '-' + arg.replace(PS_DASH_RE, '').replace(/^-?/, '') : arg
-    name = normaliseDash(arg)
+    let name = normaliseDash(arg)
     const colon = name.indexOf(':', 1)
     if (colon !== -1) name = name.slice(0, colon)
     name = name.toLowerCase()
@@ -366,5 +364,3 @@ export function hasSyncSecurityConcerns(command: string): boolean {
   if (trimmed.includes('::')) return true
   return false
 }
-
-void PS_DASH_CHARS

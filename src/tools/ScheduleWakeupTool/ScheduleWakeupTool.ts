@@ -67,12 +67,8 @@ function nextWakeInstantMs(delaySeconds: number, nowMs: number): number {
   return target.getTime()
 }
 
-function buildOneShotCron(delaySeconds: number, nowMs: number): string {
-  const target = new Date(nowMs + delaySeconds * 1000)
-  if (target.getSeconds() !== 0 || target.getMilliseconds() !== 0) {
-    target.setSeconds(0, 0)
-    target.setMinutes(target.getMinutes() + 1)
-  }
+function buildOneShotCron(fireAtMs: number): string {
+  const target = new Date(fireAtMs)
   const minute = target.getMinutes()
   const hour = target.getHours()
   const dom = target.getDate()
@@ -107,7 +103,8 @@ export const ScheduleWakeupTool = buildTool({
     }
     const clamped = clampDelaySeconds(delaySeconds)
     const nowMs = Date.now()
-    const cron = buildOneShotCron(clamped, nowMs)
+    const fireAtMs = nextWakeInstantMs(clamped, nowMs)
+    const cron = buildOneShotCron(fireAtMs)
     const safeReason = reason && detectSecrets(reason).length === 0 ? reason : undefined
     const fired = applyWakeReason(prompt, safeReason)
     const humanSchedule = cronToHuman(cron)
@@ -115,7 +112,7 @@ export const ScheduleWakeupTool = buildTool({
       const submitted = submitSessionScheduleEdit({
         op: 'add',
         schedule: {
-          when: { kind: 'at', atMs: nextWakeInstantMs(clamped, nowMs), spelling: wakeDelaySpelling(clamped) },
+          when: { kind: 'at', atMs: fireAtMs, spelling: wakeDelaySpelling(clamped) },
           action: { kind: 'fire', prompt: fired, onParked: 'queue' },
           ...(safeReason !== undefined ? { note: safeReason } : {}),
         },

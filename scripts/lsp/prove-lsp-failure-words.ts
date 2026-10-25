@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { armScratch, check, cleanup, FAILING_SERVER, FAKE_SERVER, finish, fixtureServer, openToolDoor, section, TS_PROBE_FILES, writeProject } from './lspProofDoor.ts'
 
@@ -95,6 +95,13 @@ section('§6 no server claims the files: the words say why and what would provid
   check('the single-file op says not checked, with the same help', single.isError === true && /lib\.ts was not checked: no language server claims '\.ts' files/.test(single.text) && /What helps: install typescript/.test(single.text), single.text)
   const missing = await door.drive({ operation: 'diagnostics', paths: [path.join(project, 'absent.ts')] })
   check('a path that does not exist is named as not found', missing.isError === true && /absent\.ts: not found or unreadable/.test(missing.text), missing.text)
+  mkdirSync(path.join(project, 'my.app'), { recursive: true })
+  writeFileSync(path.join(project, 'my.app', 'Makefile'), 'all:\n\techo hi\n')
+  writeFileSync(path.join(project, 'Main.TS'), 'export const main = 1\n')
+  const noExtension = await door.drive({ operation: 'hover', filePath: path.join(project, 'my.app', 'Makefile'), line: 1, character: 1 })
+  check('a file with no extension under a dotted folder is named by its basename, never by the dot in the folder name (".app/Makefile")', noExtension.isError === true && /no language server claims 'Makefile' files in this session/.test(noExtension.text) && !noExtension.text.includes('.app/'), noExtension.text)
+  const upper = await door.drive({ operation: 'hover', filePath: path.join(project, 'Main.TS'), line: 1, character: 14 })
+  check('an upper-case extension is lower-cased, so the TypeScript help still applies', upper.isError === true && /no language server claims '\.ts' files in this session/.test(upper.text) && /What helps: install typescript/.test(upper.text), upper.text)
   await door.close()
 }
 

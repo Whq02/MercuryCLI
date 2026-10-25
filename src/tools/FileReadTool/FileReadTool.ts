@@ -971,8 +971,8 @@ async function readMultiRangeTextLane(
   ownRead: boolean,
   reserve: () => FileReadingLimits = () => declared,
 ): Promise<LaneResult> {
+  const bom = Buffer.alloc(2)
   {
-    const bom = Buffer.alloc(2)
     try {
       const fd = openSync(resolvedPath, 'r')
       try {
@@ -989,7 +989,7 @@ async function readMultiRangeTextLane(
     }
   }
   const st = ideReadTextAvailable() ? { size: 0, mtimeMs: Date.now() } : await stat(resolvedPath)
-  const useFastReverse = !ideReadTextAvailable() && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail')
+  const useFastReverse = !ideReadTextAvailable() && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail') && !(bom[0] === 0xff && bom[1] === 0xfe)
   const counted = useFastReverse
     ? null
     : (await readRangeViaIde(resolvedPath, 0, 0, undefined, context.abortController.signal)) ??
@@ -1366,8 +1366,8 @@ async function readTextLane(
   const rawOffset = input.offset
   let lineOffset = rawOffset !== undefined && rawOffset > 0 ? rawOffset - 1 : 0
   let maxLines = input.limit ?? MAX_LINES_TO_READ
+  const bom = Buffer.alloc(2)
   {
-    const bom = Buffer.alloc(2)
     try {
       const fd = openSync(resolvedPath, 'r')
       try {
@@ -1404,7 +1404,7 @@ async function readTextLane(
   } else if (rawOffset !== undefined && rawOffset < 0) {
     const tailCount = Math.abs(rawOffset)
     const st = await stat(resolvedPath)
-    if (st.size > 2 * 1024 * 1024) {
+    if (st.size > 2 * 1024 * 1024 && !(bom[0] === 0xff && bom[1] === 0xfe)) {
       range = readTailLinesReverse(resolvedPath, tailCount, input.limit)
       const total = realLineTotal(range)
       lineOffset = Math.max(0, total - tailCount)

@@ -185,6 +185,22 @@ console.log('§3 Document lane (.docx, .xlsx, .pptx, .odt, .epub, .rtf)')
 
   const rtfRes = await runRead({ file_path: join(FIXTURES, 'sample.rtf') })
   check('3f. rtf opens and strips control words while keeping text and punctuation', rtfRes.ok && rtfRes.text.includes('Rich Text Heading') && rtfRes.text.includes('Second line with \u2014 dash.'), rtfRes.ok ? rtfRes.text : rtfRes.error)
+
+  const outOfRange = mkdtempSync(join(tmpdir(), 'read-rich-codepoint-'))
+  try {
+    const rtfPath = join(outOfRange, 'wild.rtf')
+    writeFileSync(rtfPath, '{\\rtf1\\ansi before \\u8212? mid \\u99999999? after}')
+    const wildRtf = await runRead({ file_path: rtfPath })
+    check('3g. an RTF \\u value past U+10FFFF is skipped instead of failing the whole read (the in-range one still decodes)', wildRtf.ok && wildRtf.text.includes('before \u2014 mid') && wildRtf.text.includes('after') && !/RangeError|Invalid code point/.test(wildRtf.text), wildRtf.ok ? wildRtf.text : wildRtf.error)
+
+    const docxPath = join(outOfRange, 'wild.docx')
+    const documentXml = Buffer.from('<?xml version="1.0"?><w:document><w:body><w:p><w:r><w:t>dash &#8212; then &#99999999; and &#x110000; stay literal</w:t></w:r></w:p></w:body></w:document>', 'utf8')
+    writeFileSync(docxPath, buildCustomZip([{ name: 'word/document.xml', rawData: documentXml }]))
+    const wildDocx = await runRead({ file_path: docxPath })
+    check('3h. a numeric XML entity past U+10FFFF (decimal or hex) stays literal text instead of failing the document read', wildDocx.ok && wildDocx.text.includes('dash \u2014 then &#99999999; and &#x110000; stay literal'), wildDocx.ok ? wildDocx.text : wildDocx.error)
+  } finally {
+    rmSync(outOfRange, { recursive: true, force: true })
+  }
 }
 
 console.log('§4 Genuine binary files (.exe, .dll, .class) still refuse at validateInput')

@@ -1,3 +1,5 @@
+import { dirname } from 'node:path'
+
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
@@ -199,7 +201,7 @@ export const FileWriteTool = buildTool({
     const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
-      const hostParentDir = structuredTarget.hostPath.split(/[\\/]/).slice(0, -1).join('/')
+      const hostParentDir = dirname(structuredTarget.hostPath)
       if (hostParentDir) {
         await getFsImplementation().mkdir(hostParentDir)
       }
@@ -213,7 +215,7 @@ export const FileWriteTool = buildTool({
       return callStructuredWriteTarget(structuredTarget, input.content, context, startedAt)
     }
     const expandedPath = expandPath(input.file_path)
-    const parentDir = expandedPath.split(/[\\/]/).slice(0, -1).join('/')
+    const parentDir = dirname(expandedPath)
 
     try {
       const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
@@ -385,7 +387,6 @@ export const FileWriteTool = buildTool({
       limit: undefined,
     })
 
-    let gitDiff: Output['gitDiff']
     const parseError = await checkIntroducedParseError(
       expandedPath,
       fileExists ? normalizedContent : null,
@@ -405,7 +406,6 @@ export const FileWriteTool = buildTool({
         content: writtenContent,
         structuredPatch: patch,
         originalFile: normalizedContent,
-        ...(gitDiff !== undefined ? { gitDiff } : {}),
         ...(parseError !== undefined ? { parseError } : {}),
         ...(diverged ? { diverged: true } : {}),
       }
@@ -430,7 +430,6 @@ export const FileWriteTool = buildTool({
       content: writtenContent,
       structuredPatch: [],
       originalFile: null,
-      ...(gitDiff !== undefined ? { gitDiff } : {}),
       ...(parseError !== undefined ? { parseError } : {}),
       ...(diverged ? { diverged: true } : {}),
     }

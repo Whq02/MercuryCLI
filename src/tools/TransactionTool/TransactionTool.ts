@@ -131,7 +131,7 @@ You never write to the record. Every change a tool lands in this project (Edit, 
   isReadOnly(input: Input) { return input.op === 'status' },
   async validateInput(input: Input) {
     if (input.op === 'finish' && input.verdict == null) {
-      return { result: false as const, behavior: 'ask' as const,
+      return { result: false as const,
         message: 'finish requires verdict: "completed" | "failed" | "abandoned".', errorCode: 1 }
     }
     return { result: true as const }

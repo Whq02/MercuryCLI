@@ -150,6 +150,14 @@ section('R. the refusal names the lines read and the lines the edit touches; a f
   primeRead(ctxAttachment, attachedFile, undefined, { isPartialView: true })
   const attached = await validate({ file_path: attachedFile, old_string: 'const v12 = 12', new_string: 'x' }, ctxAttachment)
   check('R9 an automatic attachment is named as not a read', !attached.ok && attached.message.includes('(an automatic attachment showed part of it, which is not a read)'), messageOf(attached))
+
+  _resetSeenLinesForTesting()
+  const ten = join(fixtures, 'ten.ts')
+  writeFileSync(ten, lines(10))
+  const ctxTail = makeContext()
+  primeRead(ctxTail, ten, { offset: 8, limit: 3 })
+  const tail = await editResult({ file_path: ten, old_string: 'const v10 = 10\n', new_string: 'const v10 = 100\n' }, ctxTail)
+  check('R10 an old_string ending at the file\'s final newline touches lines that exist only (no phantom line 11): a Read of lines 8-10 lets it land in one call', tail.ok && readFileSync(ten, 'utf8').endsWith('const v10 = 100\n') && !tail.text.includes('did not count as read'), textOf(tail))
 }
 
 section('E. a read of an earlier version of the file is named as such')

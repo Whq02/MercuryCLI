@@ -810,5 +810,3 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     return result
   },
 })
-
-export { pythonTestsEnabled as isTestToolCatalogEnabled } from '../../services/ide/pythonTests.js'

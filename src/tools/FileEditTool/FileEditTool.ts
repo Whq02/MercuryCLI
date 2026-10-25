@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute } from 'node:path'
+import { dirname, isAbsolute } from 'node:path'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
@@ -241,11 +241,12 @@ function linesOfMatches(content: string, oldString: string, replaceAll: boolean)
   if (actual === null || actual.length === 0) return null
   const ranges: { start: number; end: number }[] = []
   const height = actual.split('\n').length - 1
+  const lastLine = lineCountOf(content)
   let from = 0
   let line = 1
   for (let at = content.indexOf(actual); at !== -1; at = content.indexOf(actual, from)) {
     line += content.slice(from, at).split('\n').length - 1
-    ranges.push({ start: line, end: line + height })
+    ranges.push({ start: line, end: Math.min(line + height, lastLine) })
     if (!replaceAll) break
     line += height
     from = at + actual.length
@@ -845,12 +846,6 @@ export const FileEditTool = buildTool({
 
     const expandedPath = expandPath(input.file_path)
 
-    const proposedBodies = usingHunks
-      ? (input.hunks ?? []).map(hunk => hunk.replace)
-      : [input.new_string ?? input.append ?? '']
-    for (const body of proposedBodies) {
-    }
-
     const { old_string, new_string } = input
     if (mode === 'exact' && hasText(old_string) && old_string === new_string) {
       return {
@@ -1159,7 +1154,7 @@ export const FileEditTool = buildTool({
       await discoverSkillsForPath(context, expandedPath)
     }
     context.nestedMemoryAttachmentTriggers?.add(expandedPath)
-    const parentDir = expandedPath.split(/[\\/]/).slice(0, -1).join('/')
+    const parentDir = dirname(expandedPath)
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)
     }
@@ -1508,8 +1503,6 @@ export const FileEditTool = buildTool({
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
 
-    const gitDiff: Output['gitDiff'] = undefined
-
     const { added, removed } = patchLineCounts(patch)
     const hunkCount = usingHunks ? (input.hunks as EditHunkInput[]).length : 0
     const parseError = await checkIntroducedParseError(
@@ -1525,7 +1518,6 @@ export const FileEditTool = buildTool({
       structuredPatch: patch,
       userModified,
       replaceAll,
-      ...(gitDiff !== undefined ? { gitDiff } : {}),
       ...(freshLineAnchors !== undefined ? { freshLineAnchors } : {}),
       ...(staleRecoveryNote !== undefined ? { staleRecovery: staleRecoveryNote } : {}),
       ...(readThrough !== undefined ? { readThrough } : {}),

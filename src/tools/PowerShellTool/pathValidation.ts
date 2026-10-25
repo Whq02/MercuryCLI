@@ -97,7 +97,6 @@ function r(paths: string[], sw: string, val: string): PathConfig {
 }
 
 const REMOVAL_CANONICAL = 'remove-item'
-const OPTIONAL_WRITE = new Set(['invoke-webrequest', 'invoke-restmethod'])
 const ENV_CONTENT_CMDLETS = new Set(['get-content', 'select-string', 'format-hex', 'select-xml', 'copy-item', 'move-item'])
 
 function isComplexColonValue(value: string): boolean {
@@ -339,8 +338,6 @@ export function checkPathConstraints(
 function checkOneCommand(command: ParsedCommandElement, cwd: string, context: ToolPermissionContext): PermissionResult | null {
   const extracted = extractPaths(command)
   const canonical = resolveToCanonical(command.name)
-  if (extracted.unvalidatable) {
-  }
   if (extracted.operation !== 'read' && !extracted.optionalWrite && extracted.paths.length === 0 && extracted.hasConfig) {
     return { behavior: 'ask', message: `${canonical} has no determinable write target.`, decisionReason: other('A write operation with no target.') }
   }

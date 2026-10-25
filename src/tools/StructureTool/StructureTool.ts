@@ -457,5 +457,3 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
     return changeView ? `${result}\n${changeViewSearchText(changeView)}` : result
   },
 })
-
-export { structureEnabled as isStructureToolCatalogEnabled }

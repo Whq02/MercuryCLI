@@ -1,6 +1,6 @@
 import type { UUID } from 'node:crypto'
 import { stat, open, readFile } from 'node:fs/promises'
-import { resolve as resolvePath, relative } from 'node:path'
+import { basename, extname, resolve as resolvePath, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod/v4'
@@ -285,7 +285,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
     const { method, params } = getMethodAndParams(input, documentPath)
     const response = await manager.sendRequest<unknown>(documentPath, method, params)
     if (response === undefined) {
-      const extension = `.${documentPath.split('.').pop() ?? ''}`
+      const extension = extname(documentPath).toLowerCase() || basename(documentPath)
       const why = unclaimedCause(extension, cwd)
       return fail(`The ${operation} operation was not run: no language server claims '${extension}' files in this session — ${why.cause}.${why.remedy ? ` What helps: ${why.remedy}.` : ''}`)
     }

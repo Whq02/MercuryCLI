@@ -2,7 +2,6 @@ import {
   deriveSecurityFlags,
   getAllCommands,
   getVariablesByScope,
-  isPowerShellParameter,
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'

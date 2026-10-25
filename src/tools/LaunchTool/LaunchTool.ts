@@ -339,7 +339,7 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
       adapterKey: p.debug!.adapter,
       program: p.debug!.program,
       args: p.debug!.args,
-      cwd: p.debug!.cwd ?? process.cwd(),
+      cwd: p.debug!.cwd ?? getCwd(),
       ...(p.debug!.env !== undefined ? { env: p.debug!.env } : {}),
       ...(p.debug!.module !== undefined ? { module: p.debug!.module } : {}),
       breakpoints: undefined,
