@@ -4,7 +4,7 @@
   ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
   │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
   │ it launches, watches, and reconciles your  │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
-  │ sessions — ask in plain words              │ │   n starts a blank session in this project                        │  
+  │ sessions — ask in plain words              │ │   tab to the list, then n starts a blank session in this project  │  
   │ ▸ launch two sessions on this project · ↵… │ │ ⊞ READY TO REVIEW · 1                                             │  
   │   what needs me right now?                 │ │ ▸ ● ready     Audit billing…Moodle                           12m  │  
   │   pause the parser session                 │ │ ⊞ WORKING · 3                                                     │  

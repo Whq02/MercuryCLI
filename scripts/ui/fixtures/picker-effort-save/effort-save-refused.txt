@@ -5,10 +5,10 @@
 ╰───────────────────────────╯│ │ Mercury · model                                                                                │ ││   API key · …-key         │
 ╭───────────────────────────╮│ │ / type to search by name or id                                                                 │ ││   spend none yet          │
 │ ▸ NEXT                    ││ │                                                                                                │ ││   credits not reported    │
-│   · /workflows — crewmat… ││ │ ▾ ANTHROPIC · API key · …-key · 12 live                                                        │ │╰───────────────────────────╯
+│   · /workflows…           ││ │ ▾ ANTHROPIC · API key · …-key · 12 live                                                        │ │╰───────────────────────────╯
 │   · /health — health cert ││ │ ╭────────────────────────────────────────────────────────────────────────────────────────────╮ │ │╭───────────────────────────╮
 │   · /memory — memory      ││ │ │ Fable 5.1             claude-fable-5-1              current      1M ctx                    │ │ ││ ⤳ WORKFLOW                │
-│   · /mission — set a mis… ││ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ ││   idle                    │
+│   · /mission — set a…     ││ │ ╰────────────────────────────────────────────────────────────────────────────────────────────╯ │ ││   idle                    │
 ╰───────────────────────────╯│ │   Fable 5               claude-fable-5                             1M ctx                      │ │╰───────────────────────────╯
 ╭───────────────────────────╮│ │   Sonnet 5.5            claude-sonnet-5-5                          1M ctx                      │ │╭───────────────────────────╮
 │ ▤ FILES · project         ││ │   Sonnet 5              claude-sonnet-5                            1M ctx                      │ ││ ✓ HEALTH                  │
@@ -30,14 +30,14 @@
                              │ │   Hugging Face — sign in                                                                       │ │
                              │ │ ▾ Z.AI · no Z.AI API key — /logins zai (or ZAI_API_KEY)                                        │ │
                              │ │   Z.AI — attach a key                                                                          │ │
-                             │ │   GLM-5.3               glm-5.3                       unavailable  1M ctx                      │ │
-                             │ │   ↓ 39 more                                                                                    │ │
+                             │ │   ↓ 68 more                                                                                    │ │
                              │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                                     │ │
                              │ │                                                                                                │ │
                              │ │ context —  · tier API billing                                                                  │ │
                              │ │ effort  low medium high [xhigh] max · ctrl+e changes it                                        │ │
                              │ │ Effort set to xhigh · not saved as your default: ~/mercury/settings.json — permission denied   │ │
                              │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes │ │
+                             │ │ pgup/pgdn page                                                                                 │ │
                              │ ╰────────────────────────────────────────────────────────────────────────────────────────────────╯ │
                              │                                                                                                    │
                              │                                                                                                    │

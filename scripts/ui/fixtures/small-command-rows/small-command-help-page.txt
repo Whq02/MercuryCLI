@@ -3,18 +3,19 @@ WORKBENCH               │╭────────────────�
   /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health ce…│                                                                                                                  │
+  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /health — health…   │                                                                                                                  │
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a mi…│ 13:09:20 [sam] ❯ start                                                                                           │
+  · /mission — set a…   │ 15:53:51 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 13:09:20 [Mercury] Command rows ready.                                                                           │
+FILES · project         │ 15:53:51 [Mercury] Command rows ready.                                                                           │
   ↵ or click · browse   │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 VITALS                  │   └ crewmates off for this session                                                                               │
   · spend $0.00         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
   · ctx 0% · 1000k      │     running finishes                                                                                             │
   · health — run /health│                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
@@ -25,7 +26,7 @@ VITALS                  │   └ crewmates off for this session                
 │                                                                                                                                          │
 │ Browse default commands                                                                                                                  │
 │                                                                                                                                          │
-│ ↑ /diff                                                                                                                                  │
+│   /diff                                                                                                                                ↑ │
 │     Review workspace over uncommitted + per-turn changes (sources · files · hunks)                                                       │
 │   /mission                                                                                                                               │
 │     Set a mission — keep working until the condition is met                                                                              │
@@ -38,11 +39,10 @@ VITALS                  │   └ crewmates off for this session                
 │   ─ crew & delegation ─                                                                                                                  │
 │   /agents                                                                                                                                │
 │     Open the Agent Studio — build, edit, and tune your agents                                                                            │
-│   /crew                                                                                                                                  │
-│     The living-crew directory — members, presence, external seat attach/detach                                                           │
-│ ❯ /crewmates                                                                                                                             │
-│     Crew — the session's crewmates live; on or off flips whether this session may spawn them                                             │
+│ ❯ /crew                                                                                                                                  │
+│     The living-crew directory — members, presence, external seat attach/detach                                                         ↓ │
 │                                                                                                                                          │
+│ ↑↓ move · pgup/pgdn page · ↵ stage · esc close                                                                                           │
 │ ↵ stages the command in the composer — nothing runs until you send it                                                                    │
 │                                                                                                                                          │
 │                                                                                                                                          │

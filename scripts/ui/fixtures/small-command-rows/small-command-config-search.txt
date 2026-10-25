@@ -2,11 +2,11 @@
 WORKBENCH               │╭                                                                                                                ╮│
   start                 ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ ││
                         ││ │ ▖▟▆▙▗ Mercury · config                                                                                     │ ││
-NEXT                    ││ │ project · 78 settings · 1 set by you                                                                       │ ││
-  · /workflows — crewma…│╰ │                                                                                                            │ ╯│
-  · /health — health ce…│  │ / journal                                                                                                  │  │
+NEXT                    ││ │ project · 80 settings · 1 set by you                                                                       │ ││
+  · /workflows…         │╰ │                                                                                                            │ ╯│
+  · /health — health…   │  │ / journal                                                                                                  │  │
   · /memory — memory    │  │                                                                                                            │  │
-  · /mission — set a mi…│  │   Session journal                   off                                                                    │  │
+  · /mission — set a…   │  │   Session journal                   off                                                                    │  │
                         │  │   Journal on the entry page         off                                                                    │  │
 FILES · project         │  │                                                                                                            │  │
   ↵ or click · browse   │  │                                                                                                            │  │
@@ -38,7 +38,7 @@ VITALS                  │  │                                                
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
-                        │  │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                                   │  │
+                        │  │ ↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes                  │  │
                         │  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  │
                         │                                                                                                                  │
                         ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

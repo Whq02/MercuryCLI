@@ -3,21 +3,21 @@ WORKBENCH               │╭────────────────�
   visible reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health ce…│                                                                                                                  │
+  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /health — health…   │                                                                                                                  │
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a mi…│ 13:15:28 [sam] ❯ private reasoning                                                                               │
+  · /mission — set a…   │ 15:54:19 [sam] ❯ private reasoning                                                                               │
                         │                                                                                                                  │
-FILES · project         │ 13:15:28 [Mercury] Private reasoning answer.                                                                     │
+FILES · project         │ 15:54:19 [Mercury] Private reasoning answer.                                                                     │
   ↵ or click · browse   │                                                                                                                  │
-                        │ 13:15:36 [sam] ❯ visible reasoning                                                                               │
+                        │ 15:54:28 [sam] ❯ visible reasoning                                                                               │
 VITALS                  │                                                                                                                  │
   · spend $0.00         │ ● Preserved thinking: 2 thinking blocks written by Opus 4.8 stay out of the requests to Opus 5.5 (the            │
   · ctx 0% · 1000k      │ conversation switched models); the model re-plans without them.                                                  │
   · health — run /health│                                                                                                                  │
                         │ ✻ thinking… ⌄                                                                                                    │
                         │                                                                                                                  │
-                        │ 13:15:36 [Mercury] Visible reasoning answer.                                                                     │
+                        │ 15:54:28 [Mercury] Visible reasoning answer.                                                                     │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

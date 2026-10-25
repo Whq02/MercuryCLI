@@ -1,12 +1,12 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 WORKBENCH               │                                                                                                                  │
   private reasoning     │                                                                                                                  │
-                        │ 13:15:28 [sam] ❯ private reasoning                                                                               │
+                        │ 15:54:19 [sam] ❯ private reasoning                                                                               │
 NEXT                    │                                                                                                                  │
-  · /workflows — crewma…│ ✻ thinking… — the provider returned no thinking text for this model                                              │
-  · /health — health ce…│                                                                                                                  │
-  · /memory — memory    │                                                                                    13:15 claude-opus-4-8         │
-  · /mission — set a mi…│                                                                                                                  │
+  · /workflows…         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  · /health — health…   │                                                                                                                  │
+  · /memory — memory    │                                                                                    15:54 claude-opus-4-8         │
+  · /mission — set a…   │                                                                                                                  │
                         │ Private reasoning answer.                                                                                        │
 FILES · project         │                                                                                                                  │
   ↵ or click · browse   │                                                                                                                  │

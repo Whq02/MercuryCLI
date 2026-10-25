@@ -3,12 +3,12 @@ WORKBENCH               │╭────────────────�
   run the cell          ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
                         │                                                                                                                  │
 FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 13:09:20 [sam] ❯ start                                                                                           │
+  ↵ or click · browse   │ 15:53:51 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-VITALS                  │ 13:09:20 [Mercury] Command rows ready.                                                                           │
+VITALS                  │ 15:53:51 [Mercury] Command rows ready.                                                                           │
   · spend $0.00         │                                                                                                                  │
   · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
   · health — run /health│   └ crewmates off for this session                                                                               │
@@ -16,9 +16,9 @@ VITALS                  │ 13:09:20 [Mercury] Command rows ready.              
                         │     running finishes                                                                                             │
                         │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 13:09:37 [sam] ❯ run the cell                                                                                    │
+                        │ 15:54:08 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 13:09:37 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │ │ 15:54:08 [Mercury] ▰ Eval         js · Calculate the value                                                     │
                         │ │   └ Starting kernel…                                                                                           │
                         │                                                                                                                  │
                         │                                                                                                                  │

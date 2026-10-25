@@ -4,7 +4,7 @@
   ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
   │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
   │                                            │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
-  │                                            │ │   n starts a blank session in this project                        │  
+  │                                            │ │   tab to the list, then n starts a blank session in this project  │  
   │                                            │ │ ⊞ READY TO REVIEW · 1                                             │  
   │                                            │ │ ▸ ● ready     Audit billing…Moodle                           12m  │  
   │                                            │ │ ⊞ WORKING · 3                                                     │  
@@ -21,18 +21,18 @@
   │                                            │ │ no chat yet — ready for your first words · ↵ enters it            │  
   │                                            │ │                                                                   │  
   │                                            │ │                                                                   │  
-  │ 15:15:10 [sam] change the greeting text    │ │                                                                   │  
+  │ 15:53:21 [sam] change the greeting text    │ │                                                                   │  
   │ from "Hello, " to "Hi there, " and then    │ │                                                                   │  
   │ run python3 hello.py. Do both now.         │ │                                                                   │  
   │                                            │ │                                                                   │  
-  │ 15:15:10 [harness] coordinator is off —    │ │                                                                   │  
+  │ 15:53:21 [harness] coordinator is off —    │ │                                                                   │  
   │ messages here start sessions directly ·    │ │                                                                   │  
   │ turn it on in the boot menu                │ │                                                                   │  
   │ coordinator off · ▸ turn on · ⌃a           │ │                                                                   │  
   │ ╭────────────────────────────────────────╮ │ ╰───────────────────────────────────────────────────────────────────╯  
-  │ │ ❯ ▌describe a task — ↵ starts a sessi… │ │ ╭───────────────────────────────────────────────────────────────────╮  
+  │ │ ❯  describe a task — ↵ starts a sessi… │ │ ╭───────────────────────────────────────────────────────────────────╮  
   │ │ ↵ send · ⇧↵ newline · ⇧tab manager · … │ │ │ ❯ message Audit billing receipts · queued for its next turn       │  
-  │ ╰────────────────────────────────────────╯ │ │ ● applied — started in agent-a82i3wd9                             │  
+  │ ╰────────────────────────────────────────╯ │ │ ● applied — started in mercury                                    │  
   ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
   │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  

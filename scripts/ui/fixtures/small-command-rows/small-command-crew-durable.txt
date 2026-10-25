@@ -3,12 +3,12 @@ WORKBENCH               │╭────────────────�
   /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health ce…│                                                                                                                  │
+  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /health — health…   │                                                                                                                  │
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a mi…│ 13:09:20 [sam] ❯ start                                                                                           │
+  · /mission — set a…   │ 15:53:51 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 13:09:20 [Mercury] Command rows ready.                                                                           │
+FILES · project         │ 15:53:51 [Mercury] Command rows ready.                                                                           │
   ↵ or click · browse   │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 VITALS                  │   └ crewmates off for this session                                                                               │
