@@ -108,7 +108,7 @@ try {
   await capture('120x40-first-screen')
   check('the first screen opens on the model list with no key pressed', question!.step === 'door-models' && selected().length > 0)
   check('key controls name connected vendors and the action for a refused key', keysRow() !== undefined && normal().includes('Vendor keys · Runpod ✓ · Vast.ai · replace key') && aboveRecipes('Vendor keys ·'))
-  check('paid count includes vendor machines without records and marks an unread vendor', /Machines I’m paying for · 2\+\? · Vast\.ai unread · 2 running/.test(normal()) && aboveRecipes('Machines I’m paying for ·') && hostRecords().every(record => record.id !== 'fixture-orphan'))
+  check('an incomplete paid count leads to details without a partial total on the row', podsRow().label === 'Machines I’m paying for →' && aboveRecipes('Machines I’m paying for →') && hostRecords().every(record => record.id !== 'fixture-orphan'))
   check('lost-record and de-registered pods are not promoted to model rows', !question!.rows!.some(row => row.section === 'MODELS' && row.label.includes('running on Runpod pod')))
   check('the refused Vast.ai key keeps its one-line notice and its detail row', normal().includes('Vast.ai: could not be read (HTTP 401) · replace the key to reconnect') && question!.rows!.some(row => row.value === 'vendor-error:vast'))
   check('a no-stock model names the shapes and the vendors whose stock was read, never the bare words', noStockRows().length > 0 && noStockRows().every(row => row.label.includes('no stock on Runpod · watch →')) && !question!.rows!.some(row => row.label.includes('no stock · watch →')))

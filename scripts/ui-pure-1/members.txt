@@ -63,6 +63,7 @@ prove-tool-result-summary.ts
 prove-transcript-list-keys.ts
 prove-turn-receipt.ts
 prove-usage-slot-grammar.ts
+prove-usage-rental.ts
 prove-viewport-follows-console.ts
 prove-wheel-accel.ts
 prove-win32-size-reconcile.ts

@@ -154,7 +154,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
       if (decoratedQuestions.has(plan)) return ask(plan)
       while (!lifetimeSignal.aborted) {
         const failures = HOST_VENDORS.flatMap(id => {
-          if (!vendorKey(id)) return []
+          if (!vendorKey(id) || !['door-models', 'paid-pods', 'where', 'door-bank', 'door-keys'].includes(plan.step) && (plan.step.startsWith('door-') || id !== vendor)) return []
           const entries = ['machines', 'volumes', 'stock'].flatMap(operation => { const failure = stateFor(id, operation).failure; return failure ? [failure] : [] })
           const summaries = entries.filter(row => !(row.operation === 'stock' && row.parked && entries.some(other => other.operation === 'machines' && other.status === row.status)))
           return entries.length ? [{ id, entries, summary: [...new Set(summaries.map(row => row.summary))].join('\n'), detail: entries.map(row => row.detail).join('\n'), parked: entries.every(row => row.parked), permission: entries.some(row => row.permission) }] : []
@@ -240,7 +240,11 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         const latest = readHostRecord(pod.id)
         if (latest?.status === 'TERMINATED') return { ok: false, words: latest.error ?? 'Instance terminated.' }
         if (!action || action === 'close') return { ...(saved ?? { ok: true }), words: keepWords(pod, vendor) }
-        if (action === 'logs') { const engineLog = record ? hostLogTail(record) : ''; emit({ title: engineLog ? 'Engine log' : api.label + ' logs', words: engineLog || await api.logs(pod.id) }); continue }
+        if (action === 'logs') {
+          const engineLog = record ? hostLogTail(record) : ''
+          await ask({ step: 'pod-logs', title: engineLog ? 'Engine log' : api.label + ' logs', found: engineLog || await api.logs(pod.id), willRun: '', rows: [] })
+          continue
+        }
         if (action === 'tune' && record) {
           runpodOnly(api, 'Tune reload')
           const { runTune } = await import('./tune.js')

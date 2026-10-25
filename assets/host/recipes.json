@@ -1516,7 +1516,7 @@
       "vramGb": 80,
       "diskGb": 260,
       "weightsGb": 195.764040609,
-      "image": "vllm/vllm-openai:latest",
+      "image": "vllm/vllm-openai:v0.32.0",
       "cuda": "13.0",
       "flags": [
         "--tool-call-parser",
@@ -1558,7 +1558,7 @@
       "vramGb": 141,
       "diskGb": 260,
       "weightsGb": 195.764040609,
-      "image": "vllm/vllm-openai:latest",
+      "image": "vllm/vllm-openai:v0.32.0",
       "cuda": "13.0",
       "flags": [
         "--tool-call-parser",
@@ -3275,7 +3275,7 @@
       "vramGb": 180,
       "diskGb": 900,
       "weightsGb": 681.542908857,
-      "image": "vllm/vllm-openai:latest",
+      "image": "vllm/vllm-openai:v0.32.0",
       "cuda": "13.0",
       "flags": [
         "--max-model-len",
@@ -3323,7 +3323,7 @@
       "vramGb": 141,
       "diskGb": 900,
       "weightsGb": 681.542908857,
-      "image": "vllm/vllm-openai:latest",
+      "image": "vllm/vllm-openai:v0.32.0",
       "cuda": "13.0",
       "flags": [
         "--max-model-len",

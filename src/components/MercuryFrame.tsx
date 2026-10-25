@@ -7,7 +7,7 @@ import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
 import { advisorChipWords } from '../services/advisor/advisorSettings.js'
 import { Box, Text } from '../ink.js'
-import { contextFillView, contextPercentLabel } from '../utils/contextFill.js'
+import { contextPercentLabel } from '../utils/contextFill.js'
 import { needsYouCount } from '../utils/needsYouCount.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import {
@@ -15,7 +15,7 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { type ModelName, renderModelChip, renderModelName } from '../utils/model/model.js'
-import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { useDisplayedSessionModel, useFocusedContextFill } from '../hooks/useDisplayedSessionModel.js'
 import { publishContextUsage } from '../utils/cockpit/contextUsageLive.js'
 import { LAYOUT_BREAKPOINTS, useLayoutTier } from '../hooks/useLayoutTier.js'
 import { cachedAttentionView, subscribeAttentionView } from '../services/attention/viewModel.js'
@@ -183,7 +183,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   )
   const windowModel = routeSurface ? model : (sessionPinnedModel ?? model)
   useCatalogueEpoch()
-  const fill = contextFillView(messages, windowModel)
+  const fill = useFocusedContextFill(messages, windowModel, !routeSurface)
   const used = fill.usedPct
   const windowSize = fill.window
   useEffect(() => {

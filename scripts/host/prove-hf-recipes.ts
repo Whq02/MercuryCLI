@@ -81,7 +81,7 @@ try {
   const fp8Derived = deriveHostRecipe(fp8, fp8Repo.files, fp8Repo.config)
   assert.ok(fp8Derived.ok, 'the FP8 recipe derives: ' + JSON.stringify(fp8Derived))
   const v = fp8Derived.recipe
-  check('safetensors → vLLM with --max-model-len from the config and --tensor-parallel-size = the GPU count', v.engine === 'vllm' && v.image === 'vllm/vllm-openai:latest' && v.flags.join(' ') === '--max-model-len 1048576 --tensor-parallel-size 2' && v.context === 1048576)
+  check('safetensors → vLLM with --max-model-len from the config and --tensor-parallel-size = the GPU count', v.engine === 'vllm' && v.image === 'vllm/vllm-openai:v0.32.0' && v.flags.join(' ') === '--max-model-len 1048576 --tensor-parallel-size 2' && v.context === 1048576)
   check('FP8 memory and hardware stay unchanged', v.gpu === 'B200' && v.count === 2 && v.vramGb === 180 && v.weightsGb === 288 && v.diskGb === 450 && v.label === fp8.id + ' · safetensors FP8' && hostRecipeSchema.safeParse(v).success && fp8Derived.engine === 'vLLM' && fp8Derived.format === 'safetensors FP8')
 
   const visionDerived = deriveHostRecipe(vision, [{ path: 'model.safetensors', size: 6e9 }, { path: 'config.json', size: 4096 }], { architectures: ['DeepseekOCRForConditionalGeneration'] })

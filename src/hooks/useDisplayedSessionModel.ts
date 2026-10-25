@@ -8,6 +8,8 @@ import {
 import { renderModelChip } from '../utils/model/model.js'
 import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogue.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
+import { contextFillView, type ContextFillView } from '../utils/contextFill.js'
+import type { Message } from '../types/message.js'
 
 
 export type DisplayedSessionModel = {
@@ -46,6 +48,13 @@ const getFocusedServedModel = (): string => focusedSessionModelFacts()?.effectiv
 export function useFocusedServedModel(): string | null {
   const served = useSyncExternalStore(subscribeFocusedModel, getFocusedServedModel, getFocusedServedModel)
   return served === '' ? null : served
+}
+
+const getFocusedContext = () => getFocusedSessionConnector().usage().context ?? null
+
+export function useFocusedContextFill(messages: readonly Message[], model: string, focused = true): ContextFillView {
+  const context = useSyncExternalStore(subscribeFocusedModel, getFocusedContext, getFocusedContext)
+  return focused && context?.model === model ? context : contextFillView(messages, model)
 }
 
 const getFocusedServedEffort = (): string => focusedSessionModelFacts()?.effort ?? ''

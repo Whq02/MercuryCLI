@@ -180,7 +180,7 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
   })),
   ...[{ gpu: 'H200', vramGb: 141 }, { gpu: 'B200', vramGb: 180 }].map(hw => ({
     id: 'mistral-large3-' + hw.gpu.toLowerCase(), label: 'Mistral Large 3 675B · FP8', model: 'mistralai/Mistral-Large-3-675B-Instruct-2512', ...hw, count: 8, weightsGb: 681.542908857, diskGb: 900, engine: 'vllm' as const,
-    image: 'vllm/vllm-openai:latest', cuda: '13.0', source: mistralSource, context: 262144, contextPerSlot: 262144, verification: 'Apache-2.0 · vendor FP8 serving recipe',
+    image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source: mistralSource, context: 262144, contextPerSlot: 262144, verification: 'Apache-2.0 · vendor FP8 serving recipe',
     efforts: { levels: [], verified: { by: 'documented' as const, on: '2026-10-20', source: 'https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512/blob/main/chat_template.jinja', note: 'the template renders thinking blocks and takes no effort field' } },
     verified: { by: 'documented' as const, on: '2026-10-20', note: 'Vendor model-card vLLM recipe; GPU serving not measured by Mercury', source: mistralSource },
     flags: ['--max-model-len', '262144', '--tensor-parallel-size', '8', '--tokenizer_mode', 'mistral', '--config_format', 'mistral', '--load_format', 'mistral', '--enable-auto-tool-choice', '--tool-call-parser', 'mistral'],
@@ -485,14 +485,14 @@ export const HOST_RECIPES: readonly HostRecipe[] = withPrefixCaching([
   },
   {
     id: 'gpt-oss-120b-h100', label: 'gpt-oss-120b · MXFP4', model: 'openai/gpt-oss-120b', weightsGb: 195.764040609, gpu: 'H100', count: 1, vramGb: 80, diskGb: 260, engine: 'vllm' as const,
-    image: 'vllm/vllm-openai:latest', cuda: '13.0', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b', context: 131072, contextPerSlot: 131072, verification: 'Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three',
+    image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b', context: 131072, contextPerSlot: 131072, verification: 'Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three',
     verified: { by: 'documented' as const, on: '2026-10-22', note: 'Vendor model-card vLLM recipe; GPU serving not measured by Mercury', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b' },
     efforts: { levels: ['low', 'medium', 'high'], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/openai/gpt-oss-120b/blob/main/chat_template.jinja', note: 'reasoning_effort defaults to medium; the model card names low, medium and high' } },
     flags: ['--tool-call-parser', 'openai', '--enable-auto-tool-choice'],
   },
   {
     id: 'gpt-oss-120b-h200', label: 'gpt-oss-120b · MXFP4', model: 'openai/gpt-oss-120b', weightsGb: 195.764040609, gpu: 'H200', count: 1, vramGb: 141, diskGb: 260, engine: 'vllm' as const,
-    image: 'vllm/vllm-openai:latest', cuda: '13.0', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b', context: 131072, contextPerSlot: 131072, verification: 'Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three',
+    image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b', context: 131072, contextPerSlot: 131072, verification: 'Apache-2.0 · vendor MXFP4 vLLM serving recipe for one 80 GB GPU · the repository holds three 65 GB copies of the weights (safetensors, original, metal) and the download takes all three',
     verified: { by: 'documented' as const, on: '2026-10-22', note: 'Vendor model-card vLLM recipe; GPU serving not measured by Mercury', source: 'https://recipes.vllm.ai/openai/gpt-oss-120b' },
     efforts: { levels: ['low', 'medium', 'high'], verified: { by: 'documented' as const, on: '2026-10-22', source: 'https://huggingface.co/openai/gpt-oss-120b/blob/main/chat_template.jinja', note: 'reasoning_effort defaults to medium; the model card names low, medium and high' } },
     flags: ['--tool-call-parser', 'openai', '--enable-auto-tool-choice'],

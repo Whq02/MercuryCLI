@@ -62,3 +62,16 @@ export function hostPriceLines(recipe: HostRecipe, price?: number): string[] | u
     ...vendor.filter(Boolean),
   ]
 }
+
+export function hostRentalUsage(model: string, now = Date.now()): { id: string; machine: string; price: number; elapsedMs: number; spendUSD: number } | undefined {
+  const { compatModelEndpoint } = require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
+  const { readHostRecord } = require('./store.js') as typeof import('./store.js')
+  const { hostMachineName } = require('../../commands/llmhost/words.js') as typeof import('../../commands/llmhost/words.js')
+  const id = compatModelEndpoint(model)?.endpoint.hostPodId
+  if (!id) return
+  const record = readHostRecord(id)
+  if (!record || record.jobKind === 'watch' || record.jobKind === 'bank' || !hostPodBills(record)) return
+  const elapsedMs = Math.max(0, now - Date.parse(record.startedAt))
+  if (!Number.isFinite(elapsedMs) || !Number.isFinite(record.price)) return
+  return { id, machine: hostMachineName(record.vendor ?? 'runpod', id), price: record.price, elapsedMs, spendUSD: hostSpendSoFar([{ status: record.status, cost: record.price, createdAt: record.startedAt }], now) }
+}

@@ -1,5 +1,6 @@
 import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../bootstrap/state.js'
 import type { ModelSpendRowV1, UsageFactsV1 } from '../engine-connector/types.js'
+import { hostRentalUsage } from '../host/costs.js'
 import { formatLaneSpend } from '../../utils/spendSpelling.js'
 import { formatTokens } from '../../utils/format.js'
 import { WORKLOAD_ADVISOR, WORKLOAD_CRON } from '../../utils/workloadContext.js'
@@ -474,6 +475,7 @@ export interface ActiveSourceUsage {
   absence?: string
   whyNot?: string
   tier?: string
+  rental?: ReturnType<typeof hostRentalUsage>
 }
 
 export interface ActiveUsageReads {
@@ -1596,7 +1598,8 @@ function deriveActiveSourceUsage(opts?: {
   const reads = opts?.reads
   const model = opts?.model ?? getEngineModel()
   const provider = (reads?.route ?? ((m: string) => declaredRouteOf(m) ?? 'unrecognised'))(model)
-  const view = usageForProvider(provider, reads)
+  const rental = reads === undefined && provider === 'openai-compat' ? hostRentalUsage(model) : undefined
+  const view = { ...usageForProvider(provider, reads), ...(rental ? { rental } : {}) }
   const binding = bindingWindowOf(view, model)
   return binding !== undefined ? { ...view, binding } : view
 }

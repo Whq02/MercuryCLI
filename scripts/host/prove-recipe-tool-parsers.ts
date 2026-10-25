@@ -16,6 +16,7 @@ for (const [source, rows] of [['src/services/host/recipes.ts', HOST_RECIPES], ['
   check(source + ' carries vLLM recipes to check', vllm.length >= 3, String(vllm.length))
   for (const row of vllm) {
     const parser = parserOf(row.flags)
+    check(source + ' · ' + row.id + ' pins the served vLLM version', row.image === 'vllm/vllm-openai:v0.32.0', row.image)
     check(source + ' · ' + row.id + ' declares a tool-call parser and auto tool choice', parser !== undefined && parser !== '' && !parser.startsWith('--') && row.flags.includes('--enable-auto-tool-choice'), JSON.stringify(row.flags))
   }
   const gptOss = vllm.filter(row => row.model === 'openai/gpt-oss-120b')

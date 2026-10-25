@@ -215,6 +215,9 @@ withEnv('1', () => {
   ])
   const keptDeltas = (keptTail as Array<{ type?: string; uuid?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => [r.uuid, r.contextDelta])
   check('a fold that keeps a verbatim tail: the kept turn re-paints no pre-fold size, the first new turn reads its own full size (RED before the latch: +60.0k then −45.0k)', keptDeltas.some(([id, d]) => id === 'kp-turn-receipt' && d === undefined) && keptDeltas.some(([id, d]) => id === 'np-turn-receipt' && d === 15000), JSON.stringify(keptDeltas))
+  const recounted = inject([{ type: 'system', subtype: 'compact_boundary', uuid: 'cb3', compactMetadata: { postTokens: 65500 } } as never, prompt('after the fold', 'p4'), withUsage('u4', 66100)])
+  const recountedDelta = (recounted as Array<{ type?: string; contextDelta?: number }>).find(row => row.type === 'turn_receipt')?.contextDelta
+  check('F44R-39: the post-fold recount measures growth from the landing size, not zero', recountedDelta === 600, String(recountedDelta))
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {

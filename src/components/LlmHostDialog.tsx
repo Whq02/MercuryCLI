@@ -13,6 +13,7 @@ import { POPUP_PAGE_HINT, PopupListViewport, popupListMotion } from './CustomSel
 import { MenuFilterLine } from './mercury-ui/menuFold.js'
 import { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS, LLM_HOST_WORDS as words } from '../commands/llmhost/words.js'
 import { isSearchCharacter } from '../utils/model/modelPickerGroups.js'
+import { formatDuration } from '../utils/format.js'
 import { runLlmHost, type LlmHostEvent, type LlmHostQuestion, type LlmHostResult, type LlmHostRoad } from '../services/llmHost/index.js'
 
 type QuestionRow = NonNullable<LlmHostQuestion['rows']>[number]
@@ -44,7 +45,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const [logOffset, setLogOffset] = useState(0)
   const [host, setHost] = useState<LlmHostEvent['host']>()
   const [now, setNow] = useState(Date.now())
-  useEffect(() => { if (!host) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host])
+  useEffect(() => { if (!host || question?.step === 'pod-logs') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [host, question?.step])
   const answerRef = useRef<((value: string | null) => void) | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   useEffect(() => {
@@ -53,6 +54,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     controllerRef.current = controller
     void road(plan => {
       if (!live || controller.signal.aborted) return Promise.resolve(null)
+      if (plan.step === 'rent-confirm') setHistory(rows => rows.filter(row => row.title !== 'Tune'))
       setValue(plan.initial ?? '')
       setOffset(plan.initial?.length ?? 0)
       setLogOffset(0)
@@ -88,7 +90,8 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     })
     return () => { live = false; controller.abort(); answerRef.current?.(null); answerRef.current = null }
   }, [road])
-  const line = result ? words.ended : question?.title ?? words.running
+  const pending = history.length === 0 ? 'Reading models and prices…' : words.running
+  const line = result ? words.ended : question?.title ?? pending
   useLayoutEffect(() => { onLine?.(line) }, [line, onLine])
   useEffect(() => { onOwnsEscape?.(true); return () => onOwnsEscape?.(false) }, [onOwnsEscape])
   const answer = (next: string | null): void => {
@@ -132,12 +135,12 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const searchLines = question?.search ? 1 + (question.search.note ? 1 : 0) : 0
   const titleLines = onLine || !question ? [] : wrapPlain(question.title, width)
   const modelDoor = question?.step.startsWith('door-') === true
-  const wrapRow = (text: string, columns: number): string[] => modelDoor ? wrapText(text, Math.max(1, columns), 'wrap').split('\n') : wrapPlain(text, columns)
+  const wrapRow = (text: string, columns: number): string[] => modelDoor || question?.step === 'pod-logs' ? wrapText(text, Math.max(1, columns), 'wrap').split('\n') : wrapPlain(text, columns)
   const baseDetails = !question ? [] : [...wrapRow(question.found, width), ...wrapRow(question.willRun, width)].filter(Boolean)
   const disclosure = question?.step !== 'rent-confirm' ? [] : (question.lines ?? []).flatMap(text => wrapPlain(text, width))
   const choiceHint = question?.rows ? cursor !== null && rows[cursor] ? words.suggested : words.choose : words.input
   const hours = host ? Math.max(0, now - Date.parse(host.startedAt)) / 3600_000 : 0
-  const meter = !host ? '' : host.managed ? host.status === 'TERMINATED' ? 'HF endpoint terminated' : host.status === 'EXITED' ? 'HF endpoint · paused · no compute bills' : 'HF endpoint · $' + host.price.toFixed(2) + '/hr until Pause or Terminate' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching ≤ $' + host.price.toFixed(2) + '/hr · $0.00 while watching' : '$' + host.price.toFixed(2) + '/hr · ' + (Number.isFinite(hours) ? '~$' + (host.price * hours).toFixed(2) + ' so far + storage' : 'elapsed time unknown')
+  const meter = !host ? '' : host.managed ? host.status === 'TERMINATED' ? 'HF endpoint terminated' : host.status === 'EXITED' ? 'HF endpoint · paused · no compute bills' : 'HF endpoint · $' + host.price.toFixed(2) + '/hr until Pause or Terminate' : host.status === 'TERMINATED' ? words.terminatedPod : host.status === 'EXITED' ? words.stoppedDisk : host.status === 'WATCHING' ? 'Watching ≤ $' + host.price.toFixed(2) + '/hr · $0.00 while watching' : '$' + host.price.toFixed(2) + '/hr · ' + (Number.isFinite(hours) ? formatDuration(hours * 3600_000) + ' elapsed · ~$' + (host.price * hours).toFixed(2) + ' so far + storage' : 'elapsed time unknown')
   const hostLines = compact || result && host?.status === 'TERMINATED' ? [] : [...wrapPlain(meter, width), ...(host?.step && host.status !== 'TERMINATED' ? wrapPlain(host.step, width) : [])].filter(Boolean)
   const labelDividers = rows.map(row => modelDoor && row.label.startsWith('─') ? row.label.split('\n')[0]! : undefined)
   const sectioned = Boolean(question?.search && query)
@@ -168,11 +171,11 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
   const exit = activeHost ? host.status === 'WATCHING' ? 'esc closes · watch continues' : 'esc closes · billing continues' : 'esc closes'
   const choicesPage = Boolean(question?.rows) && detailsFit && !scrollDetails && window.end - window.start < rows.length
   const keyActions = question?.rows && !question.search && question.keys?.length ? question.keys : []
-  const hint = (question?.rows ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + (question?.search ? 'type to search · ' : '') + (question?.search && query ? 'esc clears the search' : exit) + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
+  const hint = (question?.rows?.length ? '↑↓ choose · ' + (choicesPage ? POPUP_PAGE_HINT + ' · ' : '') + '↵ continue · ' : '') + keyActions.map(action => action.key + ' ' + (action.label ?? action.value) + ' · ').join('') + (question?.search ? 'type to search · ' : '') + (question?.search && query ? 'esc clears the search' : exit) + (scrollDetails ? ' · pgup/pgdn details' : !choicesPage && maxLogOffset > 0 && historyBudget ? ' · pgup/pgdn log' : '')
   useLayoutEffect(() => { onHint?.(hint); return () => onHint?.(null) }, [hint, onHint])
   useInput((input, key, event) => {
     if (question?.step === 'huggingface-login') return
-    if (key.escape) { event.stopImmediatePropagation(); if (question?.search && query) { retarget(''); return } stop(); return }
+    if (key.escape) { event.stopImmediatePropagation(); if (question?.step === 'pod-logs') { answer(null); return } if (question?.search && query) { retarget(''); return } stop(); return }
     const action = keyActions.length && !key.ctrl && !key.meta && input.length === 1 ? keyActions.find(row => row.key === input) : undefined
     if (action) {
       event.stopImmediatePropagation()
@@ -222,7 +225,7 @@ export function LlmHostDialog({ width, rowBudget, road = runLlmHost, onLine, onH
     </> : result ? <>
       {wrapPlain(result.words, width).slice(0, Math.max(1, budget - shownHistory.length - hostLines.length - 1)).map((text, index) => <Text key={index} bold color={result.ok ? tokens.success : tokens.warning}>{text}</Text>)}
       {!onHint ? <Text color={tokens.textMuted}>{words.finished}</Text> : null}
-    </> : <Text color={tokens.textMuted}>{words.running}</Text>}
+    </> : <Text color={tokens.textMuted}>{pending}</Text>}
     {hostLines.map((text, index) => <Text key={'host-' + index} color={tokens.warning}>{text}</Text>)}
   </Box>
 }

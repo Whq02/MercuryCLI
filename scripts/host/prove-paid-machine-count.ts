@@ -40,15 +40,15 @@ try {
   assert.ok(paid.found.includes('Vast.ai: no instances') && paid.found.includes('Runpod: none'), paid.found)
   assert.equal(paid.rows!.filter(row => !row.value.startsWith('vendor-error:')).length, 0)
   secrets.writeStoredHuggingfaceApiKey('fixture-rejected-count')
-  assert.match(count(await inspect()), /paying for · 0\+\? · Hugging Face unread/, 'an unread vendor marks the count unknown')
+  assert.equal(count(await inspect()), 'Machines I’m paying for →', 'an incomplete account list offers the details, not an invented total')
   const unread = (await inspect(true)).find(row => row.step === 'paid-pods')!
   assert.ok(unread.found.includes('Vast.ai: no instances') && unread.found.includes('Runpod: none') && unread.found.includes('Hugging Face: unread'), unread.found)
   assert.ok(!count(await inspect()).includes('last known'))
   rp.state.pods.set('live-one', { id: 'live-one', name: 'Live machine', status: 'RUNNING', cost: 2, createdAt: record.startedAt, startedAt: record.startedAt })
-  assert.match(count(await inspect()), /paying for · 1\+\? · Hugging Face unread/)
+  assert.equal(count(await inspect()), 'Machines I’m paying for →')
   const fallback: LlmHostQuestion[] = []
   await runModelDoor(async question => { fallback.push(question); return null }, () => {}, new AbortController().signal, { offers: async () => [], pods: async () => { throw new Error('offline') }, records: () => [{ ...record, id: 'old-record' }], road })
-  assert.match(count(fallback), /paying for · 0\+\?/, 'a failed list never falls back to local records')
+  assert.equal(count(fallback), 'Machines I’m paying for →', 'a failed list never falls back to local records')
   assert.deepEqual(escaped, [])
   console.log('PAID MACHINE COUNT GREEN — only live lists count; rejected vendors stay unknown; empty lists name each connected vendor')
 } finally { await rp.close(); await vast.close(); await hf.close(); f.close(); globalThis.fetch = nativeFetch }

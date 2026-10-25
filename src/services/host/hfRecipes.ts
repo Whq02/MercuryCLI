@@ -299,7 +299,7 @@ export function deriveHostRecipe(model: HfModel, files: readonly HfFile[], confi
   const format = hfFormatWords({ ...model, config: { ...model.config, ...config } })
   const recipe: HostRecipe = {
     id: 'hf-' + slug(model.id), label: model.id + ' · ' + format, model: model.id, gpu: shape.gpu, count: shape.count, vramGb: shape.vramGb, diskGb: diskFor(Math.max(weightsGb, repoBytes / 1e9)), weightsGb,
-    engine: 'vllm', image: 'vllm/vllm-openai:latest', cuda: '13.0', source,
+    engine: 'vllm', image: 'vllm/vllm-openai:v0.32.0', cuda: '13.0', source,
     verification: 'unverified · derived from the repo · vLLM (' + format + ') · not booted', verified,
     ...(context ? { context, contextPerSlot: context } : {}),
     flags: [...(context ? ['--max-model-len', String(context)] : []), '--tensor-parallel-size', String(shape.count), ...(model.tags.includes('custom_code') ? ['--trust-remote-code'] : [])],

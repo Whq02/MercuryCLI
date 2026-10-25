@@ -68,6 +68,9 @@ import { resolveLocalAccount } from '../../services/providers/local/localAccount
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
+import { hostRentalUsage } from '../../services/host/costs.js'
+import { compatModelEndpoint, resolveCompatAccount } from '../../services/providers/openaicompat/compatAccounts.js'
+import { formatDuration } from '../../utils/format.js'
 import { usePopupMarker } from '../../context/popupFormContext.js'
 import { settingsPopupMarker, settingsPopupWindow } from '../../utils/cockpit/settingsPopup.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
@@ -464,6 +467,8 @@ export function orderUsageSections(plan: UsageSection[], recency: readonly strin
 }
 
 function liveSessionFamily(): string | undefined {
+  const seated = focusedSessionModelFacts()?.effective
+  if (seated) return declaredRouteOf(seated) ?? undefined
   const setting = getUserSpecifiedModelSetting()
   if (setting !== null) return declaredRouteOf(parseUserSpecifiedModel(setting)) ?? undefined
   try {
@@ -794,8 +799,25 @@ function LocalUsageSection(): React.ReactNode {
   )
 }
 
+function rentalUsageLines(rental: NonNullable<ReturnType<typeof hostRentalUsage>>): string[] {
+  return [rental.machine, `$${rental.price.toFixed(2)}/hr · ${formatDuration(rental.elapsedMs)} elapsed`, `$${rental.spendUSD.toFixed(2)} so far + storage`]
+}
+
+function RentalUsageSection({ rental }: { rental: NonNullable<ReturnType<typeof hostRentalUsage>> }): React.ReactNode {
+  const spend = providerSessionSpend('openai-compat')
+  return <Box flexDirection="column">
+    <Text bold>Custom endpoint usage</Text>
+    {rentalUsageLines(rental).map((line, index) => <Text key={index} dimColor>{line}</Text>)}
+    <Box flexDirection="column" marginTop={1}>
+      <SlotSpend active route="openai-compat" spend={spend} withCost={false} />
+    </Box>
+  </Box>
+}
+
 function EngineUsageSection({ section, width }: { section: UsageSection; width?: number }): React.ReactNode {
   const usage = useOwnerUsage(section.id, section.family.credentialed)
+  const model = useFocusedServedModel() ?? getEngineModel()
+  const rental = section.id === 'openai-compat' ? hostRentalUsage(model) : undefined
   if (!section.family.credentialed) {
     return (
       <Box flexDirection="column">
@@ -816,6 +838,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'zen') return <ZenUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
   if (section.id === 'minimax') return <MinimaxUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
   if (section.id === 'local') return <LocalUsageSection />
+  if (rental) return <RentalUsageSection rental={rental} />
   const spend = providerSessionSpend(section.id)
   return (
     <Box flexDirection="column">
@@ -1370,7 +1393,15 @@ export function usageCompactLines(
 ): UsageCompactLine[] {
   const lines: UsageCompactLine[] = []
   for (const section of plan) {
-    lines.push({ text: `${section.title} · ${reads.identity(section.id)}`, heading: true })
+    const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
+    const endpoint = section.id === 'openai-compat' ? compatModelEndpoint(model)?.endpoint : undefined
+    const rental = endpoint ? hostRentalUsage(model) : undefined
+    if (rental) {
+      lines.push({ text: section.title, heading: true }, ...rentalUsageLines(rental).map(text => ({ text: `  ${text}`, heading: false })))
+      continue
+    }
+    const identity = endpoint ? resolveCompatAccount(process.env, endpoint.name)?.label ?? reads.identity(section.id) : reads.identity(section.id)
+    lines.push({ text: `${section.title} · ${identity}`, heading: true })
     if (!section.family.credentialed) continue
     const usage = reads.usage(section.id)
     const windows: string[] = []

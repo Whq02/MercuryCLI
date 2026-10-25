@@ -341,7 +341,7 @@ function walkTurnReceipts(
       if (typeof m.uuid === 'string') anchorUuid = m.uuid
     }
     if (m.type === 'system' && m.subtype === 'compact_boundary') {
-      previousPrompt = undefined
+      previousPrompt = m.compactMetadata?.postTokens
       turnPrompt = undefined
       preFoldTail = m.compactMetadata?.preservedSegment?.tailUuid
     }

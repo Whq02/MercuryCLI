@@ -76,7 +76,7 @@ section('mechanism pins')
 
   const login = read('src/commands/login/login.tsx')
   check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
-  check('the /logins popup keeps its back/close context and the shared popup hint', login.includes("line: 'esc back · from the menu, esc closes /logins'") && login.includes("hint: 'esc or click outside closes'"))
+  check('the /logins popup keeps one close hint and owns Escape without a duplicate back line', login.includes("line: ''") && login.includes("hint: 'esc or click outside closes'") && login.includes('bodyOwnsEscape: true'))
 
   const host = read('src/utils/cockpit/settingsPopup.ts')
   check('the settings host folds to the compact layout below one constant of measured full-layout body rows', host.includes('export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8') && host.includes('return fullBodyRows < SETTINGS_POPUP_COMPACT_BELOW_ROWS') && host.includes('compact: boolean'))

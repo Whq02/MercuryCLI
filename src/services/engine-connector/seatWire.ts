@@ -52,6 +52,16 @@ const USAGE: KeyTable = {
   openrouterWindow: 'openrouter_window',
   huggingfaceWindow: 'huggingface_window',
 }
+const CONTEXT: KeyTable = {
+  usedTokens: 'used_tokens',
+  usedPct: 'used_pct',
+  fillSource: 'fill_source',
+  windowSource: 'window_source',
+  windowPinned: 'window_pinned',
+  windowReason: 'window_reason',
+  compactAtPct: 'compact_at_pct',
+  leftUntilCompactPct: 'left_until_compact_pct',
+}
 const MODEL_SPEND: KeyTable = {
   inputTokens: 'input_tokens',
   outputTokens: 'output_tokens',
@@ -262,6 +272,7 @@ function usageNested(
       if (isRow(next[failureKey])) next[failureKey] = renamed(next[failureKey] as Row, jevTable.lastRequestId ? { requestId: 'request_id' } : { request_id: 'requestId' })
       out.jev = next
     }
+    if (isRow(out.context)) out.context = renamed(out.context, table.totalCostUSD === undefined ? flip(CONTEXT) : CONTEXT)
     const spendKey = table.modelSpend ?? 'modelSpend'
     if (Array.isArray(out[spendKey])) out[spendKey] = rows(out[spendKey], table.totalCostUSD === undefined ? flip(MODEL_SPEND) : MODEL_SPEND)
   }

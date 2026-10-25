@@ -154,8 +154,10 @@ try {
     denyVastPods = true
     await open(road, 80); await step('door-models'); await capture('partial-list')
     check('a failed vendor list cannot delete either vendor record', readHostRecord('missing-runpod') && readHostRecord('missing-vast'))
-    check('partial lists are visibly incomplete', plan!.rows!.find(row => row.value === 'pods')!.label.includes('+? · Vast.ai unread'))
-    await choose('Machines I’m paying for'); await step('paid-pods'); await capture('partial-paid'); await close()
+    check('partial lists offer details rather than an incomplete money total', plan!.rows!.find(row => row.value === 'pods')!.label === 'Machines I’m paying for →')
+    await choose('Machines I’m paying for'); await step('paid-pods'); await capture('partial-paid')
+    check('the account detail names the unread vendor', plan!.found.includes('Vast.ai: unread'))
+    await close()
     denyVastPods = false
     await open(road); await step('door-models')
     check('complete lists remove genuinely ended records and their model entries', !readHostRecord('missing-runpod') && !readHostRecord('missing-vast') && !configuredCompatEndpoints().some(row => row.name.startsWith('missing-')))

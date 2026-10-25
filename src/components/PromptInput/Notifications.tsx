@@ -21,7 +21,7 @@ import {
   getConfiguredApiKeyHelper,
   getSubscriptionType,
 } from '../../utils/auth.js'
-import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { useFocusedContextFill } from '../../hooks/useDisplayedSessionModel.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
 import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
@@ -152,7 +152,7 @@ function NotificationsColumn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
-  const tokenUsage = tokenCountWithEstimation(messages, engineModel)
+  const tokenUsage = useFocusedContextFill(messages, engineModel).usedTokens ?? 0
   const showTokenCount = verbose && !sessionBlocked && !compact
 
   const editorConfigured = process.env.VISUAL ?? process.env.EDITOR

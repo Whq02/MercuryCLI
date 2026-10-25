@@ -252,7 +252,7 @@ function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
   const lead = usage.windows.find(w => w.state === 'live' && w.usedPct != null)
   const leadAge = lead !== undefined ? usageAgeTail(lead, nowMs) : undefined
   const usageLabel =
-    lead !== undefined
+    usage.rental ? `spend $${usage.rental.spendUSD.toFixed(2)} · $${usage.rental.price.toFixed(2)}/hr` : lead !== undefined
       ? `${lead.label} ${Math.round(lead.usedPct!)}%${lead.resetsAtMs != null ? ` · ${formatCountdown(lead.resetsAtMs - nowMs)}` : ''}${leadAge !== undefined ? ` · ${leadAge}` : ''}`
       : usage.shape === 'api-spend'
         ? `spend ${focusedUnpriced > 0 ? formatSessionCost(focusedSpendUSD, focusedUnpriced) : focusedSpendUSD > 0 ? `$${focusedSpendUSD.toFixed(2)}` : '—'}`

@@ -62,6 +62,7 @@ import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
 import { sessionModelSpendRows } from '../services/engine-connector/modelSpendFacts.js'
+import { contextFillView } from '../utils/contextFill.js'
 import {
   openaiCatalogueFromWire,
   rewindOutcomeToWire,
@@ -2152,6 +2153,7 @@ export async function runHeadless(
           hasUnknownModelCost: hasUnknownModelCost(),
           unpricedTurns: getTotalUnpricedTurns(),
           modelSpend: sessionModelSpendRows(),
+          context: { model: activeModel ?? getEngineModel(), ...contextFillView(messages, activeModel ?? getEngineModel()) },
           limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
           ...(() => {
             const observed = openaiObservedUsage()

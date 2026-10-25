@@ -124,6 +124,7 @@ export type UsageFactsV1 = {
   hasUnknownModelCost: boolean
   unpricedTurns?: number
   modelSpend?: ModelSpendRowV1[]
+  context?: import('../../utils/contextFill.js').ContextFillView & { model: string }
   limitWarning?: LimitWarningFactV1 | null
   openaiObserved?: {
     primary?: OpenaiObservedBandV1

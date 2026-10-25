@@ -286,14 +286,13 @@ export async function runModelDoor(ask: Ask, emit: Emit, signal: AbortSignal, de
     if (!title) {
       const paid = pods ?? []
       const incomplete = pods === undefined || Boolean(podError)
-      const unread = deps.podErrors?.().map(label => label + ' unread').join(' · ') || 'live list unread'
       const spend = hostSpendSoFar(paid)
       const verified = groups.filter(group => !group.derived)
       const nameWidth = Math.max(0, ...verified.map(group => group.name.length))
       const faults = new Map((deps.vendorFaults?.() ?? []).map(row => [row.vendor, row.parked]))
       const keyVendors = HOST_VENDORS.filter(id => id !== 'huggingface').map(id => ({ label: vendorLabel(id), connected: Boolean(vendorKey(id)), ...(faults.has(id) ? { fault: faults.get(id) ? 'key' as const : 'read' as const } : {}) }))
       const account = [
-        { value: 'pods', label: 'Machines I’m paying for · ' + paid.length + (incomplete ? '+? · ' + unread : '') + hostRunningCountWords(paid.filter(pod => pod.status === 'RUNNING').length) + ' · ~$' + spend.toFixed(2) + ' so far + storage' + (keptVolumes().some(row => row.state !== 'gone') ? ' + weights disks' : '') },
+        { value: 'pods', label: incomplete ? 'Machines I’m paying for →' : 'Machines I’m paying for · ' + paid.length + hostRunningCountWords(paid.filter(pod => pod.status === 'RUNNING').length) + ' · ~$' + spend.toFixed(2) + ' so far + storage' + (keptVolumes().some(row => row.state !== 'gone') ? ' + weights disks' : '') },
         ...(deps.manageKey ? [{ value: 'keys', label: hostVendorKeysWords(keyVendors) }] : []),
       ]
       const also = [{ value: 'boxes', label: '────────────────────\nMy computers · ' + boxes.length }, { value: 'bank', label: 'Bank · your weights' }, { value: 'refresh', label: 'Refresh stock and prices' }, { value: 'other', label: 'More options →' }]
