@@ -125,7 +125,12 @@ Computer, the search binary for Grep and Glob), with why and the remedy;
 the withheld tools also appear in `readiness[]` as `tool:withheld:<name>`
 rows. With nothing withheld the row says so and names what it checks. The
 row waits for the debug adapter's toolchain probes to answer, so it never
-names the Debug tool as withheld for a probe still in flight.
+names the Debug tool as withheld for a probe still in flight. TOOL CAPABILITY
+also carries `Local media` (`media`): `off` while `media.enabled` is off, `ok`
+with the media folder path when the folder and runtime binary exist, and
+`warn` when the folder or runtime is missing (`/imagesetup` is the fix) or
+when `media.imageModel` or `media.videoModel` were written into Mercury's
+settings instead of `<media.root>/config.json` ([MEDIA.md](MEDIA.md)).
 
 SETTINGS & FLAGS carries the `Env overrides` check: the registered flags
 set in the environment, with Mercury's own stamps and the boot's saved

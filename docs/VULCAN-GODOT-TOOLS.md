@@ -300,7 +300,7 @@ Lists live holders and their paths; it needs no crew membership.
 { "op": "lease_release", "args": {} }
 ```
 
-Releases this holder's leases, never another agent's. Session termination
+Releases this holder's leases, never another agent's. Session or crewmate termination
 releases its leases; a later reader prunes a holder whose process died.
 An engine run refuses changed files held elsewhere before it starts the
 engine on the frozen copy. A frozen `HEAD` run does not consume unrelated live edits.

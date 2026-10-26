@@ -147,6 +147,20 @@ this setting ([VIDEO.md](VIDEO.md)).
 | `videoProvider.<name>.model` | The generator's model id, for example `MiniMax-H3`. |
 | `videoProvider.<name>.baseUrl` | Optional. An HTTPS origin without a path, query or credentials; defaults to the vendor's API base. HTTP is accepted only for a loopback provider. |
 
+## Local media
+
+`media` configures the bundled `mercury-media` extension for local image and
+video generation ([MEDIA.md](MEDIA.md)). The `/config` rows **Default image
+model** (`media.imageModel`) and **Default video model** (`media.videoModel`)
+edit `imageModel` and `videoModel` in `<media.root>/config.json`, never in
+`settings.json`.
+
+| Key | What it sets |
+| --- | --- |
+| `media.enabled` | Enables the bundled local media extension; `false` by default. |
+| `media.root` | The absolute path of the media folder holding the runtime, models, config and logs; defaults to `~/.mercury/media`. |
+| `media.serverPath` | Optional absolute path to a development `server.js`, honoured in user settings only. |
+
 ## Permissions
 
 | Key | What it sets |

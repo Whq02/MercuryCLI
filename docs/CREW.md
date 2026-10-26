@@ -10,7 +10,10 @@ name, model, status, tokens, elapsed, one row each. Crewmates follow the
 session's permission mode. `↵` opens a crewmate's row in its own view, `m`
 makes a crewmate's chat the main one, `c` clears a settled row, `r` resumes
 a stopped row, `x` twice stops a running row, and `p` parks or resumes the
-crew at the next safe point. Esc or a
+crew at the next safe point. While the list is open, the mouse wheel and
+`PageUp`/`PageDown` scroll the crewmates list while the chat behind it stays
+still; a click selects a row, and a second click on the selected row or a
+double click opens it as `↵` does. Esc or a
 click on the chat outside the Crew view closes it; from an opened row, either
 returns to the list first. The same rule closes the `/runs` board. Closing a
 view never stops its work.
@@ -68,6 +71,8 @@ it. A resume keeps the crewmate's recorded model and effort unless the
 Crewmate call names the parent's own model family, its crewmate keeps the
 parent's exact model. A different family keeps
 that family's preferred model; an exact model id keeps its explicit choice.
+The launch receipt names the crewmate's engine and model on every provider,
+the Anthropic route included.
 
 The model that launches a crewmate reads what you can see: the page
 `mercury://models` lists the providers the operator is signed into and the
@@ -171,8 +176,12 @@ crewmate: its refusal names ResumeCrewmate with the same `to` and `message`.
 
 ResumeCrewmate gives a crewmate more work by the same id or name. A completed,
 failed or stopped crewmate resumes from its transcript in the background;
-a running one receives the message without starting a second run. The
-completion notice reaches the main agent. A crewmate launched with an output
+a running one receives the message without starting a second run. A crewmate
+settles as completed only when its turn ends with an empty message queue, so
+a message queued while it worked starts its next turn in the same seat before
+the completion notice reaches the main agent. When a stopped crewmate is
+resumed, consecutive user records are merged on the Anthropic wire while
+resume text stays separate from tool results. A crewmate launched with an output
 schema keeps its StructuredOutput tool on the resumed turn. A name two
 launches carried reaches the newest.
 

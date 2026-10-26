@@ -712,11 +712,20 @@ without changing the current conversation's prefix. Nothing is trimmed,
 dropped or deferred to fit a size limit.
 
 The tool list a conversation starts with is kept for its life, so nothing
-already sent moves under the model. A tool that joins later (a connector
+already sent moves under the model. A restart or resume onto a new build
+replays the recorded tool roster (unless a bound tool is no longer in the
+build and the record carries no definition for it), keeping the request prefix
+and signed thinking intact. When an MCP server's tools change through
+`notifications/tools/list_changed` or `/mcp` reconnect, the bound prefix does
+not move: an unreferenced deferred tool takes the live schema, while a bound
+or referenced tool gets a `tool_schema_delta` attachment with its updated
+input schema. A tool that joins later (a connector
 that connects after the first request, a tool a setting turns on) rides
 deferred where the list can carry it that way; otherwise it is held out
 until the next compaction or `/clear`, and the model is told on its next
-turn which tools are held and that they cannot be called yet. The parts of
+turn which tools are held and that they cannot be called yet. When a
+conversation compacts, the tools the session loaded in full (`ToolSearch`)
+carry across the compaction as loaded in full on every provider. The parts of
 the system prompt that name tools are kept the same way: a session brought
 back in a new process re-sends them as they were first sent, even when its
 tool list has gained or lost a tool since; the next compaction or `/clear`

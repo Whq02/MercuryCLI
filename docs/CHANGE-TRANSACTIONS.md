@@ -9,7 +9,9 @@ record of what changed.
 ## Staleness anchors
 
 Every file read mints a compact content-derived anchor, printed to the
-model as `(anchor: …)`, including an empty file. To add its first content
+model as `(anchor: …)`, including an empty file. `Write` and `Read` with
+`ranges` (when the whole file fits within the size cap) also return a
+whole-file `(anchor: fa:…)` anchor. To add its first content
 with an Edit hunk or a ChangeSet member, use `lines: "1"`, `insert: "before"`
 and the full-file anchor from Read:
 
@@ -26,8 +28,8 @@ content).
 
 A mutation that carries `expected_anchor` verifies it against current bytes
 before writing. A failed check returns a typed result naming the reason
-(`stale` or `malformed`), the anchor the same scope mints against current
-content, and the smallest reread that repairs the assumption so the caller
+(`stale` or `malformed`) and the smallest `Read` that refreshes the anchor,
+never a current anchor value, so the caller
 re-reads precisely without guessing.
 
 ## Hashline line anchors

@@ -71,17 +71,17 @@ saved slots. Choosing a default in Mercury does not set these variables.
 
 Disk totals include the model's component files before sharing with another
 installed model. GB means decimal gigabytes; GiB means 1024³ bytes. Memory is
-the catalogue's sampled peak except for MiniMax-H3, whose 33.0 GiB is an
+the catalogue's sampled peak except for MiniMax-H3, whose 33.02 GiB is an
 estimate from component sizes.
 
 | Model id | Kind | Disk | Memory | Time | Licence |
 | --- | --- | ---: | ---: | ---: | --- |
-| `z-image-turbo` | Image | 11.19 GB | 16.4 GiB | 130.88 s | Apache-2.0 |
-| `flux2-klein-4b` | Image, reference editing | 8.92 GB | 11.3 GiB | 65.04 s | Apache-2.0 |
-| `qwen-image-21-turbo` | Image, reference editing | 14.10 GB | 18.7 GiB | 153.70 s | Qwen Research License, non-commercial |
-| `qwen-image-21` | Image, reference editing | 14.10 GB | 18.8 GiB | 927.15 s | Qwen Research License, non-commercial |
-| `wan22-ti2v-5b` | Video | 12.85 GB | 15.9 GiB | 1054.56 s | Apache-2.0 |
-| `minimax-h3-fl2va` | Video with audio | 35.45 GB | 33.0 GiB estimate | Unmeasured | MiniMax H3 Community |
+| `z-image-turbo` | Image | 11.19 GB | 16.37 GiB | 130.88 s | Apache-2.0 |
+| `flux2-klein-4b` | Image, reference editing | 8.92 GB | 11.32 GiB | 65.04 s | Apache-2.0 |
+| `qwen-image-21-turbo` | Image, reference editing | 14.10 GB | 18.67 GiB | 153.70 s | Qwen Research License, non-commercial |
+| `qwen-image-21` | Image, reference editing | 14.10 GB | 18.83 GiB | 927.15 s | Qwen Research License, non-commercial |
+| `wan22-ti2v-5b` | Video | 12.85 GB | 15.90 GiB | 1054.56 s | Apache-2.0 |
+| `minimax-h3-fl2va` | Video with audio | 35.45 GB | 33.02 GiB estimate | Unmeasured | MiniMax H3 Community |
 
 Image timings are for 1024×1024: Z-Image at 9 steps, Klein at 4, Qwen Turbo
 at its fixed 8-step schedule and Qwen Base at 40. The Wan timing is for

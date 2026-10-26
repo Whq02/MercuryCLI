@@ -59,9 +59,16 @@ first note, since the advisor began reading this chat), a note is due, and
 the next boundary of the agent's work takes it: the end of a turn or a
 tool-round boundary. There the advisor is shown the new rows of the agent's
 conversation since its last look (your messages, the agent's replies,
-and its tool calls with their results clipped; never the system prompt and never
+and its tool calls and results; never the system prompt and never
 a slash command's own echo) beside its own earlier notes, and asked for one
-note of at most eight lines, addressed to the agent. No timer runs: an idle
+note of at most eight lines, addressed to the agent. Tool input keys are kept
+while long string values are shortened individually, tool results reach the
+advisor whole within the 60,000-character digest budget, and any shortened text
+or omitted earlier rows carry an explicit marker (`… [N more characters not
+shown]` or `[N earlier rows; M characters not shown]`). The advisor never
+raises a correction based on what might lie past a marker or outside the shown
+conversation window, and treats its own earlier notes as hypotheses to recheck
+against the visible results. No timer runs: an idle
 agent produces no rows, and a note that is due waits until there is
 something new to read. The note lands in the agent's context as a row with
 the advisor's provenance:

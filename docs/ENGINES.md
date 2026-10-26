@@ -680,7 +680,13 @@ edge. On the wires that hand Mercury a tool
 call's arguments as text, an optional field the model sent empty (an empty
 string, an empty array, a null) reads as omitted, as the Anthropic wire
 carries it; a required field sent empty stays, and the tool's own refusal
-names it. On the OpenAI Responses wire, a curly quote in a field whose
+names it. Across every wire, a tool call with a pairable call id and tool name
+whose arguments do not match the tool's input schema, are not a JSON object,
+or name a tool the session does not have is answered with an error
+`tool_result` instead of executing or dropping the turn; a call that cannot be
+paired at all (no call id, a reused id, no tool name, or a function call the
+provider itself could not parse) settles as a visible refusal note handed to
+the model on its next turn. On the OpenAI Responses wire, a curly quote in a field whose
 value is a command, a pattern, a symbol or a path (the shell command; Grep's
 pattern, path and glob; every tool's file path; the language-server tool's
 symbol names and file fields; the debugger's expressions) reads as its
@@ -778,8 +784,11 @@ honoured, and a smaller stale runner is reloaded once, up to the full window),
 and the row names it as the server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
-served figure and reads as not applicable. When no local server answers,
-`/localsetup` sets one up inside Mercury: it finds or installs Ollama, starts
+served figure and reads as not applicable. `/localsetup` pulls a GGUF from
+Hugging Face into the Bank or starts one already in the Bank on `llama-server`
+(`127.0.0.1:8080`, registered as `local/<name>`, passing `--spec-type
+draft-mtp` when the model carries NextN/MTP tensors), or when no local server
+answers, sets one up inside Mercury: it finds or installs Ollama, starts
 it, asks which model to use, pulls the chosen model if needed, sets its window
 from your machine's memory and checks a reply, each step asking before it runs
 ([LOCAL-SETUP.md](LOCAL-SETUP.md)). The lane is verified
@@ -1018,7 +1027,8 @@ Run `/accounts` to see every connected account and API key across all providers:
   Google-account chats use the native generation endpoint and preserve signed
   response parts across tool rounds and resume, as Google returned
   them (a signature that streams in after the text rides the text part it
-  closes); a tool call the history carries without a signed record (a chat
+  closes, settling as the thinking block followed by the text block so the
+  stop reason lands on the answer); a tool call the history carries without a signed record (a chat
   switched from another model) replays under Google's documented
   skip-validation signature. An image the model generates is refused as
   content this chat cannot display. API-key chats ride the same native
@@ -1095,7 +1105,18 @@ returns to the picker that opened it, which lists the new family's models.
 
 A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
-lands. The sign-in's own receipt names that account, and every surface that
+lands. `/logins` → Anthropic has three choices (`Claude subscription — browser
+sign-in`, `Anthropic Console — browser sign-in`, and `Anthropic API key —
+usage-based billing`). Pasting an Anthropic API key masks the input, verifies
+the key against `GET /v1/models?limit=1` before saving, prompts for the
+workspace ID from Console → Settings → Workspaces when the key is
+organisation-scoped so every Messages, token-counting and catalogue request
+carries `anthropic-workspace-id`, and reports a refused key in the field
+without storing it. The Console sign-in awaits its save, never reuses a closed
+flow, and leaves the stored subscription identity untouched. Switching between
+a saved subscription and a saved API key (`[s]`) applies to new requests only:
+a turn or crewmate in flight keeps the credential it started with and recovers
+by re-resolving without failing on a 401. The sign-in's own receipt names that account, and every surface that
 names the account (the home screen's account chip and its Logins roster,
 `/accounts`, the `/usage` popup's Anthropic block, the usage
 card and the `auth status` verb) reads the email stored beside the token
