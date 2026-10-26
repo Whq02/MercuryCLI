@@ -349,9 +349,9 @@ export async function fetchAndStoreUserRoles(
 
 export async function createAndStoreApiKey(accessToken: string): Promise<string | null> {
   const config = getOauthConfig()
-  let response: { data?: { raw_key?: string } }
+  let response: { data?: { raw_key?: string; workspace_id?: string } }
   try {
-    response = await axios.post<{ raw_key?: string }>(
+    response = await axios.post<{ raw_key?: string; workspace_id?: string }>(
       config.API_KEY_URL,
       {},
       { timeout: EXCHANGE_TIMEOUT_MS, headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': getMercuryUserAgent() } },
@@ -363,7 +363,7 @@ export async function createAndStoreApiKey(accessToken: string): Promise<string 
   }
   const rawKey = response.data?.raw_key
   if (!rawKey) return null
-  saveApiKey(rawKey)
+  await saveApiKey(rawKey, { workspaceId: response.data?.workspace_id })
   return rawKey
 }
 

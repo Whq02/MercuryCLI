@@ -1,3 +1,4 @@
+import { OAUTH_BETA_HEADER } from '../../../constants/oauth.js'
 import type { ApiMessage } from '../../../types/wire.js'
 import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from '../../api/sdkErrors.js'
 import { AnthropicStream } from './anthropicStream.js'
@@ -6,6 +7,7 @@ import type { AnthropicMessageParams } from './anthropicWire.js'
 export type AnthropicClientOptions = {
   apiKey?: string | null
   authToken?: string | null
+  subscriptionAuth?: boolean
   baseURL?: string
   timeout?: number
   maxRetries?: number
@@ -121,6 +123,12 @@ export class AnthropicClient {
     mergeHeaders(headers, this.options.defaultHeaders, omitted)
     headers.set('content-type', 'application/json')
     mergeHeaders(headers, options.headers, omitted)
+    if (this.options.subscriptionAuth !== undefined) {
+      const betas = (headers.get('anthropic-beta') ?? '').split(',').filter(value => value && (this.options.subscriptionAuth || value !== OAUTH_BETA_HEADER))
+      if (this.options.subscriptionAuth && !betas.includes(OAUTH_BETA_HEADER)) betas.push(OAUTH_BETA_HEADER)
+      if (betas.length) headers.set('anthropic-beta', betas.join(','))
+      else headers.delete('anthropic-beta')
+    }
     if (!headers.get('x-api-key') && !headers.get('authorization') && !omitted.has('x-api-key') && !omitted.has('authorization')) {
       throw new Error('Could not resolve authentication method. Expected one of apiKey, authToken, credentials, config, or profile to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted')
     }

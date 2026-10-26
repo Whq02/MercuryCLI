@@ -1044,6 +1044,7 @@ function betasEnvFingerprint(): string {
   return [
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
     process.env.MERCURY_PROVIDER_BETAS ?? '',
+    isClaudeAISubscriber() ? 'subscription' : 'api-key',
   ].join(KEY_SEP)
 }
 

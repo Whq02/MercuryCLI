@@ -93,7 +93,8 @@ export const openaiArmPickRows = [
 
 export const anthropicArmPickRows = [
   { label: 'Claude subscription — browser sign-in', value: 'claudeai' },
-  { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' },
+  { label: 'Anthropic Console — browser sign-in', value: 'console' },
+  { label: 'Anthropic API key — usage-based billing', value: 'key' },
 ] as const
 
 export type KeyFamilyValue = Exclude<LoginFamilyValue, 'anthropic'>

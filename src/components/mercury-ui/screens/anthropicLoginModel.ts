@@ -245,9 +245,10 @@ export function createAnthropicLoginMachine(
       }
       const saveWarning = saved.warning
       const landed = accountInfoFromTokens(tokens)
-      if (landed !== undefined) deps.storeAccount(landed)
+      const subscription = deps.usesClaudeAiAuth(tokens.scopes)
+      if (subscription && landed !== undefined) deps.storeAccount(landed)
       const fetchRoles = deps.fetchRoles
-      if (landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(PROFILE_SCOPE)) {
+      if (subscription && landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(PROFILE_SCOPE)) {
         rolesRequest?.abort()
         const request = new AbortController()
         rolesRequest = request
@@ -278,7 +279,8 @@ export function createAnthropicLoginMachine(
       accountLabel = landed?.emailAddress ?? null
       setFlow({ name: 'success', ...(saveWarning !== undefined ? { warning: saveWarning } : {}) })
     } catch (error) {
-      setFlow({ name: 'error', message: String((error as Error).message ?? error) })
+      if (disposed || gen !== generation) return
+      setFlow({ name: 'error', message: String((error as Error).message ?? error), retry: { name: 'ready', loginWithClaudeAi: deps.usesClaudeAiAuth(tokens.scopes) } })
     }
   }
 
@@ -324,11 +326,10 @@ export function createAnthropicLoginMachine(
       .catch(error => {
         if (gen !== generation) return
         deps.log(error)
-        const previous = flow
         setFlow({
           name: 'error',
           message: exchangeFailureMessage(error),
-          retry: previous.name === 'waiting' ? previous : { name: 'ready', loginWithClaudeAi },
+          retry: { name: 'ready', loginWithClaudeAi },
         })
       })
   }

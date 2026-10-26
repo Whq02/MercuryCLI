@@ -171,6 +171,7 @@ type Credentials = {
     rejected?: string[]
   }
   primaryApiKey?: string
+  anthropicApiKeyWorkspace?: { keyFingerprint: string; workspaceId: string }
   hasAcknowledgedCostThreshold?: boolean
   oauthAccount?: AccountInfo
   anthropicPreferredSource?: 'subscription' | 'api-key'

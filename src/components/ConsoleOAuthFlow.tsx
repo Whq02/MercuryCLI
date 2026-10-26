@@ -58,6 +58,7 @@ import { QwenConnect } from '../services/providers/qwen/QwenConnect.js'
 import { CompatConnect } from './CompatConnect.js'
 import type { LoginFamilyRow } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
+import { AnthropicKeyLeg } from './AnthropicKeyLeg.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
@@ -78,6 +79,7 @@ import { armFaceDoorDeepLink } from '../substrate/splashHandover.js'
 
 type EngineLeg =
   | 'anthropic'
+  | 'anthropic-key'
   | 'openai'
   | 'openai-subscription'
   | 'openai-key'
@@ -292,6 +294,7 @@ export function ConsoleOAuthFlow({
             <Select
               options={[...anthropicArmPickRows]}
               onChange={value => {
+                if (value === 'key') { setLeg('anthropic-key'); return }
                 setLeg(null)
                 model.start(value === 'claudeai')
               }}
@@ -300,6 +303,8 @@ export function ConsoleOAuthFlow({
           </Box>,
         )
 
+      case 'anthropic-key':
+        return frame(<AnthropicKeyLeg onDone={onDone} onBack={() => setLeg('anthropic')} />)
       case 'openai':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(

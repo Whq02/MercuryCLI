@@ -6,6 +6,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,
   getAnthropicApiKey,
+  getAnthropicApiKeyWorkspaceId,
   getApiKeyFromApiKeyHelper,
   getClaudeAIOAuthTokens,
   isClaudeAISubscriber,
@@ -30,6 +31,7 @@ const DEFAULT_API_TIMEOUT_MS = 600_000
 
 type GetClientOptions = {
   apiKey?: string
+  workspaceId?: string
   maxRetries: number
   fetchOverride?: typeof globalThis.fetch
   source?: string
@@ -130,9 +132,9 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
 
   logForDebugging('client: auth step starting')
   await checkAndRefreshOAuthTokenIfNeeded()
-  const subscriber = isClaudeAISubscriber()
+  const subscriber = callerApiKey === undefined && isClaudeAISubscriber()
   const oauthAccessToken = subscriber ? getClaudeAIOAuthTokens()?.accessToken : undefined
-  if (!subscriber) {
+  if (!subscriber && callerApiKey === undefined) {
     const envToken = process.env.ANTHROPIC_AUTH_TOKEN
     const token =
       envToken && envToken !== ''
@@ -140,6 +142,14 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
         : await getApiKeyFromApiKeyHelper(getIsNonInteractiveSession())
     if (token) {
       defaultHeaders.Authorization = `Bearer ${token}`
+    }
+  }
+  const apiKey = subscriber ? null : (callerApiKey ?? getAnthropicApiKey())
+  const workspaceId = options.workspaceId ?? (apiKey ? getAnthropicApiKeyWorkspaceId(apiKey) : undefined)
+  if (workspaceId) defaultHeaders['anthropic-workspace-id'] = workspaceId
+  if (callerApiKey !== undefined) {
+    for (const name of Object.keys(defaultHeaders)) {
+      if (/^(authorization|x-api-key)$/i.test(name)) delete defaultHeaders[name]
     }
   }
   logForDebugging('client: auth step complete')
@@ -157,8 +167,9 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
 
   const firstPartyOptions: Record<string, unknown> = {
     ...sharedOptions,
-    apiKey: subscriber ? null : (callerApiKey ?? getAnthropicApiKey()),
-    ...(subscriber && oauthAccessToken ? { authToken: oauthAccessToken } : {}),
+    apiKey,
+    authToken: subscriber ? oauthAccessToken ?? null : callerApiKey !== undefined ? null : process.env.ANTHROPIC_AUTH_TOKEN ?? null,
+    subscriptionAuth: subscriber,
   }
   attachStderrLogger(firstPartyOptions)
   return new Anthropic(firstPartyOptions)

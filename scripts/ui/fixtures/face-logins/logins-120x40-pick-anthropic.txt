@@ -11,9 +11,9 @@
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │ Anthropic                                                      │  │ ❯ Claude subscription — browser sign-in    │
    │ ❯ Claude subscription — browser sign-in                        │  │                                            │
-   │   Usage-based billing — Anthropic Console sign-in or API key   │  │ One Anthropic family, two credentials:     │
-   ╰────────────────────────────────────────────────────────────────╯  │ the Claude subscription signs in with      │
-                                                                       │ the browser; usage-based billing signs     │
+   │   Anthropic Console — browser sign-in                          │  │ One Anthropic family, two credentials:     │
+   │   Anthropic API key — usage-based billing                      │  │ the Claude subscription signs in with      │
+   ╰────────────────────────────────────────────────────────────────╯  │ the browser; usage-based billing signs     │
                                                                        │ in to the Anthropic Console, which         │
                                                                        │ mints an API key.                          │
                                                                        │                                            │

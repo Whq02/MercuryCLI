@@ -204,7 +204,7 @@ section('§D mid-session — the seat is read at turn start; a flip moves the re
   const call = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   check('openaiCallModel resolves the account at turn entry (turn-start capture)', call.includes('const account = resolveOpenaiAccount()'))
   const client = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
-  check('getAnthropicClient consults the subscriber seat per request', client.includes('const subscriber = isClaudeAISubscriber()'))
+  check('getAnthropicClient consults the subscriber seat per request unless explicitly probing a key', client.includes('const subscriber = callerApiKey === undefined && isClaudeAISubscriber()'))
   const { writePreferredOpenaiSource, resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )

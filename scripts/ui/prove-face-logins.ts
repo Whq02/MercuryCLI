@@ -238,7 +238,7 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   m3.world.services[0]!.resolve({ accessToken: 'at-3', scopes: [] })
   await settle()
   const mintErr = m3.m.snapshot().flow
-  t.check('the keyless mint lands the MINT_NO_KEY sentence with NO retry', mintErr.name === 'error' && (mintErr as { message: string }).message === MINT_NO_KEY_ERROR && (mintErr as { retry?: unknown }).retry === undefined)
+  t.check('the keyless mint names the error and offers a fresh Console attempt', mintErr.name === 'error' && mintErr.message === MINT_NO_KEY_ERROR && mintErr.retry?.name === 'ready' && mintErr.retry.loginWithClaudeAi === false)
 
   const bed4 = beatBed()
   const m4 = machineOf(bed4, {
@@ -265,7 +265,9 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   t.check('the exchange failure speaks the canned retry sentence and logs', err5.name === 'error' && (err5 as { message: string }).message === EXCHANGE_RETRY_ERROR && m5.world.logged.length === 1)
   m5.m.retry()
   t.check('↵ retry paints about-to-retry', m5.m.snapshot().flow.name === 'about-to-retry')
-  t.check('the retry beat is the 1s beat back to the stored WAITING screen (no new service)', bed5.run().some(b => b.ms === RETRY_DELAY_MS) && m5.m.snapshot().flow.name === 'waiting' && (m5.m.snapshot().flow as { url: string }).url === 'the-url' && m5.world.services.length === 1)
+  t.check('the retry beat returns to ready after the spent exchange', bed5.run().some(b => b.ms === RETRY_DELAY_MS) && m5.m.snapshot().flow.name === 'ready')
+  bed5.run()
+  t.check('the retry starts a fresh service instead of reusing the closed listener', m5.world.services.length === 2)
 
   const bed6 = beatBed()
   const m6 = machineOf(bed6)
@@ -683,7 +685,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
 
   const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — usage-based billing']))
-  t.check('the anthropic pick is the row owner\'s two-arm pair, byte-same labels, the roads in their values', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' }]))
+  t.check('the Anthropic pick keeps subscription, Console and key paste distinct', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Anthropic Console — browser sign-in', value: 'console' }, { label: 'Anthropic API key — usage-based billing', value: 'key' }]))
   const consoleFlowSrc = read('src/components/ConsoleOAuthFlow.tsx')
   t.check(
     'the in-chat pick renders the row owner by construction (ConsoleOAuthFlow spreads openaiArmPickRows and anthropicArmPickRows; walk + card mount it)',

@@ -1,5 +1,5 @@
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
-import { getAnthropicApiKey, getClaudeAIOAuthTokens, isClaudeAISubscriber } from './auth.js'
+import { anthropicApiKeyHeaders, getAnthropicApiKey, getClaudeAIOAuthTokens, isClaudeAISubscriber } from './auth.js'
 import { getWorkload } from './workloadContext.js'
 
 const hostSegments = (): string[] =>
@@ -39,7 +39,7 @@ const refused = (error: string): AuthHeaders => ({ headers: {}, error })
 export function getAuthHeaders(): AuthHeaders {
   if (!isClaudeAISubscriber()) {
     const apiKey = getAnthropicApiKey()
-    return apiKey ? { headers: { 'x-api-key': apiKey } } : refused('No API key available')
+    return apiKey ? { headers: anthropicApiKeyHeaders(apiKey) } : refused('No API key available')
   }
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   return accessToken

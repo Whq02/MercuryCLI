@@ -83,8 +83,8 @@ const OLD_SUBSCRIPTION_ROW = 'Claude subscription account'
 const OLD_USAGE_ROW = 'Usage-based billing — Anthropic Console sign-in or API key'
 const ANTHROPIC_ROW = 'Anthropic — Claude subscription or Console sign-in / API key'
 const SUBSCRIPTION_ARM = 'Claude subscription — browser sign-in'
-const USAGE_ARM = 'Usage-based billing — Anthropic Console sign-in or API key'
-const CARD_PICK_TITLE = 'Usage-based billing — Anthropic Console'
+const USAGE_ARM = 'Anthropic Console — browser sign-in'
+const CARD_PICK_TITLE = 'Anthropic Console — browser sign-in'
 const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
 const PICK_LEGEND = '↑↓ move · ↵ pick · esc back'
 const ESC = '\x1b'
@@ -109,7 +109,7 @@ section('§1 the catalogue: one Anthropic row, second after OpenAI, carrying bot
   check('twenty-two rows: one Anthropic row and every other family', rows.length === 22, String(rows.length))
   const restricted = loginFamilyRows({ engineLegs: false })
   check('a host without engine legs offers the one Anthropic row alone', restricted.length === 1 && restricted[0]?.label === ANTHROPIC_ROW, restricted.map(row => row.label).join(' | '))
-  check('the arm pick offers both roads in order: the subscription arm, then the usage-based arm', armPick.map(arm => arm.value).join(',') === 'claudeai,console', armPick.map(arm => arm.value).join(','))
+  check('the arm pick offers both roads in order: the subscription arm, then the usage-based arm', armPick.map(arm => arm.value).join(',') === 'claudeai,console,key', armPick.map(arm => arm.value).join(','))
   check('the subscription arm names the Claude subscription and its browser sign-in', armPick[0]?.label === SUBSCRIPTION_ARM, armPick[0]?.label ?? 'absent')
   check('the usage-based arm keeps the Console words the roster carried before', armPick[1]?.label === USAGE_ARM, armPick[1]?.label ?? 'absent')
   check('the recorded default anthropic pre-focuses the one Anthropic row', loginFamilyFocusFor('anthropic') === 'anthropic', String(loginFamilyFocusFor('anthropic')))
@@ -117,7 +117,7 @@ section('§1 the catalogue: one Anthropic row, second after OpenAI, carrying bot
   const arms = screen.loginsCatalogue()
   check('the face catalogue binds exactly one row to the anthropic family', arms.filter(arm => arm.familyId === 'anthropic').length === 1, arms.filter(arm => arm.familyId === 'anthropic').map(arm => arm.row.label).join(' | '))
   check('the distinct family count includes Melious AI and OrcaRouter', screen.loginsFamilyCounts([]).familyIds.length === 22 && screen.loginsFamilyCounts([]).familyIds.includes('melious') && screen.loginsFamilyCounts([]).familyIds.includes('orcarouter'), String(screen.loginsFamilyCounts([]).familyIds.length))
-  check('the face pick for the Anthropic row is the row owner\'s pair, byte-same', JSON.stringify(screen.loginsPickOptions('anthropic' as never).map(option => option.label)) === JSON.stringify(armPick.map(arm => arm.label)) && armPick.length === 2)
+  check('the face pick for the Anthropic row is the row owner\'s pair, byte-same', JSON.stringify(screen.loginsPickOptions('anthropic' as never).map(option => option.label)) === JSON.stringify(armPick.map(arm => arm.label)) && armPick.length === 3)
   const pane = screen.loginsPickPaneLines('anthropic' as never)
   check('the face pick pane explains the two credentials and names the way out', pane.join(' ').includes('One Anthropic family, two credentials') && pane[pane.length - 1] === 'esc — back to the roster', pane.join(' | '))
 }
@@ -275,7 +275,7 @@ section('§3 the boot Logins screen: the one row, then the same arm pick, each a
   await key(m, ENTER)
   const pickUp = await waitFor(() => m.screen().includes(PICK_LEGEND) && m.screen().includes('Claude subscription — browser sign-in'), 3000)
   check('↵ on the Anthropic row opens the arm pick', pickUp, m.screen().split('\n').filter(l => l.includes('│')).slice(4, 14).map(l => l.trim()).join(' | '))
-  check('the pick offers the usage-based arm', m.screen().includes('Usage-based billing — Anthropic Console'))
+  check('the pick offers the usage-based arm', m.screen().includes(USAGE_ARM))
   check('the pick explains the two credentials beside the rows', m.screen().includes('One Anthropic family, two credentials'))
   check('the pick started nothing by itself', starts.length === 0, JSON.stringify(starts))
   await key(m, ESC)

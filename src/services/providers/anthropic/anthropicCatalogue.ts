@@ -1,5 +1,5 @@
 import { anthropicAccountApiBase, OAUTH_BETA_HEADER } from '../../../constants/oauth.js'
-import { getAnthropicApiKey, getClaudeAIOAuthTokens } from '../../../utils/auth.js'
+import { anthropicApiKeyHeaders, getAnthropicApiKey, getClaudeAIOAuthTokens } from '../../../utils/auth.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { isOAuthTokenExpired } from '../../oauth/client.js'
@@ -160,11 +160,12 @@ function apiKeyDoor(): AnthropicDoorCredential | undefined {
     return undefined
   }
   if (!key) return undefined
+  const headers = anthropicApiKeyHeaders(key)
   return {
     door: 'api-key',
     label: ANTHROPIC_DOOR_LABELS['api-key'],
-    headers: { 'x-api-key': key },
-    fingerprint: credentialFingerprint(key),
+    headers,
+    fingerprint: credentialFingerprint(`${key}:${headers['anthropic-workspace-id'] ?? ''}`),
   }
 }
 

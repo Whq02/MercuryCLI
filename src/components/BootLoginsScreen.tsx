@@ -14,6 +14,8 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
 import { storeCompatApiKeyLogin } from '../services/providers/openaicompat/compatLogin.js';
 import { compatKeyEnvName } from '../services/providers/openaicompat/compatAccounts.js';
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js';
+import { storeAnthropicApiKeyLogin } from '../services/providers/anthropic/anthropicLogin.js';
+import { ANTHROPIC_WORKSPACE_PROMPT } from '../services/providers/anthropic/anthropicWorkspace.js';
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js';
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js';
 import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI_CONNECT_ROWS } from '../services/providers/xai/xaiLogin.js';
@@ -466,6 +468,8 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 
 export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 export type FaceKeyLegId =
+  | 'anthropic-key'
+  | 'anthropic-workspace'
   | 'openai-key'
   | 'zai-general'
   | 'zai-coding'
@@ -588,6 +592,8 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
 
 export function keyLegTitle(leg: FaceKeyLegId): string {
   switch (leg) {
+    case 'anthropic-key': return 'Anthropic API key';
+    case 'anthropic-workspace': return 'Anthropic workspace ID';
     case 'openai-key':
       return 'OpenAI API key';
     case 'zai-general':
@@ -642,6 +648,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
 
 export function keyLegStoreLine(leg: FaceKeyLegId): string {
   switch (leg) {
+    case 'anthropic-key': return 'Paste your Anthropic API key';
+    case 'anthropic-workspace': return ANTHROPIC_WORKSPACE_PROMPT;
     case 'openai-key':
       return 'Stored auth-scoped (mode 600), never logged; OPENAI_API_KEY wins over the store.';
     case 'zai-general':
@@ -695,6 +703,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
 
 export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?: string } {
   switch (leg) {
+    case 'anthropic-key': return { stores: 'an Anthropic API key' };
+    case 'anthropic-workspace': return { stores: 'an Anthropic workspace ID' };
     case 'openai-key':
       return { stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead' };
     case 'zai-general':
@@ -763,7 +773,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
   if ((leg === 'minimax' || leg === 'together' || leg === 'cohere' || leg === 'groq' || leg === 'orcarouter' || leg === 'melious' || leg === 'cerebras' || leg === 'fireworks' || leg === 'qwen') && note === null) lines.push(...wrapClauses(keyPageLine(leg), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
-  lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
+  lines.push(maskedDraftLine(draftLen).replace('code:', leg === 'anthropic-workspace' ? 'workspace:' : 'key:'));
   if (note !== null) {
     lines.push('');
     lines.push(...wrapPlain(note, DETAIL_W));
@@ -1178,6 +1188,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const deviceRunRef = useRef(0);
   const handlesRef = useRef<{ cancel: (reason?: string) => void; completeWithRedirect: (pasted: string) => void } | null>(null);
 
+  const anthropicKeyDraft = useRef('');
+  const anthropicKeyRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => { anthropicKeyRequest.current?.abort(); anthropicKeyDraft.current = ''; }, []);
   const refreshFacts = (): void => {
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   };
@@ -1224,6 +1237,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     })();
   };
   const closeFlow = (): void => {
+    anthropicKeyRequest.current?.abort();
+    anthropicKeyRequest.current = null;
+    anthropicKeyDraft.current = '';
     deviceRunRef.current += 1;
     handlesRef.current?.cancel('cancelled from the logins layer');
     handlesRef.current = null;
@@ -1493,6 +1509,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     setDraft('');
     switch (pick) {
       case 'anthropic':
+        if (value === 'key') {
+          setFlow({ kind: 'key', leg: 'anthropic-key', note: null, storing: false });
+          return;
+        }
         setFlow({ kind: 'anthropic' });
         model.reset();
         model.start(value === 'claudeai');
@@ -1582,6 +1602,27 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const submitKey = (leg: FaceKeyLegId, raw: string): void => {
     const value = raw.trim();
+    if (leg === 'anthropic-key' || leg === 'anthropic-workspace') {
+      if (!value || anthropicKeyRequest.current) return;
+      const request = new AbortController();
+      anthropicKeyRequest.current = request;
+      const key = leg === 'anthropic-workspace' ? anthropicKeyDraft.current : value;
+      setFlow({ kind: 'key', leg, note: null, storing: true });
+      void storeAnthropicApiKeyLogin(key, { workspaceId: leg === 'anthropic-workspace' ? value : undefined, signal: request.signal }).then(outcome => {
+        if (request.signal.aborted) return;
+        anthropicKeyRequest.current = null;
+        if (outcome.stored) {
+          anthropicKeyDraft.current = '';
+          setDraft('');
+          setFlow({ kind: 'receipt', receipt: outcome.receipt, ok: true });
+        } else if (outcome.needsWorkspace) {
+          anthropicKeyDraft.current = key;
+          setDraft('');
+          setFlow({ kind: 'key', leg: 'anthropic-workspace', note: null, storing: false });
+        } else setFlow({ kind: 'key', leg, note: outcome.receipt, storing: false });
+      });
+      return;
+    }
     if (!value) {
       if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
       else if (leg === 'xai' && resolveXaiApiKey()) setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
@@ -1638,6 +1679,13 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const keyEscape = (leg: FaceKeyLegId): void => {
     setDraft('');
+    if (leg === 'anthropic-key' || leg === 'anthropic-workspace') {
+      anthropicKeyRequest.current?.abort();
+      anthropicKeyRequest.current = null;
+      anthropicKeyDraft.current = '';
+      openPick('anthropic');
+      return;
+    }
     if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
     else if (leg === 'mistral-admin') setFlow({ kind: 'receipt', receipt: `${mistralApiReceipt.current} Admin API key unchanged; /logins mistral adds it later.`, ok: true });
     else if (leg === 'openai-key') openPick('openai');

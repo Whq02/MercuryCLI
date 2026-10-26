@@ -1,5 +1,6 @@
 import { APIConnectionError, APIConnectionTimeoutError, APIError } from './sdkErrors.js'
 import { isBedrockThrottle } from './bedrockThrottle.js'
+import { ANTHROPIC_WORKSPACE_FIX, needsAnthropicWorkspace } from '../providers/anthropic/anthropicWorkspace.js'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
@@ -638,6 +639,10 @@ function composeAssistantMessageFromError(
       error: 'billing_error',
       errorDetails: message,
     })
+  }
+
+  if (routeOfModel(model) === 'anthropic' && needsAnthropicWorkspace(message)) {
+    return createAssistantAPIErrorMessage({ content: ANTHROPIC_WORKSPACE_FIX, error: 'invalid_request' })
   }
 
   if (status === 401 || message.toLowerCase().includes('x-api-key')) {

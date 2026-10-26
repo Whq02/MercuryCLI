@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from './subprocessEnv.js'
-import { randomInt } from 'node:crypto'
+import { createHash, randomInt } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { noteCredentialChange } from './accounts/signInLedger.js'
@@ -14,7 +14,7 @@ import {
 } from '../constants/oauth.js'
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig, checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from './config.js'
-import { getGlobalConfigCacheStamp } from './config/globalConfig.js'
+import { getGlobalConfigCacheStamp, readGlobalConfigAgain } from './config/globalConfig.js'
 import { clearBetasCaches } from './betas.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -237,6 +237,17 @@ export function getAnthropicApiKey(): string | null {
   return getAnthropicApiKeyWithSource().key
 }
 
+export function getAnthropicApiKeyWorkspaceId(key: string): string | undefined {
+  const workspace = getGlobalConfig().anthropicApiKeyWorkspace
+  return workspace?.keyFingerprint === createHash('sha256').update(key).digest('hex')
+    ? workspace.workspaceId : undefined
+}
+
+export function anthropicApiKeyHeaders(key: string): Record<string, string> {
+  const workspaceId = getAnthropicApiKeyWorkspaceId(key)
+  return { 'x-api-key': key, ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}) }
+}
+
 export function hasFirstPartyCredential(): boolean {
   try {
     return (
@@ -435,12 +446,12 @@ export function prefetchApiKeyFromApiKeyHelperIfSafe(isNonInteractiveSession: bo
 }
 
 
-let signedOutKeyMemoStamp: number | null = null
+let managedKeyMemoStamp: number | null = null
 let signedOutOAuthMemoStamp: number | null = null
 
 export const getApiKeyFromConfigOrMacOSKeychain = memoize((): string | null => {
   const key = readManagedKey()
-  signedOutKeyMemoStamp = key === null ? getGlobalConfigCacheStamp() : null
+  managedKeyMemoStamp = getGlobalConfigCacheStamp()
   return key
 })
 
@@ -468,10 +479,12 @@ function readKeychainSync(): string | null {
 
 const API_KEY_FORMAT_RE = /^[A-Za-z0-9_-]+$/
 
-export async function saveApiKey(key: string): Promise<void> {
+export async function saveApiKey(key: string, options?: { workspaceId?: string }): Promise<void> {
   if (!API_KEY_FORMAT_RE.test(key)) {
     throw new Error('Invalid API key format: only letters, digits, dashes and underscores are allowed')
   }
+  const workspaceId = options?.workspaceId?.trim() || undefined
+  if (workspaceId && !API_KEY_FORMAT_RE.test(workspaceId)) throw new Error('Enter a valid Anthropic workspace ID')
   if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
@@ -490,7 +503,8 @@ export async function saveApiKey(key: string): Promise<void> {
     const approved = responses.approved ?? []
     return {
       ...current,
-      ...(keychainWritten ? {} : { primaryApiKey: key }),
+      primaryApiKey: keychainWritten ? undefined : key,
+      anthropicApiKeyWorkspace: workspaceId ? { keyFingerprint: createHash('sha256').update(key).digest('hex'), workspaceId } : undefined,
       customApiKeyResponses: {
         approved: approved.includes(normalized) ? approved : [...approved, normalized],
         rejected: responses.rejected ?? [],
@@ -499,6 +513,9 @@ export async function saveApiKey(key: string): Promise<void> {
   })
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
+  if (getApiKeyFromConfigOrMacOSKeychain() !== key || !isCustomApiKeyApproved(key) || getAnthropicApiKeyWorkspaceId(key) !== workspaceId) {
+    throw new Error('The Anthropic API key could not be saved. Try again.')
+  }
 }
 
 function writeKeychainHexStdin(key: string): boolean {
@@ -521,7 +538,7 @@ export async function removeApiKey(): Promise<void> {
       logError(error)
     }
   }
-  saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined }))
+  saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined, anthropicApiKeyWorkspace: undefined }))
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
   noteCredentialChange()
@@ -636,7 +653,7 @@ export function dropCredentialMemos(): void {
   resetSettingsCache()
   clearOAuthTokenCache()
   signedOutOAuthMemoStamp = null
-  signedOutKeyMemoStamp = null
+  managedKeyMemoStamp = null
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
   clearBetasCaches()
@@ -706,6 +723,7 @@ function credentialsFilePath(): string {
 let lastCredentialsMtimeMs: number | null = null
 
 export function invalidateOnDiskChange(): void {
+  if (process.env.NODE_ENV !== 'test') readGlobalConfigAgain()
   try {
     const mtime = statSync(credentialsFilePath()).mtimeMs
     if (lastCredentialsMtimeMs === null || mtime !== lastCredentialsMtimeMs) {
@@ -717,8 +735,8 @@ export function invalidateOnDiskChange(): void {
     lastCredentialsMtimeMs = null
   }
   const stamp = getGlobalConfigCacheStamp()
-  if (signedOutKeyMemoStamp !== null && stamp !== signedOutKeyMemoStamp) {
-    signedOutKeyMemoStamp = null
+  if (managedKeyMemoStamp !== null && stamp !== managedKeyMemoStamp) {
+    managedKeyMemoStamp = null
     getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
     clearLegacyApiKeyPrefetch()
   }

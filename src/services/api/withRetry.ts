@@ -276,6 +276,11 @@ export async function* withRetry<T>(
         clearApiKeyHelperCache()
         if (!authenticationRecoveryAttempted && !helperFailed && attempt <= maxRetries) {
           authenticationRecoveryAttempted = true
+          const current = await getClient()
+          if ((current.apiKey || current.authToken) && (current.apiKey !== client.apiKey || current.authToken !== client.authToken)) {
+            client = current
+            continue
+          }
           if (failedAccessToken && getAuthTokenSource().source === 'claude.ai') {
             const refreshed = await handleOAuth401Error(failedAccessToken).catch(() => false)
             const accessToken = getClaudeAIOAuthTokens()?.accessToken
