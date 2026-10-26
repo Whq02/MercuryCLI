@@ -361,8 +361,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
 
   async tokens(): Promise<OAuthTokens | undefined> {
     const entry = await readEntryAsync(this.serverKey)
-    const nearExpiry = (record: StoredOAuthEntry): boolean =>
-      !record.accessToken || record.expiresAt - Date.now() < REFRESH_LEAD_S * 1000
     if (entry === undefined) {
       logForDebugging(`mcp auth [${this.serverName}]: no stored tokens`)
       return undefined

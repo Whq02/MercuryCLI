@@ -21,7 +21,6 @@ import {
   createFrameReader,
   createFrameWriter,
   type JsonRpcId,
-  type JsonRpcMessage,
 } from '../sidecarFraming.js'
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -286,7 +285,6 @@ export async function runWebLspSidecar(
             case 'yaml':
               return yamlService.doHover(doc, p.position)
           }
-          return null
         }
         case 'textDocument/formatting': {
           const p = params as { textDocument: { uri: string }; options?: { tabSize?: number; insertSpaces?: boolean } }
@@ -323,7 +321,6 @@ export async function runWebLspSidecar(
                 ? yamlService.findDocumentSymbols2(doc)
                 : []
           }
-          return []
         }
         case 'textDocument/diagnostic': {
           const p = params as { textDocument: { uri: string } }

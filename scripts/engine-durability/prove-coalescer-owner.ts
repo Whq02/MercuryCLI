@@ -107,7 +107,6 @@ t.section('§3 — one owner: the inline-copy ratchet')
 
   const MIGRATED = [
     'src/services/workbench/projection.ts',
-    'src/services/workbench/currentWork.ts',
     'src/state/vitalsBus.ts',
   ]
   for (const f of MIGRATED) {

@@ -211,8 +211,6 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
 }
 
-const EMPTY_ROOTS: readonly string[] = Object.freeze([])
-
 let resting: NoSessionConnector | null = null
 
 export function noSessionConnector(): NoSessionConnector {

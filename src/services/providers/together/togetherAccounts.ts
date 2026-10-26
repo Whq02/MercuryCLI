@@ -13,10 +13,6 @@ export function togetherChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env)
   return `${togetherApiBase(env)}/chat/completions`
 }
 
-function togetherModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return `${togetherApiBase(env)}/models`
-}
-
 export function togetherEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string; name: 'TOGETHER_API_KEY' | 'TOGETHER_AI_API_KEY' } | undefined {
   const primary = env[TOGETHER_ENV_KEY]?.trim()
   if (primary) return { key: primary, name: TOGETHER_ENV_KEY }

@@ -235,7 +235,7 @@ function matchNode(
         return { matched: !q.name || matchesGlob('default', q.name), name: 'default' }
       }
       if (hasExportModifier(ts, node)) {
-        const n = nodeName(ts, node) ?? (ts.isVariableStatement(node) ? null : null)
+        const n = nodeName(ts, node)
         if (ts.isVariableStatement(node)) {
           const names = node.declarationList.declarations
             .map(d => nodeName(ts, d))

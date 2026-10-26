@@ -13,10 +13,6 @@ export function cohereChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): 
   return `${cohereApiBase(env)}/chat/completions`
 }
 
-function cohereModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return `${cohereApiBase(env)}/models`
-}
-
 export function cohereEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string; name: 'COHERE_API_KEY' | 'CO_API_KEY' } | undefined {
   const primary = env[COHERE_ENV_KEY]?.trim()
   if (primary) return { key: primary, name: COHERE_ENV_KEY }

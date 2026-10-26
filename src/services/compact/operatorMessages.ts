@@ -10,7 +10,6 @@ export const OPERATOR_MESSAGES_TOKEN_BUDGET = 20_000
 
 export const OPERATOR_MESSAGE_TRUNCATION_MARKER = '[the rest of this message is cut for the budget; the summary covers it]'
 
-const MIN_TRUNCATED_CHARS = 80
 const CHARS_PER_TOKEN = 4
 
 export type OperatorMessageEntry = { ordinal: number; text: string; truncated?: boolean }

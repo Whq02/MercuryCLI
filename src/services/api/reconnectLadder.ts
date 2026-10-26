@@ -47,7 +47,7 @@ export interface OutageCause {
   words: string
 }
 
-function isSdkConnectionError(error: unknown): boolean {
+export function isSdkConnectionError(error: unknown): boolean {
   if (error instanceof APIConnectionError) return true
   if (!(error instanceof Error)) return false
   const className = error.constructor?.name

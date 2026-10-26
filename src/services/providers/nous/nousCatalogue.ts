@@ -9,7 +9,7 @@ import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { canonicalWireModelId, declaredRouteOf, healListedCatalogueRowId, qualifiedWireId } from '../routeLaw.js'
 import { OPENROUTER_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
-import { nousApiBase, nousAccountIdentity, nousModelsUrl, resolveNousAccount, resolveNousCredentialSnapshot, type NousCredentialSource } from './nousAccounts.js'
+import { nousApiBase, nousAccountIdentity, resolveNousAccount, resolveNousCredentialSnapshot, type NousCredentialSource } from './nousAccounts.js'
 import { NOUS_SIGNIN_EXPIRED_LINE } from './nousOauth.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000

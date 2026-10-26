@@ -5,7 +5,6 @@ import {
   INFERENCE_SCOPE,
   SUBSCRIPTION_OAUTH_SCOPES,
   PROFILE_SCOPE,
-  OAUTH_BETA_HEADER,
   getOauthConfig,
 } from '../../constants/oauth.js'
 import {

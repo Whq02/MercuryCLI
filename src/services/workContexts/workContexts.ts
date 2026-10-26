@@ -16,7 +16,6 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { gitExe } from '../../utils/git.js'
 import { launchFolderBoundsProject } from '../../utils/projectBoundary.js'
-import { fetchGitDiffFor } from '../../utils/gitDiff.js'
 import { resolveProjectConfigPath } from '../../utils/projectConfig.js'
 import { createAgentWorktree } from '../../utils/worktree.js'
 

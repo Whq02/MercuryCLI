@@ -19,7 +19,7 @@ const INVENTORY: Record<string, string[]> = {
   'crewStoreRoot': ['src/services/crew/conversations.ts', 'src/services/crew/descriptor.ts', 'src/services/crew/dispatch.ts'],
   'crewDirectoryEnabled': ['src/commands/crew/index.ts', 'src/services/crew/seatBridge.ts'],
   'displayLabelsOf': ['src/services/crew/projection.ts'],
-  'resolveCrewSnapshot': ['src/commands/crew/index.ts', 'src/services/acp/acpServer.ts', 'src/services/crew/graph.ts', 'src/services/crew/targetPicker.ts'],
+  'resolveCrewSnapshot': ['src/commands/crew/index.ts', 'src/services/acp/acpServer.ts', 'src/services/crew/graph.ts'],
   'attachExternalSeat': ['src/commands/crew/index.ts'],
   'detachExternalSeat': ['src/commands/crew/index.ts'],
   'cancelSeatTurn': ['src/commands/crew/index.ts'],

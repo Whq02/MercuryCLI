@@ -27,11 +27,11 @@ import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLa
 import { isClientContractRefusalError } from './clientContractGate.js'
 import { healClientContractRefusal, noteClientContractHeal, type ClientContractHeal } from './clientContractLearned.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
-import { NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
+import { isSdkConnectionError as isConnectionErrorLike, NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { jitterRetryDelay } from './retryJitter.js'
-import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
+import { APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 
 
@@ -118,13 +118,6 @@ function statusOf(error: unknown): number | undefined {
 
 export function is529Error(error: unknown): boolean {
   return statusOf(error) === 529 || errorMessage(error).includes(OVERLOADED_TYPE_MARKER)
-}
-
-function isConnectionErrorLike(error: unknown): boolean {
-  if (error instanceof APIConnectionError) return true
-  if (!(error instanceof Error)) return false
-  const className = error.constructor?.name
-  return className === 'APIConnectionError' || className === 'APIConnectionTimeoutError'
 }
 
 export function isStaleConnectionError(error: unknown): boolean {

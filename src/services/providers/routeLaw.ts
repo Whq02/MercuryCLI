@@ -7,7 +7,6 @@ import {
   qualifiedIdSpaceOf,
   type CallModelRoute,
   type ModelRouteVerdict,
-  type ProviderIdSpace,
 } from './idSpaces.js'
 
 export {

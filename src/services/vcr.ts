@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../types/wire.js'
@@ -26,10 +26,6 @@ function fixturesRoot(): string {
 
 function fixturePath(name: string): string {
   return join(fixturesRoot(), 'fixtures', `${name}.json`)
-}
-
-function isRecordingEnabled(): boolean {
-  return false
 }
 
 
@@ -114,7 +110,7 @@ async function withFixture<T>(fixtureName: string, input: unknown, produce: () =
   } catch (err) {
     if ((err as { code?: string }).code !== 'ENOENT') throw err
   }
-  if (isCiEnvironment() && !isRecordingEnabled()) {
+  if (isCiEnvironment()) {
     throw new Error(
       `Missing VCR fixture ${path}. this build does not record fixtures.`,
     )
@@ -238,13 +234,13 @@ export async function withVCR<T>(
   } catch (err) {
     if ((err as { code?: string }).code !== 'ENOENT') throw err
   }
-  if (isCiEnvironment() && !isRecordingEnabled()) {
+  if (isCiEnvironment()) {
     throw new Error(
       `Missing VCR fixture ${path}. this build does not record fixtures.`,
     )
   }
   const live = await produce()
-  if (isCiEnvironment() && !isRecordingEnabled()) {
+  if (isCiEnvironment()) {
     return live
   }
   const dehydrated = (live as unknown as VcrMessage[]).map((message, index) =>

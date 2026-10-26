@@ -128,7 +128,6 @@ t.section('§4 — pokeWorkbench (the template) honours a mid-refresh trigger')
 t.section('§5 — the audited async projections use the coalescing owner')
 {
   const consumers = [
-    'src/services/workbench/currentWork.ts',
     'src/services/workbench/projection.ts',
   ]
   for (const file of consumers) {

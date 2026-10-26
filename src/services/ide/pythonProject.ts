@@ -4,7 +4,6 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
-import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   defaultInterpreterCandidates,

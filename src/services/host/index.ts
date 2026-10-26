@@ -22,7 +22,7 @@ import { getFocusedSessionConnector } from '../engine-connector/focusedConnector
 import { getSessionId } from '../../bootstrap/state.js'
 import { BANK_DOOR, bankAction, bankDoor, ensureBankFolder, keptDiskForPod, terminateVolumeChoice, volumeDeleteDoor, volumeFitsOffer } from './fastLoad.js'
 import { deleteKeptVolume, matchesVolume, readKeptVolume, rentalVolume, reconcileVolumes, runpodKeptVolumes, vastVolumeBilling, volumeLabel, volumePrice, type KeptVolume } from './volumes.js'
-import { VastClient, VAST_VOLUME_NOTICE, createVastRental } from './vendors/vast.js'
+import { VastClient, createVastRental } from './vendors/vast.js'
 import { deleteVastKeptVolume, reconcileVastVolumes, vastKeptVolumes, vastRentalVolume, vastVolumeDeleteDoor, vastVolumeLabel } from './vastVolumes.js'
 import { hostMachineOf } from './reliability.js'
 import { WEIGHTS_SOURCE_ROW, chooseWeightsSource, weightsSourceDefault, weightsSourceWords, type WeightsSource, type WeightsSourceContext } from './weightsSource.js'

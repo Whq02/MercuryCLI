@@ -332,7 +332,3 @@ export function geminiPlanTierWords(tier: GeminiPlanTierFacts | undefined): stri
   if (id === 'legacy-tier') return 'a Code Assist licence (legacy)'
   return tier.current?.name ?? id ?? 'tier unknown'
 }
-
-function geminiPlanTierIsFree(tier: GeminiPlanTierFacts | undefined): boolean {
-  return tier?.paid === undefined && tier?.current?.id === GEMINI_PLAN_FREE_TIER_ID
-}

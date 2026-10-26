@@ -26,7 +26,6 @@ import type {
   JourneyRecord,
   JourneySpec,
   JourneyStep,
-  JourneyStepResult,
 } from './contracts.js'
 
 const RING = 16

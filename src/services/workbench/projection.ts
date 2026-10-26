@@ -1,5 +1,4 @@
 
-import { useSyncExternalStore } from 'react'
 import { getVitals } from '../../state/vitalsBus.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -70,7 +69,6 @@ function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
     if (typeof raw !== 'object' || raw === null) continue
     const t = raw as Record<string, unknown>
     const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
-    const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
     const fact: RichTaskFact = {
       id,
       taskType: str(t.type) ?? 'unknown',
@@ -412,10 +410,6 @@ export function subscribeWorkbench(listener: () => void): () => void {
     listeners.delete(listener)
     if (listeners.size === 0) stopEngine()
   }
-}
-
-function useWorkbench(): WorkbenchSnapshot | null {
-  return useSyncExternalStore(subscribeWorkbench, getWorkbenchSnapshot, getWorkbenchSnapshot)
 }
 
 export async function resolveWorkbenchSnapshot(opts?: {

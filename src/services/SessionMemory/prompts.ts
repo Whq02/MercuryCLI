@@ -2,7 +2,6 @@ import { join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 
 const PER_SECTION_TOKEN_LIMIT = 2000

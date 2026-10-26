@@ -12,10 +12,6 @@ export function minimaxChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env):
   return `${minimaxApiBase(env)}/chat/completions`
 }
 
-function minimaxModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return `${minimaxApiBase(env)}/models`
-}
-
 export function minimaxPlanRemainsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${minimaxApiBase(env)}/token_plan/remains`
 }

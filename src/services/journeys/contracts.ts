@@ -81,7 +81,7 @@ export interface JourneySpec {
 
 type JourneyStepState = 'passed' | 'failed' | 'skipped' | 'cancelled'
 
-export interface JourneyStepResult {
+interface JourneyStepResult {
   index: number
   kind: JourneyStep['kind']
   label: string

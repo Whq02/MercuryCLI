@@ -13,10 +13,9 @@ import {
   MODEL_CONTEXT_WINDOW_DEFAULT,
 } from '../../utils/context.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
-import { cacheKeys, type FileStateCache } from '../../utils/fileStateCache.js'
+import type { FileStateCache } from '../../utils/fileStateCache.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -43,7 +42,6 @@ import {
   processConditionedRules,
   processInstructionFile,
   processRulesDir,
-  safelyReadInstructionFileAsync,
 } from './discovery.js'
 import { resolveRequestedInstructionProfile } from './profile.js'
 

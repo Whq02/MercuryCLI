@@ -1,18 +1,12 @@
 
-import { useEffect, useState } from 'react'
 import type { RunSnapshot } from '../run/runKernel.js'
 import { isTerminalLifecycle } from '../run/runKernel.js'
-import { getRunSnapshot, subscribeRuns } from '../run/runCoordinator.js'
+import { getRunSnapshot } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
 import { processMainOwner } from '../run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  resolveWorkbenchSnapshot,
-  subscribeWorkbench,
-  getWorkbenchSnapshot,
-} from './projection.js'
-import { serialCoalescer } from './serialCoalescer.js'
+import { resolveWorkbenchSnapshot } from './projection.js'
 import { classifyReadFailure, wasObserved } from '../../substrate/sourceState.js'
 import type { WorkbenchSnapshot } from './contracts.js'
 
@@ -266,31 +260,4 @@ export async function gatherCurrentWork(opts?: {
     contextPct,
     recovery: await classifyRecovery(owner, run),
   })
-}
-
-
-function useCurrentWork(): CurrentWork | null {
-  const [work, setWork] = useState<CurrentWork | null>(null)
-  useEffect(() => {
-    let alive = true
-    const coalescer = serialCoalescer(async () => {
-      const w = await gatherCurrentWork()
-      if (alive) setWork(w)
-    }, 'current-work')
-    const refresh = () => coalescer.poke()
-    const unsubs: Array<() => void> = [subscribeRuns(refresh), subscribeWorkbench(refresh)]
-    void import('../../utils/tasks.js')
-      .then(m => {
-        if (alive) unsubs.push(m.onTasksUpdated(refresh))
-      })
-      .catch(() => {})
-    refresh()
-    return () => {
-      alive = false
-      coalescer.release()
-      for (const u of unsubs) u()
-    }
-  }, [])
-  void getWorkbenchSnapshot
-  return work
 }

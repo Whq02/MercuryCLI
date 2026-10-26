@@ -2,7 +2,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
-import { getMercuryHome } from '../../utils/envUtils.js'
 import { getCwd } from '../../utils/cwd.js'
 import { crewStoreRoot, type ActorRefV1 } from './identity.js'
 

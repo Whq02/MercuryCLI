@@ -13,7 +13,7 @@ import { fullCheckMinutes, keptDiskPrice, keptVolumes, matchesVolume, readKeptVo
 import { bankFolder, bankModelPath } from './bank.js'
 import { bankManifest, bytesMatchRecipe, manifestBytes, type BankManifest } from './bankManifest.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
-import { RunpodHttpError, type RunpodClient } from './runpod.js'
+import { RunpodHttpError } from './runpod.js'
 import { HostTerminationUnconfirmed, hostJobReadOnly, type HostReadOnly } from './retry.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'

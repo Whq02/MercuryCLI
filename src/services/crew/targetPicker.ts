@@ -1,6 +1,6 @@
 
 import { listAttachedSeats } from './seatBridge.js'
-import { resolveCrewSnapshot, type CrewMemberV1, type CrewSnapshotV1 } from './projection.js'
+import type { CrewMemberV1, CrewSnapshotV1 } from './projection.js'
 import type { CrewAgentId } from './identity.js'
 
 interface TargetPickerRow {

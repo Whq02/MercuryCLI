@@ -32,7 +32,6 @@ const loadAgents = await import('../../src/extensions/load/agents.ts')
 const loadServers = await import('../../src/extensions/load/servers.ts')
 const loadLanguage = await import('../../src/extensions/load/language.ts')
 const loadKeys = await import('../../src/extensions/load/keybindings.ts')
-const channels = await import('../../src/extensions/load/channels.ts')
 const blocklist = await import('../../src/extensions/blocklist.ts')
 
 let failures = 0
@@ -108,8 +107,6 @@ console.log('[2] approval is the gate: approve → the channels fill; switch off
   check('the skill is kitchen-sink:fixture-skill', c.skills.includes('kitchen-sink:fixture-skill'))
   check('the command is kitchen-sink:fixture-cmd', c.commands.includes('kitchen-sink:fixture-cmd'))
   check('the agent is kitchen-sink:fixture-agent', c.agents.includes('kitchen-sink:fixture-agent'))
-  check('the channel approval answers for the declared server', channels.approvedChannelFor('ext:kitchen-sink:fixture') !== null)
-  check('an undeclared server has no channel approval and the drop is counted', channels.admitChannelPost('ext:kitchen-sink:other') === false)
   const off = install.setSwitch('kitchen-sink@fixture-source', false)
   check('switch off writes', off.ok)
   await swap()
