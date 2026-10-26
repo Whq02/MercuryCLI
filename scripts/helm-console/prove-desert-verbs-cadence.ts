@@ -77,7 +77,7 @@ const violations = auditDesertVerbs(desert, others)
 check('every entry in MERCURY_DESERT_VERBS obeys all cadence and register laws', violations.length === 0, violations.join(' | '))
 check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', desert[0] === 'Scuttling' && desert[36] === 'Sand-slicked', `0=${desert[0]} 36=${desert[36]}`)
 const added = desert.slice(37)
-check('20 to 30 new desert thinking verbs are landed after Sand-slicked', added.length >= 20 && added.length <= 30, `added=${added.length}`)
+check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length}`)
 
 const APPROVED_PHRASES: readonly string[] = [
   'Parsing the dunes',
