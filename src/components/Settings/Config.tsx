@@ -110,6 +110,9 @@ import { localRecordFor } from '../../services/providers/local/localCatalogue.js
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
+import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
+import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
+import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/advisorSettings.js'
 
 const LABEL_CELLS = 36
@@ -156,6 +159,7 @@ type SubMenu =
   | 'external-includes'
   | 'language'
   | typeof LOCAL_SERVER_APPLY_MENU
+  | MediaMenu
 
 const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
 
@@ -502,6 +506,7 @@ export function Config({
     }
   }
 
+  const media = useMediaConfig()
   const items: SettingsItem[] = []
 
   items.push({
@@ -1390,6 +1395,7 @@ export function Config({
     },
   })
 
+  items.push(...media.items)
   const [searchMode, setSearchMode] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
@@ -1405,7 +1411,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp])
+  }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp, media.settings, media.catalogue, media.config, media.error])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
   useLayoutEffect(() => {
@@ -1443,9 +1449,19 @@ export function Config({
     return lines.join('\n')
   }
 
+  const mediaSaving = useRef(false)
   const saveAndClose = (): void => {
-    const summary = composeSummary()
-    onClose(summary)
+    if (mediaSaving.current) return
+    mediaSaving.current = true
+    void media.save().then(async reconnect => {
+      if (reconnect) {
+        const pending = reloadExtensions({ onServersChanged: () => setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })) })
+        noteReloaded(pending)
+        const result = await pending
+        setAppState(prev => ({ ...prev, extensions: extensionsStateFrom(result.set, false, null) }))
+      }
+      onClose(composeSummary())
+    }).catch(error => writeFailed('userSettings', error instanceof Error ? error : new Error(String(error)))).finally(() => { mediaSaving.current = false })
   }
 
   const signInFromDoor = (): void => {
@@ -1455,6 +1471,7 @@ export function Config({
   }
 
   const revert = (): boolean => {
+    media.revert()
     while (undoRef.current.length > 0) {
       const undo = undoRef.current.at(-1)!
       if (undo.source === 'global') {
@@ -1492,8 +1509,9 @@ export function Config({
   }
 
   const escape = (): void => {
+    if (mediaSaving.current) return
     if (escapeFromOutsidePress()) {
-      if (dirtyRef.current && !revert()) return
+      if ((dirtyRef.current || media.dirty) && !revert()) return
       onClose(undefined)
       return
     }
@@ -1502,7 +1520,7 @@ export function Config({
       return
     }
     if (searchMode) setSearchMode(false)
-    if (dirtyRef.current) {
+    if ((dirtyRef.current || media.dirty)) {
       revert()
       return
     }
@@ -1610,6 +1628,7 @@ export function Config({
     { isActive: subMenu === null },
   )
 
+  if (subMenu === 'media-root' || subMenu === 'media-image' || subMenu === 'media-video') return <MediaConfigPicker key={subMenu} menu={subMenu} media={media} rows={contentHeight} width={width} onClose={() => setSubMenu(null)} />
   if (subMenu === 'theme') {
     return (
       <Select

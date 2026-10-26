@@ -18,9 +18,10 @@ import { join, relative } from 'node:path'
 import { bundledPayloads } from '../../src/extensions/bundled/content.generated.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const CRAFT_NAMES = Object.keys(bundledPayloads).sort()
-const INSTALLED = `installed (${8 + CRAFT_NAMES.length})`
-const FRESH_INSTALLED = `installed (${CRAFT_NAMES.length})`
+const BUNDLED_NAMES = Object.keys(bundledPayloads).sort()
+const CRAFT_NAMES = BUNDLED_NAMES.filter(name => name !== 'mercury-media')
+const INSTALLED = `installed (${8 + BUNDLED_NAMES.length})`
+const FRESH_INSTALLED = `installed (${BUNDLED_NAMES.length})`
 const ON_NAMES = ['deploy-kit', 'notes-sync', 'quiet-notes', 'review-tools', ...CRAFT_NAMES].sort()
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-extui-surface-')))
@@ -343,7 +344,8 @@ for (const [cols, rows] of [
       const id = `fresh-installed-${sz}`
       has(id, text, FRESH_INSTALLED)
       has(id, text, 'sources (0)')
-      for (const name of CRAFT_NAMES) has(id, text, name)
+      for (const name of BUNDLED_NAMES) has(id, text, name)
+      has(id, text, '○ off')
       has(id, text, 'mercury')
       has(id, text, '● on')
       hasNot(id, text, 'no extensions yet', 'bundled extensions are available without installing an app')
@@ -625,7 +627,7 @@ for (const [cols, rows] of [
     rows,
     sends: [
       ...openBoard,
-      g(INSTALLED, DOWN.repeat(6 + CRAFT_NAMES.length)),
+      g(INSTALLED, DOWN.repeat(6 + BUNDLED_NAMES.length)),
       g(INSTALLED, 'i'),
     ],
     ready: 'fetch wanted-tool',
@@ -723,7 +725,7 @@ await seedTemplate()
     states.has('on') && states.has('off') && states.has('found') && states.has('blocked'),
     [...states].join(','),
   )
-  check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + CRAFT_NAMES.length, String(entries.length))
+  check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + BUNDLED_NAMES.length, String(entries.length))
 }
 
 const only = process.env.MERCURY_EXTUI_ONLY ?? ''
@@ -809,7 +811,7 @@ console.log('\n── the vocabulary law (07 §2 row 8)')
     for (const name of readdirSync(dir)) {
       const p = join(dir, name)
       if (statSync(p).isDirectory()) globby(p, out)
-      else if (/\.(ts|tsx|md)$/.test(name)) out.push(p)
+      else if (/\.(ts|tsx|md)$/.test(name) && name !== 'content.generated.ts') out.push(p)
     }
     return out
   }

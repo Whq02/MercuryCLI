@@ -3,6 +3,7 @@ import type { McpServerConfig, ScopedMcpServerConfig } from '../../services/mcp/
 import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
 import { getExtensionDataDir } from '../paths.js'
+import { mediaEnvironment, readMediaSettings, MEDIA_EXTENSION_ID } from '../../services/media/settings.js'
 
 import { registerBundledAppInstall, clearBundledAppInstalls } from '../installConsent.js'
 let memo: Record<string, ScopedMcpServerConfig> | null = null
@@ -39,6 +40,11 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
         const headers: Record<string, string> = {}
         for (const [key, value] of Object.entries(declared.headers ?? {})) headers[key] = resolve(value)
         config = { type: declared.type, url: resolve(declared.url), ...(Object.keys(headers).length ? { headers } : {}) } as McpServerConfig
+      }
+      if (id === MEDIA_EXTENSION_ID && config.type === 'stdio') {
+        const media = readMediaSettings()
+        if (!media.enabled) continue
+        try { config = { ...config, ...(media.serverPath ? { args: [media.serverPath] } : {}), env: { ...config.env, ...mediaEnvironment(media) } } } catch { continue }
       }
       out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id }
     }

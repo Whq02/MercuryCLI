@@ -33,6 +33,7 @@ export function trustWord(state: TrustState, health: Health | null): StateWord {
 
 export function noteWords(entry: RosterEntry, health: Health | null): string {
   const state = trustOf(entry)
+  if (entry.id === 'mercury-media@mercury' && state === 'off') return '/config → Local media → on'
   const parts: string[] = []
   switch (state) {
     case 'on': {

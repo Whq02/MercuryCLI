@@ -155,7 +155,7 @@ function walk(dir: string, exts: string[], out: string[]): void {
     if (s.isDirectory()) {
       if (entry === 'node_modules' || entry === '__snapshots__') continue
       walk(p, exts, out)
-    } else if (exts.some(ext => p.endsWith(ext))) {
+    } else if (exts.some(ext => p.endsWith(ext)) && entry !== 'content.generated.ts') {
       out.push(p)
     }
   }

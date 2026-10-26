@@ -299,6 +299,36 @@
         "additionalProperties": false
       }
     },
+    "media": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Local image and video generation; off by default",
+          "type": "boolean"
+        },
+        "root": {
+          "description": "Media storage folder; defaults to ~/.mercury/media",
+          "type": "string",
+          "minLength": 1
+        },
+        "imageModel": {
+          "description": "Default image model catalogue id",
+          "type": "string",
+          "minLength": 1
+        },
+        "videoModel": {
+          "description": "Default video model catalogue id",
+          "type": "string",
+          "minLength": 1
+        },
+        "serverPath": {
+          "description": "Development server.js path; user settings only",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
     "credentials": {
       "type": "object",
       "properties": {

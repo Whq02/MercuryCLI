@@ -76,6 +76,7 @@
         "components/InkInstanceContext",
         "components/Link",
         "components/NoSelect",
+        "components/RawAnsi",
         "components/ScrollBox",
         "hooks/use-animation-frame",
         "hooks/use-animation-value",

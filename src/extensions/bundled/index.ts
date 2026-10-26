@@ -12,11 +12,14 @@ type BundledExtensionDefinition = {
   isAvailable?: () => boolean
 }
 
-function materialize(name: string, files: Record<string, string>): string {
+type BundledPayload = string | { base64: string; executable: boolean }
+const payloadBytes = (value: BundledPayload): Buffer => typeof value === 'string' ? Buffer.from(value) : Buffer.from(value.base64, 'base64')
+
+function materialize(name: string, files: Record<string, BundledPayload>): string {
   const digest = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 16)
   const root = join(getBundledDir(), name, `${MERCURY_VERSION}-${digest}`)
   const verify = (): void => {
-    for (const [path, text] of Object.entries(files)) if (readFileSync(join(root, path), 'utf8') !== text) throw new Error(`Bundled extension file changed: ${name}/${path}`)
+    for (const [path, value] of Object.entries(files)) if (!readFileSync(join(root, path)).equals(payloadBytes(value))) throw new Error(`Bundled extension file changed: ${name}/${path}`)
   }
   if (existsSync(root)) { verify(); return root }
   const stage = `${root}.stage-${randomUUID()}`
@@ -24,7 +27,7 @@ function materialize(name: string, files: Record<string, string>): string {
     for (const [path, text] of Object.entries(files)) {
       const target = join(stage, path)
       mkdirSync(dirname(target), { recursive: true })
-      writeFileSync(target, text, { flag: 'wx' })
+      writeFileSync(target, payloadBytes(text), { flag: 'wx', mode: typeof text !== 'string' && text.executable ? 0o755 : 0o644 })
     }
     try { renameSync(stage, root) } catch (error) { if (!existsSync(root)) throw error }
     verify()
@@ -33,7 +36,7 @@ function materialize(name: string, files: Record<string, string>): string {
 }
 
 function shipped(): BundledExtensionDefinition[] {
-  return Object.entries(bundledPayloads).map(([name, files]) => ({ name, root: materialize(name, files), defaultOn: true }))
+  return Object.entries(bundledPayloads).map(([name, files]) => ({ name, root: materialize(name, files), defaultOn: name !== 'mercury-media' }))
 }
 
 function craftPlatform(): string {

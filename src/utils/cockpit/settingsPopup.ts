@@ -3,7 +3,7 @@ import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import wrapText from '../../ink/wrap-text.js'
 
-export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'llmhost' | 'logins' | 'memory'
+export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'imagesetup' | 'llmhost' | 'logins' | 'memory'
 
 export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: number; compact: boolean }
 

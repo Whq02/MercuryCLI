@@ -61,8 +61,9 @@ console.log('[6] the three Craft extensions ship without application binaries (r
   const bare = run(['extensions', 'list', '--json'], { MERCURY_CRAFT_PLATFORM: 'linux-x64' })
   check('list --json exits 0', bare.code === 0, bare.stderr.slice(0, 200))
   const parsed = JSON.parse(bare.stdout.slice(bare.stdout.indexOf('{'))) as { extensions: Array<{ name: string; from: string; health: { outcome: string } | null; path: string }> }
-  const bundled = parsed.extensions.filter(e => e.from === 'mercury')
-  check('exactly FilmCraft, PhotoCraft and LightCraft are bundled', JSON.stringify(bundled.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'photocraft']))
+  const shipped = parsed.extensions.filter(e => e.from === 'mercury')
+  check('exactly FilmCraft, PhotoCraft, LightCraft and the off-by-default media engine are bundled', JSON.stringify(shipped.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']))
+  const bundled = shipped.filter(e => e.name !== 'mercury-media')
   for (const entry of bundled) {
     const manifest = JSON.parse(readFileSync(join(entry.path, 'mercury-extension.json'), 'utf8'))
     check(`${entry.name}: one server and one skill directory`, Object.keys(manifest.contributes.servers).length === 1 && manifest.contributes.skills.length === 1)

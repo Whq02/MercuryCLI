@@ -94,6 +94,13 @@ export const SettingsSchema = lazySchema(() => {
     models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     videoProvider: VideoProviderSettingsSchema.optional().describe('Named video generators: kind (minimax), optional baseUrl and model; billable calls use the existing /logins minimax key, never a key in settings'),
+    media: z.object({
+      enabled: z.boolean().optional().describe('Local image and video generation; off by default'),
+      root: z.string().min(1).optional().describe('Media storage folder; defaults to ~/.mercury/media'),
+      imageModel: z.string().min(1).optional().describe('Default image model catalogue id'),
+      videoModel: z.string().min(1).optional().describe('Default video model catalogue id'),
+      serverPath: z.string().min(1).optional().describe('Development server.js path; user settings only'),
+    }).optional(),
     credentials: z.object({
       keyCommand: z.string().optional(),
       keyCommands: z.record(z.string().min(1), z.string()).optional(),

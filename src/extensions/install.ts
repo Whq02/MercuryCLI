@@ -194,6 +194,11 @@ function sameNameEnabledElsewhere(id: string, name: string): string | null {
 }
 
 export function readSwitch(id: string): { on: boolean; scope: 'everywhere' | 'project' | 'off'; committedProposal: boolean | null } {
+  if (id === 'mercury-media@mercury') {
+    const local = getSettingsForSource('localSettings')?.media?.enabled
+    const user = getSettingsForSource('userSettings')?.media?.enabled
+    return { on: local ?? user ?? false, scope: local !== undefined ? 'project' : 'everywhere', committedProposal: null }
+  }
   const local = getSettingsForSource('localSettings')?.extensions?.enabled?.[id]
   const committed = getSettingsForSource('projectSettings')?.extensions?.enabled?.[id]
   const user = getSettingsForSource('userSettings')?.extensions?.enabled?.[id]
@@ -219,7 +224,7 @@ export function setSwitch(id: string, on: boolean, scope: SwitchScope = 'everywh
     }
   }
   const source = scope === 'project' ? 'localSettings' : 'userSettings'
-  const { error } = updateSettingsForSource(source, { extensions: { enabled: { [id]: on } } } as never)
+  const { error } = updateSettingsForSource(source, id === 'mercury-media@mercury' ? { media: { enabled: on } } : { extensions: { enabled: { [id]: on } } })
   if (error) return { ok: false, reason: `settings write failed: ${error.message}` }
   logAct(`switch: ${id} ${on ? 'on' : 'off'} (${scope})`)
   return { ok: true }

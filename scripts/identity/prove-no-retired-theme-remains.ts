@@ -20,6 +20,8 @@ const EXCUSED: Array<[string, string]> = [
   ['scripts/engine-pass/contract-59a987410.json', "the recorded contract of the engine pass's base, a snapshot never rewritten"],
   ['scripts/ui/prove-theme-roster.ts', 'drives each retired name to prove it resolves as an unknown name does'],
   ['scripts/identity/prove-no-retired-theme-remains.ts', 'this census composes the names it hunts'],
+  ['src/extensions/bundled/mercury-media/server/', 'the vendored media engine: a minified third-party bundle, read by prove-media-privacy'],
+  ['src/extensions/bundled/content.generated.ts', 'generated from the bundled folders, which this census reads themselves'],
 ]
 const ROW_EXCUSED: Array<[string, RegExp, string]> = [
   ['scripts/engine-pass/frames-moved.tsv', REMOVAL_ROW, 'a removal row names the removed grid by its path'],

@@ -62,6 +62,7 @@ map and `/keybindings` opens your keybindings file.
 - [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender add-on, scene and render operations, and Python execution inside Blender.
 - [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): Aseprite batch operations, sprite exports, sheets and Lua scripts.
 - [VIDEO.md](VIDEO.md): the `Video` tool and `videoProvider` settings for generating MP4 clips and preview frames with MiniMax.
+- [MEDIA.md](MEDIA.md): local image and video generation, `/imagesetup`, default model slots, storage and model licences.
 
 ## Reference
 

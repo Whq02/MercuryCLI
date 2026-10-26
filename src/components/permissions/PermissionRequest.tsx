@@ -33,6 +33,8 @@ import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeS
 import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
 import { PowerShellPermissionRequest } from './PowerShellPermissionRequest/PowerShellPermissionRequest.js'
 import { FallbackPermissionRequest } from './FallbackPermissionRequest.js'
+import { MediaPermissionRequest } from './MediaPermissionRequest.js'
+import { mediaGenerationKind } from '../../services/media/generation.js'
 import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditPermissionRequest.js'
 import { FileWritePermissionRequest } from './FileWritePermissionRequest/FileWritePermissionRequest.js'
 import { FilesystemPermissionRequest } from './FilesystemPermissionRequest/FilesystemPermissionRequest.js'
@@ -117,6 +119,8 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
 
   const tool = toolUseConfirm.tool
   const key = toolUseConfirm.toolUseID
+  const mediaKind = mediaGenerationKind(tool)
+  if (mediaKind) return <MediaPermissionRequest key={key} {...props} kind={mediaKind} />
 
   if (tool === FileEditTool) return <FileEditPermissionRequest key={key} {...props} />
   if (tool === ChangeSetTool) return <ChangeSetPermissionRequest key={key} {...props} />

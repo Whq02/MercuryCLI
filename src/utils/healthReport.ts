@@ -3327,6 +3327,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'media',
+          label: 'Local media',
+          run: async () => (await import('../services/media/settings.js')).mediaHealth(),
+        },
+        {
           id: 'lsp',
           label: 'IDE-hands (LspRead)',
           run: async () => {

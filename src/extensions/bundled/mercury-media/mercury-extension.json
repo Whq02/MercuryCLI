@@ -1,0 +1,14 @@
+{
+  "name": "mercury-media",
+  "version": "0.1.0",
+  "description": "Generate images and video with local models. /imagesetup",
+  "contributes": {
+    "servers": {
+      "engine": {
+        "type": "stdio",
+        "command": "${MERCURY_NODE}",
+        "args": ["${MERCURY_EXTENSION_ROOT}/server/server.js"]
+      }
+    }
+  }
+}

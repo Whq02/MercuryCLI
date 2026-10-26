@@ -63,10 +63,11 @@ console.log('============================================================')
 console.log(' zero network — boot never fetches; no source without an act')
 console.log('============================================================')
 
-console.log('[1] a fresh home: three bundled extensions, no added source or request')
+console.log('[1] a fresh home: four bundled extensions, no added source or request')
 {
   const roster = rosterMod.computeRoster({ cwd })
-  check('only the three Craft bundles are present', JSON.stringify(roster.entries.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'photocraft']) && roster.entries.every(e => e.home === 'bundled') && roster.problems.length === 0)
+  check('the three Craft bundles and disabled media bundle are present', JSON.stringify(roster.entries.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']) && roster.entries.every(e => e.home === 'bundled') && roster.problems.length === 0)
+  check('the media engine stays off', roster.entries.find(e => e.name === 'mercury-media')?.switchedOn === false && !existsSync(join(home, 'media', 'runtime.json')))
   check('no source exists', sourcesMod.listSources().length === 0)
   check('only bundled approval records were created', !existsSync(paths.getSourcesFile()) && Object.values(records.installedOrEmpty()).every(r => r.label === 'mercury'))
   check('no application runtime exists at boot', roster.entries.every(e => !existsSync(join(paths.getExtensionDataDir(e.id), 'runtime'))))
@@ -162,7 +163,7 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
   const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as { extensions: Array<{ id: string; trust: string }> }
   check('the roster answers from disk (the installed row is on)', parsed.extensions.some(e => e.id === 'kitchen-sink@fixture-source' && e.trust === 'on'), JSON.stringify(parsed.extensions))
   const { Client, StdioClientTransport } = await import('../../src/services/mcp/sdk.ts')
-  for (const entry of rosterMod.computeRoster({ cwd }).entries.filter(e => e.home === 'bundled')) {
+  for (const entry of rosterMod.computeRoster({ cwd }).entries.filter(e => e.home === 'bundled' && ['filmcraft', 'lightcraft', 'photocraft'].includes(e.name))) {
     const client = new Client({ name: 'craft-zero-network', version: '1.0.0' })
     await client.connect(new StdioClientTransport({ command: 'node', args: [join(entry.root!, 'server', 'bridge.mjs')], env: { ...env, MERCURY_EXTENSION_DATA: paths.getExtensionDataDir(entry.id) } as Record<string, string>, stderr: 'pipe' }))
     try {

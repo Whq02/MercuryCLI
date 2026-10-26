@@ -1,0 +1,16 @@
+{
+  "version": "0.1.0",
+  "runtimeTag": "master-1015-e41fbcf",
+  "files": {
+    "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
+    "NOTICE": "5ffd9faf11e3cca3c879a3121532d8f9a275541b33e97bd20e328130fa23a01f",
+    "THIRD_PARTY_NOTICES": "9d0a8181fd444e857a248490327b81da81de13cf60f838c33cd5235431cafd87",
+    "catalog.json": "d7d9ed6202df2b586cd9639f212b1fec710921acf26a17288691e57e84bb5481",
+    "config.js": "fee197e8b72e245aeb83bbdf2e2c1ca5b708436d1f07061f1d929ef6292a5e4f",
+    "engine-host.js": "c9407266db3fdc3040ac1de065dab55e2ef007f6e1f4b2cdd6ee326a7cbfb3fc",
+    "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
+    "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+    "server.js": "5208ce030027c317a670919da896b52c3431db62568faddebf03b62e0f504323",
+    "setup.js": "3a5644c95c67000dd1b93a76fa276e988484dbda3e632ea5cffc01c07360f3db"
+  }
+}

@@ -50,6 +50,7 @@ import keysetup from './commands/keysetup/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
 import localsetup from './commands/localsetup/index.js'
+import imagesetup from './commands/imagesetup/index.js'
 import llmhost from './commands/llmhost/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
@@ -180,6 +181,7 @@ const COMMANDS = memoize((): Command[] => [
   usage,
   jev,
   localsetup,
+  imagesetup,
   llmhost,
   defaultprovider,
   vim,
