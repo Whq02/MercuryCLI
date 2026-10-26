@@ -36,11 +36,9 @@ import {
   publishAgentWaitFromEvent,
   type ProgressTracker,
   takeOperatorMessages,
-  updateAgentProgress,
   updateProgressFromMessage,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
-  findToolByName,
   toolMatchesName,
   type Tool,
   type Tools,

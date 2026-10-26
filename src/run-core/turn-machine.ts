@@ -1,5 +1,4 @@
 import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
-import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
 import { backupEngineNoticeLine, engineLadderOf } from '../services/api/backupEngines.js'
@@ -206,7 +205,6 @@ import { createEventMint, type RunEvent } from './events.js'
 import { operatorPauseGate, pauseGateKeyOf, pauseGateModelWords, pauseGateSeatOf } from './pauseGate.js'
 import { acquireModelPermit, releaseModelPermitByCall } from '../services/capacity/governor.js'
 import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js'
-import { count } from '../utils/array.js'
 
 const OUTPUT_LIMIT_RECOVERY_TEXT =
   'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
@@ -1252,7 +1250,6 @@ async function* runEventMachine(
         preCompactTokenCount,
         postCompactTokenCount,
         truePostCompactTokenCount,
-        compactionUsage,
       } = compactionResult
 
       const postForTrace = truePostCompactTokenCount ?? postCompactTokenCount

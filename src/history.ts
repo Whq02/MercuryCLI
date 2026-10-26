@@ -9,7 +9,6 @@ import { registerCleanup } from './utils/cleanupRegistry.js'
 import type { HistoryEntry, PastedContent } from './utils/config.js'
 import { getMercuryHome, isEnvTruthy } from './utils/envUtils.js'
 import { lock } from './utils/lockfile.js'
-import { logError } from './utils/log.js'
 import { logForDebugging } from './utils/debug.js'
 import {
   hashPastedText,

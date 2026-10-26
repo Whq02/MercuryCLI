@@ -40,7 +40,7 @@ import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../utils/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
-import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
+import type { AgentPauseV1 } from './agentPause.js'
 import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
 import type { BackgroundHandoverReason } from './launchReceipts.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
@@ -282,7 +282,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   cleanup?: () => void
   error?: string
   result?: any
-  progress?: any
+  progress?: AgentProgress
   summary?: string
   wait?: string
   pendingAsks?: number

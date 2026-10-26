@@ -18,7 +18,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync }
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
+import { basename, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
 import { GLYPH, branchChip } from '../components/mercury-ui/glyphs.js'
@@ -39,7 +39,6 @@ import { binaryName, isMercurySubstrateProfileOn } from './config.js'
 import { getCwd } from './cwd.js'
 import {
   carryDeepReadings,
-  countByStatus,
   decodeGateVerdict,
   decodeLastCertSummary,
   flattenChecks,
@@ -3901,8 +3900,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { discoverRunnerProfiles } = await import('../services/ide/projectRunners.js')
             const { repoHostEnabled } = await import('../services/repoHost/repoHost.js')
             const { openTransactionIdFor } = await import('../services/ide/ideTransaction.js')
-            const nodePath = await import('node:path')
-            const { existsSync } = await import('node:fs')
             const { profiles } = discoverRunnerProfiles()
             const byRunner = new Map<string, { ok: number; total: number }>()
             for (const p of profiles) {

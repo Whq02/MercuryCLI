@@ -6,7 +6,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { ANTHROPIC_WORKSPACE_PROMPT, needsAnthropicWorkspace } from './anthropicWorkspace.js'
 
-export type AnthropicKeyLoginOutcome = {
+type AnthropicKeyLoginOutcome = {
   ok: boolean
   stored: boolean
   receipt: string

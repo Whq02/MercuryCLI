@@ -2,17 +2,12 @@ import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
-import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
   getEngineModelOverride,
   getSessionId,
   setEngineModelOverride,
-  setMainThreadAgentType,
   getMainThreadAgentType,
-  setSdkAgentProgressSummariesEnabled,
-  getFlagSettingsInline,
-  setFlagSettingsInline,
   getTotalAPIDuration,
   getTotalCostUSD,
   getTotalUnpricedTurns,
@@ -57,7 +52,7 @@ import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
-import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.js'
+import { readGlobalConfigAgain } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
@@ -82,8 +77,7 @@ import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type 
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
-import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
-import { collectContextData } from '../commands/context/context-noninteractive.js'
+import { getCommands, clearCommandMemoizationCaches } from '../commands.js'
 import {
   handleRewindFiles,
   handleRewindSession,
@@ -99,14 +93,13 @@ import {
   canBatchWith,
   createTurnDriver,
   joinPromptValues,
-  type PromptValue,
   type TurnDriver,
 } from './headless/turnDriver.js'
 import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, promptSchemaRefusal, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
-import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RequestRef, type RunnerArms } from './headless/runnerMethods.js'
+import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RunnerArms } from './headless/runnerMethods.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
-import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
+import { invalidParams, refused } from '../runner/wire/errors.js'
 import type { Capabilities, FileCheckpointsFact, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { anthropicObservedUsage, anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
@@ -123,7 +116,7 @@ import {
 import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
-import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
+import { completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
 import { sampleRowsOf } from '../services/samples/facts.js'
@@ -140,7 +133,6 @@ import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
-import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
 import {
   getMcpConfigByName,
   getMercuryMcpConfigs,
@@ -150,19 +142,15 @@ import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
-  McpServerConfig,
   ScopedMcpServerConfig,
 } from '../services/mcp/types.js'
-import { OAuthService } from '../services/oauth/index.js'
-import { installOAuthTokens } from './handlers/auth.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
+import { getEmptyToolPermissionContext, type Tool } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fileCheckpointSource, fileHistoryEnabled, requestFileCheckpoints } from '../utils/fileHistory.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
-import { isBareMode, isEnvTruthy, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { toError, errorMessage } from '../utils/errors.js'
 import {
   createFileStateCacheWithSizeLimit,
@@ -170,7 +158,7 @@ import {
   type FileStateCache,
   type FileState,
 } from '../utils/fileStateCache.js'
-import { saveCacheSafeParams, getLastCacheSafeParams } from '../utils/forkedAgent.js'
+import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
@@ -179,7 +167,6 @@ import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
-  headlessProfilerCheckpoint,
   headlessProfilerStartTurn,
   logHeadlessProfilerTurn,
 } from '../utils/headlessProfiler.js'
@@ -203,7 +190,6 @@ import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
-import type { JSONRPCMessage } from '../services/mcp/sdk.js'
 import {
   dequeue,
   enqueue,
@@ -217,7 +203,7 @@ import {
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import { isHeldNotice, isHostNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
+import { agentRecipientState, MAIN_THREAD_AGENT, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
@@ -237,12 +223,10 @@ import { isEffortLevel, resolveEffortTruth } from '../utils/effort.js'
 import { registerProcessOutputErrorHandlers } from '../utils/process.js'
 import { noteRunPhase, runPhaseReport } from '../utils/runPhases.js'
 import { getPerformance } from '../utils/profilerBase.js'
-import { runSideQuestion } from '../utils/sideQuestion.js'
 import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
 import { armLocalWarm } from '../services/providers/local/localWarm.js'
 import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
-  cacheSessionTitle,
   doesMessageExistInSession,
   saveAdvisorSwitch,
   saveAgentSetting,
@@ -252,9 +236,7 @@ import { restoreAgentFromSession, restoreConversationModel, restoreSessionStateF
 import {
   notifySessionStateChanged,
   setPermissionModeChangedListener,
-  type RequiresActionDetails,
 } from '../utils/sessionState.js'
-import { generateSessionTitle } from '../utils/sessionTitle.js'
 import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
 import { currentHiddenCharacterLines, untoldHiddenCharacterLines } from '../utils/text/hiddenCharacterFindings.js'
@@ -262,7 +244,6 @@ import { hooksSkippedForTrustLine } from '../utils/hooks/hooksConfigSnapshot.js'
 import { settingsFaultLine } from '../utils/settings/validation.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
-import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
@@ -276,7 +257,6 @@ import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIde
 import { getTranscriptPath, isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt, readSessionReceipts, settleClearModel } from '../services/switchboard/sessionReceipts.js'
 import { wrapInSystemReminder } from '../utils/messages/text.js'
-import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
@@ -303,7 +283,6 @@ import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsA
 import { clearToolRosterLatches, clearToolRosterRestore, heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
 import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import { jsonStringify } from '../utils/slowOperations.js'
-import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'

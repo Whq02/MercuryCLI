@@ -8,7 +8,7 @@ import { renderTurn } from '../lib/fixtureApi.ts'
 export const KEY = 'sk-ant-usr-fixture-key'
 export const MODEL = 'claude-haiku-5-5'
 export const WORKSPACE = 'wrkspc_fixture'
-export const WORKSPACE_ERROR = 'This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header'
+const WORKSPACE_ERROR = 'This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header'
 export const SUBSCRIPTION = { accessToken: 'fixture-subscriber', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:profile', 'user:inference'], subscriptionType: 'max' as const, rateLimitTier: 'default_claude_max_5x' as const }
 
 export async function accountsWorld() {

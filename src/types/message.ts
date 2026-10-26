@@ -1,5 +1,5 @@
 
-import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ApiUsage, ContentBlockParam, ToolResultBlockParam } from './wire.js'
+import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ContentBlockParam } from './wire.js'
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
 import type { MediaRefusal } from '../services/api/mediaRefusal.js'
