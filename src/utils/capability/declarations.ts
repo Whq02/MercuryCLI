@@ -459,6 +459,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
   ProviderSearch: {
     intents: ["search the web through the session provider's own native search"],
     units: ['web-access'],
+    conditions: ['a session model on a provider with its own search (Anthropic or OpenAI)'],
     class: 'observation',
     cancellation: 'cooperative',
     latency: 'interactive',

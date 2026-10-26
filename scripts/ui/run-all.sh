@@ -10,6 +10,7 @@
 # gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
+# gate-watch: scripts/providers/anthropicAccountsFixture.ts
 # gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs design-system/live/manifest.json

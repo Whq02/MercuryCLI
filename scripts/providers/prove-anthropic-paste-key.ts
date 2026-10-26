@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { accountsWorld, KEY } from './anthropicAccountsFixture.ts'
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'anthropic-paste-'))
 const world = await accountsWorld()
 try {
   const { anthropicArmPickRows } = await import('../../src/components/loginFamilyRows.ts')

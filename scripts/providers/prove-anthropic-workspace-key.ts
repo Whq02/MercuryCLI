@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { accountsWorld, fixtureTurn, KEY, MODEL, WORKSPACE } from './anthropicAccountsFixture.ts'
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'anthropic-workspace-'))
 const world = await accountsWorld()
 try {
   world.requireWorkspace()

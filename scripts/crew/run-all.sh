@@ -10,6 +10,7 @@
 # gate-watch: scripts/ui/vshot.py src/daemon/**
 # gate-watch: src/utils/daemonBreaker*
 # gate-watch: src/fabric/transcriptDecode.ts src/utils/sessionStorage/settledSidechainMessages.ts src/run-core/project-legacy.ts
+# gate-watch: scripts/providers/anthropicAccountsFixture.ts
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/captureDriver.ts src/Task.ts src/bootstrap/state.ts src/cli/run.ts

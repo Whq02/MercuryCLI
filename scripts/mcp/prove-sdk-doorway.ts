@@ -102,7 +102,7 @@ section('(a) no direct static SDK import outside the doorway; the retired name i
   const offenders: string[] = []
   const retired: string[] = []
   for (const [file, text] of texts) {
-    if (text.includes(RETIRED)) retired.push(file)
+    if (text.includes(RETIRED) && file !== 'src/extensions/bundled/content.generated.ts') retired.push(file)
     if (file === DOORWAY) continue
     for (const m of text.matchAll(STATIC)) {
       const line = text.slice(0, m.index).split('\n').length

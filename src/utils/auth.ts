@@ -14,7 +14,7 @@ import {
 } from '../constants/oauth.js'
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig, checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from './config.js'
-import { getGlobalConfigCacheStamp, readGlobalConfigAgain } from './config/globalConfig.js'
+import { getGlobalConfigCacheStamp, isConfigReadingAllowed, readGlobalConfigAgain } from './config/globalConfig.js'
 import { clearBetasCaches } from './betas.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -238,6 +238,7 @@ export function getAnthropicApiKey(): string | null {
 }
 
 export function getAnthropicApiKeyWorkspaceId(key: string): string | undefined {
+  if (!isConfigReadingAllowed()) return undefined
   const workspace = getGlobalConfig().anthropicApiKeyWorkspace
   return workspace?.keyFingerprint === createHash('sha256').update(key).digest('hex')
     ? workspace.workspaceId : undefined

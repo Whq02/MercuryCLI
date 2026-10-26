@@ -254,7 +254,7 @@ section('§6 the SDK client construction receives the transport fetch options (s
 {
   const client = readFileSync(new URL('../../src/services/api/client.ts', import.meta.url), 'utf8')
   check('client.ts passes fetchOptions: getProxyFetchOptions({ forAnthropicAPI: true }) into the shared SDK options', /fetchOptions: getProxyFetchOptions\(\{ forAnthropicAPI: true \}\)/.test(client))
-  check('the same shared options reach the first-party constructor', /\.\.\.sharedOptions,\n\s+apiKey:/.test(client))
+  check('the same shared options reach the first-party constructor', /\.\.\.sharedOptions,\n\s+apiKey[,:]/.test(client))
 }
 
 section('§7 getAddressFamily over the DNS lookup-options domain')

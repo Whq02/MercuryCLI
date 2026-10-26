@@ -145,7 +145,7 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     }
   }
   const apiKey = subscriber ? null : (callerApiKey ?? getAnthropicApiKey())
-  const workspaceId = options.workspaceId ?? (apiKey ? getAnthropicApiKeyWorkspaceId(apiKey) : undefined)
+  const workspaceId = options.workspaceId ?? (callerApiKey === undefined && apiKey ? getAnthropicApiKeyWorkspaceId(apiKey) : undefined)
   if (workspaceId) defaultHeaders['anthropic-workspace-id'] = workspaceId
   if (callerApiKey !== undefined) {
     for (const name of Object.keys(defaultHeaders)) {

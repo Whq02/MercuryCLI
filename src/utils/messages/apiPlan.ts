@@ -25,6 +25,7 @@ import { storedBlocksOf } from '../../rows/content.js'
 import { normalizeAttachmentForAPI } from './attachmentText.js'
 import { createUserMessage } from './factories.js'
 import { mergeAssistantMessages, mergeUserMessages, mergeUserMessagesAndToolResults, isToolResultMessage } from './merge.js'
+import { isTurnCutText } from './turnCut.js'
 import { pairConversationMessages } from './pairing.js'
 import { dropEmptyTextBlocks, filterOrphanedThinkingOnlyMessages, filterTrailingThinkingFromLastAssistant, filterWhitespaceOnlyAssistantMessages, ensureNonEmptyAssistantContent, sanitizeErrorToolResultContent } from './apiFilters.js'
 import { stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferencesFromUserMessage, withToolReferenceTurnBoundary } from './apiView.js'
@@ -299,11 +300,17 @@ function mergeAdjacentUsers(messages: (UserMessage | AssistantMessage)[]): (User
     const kind = content[0]?.type
     return (kind === 'text' || kind === 'tool_result') && content.every(block => block.type === kind) ? kind : null
   }
+  const carriesCut = (row: UserMessage): boolean => {
+    const content = row.message.content
+    return typeof content === 'string' ? isTurnCutText(content) : content.some(block => block.type === 'text' && isTurnCutText(block.text))
+  }
   const out: (UserMessage | AssistantMessage)[] = []
   for (const row of messages) {
     const previous = out.at(-1)
     const kind = row.type === 'user' ? kindOf(row) : null
-    if (row.type === 'user' && previous?.type === 'user' && kind !== null && kind === kindOf(previous)) out[out.length - 1] = mergeUserMessages(previous, row)
+    const stacked = row.type === 'user' && previous?.type === 'user' && kind !== null && kind === kindOf(previous)
+    const cutRun = stacked && (kind === 'tool_result' || carriesCut(previous) || carriesCut(row))
+    if (stacked && cutRun && previous.type === 'user' && row.type === 'user') out[out.length - 1] = mergeUserMessages(previous, row)
     else out.push(row)
   }
   return out.length === messages.length ? messages : out
