@@ -12,7 +12,7 @@ import {
 import { SseDecoder } from '../sseDecoder.js'
 import {
   describeTransportFailure, mapCompatHttpFailure,
-  type CompatCompletedToolCall, type CompatStreamEvent, type CompatStreamOptions,
+  type CompatCompletedToolCall, type CompatFinishReason, type CompatStreamEvent, type CompatStreamOptions,
 } from '../openaicompat/compatChatClient.js'
 import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
@@ -54,6 +54,28 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 }
 
+const GEMINI_LENGTH_FINISH: ReadonlySet<string> = new Set(['MAX_TOKENS', 'CONTINUATION'])
+
+const GEMINI_FILTER_FINISH: ReadonlySet<string> = new Set([
+  'SAFETY', 'RECITATION', 'LANGUAGE', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'ESCALATION', 'PUP_LIMITED_DISABLED',
+  'IMAGE_SAFETY', 'IMAGE_PROHIBITED_CONTENT', 'IMAGE_RECITATION',
+])
+
+export const GEMINI_MALFORMED_FUNCTION_CALL = 'MALFORMED_FUNCTION_CALL'
+
+export function geminiMalformedCallName(finishMessage: string | undefined): string {
+  const text = finishMessage ?? ''
+  const named = /default_api[.:]([A-Za-z_][\w.-]*)\s*[({]/.exec(text) ?? /\bcall:([A-Za-z_][\w.-]*)\s*[({]/.exec(text) ?? /Malformed function call:\s*([A-Za-z_][\w.-]*)\s*[({]/.exec(text)
+  return named?.[1] ?? ''
+}
+
+export function geminiFinishReason(finish: string, hasCalls: boolean): CompatFinishReason {
+  if (finish === 'STOP' || finish === GEMINI_MALFORMED_FUNCTION_CALL) return hasCalls ? 'tool_calls' : 'stop'
+  if (GEMINI_LENGTH_FINISH.has(finish)) return 'length'
+  if (GEMINI_FILTER_FINISH.has(finish)) return 'content_filter'
+  return 'other'
+}
+
 export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncGenerator<CompatStreamEvent> {
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const controller = new AbortController()
@@ -70,6 +92,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
   const calls: CompatCompletedToolCall[] = []
   const nativeCalls: GeminiTurnItem['calls'] = []
   let finish: string | undefined
+  let finishMessage: string | undefined
   let providerFailed = false
   let thoughtTextSeen = false
   let firstSignature: string | undefined
@@ -167,6 +190,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       yield { type: 'usage', usage: { inputTokens: input, outputTokens: output + reasoning, reasoningTokens: reasoning, cachedInputTokens: cached } }
     }
     if (typeof candidate?.finishReason === 'string' && candidate.finishReason !== '') finish = candidate.finishReason
+    if (typeof candidate?.finishMessage === 'string' && candidate.finishMessage !== '') finishMessage = candidate.finishMessage
   }
   try {
     if (controller.signal.aborted) {
@@ -267,9 +291,13 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       return
     }
     if (options.signal?.aborted) return
+    if (finish === GEMINI_MALFORMED_FUNCTION_CALL) {
+      const detail = finishMessage ?? 'Gemini gave no detail'
+      calls.push({ index: calls.length, id: `gemini_${randomUUID()}`, name: geminiMalformedCallName(finishMessage), argumentsRaw: finishMessage ?? '', malformed: true, providerRefusal: `Gemini could not parse the function call the model wrote (${GEMINI_MALFORMED_FUNCTION_CALL}): ${safe(detail)}` })
+    }
     yield* sayWithheld()
     options.onTurn({ model: options.request.model, parts, calls: nativeCalls, projection: '' })
-    const reason = finish === 'STOP' ? calls.length > 0 ? 'tool_calls' : 'stop' : finish === 'MAX_TOKENS' ? 'length' : /SAFETY|BLOCKLIST|PROHIBITED_CONTENT|RECITATION|IMAGE_SAFETY/.test(finish) ? 'content_filter' : 'other'
+    const reason = geminiFinishReason(finish, calls.length > 0)
     if (reason !== 'stop' && reason !== 'tool_calls' && reason !== 'length') {
       yield { type: 'stream-fault', fault: { kind: 'provider-termination', code: `finish:${finish}`, message: `Gemini ended the response: ${finish}`, retryable: false } }
     }

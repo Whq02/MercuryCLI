@@ -129,7 +129,7 @@ import type {
   OpenaiUsage,
 } from './openaiWire.js'
 import type { RefusedToolCall } from '../../../types/message.js'
-import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
+import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
@@ -1312,6 +1312,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const completed = finish?.toolCalls ?? []
   const accepted: Array<{ call: OpenaiCompletedToolCall; input: Record<string, unknown> }> = []
   const refused: RefusedToolCall[] = []
+  const answered: Array<{ call: OpenaiCompletedToolCall; refusal: RefusedToolCall }> = []
   const verdicts = gateToolCalls(
     tools,
     completed.map(call => ({
@@ -1325,9 +1326,18 @@ export async function* streamOneOpenaiAttempt(ctx: {
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!
     if (verdict.ok) accepted.push({ call, input: verdict.input })
+    else if (finish?.reason !== 'max_output_tokens' && refusalAnswersAsToolResult(verdict.refusal)) answered.push({ call, refusal: verdict.refusal })
     else refused.push(verdict.refusal)
   })
-  for (const { call, input } of accepted) {
+  for (const [index, call] of completed.entries()) {
+    const verdict = verdicts[index]!
+    const refusal = verdict.ok ? undefined : answered.find(entry => entry.call === call)?.refusal
+    if (!verdict.ok && refusal === undefined) continue
+    const input = verdict.ok ? verdict.input : refusedCallInput(refusal!)
+    const decorate = refusal === undefined ? undefined : (message: AssistantMessage): void => {
+      message.refusedToolCalls = [refusal]
+    }
+    if (refusal !== undefined) logForDebugging(`[openai] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
     if (livePaintComplete.has(call.callId)) {
       const m = mintBlock({
         type: 'tool_use',
@@ -1335,14 +1345,16 @@ export async function* streamOneOpenaiAttempt(ctx: {
         name: call.name,
         input,
       })
+      decorate?.(m)
       minted.push(m)
       yield m
       continue
     }
     yield* emitSettledBlock(
       { type: 'tool_use', id: call.callId, name: call.name, input },
-      [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
+      [{ type: 'input_json_delta', partial_json: verdict.ok ? call.argumentsRaw : JSON.stringify(input) }],
       { type: 'tool_use', id: call.callId, name: call.name, input: {} },
+      decorate,
     )
   }
   for (const refusal of refused) {
@@ -1397,7 +1409,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
 
   const mappedFinish = refusalStreamed || finish?.refusalText ? 'refusal' : FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
   const stopReason =
-    accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
+    accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0)
   if (!usageSeen && fault !== undefined) {
     const estimated = estimateFaultedRequestUsage({ lane: 'openai', model: modelId, request, minted, faultCode: fault.code })
@@ -1426,7 +1438,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
-    const mintedCallIds = new Set(accepted.map(({ call }) => call.callId))
+    const mintedCallIds = new Set([...accepted, ...answered].map(({ call }) => call.callId))
     const settledItems = finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : [])
     const replayItems = replayableItems(
       settledItems.filter(item => item.type !== 'function_call' || mintedCallIds.has(item.call_id)),

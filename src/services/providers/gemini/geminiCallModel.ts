@@ -14,6 +14,7 @@ import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
 import { geminiPlanServesClaude, type GeminiTurnItem } from './geminiCodec.js'
 import { qualifiedWireId } from '../routeLaw.js'
+import { unansweredRefusals } from '../toolCallGate.js'
 import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
@@ -202,7 +203,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
           if (!last || !turn) return
           const content = minted.flatMap(message => message.message.content)
           const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }])[0])
-          const refused = minted.flatMap(message => message.refusedToolCalls ?? []).map(call => ({ id: call.id, reason: call.reason }))
+          const refused = unansweredRefusals(minted).map(call => ({ id: call.id, reason: call.reason }))
           last.geminiProviderTurn = { ...turn, projection, ...(refused.length ? { refused } : {}) }
         },
       }
@@ -338,7 +339,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
           if (!last || !turn) return
           const content = minted.flatMap(message => message.message.content)
           const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }])[0])
-          const refused = minted.flatMap(message => message.refusedToolCalls ?? []).map(call => ({ id: call.id, reason: call.reason }))
+          const refused = unansweredRefusals(minted).map(call => ({ id: call.id, reason: call.reason }))
           last.geminiProviderTurn = { ...turn, projection, ...(refused.length ? { refused } : {}) }
         },
       }

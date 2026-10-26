@@ -444,7 +444,7 @@ const CASES: Case[] = [
 type Outcome = {
   threw: unknown
   assistants: AssistantMessage[]
-  toolUses: Array<{ id: string; name: string; input: unknown }>
+  toolUses: Array<{ id: string; name: string; input: unknown; refused: boolean }>
   notes: string[]
   refusals: RefusedToolCall[]
   stopReason: string | null | undefined
@@ -490,7 +490,7 @@ async function drive(model: string, s: Script): Promise<Outcome> {
     }
     for (const block of m.message.content as Array<Record<string, unknown>>) {
       if (block.type === 'tool_use') {
-        toolUses.push({ id: String(block.id), name: String(block.name), input: block.input })
+        toolUses.push({ id: String(block.id), name: String(block.name), input: block.input, refused: (m.refusedToolCalls ?? []).some(refusal => refusal.id === block.id) })
       } else if (block.type === 'text' && typeof block.text === 'string' && block.text.startsWith('[')) {
         notes.push(block.text)
       }
@@ -503,6 +503,7 @@ async function drive(model: string, s: Script): Promise<Outcome> {
 
 function mintedInputsValid(toolUses: Outcome['toolUses']): boolean {
   return toolUses.every(use => {
+    if (use.refused) return true
     const tool = findToolByName(CATALOG, use.name)
     if (!tool) return false
     try {
@@ -512,6 +513,9 @@ function mintedInputsValid(toolUses: Outcome['toolUses']): boolean {
     }
   })
 }
+const ANSWERED_CODES = new Set<RefusedToolCall['code']>(['schema', 'unknown-tool', 'invalid-json', 'not-an-object'])
+const answeredOf = (refusals: readonly RefusedToolCall[]): RefusedToolCall[] =>
+  refusals.filter(r => ANSWERED_CODES.has(r.code) && r.id.trim() !== '' && !/^missing-(call-)?id(-\d+)?$/.test(r.id) && r.name.trim() !== '')
 
 let mintedAcrossEverything = 0
 const NATIVE_GEMINI_EXPECT: Record<string, { expect: Expect; note: string }> = {
@@ -527,14 +531,19 @@ for (const { lane, model, dialect } of LANES) {
     const native = dialect === 'gemini' ? NATIVE_GEMINI_EXPECT[c.label] : undefined
     const expect = native?.expect ?? c.expect
     const reasonIncludes = native === undefined ? c.reasonIncludes : undefined
-    const detail = `threw=${o.threw ? String(o.threw) : 'no'} apiError=${o.apiError ?? 'none'} mints=${o.toolUses.length} refusals=${JSON.stringify(codes)} notes=${o.notes.length} stop=${String(o.stopReason)}`
+    const answered = answeredOf(o.refusals)
+    const expectedMints = expect.accepted + answered.length
+    const expectedStop = expectedMints > 0 ? 'tool_use' : 'end_turn'
+    const detail = `threw=${o.threw ? String(o.threw) : 'no'} apiError=${o.apiError ?? 'none'} mints=${o.toolUses.length} refusals=${JSON.stringify(codes)} answered=${answered.length} notes=${o.notes.length} stop=${String(o.stopReason)}`
     const ok =
       o.threw === undefined &&
       o.apiError === undefined &&
-      o.toolUses.length === expect.accepted &&
+      o.toolUses.length === expectedMints &&
+      o.toolUses.filter(use => use.refused).length === answered.length &&
+      answered.every(r => o.toolUses.some(use => use.refused && use.id === r.id && use.name === r.name)) &&
       JSON.stringify(codes) === JSON.stringify(expect.refused) &&
-      o.notes.length === expect.refused.length &&
-      o.stopReason === expect.stop &&
+      o.notes.length === expect.refused.length - answered.length &&
+      o.stopReason === expectedStop &&
       mintedInputsValid(o.toolUses) &&
       (reasonIncludes === undefined || o.refusals.some(r => r.reason.includes(reasonIncludes)))
     check(`${c.label}${native ? ` — on the native wire: ${native.note}` : ''}`, ok, detail + (reasonIncludes && !ok ? ` reasons=${JSON.stringify(o.refusals.map(r => r.reason))}` : ''))
@@ -684,19 +693,25 @@ section('the permissive-tool extra field rides the minted input verbatim (valida
   check('the raw object the model sent is what the harness holds', input.bogus === 1 && input.text === 'hi', JSON.stringify(input))
 }
 
-section('Responses lane — the stateless-replay record never carries a refused call')
+section('Responses lane — the stateless-replay record keeps a refused call its error result will answer, and drops one nothing can answer')
 {
   const o = await drive('gpt-5.6-sol', {
     reasoningFirst: true,
     calls: [{ id: 'call_replay_bad', name: BASH, args: '{}' }],
   })
   const record = o.assistants.at(-1)?.apexProviderTurn
-  check('the refused call is REFUSED here too', o.refusals.length === 1 && o.toolUses.length === 0, JSON.stringify(o.refusals))
+  check('the schema-refused call mints its block carrying the refusal', o.refusals.length === 1 && o.toolUses.length === 1 && o.toolUses[0]!.refused && o.stopReason === 'tool_use', JSON.stringify(o.refusals))
+  const items0 = (record?.items ?? []) as Array<Record<string, unknown>>
   check(
-    'no replay record survives: the refused call is gone and its reasoning item is not left stranded',
-    record === undefined,
+    'the replay record keeps the reasoning item and the call, so the error output pairs on the next request',
+    items0.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_bad',
     JSON.stringify(record)?.slice(0, 200),
   )
+  const nameless = await drive('gpt-5.6-sol', {
+    reasoningFirst: true,
+    calls: [{ id: 'call_replay_nameless', args: '{"command":"ls"}' }],
+  })
+  check('a call with no tool name cannot pair: a note, no block, no replay record', nameless.refusals.length === 1 && nameless.toolUses.length === 0 && nameless.notes.length === 1 && nameless.assistants.at(-1)?.apexProviderTurn === undefined, JSON.stringify(nameless.assistants.at(-1)?.apexProviderTurn)?.slice(0, 200))
   const mixed = await drive('gpt-5.6-sol', {
     reasoningFirst: true,
     calls: [
@@ -706,8 +721,8 @@ section('Responses lane — the stateless-replay record never carries a refused 
   })
   const items = (mixed.assistants.at(-1)?.apexProviderTurn?.items ?? []) as Array<Record<string, unknown>>
   check(
-    'mixed turn: the record keeps reasoning + the accepted call and drops the refused one',
-    items.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_ok',
+    'mixed turn: the record keeps reasoning, the accepted call and the refused call (both get an output)',
+    items.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_ok,function_call:call_replay_bad2',
     items.map(i => `${i.type}:${i.call_id ?? ''}`).join(','),
   )
   const pure = replayableItems(

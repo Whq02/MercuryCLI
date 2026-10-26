@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { z } from 'zod/v4'
@@ -156,7 +157,7 @@ try {
   const modelRefusal = await resolveEngineDispatch('compat/east/Absent').then(() => '', (error: Error) => error.message)
   check('a named endpoint model refusal names the available-models page', modelRefusal.includes('mercury://models'))
   mode = 'malformed'
-  check('malformed tool arguments never become executable calls', !(await run('compat/east/Fixture')).some(row => row.message.content.some((block: any) => block.type === 'tool_use')))
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run('compat/east/Fixture'), { id: 'fixture-call', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'
   check('a cut stream keeps its partial answer and its failure', (await run('compat/east/Fixture')).some(row => row.isApiErrorMessage))
   mode = 'retry'

@@ -77,13 +77,15 @@ The output row types, by their `type` field:
 - `tool_call`: a tool call: `call_id`, `tool`, `input`, with its
   `message_id` and `block`.
 - `tool_result`: the call's result: `call_id`, `status` (`ok`, `error`,
-  `aborted` or `refused`) and `output`. A call the model shaped so badly that
-  it was refused before execution (an unknown tool, arguments that are not
-  valid JSON or do not fit the tool's schema) still gets its pair: a
-  `tool_call` row with the arguments as delivered (`{}` when they were not an
-  object) and a `tool_result` row with status `refused` whose `output` is the
-  reason; the correction `notice` follows. Such a call never ran and is not a
-  denial.
+  `aborted` or `refused`) and `output`. A call whose arguments do not fit the
+  tool's schema, are not a JSON object, or name a tool the session does not
+  have is answered like any failed call: a `tool_call` row with the arguments
+  as delivered (`{}` when they were not an object) and a `tool_result` row
+  with status `error` whose `output` says what was wrong; the call never ran.
+  A call that cannot be paired at all (no call id, a reused id, no tool name,
+  or a function call the provider itself could not parse) gets a `tool_result`
+  row with status `refused` whose `output` is the reason, and the correction
+  `notice` follows. Neither is a denial.
 - `tool_update`: progress from a running tool: `call_id`, `tick`, `source`
   (`shell`, `powershell`, `mcp` or `eval`), and whichever of `line`,
   `elapsed_s`, `lines`, `bytes`, `budget_ms`, `progress` and `total` the call

@@ -45,8 +45,10 @@ export class APIConnectionError extends APIError {
 }
 
 export class APIConnectionTimeoutError extends APIConnectionError {
-  constructor({ message }: { message?: string } = {}) {
+  readonly requestDeadline?: true
+  constructor({ message, requestDeadline }: { message?: string; requestDeadline?: boolean } = {}) {
     super({ message: message ?? 'Request timed out.' })
+    if (requestDeadline) this.requestDeadline = true
   }
 }
 

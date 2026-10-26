@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -129,7 +130,8 @@ try {
   check('Qwen thinking off sends its documented none word', captures.at(-1)?.body.reasoning_effort === 'none')
   mode = 'misplaced'; const misplaced = await run()
   check('a reasoning field on the choice rather than its delta is ignored', thinkingOf(misplaced) === '' && textOf(misplaced) === 'CEREBRAS-FIXTURE-SETTLED')
-  mode = 'malformed'; check('malformed tool JSON is never executable', !(await run()).some(row => row.message.content.some(block => block.type === 'tool_use')))
+  mode = 'malformed'
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run(), { id: 'call_fixture_1', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'; check('missing terminal data remains a visible fault beside partial text', (await run()).some(row => row.isApiErrorMessage))
   mode = 'text'; const beforeAbsent = captures.length
   for (const id of ['cerebras/missing-fixture', 'cerebras/embed-fixture', 'cerebras/', 'cerebras/cerebras/foo', 'gpt-oss-120b']) {

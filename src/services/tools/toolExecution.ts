@@ -49,7 +49,7 @@ import {
 } from '../../utils/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
-import { repairToolInput } from '../providers/toolCallGate.js'
+import { repairToolInput, toolCallRefusalResultText } from '../providers/toolCallGate.js'
 import { outputSchemaMismatch } from './toolOutputCheck.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
@@ -337,6 +337,24 @@ export async function* runToolUse(
   const roundID = joined?.id ?? ownRound!
   const roundOrdinal = joined?.ordinal ?? 0
   const roundHandle = openRoundCall(owner, roundID, toolUseID, roundOrdinal, joined !== null && round === undefined ? (toolUseContext.roundHandle ?? toolUseContext.toolUseId ?? null) : null, toolUseContext.messages)
+  const refused = assistantMessage.refusedToolCalls?.find(refusal => refusal.id === toolUseID && refusal.code !== 'unknown-tool')
+  if (refused !== undefined) {
+    const refusedText = toolCallRefusalResultText(refused)
+    const answer = errorResultUpdate({
+      toolUseID,
+      content: refusedText,
+      toolUseResult: `Error: ${refusedText}`,
+      sourceToolAssistantUUID: assistantMessage.uuid,
+    })
+    yield answer
+    if (toolUseContext.abortController.signal.aborted) return
+    recordToolCall(owner, {
+      toolName: requestedName, toolUseID, roundHandle, roundID, roundOrdinal,
+      arguments: rawInput, result: toolResultBlockOf(answer.message, toolUseID), messages: toolUseContext.messages,
+    })
+    if (ownRound !== null) for (const message of closeRound(owner, ownRound).messages) yield { message }
+    return
+  }
   if (!tool) {
     const closest = closestToolByName(toolUseContext.options.tools, requestedName)
     const loadRoad =

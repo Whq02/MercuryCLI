@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -121,7 +122,7 @@ try {
   check('tool replay retains identity order and result content', assistant >= 0 && replay[assistant].tool_calls[0].id === 'call_abc' && replay[assistant + 1].role === 'tool' && replay[assistant + 1].tool_call_id === 'call_abc' && replay[assistant + 1].content === '{"temperature":22}')
   check('undocumented reasoning replay is not invented', replay.every((row: any) => !('reasoning_content' in row)))
   mode = 'malformed'
-  check('malformed tool JSON cannot execute', !blocks(await run()).some(block => block.type === 'tool_use'))
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run(), { id: 'call_abc', name: 'get_weather', raw: '{bad' }))
   for (const fault of ['truncated', 'no-done', 'done-only', 'tool-cut', 'partial-error', 'blocked']) {
     mode = fault
     const before = requests.length

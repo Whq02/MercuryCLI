@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -120,7 +121,7 @@ try {
   check('Chat Completions never replays Responses-only ciphertext or a borrowed reasoning-history contract', history.every((row: any) => !('reasoning_content' in row) && !('encrypted_content' in row)))
   mode = 'malformed'
   const malformed = await run(params('grok-4.7'))
-  check('malformed tool JSON never becomes an executable call', !malformed.some(row => row.message.content.some(block => block.type === 'tool_use')))
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(malformed, { id: 'call_fixture', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'auth'
   const beforeAuth = captures.length
   const auth = await run(params('grok-4.7'))

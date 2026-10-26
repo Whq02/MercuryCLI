@@ -55,6 +55,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-watch
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-pool-reset.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-watchdog-pool-reset.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-timer-economy.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-watchdog-timer-economy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-silent-after-headers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-silent-after-headers.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-anthropic-request-deadline.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-anthropic-request-deadline.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-anthropic-silence.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-anthropic-silence.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-liveness-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-liveness-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-turn-end-typed.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t" "$__rc"

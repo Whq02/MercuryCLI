@@ -117,7 +117,7 @@ const noToolsLmStudio: LocalModelRecord = { id: 'phi-4-mini', server: 'lmstudio'
 const unknownLlama: LocalModelRecord = { id: 'glm-4.7-flash', server: 'llamacpp', baseUrl: `${root}/v1`, thinkingDeclared: false, family: 'glm4', parameterSize: '30B' }
 
 type Settled = { toolUses: Array<{ id: string; name: string; input: unknown }>; texts: string[]; stop: string | null | undefined; errors: string[] }
-async function drive(record: LocalModelRecord, messages: unknown[]): Promise<Settled & { request: Record<string, unknown> | undefined }> {
+async function drive(record: LocalModelRecord, messages: unknown[]): Promise<Settled & { assistants: AssistantMessage[]; request: Record<string, unknown> | undefined }> {
   const before = captured.length
   const assistants: AssistantMessage[] = []
   const out: Settled = { toolUses: [], texts: [], stop: undefined, errors: [] }
@@ -142,7 +142,7 @@ async function drive(record: LocalModelRecord, messages: unknown[]): Promise<Set
     }
     out.stop = message.message.stop_reason
   }
-  return { ...out, request: captured.slice(before).find(entry => entry.path === '/api/chat' || entry.path === '/v1/chat/completions')?.body }
+  return { ...out, assistants, request: captured.slice(before).find(entry => entry.path === '/api/chat' || entry.path === '/v1/chat/completions')?.body }
 }
 const doneRow = (model: string): Record<string, unknown> => ({ model, message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop', prompt_eval_count: 40, eval_count: 20 })
 const messagesOf = (request: Record<string, unknown> | undefined): Array<Record<string, unknown>> => (Array.isArray(request?.messages) ? (request!.messages as Array<Record<string, unknown>>) : [])
@@ -223,7 +223,8 @@ section('refusals — a call the catalogue does not carry, arguments the schema 
   const badArguments = `<tool_call>\n{"name": "${READ}", "arguments": {"nope": 1}}\n</tool_call>`
   script.ollama = [{ model: 'gemma3:4b', message: { role: 'assistant', content: badArguments }, done: false }, doneRow('gemma3:4b')]
   const refused = await drive(noToolsOllama, [opening])
-  check('arguments the tool\'s schema refuses come back as the gate\'s refusal note, not a block (the next request carries the correction)', refused.toolUses.length === 0 && refused.texts.some(text => text.includes('file_path')) && refused.stop === 'end_turn', j(refused))
+  const { assertRefusedCallResult } = await import('../providers/lib/refused-call-result.ts')
+  check('schema-refused markup keeps its generated call id and receives an error result without execution', await assertRefusedCallResult(refused.assistants, { id: /^markup_[0-9a-f-]+_0$/, name: READ, raw: '{"nope":1}', code: 'schema', input: { nope: 1 } }), j(refused))
   const fenced = 'The format is:\n```\n' + markupAnswer + '\n```\n'
   script.ollama = [{ model: 'gemma3:4b', message: { role: 'assistant', content: fenced }, done: false }, doneRow('gemma3:4b')]
   const quoted = await drive(noToolsOllama, [opening])

@@ -169,7 +169,8 @@ async function drive(record: LocalModelRecord, conversation: { messages?: unknow
       else if (block.type === 'text') out.texts.push(block.text!)
       else if (block.type === 'thinking') out.thinking.push(block.thinking!)
     }
-    if ((message as { refusedToolCalls?: unknown[] }).refusedToolCalls !== undefined) out.notes.push(...(message.message.content as Array<{ text?: string }>).map(b => b.text ?? ''))
+    const refusals = (message as { refusedToolCalls?: Array<{ reason: string }> }).refusedToolCalls
+    if (refusals !== undefined) out.notes.push(...(message.message.content as Array<{ text?: string }>).map(b => b.text ?? ''), ...refusals.map(r => r.reason))
     out.stop = message.message.stop_reason
   }
   return out
@@ -227,7 +228,7 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
     doneRow(),
   ]
   const settled = await drive(ollamaRecord)
-  check('a read call missing its required file_path goes through the gate and comes back as the schema refusal note, not a block', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('file_path')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check('a read call missing its required file_path goes through the gate and comes back as a block carrying the schema refusal, for the executor to answer', settled.toolUses.length === 1 && settled.toolUses[0]!.name === READ && settled.notes.some(note => note.includes('file_path')) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 {
   script.compat = [

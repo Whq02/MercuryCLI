@@ -954,7 +954,7 @@ async function* queryModel(
         } catch (sent) {
           if (!signal.aborted && isFirstByteTimeout(sent)) {
             logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
-            throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait) })
+            throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait), requestDeadline: (sent as { requestDeadline?: unknown }).requestDeadline === true })
           }
           throw sent
         }

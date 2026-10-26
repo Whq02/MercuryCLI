@@ -15,6 +15,7 @@ import { INVALID_API_KEY_ERROR_MESSAGE } from '../services/api/errors.js'
 import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
 import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
+import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
 import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage } from '../types/message.js'
@@ -484,11 +485,11 @@ export class Conversation {
       if (message.type === 'assistant') {
         const assistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
         if (assistant.isApiErrorMessage === true) return rows
-        const refused = assistant.refusedToolCalls ?? []
+        const content = assistant.message.content
+        const refused = (assistant.refusedToolCalls ?? []).filter(refusal => !refusalAnsweredBy(refusal, [assistant]))
         const hasContent = isNotEmptyMessage(message)
         if (!hasContent && refused.length === 0) return rows
         const messageId = assistant.message.id ?? (assistant.uuid as string)
-        const content = assistant.message.content
         const base = steps.blocks.get(messageId) ?? 0
         const length = hasContent ? (Array.isArray(content) ? content.length : 1) : 0
         steps.blocks.set(messageId, base + length + refused.length)

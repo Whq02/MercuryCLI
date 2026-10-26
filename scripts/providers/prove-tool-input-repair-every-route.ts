@@ -200,7 +200,7 @@ section('E1 · the executor road every wire takes: a tool_use whose input arrive
   check('a null in an optional slot on the executor road (the Anthropic wire) is dropped and the call runs, as the text-wire gate already did', nullOnAnthropicRoad.length === 1 && nullOnAnthropicRoad[0]!.is_error !== true && j(seen[1]) === j({ count: 5 }), j({ nullOnAnthropicRoad, seen }))
   const toolSource = readFileSync(new URL('../../src/services/tools/toolExecution.ts', import.meta.url), 'utf8')
   const gateSource = readFileSync(new URL('../../src/services/providers/toolCallGate.ts', import.meta.url), 'utf8')
-  check('the executor imports the gate\u2019s repairToolInput and the gate calls the same function before its own validation (one owner, two callers)', toolSource.includes("import { repairToolInput } from '../providers/toolCallGate.js'") && gateSource.includes('const input = repairToolInput(tool, straightened)'))
+  check('the executor imports the gate\u2019s repairToolInput and the gate calls the same function before its own validation (one owner, two callers)', /import \{[^}]*\brepairToolInput\b[^}]*\} from '\.\.\/providers\/toolCallGate\.js'/.test(toolSource) && gateSource.includes('const input = repairToolInput(tool, straightened)'))
 }
 
 section('refusals · what the repair must never do with arguments it does not trust')

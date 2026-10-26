@@ -120,7 +120,8 @@ async function drive(profile: CompatLaneProfile, model: string, conversation: { 
       if (block.type === 'tool_use') out.toolUses.push({ name: block.name!, input: block.input })
       else if (block.type === 'text') out.texts.push(block.text!)
     }
-    if ((message as { refusedToolCalls?: unknown[] }).refusedToolCalls !== undefined) out.notes.push(...(message.message.content as Array<{ text?: string }>).map(b => b.text ?? ''))
+    const refusals = (message as { refusedToolCalls?: Array<{ reason: string }> }).refusedToolCalls
+    if (refusals !== undefined) out.notes.push(...(message.message.content as Array<{ text?: string }>).map(b => b.text ?? ''), ...refusals.map(r => r.reason))
     out.stop = message.message.stop_reason
   }
   return out
@@ -151,7 +152,7 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
 {
   script.ollama = ollamaCall(RECALL, { query: 'deploy target', limit: 'twenty' })
   const settled = await local({ messages: [createUserMessage({ content: 'what do you remember about the deploy target?' })] })
-  check(`${RECALL} unadmitted (called blind) with an argument no typing can take: refused as today, the admission road named`, settled.toolUses.length === 0 && settled.notes.some(note => note.includes('deferred tool')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check(`${RECALL} unadmitted (called blind) with an argument no typing can take: the call mints its block carrying the refusal, the admission road named`, settled.toolUses.length === 1 && settled.notes.some(note => note.includes('deferred tool')) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 {
   script.ollama = ollamaCall(READ, { file_path: '/tmp/a.ts', offset: 12 })
@@ -166,12 +167,12 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
 {
   script.ollama = ollamaCall(RECALL, { query: 'deploy target', limit: 'twenty' })
   const settled = await local({ messages: admitted([RETAIN, RECALL]) })
-  check('a string no schema type can take ("twenty" for an integer) is refused with the current words', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `limit` expects type number, got string')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check('a string no schema type can take ("twenty" for an integer) is refused with the current words, on the block the executor answers', settled.toolUses.length === 1 && settled.notes.some(note => note.includes('Parameter `limit` expects type number, got string')) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 {
   script.ollama = ollamaCall(RETAIN, { items: 'the blue rack in room 4' })
   const settled = await local({ messages: admitted([RETAIN, RECALL]) })
-  check('a plain sentence where the array goes is refused with the type sentence', settled.toolUses.length === 0 && settled.notes.some(note => note.includes('Parameter `items` expects type array, got string')) && settled.stop === 'end_turn', JSON.stringify(settled))
+  check('a plain sentence where the array goes is refused with the type sentence, on the block the executor answers', settled.toolUses.length === 1 && settled.notes.some(note => note.includes('Parameter `items` expects type array, got string')) && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 
 section('2b · the stored call is the model\'s own: a schema default is applied at execution, never written into the tool_use row (a replayed row must re-ingest byte-identical on a local server)')

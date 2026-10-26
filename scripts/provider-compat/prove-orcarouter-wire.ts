@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -131,7 +132,8 @@ try {
   check('billing refusal is recorded for OrcaRouter only', laneBillingState('orcarouter').state === 'credit-exhausted' && laneBillingState('groq').state === 'clear')
   mode = 'busy'; const beforeRetry = captures.length; await run()
   check('retry reaches the same provider and clears the old refusal on success', captures.length === beforeRetry + 2 && laneBillingState('orcarouter').state === 'clear')
-  mode = 'malformed'; check('malformed tools are never executable', !(await run()).some(row => row.message.content.some(block => block.type === 'tool_use')))
+  mode = 'malformed'
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run(), { id: 'call_fixture_1', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'; check('a missing terminal leaves partial text and an error', (await run()).some(row => row.isApiErrorMessage))
   mode = 'inband'; check('HTTP 200 with an in-band error is not success', (await run()).some(row => row.isApiErrorMessage))
   const cancelled = new AbortController(); cancelled.abort(); const beforeCancel = captures.length

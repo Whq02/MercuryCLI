@@ -962,13 +962,15 @@ export function takeOperatorMessages(
   taskId: string,
   getAppState: () => AppState,
   setAppState: SetAppState,
+  limit?: number,
 ): string[] {
   const task = getAppState().tasks?.[taskId]
-  const queued = peekOperatorMessages(task)
+  const all = peekOperatorMessages(task)
+  const queued = limit === undefined ? all : all.slice(0, limit)
   if (queued.length === 0) return []
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
     ...current,
-    operatorMessages: [],
+    operatorMessages: (current.operatorMessages ?? []).slice(queued.length),
   }))
   consumeAgentMessages(taskId)
   for (const notice of queued) speakAgentMessageFrame(taskId, notice)
@@ -979,16 +981,18 @@ export function drainPendingMessages(
   taskId: string,
   getAppState: () => AppState,
   setAppState: SetAppState,
+  limit?: number,
 ): string[] {
   const task = getAppState().tasks?.[taskId]
   if (!task || !isLocalAgentTask(task)) return []
-  const pending = task.pendingMessages ?? []
+  const all = task.pendingMessages ?? []
+  const pending = limit === undefined ? all : all.slice(0, limit)
   if (pending.length === 0) return []
   if (task.registration !== undefined && task.status === 'running') registrationReplyTargets.set(task.registration, 'parent')
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
     ...current,
     ...(current.status === 'running' ? { replyTarget: 'parent' as const } : {}),
-    pendingMessages: [],
+    pendingMessages: (current.pendingMessages ?? []).slice(pending.length),
   }))
   consumeAgentMessages(taskId)
   for (const notice of pending) speakAgentMessageFrame(taskId, notice)

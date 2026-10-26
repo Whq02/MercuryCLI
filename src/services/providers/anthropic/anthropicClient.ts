@@ -128,56 +128,71 @@ export class AnthropicClient {
     for (let attempt = 0; ; attempt++) {
       if (options.signal?.aborted) throw new APIUserAbortError()
       const controller = new AbortController()
-      const abort = () => controller.abort()
+      let response: Response | undefined
+      const abort = () => {
+        controller.abort()
+        void response?.body?.cancel().catch(() => {})
+      }
       options.signal?.addEventListener('abort', abort, { once: true })
       const release = () => {
+        clearTimeout(timer)
         options.signal?.removeEventListener('abort', abort)
         controller.signal.removeEventListener('abort', release)
       }
       controller.signal.addEventListener('abort', release, { once: true })
       const timer = setTimeout(abort, timeout)
-      let response: Response
+      const bounded = <V>(pending: Promise<V>): Promise<V> => new Promise((resolve, reject) => {
+        const onAbort = () => {
+          controller.signal.removeEventListener('abort', onAbort)
+          reject(options.signal?.aborted ? new APIUserAbortError() : new APIConnectionTimeoutError({ requestDeadline: true }))
+        }
+        controller.signal.addEventListener('abort', onAbort, { once: true })
+        pending.then(
+          value => { controller.signal.removeEventListener('abort', onAbort); resolve(value) },
+          error => { controller.signal.removeEventListener('abort', onAbort); reject(error) },
+        )
+        if (controller.signal.aborted) onAbort()
+      })
       try {
-        response = await (this.options.fetch ?? globalThis.fetch)(url, {
+        response = await bounded((this.options.fetch ?? globalThis.fetch)(url, {
           method: 'POST', body: serialized, headers,
           ...this.options.fetchOptions, ...options.fetchOptions, signal: controller.signal,
-        })
+        }))
       } catch (cause) {
         release()
-        clearTimeout(timer)
         if (options.signal?.aborted) throw new APIUserAbortError()
         if (attempt < maxRetries) { await waitForRetry(retryDelay(undefined, attempt), options.signal); continue }
         const inner = cause instanceof Error ? cause.cause : undefined
         const timedOut = controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError') || /timed? ?out/i.test(`${String(cause)} ${String(inner ?? '')}`)
-        if (timedOut) throw new APIConnectionTimeoutError()
+        if (timedOut) throw new APIConnectionTimeoutError({ requestDeadline: controller.signal.aborted })
         throw new APIConnectionError({ cause })
-      } finally {
-        clearTimeout(timer)
       }
       if (!response.ok) {
         const hint = response.headers.get('x-should-retry')
         const retry = hint === 'true' || (hint !== 'false' && ([408, 409, 429].includes(response.status) || response.status >= 500))
         if (retry && attempt < maxRetries) {
-          await response.body?.cancel().catch(() => {})
-          release()
+          abort()
           await waitForRetry(retryDelay(response.headers, attempt), options.signal)
           continue
         }
         try {
-          const text = await response.text()
+          const text = await bounded(response.text())
           let parsed: unknown
           try { parsed = JSON.parse(text) } catch { parsed = undefined }
           throw APIError.generate(response.status, parsed, parsed ? undefined : text, response.headers)
         } finally { release() }
       }
       const request_id = response.headers.get('request-id')
-      if (body.stream) return { data: AnthropicStream.fromSSEResponse(response, controller, release) as T, response, request_id }
+      if (body.stream) {
+        clearTimeout(timer)
+        return { data: AnthropicStream.fromSSEResponse(response, controller, release) as T, response, request_id }
+      }
       try {
         const mediaType = response.headers.get('content-type')?.split(';')[0]?.trim()
         const json = mediaType?.includes('application/json') || mediaType?.endsWith('+json')
         const data = (response.status === 204 ? null : json
-          ? response.headers.get('content-length') === '0' ? undefined : await response.json()
-          : await response.text()) as T
+          ? response.headers.get('content-length') === '0' ? undefined : await bounded(response.json())
+          : await bounded(response.text())) as T
         if (data && typeof data === 'object' && !Array.isArray(data)) Object.defineProperties(data, {
           _request_id: { value: request_id, enumerable: false },
           _workspace_id: { value: response.headers.get('anthropic-workspace-id'), enumerable: false },

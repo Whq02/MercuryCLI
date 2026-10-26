@@ -12,6 +12,7 @@ interface IncomingToolCall {
   name: string
   argumentsRaw: string
   malformed: boolean
+  providerRefusal?: string
 }
 
 type ToolCallVerdict =
@@ -141,6 +142,9 @@ export function schemaNotSentSentence(toolName: string): string {
 }
 
 export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolCallGateHints): ToolCallVerdict {
+  if (call.providerRefusal !== undefined) {
+    return refused(call, 'provider-malformed', call.providerRefusal)
+  }
   if (call.name.trim() === '') {
     return refused(call, 'unknown-tool', 'the call carried no tool name')
   }
@@ -236,7 +240,47 @@ export function toolCallRefusalNote(lane: string, refusal: RefusedToolCall): str
       return `[${lane}] the provider emitted a malformed tool call (${name}): the arguments do not match the tool's input schema (${issueSummary(refusal.reason)}) — it was not executed.`
     case 'duplicate-id':
       return `[${lane}] the provider emitted a second tool call (${name}) under a call id already used in this turn (${refusal.id}) — only the first call with that id was executed.`
+    case 'provider-malformed':
+      return `[${lane}] the provider could not parse the function call the model wrote${name === 'unnamed' ? '' : ` (${name})`}: ${issueSummary(refusal.reason)} — it was not executed.`
   }
+}
+
+const ANSWERABLE_REFUSALS: ReadonlySet<RefusedToolCall['code']> = new Set(['schema', 'unknown-tool', 'invalid-json', 'not-an-object'])
+
+export function refusalAnswersAsToolResult(refusal: RefusedToolCall): boolean {
+  return ANSWERABLE_REFUSALS.has(refusal.code) && refusal.id.trim() !== '' && !PLACEHOLDER_ID.test(refusal.id) && refusal.name.trim() !== ''
+}
+
+export function refusedCallInput(refusal: RefusedToolCall): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(refusal.argumentsRaw)
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function toolCallRefusalResultText(refusal: RefusedToolCall): string {
+  const name = refusal.name.trim() === '' ? 'the tool' : refusal.name
+  switch (refusal.code) {
+    case 'schema':
+      return `${refusal.reason}\nThe call did not run. Send it again with arguments that match ${name}'s input schema exactly (required parameters present, correct types, no extra fields on strict tools).`
+    case 'invalid-json':
+    case 'not-an-object':
+      return `${refusal.reason}.\nArguments received: ${previewRaw(refusal.argumentsRaw)}\nThe call did not run. Send it again with its arguments as one JSON object that matches ${name}'s input schema.`
+    default:
+      return `${refusal.reason}\nThe call did not run.`
+  }
+}
+
+export function refusalAnsweredBy(refusal: RefusedToolCall, messages: readonly AssistantMessage[]): boolean {
+  return messages.some(message =>
+    Array.isArray(message.message.content) && message.message.content.some(block => block.type === 'tool_use' && block.id === refusal.id),
+  )
+}
+
+export function unansweredRefusals(messages: readonly AssistantMessage[]): RefusedToolCall[] {
+  return collectRefusedToolCalls(messages).filter(refusal => !refusalAnsweredBy(refusal, messages))
 }
 
 export const TOOL_CALL_REFUSAL_CORRECTION_HEAD =
@@ -250,7 +294,9 @@ export function toolCallRefusalCorrection(refusals: readonly RefusedToolCall[]):
         ? `unknown tool ${name}: ${refusal.reason}`
         : refusal.code === 'duplicate-id'
           ? `duplicate call id for ${name}: ${refusal.reason}`
-          : `malformed arguments for ${name}: ${refusal.reason}`
+          : refusal.code === 'provider-malformed'
+            ? `the provider could not parse the function call you wrote${name === '(no tool name)' ? '' : ` for ${name}`}: ${refusal.reason}`
+            : `malformed arguments for ${name}: ${refusal.reason}`
     return `- call ${refusal.id || '(no id)'} — ${headline}\n  Arguments received: ${previewRaw(refusal.argumentsRaw)}`
   })
   const memoryWrites = [...new Set(memoryWriteRefusals(refusals).map(refusal => refusal.name))]

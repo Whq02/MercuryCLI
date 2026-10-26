@@ -88,7 +88,7 @@ import {
   type ZaiWireMessage,
 } from './zaiClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
-import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
+import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalNote } from '../toolCallGate.js'
 import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 
 const ZAI_MAX_OUTPUT_TOKENS = 131_072
@@ -721,6 +721,7 @@ async function* streamOneZaiAttempt(ctx: {
   const completed = finish?.toolCalls ?? []
   const accepted: Array<{ call: ZaiCompletedToolCall; input: Record<string, unknown> }> = []
   const refused: RefusedToolCall[] = []
+  const answered: Array<{ call: ZaiCompletedToolCall; refusal: RefusedToolCall }> = []
   const verdicts = gateToolCalls(
     tools,
     completed.map(call => ({
@@ -734,13 +735,29 @@ async function* streamOneZaiAttempt(ctx: {
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!
     if (verdict.ok) accepted.push({ call, input: verdict.input })
+    else if (finish?.reason !== 'length' && refusalAnswersAsToolResult(verdict.refusal)) answered.push({ call, refusal: verdict.refusal })
     else refused.push(verdict.refusal)
   })
-  for (const { call, input } of accepted) {
+  for (const [index, call] of completed.entries()) {
+    const verdict = verdicts[index]!
+    if (verdict.ok) {
+      yield* emitSettledBlock(
+        { type: 'tool_use', id: call.id, name: call.name, input: verdict.input },
+        [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
+        { type: 'tool_use', id: call.id, name: call.name, input: {} },
+      )
+      continue
+    }
+    const refusal = answered.find(entry => entry.call === call)?.refusal
+    if (refusal === undefined) continue
+    const input = refusedCallInput(refusal)
     yield* emitSettledBlock(
       { type: 'tool_use', id: call.id, name: call.name, input },
-      [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
+      [{ type: 'input_json_delta', partial_json: JSON.stringify(input) }],
       { type: 'tool_use', id: call.id, name: call.name, input: {} },
+      message => {
+        message.refusedToolCalls = [refusal]
+      },
     )
   }
   for (const refusal of refused) {
@@ -795,7 +812,7 @@ async function* streamOneZaiAttempt(ctx: {
 
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'stop'] ?? 'end_turn'
   const stopReason =
-    accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
+    accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapZaiUsageToAnthropic(usageSeen)
   if (!usageSeen && fault !== undefined) {
     const estimated = estimateFaultedRequestUsage({ lane: 'zai', model: modelId, request, minted, faultCode: fault.code })

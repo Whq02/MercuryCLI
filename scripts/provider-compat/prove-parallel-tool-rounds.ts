@@ -514,26 +514,22 @@ for (const { lane, model, dialect } of LANES) {
     check('P1 the run never threw and completed in exactly two model calls', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length}`)
     const second = r.wire[1]
     const round = second ? readRound(dialect, second.body) : { toolUseIds: [], answers: [], trailingText: [] }
-    const executed = gated ? ['call_ok', 'call_throw'] : ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
+    const executed = ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
     if (dialect === 'gemini') {
-      const replayed = ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
-      check('P1 the replayed model content carries every part Google sent, in Google\'s order (the signed-parts law), the refused calls included', JSON.stringify(round.toolUseIds) === JSON.stringify(replayed), JSON.stringify(round.toolUseIds))
-      check('P1 every call is answered exactly once in that order: the executed two with their results, the refused two with the refusal as the function response', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(replayed) && round.answers.filter(a => a.id === 'call_unknown' || a.id === 'call_badargs').every(a => a.text !== ''), JSON.stringify(round.answers))
+      check('P1 the replayed model content carries every part Google sent, in Google\'s order (the signed-parts law), the refused calls included', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))
     } else {
-      check('P1 the replayed assistant carries exactly the executed calls, in the assistant\'s order', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))
-      check('P1 every executed call is answered exactly once, in that same order', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(executed), JSON.stringify(round.answers.map(a => a.id)))
+      check('P1 the replayed assistant carries every call, in the assistant\'s order', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))
     }
+    check('P1 every call is answered exactly once, in that same order', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(executed), JSON.stringify(round.answers.map(a => a.id)))
     check("P1 the throwing tool's failure rode back as its own tool_result (the run did not end on it)", round.answers.some(a => a.id === 'call_throw' && a.text.includes('FailTool exploded')), JSON.stringify(round.answers.find(a => a.id === 'call_throw')))
     const yielded = toolResultsYielded(r.yields)
     check('P1 the failure was flagged is_error for the model', yielded.some(t => t.id === 'call_throw' && t.isError))
     check('P1 the successful call answered with its data', round.answers.some(a => a.id === 'call_ok' && a.text === 'echo:one'))
+    check('P1 the unknown tool minted its block and answered with the no-such-tool error', mintedToolUses(r.yields).includes('call_unknown') && round.answers.some(a => a.id === 'call_unknown' && a.text.includes('No such tool available')), JSON.stringify(round.answers.find(a => a.id === 'call_unknown')))
+    check('P1 the bad arguments minted their block and answered with the validation error, flagged is_error', mintedToolUses(r.yields).includes('call_badargs') && round.answers.some(a => a.id === 'call_badargs' && a.text.includes('`text`') && a.text.includes('string')) && yielded.some(t => t.id === 'call_badargs' && t.isError), JSON.stringify(round.answers.find(a => a.id === 'call_badargs')))
     if (gated) {
-      check('P1 no tool_use was minted for the unknown tool or the bad arguments', !mintedToolUses(r.yields).includes('call_unknown') && !mintedToolUses(r.yields).includes('call_badargs'))
-      const correction = round.trailingText.find(t => t.startsWith(TOOL_CALL_REFUSAL_CORRECTION_HEAD))
-      check('P1 the typed correction for both refusals rides the same request, after the results', correction !== undefined && correction.includes('call_unknown') && correction.includes('call_badargs'), round.trailingText.join(' | ').slice(0, 200))
-    } else {
-      check('P1 the unknown tool answered with the no-such-tool error', round.answers.some(a => a.id === 'call_unknown' && a.text.includes('No such tool available')))
-      check('P1 the bad arguments answered with the validation error', round.answers.some(a => a.id === 'call_badargs' && a.text.includes('`text`') && a.text.includes('string')))
+      check('P1 no correction text rides the request: the error results are the whole answer', !round.trailingText.some(t => t.startsWith(TOOL_CALL_REFUSAL_CORRECTION_HEAD)), round.trailingText.join(' | ').slice(0, 200))
+      check('P1 no refusal note stands in the transcript as the model\'s own words', !r.yields.some(m => m.type === 'assistant' && JSON.stringify((m.message as { content: unknown }).content).includes('the provider emitted a malformed tool call')))
     }
     if (dialect === 'chat') check('P1 every tool row directly follows the assistant tool_calls row', second !== undefined && chatToolRowsAdjacent(second.body))
   }

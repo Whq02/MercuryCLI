@@ -42,7 +42,7 @@ export type RefusedToolCall = {
   name: string
   argumentsRaw: string
   argumentsLength?: number
-  code: 'unknown-tool' | 'missing-id' | 'invalid-json' | 'not-an-object' | 'schema' | 'duplicate-id'
+  code: 'unknown-tool' | 'missing-id' | 'invalid-json' | 'not-an-object' | 'schema' | 'duplicate-id' | 'provider-malformed'
   reason: string
   offered?: string[]
 }

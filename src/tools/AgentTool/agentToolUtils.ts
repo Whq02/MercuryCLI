@@ -272,6 +272,35 @@ export function deriveAgentTerminalOutcome(
 export const PROMOTED_NARRATION_NOTE =
   '[The crewmate stopped part-way through a turn — what follows is its most recent narration, not a final report.]'
 
+const SETTLED_STOP_REASONS: ReadonlySet<string> = new Set(['end_turn', 'stop_sequence'])
+
+export function finalResponseOf(messages: readonly Message[]): { messages: Message[]; stopReason: string | null } {
+  const run: Message[] = []
+  let stopReason: string | null = null
+  let id: string | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') {
+      if (run.length > 0) break
+      continue
+    }
+    const messageId = typeof message.message.id === 'string' && message.message.id !== '' ? message.message.id : undefined
+    if (run.length > 0 && (id === undefined || messageId !== id)) break
+    id = messageId
+    run.unshift(message)
+    if (stopReason === null && typeof message.message.stop_reason === 'string') stopReason = message.message.stop_reason
+    if (messageId === undefined) break
+  }
+  return { messages: run, stopReason }
+}
+
+export function stoppedPartWay(response: { messages: readonly Message[]; stopReason: string | null }): boolean {
+  if (response.stopReason === null || !SETTLED_STOP_REASONS.has(response.stopReason)) return true
+  return response.messages.some(
+    message => message.type === 'assistant' && Array.isArray(message.message.content) && message.message.content.some(block => block.type === 'tool_use'),
+  )
+}
+
 
 export const agentToolResultSchema = lazySchema(() =>
   z.object({
@@ -394,11 +423,14 @@ export function finalizeAgentTool(
     outcome.reason === 'loop-stopped' &&
     (loopStoppedRecordOf(messages)?.cycle ?? []).join() === 'reply'
 
+  const finalResponse = outcome.status === 'completed' ? finalResponseOf(messages) : null
   let content = chantStopped
     ? []
-    : textBlocksOf(
-        outcome.status === 'failed' ? lastReal : anchor,
-      ).filter(block => block.text.trim() !== '')
+    : finalResponse !== null
+      ? finalResponse.messages.flatMap(message => textBlocksOf(message)).filter(block => block.text.trim() !== '')
+      : textBlocksOf(
+          outcome.status === 'failed' ? lastReal : anchor,
+        ).filter(block => block.text.trim() !== '')
 
   let promotedNarration = false
   if (content.length === 0 && !chantStopped) {
@@ -411,7 +443,7 @@ export function finalizeAgentTool(
       )
       if (blocks.length > 0) {
         content = blocks
-        promotedNarration = true
+        promotedNarration = finalResponse === null || stoppedPartWay(finalResponse)
         break
       }
     }
@@ -1113,6 +1145,7 @@ export async function runAsyncAgentLifecycle(args: {
     const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
     if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
     const noticeFollows = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && args.replyTarget !== 'operator'
+    let continuedOnGuidance = false
     if (declined) {
       failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
       if (overload !== null) {
@@ -1165,8 +1198,9 @@ export async function runAsyncAgentLifecycle(args: {
             >
           })
         const queuedTask = stateReader().tasks[taskId]
-        const pending = isLocalAgentTask(queuedTask) ? queuedTask.pendingMessages ?? [] : []
-        const queued = [...pending, ...peekOperatorMessages(queuedTask)]
+        const pending = isLocalAgentTask(queuedTask) ? [...(queuedTask.pendingMessages ?? [])] : []
+        const operator = peekOperatorMessages(queuedTask)
+        const queued = [...pending, ...operator]
         if (queued.length > 0) {
           const { resumeAgentBackground } = await import('./resumeAgent.js')
           const resumed = await resumeAgentBackground({
@@ -1177,8 +1211,9 @@ export async function runAsyncAgentLifecycle(args: {
             canUseTool: args.canUseTool,
           })
           if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
-          drainPendingMessages(taskId, stateReader, rootSetAppState)
-          takeOperatorMessages(taskId, stateReader, rootSetAppState)
+          drainPendingMessages(taskId, stateReader, rootSetAppState, pending.length)
+          takeOperatorMessages(taskId, stateReader, rootSetAppState, operator.length)
+          continuedOnGuidance = pending.length > 0
         }
       } catch (error) {
         logForDebugging(
@@ -1219,7 +1254,7 @@ export async function runAsyncAgentLifecycle(args: {
     } catch {
     }
 
-    const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+    const notifies = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && !continuedOnGuidance
     if (notifies) enqueueAgentNotification({
       taskId,
       description,

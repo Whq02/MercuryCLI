@@ -114,17 +114,18 @@ try {
   hits.length = 0
   const refusedTurn = await drain(params([user('Call an unknown tool.')], true))
   const refusedRecord = (refusedTurn.at(-1) as any)?.geminiProviderTurn
-  const refusedBlocks = refusedTurn.flatMap(message => message.message.content).filter(block => block.type === 'tool_use')
-  check('a call the gate refuses mints no tool_use and is recorded as refused beside the accepted call', refusedBlocks.length === 1 && refusedRecord?.refused?.length === 1 && refusedRecord.calls.length === 2)
-  if (refusedBlocks.length === 1) {
+  const refusedBlocks = refusedTurn.flatMap(message => message.message.content).filter(block => block.type === 'tool_use') as Array<{ id: string; name: string }>
+  const carrying = refusedTurn.filter(message => (message.refusedToolCalls ?? []).length > 0)
+  check('a call the gate refuses mints its tool_use carrying the refusal beside the accepted call; the record lists no refusal left unanswered', refusedBlocks.length === 2 && refusedBlocks[0]!.name === 'NoSuchTool' && carrying.length === 1 && carrying[0]!.refusedToolCalls![0]!.code === 'unknown-tool' && carrying[0]!.message.content.some(block => block.type === 'tool_use') && refusedRecord?.refused === undefined && refusedRecord.calls.length === 2 && refusedTurn.at(-1)?.message.stop_reason === 'tool_use')
+  if (refusedBlocks.length === 2) {
     hits.length = 0
     scenario = 'tool-result'
-    await drain(params([user('Call an unknown tool.'), ...refusedTurn, user([{ type: 'tool_result', tool_use_id: refusedBlocks[0]!.id, content: 'echo result' }])], true))
+    await drain(params([user('Call an unknown tool.'), ...refusedTurn, user([{ type: 'tool_result', tool_use_id: refusedBlocks[0]!.id, content: 'No such tool available: NoSuchTool', is_error: true }, { type: 'tool_result', tool_use_id: refusedBlocks[1]!.id, content: 'echo result' }])], true))
     const contents = hits.find(hit => hit.body.contents)?.body.contents as any[] | undefined
     const answers = contents?.[2]?.parts ?? []
-    check('every recorded function call receives a response in call order, the refused one carrying its reason', contents?.[1]?.role === 'model' && contents[1].parts.length === 2 && answers.length === 2 && answers[0]?.functionResponse?.response?.error !== undefined && answers[1]?.functionResponse?.response?.output === 'echo result')
+    check('every recorded function call receives a response in call order, the refused one carrying its error result', contents?.[1]?.role === 'model' && contents[1].parts.length === 2 && answers.length === 2 && String(answers[0]?.functionResponse?.response?.output ?? '').includes('No such tool available: NoSuchTool') && answers[1]?.functionResponse?.response?.output === 'echo result')
   } else {
-    check('every recorded function call receives a response in call order, the refused one carrying its reason', false)
+    check('every recorded function call receives a response in call order, the refused one carrying its error result', false)
   }
 
   scenario = 'tools'

@@ -47,14 +47,18 @@ export const ResumeAgentTool = buildTool({
     if (address.kind === 'unknown') return { data: { success: false, message: await unknownAgentRefusal(to, context, 'resume') } }
     const resolvedSelf = selfAddressRefusalText(to, context, 'resume', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
-    if (input.model !== undefined || input.effort !== undefined) {
+    const overrides = [input.model !== undefined ? `model ${input.model}` : null, input.effort !== undefined ? `effort ${input.effort}` : null].filter((word): word is string => word !== null)
+    if (overrides.length > 0 && address.task?.status !== 'running') {
       const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
       if (owner !== null) return { data: { success: false, message: `${owner.words} Model and effort overrides apply only to a finished crewmate; nothing was queued.` } }
     }
     if (address.task?.status === 'running') {
       if (!input.interrupt) {
+        const ahead = address.task.pendingMessages?.length ?? 0
         queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
-        return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
+        const queue = ahead === 0 ? 'it reads it at its next tool boundary, or as its next turn when the current one ends' : `${ahead} earlier ${ahead === 1 ? 'message is' : 'messages are'} queued ahead of it; it reads them in order at its next tool boundary, or as its next turn when the current one ends`
+        const kept = overrides.length === 0 ? '' : ` Its ${overrides.join(' and ')} ${overrides.length === 1 ? 'was' : 'were'} not applied: a running crewmate keeps its model and effort; name them again on ResumeCrewmate once it has finished.`
+        return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was queued and ${queue}.${kept}` } }
       }
       const stopped = await stopAgentByOperator(address.agentId, {
         getAppState: context.getAppState,

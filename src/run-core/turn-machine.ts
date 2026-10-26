@@ -106,6 +106,7 @@ import {
 } from '../services/api/errors.js'
 import {
   collectRefusedToolCalls,
+  unansweredRefusals,
   memoryWriteLostNotice,
   memoryWriteRefusals,
   settleMemoryWriteRefusals,
@@ -145,6 +146,7 @@ import { prependUserContext, appendSystemContext } from '../utils/api.js'
 import { latestUserContextBody } from '../utils/attachments/userContext.js'
 import {
   createAttachmentMessage,
+  getAgentPendingMessageAttachments,
   getAttachmentMessages,
 } from '../utils/attachments.js'
 import {
@@ -1433,7 +1435,9 @@ async function* runEventMachine(
     if (deadThinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...deadThinkingRecords]
     if (iter.streamChant !== undefined && !toolUseContext.abortController.signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
     const { assistantMessages, toolResults, toolUseBlocks } = iter
-    const refusedToolCalls = collectRefusedToolCalls(assistantMessages)
+    const allRefusedToolCalls = collectRefusedToolCalls(assistantMessages)
+    const refusedToolCalls = unansweredRefusals(assistantMessages)
+    const answeredRefusalIds = new Set(allRefusedToolCalls.filter(refusal => !refusedToolCalls.includes(refusal)).map(refusal => refusal.id))
 
 
     if (toolUseContext.abortController.signal.aborted) {
@@ -1844,7 +1848,7 @@ async function* runEventMachine(
               'warning',
             ),
           })
-          holdMemoryWriteRefusals(refusedToolCalls)
+          holdMemoryWriteRefusals(allRefusedToolCalls)
           const correction = createUserMessage({
             content: toolCallRefusalCorrection(refusedToolCalls),
             isMeta: true,
@@ -1877,7 +1881,7 @@ async function* runEventMachine(
             'error',
           ),
         })
-        holdMemoryWriteRefusals(refusedToolCalls)
+        holdMemoryWriteRefusals(allRefusedToolCalls)
         const lost = memoryWriteLostEvent()
         if (lost !== null) yield lost
         const terminal: Terminal = { reason: 'tool_calls_refused', tools, corrections: toolCallRefusalRecoveryCount }
@@ -2055,6 +2059,31 @@ async function* runEventMachine(
         }
       }
 
+      if (toolUseContext.agentId) {
+        const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
+        if (queued.length > 0) {
+          for (const row of queued) yield emit({ kind: 'attachment', message: row })
+          const next: TurnState = {
+            messages: [...messagesForQuery, ...assistantMessages, ...queued],
+            toolUseContext,
+            autoCompactTracking: tracking,
+            turnCount: turnCount + 1,
+            maxOutputTokensRecoveryCount: 0,
+            streamFaultRecoveryCount: 0,
+            toolCallRefusalRecoveryCount: 0,
+            maxOutputTokensOverride: undefined,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            overflowEpisode: FRESH_OVERFLOW_EPISODE,
+            pendingOverflow: undefined,
+            transition: { reason: 'queued_message', count: queued.length },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+      }
+
       await finishMemorySignal(assistantText(assistantMessages))
       if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
         let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
@@ -2172,7 +2201,8 @@ async function* runEventMachine(
       }
     }
 
-    settleMemoryWriteRefusals(pendingMemoryWrites, toolUseBlocks)
+    settleMemoryWriteRefusals(pendingMemoryWrites, toolUseBlocks.filter(block => !answeredRefusalIds.has(block.id)))
+    holdMemoryWriteRefusals(allRefusedToolCalls)
     if (refusedToolCalls.length > 0) {
       const correction = createUserMessage({
         content: toolCallRefusalCorrection(refusedToolCalls),
@@ -2180,7 +2210,6 @@ async function* runEventMachine(
       })
       yield emit({ kind: 'hook_message', message: correction })
       toolResults.push(correction)
-      holdMemoryWriteRefusals(refusedToolCalls)
     }
 
     let nextPendingToolUseSummary:

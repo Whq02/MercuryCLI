@@ -115,6 +115,7 @@ export interface CompatCompletedToolCall {
   argumentsRaw: string
   arguments?: unknown
   malformed: boolean
+  providerRefusal?: string
 }
 
 export type CompatStreamEvent =

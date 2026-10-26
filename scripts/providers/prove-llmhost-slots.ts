@@ -861,12 +861,14 @@ try {
     finishWith(settledCall(0, 'call-x', '{"text":"x"}', 'NoSuchTool')),
   ]])
   check(
-    'a painted call the gate refuses settles its refusal note in the painted block\'s place: one block streamed, one message settled, nothing replayed',
+    'a painted call the gate refuses settles its block carrying the refusal in the painted block\'s place: one block streamed, one message settled, nothing replayed',
     blockStarts(refusedPaint.events).length === 1 &&
       toolStartsFor(refusedPaint.events, 'call-x').length === 1 &&
       refusedPaint.assistants.length === 1 &&
-      refusedPaint.assistants[0]?.message.content[0]?.type === 'text' &&
-      refusedPaint.assistants[0]?.refusedToolCalls?.[0]?.id === 'call-x',
+      refusedPaint.assistants[0]?.message.content[0]?.type === 'tool_use' &&
+      (refusedPaint.assistants[0]?.message.content[0] as { id?: string }).id === 'call-x' &&
+      refusedPaint.assistants[0]?.refusedToolCalls?.[0]?.id === 'call-x' &&
+      refusedPaint.assistants[0]?.message.stop_reason === 'tool_use',
     `starts=${streamOrder(refusedPaint.events)} settled=${settledOrder(refusedPaint.assistants)}`,
   )
 

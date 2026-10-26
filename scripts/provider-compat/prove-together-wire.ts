@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -181,7 +182,7 @@ try {
   const misplaced = await run()
   check('a reasoning field in the wrong place (on the choice, not the delta) is ignored: no invented thinking, the text intact, the turn settled', thinkingOf(misplaced) === '' && textOf(misplaced) === 'TOGETHER-FIXTURE-SETTLED' && !misplaced.some(row => row.isApiErrorMessage))
   mode = 'malformed'
-  check('malformed tool JSON cannot become an executable call', !(await run()).some(row => row.message.content.some(block => block.type === 'tool_use')))
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run(), { id: 'call_fixture_1', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'
   check('an unterminated stream does not count as success', (await run()).some(row => row.isApiErrorMessage))
   mode = 'invalid'

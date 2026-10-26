@@ -107,8 +107,8 @@ try {
   const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
   let changed = 0
   const runningContext = { getAppState: () => ({ tasks: { busy: { id: 'busy', agentId: 'busy', type: 'local_agent', status: 'running', description: 'busy fixture' } }, agentNameRegistry: new Map() }), setAppState: () => { changed++ }, messages: [], options: { engineModel: LEAD_MODEL } } as never
-  const refused = await ResumeAgentTool.call({ to: 'busy', message: 'do not queue', model: switched, effort: 'max' }, runningContext, (async () => ({ behavior: 'allow' })) as never, {} as never)
-  check('running-crewmate overrides refuse without queuing or starting twice', !refused.data.success && refused.data.message.includes('finished crewmate') && changed === 0)
+  const queued = await ResumeAgentTool.call({ to: 'busy', message: 'queue this', model: switched, effort: 'max' }, runningContext, (async () => ({ behavior: 'allow' })) as never, {} as never)
+  check('running-crewmate overrides join the queue, name the overrides as not applied, and never start a second run', queued.data.success && queued.data.message.includes('the message was queued') && queued.data.message.includes(`model ${switched} and effort max were not applied`) && queued.data.message.includes('once it has finished') && changed === 1, JSON.stringify(queued.data))
   check('max is admitted by the optional schema', ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'max' }).success)
   check('an unknown effort word is refused by the shared ladder', !ResumeAgentTool.inputSchema.safeParse({ to: 'busy', message: 'next', effort: 'not-an-effort' }).success)
 } catch (error) {

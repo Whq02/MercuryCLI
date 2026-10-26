@@ -289,7 +289,24 @@ export function requestConversationPlan(
   const prepared = geometry === 'family'
     ? pairConversationMessages(stripImagesRefusedByStamp(projected).filter(message => !isSyntheticApiErrorMessage(message)), 'split')
     : finishApiContent(projected)
-  return { ...selection, selected: selection.selected.filter(message => !isSyntheticApiErrorMessage(message)), messages: prepared }
+  return { ...selection, selected: selection.selected.filter(message => !isSyntheticApiErrorMessage(message)), messages: mergeAdjacentUsers(prepared) }
+}
+
+function mergeAdjacentUsers(messages: (UserMessage | AssistantMessage)[]): (UserMessage | AssistantMessage)[] {
+  const kindOf = (row: UserMessage): 'text' | 'tool_result' | null => {
+    const content = row.message.content
+    if (typeof content === 'string') return 'text'
+    const kind = content[0]?.type
+    return (kind === 'text' || kind === 'tool_result') && content.every(block => block.type === kind) ? kind : null
+  }
+  const out: (UserMessage | AssistantMessage)[] = []
+  for (const row of messages) {
+    const previous = out.at(-1)
+    const kind = row.type === 'user' ? kindOf(row) : null
+    if (row.type === 'user' && previous?.type === 'user' && kind !== null && kind === kindOf(previous)) out[out.length - 1] = mergeUserMessages(previous, row)
+    else out.push(row)
+  }
+  return out.length === messages.length ? messages : out
 }
 
 function projectConversationSelection(

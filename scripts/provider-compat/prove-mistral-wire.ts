@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
@@ -112,7 +113,7 @@ try {
   const history = captures.at(-1)!.body.messages
   check('tool results replay with the matching assistant call and no private reasoning', history.some((row: any) => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'fixtur123') && history.some((row: any) => row.role === 'tool' && row.tool_call_id === 'fixtur123') && history.every((row: any) => !('reasoning_content' in row)))
   mode = 'malformed'
-  check('malformed tool JSON cannot become an executable call', !(await run()).some(row => row.message.content.some(block => block.type === 'tool_use')))
+  check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run(), { id: 'fixtur123', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'
   check('an unterminated stream does not count as success', (await run()).some(row => row.isApiErrorMessage))
   mode = 'auth'

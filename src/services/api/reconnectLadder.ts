@@ -84,6 +84,7 @@ function outageCauseOfChain(error: unknown): OutageCause | null {
 export function outageCauseOf(error: unknown): OutageCause | null {
   if (!isSdkConnectionError(error)) return null
   if (typeof (error as { status?: unknown }).status === 'number') return null
+  if ((error as { requestDeadline?: unknown }).requestDeadline === true) return null
   if (isSdkTimeout(error)) return deepestErrorDetail(error).code === undefined ? connectTimeoutFromTransportRing() : null
   return outageCauseOfChain(error)
 }

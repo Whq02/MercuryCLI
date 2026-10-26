@@ -84,7 +84,9 @@ try {
   const history = fixture.captures.at(-1)!.body.messages as Array<Record<string, any>>
   check('chat tool results replay with the matching assistant call', history.some(row => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'call_zen_fixture') && history.some(row => row.role === 'tool' && row.tool_call_id === 'call_zen_fixture'))
   fixture.mode = 'malformed'
-  check('malformed tool JSON cannot become an executable call on either shape', !(await run(params('zen/glm-5.3'))).some(row => row.message.content.some(block => block.type === 'tool_use')) && !(await run(params('zen/gpt-5.5'))).some(row => row.message.content.some(block => block.type === 'tool_use')))
+  const { assertRefusedCallResult } = await import('../providers/lib/refused-call-result.ts')
+  check('malformed chat tool arguments receive an error result without execution', await assertRefusedCallResult(await run(params('zen/glm-5.3')), { id: 'call_zen_fixture', name: 'FixtureEcho', raw: '{broken' }))
+  check('malformed Responses tool arguments receive an error result without execution', await assertRefusedCallResult(await run(params('zen/gpt-5.5')), { id: 'call_zen_fixture', name: 'FixtureEcho', raw: '{broken' }))
   fixture.mode = 'truncated'
   check('an unterminated stream is not success on either shape', (await run(params('zen/glm-5.3'))).some(row => row.isApiErrorMessage) && (await run(params('zen/gpt-5.5'))).some(row => row.isApiErrorMessage))
   fixture.mode = 'auth'

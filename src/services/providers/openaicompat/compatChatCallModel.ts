@@ -93,7 +93,7 @@ import {
   type CompatUsage,
 } from './compatChatClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
-import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
+import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
 import { extractToolCallMarkup } from '../local/toolCallMarkup.js'
 import { renderToolDialectHistory, toolDialectSystemText } from '../local/toolDialect.js'
@@ -938,10 +938,15 @@ async function* streamOneCompatAttempt(ctx: {
   let firstEventSeen = false
   const blocks = {
     index: -1,
+    allocated: -1,
     open: null as
       | { kind: 'thinking' | 'text'; value: string }
       | { kind: 'tool'; toolIndex: number }
       | null,
+  }
+  const nextBlockIndex = (): number => {
+    blocks.allocated = Math.max(blocks.allocated, blocks.index) + 1
+    return blocks.allocated
   }
   const toolPaints = new Map<number, { id: string; name: string; text: string; closed: boolean }>()
   const paintSlots: Array<{ toolIndex: number; id: string; at: number }> = []
@@ -1017,7 +1022,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
-    blocks.index += 1
+    blocks.index = nextBlockIndex()
     blocks.open = { kind, value: '' }
     yield streamEvent({
       type: 'content_block_start',
@@ -1035,7 +1040,7 @@ async function* streamOneCompatAttempt(ctx: {
     decorate?: (message: AssistantMessage) => void,
   ): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
-    blocks.index += 1
+    blocks.index = nextBlockIndex()
     yield streamEvent({ type: 'content_block_start', index: blocks.index, content_block: startBlock })
     for (const delta of deltas) {
       yield streamEvent({ type: 'content_block_delta', index: blocks.index, delta })
@@ -1139,6 +1144,13 @@ async function* streamOneCompatAttempt(ctx: {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         const withheld: ContentBlock = { type: 'thinking', thinking: '', signature: event.signature }
+        if (blocks.open?.kind === 'text') {
+          const index = nextBlockIndex()
+          yield streamEvent({ type: 'content_block_start', index, content_block: withheld })
+          yield streamEvent({ type: 'content_block_stop', index })
+          yield* pushMinted(mintBlock(withheld))
+          break
+        }
         yield* emitSettledBlock(withheld, [], withheld)
         break
       }
@@ -1179,7 +1191,7 @@ async function* streamOneCompatAttempt(ctx: {
         }
         if (paint === undefined) {
           yield* closeOpenBlock()
-          blocks.index += 1
+          blocks.index = nextBlockIndex()
           toolPaints.set(event.index, { id, name, text: '', closed: false })
           paintSlots.push({ toolIndex: event.index, id, at: minted.length })
           blocks.open = { kind: 'tool', toolIndex: event.index }
@@ -1290,12 +1302,15 @@ async function* streamOneCompatAttempt(ctx: {
       name: call.name,
       argumentsRaw: call.argumentsRaw,
       malformed: call.malformed,
+      ...(call.providerRefusal !== undefined ? { providerRefusal: call.providerRefusal } : {}),
     })),
     { deferredUnadmitted: ctx.deferredUnadmitted },
   )
+  const answered = new Set<CompatCompletedToolCall>()
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!
     if (verdict.ok) accepted.push({ call, input: verdict.input })
+    else if (finish?.reason !== 'length' && refusalAnswersAsToolResult(verdict.refusal)) answered.add(call)
   })
   const paintedCalls = new Set<CompatCompletedToolCall>()
   let inserted = 0
@@ -1308,6 +1323,9 @@ async function* streamOneCompatAttempt(ctx: {
     let message: AssistantMessage
     if (verdict.ok) {
       message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: verdict.input })
+    } else if (answered.has(call)) {
+      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: refusedCallInput(verdict.refusal) })
+      refusalNoteMessage(verdict.refusal).decorate(message)
     } else {
       const refusal = refusalNoteMessage(verdict.refusal)
       message = mintBlock({ type: 'text', text: refusal.note, citations: null })
@@ -1318,18 +1336,28 @@ async function* streamOneCompatAttempt(ctx: {
   }
   paintSlots.length = 0
   yield* releaseMinted()
-  for (const { call, input } of accepted) {
-    if (paintedCalls.has(call)) continue
-    yield* emitSettledBlock(
-      { type: 'tool_use', id: call.id, name: call.name, input },
-      [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
-      { type: 'tool_use', id: call.id, name: call.name, input: {} },
-    )
-  }
   for (const [index, call] of completed.entries()) {
     const verdict = verdicts[index]!
-    if (verdict.ok || paintedCalls.has(call)) continue
+    if (paintedCalls.has(call)) continue
+    if (verdict.ok) {
+      yield* emitSettledBlock(
+        { type: 'tool_use', id: call.id, name: call.name, input: verdict.input },
+        [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
+        { type: 'tool_use', id: call.id, name: call.name, input: {} },
+      )
+      continue
+    }
     const refusal = refusalNoteMessage(verdict.refusal)
+    if (answered.has(call)) {
+      const input = refusedCallInput(verdict.refusal)
+      yield* emitSettledBlock(
+        { type: 'tool_use', id: call.id, name: call.name, input },
+        [{ type: 'input_json_delta', partial_json: JSON.stringify(input) }],
+        { type: 'tool_use', id: call.id, name: call.name, input: {} },
+        refusal.decorate,
+      )
+      continue
+    }
     yield* emitSettledBlock(
       { type: 'text', text: refusal.note, citations: null },
       [{ type: 'text_delta', text: refusal.note }],
@@ -1368,7 +1396,7 @@ async function* streamOneCompatAttempt(ctx: {
 
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'stop'] ?? 'end_turn'
   const stopReason =
-    accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
+    accepted.length > 0 || answered.size > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = settleUsage(fault?.code)
   if (usageSeen) {
     void checkResponseForCacheBreak(
