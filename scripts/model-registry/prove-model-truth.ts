@@ -133,7 +133,7 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
   const catalogue = buildProviderSnapshot().providers.flatMap(provider => provider.description.catalogue)
   const names = [...new Set(catalogue.flatMap(model => [model.id, model.displayLabel, getMarketingNameForModel(model.id)]).filter((name): name is string => typeof name === 'string' && name.length > 0))]
   const fixedRows = (text: string): string[] => text.split('\n').filter(line => {
-    const prose = line.replace(/\]\([^)]*\)/g, ']')
+    const prose = line.replace(/\]\([^)]*\)/g, ']').replace(/`(?:scripts|src)\/[A-Za-z0-9_./-]+`/g, '`path`')
     if (/\b(?:claude|gpt|kimi|moonshot|deepseek|grok|muse|glm|gemini)-[a-z0-9][a-z0-9._-]*/i.test(prose)) return true
     if (!line.trimStart().startsWith('|')) return false
     const cells = prose.split('|').map(cell => cell.replace(/[`*]/g, '').trim())
