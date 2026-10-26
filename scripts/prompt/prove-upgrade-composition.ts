@@ -37,7 +37,7 @@ try {
     const base = join(scratch, 'base')
     const baseOut = mkdtempSync(join(tmpdir(), 'upgrade-composition-dist-'))
     mkdirSync(base)
-    const baseSpellings = ['961944cbb6', '04a4d2da3755', 'd6fce20666b4', 'v1.0.0-beta.31']
+    const baseSpellings = ['961944cbb6', '23c64f675da2', '04a4d2da3755', 'd6fce20666b4', 'v1.0.0-beta.31']
     const baseSha = baseSpellings.find(sha => spawnSync('git', ['rev-parse', '--verify', '--quiet', `${sha}^{commit}`], { cwd: root }).status === 0)
     assert.ok(baseSha, `the 1.0.0-beta.31 base is on none of the spellings this checkout carries (${baseSpellings.join(' / ')})`)
     const archive = spawnSync('git', ['archive', baseSha], { cwd: root, maxBuffer: 256 * 1024 * 1024 })

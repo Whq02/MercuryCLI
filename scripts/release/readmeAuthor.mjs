@@ -21,8 +21,9 @@ function authorFacts(root = ROOT) {
   const releases = readdirSync(join(root, 'docs', 'releases'))
     .filter(name => name.endsWith('.md') && name !== 'README.md')
     .filter(name => /^# .* — published \d{4}-\d{2}-\d{2}/.test(readFileSync(join(root, 'docs', 'releases', name), 'utf8').split('\n')[0] ?? '')).length
+  const isCode = line => { const t = line.trim(); return t !== '' && !t.startsWith('//') && !t.startsWith('/*') && !t.startsWith('*') }
   const sourceLines = walk(join(root, 'src'), name => name.endsWith('.ts') || name.endsWith('.tsx'))
-    .reduce((sum, path) => sum + readFileSync(path, 'utf8').split('\n').length - 1, 0)
+    .reduce((sum, path) => sum + readFileSync(path, 'utf8').split('\n').filter(isCode).length, 0)
   const proofs = walk(join(root, 'scripts'), name => /^prove-.*\.tsx?$/.test(name)).length
   return { releases, sourceLines: Math.round(sourceLines / 1000) * 1000, proofs: Math.floor(proofs / 100) * 100 }
 }

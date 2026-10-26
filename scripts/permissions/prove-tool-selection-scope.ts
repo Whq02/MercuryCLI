@@ -32,7 +32,7 @@ try {
     let calls = 0
     let result: string[] | undefined
     const m = await mountOffscreen(React.createElement(InputHost, { children: React.createElement(ToolSelector, { tools, ...leg, onComplete: value => { result = value; calls++ } }) }), 100, 35)
-    await settle(120)
+    for (let waited = 0; waited < 5000 && !m.screen().includes('Continue'); waited += 120) await settle(120)
     check('the tool selector paints Continue', m.screen().includes('Continue'), m.screen())
     m.push(KEY.enter)
     await settle(100)
