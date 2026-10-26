@@ -333,11 +333,11 @@ function walkTurnReceipts(
   }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
-    if (isTurnBoundary(m)) {
+    if (isTurnBoundary(m) || (m.type === 'system' && m.subtype === 'away_summary')) {
       visit(settleTally(tally), anchorUuid, index, replied, settleDelta())
       tally = emptyTally()
       replied = false
-      if (typeof m.uuid === 'string') anchorUuid = m.uuid
+      anchorUuid = m.type === 'user' && typeof m.uuid === 'string' ? m.uuid : 'turn-0'
     }
     if (m.type === 'system' && m.subtype === 'compact_boundary') {
       previousPrompt = m.compactMetadata?.postTokens

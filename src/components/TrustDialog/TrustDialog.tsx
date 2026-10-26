@@ -1,6 +1,5 @@
 import { homedir } from 'os';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
-import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import React from 'react';
 import { setSessionTrustAccepted } from '../../bootstrap/state.js';
@@ -52,9 +51,13 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
     return () => clearTimeout(timer);
   }, [hasTrustDialogAccepted, onDone]);
 
+  function exit(): void {
+    gracefulShutdownSync(1, 'closed', { finalMessage: 'Setup stopped. Run mercury again to finish.' });
+  }
+
   function onChange(value: 'enable_all' | 'exit'): void {
     if (value === "exit") {
-      gracefulShutdownSync(1);
+      exit();
       return;
     }
     const isHomeDir = homedir() === getCwd();
@@ -69,9 +72,9 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
     onDone();
   }
 
-  const exitState = useExitOnCtrlCDWithKeybindings(() => gracefulShutdownSync(1));
+  const exitState = useExitOnCtrlCDWithKeybindings(() => exit());
   useKeybinding("confirm:no", () => {
-    gracefulShutdownSync(1);
+    exit();
   }, { context: "Confirmation" });
 
   if (hasTrustDialogAccepted) return null;
@@ -103,9 +106,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
           );
         })()}
         <Select options={[{ label: "Yes, I trust this folder", value: "enable_all" }, { label: "No, exit", value: "exit" }]} onChange={(value: string) => onChange(value as 'enable_all' | 'exit')} onCancel={() => onChange("exit")} />
-        {
-}
-        <Text dimColor={true}>{exitState.pending ? <>{exitChordNoticeText(exitState.keyName ?? null)}</> : <>↑↓ move · <KeyboardShortcutHint shortcut="Enter" action="confirm" /> · <KeyboardShortcutHint shortcut="Esc" action="exits" /></>}</Text>
+        {exitState.pending ? <Text dimColor>{exitChordNoticeText(exitState.keyName)}</Text> : null}
       </Box>
     </PermissionDialog>
   );

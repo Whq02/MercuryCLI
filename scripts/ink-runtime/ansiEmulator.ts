@@ -100,12 +100,14 @@ export class AnsiEmulator {
   edClears = 0
   scrollbackErased = 0
   private readonly altScreen: boolean
+  private readonly autowrap: boolean
   private savedCursor: { x: number; y: number; sgr: SgrState } | null = null
 
-  constructor(width: number, height: number, altScreen: boolean) {
+  constructor(width: number, height: number, altScreen: boolean, options: { autowrap?: boolean } = {}) {
     this.width = width
     this.height = height
     this.altScreen = altScreen
+    this.autowrap = options.autowrap === true
     this.grid = Array.from({ length: height }, () => this.blankRow())
     this.cellStyles = Array.from({ length: height }, () => this.blankStyleRow())
     this.cellLinks = Array.from({ length: height }, () => this.blankLinkRow())
@@ -348,9 +350,13 @@ export class AnsiEmulator {
   private writeChar(unit: string): void {
     const w = stringWidth(unit)
     if (this.cursorX + Math.max(1, w) > this.width) {
-      throw new Error(
-        `ansiEmulator: write past right edge at (${this.cursorX},${this.cursorY}): ${JSON.stringify(unit)}`,
-      )
+      if (!this.autowrap) {
+        throw new Error(
+          `ansiEmulator: write past right edge at (${this.cursorX},${this.cursorY}): ${JSON.stringify(unit)}`,
+        )
+      }
+      this.cursorX = 0
+      this.lineFeed()
     }
     const row = this.grid[this.cursorY]!
     const styleRow = this.cellStyles[this.cursorY]!
