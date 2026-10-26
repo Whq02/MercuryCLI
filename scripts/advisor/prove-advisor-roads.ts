@@ -704,6 +704,12 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   check("the main chat's stash waits for the main chat's OWN model-bound collection: a memory fork, a bash line, an unnamed source take nothing and leave the note", getAdvisorNoteAttachments(mainCtx as never, { querySource: 'session_memory' }).length === 0 && getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk', localSubmission: true }).length === 0 && getAdvisorNoteAttachments(mainCtx as never, {}).length === 0 && advisor.peekAdvisorNotes(SESSION).length === 1 && !isMainChatAdvisorDrain({ agentId: 'a1', querySource: 'sdk', localSubmission: false }) && isMainChatAdvisorDrain({ agentId: undefined, querySource: 'main_thread', localSubmission: false }))
   const mainDrained = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
   check("…and the session's own turn takes it, once, as a queued_command attachment with the origin", mainDrained.length === 1 && mainDrained[0]!.type === 'queued_command' && mainDrained[0]!.prompt === note.text && j(mainDrained[0]!.origin) === j(note.origin) && mainDrained[0]!.isMeta === undefined && advisor.peekAdvisorNotes(SESSION).length === 0 && getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }).length === 0, j(mainDrained))
+  advisor.stashAdvisorNote(SESSION, note as never)
+  storage.saveAdvisorSwitch(false)
+  check("/advise off landing while a note is stashed stops its delivery without destroying it (red on the base: the drain consumed the stash before reading the switch, so the note was lost — the Heroes 3 session's 00:05 mdfind note, recorded in the advisor's memory, never reached the agent)", getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }).length === 0 && advisor.peekAdvisorNotes(SESSION).length === 1, j(advisor.peekAdvisorNotes(SESSION)))
+  storage.saveAdvisorSwitch(true)
+  const redelivered = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
+  check('…and once the chat is advised again the held note is delivered intact', redelivered.length === 1 && redelivered[0]!.prompt === note.text && advisor.peekAdvisorNotes(SESSION).length === 0, j(redelivered))
   ctx.agentKind = 'workflow'
   const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
   const fork = createSubagentContext(ctx as never)

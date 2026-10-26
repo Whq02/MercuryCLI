@@ -66,8 +66,8 @@ export function isMainChatAdvisorDrain(args: { agentId: string | undefined; quer
 export function getAdvisorNoteAttachments(toolUseContext: Pick<ToolUseContext, 'agentId'>, drain: { querySource?: QuerySource; localSubmission?: boolean } = {}): Attachment[] {
   const agentId = toolUseContext.agentId
   if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []
+  if (advisorSeatRefusal('main') !== undefined) return []
   const notes = takeAdvisorNotes(String(getSessionId()))
   if (notes.length === 0) return []
-  if (advisorSeatRefusal('main') !== undefined) return []
   return notes.map(note => ({ type: 'queued_command' as const, prompt: note.text, origin: note.origin }))
 }
