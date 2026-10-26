@@ -18,7 +18,7 @@ here="$(pwd)/scripts/advisor"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
-for proof in "$here"/prove-advisor-service.ts "$here"/prove-advisor-roads.ts "$here"/prove-advisor-surfaces.ts "$here"/prove-advisor-chip.ts "$here"/prove-advisor-note-lands.ts; do
+for proof in "$here"/prove-advisor-service.ts "$here"/prove-advisor-evidence.ts "$here"/prove-advisor-roads.ts "$here"/prove-advisor-surfaces.ts "$here"/prove-advisor-chip.ts "$here"/prove-advisor-note-lands.ts; do
   echo
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"

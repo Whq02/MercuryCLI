@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
+import { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText } from './advisorProjection.js'
 
 export type AdvisorRowKind = 'digest' | 'note' | 'question' | 'reply' | 'summary'
 
@@ -32,7 +33,6 @@ export const ADVISOR_SUMMARY_MAX_CHARS = 4000
 export const ADVISOR_BYTES_PER_TOKEN = 4
 const ADVISOR_ROW_TOKEN_OVERHEAD = 8
 const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
-const FOLD_ROW_CLIP = 1200
 
 const contexts = new Map<string, AdvisorContext>()
 
@@ -212,16 +212,10 @@ const roleWord = (row: AdvisorRow): string => {
 }
 
 export function renderAdvisorFoldTranscript(rows: readonly AdvisorRow[]): string {
-  const lines: string[] = []
-  for (const row of rows) {
-    const clipped = row.text.length > FOLD_ROW_CLIP ? `${row.text.slice(0, FOLD_ROW_CLIP)}…` : row.text
-    if (clipped.trim().length > 0) lines.push(`[${roleWord(row)}] ${clipped.replace(/\s+/g, ' ')}`)
-  }
-  let out = lines.join('\n')
-  if (out.length > FOLD_TRANSCRIPT_MAX_CHARS) {
-    out = `[…older lines elided…]\n${out.slice(out.length - FOLD_TRANSCRIPT_MAX_CHARS)}`
-  }
-  return out
+  return advisorTranscriptTail(
+    rows.filter(row => row.text.trim() !== '').map(row => `[${roleWord(row)}] ${row.text}`),
+    FOLD_TRANSCRIPT_MAX_CHARS,
+  )
 }
 
 export function advisorCompactSummaryPrompt(): string {
@@ -233,7 +227,9 @@ export function advisorCompactSummaryPrompt(): string {
     '2. Advice given: the course corrections, warnings and checks you already gave, so you never repeat one the agent has acted on and can press one it ignored.',
     '3. Open concerns: what you were watching for, what the agent still has to verify, anything unresolved.',
     '',
-    'Report only what the rows state — never invent work or advice. Output the summary text alone: no preamble, no code fences.',
+    ADVISOR_INCOMPLETE_EVIDENCE_RULE,
+    '',
+    'Keep unconfirmed advice distinct from observed facts, and preserve any limits on the evidence. Report only what the rows state — never invent work or advice. Output the summary text alone: no preamble, no code fences.',
   ].join('\n')
 }
 
@@ -256,9 +252,10 @@ export async function compactAdvisorContext(
     opts.summarize ?? (await import('../concourse/coordinatorCompact.js')).liveCoordinatorSummarizer
   let summary: string
   try {
-    summary = (await summarize({ systemPrompt: advisorCompactSummaryPrompt(), transcript: renderAdvisorFoldTranscript(fold), modelId: opts.model }))
-      .trim()
-      .slice(0, ADVISOR_SUMMARY_MAX_CHARS)
+    summary = clipAdvisorText(
+      (await summarize({ systemPrompt: advisorCompactSummaryPrompt(), transcript: renderAdvisorFoldTranscript(fold), modelId: opts.model })).trim(),
+      ADVISOR_SUMMARY_MAX_CHARS,
+    )
     if (summary.length === 0) return { compacted: 0, refused: 'the summarizer returned no text — nothing was folded' }
   } catch (error) {
     return { compacted: 0, refused: `the summary call failed — ${error instanceof Error ? error.message : String(error)}; nothing was folded` }

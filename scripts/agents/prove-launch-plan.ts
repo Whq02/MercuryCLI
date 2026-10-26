@@ -141,10 +141,10 @@ section('§3 — model resolution')
 {
   const pinned = buildAgentLaunchPlan(base({ requestedType: 'legacy-haiku-role' }))
   check('a haiku frontmatter pin runs the haiku row it named', /haiku/i.test(pinned.model), pinned.model)
-  check('nothing substitutes, so no note rides it', pinned.modelNote === undefined, pinned.modelNote)
+  check('the receipt names the pinned Anthropic engine', pinned.modelNote === `engine: Anthropic (${pinned.model}) via the native in-process transport`, pinned.modelNote)
 
   const explicit = buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', modelParam: 'opus' }))
-  check('an explicit model param resolves without a floor note', /opus/i.test(explicit.model) && explicit.modelNote === undefined, explicit.model)
+  check('an explicit model param resolves with the same engine receipt shape', /opus/i.test(explicit.model) && explicit.modelNote === `engine: Anthropic (${explicit.model}) via the native in-process transport`, explicit.model)
   const defPin = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check("the definition's model pin resolves when no param is given", /sonnet/i.test(defPin.model), defPin.model)
 }

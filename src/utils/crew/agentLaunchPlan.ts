@@ -1,7 +1,7 @@
 
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
-import { providerDisplayName } from '../../services/providers/routeLaw.js'
+import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../../services/providers/routeLaw.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getAgentModel } from '../model/agent.js'
@@ -111,6 +111,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     agentType: definition.agentType,
     definition,
     model,
+    modelNote: `engine: ${laneLabelForVerdict(classifyModelRoute(model), { rode: true })} (${model}) via the native in-process transport`,
     isolation: i.isolationParam ?? definition.isolation,
     shouldRunAsync:
       (i.runInBackground === true ||

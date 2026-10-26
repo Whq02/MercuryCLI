@@ -355,7 +355,7 @@ section('§2 THE MINUTES CLOCK: a note falls due once `minutes` have passed sinc
   check("the operator's own mid-turn framing is untouched", human.startsWith('The operator sent a new message while you were working:'))
 }
 
-section('§2b the digest: tool calls with their results clipped, meta rows and advisor rows skipped, the cursor advancing past every row')
+section('§2b the digest: tool calls and whole results, explicit truncation, meta rows and advisor rows skipped, the cursor advancing past every row')
 {
   const long = 'x'.repeat(2000)
   const messages = [
@@ -370,7 +370,7 @@ section('§2b the digest: tool calls with their results clipped, meta rows and a
   const digest = advisor.renderAgentDigest(messages as never, undefined)
   const lines = digest.text.split('\n')
   check('one line per row kind: operator · tool · result · result error · agent', lines.length === 5 && lines[0]!.startsWith('[operator] read the file') && lines[1]!.startsWith('[tool] Read {"file_path":"/tmp/a.ts"}') && lines[2]!.startsWith('[result] xxxx') && lines[3]!.startsWith('[result error] boom') && lines[4] === '[agent] done', j(lines.map(l => l.slice(0, 40))))
-  check(`a result is clipped to ${advisor.DIGEST_RESULT_CLIP} characters with an ellipsis`, lines[2]!.length === '[result] '.length + advisor.DIGEST_RESULT_CLIP + 1 && lines[2]!.endsWith('…'), String(lines[2]!.length))
+  check('a result within the digest budget reaches the advisor whole', lines[2] === `[result] ${long}`, String(lines[2]!.length))
   check('the meta row and the advisor row are not in the digest', !digest.text.includes('hidden system nudge') && !digest.text.includes('earlier advisor note'))
   check('the cursor is the last row, the digest counts the rows that spoke', digest.cursor === uuidAt(7) && digest.count === 5, j({ cursor: digest.cursor, count: digest.count }))
   const since = advisor.renderAgentDigest(messages as never, uuidAt(3))

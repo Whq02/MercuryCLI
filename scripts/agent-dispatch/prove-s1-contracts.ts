@@ -135,7 +135,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   const haikuPlan = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
   check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)
-  check('no note rides a plain resolution', haikuPlan.modelNote === undefined, haikuPlan.modelNote ?? 'undefined')
+  check('the receipt names the resolved Anthropic engine', haikuPlan.modelNote === `engine: Anthropic (${haikuPlan.model}) via the native in-process transport`, haikuPlan.modelNote ?? 'undefined')
 
   const untyped = buildAgentLaunchPlan(base({ requestedType: undefined }))
   check('no requested type resolves the default type', untyped.agentType === 'orbit-probe')

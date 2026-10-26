@@ -4,6 +4,7 @@ import { isAdvisorOrigin, type AdvisorOrigin } from '../../utils/messages/notice
 import { isCommandEcho } from '../../utils/messages/operatorTurns.js'
 import { callAdvisorOnceMore, liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
 import type { AdvisorQuiet } from './advisorQuiet.js'
+import { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText, serializeAdvisorInput } from './advisorProjection.js'
 import {
   advisorClockStart,
   advisorDefaultClock,
@@ -26,14 +27,19 @@ import {
 
 export const ADVISOR_NOTE_MAX_LINES = 8
 export const DIGEST_ROW_CLIP = 600
-export const DIGEST_RESULT_CLIP = 400
+export const DIGEST_INPUT_STRING_CLIP = 400
 export const DIGEST_MAX_CHARS = 60_000
+export const DIGEST_RESULT_CLIP = DIGEST_MAX_CHARS
 export const ADVISOR_MEMORY_NOTES = 12
 
 export const ADVISOR_SYSTEM_PROMPT = [
   'You are the Advisor: a second model that reads a working agent\'s conversation on a cadence and writes the agent one short note. The agent is an AI coding assistant working for an operator inside the Mercury harness. You are not the operator and you never address the operator; you speak to the agent alone, in the second person.',
   '',
-  'You are shown the new rows of the agent\'s conversation since your last note (the operator\'s lines, the agent\'s replies, its tool calls with their results clipped) and your own earlier notes. You have no tools and cannot act; the agent can.',
+  'You are shown the new rows of the agent\'s conversation since your last note (the operator\'s lines, the agent\'s replies, its tool calls and results) and your own earlier notes. Tool input keys are kept, with long string values shortened individually. You have no tools and cannot act; the agent can.',
+  '',
+  ADVISOR_INCOMPLETE_EVIDENCE_RULE,
+  '',
+  'Your earlier notes are hypotheses, not source evidence. Recheck them against the visible results; do not repeat an unconfirmed correction.',
   '',
   `Write ONE note to the agent of at most ${ADVISOR_NOTE_MAX_LINES} lines: what it may be missing, a course correction, or what it should verify before going on. Prefer the one thing that matters most. Be concrete — name the file, the command, the assumption. If the agent is on course and nothing needs saying, answer with the single line "carry on" and nothing else.`,
   '',
@@ -50,11 +56,6 @@ const textOfBlocks = (content: unknown): string => {
     .join('\n')
 }
 
-const clip = (text: string, max: number): string => {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > max ? `${flat.slice(0, max)}…` : flat
-}
-
 function digestLinesOf(message: Message): string[] {
   if (message.type === 'assistant') {
     const lines: string[] = []
@@ -62,9 +63,9 @@ function digestLinesOf(message: Message): string[] {
     if (!Array.isArray(content)) return lines
     for (const block of content as Array<Record<string, unknown>>) {
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim() !== '') {
-        lines.push(`[agent] ${clip(block.text, DIGEST_ROW_CLIP)}`)
+        lines.push(`[agent] ${clipAdvisorText(block.text, DIGEST_ROW_CLIP)}`)
       } else if (block.type === 'tool_use') {
-        lines.push(`[tool] ${String(block.name ?? 'tool')} ${clip(JSON.stringify(block.input ?? {}), DIGEST_RESULT_CLIP)}`)
+        lines.push(`[tool] ${String(block.name ?? 'tool')} ${serializeAdvisorInput(block.input, DIGEST_INPUT_STRING_CLIP)}`)
       }
     }
     return lines
@@ -76,16 +77,16 @@ function digestLinesOf(message: Message): string[] {
   const content = user.message.content
   if (typeof content === 'string') {
     if (user.isMeta || isCommandEcho(content)) return []
-    return content.trim() === '' ? [] : [`[operator] ${clip(content, DIGEST_ROW_CLIP)}`]
+    return content.trim() === '' ? [] : [`[operator] ${clipAdvisorText(content, DIGEST_ROW_CLIP)}`]
   }
   const lines: string[] = []
   for (const block of content as Array<Record<string, unknown>>) {
     if (block.type === 'tool_result') {
       const raw = block.content
       const text = typeof raw === 'string' ? raw : textOfBlocks(raw)
-      lines.push(`[result${block.is_error === true ? ' error' : ''}] ${clip(text, DIGEST_RESULT_CLIP)}`)
+      lines.push(`[result${block.is_error === true ? ' error' : ''}] ${clipAdvisorText(text, DIGEST_RESULT_CLIP)}`)
     } else if (block.type === 'text' && typeof block.text === 'string' && !user.isMeta && block.text.trim() !== '' && !isCommandEcho(block.text)) {
-      lines.push(`[operator] ${clip(block.text, DIGEST_ROW_CLIP)}`)
+      lines.push(`[operator] ${clipAdvisorText(block.text, DIGEST_ROW_CLIP)}`)
     }
   }
   return lines
@@ -114,9 +115,7 @@ export function renderAgentDigest(messages: readonly Message[], sinceUuid: strin
     count += 1
     lines.push(...rowLines)
   }
-  let text = lines.join('\n')
-  if (text.length > DIGEST_MAX_CHARS) text = `[…older lines elided…]\n${text.slice(text.length - DIGEST_MAX_CHARS)}`
-  return { text, cursor, count }
+  return { text: advisorTranscriptTail(lines, DIGEST_MAX_CHARS), cursor, count }
 }
 
 export function renderAdvisorMemory(rows: readonly AdvisorRow[]): string {
