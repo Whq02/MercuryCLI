@@ -18,6 +18,28 @@ export class MercuryError extends Error {
   }
 }
 
+export class MercuryTimeoutError extends MercuryError {
+  override readonly name = 'MercuryTimeoutError'
+  constructor(readonly method: string, readonly timeoutMs: number) {
+    super(`${method}: no answer within ${timeoutMs} ms; check the runner before retrying or increase the timeout`, null)
+  }
+}
+
+export class MercuryConnectionError extends MercuryError {
+  override readonly name = 'MercuryConnectionError'
+}
+export class MercuryOutcomeError extends MercuryError {
+  override readonly name = 'MercuryOutcomeError'
+  readonly errorClass: ErrorClass | undefined
+  readonly detail: readonly string[]
+  constructor(readonly outcome: OutcomeRow) {
+    const detail = outcome.error?.detail ?? []
+    super([outcome.error?.message ?? `turn ended with status ${outcome.status}`, ...detail].join('\n'), null)
+    this.errorClass = outcome.error?.class
+    this.detail = detail
+  }
+}
+
 export class MercuryRefusal extends MercuryError {
   override readonly name = 'MercuryRefusal'
   readonly outcome: OutcomeRow | null

@@ -64,6 +64,78 @@ asyncio.run(main())
 
 `prewarm(**options)` or `connect(warm=True)` returns an unclaimed runner. On `MercurySession` and `SyncSession`, `session.session_id` reflects `initialized['session_id']`: both are None until `claim(session_id=..., model=..., effort=..., mode=..., resume=...)` succeeds and updates them from the CLI's reply. Only `session_id` is required. Prompt input before a claim fails immediately with `MercuryError('session is unclaimed; call claim() before prompting')`. Warm workers reject boot-time identity flags; ordinary, resumed and continued sessions already have an identity. The unclaimed boot runs in the CLI's session-runner role, which withholds subagents and workflows unless the CLI setting `Crewmates while backgrounded` is on, offers the Contract tool and refuses `Sleep` beyond 300 seconds. `facts`, `rewind`, `stop_agent` and `resume_agent` return generated result types. Model, effort, permission mode and kit changes use `set_model`, `set_effort`, `set_mode` and `set_kit`.
 
+### Session method reference
+
+This example uses a fresh session. The absent agent, server and checkpoint ids demonstrate refusal receipts without changing existing resources; use ids from `facts()` in an application. `set_kit` takes the runner's kit object, and `request` also exposes `session/file_restore` and `schedule/roster` without a convenience wrapper. `SyncSession` exposes the same methods without `await`.
+
+```python
+import asyncio
+from mercury_cli_sdk import connect, MercuryError
+
+async def main():
+    async with await connect(ephemeral=True, timeout=30) as session:
+        async def attempt(operation):
+            try: print(await operation)
+            except MercuryError as error:
+                if error.code is None: raise
+                print(error.code, error)
+        async def turn(send):
+            outcome = asyncio.get_running_loop().create_future()
+            def done(row):
+                if 'parent_call_id' not in row and not outcome.done(): outcome.set_result(row)
+            session.on('outcome', done)
+            try:
+                await send
+                print((await asyncio.wait_for(outcome, 30)).get('answer'))
+            finally: session.off('outcome', done)
+        facts = await session.facts()
+        await session.set_model(facts['model']['effective'])
+        await session.set_effort(facts.get('effort_sent') or 'max')
+        await session.set_mode(facts['permission_mode'])
+        await session.set_spawn_switch('subagents', facts.get('spawn_switches', {}).get('subagents', {}).get('on', True))
+        await attempt(session.set_kit(None))
+        await session.pause_gate(False)
+        await session.quiesce('prepare', 'sdk-example-pause-token')
+        await session.quiesce('cancel', 'sdk-example-pause-token')
+        await turn(session.send({'type': 'prompt', 'content': 'Say hello'}))
+        await turn(session.send_prompt('Summarise that'))
+        await turn(session.steer('Name one next step'))
+        await turn(session.follow_up('Finish with a short summary'))
+        await session.withdraw('not-queued')
+        await session.send_shell('echo sdk')
+        await attempt(session.send_note('absent-agent', 'Hello'))
+        await session.interrupt()
+        await attempt(session.background_shell())
+        await attempt(session.stop_agent('absent-agent'))
+        await attempt(session.resume_agent('absent-agent'))
+        await session.mcp_tools('absent-server')
+        await session.mcp_action('absent-server', 'cancel-auth')
+        await session.rewind('absent-prompt', 'code', dry_run=True)
+        await session.request('session/file_restore', {'action': 'undo', 'user_message_id': 'absent-prompt', 'dry_run': True})
+        await session.notify('credentials/changed', {})
+        await session.notify_credentials_changed()
+        session.clear_rows()
+        await session.leave()
+asyncio.run(main())
+```
+
+For an unclaimed worker, `prewarm` and `claim` separate process startup from session identity.
+
+```python
+import asyncio
+import uuid
+from mercury_cli_sdk import prewarm, assert_completed
+
+async def main():
+    session = await prewarm(ephemeral=True, timeout=30)
+    try:
+        await session.claim(session_id=str(uuid.uuid4()))
+        outcome = await session.prompt('Say hello', timeout=30)
+        print(assert_completed(outcome).get('answer'))
+    finally: await session.close()
+asyncio.run(main())
+```
+
 ## Inline tools and agents
 
 ```python
@@ -105,11 +177,63 @@ asyncio.run(main())
 
 `fixture_turn(overrides, prompt_id)` builds a correlated turn/outcome pair. You can also replay `task.rows`. Fixtures validate rows and RPC replies before listening; `'validate': False` in the fixture dictionary is for deliberately malformed-wire tests. `methods` holds ordered `{ result, before?, after? }` or `{ error }` replies; before/after and `answers` contain RPC messages. `received` records inputs and `inputCount` delays replay. Missing methods return method-not-found. Fixtures use neither a CLI nor model credentials and do not simulate the CLI's internal behaviour.
 
+## Inspect rows and schemas
+
+Parsers return a `RowRead` with `ok`, `row` and `issues` rather than throwing; `assert_completed` and `validate_outcome` raise on an unsuccessful turn or a mismatched structured value respectively.
+
+```python
+import asyncio
+import json
+import mercury_cli_sdk as sdk
+
+async def main():
+    async with await sdk.run(input='rows') as task:
+        def listener(row):
+            if sdk.is_outcome(row): print(row.get('answer'))
+        task.on('row', listener)
+        await task.send_prompt([sdk.text_block('Say hello')])
+        task.close_input()
+        outcome = sdk.assert_completed(await task.outcome)
+        task.off('row', listener)
+        print(sdk.argv_of(sdk.RunOptions(prompt='Say hello')), sdk.outcome_failed(outcome), sdk.outcome_error_text(outcome), sdk.is_retryable_outcome(outcome))
+        print(sdk.parse_row(json.dumps(outcome)), sdk.row_of(outcome), sdk.input_row_of({'type': 'prompt', 'content': 'Hi'}))
+        print(sdk.is_row_type('text'), sdk.is_input_row_type('prompt'))
+        print([(sdk.is_main_thread(row), sdk.is_session_row(row), sdk.turn_opened(row), sdk.turn_waiting(row), sdk.main_thread_step(row)) for row in task.rows])
+        schema = sdk.structured_schema({'type': 'string'}, str)
+        print(sdk.schema_problem(schema.json_schema), sdk.validate(schema.json_schema, 'hello'))
+        print(sdk.validate_outcome({**outcome, 'structured': 'hello'}, schema)['structured'])
+        print(sdk.schema_refusal({'code': -32601, 'message': 'not a schema error'}))
+        print(sdk.image_block('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aCfQAAAAASUVORK5CYII=', 'image/png')['media_type'])
+        print(sdk.allow_permission(), sdk.deny_permission('Read-only host'))
+        print(sdk.define_agent({'description': 'Reader', 'prompt': 'Read and report; do not edit'}))
+        print(sdk.parse_version('1.0.0'), sdk.compare_versions('1.0.0', '1.0.1'), sdk.runner_support(None))
+        tools = await sdk.serve_tools([])
+        try: tools.cancel()
+        finally: await tools.close()
+        task.clear_rows()
+asyncio.run(main())
+```
+
+`MercuryRun.send(row)`, `send_prompt`, `send_shell` and `send_note` accept the same input shapes as the session methods above. `interrupt()`, `terminate()` and `kill()` signal only that run's child; await `exit` afterward. For example, `task = await run('Inspect the project'); task.interrupt(); await task.exit` cancels a run. Replace `interrupt()` with `terminate()` or `kill()` when graceful interruption is not enough. `clear_rows()` clears retained rows and unread buffered rows, not listeners or the running turn.
+
+The synchronous session also closes through its context manager.
+
+```python
+from mercury_cli_sdk import connect_sync, assert_completed
+
+with connect_sync(timeout=30) as session:
+    print(assert_completed(session.prompt('Say hello', timeout=30)).get('answer'))
+```
+
 ## Rows, errors and cleanup
 
 `parse_row`, `row_of`, `input_row_of` and `validate` use generated schemas. `is_main_thread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
-Non-completed turns resolve their outcome status (including failed authentication); refusals throw `MercuryRefusal`. Other specific `MercuryError` subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError` and `MercurySchemaError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+Non-completed turns resolve their outcome status (including failed authentication); refusals raise `MercuryRefusal`. Call `assert_completed(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; refusals remain `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `error_class` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+
+`connect(timeout=seconds)` bounds initialization. `prompt(content, timeout=seconds)` bounds the whole wait, including queue acceptance; it does not stop the turn unless `interrupt_on_cancel=True` is supplied. A late acceptance still triggers that requested interrupt. `MercuryTimeoutError` carries `method` and `timeout`. Check `facts()` before resending work that may already have been accepted. Requests use the protocol's deadline unless `timeout` overrides it; initialization, prompts and `leave` have no default deadline. Use `request('session/leave', timeout=30)` to bound a leave. Python task cancellation remains `asyncio.CancelledError`.
+
+`MercuryConnectionError` means the stream closed while the process remained alive, or a call was made during/after `close()`, including through `SyncSession`. Reconnect before sending more work. All pending requests and row iterators settle on a broken connection; normal `close()` ends iterators. Malformed known notifications raise `MercuryWireError`; unknown future notifications remain available through `on('notification', listener)`.
 
 `stderr` holds what the child has written to standard error so far, read as text with `\r\n` normalised to `\n` (a Windows child's line endings included) so `exit.stderr`, the handle and the chunks agree; `on_stderr` (or an `on('stderr', …)` listener, also on `SyncSession`) receives each chunk as it arrives, on both APIs. `cancel=asyncio.Event()` interrupts a run when the event is set. `interrupt`, `terminate` and `kill` are synchronous (not awaited) and signal the child with SIGINT, SIGTERM and SIGKILL; the exit is awaited through `exit`. On Windows, which delivers no signal, they end the process the way Node's child_process does, and `exit.signal` names the one the package sent. An interrupt the package sent always settles the turn as an `interrupted` outcome: the CLI writes that row itself where SIGINT reaches it, and where the child ends by the signal before writing one the package completes the turn with an `interrupted` outcome row folded from the rows it received. A signal the package did not send, and `terminate` or `kill`, raise `MercuryExitError`. Close handles in finally or with `async with`; `close` ends stdin, escalates after five seconds to termination, and after ten to killing. Normal host exit sends SIGTERM to live children; an unhandled killing signal cannot run cleanup, so long-running hosts should handle SIGTERM and close sessions.
 

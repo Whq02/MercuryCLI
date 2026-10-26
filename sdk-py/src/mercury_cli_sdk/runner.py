@@ -7,7 +7,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
-from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercuryUsageError, MercuryWireError, RunExit
+from .errors import MercuryConnectionError, MercuryError, MercuryExitError, MercuryRefusal, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .framing import read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_problem, schema_refusal, validate_outcome
@@ -73,7 +73,9 @@ class MercurySession(TypedRequests):
         self._pending: dict[int, tuple[str, asyncio.Future[Any]]] = {}
         self._asks: dict[int, tuple[RequestContext, asyncio.Task[None]]] = {}
         self._listeners: dict[str, list[Listener]] = {}
-        self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
+        self._queue: asyncio.Queue[StreamRow] = asyncio.Queue()
+        self._waiters: dict[asyncio.Future[StreamRow], None] = {}
+        self._submissions: set[asyncio.Task[None]] = set()
         self._next = 0
         self._prompting = False
         self._prompt_turns: dict[str, str | None] = {}
@@ -97,17 +99,18 @@ class MercurySession(TypedRequests):
         for fn in tuple(self._listeners.get(type, [])): fn(value)
 
     async def _write(self, value: Any) -> None:
+        if self._closing: raise MercuryConnectionError('session is closing or closed; connect a new session before sending requests')
         if self._closed: raise self._closed
-        if self._closing: return
-        if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryError('runner input is not open', self.exit.result() if self.exit.done() else None)
+        if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryConnectionError('runner input is not open; reconnect before sending more requests', self.exit.result() if self.exit.done() else None)
         try:
             self._stdin.write((json.dumps(value) + '\n').encode())
             await self._stdin.drain()
-        except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
+        except OSError as error: raise MercuryConnectionError(f'runner input failed: {error}; reconnect before sending more requests', self.exit.result() if self.exit.done() else None) from error
 
     async def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:
         spec = METHODS.get(method)
         if not spec or spec['kind'] != 'request' or spec['from'] == 'runner': raise MercuryError(f'not a host request: {method}')
+        if self._closing: raise MercuryConnectionError('session is closing or closed; connect a new session before sending requests')
         if self._closed: raise self._closed
         params = {} if params is None else params
         if method == 'queue/add':
@@ -120,16 +123,21 @@ class MercurySession(TypedRequests):
         future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
         self._pending[id] = (method, future)
         limit = (None if spec['deadlineMs'] is None else spec['deadlineMs'] / 1000) if isinstance(timeout, DefaultTimeout) else timeout
-        try:
+        async def exchange() -> Any:
             await self._write({'jsonrpc': '2.0', 'id': id, 'method': method, 'params': params})
-            return await asyncio.wait_for(future, limit)
+            return await future
+        try:
+            return await asyncio.wait_for(exchange(), limit)
         except (asyncio.TimeoutError, asyncio.CancelledError) as error:
             with suppress(Exception):
-                await self.notify('$/cancel_request', {'request_id': id, 'reason': 'host request cancelled'})
-            if isinstance(error, asyncio.TimeoutError): raise MercuryError(f'{method}: no answer within {limit} seconds') from error
+                if not self._closing and not self._closed:
+                    self._stdin.write((json.dumps({'jsonrpc': '2.0', 'method': '$/cancel_request', 'params': {'request_id': id, 'reason': 'host request cancelled'}}) + '\n').encode())
+            if isinstance(error, asyncio.TimeoutError): raise MercuryTimeoutError(method, cast(float, limit)) from error
             raise
         finally:
             self._pending.pop(id, None)
+            if not future.done(): future.cancel()
+            elif not future.cancelled(): future.exception()
 
     async def _notify(self, method: str, params: Any = None) -> None:
         spec = METHODS.get(method)
@@ -164,7 +172,7 @@ class MercurySession(TypedRequests):
             if issues: raise MercuryError(f"invalid host answer: {json.dumps([{'path': i.path, 'message': i.message} for i in issues])}")
             if not context.cancelled.is_set(): await self._write({'jsonrpc': '2.0', 'id': id, 'result': value})
         except Exception as error:
-            if not context.cancelled.is_set() and not self._closed:
+            if not context.cancelled.is_set() and not self._closed and not self._closing:
                 await self._write({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32603, 'message': str(error)}})
         finally:
             self._asks.pop(id, None)
@@ -179,6 +187,12 @@ class MercurySession(TypedRequests):
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
                 if 'method' in message and not isinstance(method, str): raise MercuryWireError(line, 'invalid')
+                if isinstance(method, str) and 'id' not in message and method != 'row':
+                    spec = METHODS.get(method)
+                    if spec:
+                        issues = validate(spec['params'], message.get('params', {}))
+                        if spec['kind'] != 'notification' or spec['from'] == 'host' or issues: raise MercuryWireError(line, 'invalid', method, issues)
+                if 'method' in message and 'id' in message and (type(id) is not int or id <= 0): raise MercuryWireError(line, 'invalid', method)
                 params: dict[str, Any] = message['params'] if isinstance(message.get('params'), dict) else {}
                 if method is None:
                     if id is None and 'id' in message and 'result' not in message and isinstance(message.get('error'), dict):
@@ -202,7 +216,7 @@ class MercurySession(TypedRequests):
                         issues = validate(METHODS[sent]['result'], result)
                         if issues: future.set_exception(MercuryWireError(line, 'invalid', sent, issues))
                         else: future.set_result(result)
-                elif method == '$/cancel_request':
+                elif method == '$/cancel_request' and 'id' not in message:
                     request_id = params.get('request_id')
                     ask = self._asks.get(request_id) if type(request_id) is int else None
                     if ask:
@@ -221,8 +235,11 @@ class MercurySession(TypedRequests):
                     assert row is not None
                     self.rows.append(row)
                     cap_rows(self.rows, self.options.max_rows)
-                    self._queue.put_nowait(row)
-                    cap_queue(self._queue, self.options.max_rows)
+                    waiter = next((future for future in self._waiters if not future.done()), None)
+                    if waiter is not None: waiter.set_result(row)
+                    else:
+                        self._queue.put_nowait(row)
+                        cap_queue(self._queue, self.options.max_rows)
                     if row['type'] == 'turn' and 'parent_call_id' not in row and row.get('state') == 'started': self._active_turn = row['turn_id']
                     if row['type'] == 'turn' and 'parent_call_id' not in row and 'message_ids' in row:
                         self._correlated_turns = True
@@ -240,9 +257,13 @@ class MercurySession(TypedRequests):
                         wait = self._prompt_wait
                         if self._correlated_turns and wait is not None and self._uncorrelated(wait.id): self._reconcile(wait, row)
                 else: self._emit('notification', {'method': method, 'params': message.get('params')})
+            if not self._closing:
+                try: await asyncio.wait_for(self.child.wait(), 0.1)
+                except asyncio.TimeoutError as error: raise MercuryConnectionError('runner output closed while the process was still running; reconnect before sending more requests') from error
         except Exception as error:
             self._fail(error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[Issue('', str(error))]))
             self._stdin.close()
+            send_signal(self.child, 'SIGTERM')
             await end_child(self.child)
         code = await self.child.wait()
         untrack(self.child)
@@ -250,6 +271,7 @@ class MercurySession(TypedRequests):
         await stderr
         exit = exit_of(self.child, code, self.stderr)
         self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
+        if self._submissions: await asyncio.gather(*self._submissions, return_exceptions=True)
         self.exit.set_result(exit)
 
     def _uncorrelated(self, id: str) -> bool: return id in self._prompt_turns and self._prompt_turns[id] is None
@@ -277,7 +299,9 @@ class MercurySession(TypedRequests):
         for context, task in tuple(self._asks.values()):
             context.cancelled.set()
             task.cancel()
-        self._queue.put_nowait(None)
+        for task in tuple(self._submissions): task.cancel()
+        for waiter in self._waiters:
+            if not waiter.done(): waiter.set_exception(StopAsyncIteration() if graceful else error)
         if not graceful: self._emit('error', error)
 
     async def send(self, row: InputRow) -> QueueAddResult:
@@ -326,6 +350,7 @@ class MercurySession(TypedRequests):
         self._prompting = True
         id = str(uuid.uuid4())
         accepted = False
+        abandoned = False
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
@@ -337,26 +362,34 @@ class MercurySession(TypedRequests):
             await cancel.wait()
             fail(MercuryError('prompt: cancelled'))
         cancel_task = asyncio.create_task(watch_cancel()) if cancel is not None else None
+        timer = asyncio.get_running_loop().call_later(timeout, lambda: fail(MercuryTimeoutError('prompt', timeout))) if timeout is not None else None
         wait = _PromptWait(id, fail)
         self._prompt_wait = wait
         self.on('outcome', done)
-        try:
-            receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
-            if not receipt['accepted']: raise MercuryError('prompt was not accepted')
-            accepted = True
+        async def submit() -> None:
+            nonlocal accepted
             try:
-                row = await (future if timeout is None else asyncio.wait_for(future, timeout))
-            except asyncio.TimeoutError as error:
-                raise MercuryError(f'prompt: no answer within {timeout} seconds') from error
+                receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
+                if not receipt['accepted']: raise MercuryError('prompt was not accepted')
+                accepted = True
+                if abandoned and interrupt_on_cancel and not self._closed: await self.interrupt()
+            except Exception as error: fail(error)
+        submission = asyncio.create_task(submit())
+        self._submissions.add(submission)
+        submission.add_done_callback(self._submissions.discard)
+        try:
+            row = await future
             if row['status'] == 'refused': raise MercuryRefusal(row)
             return validate_outcome(row, schema if schema is not None else self.options.schema, self.options.cwd)
         except BaseException:
+            abandoned = True
             if accepted and interrupt_on_cancel and not self._closed:
                 with suppress(Exception): await asyncio.shield(self.interrupt())
             raise
         finally:
+            if timer is not None: timer.cancel()
             if cancel_task is not None: cancel_task.cancel()
-            if self._prompt_turns.get(id) is None and (not accepted or self._correlated_turns): self._prompt_turns.pop(id, None)
+            if self._prompt_turns.get(id) is None and ((not accepted and not abandoned) or self._correlated_turns): self._prompt_turns.pop(id, None)
             if future.done() and not future.cancelled(): future.exception()
             for handle in wait.handles: handle.cancel()
             for task in wait.tasks: task.cancel()
@@ -443,14 +476,14 @@ class MercurySession(TypedRequests):
     async def __aexit__(self, *exc: Any) -> None: await self.close()
     def __aiter__(self) -> AsyncIterator[StreamRow]: return self
     async def __anext__(self) -> StreamRow:
-        if self._closed and self._queue.empty():
+        if not self._queue.empty(): return self._queue.get_nowait()
+        if self._closed:
             if self._normal_end: raise StopAsyncIteration
             raise self._closed
-        row = await self._queue.get()
-        if row is None:
-            if self._normal_end: raise StopAsyncIteration
-            raise self._closed or StopAsyncIteration()
-        return row
+        future: asyncio.Future[StreamRow] = asyncio.get_running_loop().create_future()
+        self._waiters[future] = None
+        try: return await future
+        finally: self._waiters.pop(future, None)
 
 
 async def connect(*, warm: bool = False, checkpoints: bool = True, timeout: float | None = None, on_read_text_file: ReadTextFileHandler | None = None, on_write_text_file: WriteTextFileHandler | None = None, on_permission_request: PermissionHandler | None = None, on_elicitation: ElicitationHandler | None = None, handlers: Mapping[str, HostHandler] | None = None, capabilities: Mapping[str, Any] | None = None, host: InitializeParamsHost | None = None, schema: StructuredSchema[Any] | str | dict[str, Any] | None = None, options: RunOptions | None = None, **kwargs: Unpack[ConnectKwargs]) -> MercurySession:

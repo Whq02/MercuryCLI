@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import ts from 'typescript'
 import { execSync, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -110,6 +111,12 @@ try {
   const loaded = command('node', ['--input-type=module', '-e', `import {run,connect,ROW_TYPES} from ${JSON.stringify(join(scratch, 'sdk/dist/index.js'))}; if(typeof run!=='function'||typeof connect!=='function'||!ROW_TYPES.length)process.exit(1)`], scratch)
   for (const name of readdirSync(join(scratch, 'sdk/src')).filter(n => n.endsWith('.ts'))) {
     assert(readdirSync(join(scratch, 'sdk/dist')).includes(name.replace('.ts', '.d.ts')))
+    const declaration = ts.createSourceFile(name, readFileSync(join(scratch, 'sdk/dist', name.replace('.ts', '.d.ts')), 'utf8'), ts.ScriptTarget.Latest, true)
+    const checkType = (node: ts.Node): void => {
+      assert.notEqual(node.kind, ts.SyntaxKind.AnyKeyword, `${name} exports any in its declarations`)
+      ts.forEachChild(node, checkType)
+    }
+    checkType(declaration)
     const source = readFileSync(join(scratch, 'sdk/dist', name.replace('.ts', '.js')), 'utf8')
     for (const m of source.matchAll(/from ['"]([^'"]+)['"]/g)) assert(m[1]!.startsWith('node:') || m[1]!.startsWith('./'), m[1])
   }

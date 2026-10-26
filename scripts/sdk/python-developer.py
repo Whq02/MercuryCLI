@@ -258,7 +258,7 @@ async def mid_turn_prompt():
     for mode in ('folded', 'queued', 'queued-late', 'swallowed'):
         async with await sdk.connect(mercury=mid_turn_fixture(mode)) as session:
             try: await session.prompt('slow', timeout=0.05)
-            except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.05 seconds', str(error)
+            except sdk.MercuryTimeoutError as error: assert str(error) == 'prompt: no answer within 0.05 seconds; check the runner before retrying or increase the timeout', str(error)
             else: raise AssertionError('the slow prompt resolved')
             started = time.monotonic()
             if mode == 'swallowed':

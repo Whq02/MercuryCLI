@@ -28,6 +28,26 @@ class MercuryError(Exception):
         self.data = data
 
 
+class MercuryTimeoutError(MercuryError):
+    def __init__(self, method: str, timeout: float):
+        super().__init__(f'{method}: no answer within {timeout} seconds; check the runner before retrying or increase the timeout')
+        self.method = method
+        self.timeout = timeout
+
+
+class MercuryConnectionError(MercuryError):
+    pass
+
+class MercuryOutcomeError(MercuryError):
+    def __init__(self, outcome: OutcomeRow):
+        error = outcome.get('error')
+        detail = list(error.get('detail', [])) if error is not None else []
+        super().__init__('\n'.join([error['message'] if error is not None else f"turn ended with status {outcome['status']}", *detail]))
+        self.outcome = outcome
+        self.error_class: ErrorClass | None = error['class'] if error is not None else None
+        self.detail = detail
+
+
 class MercuryRefusal(MercuryError):
     """Mercury refused the request: a refused outcome row (``outcome`` set) or an RPC refusal (``outcome`` is None)."""
     def __init__(self, outcome: OutcomeRow | None, exit: RunExit | None = None, *, rpc: Mapping[str, Any] | None = None):

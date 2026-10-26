@@ -9,7 +9,7 @@ import tempfile
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, define_tool, row_of, run, serve_tools, __version__
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, define_tool, row_of, run, serve_tools, __version__
 from mercury_cli_sdk.testing import fixture_outcome_row, fixture_session_row, fixture_turn, start_fixture_server
 
 WINDOWS = os.name == 'nt'
@@ -58,7 +58,7 @@ async def words():
 async def boot_timeout():
     silent = child('import sys\nsys.stdin.read()')
     started = time.monotonic()
-    await expect(connect(mercury=silent, timeout=0.1), MercuryError, lambda e: str(e) == 'initialize: no answer within 0.1 seconds')
+    await expect(connect(mercury=silent, timeout=0.1), MercuryTimeoutError, lambda e: str(e) == 'initialize: no answer within 0.1 seconds; check the runner before retrying or increase the timeout')
     assert time.monotonic() - started < 5, 'the timed-out boot must end without waiting on an escalation'
     try: await asyncio.wait_for(connect(mercury=silent), 0.1)
     except asyncio.TimeoutError: pass
@@ -68,19 +68,19 @@ async def boot_timeout():
     methods = {'initialize': [{'result': init}, {'result': init}], 'queue/add': [{'result': {'accepted': True}} for _ in range(6)], 'turn/interrupt': [{'result': {'interrupted': True}} for _ in range(3)]}
     async with await start_fixture_server({'methods': methods}) as fixture:
         async with await connect(mercury=fixture.mercury) as session:
-            await expect(session.prompt('timed', timeout=0.05), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            await expect(session.prompt('timed', timeout=0.05), MercuryTimeoutError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds; check the runner before retrying or increase the timeout')
             assert not any(m.get('method') == 'turn/interrupt' for m in fixture.received)
             pre = asyncio.Event(); pre.set()
             await expect(session.prompt('pre', cancel=pre), MercuryError, lambda e: str(e) == 'prompt: cancelled')
             ev = asyncio.Event()
             asyncio.get_running_loop().call_later(0.05, ev.set)
             await expect(session.prompt('cancel-int', cancel=ev, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: cancelled')
-            await expect(session.prompt('timeout-int', timeout=0.05, interrupt_on_cancel=True), MercuryError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds')
+            await expect(session.prompt('timeout-int', timeout=0.05, interrupt_on_cancel=True), MercuryTimeoutError, lambda e: str(e) == 'prompt: no answer within 0.05 seconds; check the runner before retrying or increase the timeout')
             assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 2
         def sync_check():
             with connect_sync(mercury=fixture.mercury) as sync_session:
                 try: sync_session.prompt('sync-timeout', timeout=0.05, interrupt_on_timeout=True)
-                except MercuryError as e: assert str(e) == 'prompt: no answer within 0.05 seconds'
+                except MercuryTimeoutError as e: assert str(e) == 'prompt: no answer within 0.05 seconds; check the runner before retrying or increase the timeout'
                 else: raise AssertionError('sync prompt timeout resolved')
         await asyncio.to_thread(sync_check)
         assert sum(1 for m in fixture.received if m.get('method') == 'turn/interrupt') == 3
@@ -88,7 +88,7 @@ async def boot_timeout():
     idle_session = child('import signal,sys,time\nsignal.signal(signal.SIGINT, signal.SIG_DFL)\nprint(' + json.dumps(json.dumps(session_row)) + ', flush=True)\nwhile True: time.sleep(1)')
     res = await asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.1, interrupt_on_timeout=True))
     assert res.outcome['status'] == 'interrupted'
-    await expect(asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.05)), MercuryError, lambda e: str(e) == 'run: no outcome within 0.05 seconds')
+    await expect(asyncio.to_thread(lambda: run_sync('x', mercury=idle_session, timeout=0.05)), MercuryTimeoutError, lambda e: str(e) == 'run: no answer within 0.05 seconds; check the runner before retrying or increase the timeout')
 
 async def escalation():
     stubborn = child("import signal,sys,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('{bad', flush=True)\nwhile True: time.sleep(1)")

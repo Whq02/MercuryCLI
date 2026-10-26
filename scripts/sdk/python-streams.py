@@ -64,6 +64,12 @@ for line in sys.stdin:
         async with await start_fixture_server({'methods':methods}): raise AssertionError('invalid cancellation fixture accepted')
     except ValueError as error: assert 'invalid fixture params' in str(error)
     async with await start_fixture_server({'methods':methods, 'validate':False}) as fixture:
+        async with await connect(mercury=fixture.mercury) as session:
+            try: await session.facts()
+            except MercuryWireError as error: assert error.row_type == '$/cancel_request'
+            else: raise AssertionError('malformed cancellation notification accepted')
+    methods['session/facts'][0]['before'].pop(0)
+    async with await start_fixture_server({'methods':methods, 'validate':False}) as fixture:
         shared = RunOptions(mercury=fixture.mercury)
         async with await connect(options=shared) as session:
             notices=[];session.on('notification',notices.append)

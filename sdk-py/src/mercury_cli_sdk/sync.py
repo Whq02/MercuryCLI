@@ -9,7 +9,7 @@ from .generated import InitializeParamsHost, InputBlock
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
 from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
 from .parse import PromptContent, StreamRow
-from .errors import MercuryError, RunExit
+from .errors import MercuryConnectionError, MercuryTimeoutError, RunExit
 from .structured import RunResult as RunResult, StructuredSchema, TypedRunResult as TypedRunResult
 from .support import RunnerSupport
 
@@ -35,7 +35,7 @@ def run_sync(prompt: str | list[InputBlock] | AsyncIterable[str | InputRow] | No
                         outcome = await handle.outcome
                     else:
                         handle.terminate()
-                        raise MercuryError(f'run: no outcome within {timeout} seconds') from error
+                        raise MercuryTimeoutError('run', timeout) from error
             return RunResult(outcome, handle.rows, await handle.exit)
     try: asyncio.get_running_loop()
     except RuntimeError: return asyncio.run(collect())
@@ -61,6 +61,9 @@ class SyncSession(TypedSyncRequests):
         if threading.current_thread() is self._thread:
             awaitable.close()
             raise RuntimeError('a host callback must await the async session, not call the sync wrapper')
+        if self._closed or not self._thread.is_alive():
+            awaitable.close()
+            raise MercuryConnectionError('session is closed; connect a new session before sending requests')
         future = asyncio.run_coroutine_threadsafe(awaitable, self._loop)
         try: return future.result()
         except BaseException:
@@ -126,14 +129,17 @@ class SyncSession(TypedSyncRequests):
 
     def __iter__(self) -> Iterator[StreamRow]: return self
     def __next__(self) -> StreamRow:
+        if self._closed: raise StopIteration
         try: return self._wait(self.session.__anext__())
         except StopAsyncIteration: raise StopIteration from None
 
     def on(self, type: str, listener: Listener) -> SyncSession:
+        if self._closed: raise MercuryConnectionError('session is closed; connect a new session before adding listeners')
         self._loop.call_soon_threadsafe(self.session.on, type, listener)
         return self
 
     def off(self, type: str, listener: Listener) -> SyncSession:
+        if self._closed: raise MercuryConnectionError('session is closed; connect a new session before changing listeners')
         self._loop.call_soon_threadsafe(self.session.off, type, listener)
         return self
 
@@ -152,6 +158,7 @@ class SyncSession(TypedSyncRequests):
 
     def close(self) -> None:
         """Close the session and stop its loop thread; registered with atexit so a forgotten close still ends cleanly."""
+        if threading.current_thread() is self._thread: raise RuntimeError('a host callback must await the async session, not call the sync wrapper')
         if self._closed: return
         if not self._thread.is_alive():
             self._stop()

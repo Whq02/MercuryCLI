@@ -78,7 +78,7 @@ async def main():
         for shape in ('folded', 'queued', 'swallowed'):
             async with await connect(mercury=mercury, cwd=cwd, on_permission_request=lambda ask, context: {'outcome': 'allow'}, allowed_tools=['Sleep']) as session:
                 try: await session.prompt(f'the {shape} first prompt', timeout=0.5)
-                except sdk.MercuryError as error: assert str(error) == 'prompt: no answer within 0.5 seconds', str(error)
+                except sdk.MercuryTimeoutError as error: assert str(error) == 'prompt: no answer within 0.5 seconds; check the runner before retrying or increase the timeout', str(error)
                 else: raise AssertionError('the first prompt resolved')
                 started = time.monotonic()
                 if shape == 'swallowed':

@@ -50,6 +50,75 @@ try {
 
 `prewarm(options)` or `connect({ warm: true })` returns an unclaimed runner. `session.sessionId` reflects `initialized.session_id`: both are null until `claim({ session_id, model?, effort?, mode?, resume? })` succeeds and updates them from the CLI's reply. Prompt input before a claim fails immediately with `MercuryError('session is unclaimed; call claim() before prompting')`. Warm workers reject boot-time identity flags; ordinary, resumed and continued sessions already have an identity. The unclaimed boot runs in the CLI's session-runner role, which withholds subagents and workflows unless the CLI setting `Crewmates while backgrounded` is on, offers the Contract tool and refuses `Sleep` beyond 300 seconds. `facts`, `rewind`, `stopAgent` and `resumeAgent` return generated result types. Model, effort, permission mode and kit changes use `setModel`, `setEffort`, `setMode` and `setKit`.
 
+### Session method reference
+
+This example uses a fresh session. The absent agent, server and checkpoint ids demonstrate refusal receipts without changing existing resources; use ids from `facts()` in an application. `setKit` takes the runner's kit object, and `request` also exposes `session/file_restore` and `schedule/roster` without a convenience wrapper.
+
+```ts
+import { connect, MercuryError, type OutcomeRow } from 'mercury-cli-sdk'
+
+const session = await connect({ ephemeral: true, timeoutMs: 30000 })
+const attempt = async (action: () => Promise<unknown>) => {
+  try { console.log(await action()) }
+  catch (error) { if (!(error instanceof MercuryError) || error.code === undefined) throw error; console.log(error.code, error.message) }
+}
+const turn = async (send: () => Promise<unknown>) => {
+  let done!: (row: OutcomeRow) => void
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const outcome = new Promise<OutcomeRow>((resolve, reject) => {
+    done = row => { if (row.parent_call_id === undefined) resolve(row) }
+    timer = setTimeout(() => reject(new Error('No outcome; inspect the session before retrying')), 30000)
+  })
+  session.on('outcome', done)
+  try { await send(); console.log((await outcome).answer) }
+  finally { clearTimeout(timer); session.off('outcome', done) }
+}
+try {
+  const facts = await session.facts()
+  await session.setModel(facts.model.effective)
+  await session.setEffort(facts.effort_sent ?? 'max')
+  await session.setMode(facts.permission_mode)
+  await session.setSpawnSwitch('subagents', facts.spawn_switches?.subagents.on ?? true)
+  await attempt(() => session.setKit(null))
+  await session.pauseGate(false)
+  await session.quiesce('prepare', 'sdk-example-pause-token')
+  await session.quiesce('cancel', 'sdk-example-pause-token')
+  await turn(() => session.send({ type: 'prompt', content: 'Say hello' }))
+  await turn(() => session.sendPrompt('Summarise that'))
+  await turn(() => session.steer('Name one next step'))
+  await turn(() => session.followUp('Finish with a short summary'))
+  await session.withdraw('not-queued')
+  await session.sendShell('echo sdk')
+  await attempt(() => session.sendNote('absent-agent', 'Hello'))
+  await session.interrupt()
+  await attempt(() => session.backgroundShell())
+  await attempt(() => session.stopAgent('absent-agent'))
+  await attempt(() => session.resumeAgent('absent-agent'))
+  await session.mcpTools('absent-server')
+  await session.mcpAction('absent-server', 'cancel-auth')
+  await session.rewind({ user_message_id: 'absent-prompt', mode: 'code', dry_run: true })
+  await session.request('session/file_restore', { action: 'undo', user_message_id: 'absent-prompt', dry_run: true })
+  session.notify('credentials/changed', {})
+  session.notifyCredentialsChanged()
+  session.clearRows()
+  await session.leave()
+} finally { await session.close() }
+```
+
+For an unclaimed worker, `prewarm` and `claim` separate process startup from session identity.
+
+```ts
+import { randomUUID } from 'node:crypto'
+import { prewarm, assertCompleted } from 'mercury-cli-sdk'
+
+const session = await prewarm({ ephemeral: true, timeoutMs: 30000 })
+try {
+  await session.claim({ session_id: randomUUID() })
+  const outcome = await session.prompt('Say hello', { timeoutMs: 30000 })
+  console.log(assertCompleted(outcome).answer)
+} finally { await session.close() }
+```
+
 ## Inline tools and agents
 
 ```ts
@@ -89,11 +158,51 @@ try {
 
 `fixtureTurn(overrides, promptId)` builds a correlated turn/outcome pair. You can also replay `task.rows`. Fixtures validate rows and RPC replies before listening; `validate: false` is for deliberately malformed-wire tests. `methods` holds ordered `{ result, before?, after? }` or `{ error }` replies; before/after and `answers` contain RPC messages. `received` records inputs and `inputCount` delays replay. Missing methods return method-not-found. Fixtures use neither a CLI nor model credentials and do not simulate the CLI's internal behaviour.
 
+## Inspect rows and schemas
+
+The row guards narrow TypeScript types. Parsers return an `ok` result rather than throwing; `assertCompleted` and `validateOutcome` throw on an unsuccessful turn or a mismatched structured value respectively.
+
+```ts
+import * as sdk from 'mercury-cli-sdk'
+
+const task = sdk.run({ input: 'rows' })
+try {
+  await task.ready
+  const listener = (row: sdk.StreamRow) => { if (sdk.isOutcome(row)) console.log(row.answer) }
+  task.on('row', listener)
+  await task.sendPrompt([sdk.textBlock('Say hello')])
+  task.closeInput()
+  const outcome = sdk.assertCompleted(await task.outcome)
+  task.off('row', listener)
+  console.log(sdk.argvOf({ prompt: 'Say hello' }).args, sdk.outcomeFailed(outcome), sdk.outcomeErrorText(outcome), sdk.isRetryableOutcome(outcome))
+  console.log(sdk.parseRow(JSON.stringify(outcome)), sdk.rowOf(outcome), sdk.inputRowOf({ type: 'prompt', content: 'Hi' }))
+  console.log(sdk.isRowType('text'), sdk.isInputRowType('prompt'))
+  console.log(task.rows.map(row => [sdk.isMainThread(row), sdk.isSessionRow(row), sdk.turnOpened(row), sdk.turnWaiting(row), sdk.mainThreadStep(row)]))
+  const schema = sdk.structuredSchema({ type: 'string' }, value => String(value))
+  console.log(sdk.schemaProblem(schema.jsonSchema), sdk.validate(schema.jsonSchema, 'hello'))
+  console.log(sdk.validateOutcome({ ...outcome, structured: 'hello' }, schema).structured)
+  console.log(sdk.schemaRefusal({ code: -32601, message: 'not a schema error' }))
+  console.log(sdk.imageBlock('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aCfQAAAAASUVORK5CYII=', 'image/png').media_type)
+  console.log(sdk.allowPermission(), sdk.denyPermission('Read-only host'))
+  console.log(sdk.defineAgent({ description: 'Reader', prompt: 'Read and report; do not edit' }))
+  console.log(sdk.parseVersion('1.0.0'), sdk.compareVersions('1.0.0', '1.0.1'), sdk.runnerSupport(undefined))
+  const tools = await sdk.serveTools([])
+  try { tools.cancel() } finally { await tools.close() }
+  task.clearRows()
+} finally { await task.close() }
+```
+
+`MercuryRun.send(row)`, `sendPrompt`, `sendShell` and `sendNote` accept the same input shapes as the session methods above. `interrupt()`, `terminate()` and `kill()` signal only that run's child; await `exit` afterward. For example, `const task = run({ prompt: 'Inspect the project' }); task.interrupt(); await task.exit` cancels a run. Replace `interrupt()` with `terminate()` or `kill()` when graceful interruption is not enough. `clearRows()` clears retained rows and unread buffered rows, not listeners or the running turn.
+
 ## Rows, errors and cleanup
 
 `parseRow`, `rowOf`, `inputRowOf` and `validate` use generated schemas. `isMainThread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
-Non-completed turns resolve their outcome status (including failed authentication); refusals throw `MercuryRefusal`. Other specific `MercuryError` subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError` and `MercurySchemaError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+Non-completed turns resolve their outcome status (including failed authentication); refusals throw `MercuryRefusal`. Call `assertCompleted(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; refusals remain `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `errorClass` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+
+`connect({ timeoutMs })` bounds initialization. `prompt(content, { timeoutMs })` bounds the whole wait, including queue acceptance; it does not stop the turn unless `interruptOnAbort: true` is supplied. A late acceptance still triggers that requested interrupt. `MercuryTimeoutError` carries `method` and `timeoutMs`. Check `facts()` before resending work that may already have been accepted. Requests use the protocol's deadline unless `deadlineMs` overrides it; initialization, prompts and `leave` have no default deadline. Use `request('session/leave', {}, { deadlineMs: 30000 })` to bound a leave.
+
+`MercuryConnectionError` means the stream closed while the process remained alive, or a call was made during/after `close()`. Reconnect before sending more work. All pending requests and row iterators settle on a broken connection; normal `close()` ends iterators. Malformed known notifications raise `MercuryWireError`; unknown future notifications remain available through `on('notification', listener)`.
 
 `stderr` holds what the child has written to standard error so far, read as text with `\r\n` normalised to `\n` (a Windows child's line endings included) so `exit.stderr`, the handle and the chunks agree; `onStderr` (or an `on('stderr', …)` listener) receives each chunk as it arrives, on both APIs. `signal` interrupts a run. `interrupt`, `terminate` and `kill` are synchronous and signal the child with SIGINT, SIGTERM and SIGKILL; the exit is awaited through `exit`. An interrupt the package sent always settles the turn as an `interrupted` outcome: the CLI writes that row itself where SIGINT reaches it, and where the child ends by the signal before writing one (Windows delivers no signal, so Node ends the process and reports `signal: 'SIGINT'`) the package completes the turn with an `interrupted` outcome row folded from the rows it received. A signal the package did not send, and `terminate` or `kill`, surface as `MercuryExitError`. Close handles in finally or with `await using`; `close` ends stdin, escalates after five seconds to termination, and after ten to killing. Normal host exit sends SIGTERM to live children; an unhandled killing signal cannot run cleanup, so long-running hosts should handle SIGTERM and close sessions.
 

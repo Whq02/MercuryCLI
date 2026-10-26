@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import ts from 'typescript'
 import { spawn } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -53,12 +54,34 @@ try {
   recordedRows = task.rows
 } finally { await recording.close() }
 try {
+  const readme = readFileSync(join(root, 'sdk/README.md'), 'utf8')
+  for (const file of ['client.ts', 'runner.ts']) {
+    const source = ts.createSourceFile(file, readFileSync(join(root, 'sdk/src', file), 'utf8'), ts.ScriptTarget.Latest, true)
+    for (const statement of source.statements) if (ts.isClassDeclaration(statement)) {
+      for (const member of statement.members) if (ts.isMethodDeclaration(member) && ts.isIdentifier(member.name)) {
+        assert(new RegExp(`\\b${member.name.text}\\s*\\(`).test(readme), `${statement.name?.text}.${member.name.text} needs a README example`)
+      }
+    }
+  }
+  const pythonMethods = await execute(PYTHON, ['-c', `import ast, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+doc = (root / 'sdk-py/README.md').read_text()
+for name in ('client.py', 'runner.py', 'sync.py'):
+    tree = ast.parse((root / 'sdk-py/src/mercury_cli_sdk' / name).read_text())
+    for cls in tree.body:
+        if not isinstance(cls, ast.ClassDef): continue
+        for method in cls.body:
+            if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)) or method.name.startswith('_'): continue
+            if any(isinstance(d, ast.Name) and d.id == 'property' for d in method.decorator_list): continue
+            assert re.search(r'\\b' + method.name + r'\\s*\\(', doc), cls.name + '.' + method.name + ' needs a README example'
+`, root], root, { ...process.env, PYTHONDONTWRITEBYTECODE: '1' })
+  assert.equal(pythonMethods.status, 0, pythonMethods.stdout + pythonMethods.stderr)
   for (const [dir, lang] of [['sdk', 'ts'], ['sdk-py', 'python']] as const) {
     const blocks = blocksOf(join(root, dir, 'README.md')).filter(block => block.lang === lang)
     assert(blocks.length >= 4, `${dir}/README.md carries ${blocks.length} ${lang} blocks`)
     for (const [index, block] of blocks.entries()) {
       const usesTool = /defineTool|define_tool/.test(block.code)
-      const c = await context(usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : [{ kind: 'text', text: ANSWER }, { kind: 'text', text: ANSWER }, { kind: 'text', text: ANSWER }])
+      const c = await context(usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: ANSWER })))
       const label = `${dir}/README.md ${lang} block ${index + 1}: ${block.code.split('\n').find(line => /^(const|async def|with|result|from|import)/.test(line))?.slice(0, 60)}`
       try {
         const defaults = { mercury, cwd: c.cwd, env: c.env, ephemeral: true }
@@ -69,10 +92,11 @@ try {
           const typed = await execute('node', [join(root, 'node_modules/typescript/bin/tsc'), '-p', join(consumer, 'tsconfig.json')], consumer, process.env)
           assert.equal(typed.status, 0, `the block does not typecheck against the built declarations:\n${typed.stdout}${typed.stderr}`)
           writeFileSync(join(c.home, 'shim.ts'), `export * from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}
-import { run as realRun, connect as realConnect } from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}
+import { run as realRun, connect as realConnect, prewarm as realPrewarm } from ${JSON.stringify(join(root, 'sdk/src/index.ts'))}
 const defaults = ${JSON.stringify(defaults)}
 export const run = (options: Record<string, unknown>) => realRun({ ...defaults, ...options } as never)
 export const connect = (options: Record<string, unknown> = {}) => realConnect({ ...defaults, ...options } as never)
+export const prewarm = (options: Record<string, unknown> = {}) => realPrewarm({ ...defaults, ...options } as never)
 `)
           code = code.replace(/'mercury-cli-sdk\/testing'/g, JSON.stringify(join(root, 'sdk/src/testing.ts'))).replace(/'mercury-cli-sdk'/g, "'./shim.ts'")
           if (/recordedRows/.test(code)) code = `const recordedRows = ${JSON.stringify(recordedRows)}\n${code}`
@@ -86,7 +110,7 @@ export const connect = (options: Record<string, unknown> = {}) => realConnect({ 
           writeFileSync(join(c.home, 'wrapper.py'), `import functools, json, runpy, sys
 import mercury_cli_sdk
 defaults = json.loads(${JSON.stringify(JSON.stringify(defaults))})
-for name in ('run', 'connect', 'run_sync', 'connect_sync'):
+for name in ('run', 'connect', 'run_sync', 'connect_sync', 'prewarm'):
     original = getattr(mercury_cli_sdk, name)
     setattr(mercury_cli_sdk, name, functools.wraps(original)(lambda *args, _original=original, **kwargs: _original(*args, **{**defaults, **kwargs})))
 runpy.run_path(sys.argv[1], run_name='__main__')

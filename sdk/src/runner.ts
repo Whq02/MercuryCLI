@@ -4,7 +4,7 @@ import { readLines, readText } from './framing.js'
 import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, warmOptions, type RunOptions } from './client.js'
-import { MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
+import { MercuryConnectionError, MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryTimeoutError, MercuryUsageError, MercuryWireError, type RunExit } from './errors.js'
 import { inputRowOf, rowOf, type StreamRow } from './parse.js'
 import type { InputRow, OutcomeRow, PromptRow, ShellRow, NoteRow } from './rows.js'
 import { METHODS, RUNNER_PROTOCOL, RPC_REFUSED, type HostRequestName, type HostNotificationName, type RunnerRequestName, type MethodName, type ParamsOf, type ResultOf } from './wire.js'
@@ -22,6 +22,7 @@ export type ReadTextFileHandler = NonNullable<HostHandlers['fs/read_text_file']>
 export type WriteTextFileHandler = NonNullable<HostHandlers['fs/write_text_file']>
 export interface ConnectOptions extends Omit<RunOptions, 'prompt' | 'stdin' | 'input' | 'signal'> {
   signal?: AbortSignal
+  timeoutMs?: number | null
   warm?: boolean
   checkpoints?: boolean
   host?: { name: string; version: string }
@@ -58,6 +59,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #closed: Error | null = null
   #next = 0
   #stopTimer: ReturnType<typeof setTimeout> | undefined
+  #eofTimer: ReturnType<typeof setTimeout> | undefined
   #handlers: HostHandlers
   #prompting = false
   #promptTurns = new Map<string, string | undefined>()
@@ -82,10 +84,15 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.child = spawn(argv.command, argv.args, { cwd: options.cwd, env: options.env ?? process.env, stdio: 'pipe', windowsHide: true })
     track(this.child)
     readText(this.child.stderr!, s => { this.stderr += s; this.#emit('stderr', s); options.onStderr?.(s) })
-    this.child.stdin!.on('error', e => this.#fail(new MercuryError(e.message, null, { cause: e })))
+    this.child.stdin!.on('error', e => { if (!this.#closing) this.#fail(new MercuryConnectionError(`runner input failed: ${e.message}; reconnect before sending more requests`, null, { cause: e })) })
+    this.child.stdout!.on('error', e => this.#fail(new MercuryConnectionError(`runner output failed: ${e.message}; reconnect before sending more requests`, null, { cause: e })))
     this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, cwdProblem ?? e)))
     readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
+    this.child.stdout!.once('end', () => {
+      if (!this.#closed && !this.#closing) this.#eofTimer = setTimeout(() => this.#fail(new MercuryConnectionError('runner output closed while the process was still running; reconnect before sending more requests', null)), 100)
+    })
     this.exit = new Promise(resolve => this.child.once('close', async (code, signal) => {
+      clearTimeout(this.#eofTimer)
       const exit = { code, signal, stderr: this.stderr }
       this.#fail(code === 2 && (this.initialized as ResultOf<'initialize'> | undefined) === undefined ? new MercuryUsageError(exit, 'runner') : new MercuryExitError(exit, 'runner'), this.#closing)
       clearTimeout(this.#stopTimer)
@@ -107,12 +114,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   off(type: string, listener: (value: never) => void): this { this.#listeners.get(type)?.delete(listener as (value: unknown) => void); return this }
   #emit(type: string, value: unknown): void { for (const fn of this.#listeners.get(type) ?? []) fn(value) }
   #write(value: unknown): void {
+    if (this.#closing) throw new MercuryConnectionError('session is closing or closed; connect a new session before sending requests', null)
     if (this.#closed) throw this.#closed
-    if (this.#closing) return
     this.child.stdin!.write(JSON.stringify(value) + '\n')
   }
 
   request<M extends HostRequestName>(method: M, params: ParamsOf<M>, options: RequestOptions = {}): Promise<ResultOf<M>> {
+    if (this.#closing) return Promise.reject(new MercuryConnectionError('session is closing or closed; connect a new session before sending requests', null))
     if (this.#closed) return Promise.reject(this.#closed)
     const spec = METHODS[method]
     if (!spec || spec.kind !== 'request' || spec.from === 'runner') return Promise.reject(new MercuryError(`not a host request: ${method}`, null))
@@ -123,17 +131,17 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     const id = ++this.#next
     return new Promise((resolve, reject) => {
       let timer: ReturnType<typeof setTimeout> | undefined
-      const cancel = (message: string) => {
+      const cancel = (error: MercuryError) => {
         if (!this.#pending.delete(id)) return
         cleanup()
-        try { this.notify('$/cancel_request', { request_id: id, reason: message }) } catch {}
-        reject(new MercuryError(message, null))
+        try { this.notify('$/cancel_request', { request_id: id, reason: error.message }) } catch {}
+        reject(error)
       }
-      const abort = () => cancel(`${method}: cancelled`)
+      const abort = () => cancel(new MercuryError(`${method}: cancelled`, null))
       const cleanup = () => { clearTimeout(timer); options.signal?.removeEventListener('abort', abort) }
       this.#pending.set(id, { method, resolve: resolve as (v: unknown) => void, reject, cleanup })
       const ms = options.deadlineMs === undefined ? spec.deadlineMs : options.deadlineMs
-      if (ms !== null) timer = setTimeout(() => cancel(`${method}: no answer within ${ms} ms`), ms)
+      if (ms !== null) timer = setTimeout(() => cancel(new MercuryTimeoutError(method, ms)), ms)
       if (options.signal?.aborted) { abort(); return }
       unlimitedSignal(options.signal)
       options.signal?.addEventListener('abort', abort, { once: true })
@@ -177,7 +185,14 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       }
       return
     }
-    if (msg.method === '$/cancel_request') { this.#asks.get(msg.params?.request_id)?.abort(msg.params?.reason); return }
+    if (msg.id === undefined && msg.method !== 'row') {
+      const spec = METHODS[msg.method as MethodName]
+      if (spec) {
+        const issues = validate(spec.params, msg.params ?? {})
+        if (spec.kind !== 'notification' || spec.from === 'host' || issues.length) throw new MercuryWireError(line, 'invalid', msg.method, issues, null)
+      }
+    }
+    if (msg.method === '$/cancel_request' && msg.id === undefined) { this.#asks.get(msg.params.request_id)?.abort(msg.params.reason); return }
     if (msg.id === undefined) {
       if (msg.method === 'row') {
         const read = rowOf(msg.params)
@@ -224,7 +239,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
       if (invalid.length) throw new Error(`invalid host answer: ${JSON.stringify(invalid)}`)
       this.#write({ jsonrpc: '2.0', id: msg.id, result })
     } catch (error) {
-      if (!controller.signal.aborted && !this.#closed) this.#write({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: error instanceof Error ? error.message : String(error) } })
+      if (!controller.signal.aborted && !this.#closed && !this.#closing) this.#write({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: error instanceof Error ? error.message : String(error) } })
     } finally { this.#asks.delete(msg.id) }
   }
 
@@ -242,6 +257,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
 
   #fail(error: Error, graceful = false): void {
     if (this.#closed) return
+    clearTimeout(this.#eofTimer)
     this.#closed = error
     this.#normalEnd = graceful
     this.#promptWait?.fail(error)
@@ -333,29 +349,31 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     let fail!: (error: Error) => void
     const result = new Promise<OutcomeRow>((resolve, reject) => { done = row => { if (row.parent_call_id === undefined && (this.#correlatedTurns ? this.#promptTurns.get(id) === row.turn_id : this.#promptTurns.keys().next().value === id)) resolve(row) }; fail = reject })
     result.catch(() => undefined)
-    const cancel = (message: string) => {
+    const cancel = (error: MercuryError) => {
       aborted = true
       if (options.interruptOnAbort && accepted && !this.#closed) void this.interrupt().catch(() => undefined)
-      fail(new MercuryError(message, null))
+      fail(error)
     }
-    const abort = () => cancel('prompt: cancelled')
+    const abort = () => cancel(new MercuryError('prompt: cancelled', null))
     unlimitedSignal(options.signal)
     options.signal?.addEventListener('abort', abort, { once: true })
-    if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(`prompt: no answer within ${options.timeoutMs} ms`), options.timeoutMs)
+    if (options.timeoutMs !== undefined && options.timeoutMs !== null) timer = setTimeout(() => cancel(new MercuryTimeoutError('prompt', options.timeoutMs!)), options.timeoutMs)
     const wait: PromptWait = { id, fail, timers: [] }
     this.#promptWait = wait
     this.on('outcome', done)
     try {
-      const receipt = await this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) })
-      if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
-      accepted = true
-      if (aborted && options.interruptOnAbort && !this.#closed) void this.interrupt().catch(() => undefined)
-      const row = await result
+      const submitted = this.sendPrompt(content, { id, ...(turnSchema === undefined ? {} : { schema: turnSchema }) }).then(receipt => {
+        if (!receipt.accepted) throw new MercuryError('prompt was not accepted', null)
+        accepted = true
+        if (aborted && options.interruptOnAbort && !this.#closed) void this.interrupt().catch(() => undefined)
+        return result
+      })
+      const row = await Promise.race([submitted, result])
       if (row.status === 'refused') throw new MercuryRefusal(row, null)
       return validateOutcome<T>(row, options.schema ?? this.options.schema as OutputSchema<T> | undefined, this.options.cwd)
     } finally {
       clearTimeout(timer)
-      if (this.#promptTurns.get(id) === undefined && (!accepted || this.#correlatedTurns)) this.#promptTurns.delete(id)
+      if (this.#promptTurns.get(id) === undefined && ((!accepted && !aborted) || this.#correlatedTurns)) this.#promptTurns.delete(id)
       for (const pending of wait.timers) clearTimeout(pending)
       options.signal?.removeEventListener('abort', abort); this.off('outcome', done); this.#promptWait = undefined; this.#prompting = false
     }
@@ -383,7 +401,7 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
       capabilities: { holds_asks: Boolean(options.onPermissionRequest || options.handlers?.['permission/request']), elicitation: Boolean(options.onElicitation || options.handlers?.['elicitation/request']), partial_rows: options.partial ?? false, fs_read_text_file: Boolean(options.onReadTextFile || options.handlers?.['fs/read_text_file']), fs_write_text_file: Boolean(options.onWriteTextFile || options.handlers?.['fs/write_text_file']), terminal: ['terminal/create', 'terminal/output', 'terminal/wait_for_exit', 'terminal/kill', 'terminal/release'].every(method => Boolean(options.handlers?.[method as RunnerRequestName])), ...options.capabilities },
       file_checkpoints: options.checkpoints ?? true,
       ...(options.schema === undefined ? {} : { schema: schemaObject(options.schema, options.cwd) }),
-    }, { signal: options.signal })
+    }, { signal: options.signal, deadlineMs: options.timeoutMs })
     if (options.signal) {
       const signal = options.signal
       unlimitedSignal(signal)

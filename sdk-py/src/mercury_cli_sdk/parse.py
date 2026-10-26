@@ -177,10 +177,10 @@ def is_retryable_outcome(row: OutcomeRow) -> bool:
 
 
 def assert_completed(row: TypedOutcome[T]) -> TypedOutcome[T]:
-    from .errors import MercuryError, MercuryRefusal
+    from .errors import MercuryOutcomeError, MercuryRefusal
     if row['status'] == 'refused': raise MercuryRefusal(row)
     if row['status'] != 'completed':
-        raise MercuryError(outcome_error_text(row) or f"turn ended with status {row['status']}")
+        raise MercuryOutcomeError(row)
     return row
 
 

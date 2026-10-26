@@ -62,10 +62,10 @@ try {
         await assert.rejects(session.prompt('never answered', { signal: AbortSignal.timeout(50) }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
         assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
         await assert.rejects(session.prompt('pre-aborted', { signal: AbortSignal.abort() }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-        await assert.rejects(session.prompt('timed out', { timeoutMs: 50 }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        await assert.rejects(session.prompt('timed out', { timeoutMs: 50 }), (e: unknown) => e instanceof sdk.MercuryTimeoutError && e.message === 'prompt: no answer within 50 ms; check the runner before retrying or increase the timeout')
         assert.equal(fixture.received.some(m => m.method === 'turn/interrupt'), false)
         await assert.rejects(session.prompt('abort with interrupt', { signal: AbortSignal.timeout(50), interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: cancelled')
-        await assert.rejects(session.prompt('timeout with interrupt', { timeoutMs: 50, interruptOnAbort: true }), (e: unknown) => e instanceof MercuryError && e.message === 'prompt: no answer within 50 ms')
+        await assert.rejects(session.prompt('timeout with interrupt', { timeoutMs: 50, interruptOnAbort: true }), (e: unknown) => e instanceof sdk.MercuryTimeoutError && e.message === 'prompt: no answer within 50 ms; check the runner before retrying or increase the timeout')
         for (let i = 0; i < 20 && fixture.received.filter(m => m.method === 'turn/interrupt').length < 2; i++) await sleep(10)
         assert.equal(fixture.received.filter(m => m.method === 'turn/interrupt').length, 2)
       } finally { await session.close() }
