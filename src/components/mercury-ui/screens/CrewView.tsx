@@ -36,6 +36,7 @@ import {
 } from '../../tasks/useFocusedWork.js'
 import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
 import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { InteractiveRow } from '../InteractiveRow.js'
 import { WorkingGlyph } from '../LiveGlyphs.js'
 import { decodeNavKey } from '../navSemantics.js'
 import { fitMeasuredWindow, paneWindow } from '../paneWindow.js'
@@ -107,6 +108,14 @@ export function CrewView({
   const hostedGate = roster.pauseGate ?? OPEN_GATE
   const pauseChip = crewPauseChipWords(agents, carrier === 'in-process' ? gateState : hostedGate)
   const pauseDoor = crewPauseDoorKey(pauseChip !== null)
+  const openRow = (row: Row): void => {
+    if (!popup || setAppState === null) {
+      setMode({ view: 'card', id: row.facts.id })
+      return
+    }
+    enterCrewmateView(row.facts.id, setAppState)
+    onClose()
+  }
 
   usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode)
   useInput((input, key) => {
@@ -182,12 +191,7 @@ export function CrewView({
       if (!pastMount()) return
       const row = rows[sel]
       if (row === undefined) return
-      if (!popup || setAppState === null) {
-        setMode({ view: 'card', id: row.facts.id })
-        return
-      }
-      enterCrewmateView(row.facts.id, setAppState)
-      onClose()
+      openRow(row)
       return
     }
     if (input === 'm' && plain && selected?.kind === 'agent' && setAppState !== null) {
@@ -274,9 +278,9 @@ export function CrewView({
               const gi = win.start + wi
               const on = gi === sel
               return (
-                <React.Fragment key={row.id}>
-                  <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />
-                </React.Fragment>
+                <InteractiveRow key={row.id} id={`crew:row:${row.id}`} selected={on} onSelect={() => cursor.select(gi)} onActivate={() => openRow(row)} selectionBand={false} hoverStyle="chrome-ink">
+                  {() => <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />}
+                </InteractiveRow>
               )
             })}
             {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}

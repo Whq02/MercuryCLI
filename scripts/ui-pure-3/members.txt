@@ -93,6 +93,7 @@ prove-effort-popup-frames.ts
 prove-zen-frames.ts
 prove-composer-down-to-strip.ts
 prove-crew-view-enter-compact.ts
+prove-crew-view-mouse.ts
 prove-browse-command.ts
 prove-health-popup-frames.ts
 prove-activity-screen-keys.ts

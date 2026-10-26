@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { settingsPopupRequest } from '../utils/cockpit/settingsPopup.js'
+import { isCrewViewOpen } from '../utils/cockpit/crewView.js'
 import useInput from '../ink/hooks/use-input.js'
 import type { Key } from '../ink/events/input-event.js'
 import {
@@ -189,6 +190,7 @@ const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palett
 
 export function wheelYieldsToTopOverlay(): boolean {
   if (settingsPopupRequest()?.scrollRef) return false
+  if (isCrewViewOpen()) return true
   const top = topOverlay()
   return top !== null && WHEEL_OWNING_OVERLAYS.has(top.id)
 }
@@ -366,10 +368,12 @@ export function ScrollKeybindingHandler({
     {
       'scroll:pageUp': () => {
           if (topOverlayOwnsPageKeys()) return false
+          if (isCrewViewOpen()) return false
           if (!runScroll(-pageStep())) return false
         },
       'scroll:pageDown': () => {
           if (topOverlayOwnsPageKeys()) return false
+          if (isCrewViewOpen()) return false
           if (!runScroll(pageStep())) return false
         },
       'scroll:lineUp': () => {
