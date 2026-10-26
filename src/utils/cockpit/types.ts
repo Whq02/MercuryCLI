@@ -6,10 +6,6 @@ export type {
 
 import type { Snapshot, SnapshotState } from '../../components/mercury-ui/theme.js'
 
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
 export function withState<T>(
   state: SnapshotState,
   data: T,

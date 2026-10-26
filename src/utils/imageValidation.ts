@@ -1,7 +1,6 @@
 import { GENERIC_IMAGE_LIMITS, type ImageLimits } from '../constants/apiLimits.js'
-import { imageDimensionsFromHeader } from '../tools/FileReadTool/imageProcessorJs.js'
 import { formatFileSize } from './format.js'
-import { imageLimitsForModel, patchCountOf } from './imageResizer.js'
+import { imageDimensionsOfBase64, imageLimitsForModel, patchCountOf } from './imageResizer.js'
 import { getEngineModel } from './model/model.js'
 
 
@@ -60,14 +59,6 @@ function isBase64ImageBlock(block: unknown): block is { type: 'image'; source: {
   )
 }
 
-const HEADER_PREFIX_CHARS = 96 * 1024
-
-function dimensionsOfBase64(data: string): { width: number; height: number } | null {
-  const head = imageDimensionsFromHeader(Buffer.from(data.length > HEADER_PREFIX_CHARS ? data.slice(0, HEADER_PREFIX_CHARS) : data, 'base64'))
-  if (head !== null || data.length <= HEADER_PREFIX_CHARS) return head
-  return imageDimensionsFromHeader(Buffer.from(data, 'base64'))
-}
-
 function limitsForRequest(model: string | undefined): { limits: ImageLimits; family: string | undefined } {
   try {
     const limits = imageLimitsForModel(model ?? getEngineModel())
@@ -105,7 +96,7 @@ export function findOversizedImages(
     const { patchPx, count } = limits.maxPatchesPerImage
     const oversized: OversizedImage[] = []
     for (const image of images) {
-      const dims = dimensionsOfBase64(image.data)
+      const dims = imageDimensionsOfBase64(image.data)
       if (dims === null) continue
       const patches = patchCountOf(dims.width, dims.height, patchPx)
       if (patches > count) oversized.push({ index: image.index, size: image.data.length, width: dims.width, height: dims.height, patches, patchPx })

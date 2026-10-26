@@ -1,10 +1,9 @@
 import type { AppState } from '../../state/AppState.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import type { HookEntry } from '../settings/types.js'
 import { getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from '../settings/settings.js'
 import { toTildePath } from '../path.js'
 import { hookEntryName, hookKindOf } from '../../schemas/hooks.js'
-import { HOOK_EVENTS, type HookEvent } from './contract.js'
+import { HOOK_EVENTS } from './contract.js'
 import { HOOK_LAYERS, type HookLayer, type HookSource } from './hooksConfigSnapshot.js'
 import { dedupeHooks, hooksFor, type MatchedHook } from './matching.js'
 

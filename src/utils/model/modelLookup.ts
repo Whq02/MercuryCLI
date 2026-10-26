@@ -23,4 +23,3 @@ export const PROVIDER_MODEL_PAGES: Readonly<Record<string, string>> = {
   fireworks: 'https://fireworks.ai/models',
   qwen: 'https://www.alibabacloud.com/help/en/model-studio/getting-started/models',
 }
-const MODEL_PAGES_CHECKED = '2026-10-13'

@@ -173,7 +173,6 @@ export function buildBootRecoveryRow(recovery: BootRecoveryState): RunRow | null
 export function buildRunCapsuleLine(snapshot: RunSnapshot | null, now: number): string | null {
   if (!snapshot || !snapshot.substantive) return null
   if (snapshot.lifecycle === 'completed' || snapshot.lifecycle === 'cancelled') return null
-  const open = openDeliverables(snapshot)
   const done = snapshot.deliverables.filter(d => d.state === 'done').length
   const parts: string[] = [`run ${snapshot.lifecycle}`, snapshot.phase]
   if (snapshot.deliverables.length > 0) parts.push(`${done}/${snapshot.deliverables.length}`)

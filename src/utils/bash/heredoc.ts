@@ -305,14 +305,3 @@ function findClosingDelimiter(
   }
   return null
 }
-
-function restoreHeredocs(parts: string[], heredocs: Map<string, HeredocInfo>): string[] {
-  if (heredocs.size === 0) return parts
-  return parts.map(part => {
-    let restored = part
-    for (const [placeholder, info] of heredocs) {
-      restored = restored.split(placeholder).join(info.fullText)
-    }
-    return restored
-  })
-}

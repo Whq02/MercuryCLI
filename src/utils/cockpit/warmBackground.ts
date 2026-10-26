@@ -1,11 +1,7 @@
 
-import { NIGHT } from '../../components/mercuryPalette.js'
-import { osc } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { exitOasisBg, noteOriginalGroundReply } from './oasisBg.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-
-const OSC_BG = 11
 
 export function isWarmBackgroundEnabled(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_WARM_BG'))

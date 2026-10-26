@@ -4,13 +4,6 @@ import type { TsNode } from './bashParser.js'
 
 export type Node = TsNode
 
-interface ParsedCommandData {
-  rootNode: Node
-  envVars: string[]
-  commandNode: Node | null
-  originalCommand: string
-}
-
 const LONGEST_PARSEABLE_COMMAND = 10_000
 
 export const PARSE_ABORTED: unique symbol = Symbol('PARSE_ABORTED')
@@ -93,18 +86,4 @@ export function parseCommandRaw(command: string): Promise<RawParse> {
   lastCommand = command
   lastParse = parseRaw(command)
   return lastParse
-}
-
-async function parseCommand(command: string): Promise<ParsedCommandData | null> {
-  const rootNode = await parseCommandRaw(command)
-  if (!rootNode || rootNode === PARSE_ABORTED || rootNode.type === 'ERROR') return null
-  const commands: Node[] = []
-  const visit = (node: Node): void => {
-    if (node.type === 'command') commands.push(node)
-    else for (const child of node.children) visit(child)
-  }
-  visit(rootNode)
-  const commandNode = commands.length === 1 ? commands[0]! : null
-  const envVars = commandNode?.children.filter(child => child.type === 'variable_assignment').map(child => child.text) ?? []
-  return { rootNode, envVars, commandNode, originalCommand: command }
 }

@@ -9,7 +9,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { pendingRows } from './mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from './mnemeCorrect.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
-import { POLARITY_PAIRS, POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
+import { POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
 import { clausesOf, containment, contentStems, firstWords, isNumberWord, jaccard, normalisedText, sentencesOf, wordsOf } from './mnemeText.js'
 import { readPins } from './mnemeUsage.js'
 

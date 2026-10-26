@@ -45,22 +45,6 @@ export function pipeSpans(root: Node): Array<{ start: number; end: number }> {
   return spans.sort((a, b) => a.start - b.start)
 }
 
-function splitPipeSegments(command: string): string[] {
-  const root = preparedCommandRoot(command)
-  if (!root) return [command]
-  const spans = pipeSpans(root)
-  if (spans.length === 0) return [command]
-  const text = root.text
-  const segments: string[] = []
-  let start = 0
-  for (const span of spans) {
-    segments.push(text.slice(start, span.start - root.startIndex))
-    start = span.end - root.startIndex
-  }
-  segments.push(text.slice(start))
-  return segments.map(part => part.trim()).filter(Boolean)
-}
-
 type InputRedirectionResult = { commandWithoutRedirections: string; targets: string[] }
 type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }
 type OutputRedirectionResult = {
@@ -190,8 +174,3 @@ export const getCommandSubcommandPrefix: ((
 ) => Promise<CommandSubcommandPrefixResult | null>) & {
   cache: { clear?: () => void }
 } = createSubcommandPrefixExtractor(getCommandPrefix, splitCommand)
-
-function clearCommandPrefixCaches(): void {
-  getCommandPrefix.cache.clear?.()
-  getCommandSubcommandPrefix.cache.clear?.()
-}

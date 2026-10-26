@@ -157,16 +157,6 @@ function charsForTailBytes(text: string, bytes: number): number {
   return text.length - index
 }
 
-async function readEditContext(path: string, needle: string, contextLines: number = 3): Promise<EditContext | null> {
-  const handle = await openForScan(path)
-  if (!handle) return null
-  try {
-    return await scanForContext(handle, needle, contextLines)
-  } finally {
-    await handle.close()
-  }
-}
-
 export async function readCapped(handle: FileHandle): Promise<string | null> {
   let buffer = Buffer.allocUnsafe(CHUNK_SIZE)
   let total = 0

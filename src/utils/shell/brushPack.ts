@@ -24,8 +24,6 @@ export function brushBinaryFor(packPlatform: string): string {
   return packPlatform.startsWith('win-') ? 'brush.exe' : 'brush'
 }
 
-type BrushPackSource = 'release-archive' | 'cargo-build'
-
 interface BrushPackManifestBase {
   name: typeof BRUSH_PACK_NAME
   version: string

@@ -81,7 +81,6 @@ const GIT_TOOLS = new Set(['Git'])
 const LSP_TOOLS = new Set(['LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat'])
 const GODOT_TOOLS = new Set(['Godot'])
 const GODOT_SOURCE_OPS = new Set(['script_create', 'script_edit', 'shader_create', 'shader_edit'])
-const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
 

@@ -2,7 +2,7 @@
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { useNotifications } from '../context/notifications.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
-import { useAppStateStore, useSetAppState, type AppState } from '../state/AppState.js'
+import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import { cycleSurface, enterConcourse } from '../context/surfaceRoute.js'
 import { invokeConcourseCloseChord } from '../services/concourse/closeChordSlot.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'

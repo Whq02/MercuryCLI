@@ -1,4 +1,3 @@
-
 const STREAM_GONE_CODES = new Set(['EPIPE', 'EIO', 'ENXIO', 'EBADF'])
 
 const PEER_GONE_WRITE_CODES = new Set([
@@ -67,10 +66,4 @@ export function registerProcessInputErrorHandler(onGone: (code: string) => void,
 export function writeToStderr(data: string): void {
   if (process.stderr.destroyed) return
   process.stderr.write(data)
-}
-
-
-function exitWithError(message: string): never {
-  console.error(message)
-  process.exit(1)
 }

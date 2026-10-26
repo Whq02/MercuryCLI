@@ -78,7 +78,6 @@ const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch'])
 const FETCH_TOOLS = new Set(['WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const BROWSER_TOOLS = new Set(['Browser'])
-const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
 const DELEGATE_TOOLS = new Set(['Crewmate'])
 
 export function formatDelegatedTokens(tokens: number): string {

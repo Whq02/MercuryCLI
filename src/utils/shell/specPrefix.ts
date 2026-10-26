@@ -25,16 +25,6 @@ function optionNames(option: Option): string[] {
   return Array.isArray(option.name) ? option.name : [option.name]
 }
 
-function subcommandNames(spec: CommandSpec): string[] {
-  const names: string[] = []
-  for (const sub of spec.subcommands ?? []) {
-    const name = sub.name as unknown
-    if (Array.isArray(name)) names.push(...(name as string[]))
-    else names.push(name as string)
-  }
-  return names
-}
-
 function findSubcommandSpec(spec: CommandSpec, token: string): CommandSpec | undefined {
   const lower = token.toLowerCase()
   return spec.subcommands?.find(sub => {
