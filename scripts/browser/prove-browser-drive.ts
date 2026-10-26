@@ -881,14 +881,6 @@ console.log('§20 the secretRef credential road')
     check('the existing secretRef call fills a freshly minted code into the real OTP field', otpFill.outcome === 'succeeded' && [beforeCode, afterCode].some(code => code.state === 'ok' && code.value === otpLanded), otpFill.result)
     check('the seed and minted code stay out of the result and console ring', !JSON.stringify([otpFill, await run({ op: 'console' })]).includes(seed) && !otpFill.result.includes(otpLanded))
     check('the saved TOTP pairing rides on its exact origin', (await perm(otpInput)).behavior === 'allow')
-    const openedB = await run({ op: 'open', url: `${B}/` })
-    check('the saved-code section reaches the second origin in its own session (a refusal here would make the next two checks read the first origin)', openedB.outcome === 'succeeded' && page().url().startsWith(B), `${openedB.result} · url=${page().url()}`)
-    await addOtp()
-    const { approveSecretPairing } = await import('../../src/services/browser/browserSession.ts')
-    approveSecretPairing(OWNER, 'SAVED_OTP', B)
-    await perm(otpInput)
-    const wrongOrigin = await run(otpInput)
-    check('even an approved pairing cannot mint a saved login code on a different origin', wrongOrigin.outcome === 'failed' && await page().$eval('#saved-otp', el => (el as HTMLInputElement).value) === '', wrongOrigin.result)
     await run({ op: 'open', url: `${A}/` })
     await addOtp()
     await page().$eval('#saved-otp', el => { (el as HTMLInputElement).value = 'old-code' })
@@ -910,6 +902,14 @@ console.log('§20 the secretRef credential road')
     } finally {
       keyboard.press = press
     }
+    const openedB = await run({ op: 'open', url: `${B}/` })
+    check('the saved-code section reaches the second origin in its own session (a refusal here would make the next check read the first origin)', openedB.outcome === 'succeeded' && page().url().startsWith(B), `${openedB.result} · url=${page().url()}`)
+    await addOtp()
+    const { approveSecretPairing } = await import('../../src/services/browser/browserSession.ts')
+    approveSecretPairing(OWNER, 'SAVED_OTP', B)
+    await perm(otpInput)
+    const wrongOrigin = await run(otpInput)
+    check('even an approved pairing cannot mint a saved login code on a different origin', wrongOrigin.outcome === 'failed' && await page().$eval('#saved-otp', el => (el as HTMLInputElement).value) === '', wrongOrigin.result)
   } finally {
     if (originalHome === undefined) delete process.env.MERCURY_CONFIG_DIR
     else process.env.MERCURY_CONFIG_DIR = originalHome
