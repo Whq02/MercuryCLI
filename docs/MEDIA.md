@@ -12,9 +12,9 @@ with Enter. The extension connects in the current session. Switching it off
 in the same place disconnects it. Enabling it does not download the runtime
 or model weights.
 
-Open `/imagesetup` to download the runtime and models. This screen can prepare
-files while Local media is off; turn it on in `/config` before generating a
-test image. The bundled runtime needs Apple Silicon macOS, `curl` and `unzip`.
+Open `/imagesetup` to download the runtime and models. Completing a model
+pull turns Local media on and connects it in the current session. The
+bundled runtime needs Apple Silicon macOS, `curl` and `unzip`.
 Video posters also need `ffmpeg` on PATH.
 
 ## Set up a model
@@ -54,6 +54,8 @@ The initial image slot is `z-image-turbo`; the initial video slot is
 `wan22-ti2v-5b`. Omit `model` to use the default; name a model only when the
 user asks for a specific one. An explicit model changes that call alone.
 Changing a slot does not prevent selecting another model for a later call.
+Installed models and saved default changes are available on the next
+media-tool call without reconnecting.
 
 For example, “Generate an image of a lighthouse at dusk” uses the image
 slot. “Use FLUX.2 Klein 4B to edit this reference image” selects that model

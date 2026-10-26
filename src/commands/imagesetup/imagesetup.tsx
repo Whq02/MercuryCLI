@@ -11,6 +11,8 @@ import { saveMediaSettings, readMediaSettings } from '../../services/media/setti
 import { generateMediaTestImage, type MediaTestImage } from '../../services/media/generation.js'
 import { openSettingsPopup, closeSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
+import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
+import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 
 export const IMAGE_SETUP_HINT = '↑↓ select · p pull · d default · t test image · esc closes'
@@ -24,7 +26,15 @@ export type ImageSetupIo = {
 export function imageSetupIo(context: LocalJSXCommandContext): ImageSetupIo {
   return {
     read: () => readMediaSnapshot(),
-    pull: runMediaSetup,
+    pull: async (args, onProgress, signal, settings) => {
+      await runMediaSetup(args, onProgress, signal, settings)
+      if (args[0] !== 'pull-model' || readMediaSettings().enabled) return
+      await saveMediaSettings({ enabled: true })
+      const pending = reloadExtensions({ onServersChanged: () => context.setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })) })
+      noteReloaded(pending)
+      const result = await pending
+      context.setAppState(prev => ({ ...prev, extensions: extensionsStateFrom(result.set, false, null) }))
+    },
     setDefault: (kind, model) => saveMediaSettings({ [kind === 'image' ? 'imageModel' : 'videoModel']: model }),
     test: (model, controller, onStart) => generateMediaTestImage(model, context, controller, onStart),
   }
