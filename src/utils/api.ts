@@ -18,7 +18,7 @@ import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
-import { getCwd } from './cwd.js'
+import { resolveShellCwd } from './Shell.js'
 import { createUserMessage } from './messages.js'
 import { getPlatform } from './platform.js'
 import { jsonStringify } from './slowOperations.js'
@@ -215,8 +215,7 @@ function reparse<T>(tool: Tool, input: unknown): T {
   return (tool.inputSchema as unknown as { parse: (value: unknown) => T }).parse(input)
 }
 
-function stripCwdChangePrefix(command: string): string {
-  const cwd = getCwd()
+function stripCwdChangePrefix(command: string, cwd: string): string {
   const strip = (text: string, prefix: string): string => (text.startsWith(prefix) ? text.slice(prefix.length) : text)
   let result = strip(command, `cd ${cwd} && `)
   if (getPlatform() === 'windows') {
@@ -233,15 +232,17 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
     case BASH_TOOL_NAME: {
       const parsed = reparse<{
         command: string
+        cwd?: string
         description?: string
         timeout?: number
         run_in_background?: boolean
         inherit_session_env?: boolean
         max_output_chars?: number
       }>(tool, input)
-      const command = stripCwdChangePrefix(parsed.command)
+      const command = stripCwdChangePrefix(parsed.command, resolveShellCwd(parsed.cwd))
         .replaceAll('\\\\;', '\\;')
       const rebuilt: Record<string, unknown> = { command, description: parsed.description }
+      if (parsed.cwd !== undefined) rebuilt.cwd = parsed.cwd
       if (parsed.timeout !== undefined) rebuilt.timeout = parsed.timeout
       if ('run_in_background' in parsed && parsed.run_in_background !== undefined) {
         rebuilt.run_in_background = parsed.run_in_background

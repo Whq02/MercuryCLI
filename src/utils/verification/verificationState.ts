@@ -950,6 +950,7 @@ export function leadingShellCommandToken(segment: string): string {
 
 export const NOOP_COMMAND_HEADS: ReadonlySet<string> = new Set([
   'echo', 'printf', 'true', 'false', ':', 'cat', 'ls', 'pwd', 'test', '[',
+  'grep', 'rg', 'head', 'tail', 'sed', 'awk', 'wc', 'cut', 'sort', 'uniq', 'diff', 'cmp', 'sleep', 'wait',
 ])
 
 export type ShellChainOp = '&&' | 'pipe' | 'or' | 'break'
@@ -959,22 +960,26 @@ export interface ShellCommandSegment {
 }
 
 export function splitShellControlOps(command: string): ShellCommandSegment[] {
-  const bare = stripQuotedShellArgs(command)
-    .replace(/\d*>&\d*/g, '>')
-    .replace(/&>>?/g, '>')
-  const parts = bare.split(/(&&|\|\||;|\n|&|\|)/)
+  return splitRawShellControlOps(command).map(segment => ({
+    ...segment,
+    text: stripQuotedShellArgs(segment.text).replace(/\d*>&\d*/g, '>').replace(/&>>?/g, '>'),
+  }))
+}
+
+function splitRawShellControlOps(command: string): ShellCommandSegment[] {
+  const masked = command.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\\[^\n]|\d*>&\d*|&>>?/g, text => ' '.repeat(text.length))
   const segments: ShellCommandSegment[] = []
   let opBefore: ShellCommandSegment['opBefore'] = 'start'
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i]
-    if (part === undefined) continue
-    if (i % 2 === 1) {
-      opBefore = part === '&&' ? '&&' : part === '|' ? 'pipe' : part === '||' ? 'or' : 'break'
-      continue
-    }
-    if (part.trim() === '') continue
-    segments.push({ text: part, opBefore })
+  let start = 0
+  for (const match of masked.matchAll(/&&|\|\||;|\n|&|\|/g)) {
+    const text = command.slice(start, match.index)
+    if (text.trim()) segments.push({ text, opBefore })
+    const op = match[0]
+    opBefore = op === '&&' ? '&&' : op === '|' ? 'pipe' : op === '||' ? 'or' : 'break'
+    start = match.index + op.length
   }
+  const text = command.slice(start)
+  if (text.trim()) segments.push({ text, opBefore })
   return segments
 }
 
@@ -1128,14 +1133,64 @@ export function classifyVerificationCommand(
       if (seg.opBefore === 'or') continue outer
       if (j < i && /^\s*cd\s+['"]?[/~]/.test(seg.text)) continue outer
     }
-    const pipeline = outcome?.pipelineStatus
-    if (pipeline && segments[i]!.opBefore !== 'pipe' && segments[i + 1]?.opBefore === 'pipe' && segments.slice(i + 1).every(segment => segment.opBefore === 'pipe') && pipeline.length === segments.length - i && pipeline.every(code => Number.isInteger(code) && code >= 0)) {
-      if (outcome.code !== 0 && segments.slice(0, i + 1).some(segment => segment.opBefore === '&&')) continue
-      return { ...cls, exitCode: pipeline[0]! }
+    const pipelineExit = recordedPipelineExit(segments, i, outcome)
+    if (pipelineExit !== undefined) {
+      if (outcome!.code !== 0 && segments.slice(0, i + 1).some(segment => segment.opBefore === '&&')) continue
+      return { ...cls, exitCode: pipelineExit }
     }
     if (verifyExitPropagates(segments, i)) return cls
   }
   return null
+}
+
+function recordedPipelineExit(
+  segments: readonly ShellCommandSegment[],
+  i: number,
+  outcome?: { pipelineStatus?: number[] },
+): number | undefined {
+  const pipeline = outcome?.pipelineStatus
+  if (pipeline && segments[i]!.opBefore !== 'pipe' && segments[i + 1]?.opBefore === 'pipe' && segments.slice(i + 1).every(segment => segment.opBefore === 'pipe') && pipeline.length === segments.length - i && pipeline.every(code => Number.isInteger(code) && code >= 0)) return pipeline[0]
+  return undefined
+}
+
+function verificationInvocation(segment: string): string {
+  return segment.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\d*(?:>>?|<)\s*(?:&\d+|[^\s;&|]+)/g, part => /^["']/.test(part) ? part : '').trim()
+}
+
+function printsShellStatus(segment: string): boolean {
+  if (!/^(echo|printf)$/.test(leadingShellCommandToken(segment))) return false
+  let quote: string | undefined
+  for (let i = 0; i < segment.length; i++) {
+    const char = segment[i]
+    if (char === '\\' && quote !== "'") { i++; continue }
+    if (char === quote) { quote = undefined; continue }
+    if ((char === '"' || char === "'") && quote === undefined) { quote = char; continue }
+    if (quote !== "'" && char === '$' && (segment[i + 1] === '?' || segment.slice(i + 1, i + 4) === '{?}')) return true
+  }
+  return false
+}
+
+function hasMaskedVerification(
+  command: string,
+  cwd: string,
+  pipelineStatus?: number[],
+): boolean {
+  const segments = splitShellControlOps(command)
+  const raw = splitRawShellControlOps(command)
+  return segments.some((segment, i) => {
+    if (segment.opBefore === 'pipe' || !classifyVerifySegment(segment.text, cwd)) return false
+    if (segments.slice(0, i + 1).some(prior => prior.opBefore === 'or' || /^(sleep|wait)$/.test(leadingShellCommandToken(prior.text)))) return false
+    const nextOp = segments[i + 1]?.opBefore
+    if (nextOp !== 'pipe' && nextOp !== 'or') return false
+    if (nextOp === 'pipe' && (pipefailActiveBefore(segments, i) || recordedPipelineExit(segments, i, { pipelineStatus }) !== undefined)) return false
+    if (nextOp === 'or' && printsShellStatus(raw[i + 1]!.text)) return false
+    const invocation = verificationInvocation(raw[i]!.text)
+    for (let j = i + 1; j < raw.length - 1; j++) {
+      if (/^(cd|pushd|popd)$/.test(leadingShellCommandToken(raw[j]!.text))) break
+      if (raw[j]!.opBefore !== 'pipe' && raw[j]!.opBefore !== 'or' && verificationInvocation(raw[j]!.text) === invocation && raw[j + 1]!.opBefore === 'break' && printsShellStatus(raw[j + 1]!.text)) return false
+    }
+    return true
+  })
 }
 
 function verifyExitPropagates(
@@ -1222,9 +1277,8 @@ export function recordShellCommandOutcome(
     if (!verifyEvidenceEnabled()) return
     const cls = classifyVerificationCommand(command, cwd, { code: exitCode, pipelineStatus })
     if (cls) recordEvidence(cwd, { command, ok: (cls.exitCode ?? exitCode) === 0, ...cls }, owner)
-    else {
-      const segments = splitShellControlOps(command)
-      if (segments.some(segment => segment.opBefore === 'pipe' || segment.opBefore === 'or') && segments.some(segment => classifyVerifySegment(segment.text, cwd))) ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
+    else if (hasMaskedVerification(command, cwd, pipelineStatus)) {
+      ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
     }
   } catch {
   }
