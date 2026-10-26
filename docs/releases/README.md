@@ -51,7 +51,7 @@ bundled changelog is the one source; the page points at it.
 | v1.0.0-beta.41 | published 2026-10-22 | [1.0.0-beta.41.md](1.0.0-beta.41.md) |
 | v1.0.0-beta.42 | published 2026-10-23 | [1.0.0-beta.42.md](1.0.0-beta.42.md) |
 | v1.0.0-beta.43 | published 2026-10-24 | [1.0.0-beta.43.md](1.0.0-beta.43.md) |
-| v1.0.0-beta.44 | ready for the tag | [1.0.0-beta.44.md](1.0.0-beta.44.md) |
+| v1.0.0-beta.44 | published 2026-10-26 | [1.0.0-beta.44.md](1.0.0-beta.44.md) |
 | v1.0.0-beta.45 | queued | [1.0.0-beta.45.md](1.0.0-beta.45.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
