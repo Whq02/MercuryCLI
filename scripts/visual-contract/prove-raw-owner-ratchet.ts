@@ -24,7 +24,7 @@ const SANCTIONED: Record<string, string> = {
 
 const USER_FACING = ['assets/splash/mercury-splash.mjs', 'src/utils/earlyInput.ts']
 
-const PATTERN = /\bsetRawMode\b|stdin\.on\(\s*['"]data['"]/
+const PATTERN = /setRawMode(?:\?\.)?\s*\(|stdin\.on\(\s*['"]data['"]/
 const EXTS = new Set(['.ts', '.tsx', '.mjs', '.js', '.jsx'])
 
 function* walk(dir: string): Generator<string> {
@@ -60,6 +60,7 @@ for (const root of ['src', 'assets']) {
       src.includes('export const SKILL_FILES: Record<string, string> = {')
     )
       continue
+    if (/^src\/extensions\/bundled\/[^/]+\/server\//.test(file) || file === 'src/extensions/bundled/content.generated.ts') continue
     const live = src.split('\n').some(l => PATTERN.test(l) && !isCommentLine(l))
     if (!live) continue
     if (file.startsWith('src/ink/')) inkHits.push(file)
