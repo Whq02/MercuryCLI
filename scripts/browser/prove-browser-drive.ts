@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_BROWSER ??= '1'
@@ -858,6 +858,8 @@ console.log('§20 the secretRef credential road')
   delete process.env.MERCURY_BROWSER_SECRET_FILE_SECRET
   delete process.env.MERCURY_BROWSER_SECRET_TEST_LOGIN
   const originalHome = process.env.MERCURY_CONFIG_DIR
+  const managedBrowsers = join(originalHome ?? join(homedir(), '.mercury'), 'browsers')
+  if (existsSync(managedBrowsers)) symlinkSync(managedBrowsers, join(secretsDir, 'browsers'))
   process.env.MERCURY_CONFIG_DIR = secretsDir
   const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
   const addOtp = () => page().evaluate(() => {
