@@ -118,7 +118,3 @@ function SettledLine({ output }: { output: Output }): React.ReactElement {
 export function renderToolUseRejectedMessage(): React.ReactNode {
   return <Text dimColor>Build not started — the user held the review.</Text>
 }
-
-function renderToolUseMessage(): React.ReactNode {
-  return null
-}

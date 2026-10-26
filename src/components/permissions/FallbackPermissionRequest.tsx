@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../ink.js'
-import { getGlobalConfig } from '../../utils/config.js'
-import { getSystemThemeName } from '../../utils/systemTheme.js'
+import { resolveThemeName } from './resolveThemeName.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
 import { ConsentBodyText } from './ConsentBodyText.js'
@@ -14,11 +13,6 @@ import {
 import { PermissionRuleExplanation } from './PermissionRuleExplanation.js'
 import { usePermissionRequestLogging } from './hooks.js'
 import type { PermissionRequestProps } from './PermissionRequest.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 const MCP_SUFFIX = ' (MCP)'
 

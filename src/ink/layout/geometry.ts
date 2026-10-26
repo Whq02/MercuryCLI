@@ -11,29 +11,6 @@ export type Size = {
 
 export type Rectangle = Point & Size
 
-type Edges = {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}
-
-function edges(all: number): Edges
-function edges(vertical: number, horizontal: number): Edges
-function edges(
-  top: number,
-  right: number,
-  bottom: number,
-  left: number,
-): Edges
-function edges(a: number, b?: number, c?: number, d?: number): Edges {
-  if (b === undefined) return { top: a, right: a, bottom: a, left: a }
-  if (c === undefined || d === undefined) {
-    return { top: a, right: b, bottom: a, left: b }
-  }
-  return { top: a, right: b, bottom: c, left: d }
-}
-
 export function unionRect(a: Rectangle, b: Rectangle): Rectangle {
   const x = Math.min(a.x, b.x)
   const y = Math.min(a.y, b.y)

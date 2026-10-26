@@ -7,18 +7,12 @@ import { approvalScopeWords, crossingScopeWords } from '../../../services/browse
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
-import { getGlobalConfig } from '../../../utils/config.js'
-import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { resolveThemeName } from '../resolveThemeName.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 type BrowserOptionValue = 'yes' | 'yes-dont-ask-origin' | 'no'
 

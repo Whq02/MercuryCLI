@@ -37,10 +37,6 @@ export function recordOwnEnvWrite(name: string, previous: string | undefined): v
   if (!ownEnvWrites.has(name)) ownEnvWrites.set(name, previous)
 }
 
-function ownEnvWriteLedger(): ReadonlyMap<string, string | undefined> {
-  return ownEnvWrites
-}
-
 export function resetOwnEnvWritesForTesting(): void {
   ownEnvWrites.clear()
 }

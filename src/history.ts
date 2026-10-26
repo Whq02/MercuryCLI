@@ -317,16 +317,6 @@ async function resolveRecord(record: HistoryRecord): Promise<HistoryEntry> {
   return { display: record.display, pastedContents }
 }
 
-async function* makeHistoryReader(): AsyncGenerator<HistoryEntry> {
-  for (let i = pendingEntries.length - 1; i >= 0; i--) {
-    yield resolveRecord(pendingEntries[i]!)
-  }
-  for await (const record of diskRecordsReversed()) {
-    if (isRetracted(record)) continue
-    yield await resolveRecord(record)
-  }
-}
-
 export async function loadHistoryCorpus(): Promise<HistoryCorpus> {
   const corpus: HistoryRecord[] = []
   for (let i = pendingEntries.length - 1; i >= 0; i--) corpus.push(pendingEntries[i]!)

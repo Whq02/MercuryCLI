@@ -501,7 +501,6 @@ export function BootSettingsScreen({
         ],
       };
     });
-    const savedVal = (env: string): string | null => saved[env] ?? null;
     const harness = [
       isHelmHomeEnabled() ? 'helm' : null,
       consoleEnabled() ? 'console' : null,

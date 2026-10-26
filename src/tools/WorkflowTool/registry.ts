@@ -127,8 +127,6 @@ export async function listWorkflows(cwd: string): Promise<WorkflowDescriptor[]> 
   return [...builtinFiltered, ...userProject]
 }
 
-const getAllWorkflows = listWorkflows
-
 export async function resolveWorkflowName(
   name: string,
   cwd: string,

@@ -197,7 +197,7 @@ export type ManifestParse =
   | { ok: true; manifest: ExtensionManifest; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] }
 
-function issuePath(path: ReadonlyArray<PropertyKey>): string {
+export function issuePath(path: ReadonlyArray<PropertyKey>): string {
   return path.map(p => (typeof p === 'number' ? `[${p}]` : String(p))).join('.').replace(/\.\[/g, '[')
 }
 

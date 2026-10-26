@@ -5,8 +5,7 @@ import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-import { getGlobalConfig } from '../../../utils/config.js'
-import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { resolveThemeName } from '../resolveThemeName.js'
 import { BashTool } from '../../../tools/BashTool/BashTool.js'
 import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 import {
@@ -33,11 +32,6 @@ import { usePermissionRequestLogging } from '../hooks.js'
 import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { bashToolUseOptions, type BashToolUseOption } from './bashToolUseOptions.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 type BashCardInput = { command: string; cwd?: string }
 

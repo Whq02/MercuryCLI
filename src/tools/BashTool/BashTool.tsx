@@ -735,8 +735,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   let errorText = stripAnsi(output.stderr).trimEnd()
   if (output.interrupted) {
-    const sep = output.stderr !== '' ? '\n' : '\n'
-    errorText += `${sep}<error>The command was aborted before completion.</error>`
+    errorText += '\n<error>The command was aborted before completion.</error>'
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''

@@ -236,12 +236,6 @@ export function __resetBehaviourContractRegistryForTest(): void {
 }
 
 
-interface ModePackSection {
-  id: string
-  kind: string
-  text: string
-}
-
 const WEAKENER_PHRASES: readonly string[] = Object.freeze([
   'skip verification',
   'bypass the gate',

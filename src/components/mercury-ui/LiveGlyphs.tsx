@@ -12,7 +12,6 @@ import {
   READY_BUCKETS,
   READY_TICK_MS,
   readyBucket,
-  SETTLE_MS,
   TWINKLE_TICK_MS,
   twinkleBright,
   WORK_TICK_MS,
@@ -143,26 +142,6 @@ export function TwinkleSpark({
   const [, bright] = useAnimationValue(animate ? tick : null, twinkleBright)
   const glint = animate && bright
   return <Text color={glint ? accentSoft : color}>{glint ? GLYPH.sparkBright : GLYPH.spark}</Text>
-}
-
-function useSettleFlash(settled: boolean): boolean {
-  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
-  const motion = useIdleMotion('glyphs')
-  const enabled = !reducedMotion && motion !== 'off'
-  const prevRef = React.useRef(settled)
-  const [flash, setFlash] = React.useState(false)
-  React.useEffect(() => {
-    const was = prevRef.current
-    prevRef.current = settled
-    if (!enabled || was || !settled) {
-      setFlash(false)
-      return
-    }
-    setFlash(true)
-    const t = setTimeout(() => setFlash(false), SETTLE_MS)
-    return () => clearTimeout(t)
-  }, [settled, enabled])
-  return flash
 }
 
 export const CURSOR_NUDGE_MS = 380

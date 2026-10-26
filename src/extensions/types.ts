@@ -45,13 +45,6 @@ export type RosterEntry = {
   bundledUpdatedWith: string | null
 }
 
-type ActiveExtension = {
-  entry: RosterEntry
-  manifest: ExtensionManifest
-  root: string
-  health: Health
-}
-
 export type RosterSummary = {
   total: number
   on: number

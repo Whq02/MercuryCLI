@@ -368,8 +368,6 @@ export interface BootEnvApplyResult {
   retired: string[]
 }
 
-const EMPTY: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
-
 let lastApplyResult: BootEnvApplyResult | null = null
 
 export function bootEnvAppliedKeys(): ReadonlySet<string> {

@@ -46,8 +46,6 @@ const MOUNT_ATTEMPT_LIMIT = 3
 const WARM_CHUNK = 500
 const STICKY_TEXT_CAP = 500
 
-type StickyPrompt = { text: string; scrollTo: () => void } | 'clicked'
-
 export type JumpHandle = {
   jumpToIndex: (index: number) => void
   setSearchQuery: (query: string) => void

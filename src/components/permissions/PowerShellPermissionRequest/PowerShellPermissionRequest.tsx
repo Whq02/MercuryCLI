@@ -4,8 +4,7 @@ import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-import { getGlobalConfig } from '../../../utils/config.js'
-import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { resolveThemeName } from '../resolveThemeName.js'
 import { PowerShellTool } from '../../../tools/PowerShellTool/PowerShellTool.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
 import { isAllowlistedCommand } from '../../../tools/PowerShellTool/readOnlyValidation.js'
@@ -26,11 +25,6 @@ import {
   powershellToolUseOptions,
   type PowerShellToolUseOption,
 } from './powershellToolUseOptions.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 type PowerShellCardInput = { command: string }
 

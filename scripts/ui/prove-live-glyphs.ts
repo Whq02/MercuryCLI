@@ -206,9 +206,8 @@ section('adoption + hygiene pins (source greps)')
   const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
   check('MERCURY_LIVE_GLYPHS registered in flagRegistry', reg.includes("'MERCURY_LIVE_GLYPHS'"))
   check(
-    'two-state latches reset on non-flash paths (no stranded glow)',
-    (live.match(/setGlowing\(false\)\s*\n\s*return/g) ?? []).length >= 1 &&
-      (live.match(/setFlash\(false\)\s*\n\s*return/g) ?? []).length >= 1,
+    'ValueGlow resets on non-flash paths (no stranded glow)',
+    (live.match(/setGlowing\(false\)\s*\n\s*return/g) ?? []).length >= 1,
   )
 }
 

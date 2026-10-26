@@ -1,17 +1,11 @@
 import * as React from 'react'
 import { Text } from '../../../ink.js'
-import { getGlobalConfig } from '../../../utils/config.js'
-import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { resolveThemeName } from '../resolveThemeName.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { FallbackPermissionRequest } from '../FallbackPermissionRequest.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { ToolInput } from '../FilePermissionDialog/permissionOptions.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 function parseIdentity(input: unknown): ToolInput {
   return input as ToolInput

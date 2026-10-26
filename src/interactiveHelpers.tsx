@@ -103,15 +103,6 @@ export function SetupScreenHost({ children }: { children: React.ReactNode }): Re
   )
 }
 
-function showDialog<T>(
-  root: Root,
-  renderer: (done: (result: T) => void) => React.ReactNode,
-): Promise<T> {
-  return new Promise<T>(resolve => {
-    root.render(<SetupScreenHost>{renderer(result => resolve(result))}</SetupScreenHost>)
-  })
-}
-
 function showSetupDialog<T>(
   root: Root,
   renderer: (done: (result: T) => void) => React.ReactNode,

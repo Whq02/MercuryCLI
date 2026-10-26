@@ -6,6 +6,7 @@ import {
   DESCRIPTION_MAX,
   NAME_PATTERN,
   NAME_RULE,
+  issuePath,
   isReservedLabel,
   readManifest,
   resolveInsideRoot,
@@ -42,10 +43,6 @@ const KNOWN_CATALOGUE_KEYS: ReadonlySet<string> = new Set(['name', 'description'
 type CatalogueParse =
   | { ok: true; catalogue: Catalogue; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] }
-
-function issuePath(path: ReadonlyArray<PropertyKey>): string {
-  return path.map(p => (typeof p === 'number' ? `[${p}]` : String(p))).join('.').replace(/\.\[/g, '[')
-}
 
 export function parseCatalogueValue(raw: unknown, options: { strict?: boolean } = {}): CatalogueParse {
   const warnings: string[] = []

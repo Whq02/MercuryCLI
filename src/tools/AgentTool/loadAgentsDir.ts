@@ -116,18 +116,6 @@ export function isBuiltInAgent(
   return def.source === 'built-in'
 }
 
-function isExtensionAgent(
-  def: AgentDefinition,
-): def is ExtensionAgentDefinition {
-  return def.source === 'extension'
-}
-
-function isCustomAgent(
-  def: AgentDefinition,
-): def is CustomAgentDefinition {
-  return !isBuiltInAgent(def) && !isExtensionAgent(def)
-}
-
 
 const PRECEDENCE_DESCENDING: readonly AgentSource[] = [
   'policySettings',

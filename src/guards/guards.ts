@@ -84,10 +84,6 @@ export function hasTurnGuard(key: string, id: string): boolean {
   return (turnGuards.get(key) ?? []).some(guard => guard.id === id)
 }
 
-function hasToolGuard(key: string, id: string): boolean {
-  return (toolGuards.get(key) ?? []).some(guard => guard.id === id)
-}
-
 export function guardsEngaged(key: string): { tool: string[]; turn: string[] } {
   return { tool: (toolGuards.get(key) ?? []).map(guard => guard.id), turn: (turnGuards.get(key) ?? []).map(guard => guard.id) }
 }

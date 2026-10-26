@@ -95,12 +95,6 @@ export type Grapheme = {
   width: 1 | 2
 }
 
-type TextSegment = {
-  type: 'text'
-  text: string
-  style: TextStyle
-}
-
 type ActionFamilies = {
   cursor: CursorAction
   erase: EraseAction

@@ -314,7 +314,6 @@ import { foldNotificationValues } from './headless/turnDriver.js'
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
 
-const MAILBOX_REFUSAL_NOTICE_AFTER = 20
 const INTERRUPT_DEDUPE_CAP = 200
 const RECEIVED_UUID_CAP = 10_000
 
@@ -654,7 +653,7 @@ export async function runHeadless(
 
   const loaded = await loadInitialMessages(setAppState, {
     continue: options.continue,
-    resume: typeof options.resume === 'string' ? options.resume : options.resume,
+    resume: options.resume,
     resumeSessionAt: options.resumeSessionAt,
     forkSession: options.forkSession,
     outputFormat: wire ? 'text' : options.outputFormat,

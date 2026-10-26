@@ -24,13 +24,3 @@ export function admitChannelPost(serverName: string): boolean {
   }
   return false
 }
-
-function approvedChannels(): ApprovedChannel[] {
-  const out: ApprovedChannel[] = []
-  for (const ext of activeFor('channels')) {
-    for (const channel of ext.resolution.channels) {
-      out.push({ extensionId: ext.entry.id, extensionName: ext.manifest.name, label: channel.label, runtimeName: channel.runtimeName })
-    }
-  }
-  return out
-}

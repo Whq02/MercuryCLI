@@ -107,8 +107,6 @@ function traceAction(
   }
 }
 
-const CHROME_ROWS = 12
-const STACKED_SUMMARY_ROWS = 7
 const SUMMARY_SIDE_BY_SIDE_MIN_COLS = 100
 
 export function DiffDialog({

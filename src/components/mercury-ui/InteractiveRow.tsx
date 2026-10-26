@@ -28,13 +28,6 @@ type InteractiveRowProps = {
   children: React.ReactNode | ((hover: boolean) => React.ReactNode)
 }
 
-function rowActionHint(row: {
-  actionLabel?: string
-  unavailable?: boolean
-}): string | undefined {
-  return row.unavailable ? undefined : row.actionLabel
-}
-
 export function InteractiveRow({
   id,
   selected = false,

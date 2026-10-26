@@ -1,10 +1,4 @@
 
-type CommandSemantic = (
-  exitCode: number,
-  stdout: string,
-  stderr: string,
-) => { isError: boolean; message?: string }
-
 function baseCommandFor(command: string): string {
   const segments = command.split(/[;|]/)
   const last = (segments[segments.length - 1] ?? command).trim()

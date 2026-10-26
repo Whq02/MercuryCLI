@@ -161,7 +161,6 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
   check('rowProps carries the visible WHY', list.includes('reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined'))
   check('InteractiveRow paints the WHY dim + inline', irow.includes('unavailable && reasonUnavailable') && irow.includes('` — ${reasonUnavailable}`'))
   check('InteractiveRow strips pointer interactivity on dead rows', irow.includes('const interactive = !unavailable && (!!onSelect || !!onActivate)'))
-  check('the hint face is availability-derived (no hint on dead rows)', irow.includes('row.unavailable ? undefined : row.actionLabel'))
 
 }
 

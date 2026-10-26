@@ -11,19 +11,13 @@ import { writeBootEnvChoice } from '../../../substrate/startupMenu.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import { postureBypassesAsks } from '../../../utils/permissions/decision/engine.js'
 import { isSovereignDisabled } from '../../../utils/permissions/permissionSetup.js'
-import { getGlobalConfig } from '../../../utils/config.js'
+import { resolveThemeName } from '../resolveThemeName.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-
-function resolveThemeName() {
-  const configured = getGlobalConfig().theme
-  return configured === 'auto' ? getSystemThemeName() : configured
-}
 
 type ComputerAskChoice = 'yes' | 'no' | 'hour' | 'day' | 'sovereign'
 
