@@ -38,6 +38,7 @@
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/settings/settings-schema.json
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/persistModelChoice.ts src/components/PromptInput/useComposerModelDoors.tsx
+# gate-watch: src/query/deps.ts src/utils/attachments/toolSchemaDelta.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
