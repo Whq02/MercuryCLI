@@ -65,6 +65,7 @@ export function getTLSFetchOptions(): { tls?: TLSConfig; dispatcher?: Dispatcher
       ...(tlsConfig.ca ? { ca: tlsConfig.ca } : {}),
     },
     pipelining: 1,
+    allowH2: false,
   })
   return { dispatcher }
 }

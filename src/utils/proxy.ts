@@ -89,6 +89,7 @@ type AgentOptions = {
   bodyTimeout: number
   keepAliveTimeout: number
   pipelining: number
+  allowH2: false
 }
 
 export function buildApiAgentOptions(): AgentOptions {
@@ -108,6 +109,7 @@ export function buildApiAgentOptions(): AgentOptions {
     bodyTimeout: knobs.bodyTimeoutMs,
     keepAliveTimeout: knobs.keepAliveTimeoutMs,
     pipelining: 1,
+    allowH2: false,
   }
 }
 
@@ -118,7 +120,7 @@ export function getApiDispatcher(): Dispatcher {
     const options = buildApiAgentOptions()
     apiDispatcher = new Agent(options as never)
     logForDebugging(
-      `api dispatcher: connect ${options.connect.timeout}ms · ${options.connections} conns/origin · headers/body ${options.headersTimeout}ms · keep-alive ${options.keepAliveTimeout}ms`,
+      `api dispatcher: connect ${options.connect.timeout}ms · ${options.connections} conns/origin · headers/body ${options.headersTimeout}ms · keep-alive ${options.keepAliveTimeout}ms · HTTP/1.1`,
     )
   }
   return apiDispatcher
@@ -211,6 +213,7 @@ type ProxyDispatcherOptions = {
   bodyTimeout: number
   keepAliveTimeout: number
   pipelining: number
+  allowH2: false
 }
 
 export function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
@@ -228,6 +231,7 @@ export function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
     bodyTimeout: knobs.bodyTimeoutMs,
     keepAliveTimeout: knobs.keepAliveTimeoutMs,
     pipelining: 1,
+    allowH2: false,
   }
 }
 

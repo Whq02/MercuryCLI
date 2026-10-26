@@ -51,7 +51,7 @@ export function dispatcherProtocolWords(fetchInjected: boolean): string {
   if (fetchInjected) return 'unknown (an injected fetch)'
   if (typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined') return 'unknown (the platform fetch)'
   const options = buildApiAgentOptions() as Record<string, unknown>
-  return options.allowH2 === true ? 'HTTP/2 allowed by the dispatcher' : 'HTTP/1.1 (the dispatcher allows no HTTP/2)'
+  return options.allowH2 === false ? 'HTTP/1.1 (the dispatcher allows no HTTP/2)' : 'HTTP/2 allowed by the dispatcher'
 }
 
 export function streamCutPhaseOf(seen: { last: string; events: number }): StreamCutPhase {
