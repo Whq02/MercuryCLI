@@ -1,6 +1,6 @@
 # Provider proof road
 
-Source map read 2026-10-25. Work in the intended checkout and name it explicitly in build and proof commands.
+Source map read 2026-10-26. Work in the intended checkout and name it explicitly in build and proof commands.
 
 ## Isolate first
 
@@ -8,8 +8,11 @@ Use a fresh scratch directory for `MERCURY_CONFIG_DIR`, set `MERCURY_CREDENTIAL_
 
 ## Pick the fixture that reaches the changed owner
 
-- `scripts/lib/fixtureApi.ts` serves scripted Anthropic Messages and captures request bodies. `scripts/api/authRetryFixture.ts` supplies `authWorld`, including sign-in refresh and refusal cases. `scripts/api/streamCutFixture.mjs` drives interrupted streams.
+- `scripts/lib/fixtureApi.ts` serves scripted Anthropic Messages and captures request bodies. `scripts/api/authRetryFixture.ts` supplies `authWorld`, including sign-in refresh and refusal cases. `scripts/api/streamCutFixture.mjs` drives interrupted streams. `scripts/api/prove-http2-lane.ts` (`scripts/api/http2-lane.mjs`) pins the HTTP/1.1 (`allowH2: false`) dispatcher contract and concurrent fan-out over a real TLS HTTP/2 + HTTP/1.1 server.
+- `scripts/providers/prove-anthropic-workspace-key.ts` and `scripts/providers/prove-anthropic-inflight-slot-switch.ts` cover organisation-scoped `anthropic-workspace-id` headers across Messages, token-count and catalogue calls and in-flight slot switches. `scripts/providers/prove-first-byte-budget.ts` and `scripts/api/prove-anthropic-request-deadline.ts` pin first-byte and request-deadline timeout classification (`requestDeadline: true`).
 - `scripts/provider-compat/prove-compat-chat-transport.ts` injects fetch responses to pin shared request and SSE decoding. `scripts/provider-compat/prove-openrouter-mixed-upstream-retry.ts` starts a loopback Responses server and reaches it through `routedCallModel`; use that pattern when the bug spans routing and replay.
+- `scripts/providers/prove-malformed-call-tool-result.ts` exercises error `tool_result` pairing on malformed tool calls vs unpairable refusal notes across Anthropic, OpenAI Responses, Chat Completions and Gemini. `scripts/providers/prove-gemini-stop-reason.ts` pins Gemini trailing-signature ordering (`reasoning-withheld` before `text-delta`) and `stop_reason` preservation.
+- `scripts/messages/prove-stopped-resume-wire.ts` pins stopped-resume user-turn merging (`mergeAdjacentUsers` across `isTurnCutText` only) on Anthropic, OpenAI Responses, Chat Completions and Gemini wires. `scripts/api/prove-restart-keeps-thinking.ts` and `scripts/mcp/prove-mcp-list-changed-live.ts` pin replaying the recorded tool roster across restarts and delivering MCP `list_changed` updates via `tool_schema_delta` without breaking the bound prefix.
 - `scripts/providers/lib/xai-auth-fixture.ts` and `scripts/providers/lib/xai-usage-fixture.ts` provide `xaiAuthFixture` and `xaiUsageFixture`. Usage proofs such as `scripts/providers/prove-usage-truth-meters.ts` cover the common display facts; do not replace an account balance with a token estimate.
 - `scripts/compact/overflowFixture.ts` supplies `startOverflowFixture` for compaction and overflow requests across provider dialects.
 
