@@ -1,139 +1,173 @@
-# Local images and video
+# Local images and video: `/imagesetup`
 
-Mercury includes a local image and video extension, off by default. Generation
-uses `stable-diffusion.cpp` on your computer. Enabling the extension does not
-download a runtime or model weights.
+Mercury's bundled `mercury-media` extension generates images and video with
+models on your own computer through `stable-diffusion.cpp`. It is off by
+default. Generation uses local disk, memory and time; there is no paid
+media-generation API.
 
 ## Turn it on
 
-Open `/config`, search for **Local media**, switch it on and press Enter to
-save. The extension connects in the current session. Turn it off the same way.
-`/extensions` lists `mercury-media`; its off row points to `/config`.
+Open `/config`, find **Local media** (`media.enabled`), switch it on and save
+with Enter. The extension connects in the current session. Switching it off
+in the same place disconnects it. Enabling it does not download the runtime
+or model weights.
 
-Open `/imagesetup` to install the runtime and choose models. The bundled runtime
-is for Apple Silicon macOS. Video posters need `ffmpeg` on PATH.
+Open `/imagesetup` to download the runtime and models. This screen can prepare
+files while Local media is off; turn it on in `/config` before generating a
+test image. The bundled runtime needs Apple Silicon macOS, `curl` and `unzip`.
+Video posters also need `ffmpeg` on PATH.
 
 ## Set up a model
 
-The screen lists the runtime and models, installed files, disk space, memory,
-licences and available image timings. Shared components count once in a pull.
+1. **Read the table.** The top line shows the media folder, total memory in
+   GiB and free disk space. The runtime row names `stable-diffusion.cpp` and
+   its MIT licence. Each model shows its id, kind, licence and default slot,
+   followed by the remaining pull size and total disk size in GB, memory in
+   GiB, available seconds per image, and whether it fits. The runtime archive
+   is 37.6 MB; model sizes are listed below. Shared files count once in a pull.
+2. **Pull the runtime.** Use ↑↓ to select its row and press **p**. The card
+   shows the download size, destination, source and licence. Its keys are
+   `y download · n back`. Nothing downloads until you press **y**.
+3. **Pull a model.** Select its row and press **p**, read the same card and
+   confirm. Progress shows the file and bytes downloaded. Downloads check
+   file size and SHA-256. **esc** pauses a download and keeps partial files;
+   select the row and press **p** again to resume.
+4. **Choose the defaults.** Press **d** on a model to put it in the image or
+   video slot. This saves a choice without loading weights or downloading
+   files. `/config` has the same **Default image model** and **Default video
+   model** pickers.
+5. **Try an image.** With Local media on and the runtime and selected image
+   model installed, press **t**. It requests a 256×256 image of a red apple
+   through the normal tool permission card, then displays the image and its
+   saved path. **esc** cancels a running test or returns from its preview.
+   On the table, **esc** closes the screen.
 
-- **↑↓** selects the runtime or a model.
-- **p** opens a download card showing the size, destination, source and licence.
-  **y** downloads; **n** goes back. Downloads resume and check SHA-256.
-- **d** makes the selected model the default for its image or video slot.
-- **t** generates a 256×256 test image with the selected image model. It uses
-  the normal tool permission card, then displays the image and its saved path.
-- **esc** pauses a download, cancels a test, returns from an image preview, or
-  closes the screen. A paused download keeps its partial file; **p** resumes it.
+The table's fit calculation leaves 8 GiB for the operating system and other
+work, and checks the model's accelerator memory requirement too. A model's
+peak memory and runtime depend on dimensions, video length and other work on
+your computer. The table's image timings are catalogue observations, not
+promised completion times. It has no download-time estimate.
 
-The fit calculation reserves 8 GiB for the operating system and other work. It
-compares the model's memory requirement with total memory and its active
-components with memory usable by the local accelerator. Image size, video
-length and other applications affect available memory.
+## The two default slots
 
-## Default slots
+The initial image slot is `z-image-turbo`; the initial video slot is
+`wan22-ti2v-5b`. Omit `model` to use the default; name a model only when the
+user asks for a specific one. An explicit model changes that call alone.
+Changing a slot does not prevent selecting another model for a later call.
 
-There is one image slot and one video slot. Initially they name
-`z-image-turbo` and `wan22-ti2v-5b`. `/config` has catalogue pickers for both;
-`/imagesetup` uses the same slots.
+For example, “Generate an image of a lighthouse at dusk” uses the image
+slot. “Use FLUX.2 Klein 4B to edit this reference image” selects that model
+for the image. “Make Wan 2.2 my default video model” changes the video slot.
 
-An omitted `model` uses the slot. Asking for a particular model selects that
-model for the call without changing the slot. For example:
+Slots live in `<media.root>/config.json` as `imageModel` and `videoModel`.
+The `/config` row ids `media.imageModel` and `media.videoModel` edit that
+file; do not put those keys in Mercury's settings file. Explicit
+`MEDIA_IMAGE_MODEL` and `MEDIA_VIDEO_MODEL` environment variables override
+saved slots. Choosing a default in Mercury does not set these variables.
 
-- “Generate an image of a lighthouse at dusk.”
-- “Use FLUX.2 Klein 4B to edit this reference image.”
-- “Make Wan 2.2 my default video model.”
-- “Generate a short video with MiniMax-H3.”
+## Catalogue sizes and timings
 
-The generation permission card names the model, dimensions, steps and output
-folder. Model licences still apply when you select a different model.
+Disk totals include the model's component files before sharing with another
+installed model. GB means decimal gigabytes; GiB means 1024³ bytes. Memory is
+the catalogue's sampled peak except for MiniMax-H3, whose 33.0 GiB is an
+estimate from component sizes.
 
-## Storage and settings
+| Model id | Kind | Disk | Memory | Time | Licence |
+| --- | --- | ---: | ---: | ---: | --- |
+| `z-image-turbo` | Image | 11.19 GB | 16.4 GiB | 130.88 s | Apache-2.0 |
+| `flux2-klein-4b` | Image, reference editing | 8.92 GB | 11.3 GiB | 65.04 s | Apache-2.0 |
+| `qwen-image-21-turbo` | Image, reference editing | 14.10 GB | 18.7 GiB | 153.70 s | Qwen Research License, non-commercial |
+| `qwen-image-21` | Image, reference editing | 14.10 GB | 18.8 GiB | 927.15 s | Qwen Research License, non-commercial |
+| `wan22-ti2v-5b` | Video | 12.85 GB | 15.9 GiB | 1054.56 s | Apache-2.0 |
+| `minimax-h3-fl2va` | Video with audio | 35.45 GB | 33.0 GiB estimate | Unmeasured | MiniMax H3 Community |
 
-The default storage folder is `~/.mercury/media`, under Mercury's configuration
-home. Change **Media folder** in `/config` to use another absolute path.
-Changing the folder does not move existing weights.
+Image timings are for 1024×1024: Z-Image at 9 steps, Klein at 4, Qwen Turbo
+at its fixed 8-step schedule and Qwen Base at 40. The Wan timing is for
+832×480, 17 frames, 20 steps, with CPU VAE decoding. MiniMax-H3 has no
+measured clip time or peak-memory figure.
 
-Mercury settings contain `media.enabled` and `media.root`. For development,
-`media.serverPath` in user settings selects a built `server.js` instead of the
-bundled server; its companion config, setup and catalogue files must be present.
+Z-Image and Klein share their text encoder. The two Qwen-Image models share
+their encoder, vision projection and VAE. The pull card counts only what is
+still needed.
 
-The slot values live only in `<media.root>/config.json`, as `imageModel` and
-`videoModel`. The `/config` row ids `media.imageModel` and `media.videoModel`
-refer to that file. Do not put them in Mercury's settings file; `/health`
-points to their storage location if you do.
-
-The media config also accepts `outputs`, `logs`, `jobCap`, `ports`, `nice` and
-`deadlines`. `outputs` and `logs` may be relative to the media folder. A
-`jobCap` of `0` has no job limit. Image and video ports default to `0` for
-automatic selection. The default process priority is `nice: 10`.
-
-Mercury passes `MEDIA_ROOT` to the server. Explicit `MEDIA_IMAGE_MODEL` and
-`MEDIA_VIDEO_MODEL` environment variables override the file's slots. Mercury
-does not set those overrides when you choose a default.
-
-Generated files normally go into the project's `media/` folder. An `outputs`
-setting selects another destination; `MEDIA_OUTPUT_DIR` overrides that setting.
-Without a project or configured output folder, the server uses
-`~/Desktop/mercury-media`.
-
-## Bundled catalogue
-
-Disk sizes include each model's components. The memory column uses peak memory
-where available; otherwise it uses the catalogue's resident size or a
-weights-plus-workspace estimate. The screen reads these figures from the
-catalogue. Disk uses decimal GB; memory uses GiB.
-
-| Model id | Kind | Disk | Memory | Licence |
-| --- | --- | ---: | ---: | --- |
-| `z-image-turbo` | Image | 11.19 GB | 16.37 GiB | Apache-2.0 |
-| `flux2-klein-4b` | Image and reference editing | 8.92 GB | 11.32 GiB | Apache-2.0 |
-| `qwen-image-21-turbo` | Image and reference editing | 14.10 GB | 18.67 GiB | Qwen Research License, non-commercial |
-| `qwen-image-21` | Image and reference editing | 14.10 GB | 18.83 GiB | Qwen Research License, non-commercial |
-| `wan22-ti2v-5b` | Video | 12.85 GB | 15.90 GiB | Apache-2.0 |
-| `minimax-h3-fl2va` | Video | 35.45 GB | 33.02 GiB | MiniMax H3 Community |
-
-Z-Image and Klein share the Qwen3 encoder. The two Qwen-Image models share
-their encoder, vision projection and VAE. The pull card shows only the
-components still needed.
-
-Apache-2.0 permits personal and commercial use with its licence and notice
-requirements. Qwen Research weights are for non-commercial use. MiniMax H3's
-community licence excludes the US, EU, UK and South Korea without a separate
-licence. In its applicable territories, commercial use up to US$20 million in
-yearly revenue requires displaying “MiniMax H3”; higher revenue requires
-written authorisation. Read the publishers' terms before downloading:
+Read the publishers' terms before downloading:
 [Z-Image](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo),
 [Klein](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B),
 [Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1),
-[Wan](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), and
+[Wan](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) and
 [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE).
-The runtime uses the MIT licence; the media server uses Apache-2.0.
+The Qwen Research weights are non-commercial. MiniMax H3 has territorial and
+commercial-use restrictions; the pull card includes its licence notice.
+The media server is Apache-2.0 and the runtime is MIT; weights keep their
+own terms.
 
-## Other local models
+## What the agent can use
 
-Add or override entries in `<media.root>/catalog.json`, then reconnect the
-extension. Each model needs an id, image/video kind, licence, supported engine
-recipe, generation defaults and component slots. Each component names a file
-under `models/` and its byte size. Add `residentBytes` for the fit calculation.
+| Tool | What it does |
+| --- | --- |
+| `media_models` | Lists models, licences, installed sizes and defaults without loading weights. |
+| `media_status` | Reads both engines, their models, state and memory without starting them. |
+| `media_set_default` | Saves an image or video default without loading it. |
+| `image_generate` | Generates a PNG from a prompt, with a reference image when the model supports editing. |
+| `video_generate` | Generates video from a prompt and optional starting image. Use frames or seconds, never both. |
+| `media_jobs` | Lists jobs and their generation progress. |
+| `media_result` | Reads a job's result, saved path and image or video poster; it can wait for completion. |
 
-The architecture and weight format must be supported by the installed
-`sd-server`. A catalogue entry does not download custom files. Place your
-weights in the named locations; the model then appears in the setup screen and
-default pickers. It can also be selected by id in a generation call.
+Generation returns a job id by default. `wait: true` waits for the image or
+video poster. A `media_result` wait expiring does not cancel the render.
+Closing the submitting client cancels its unfinished jobs; completed files
+remain available. Image previews are at most 1024 pixels on their long side;
+the full image stays on disk. Video uses WebM when supported by the runtime,
+otherwise AVI, with a PNG poster.
 
-## Agent tools
+The **Local image** or **Local video** permission card names the effective
+model, dimensions, steps and output folder, plus the prompt and any reference.
+Video details include length and fps. An omitted model is identified as the
+default for that kind.
 
-- `media_models` lists the catalogue, installed sizes, licences and defaults.
-- `media_status` reads the image and video engines, their models and memory.
-- `media_set_default` changes one slot without loading a model.
-- `image_generate` and `video_generate` accept an optional model id, prompt,
-  dimensions, steps and seed. Images can take a reference when the model
-  supports editing; video can take a starting image.
-- `media_jobs` lists ongoing work. Generation returns a job id by default;
-  `media_result` reads the result and inline preview. `wait: true` waits for the
-  finished image or video poster.
+## Files and settings
 
-Use `/health` if Local media is on but the storage folder or runtime is missing.
-It points to `/imagesetup`.
+**Media folder** (`media.root`) defaults to `~/.mercury/media` under Mercury's
+config home. It holds the runtime, `models/`, media configuration and logs.
+Choose another absolute path in `/config` if needed. Changing the folder
+does not move existing weights.
+
+Generated files normally land in the project's `media/` folder. In
+`<media.root>/config.json`, `outputs` chooses another folder; a relative
+value is resolved under the media folder. `MEDIA_OUTPUT_DIR` overrides it.
+Without an output setting or project, files go to `~/Desktop/mercury-media`.
+
+The media config also accepts `logs`, `jobCap`, `deadlines`, `ports` and
+`nice`. `jobCap: 0` leaves job count unlimited. Both ports default to `0`
+for automatic selection; `nice` defaults to `10`. `media.enabled` and
+`media.root` belong to Mercury's settings; the slots belong to the media
+config.
+
+In `/health`, **Local media** shows whether it is off, the media folder, or
+a missing folder or runtime with `/imagesetup` as the next step. It also
+points out slot keys placed in Mercury's settings instead of the media config.
+
+## Limits and other local models
+
+There is one engine for images and one for video, each processing one render
+at a time. Before loading weights, the server checks available memory. A
+video job that fits leaves the image model loaded; otherwise it waits for the
+other work to finish and unloads idle weights. The next request reloads them.
+Engines unload after five idle minutes.
+
+Wan starts at 832×480 and MiniMax-H3 at 864×480, in either orientation.
+Smaller requests return the size requirement without rendering. Their other
+catalogue sizes are 1280×704 and 1344×768 respectively. Wan uses `4n+1`
+frames; MiniMax-H3 uses `17n+5` at 24 fps. Seconds round down for Wan and up
+for MiniMax-H3. Z-Image and Klein dimensions must be divisible by 16;
+Qwen-Image and video dimensions by 32. On Metal, video uses CPU VAE decoding
+by default while diffusion remains on the GPU.
+
+To add another local model, put entries in `<media.root>/catalog.json` and
+reconnect the extension. Each entry needs an id, kind, licence, supported
+engine recipe, generation defaults and component slots; files name relative
+paths under `models/` and byte sizes. Supply memory budgets for the fit
+calculation. Place the weights at those paths yourself; adding a catalogue
+entry does not download them. The model appears in setup and the default
+pickers and can be requested by id. The installed engine must support its
+architecture and weight format; a catalogue entry alone cannot add support.
