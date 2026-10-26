@@ -64,8 +64,12 @@ const fixture = await startScriptedFixture(req => {
     genericLaunched = true
     return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'Check a lease owner', prompt: 'lease-worker-generic', run_in_background: false } }]
   }
-  if (!seen.has('genericReceipt') && last) seen.set('genericReceipt', last)
-  return seen.has('generic') ? done() : nap()
+  if (!seen.has('genericReceipt') && last) {
+    seen.set('genericReceipt', last)
+    return call('lease_list', {})
+  }
+  if (!seen.has('afterEnd') && last) seen.set('afterEnd', last)
+  return seen.has('generic') && seen.has('afterEnd') ? done() : nap()
 })
 console.log(`build under proof: ${DIST}`)
 try {
@@ -90,6 +94,7 @@ try {
   const generic = parse('generic')?.leases?.find((l: any) => l.path === 'generic.ts')?.holder
   const genericId = /agentId: (\S+)/.exec(seen.get('genericReceipt')?.text ?? '')?.[1]
   tally.check('an ordinary in-process subagent owns its lease under its own id', !!genericId && generic?.agentId === genericId && genericId !== 'main', JSON.stringify({ generic, receipt: seen.get('genericReceipt')?.text }))
+  tally.check('finished workflow workers and the ordinary crewmate leave no leases', parse('afterEnd')?.leases?.length === 0, seen.get('afterEnd')?.text)
 } finally {
   await fixture.close()
   rmSync(scratch, { recursive: true, force: true })

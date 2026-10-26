@@ -145,9 +145,11 @@ export async function createMercuryServer(): Promise<{
     'lease_release',
     {
       title: 'Release your file leases',
-      description: 'Release the current holder’s project file leases: the named paths, or every lease it holds when none are named.',
+      description: 'Release the current holder’s project file leases: the named paths, or every lease it holds when none are named. The session director can name agentId to release that agent’s leases, or all: true for every holder in its own session.',
       inputSchema: {
-        paths: z.array(z.string()).optional().describe('Exact project-relative file paths to release; omitted releases every lease the holder has.'),
+        paths: z.array(z.string()).nullish().describe('Exact project-relative file paths to release; omitted or null releases every lease of the selected holder(s).'),
+        agentId: z.string().min(1).nullish().describe('Director only: release this agent’s leases in the caller’s session.'),
+        all: z.boolean().nullish().describe('Director only: release every holder’s leases in the caller’s session.'),
       },
       outputSchema: {
         ok: z.boolean(),
@@ -156,11 +158,11 @@ export async function createMercuryServer(): Promise<{
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async ({ paths }): Promise<CallToolResult> => {
+    async ({ paths, agentId, all }): Promise<CallToolResult> => {
       try {
         const holder = leaseHolder()
-        const result = await releaseProjectLeases(projectRoot(), holder, paths)
-        return structuredJsonResult({ ok: true, agentId: holder.agentId, released: result.released.length > 0 })
+        const result = await releaseProjectLeases(projectRoot(), holder, paths ?? undefined, { agentId: agentId ?? undefined, all: all ?? undefined })
+        return structuredJsonResult({ ok: true, ...(all ? {} : { agentId: agentId ?? holder.agentId }), released: result.released.length > 0 })
       } catch (e) {
         return errorResult(`lease_release failed: ${errorMessage(e)}`)
       }
