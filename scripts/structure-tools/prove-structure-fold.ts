@@ -129,7 +129,9 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
   const kept = await resumeWith('ast-resume', live.input_schema)
   check('resume replays the recorded Structure definition and deferred mark byte-for-byte', getConversationToolSchemas(kept.key).get('Structure') === kept.definition && JSON.stringify(kept.restored) === kept.definition && kept.plan.deferredNames.has('Structure'))
   const moved = await resumeWith('ast-resume-moved', { type: 'object', properties: { op: { type: 'string' }, pattern: { type: 'string' }, lang: { type: 'string' }, out: { type: 'string' } }, required: ['op'], additionalProperties: false })
-  check('a recorded Structure definition whose input schema the live tool no longer has goes out with the live schema, deferred mark kept', JSON.stringify(moved.restored.input_schema) === JSON.stringify(live.input_schema) && moved.restored.description !== 'saved definition' && moved.plan.deferredNames.has('Structure'), JSON.stringify(moved.restored).slice(0, 300))
+  check('a bound Structure definition replays byte-for-byte even when its input schema changed', JSON.stringify(moved.restored) === moved.definition && getConversationToolSchemas(moved.key).get('Structure') === moved.definition && moved.plan.deferredNames.has('Structure'), JSON.stringify(moved.restored).slice(0, 300))
+  const unbound = await toolToAPISchema(StructureTool as never, { ...options, conversationKey: moved.key, deferLoading: true, bound: false }) as any
+  check('an unreferenced deferred Structure takes the live schema and keeps its deferred mark', JSON.stringify(unbound.input_schema) === JSON.stringify(live.input_schema) && unbound.description === live.description && unbound.defer_loading === true && getConversationToolSchemas(moved.key).get('Structure') === JSON.stringify(unbound), JSON.stringify(unbound).slice(0, 300))
   clearToolRosterLatches()
   clearToolRosterRestore()
 } finally {

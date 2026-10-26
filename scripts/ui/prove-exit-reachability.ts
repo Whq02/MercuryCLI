@@ -254,7 +254,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
   const ROUTE_NEEDLES: RegExp[] = [
-    /key\.escape/, /decodeNavKey\(/, /decodeDomNavKey\(/,
+    /(?:key|pressed)\.escape/, /decodeNavKey\(/, /decodeDomNavKey\(/,
     /useInteractiveList\b/, /useFlatList\b/, /useNavigablePanes\b/, /<NavigablePanes\b/,
     /onCancel/, /'confirm:no'/, /useExitOnCtrlCD/, /'select:cancel'/,
     /:dismiss'/, /:close'/, /:exit'/, /\bescape:/, /<Dialog\b/,

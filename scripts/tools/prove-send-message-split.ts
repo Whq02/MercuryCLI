@@ -119,8 +119,10 @@ check('a crewmate delivers to main with the exact timing words', (await call(Sen
 if (ResumeAgentTool) {
   check('main is never resumed', !(await call(ResumeAgentTool, 'main', 'hello', sender)).success)
   const before = pending(id).length
+  const taskCount = Object.keys(state.tasks).length
   const running = await call(ResumeAgentTool, 'researcher')
-  check('a running receiver is delivered to, never registered twice', running.message === `Crewmate researcher (id ${id}) is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` && pending(id).length === before + 1)
+  const queue = before === 0 ? 'it reads it at its next tool boundary, or as its next turn when the current one ends' : `${before} earlier ${before === 1 ? 'message is' : 'messages are'} queued ahead of it; it reads them in order at its next tool boundary, or as its next turn when the current one ends`
+  check('a running receiver queues the message in order, never registered twice', running.message === `Crewmate researcher (id ${id}) is still running, so nothing was resumed: the message was queued and ${queue}.` && pending(id).length === before + 1 && Object.keys(state.tasks).length === taskCount, running.message)
 }
 seed(id)
 mark(id, 'completed')

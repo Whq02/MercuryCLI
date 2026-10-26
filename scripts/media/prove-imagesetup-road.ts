@@ -8,6 +8,10 @@ import { catalogue, installFixture, proofHome, root, serverPath } from './fixtur
 
 try {
   installFixture()
+  process.env.MERCURY_OAUTH_TOKEN = 'media-setup-fixture-token'
+  process.env.MERCURY_BROWSER_SECRET_MEDIA_SETUP_FIXTURE = 'media-setup-fixture-secret'
+  const setup = join(serverPath, '..', 'setup.js')
+  writeFileSync(setup, `if (process.env.MERCURY_OAUTH_TOKEN !== undefined || process.env.MERCURY_BROWSER_SECRET_MEDIA_SETUP_FIXTURE !== undefined) { console.log(JSON.stringify({ event: 'error', message: 'Session secrets reached media setup' })); process.exit(1); }\n` + readFileSync(setup, 'utf8'))
   const machine = { totalMemoryBytes: 32 * 1024 ** 3, usableMemoryBytes: 24 * 1024 ** 3 }
   let rows = mediaRows(catalogue, root, machine, 100)
   assert.equal(rows[0]!.fit.fits, true)

@@ -52,7 +52,9 @@ export async function assertRefusedCallResult(
   assert.equal(results.length, 1)
   assert.equal(results[0]?.tool_use_id, block.id)
   assert.equal(results[0]?.is_error, true)
-  assert.ok(JSON.stringify(results[0]?.content).includes('The call did not run'))
-  assert.ok(JSON.stringify(results[0]?.content).includes(refusals[0]!.reason.split('\n')[0]!))
+  const content = results[0]?.content
+  const text = typeof content === 'string' ? content : (content ?? []).flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+  assert.ok(text.includes('The call did not run'))
+  assert.ok(text.includes(refusals[0]!.reason.split('\n')[0]!))
   return true
 }

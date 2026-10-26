@@ -248,6 +248,11 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
 {
   type Host = { gate: Array<string | RegExp>; legend: Array<string | RegExp>; legendIn?: string; reason: string }
   const HOST_ROSTER: Record<string, Host> = {
+    'src/components/LocalSetupDialog.tsx': {
+      gate: ['if (asking?.input !== undefined) return', "if (input === 's') {"],
+      legend: ['keys: ask.keys ?? LOCAL_SETUP_KEYS', "return { text: step.keys, tone: 'warning' }"],
+      reason: 'the repository field takes printables before the skip verb; each asking step prints its own keys, including the input step',
+    },
     'src/components/agents/studio/AgentStudio.tsx': {
       gate: ["{ isActive: mode.kind === 'library' }", "{ isActive: mode.kind === 'inspect' }"],
       legend: ["'↵ clone under the new identifier · esc back'", "'↵ stage in composer · esc cancel'"],

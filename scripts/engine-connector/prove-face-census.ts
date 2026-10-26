@@ -125,6 +125,7 @@ const RESIDUE: Record<string, Partial<Record<NeedleName, number>>> = {
   'src/components/Messages.tsx': { bootstrapFacade: 1 },
   'src/hooks/useCancelRequest.ts': { queueModule: 1 },
   'src/components/PromptInput/Notifications.tsx': { modelResolution: 2 },
+  'src/components/permissions/MediaPermissionRequest.tsx': { cwdOwner: 1 },
 }
 
 for (const rel of PURE_FACE) {

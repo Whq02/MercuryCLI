@@ -91,6 +91,7 @@ async function main(): Promise<void> {
     )
   }
 
+  const { assertRefusedCallResult } = await import('../providers/lib/refused-call-result.ts')
   const catalog = [
     { name: 'EchoTool', inputSchema: z.object({ text: z.string() }), prompt: async () => 'echo' },
     { name: 'ReadTool', inputSchema: z.object({ path: z.string() }), prompt: async () => 'read' },
@@ -121,6 +122,7 @@ async function main(): Promise<void> {
   ): Promise<{
     streamEvents: Array<Record<string, unknown>>
     mintedContent: Array<Record<string, unknown>>
+    mintedMessages: import('../../src/types/message.ts').AssistantMessage[]
     outcome: { kind: string }
   }> => {
     const ac = new AbortController()
@@ -154,6 +156,7 @@ async function main(): Promise<void> {
     })
     const streamEvents: Array<Record<string, unknown>> = []
     const mintedContent: Array<Record<string, unknown>> = []
+    const mintedMessages: import('../../src/types/message.ts').AssistantMessage[] = []
     let outcome: { kind: string } = { kind: 'unknown' }
     while (true) {
       const r = await gen.next()
@@ -165,11 +168,12 @@ async function main(): Promise<void> {
       if (v.type === 'stream_event') {
         streamEvents.push(v.event as Record<string, unknown>)
       } else if (v.type === 'assistant') {
+        mintedMessages.push(v as unknown as import('../../src/types/message.ts').AssistantMessage)
         const msg = v.message as { content: Array<Record<string, unknown>> }
         for (const block of msg.content) mintedContent.push(block)
       }
     }
-    return { streamEvents, mintedContent, outcome }
+    return { streamEvents, mintedContent, mintedMessages, outcome }
   }
 
   const toolStarts = (evs: Array<Record<string, unknown>>): Array<Record<string, unknown>> =>
@@ -273,7 +277,7 @@ async function main(): Promise<void> {
     )
   }
 
-  section('C03/C05 — malformed terminal arguments: typed note, ZERO tool_use mints')
+  section('C03/C05 — malformed terminal arguments: one refused call, one error result, no execution')
   {
     const bad = '{"text": four'
     const call = {
@@ -283,20 +287,17 @@ async function main(): Promise<void> {
       argumentsRaw: bad,
       malformed: true,
     }
-    const { mintedContent, outcome } = await drain([
+    const { mintedContent, mintedMessages, outcome } = await drain([
       { type: 'tool-args-start', itemId: 'fc_bad', callId: 'call_bad', name: 'EchoTool' },
       { type: 'tool-args-delta', itemId: 'fc_bad', delta: bad },
       { type: 'tool-args-done', itemId: 'fc_bad', argsRaw: bad },
       mkFinish([call]),
     ])
     const toolMints = mintedContent.filter(b => b.type === 'tool_use')
-    const note = mintedContent.find(
-      b => b.type === 'text' && String(b.text).includes('malformed'),
-    )
     check(
-      'C05: malformed settles as ONE typed adapter note and executes zero tools (no tool_use mint; partial JSON never parsed into an input)',
-      toolMints.length === 0 && note !== undefined && outcome.kind === 'done',
-      `mints=${toolMints.length} note=${note !== undefined}`,
+      'C05: malformed settles as one call carrying its raw refusal and receives one error result without executing',
+      toolMints.length === 1 && outcome.kind === 'done' && await assertRefusedCallResult(mintedMessages, { id: 'call_bad', name: 'EchoTool', raw: bad }),
+      `mints=${toolMints.length}`,
     )
   }
 

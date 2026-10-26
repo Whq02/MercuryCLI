@@ -5,6 +5,7 @@ prove-agent-face.ts
 prove-agent-fold-click.ts
 prove-appearance-system.ts
 prove-appearance-digit-and-config-theme.ts
+prove-anthropic-key-leg.ts
 prove-atomic-session-switch.ts
 prove-chrome-hysteresis.ts
 prove-cockpit-continuity.ts

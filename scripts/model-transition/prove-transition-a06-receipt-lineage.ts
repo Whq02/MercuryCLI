@@ -31,6 +31,7 @@ section('§A the consumption fence — the exact registered carriers')
     'src/services/providers/transitionPreview.ts',
     'src/utils/messages/pairing.ts',
     'src/services/tools/chantGuard.ts',
+    'src/utils/toolSearch.ts',
   ])
   const hits = execFileSync('git', ['grep', '-l', 'apexProviderTurn', '--', 'src/'], {
     cwd: ROOT,

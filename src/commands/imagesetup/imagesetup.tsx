@@ -96,6 +96,7 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
   }
   const row = snapshot?.rows[cursor - 1]
   useInput((input, key, event) => {
+    if (key.ctrl || key.meta) return
     event.stopImmediatePropagation()
     if (key.escape) {
       if (ask) { consent.current?.(false); consent.current = null; setAsk(null); return }
@@ -120,7 +121,7 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
           await pullMedia(plan, plan => new Promise(resolve => { consent.current = resolve; setAsk(plan) }), (args, progress, signal) => io.pull(args, progress, signal, { ...readMediaSettings(), root: plan.root }), progress => { if (alive.current) setBusy(mediaProgressWords(progress) || plan.title) }, signal)
         })
       } catch (error) { setError(String(error instanceof Error ? error.message : error)) }
-    } else if (input === 'd' && row) {
+    } else if (input === 'd' && !key.ctrl && !key.meta && row) {
       perform(row.model.id, () => io.setDefault(row.model.kind, row.model.id))
     } else if (input === 't' && row?.model.kind === 'image') {
       if (!readMediaSettings().enabled) { setError('Turn on Local media in /config.'); return }

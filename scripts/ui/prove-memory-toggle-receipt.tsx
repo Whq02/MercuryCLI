@@ -30,20 +30,27 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { Box, Text } = await import('../../src/ink.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const view = await mountOffscreen(<AppStateProvider><ThemeProvider><KeybindingSetup><Box width={100} height={32} flexDirection="column"><React.Suspense fallback={<Text>loading</Text>}><MemoryFileSelector onSelect={() => {}} onCancel={() => {}} /></React.Suspense></Box></KeybindingSetup></ThemeProvider></AppStateProvider>, 100, 32)
+let inputReady = false
+function ReadyPicker(): React.ReactNode {
+  React.useEffect(() => { inputReady = true }, [])
+  return <MemoryFileSelector onSelect={() => {}} onCancel={() => {}} />
+}
+const view = await mountOffscreen(<AppStateProvider><ThemeProvider><KeybindingSetup><Box width={100} height={32} flexDirection="column"><React.Suspense fallback={<Text>loading</Text>}><ReadyPicker /></React.Suspense></Box></KeybindingSetup></ThemeProvider></AppStateProvider>, 100, 32)
 try {
-  check('the memory toggle paints', await waitFor(() => /Memory: (on|off)/.test(view.screen()), 3000))
+  check('the memory toggle paints and its input effects are mounted', await waitFor(() => inputReady && /Memory: (on|off)/.test(view.screen()), 3000))
   const original = view.screen().match(/Memory: (on|off)/)?.[1]
   view.push(KEY.up)
-  await settle(100)
+  check('the memory toggle receives focus before Enter', await waitFor(() => {
+    const y = view.lines().findIndex(line => line.includes('Memory: '))
+    const x = y < 0 ? -1 : view.lines()[y]!.indexOf('Memory: ')
+    return x >= 0 && view.styleAt(x, y)?.inverse === true
+  }, 3000))
   view.push(KEY.enter)
-  await settle(200)
-  check('the rejected write was attempted', writes.length === 1)
+  check('the rejected write was attempted', await waitFor(() => writes.length === 1, 3000))
   check('a rejected settings write does not flip the displayed memory switch', view.screen().includes(`Memory: ${original}`))
   refused = false
   view.push(KEY.enter)
-  await settle(200)
-  check('a successful retry writes the same intended value and then flips the switch', writes.length === 2 && writes[0] === writes[1] && view.screen().includes(`Memory: ${original === 'on' ? 'off' : 'on'}`))
+  check('a successful retry writes the same intended value and then flips the switch', await waitFor(() => writes.length === 2 && writes[0] === writes[1] && view.screen().includes(`Memory: ${original === 'on' ? 'off' : 'on'}`), 3000))
 } finally {
   view.unmount()
   await settle(50)

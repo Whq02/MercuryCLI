@@ -85,6 +85,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-model-switch
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-history-bytes.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resume-history-bytes.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-record-life.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-record-life.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-restart-keeps-thinking.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-restart-keeps-thinking.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-agent-roster.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-agent-roster.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-agent-record-resume.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-agent-record-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-roster-marks.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-roster-marks.ts" "$__t" "$__rc"

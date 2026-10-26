@@ -945,11 +945,12 @@ mock.module('../../src/utils/fsOperations.ts', () => ({ ...fsModule, getFsImplem
 const configModule = await import('../../src/utils/config.ts')
 mock.module('../../src/utils/config.ts', () => ({ ...configModule, getProjectPathForConfig: () => '/fixture/project', checkHasTrustDialogAccepted: () => false }))
 const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
+const { MercurySetupFrame } = await import('../../src/components/MercurySetupFrame.tsx')
 for (const cols of [80, 120]) {
-  const scene = await mount(h(TrustDialog, { onDone() {} }), cols, 30)
+  const scene = await mount(h(MercurySetupFrame, { title: 'Workspace trust', tone: 'trust', firstRunCard: true, steps: [{ key: 'trust', label: 'Workspace trust', state: 'current' }], stepTag: 'trust · 1/1', footer: '↑↓ move · ↵ select · esc exit', children: h(TrustDialog, { onDone() {} }) }), cols, 30)
   try {
     await settledFrame(scene, frame => frame.includes('Trust this folder?'))
-    check(cols + ' trust: guide preserves the exit meaning', scene.screen().includes('↑↓ move') && scene.screen().includes('↵ confirm') && scene.screen().includes('esc exits'), scene.screen())
+    check(cols + ' trust: the setup frame prints one guide with the exit meaning', scene.screen().includes('↑↓ move · ↵ select · esc exit') && scene.screen().split('esc exit').length === 2, scene.screen())
     await save(scene, 'trust-guide', cols, 30)
   } finally { scene.unmount() }
 }

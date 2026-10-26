@@ -8,6 +8,7 @@ const t = checker()
 const profile = await Bun.file('src/components/TerminalProfileCard.tsx').text()
 const trust = await Bun.file('src/components/TrustDialog/TrustDialog.tsx').text()
 const walk = await Bun.file('src/components/Onboarding.tsx').text()
+const setup = await Bun.file('src/interactiveHelpers.tsx').text()
 
 t.section('§1 — process-ending esc is advertised, wording = truth')
 {
@@ -17,10 +18,10 @@ t.section('§1 — process-ending esc is advertised, wording = truth')
     'terminal check card',
   )
   t.check(
-    'TrustDialog: esc quits (onCancel → "exit") AND the footer says so',
+    'TrustDialog: esc quits and its setup frame prints the one exit guide',
     /onCancel=\{\(\) => onChange\("exit"\)\}/.test(trust) &&
-      trust.includes('action="exits"') &&
-      trust.includes('shortcut="Esc"'),
+      setup.includes('footer="↑↓ move · ↵ select · esc exit"') &&
+      !trust.includes('KeyboardShortcutHint'),
     'trust gate',
   )
   t.check("POISON: the trust gate's 'Esc to cancel' mislabel is gone", !trust.includes('Esc to cancel'))
@@ -39,7 +40,12 @@ t.section('§B9 — the first-run gates: one refusal code, the fit shed, the set
   const trustSrc = trust
   t.check(
     'every trust refusal leaves with ONE code (no zero-exit arm)',
-    !trustSrc.includes('gracefulShutdownSync(0)') && trustSrc.split('gracefulShutdownSync(1)').length >= 3,
+    !trustSrc.includes('gracefulShutdownSync(0)') &&
+      trustSrc.match(/gracefulShutdownSync\(/g)?.length === 1 &&
+      trustSrc.includes("gracefulShutdownSync(1, 'closed', { finalMessage: 'Setup stopped. Run mercury again to finish.' })") &&
+      /if \(value === "exit"\) \{\s*exit\(\)/.test(trustSrc) &&
+      trustSrc.includes('useExitOnCtrlCDWithKeybindings(() => exit())') &&
+      /useKeybinding\("confirm:no", \(\) => \{[\s\S]*?\bexit\(\);/.test(trustSrc),
     'a declined gate must never read as success to the launcher',
   )
   t.check(

@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline'
 import { gbWords, gibWords } from '../localServer/localServerMemory.js'
 import { resolveSetupIo } from '../localSetup/setupIo.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { mediaFileInstalled, mediaModelFiles, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServerPath, readMediaSettings, type MediaConfig, type MediaSettings } from './settings.js'
 
@@ -99,7 +100,7 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
   const setup = join(dirname(await mediaServerPath(settings)), 'setup.js')
   signal?.throwIfAborted()
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(process.execPath, [setup, ...args], { env: { ...process.env, ...mediaEnvironment(settings) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    const child = spawn(process.execPath, [setup, ...args], { env: { ...subprocessEnv(), ...mediaEnvironment(settings) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
     let error: string | undefined
     let done = false
     let paused: MediaProgress | undefined

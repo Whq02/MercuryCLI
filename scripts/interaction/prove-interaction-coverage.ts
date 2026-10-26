@@ -223,6 +223,9 @@ reg(
     'src/components/tasks/AsyncAgentDetailDialog.tsx',
     'src/components/tasks/BackgroundTasksDialog.tsx',
     'src/components/tasks/ShellDetailDialog.tsx',
+    'src/commands/imagesetup/imagesetup.tsx',
+    'src/components/AnthropicKeyLeg.tsx',
+    'src/components/Settings/Media.tsx',
   ],
   'modal-form',
 )

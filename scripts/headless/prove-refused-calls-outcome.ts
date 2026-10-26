@@ -31,18 +31,20 @@ function run(ask: string): Promise<{ frames: Frame[]; stderr: string; code: numb
 
 try {
   console.log(`build under proof: ${DIST}`)
-  tally.section('four malformed Git calls in a row: the correction budget is spent and the run has no answer')
-  fixture.script(request => malformedGitCall(fixture.captured.indexOf(request) + 1))
+  tally.section('three identical schema-refused Git calls end through the failed-call loop guard without an answer')
+  let calls = 0
+  fixture.script(() => malformedGitCall(++calls))
   const spent = await run('Commit the README.')
   const outcome = spent.frames.find(isOutcome)
   const error = outcome?.error as { message?: string; class?: string } | undefined
   const notices = spent.frames.filter(row => row.type === 'notice').map(row => String(row.text ?? ''))
-  tally.check('the model was asked four times: the first call and three corrections', fixture.captured.length === 4, String(fixture.captured.length))
-  tally.check('three correction notices count 1/3, 2/3, 3/3', ['1/3', '2/3', '3/3'].every(mark => notices.some(text => text.includes('Tool call refused before execution (Git)') && text.includes(mark))), JSON.stringify(notices))
-  tally.check('the outcome is failed, never completed', outcome?.status === 'failed', JSON.stringify(outcome))
+  tally.check('the model was asked three times before the identical-failure stop', fixture.captured.length === 3, String(fixture.captured.length))
+  const results = spent.frames.filter(row => row.type === 'tool_result')
+  tally.check('all three refused calls receive their own schema error result', results.length === 3 && results.every((row, index) => row.call_id === `call_${index + 1}` && row.status === 'error' && String(row.output).includes('The parameter `plan` was not expected') && String(row.output).includes('The call did not run.')), JSON.stringify(results))
+  tally.check('the outcome is loop_stopped, never completed', outcome?.status === 'loop_stopped', JSON.stringify(outcome))
   tally.check('the refusal note is not the answer', outcome?.answer === undefined, JSON.stringify(outcome?.answer))
-  tally.check('the error sentence names the tool and the spent corrections', error?.class === 'model' && error.message?.includes('Git') === true && error.message.includes('refused before execution') && error.message.includes('3 corrections'), JSON.stringify(error))
-  tally.check('a notice says the turn ends without an answer', notices.some(text => text.includes('could not') && text.includes('ends without an answer')), JSON.stringify(notices))
+  tally.check('the error names the tool, the three failures and the schema correction', error?.class === 'loop_stopped' && error.message?.startsWith('Stopped after 3 failed Git calls with the same arguments') === true && error.message.includes('The parameter `plan` was not expected'), JSON.stringify(error))
+  tally.check('the second failure prompts a correction and the third reports the stop', notices.length === 2 && notices[0]?.startsWith('Loop check: Git failed again with the same arguments') === true && notices[1] === error?.message, JSON.stringify(notices))
   tally.check('the headless exit follows the failure: non-zero', spent.code === 1, JSON.stringify({ code: spent.code, stderr: spent.stderr.slice(-400) }))
 
   tally.section('one malformed call then a corrected answer: the correction road still completes')

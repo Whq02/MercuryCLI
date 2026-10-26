@@ -151,7 +151,7 @@ async function world(name: World): Promise<void> {
   const seen: Seen[] = fixture.requests.map(r => ({ n: r.n, who: r.opening.trim() === AGENT_PROMPT ? 'sub' : 'main', step: r.step, atMs: r.atMs, ask: r.ask, results: r.results.map(x => x.text), allTexts: r.allTexts }))
   const messageText = name.startsWith('sub-to-main') ? TO_MAIN : TO_SUB
   const receiver = name.startsWith('sub-to-main') ? 'main' : 'sub'
-  const sends = seen.flatMap(r => r.results.filter(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was delivered') || x.includes('resumed in the background') || x.includes('No such tool available: SendMessage') || x.includes('No such tool available: ResumeCrewmate') || x.includes('Cannot deliver') || x.includes('Cannot resume')))
+  const sends = seen.flatMap(r => r.results.filter(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was queued') || x.includes('resumed in the background') || x.includes('No such tool available: SendMessage') || x.includes('No such tool available: ResumeCrewmate') || x.includes('Cannot deliver') || x.includes('Cannot resume')))
   const carrying = seen.filter(r => r.who === receiver && r.allTexts.some(t => t.includes(messageText)))
   const carriedTexts = (r: Seen): string[] => r.allTexts.filter(t => t.includes(messageText))
   const first = carrying[0]
@@ -161,7 +161,7 @@ async function world(name: World): Promise<void> {
   const results = runner.frames.filter(f => f.type === 'outcome').length
   const sentAt = ((): number => {
     const sender = receiver === 'main' ? 'sub' : 'main'
-    const after = seen.find(r => r.who === sender && r.results.some(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was delivered') || x.includes('resumed in the background with your message')))
+    const after = seen.find(r => r.who === sender && r.results.some(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was queued') || x.includes('resumed in the background with your message')))
     return after?.atMs ?? Number.NaN
   })()
   console.log(`  timeline: ${timeline(runner.frames, t0)}`)
@@ -169,8 +169,8 @@ async function world(name: World): Promise<void> {
   console.log(`  send result: ${JSON.stringify(sends[0]?.slice(0, 220) ?? null)}`)
   if (first !== undefined) console.log(`  carried by request ${first.n} (${first.who} step ${first.step}, ${Math.round(first.atMs - sentAt)} ms after the send's receipt): ${JSON.stringify(carriedTexts(first)[0]?.slice(0, 200))}`)
 
-  const delivered = sends.some(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was delivered') || x.includes('resumed in the background with your message'))
-  tally.check(`${name} L1 the sender's receipt says the message was delivered — never "no such tool", never queued`, delivered && !sends.some(x => x.includes('No such tool') || x.includes('Message queued for')), JSON.stringify(sends.map(x => x.slice(0, 120))))
+  const delivered = sends.some(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was queued') || x.includes('resumed in the background with your message'))
+  tally.check(`${name} L1 the sender's receipt accepts the message for the live boundary or the next turn`, delivered && !sends.some(x => x.includes('No such tool') || x.includes('Message queued for')), JSON.stringify(sends.map(x => x.slice(0, 120))))
   tally.check(`${name} L2 the receiver read the message as a task notification whose status is message, naming the sender`, first !== undefined && carriedTexts(first).some(t => t.includes(MESSAGE_STATUS) && t.includes(receiver === 'main' ? FROM_SUB : FROM_MAIN)), first === undefined ? 'no request of the receiver carries the words' : JSON.stringify(carriedTexts(first)[0]?.slice(0, 300)))
   switch (name) {
     case 'sub-to-main-midturn':
