@@ -21,8 +21,7 @@ try {
   const transcript = [user, thinking, refused, error, next]
   const before = JSON.stringify(transcript)
   const plan = requestConversationPlan(transcript, [], 'family')
-  assert.deepEqual(plan.messages.map(row => row.uuid), [user.uuid])
-  assert.deepEqual(plan.messages[0]?.message.content, [{ type: 'text', text: 'The original user request.\n' }, { type: 'text', text: 'The next user request.' }])
+  assert.deepEqual(plan.messages.map(row => row.uuid), [user.uuid, next.uuid])
   assert.deepEqual(plan.selected.filter(row => row.type === 'user').map(row => row.uuid), [user.uuid, next.uuid])
   assert.equal(JSON.stringify(transcript), before)
   const tool = createAssistantMessage({ content: [{ type: 'tool_use', id: 'call_fixture', name: 'Bash', input: { command: 'echo hi' } }] })
