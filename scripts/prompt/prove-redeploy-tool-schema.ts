@@ -190,6 +190,16 @@ async function startResponses(script: ResponsesTurn[]): Promise<{ wire: Record<s
   }
 }
 const anthropicWire = (url: string): Record<string, string> => ({ ANTHROPIC_BASE_URL: url, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
+const SCHEMA_DELTA_HEAD = 'take different input now than the definition in your tool list shows'
+const schemaDeltaRowOf = (raw: string): string | null => {
+  const texts = raw.match(/"text":"((?:[^"\\]|\\.)*)"/g) ?? []
+  for (const field of texts) {
+    const text = JSON.parse(field.slice('"text":'.length)) as string
+    if (text.includes(SCHEMA_DELTA_HEAD)) return text
+  }
+  return null
+}
+const bashLineOf = (row: string | null): string | null => row?.split('\n').find(line => line.startsWith('Bash: ')) ?? null
 const messageRequests = (fixture: { messageRequests(): CapturedRequest[] }): CapturedRequest[] => fixture.messageRequests().filter(request => !isHandoffRequest(request))
 const handoffs = () => [handoffTurn('The note.'), handoffTurn('The note.'), handoffTurn('The note.'), handoffTurn('The note.')]
 
@@ -255,13 +265,15 @@ try {
       const first = after.find(request => said(request, 'resume this work') && !said(request, 'toolu_retired'))
       const next = after.find(request => said(request, 'toolu_retired'))
       const bash = bashOf(first?.body)
-      check('the resumed request offers the redeployed build\'s own Bash input schema byte for byte, without the retired parameter', resumed.code === 0 && bash !== undefined && j(bash.input_schema) === j(liveAnthropic?.input_schema) && !j(bash).includes(RETIRED), `exit ${resumed.code}; properties ${j(propertiesOf(bash?.input_schema))}; ${resumed.stderr.slice(-300)}`)
+      check('the resumed request offers Bash as the earlier build recorded it, byte for byte, retired parameter included — the definition the thinking is bound to', resumed.code === 0 && bash !== undefined && recordedRequest !== undefined && j(withoutCacheControl(bash)) === j(withoutCacheControl(bashOf(recordedRequest.body))) && propertiesOf(bash.input_schema).includes(RETIRED), `exit ${resumed.code}; properties ${j(propertiesOf(bash?.input_schema))}; ${resumed.stderr.slice(-300)}`)
+      const deltaLine = bashLineOf(first === undefined ? null : schemaDeltaRowOf(first.raw))
+      check('the resumed request tells the model the new input on a new row: the schema delta names Bash with the redeployed build\'s parameters, the retired one gone', deltaLine !== null && liveAnthropic !== undefined && deltaLine === `Bash: ${j(liveAnthropic.input_schema)}` && !deltaLine.includes(RETIRED), deltaLine ?? 'no schema delta row')
       const result = j((next?.body as { messages?: unknown[] } | undefined)?.messages?.at(-1) ?? null)
       check('a call that still carries the retired field is refused as an unknown input before execution, and the command never ran', next !== undefined && result.includes('toolu_retired') && result.includes('"is_error":true') && result.includes(RETIRED) && !existsSync(marker), result.slice(0, 500))
       check('the history replays as sent: the recorded call keeps its input verbatim on the wire', first !== undefined && j((first.body as { messages?: unknown }).messages).includes(`"${RETIRED}":false`))
       check('the system prompt replays byte-equal from the record', first !== undefined && recordedRequest !== undefined && j(withoutCacheControl((first.body as { system?: unknown }).system)) === j(withoutCacheControl((recordedRequest.body as { system?: unknown }).system)))
       const transcript = transcriptOf(w, sid)
-      check('the thinking minted over the retired schema drops once at the resumed request, and the receipt names the update (lawful, expected once)', first !== undefined && bindingDropsFor(first.body).length > 0 && transcript.includes('Preserved thinking: the API dropped') && transcript.includes('after the update to') && !transcript.includes('Mercury rewrote'), `drops ${j(first ? bindingDropsFor(first.body) : null)}`)
+      check('the thinking minted on the earlier build replays whole: the binding check drops nothing at the resumed request and no drop receipt is written', first !== undefined && bindingDropsFor(first.body).length === 0 && !transcript.includes('Preserved thinking: the API dropped') && !transcript.includes('Mercury rewrote'), `drops ${j(first ? bindingDropsFor(first.body) : null)}; ${transcript.match(/Preserved thinking:[^"]*/)?.[0] ?? ''}`)
       const sidecar = existsSync(sidecarOf(w, sid)) ? (JSON.parse(readFileSync(sidecarOf(w, sid), 'utf8')) as { build?: string; buildTree?: string }) : null
       check('the sidecar the redeployed build wrote names its source tree beside the version', sidecar !== null && sidecar.build === newManifest.version && sidecar.buildTree === newTree, j(sidecar === null ? null : { build: sidecar.build, buildTree: sidecar.buildTree }))
       section('§3 Anthropic road, the same build respawned: the record it wrote replays as first sent')
@@ -292,11 +304,10 @@ try {
       const resumed = await run(dist, w, anthropicWire(fixture.url), ['resume this work', '--resume', sid, '--model', MODEL])
       const first = messageRequests(fixture).slice(resumedAt).find(request => said(request, 'resume this work'))
       const bash = bashOf(first?.body)
-      check('the resumed request offers the live Bash input schema although no sidecar says which build wrote the record', recorded.code === 0 && resumed.code === 0 && bash !== undefined && j(bash.input_schema) === j(liveAnthropic?.input_schema), `exit ${recorded.code}/${resumed.code}; properties ${j(propertiesOf(bash?.input_schema))}`)
-      const others = (body: unknown): string => j(withoutCacheControl(toolsOf(body).filter(tool => tool.name !== 'Bash')))
-      check('every other recorded definition replays byte for byte: the binding broke for Bash alone', first !== undefined && recordedRequest !== undefined && others(first.body) === others(recordedRequest.body))
+      check('the resumed request offers Bash as recorded although no sidecar says which build wrote the record: the record alone carries every definition', recorded.code === 0 && resumed.code === 0 && bash !== undefined && recordedRequest !== undefined && j(withoutCacheControl(bash)) === j(withoutCacheControl(bashOf(recordedRequest.body))), `exit ${recorded.code}/${resumed.code}; properties ${j(propertiesOf(bash?.input_schema))}`)
+      check('every recorded definition replays byte for byte, Bash included', first !== undefined && recordedRequest !== undefined && j(withoutCacheControl(toolsOf(first.body))) === j(withoutCacheControl(toolsOf(recordedRequest.body))))
       const transcript = transcriptOf(w, sid)
-      check('the one drop it costs reads lawful and names the tool whose input changed', transcript.includes('Preserved thinking: the API dropped') && transcript.includes('takes different input now (Bash)'), transcript.match(/Preserved thinking:[^"]*/)?.[0] ?? 'no drop receipt')
+      check('nothing drops: the binding check reports no dropped block and no receipt is written', first !== undefined && bindingDropsFor(first.body).length === 0 && !transcript.includes('Preserved thinking: the API dropped'), `drops ${j(first ? bindingDropsFor(first.body) : null)}; ${transcript.match(/Preserved thinking:[^"]*/)?.[0] ?? ''}`)
     } finally {
       await fixture.close()
     }
@@ -322,7 +333,9 @@ try {
       const first = after.find(request => request.raw.includes('resume this work') && !request.raw.includes('call_retired'))
       const next = after.find(request => request.raw.includes('call_retired'))
       const bash = bashOf(first?.body)
-      check('the resumed request offers the redeployed build\'s own Bash parameters byte for byte, without the retired parameter', resumed.code === 0 && bash !== undefined && j(bash.parameters) === j(liveOpenai?.parameters) && !j(bash).includes(RETIRED), `exit ${resumed.code}; properties ${j(propertiesOf(bash?.parameters))}; ${resumed.stderr.slice(-300)}`)
+      check('the resumed request offers Bash as the earlier build recorded it, retired parameter included — the roster a conversation was sent holds on every road', resumed.code === 0 && bash !== undefined && j(bash.parameters) === j(bashOf(fixture.bodies[0]?.body)?.parameters) && propertiesOf(bash.parameters).includes(RETIRED), `exit ${resumed.code}; properties ${j(propertiesOf(bash?.parameters))}; ${resumed.stderr.slice(-300)}`)
+      const deltaLine = bashLineOf(first === undefined ? null : schemaDeltaRowOf(first.raw))
+      check('the resumed request carries the schema delta row naming Bash with the redeployed build\'s parameters, the retired one gone', deltaLine !== null && deltaLine.startsWith('Bash: {') && !deltaLine.includes(RETIRED) && liveOpenai !== undefined && propertiesOf(JSON.parse(deltaLine.slice('Bash: '.length))).sort().join(',') === propertiesOf(liveOpenai.parameters).sort().join(','), deltaLine ?? 'no schema delta row')
       check('the gate refuses a call that still carries the retired field before execution, hands the model the correction, and the command never ran', next !== undefined && next.raw.includes('refused by the harness before execution') && next.raw.includes(RETIRED) && !existsSync(marker), next?.raw.slice(-600) ?? 'no request after the call')
       check('the history replays as sent: the recorded function call keeps its arguments verbatim on the wire', first !== undefined && first.raw.includes(`\\"${RETIRED}\\":false`))
     } finally {

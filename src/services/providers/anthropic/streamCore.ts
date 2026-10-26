@@ -527,6 +527,7 @@ async function* queryModel(
         model: options.model,
         deferLoading: willDefer(tool),
         conversationKey: plan.conversationKey,
+        bound: plan.isBound(tool.name),
       }),
     ),
   )

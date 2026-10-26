@@ -184,7 +184,7 @@ reviews, and applies an anchored text change across several existing files:
 |---|---|
 | `preview` + `changes` | plan only: an immutable, content-addressed plan that writes nothing (the review path) |
 | `apply` + `changes` | the fast path: plan, one aggregate decision, apply |
-| `apply` + `plan_id` | apply a previewed plan; a stale plan refuses with current anchors |
+| `apply` + `plan_id` | apply a previewed plan; a stale plan refuses and names the Read that refreshes each anchor |
 | `status` / `discard` + `plan_id` | inspect or retire a plan |
 
 Each member names an existing text file, its required `expected_anchor`, and

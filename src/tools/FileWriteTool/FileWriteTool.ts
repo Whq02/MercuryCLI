@@ -459,17 +459,18 @@ export const FileWriteTool = buildTool({
     }
     const parseSuffix = data.parseError !== undefined ? `\n${data.parseError}` : ''
     const divergedSuffix = data.diverged === true ? `\nThe file as read back right after the write differs from what was written (formatted on save); its current content counts as read:\n\n${data.content}` : ''
+    const anchorSuffix = `\n(anchor: ${mintFileAnchor(data.content)})`
     if (data.type === 'create') {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${parseSuffix}`,
+        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${parseSuffix}`,
+      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
     }
   },
   extractSearchText(): string {

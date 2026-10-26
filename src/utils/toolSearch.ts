@@ -197,6 +197,24 @@ function isNamedToolReference(obj: unknown): obj is { type: 'tool_reference'; to
   return isToolReferenceBlock(obj) && typeof (obj as { tool_name?: unknown }).tool_name === 'string'
 }
 
+function hostedSearchLoadedNames(items: readonly unknown[]): string[] {
+  const names: string[] = []
+  const walk = (tools: unknown): void => {
+    if (!Array.isArray(tools)) return
+    for (const raw of tools) {
+      const tool = raw as { type?: unknown; name?: unknown; tools?: unknown } | null
+      if (tool === null || typeof tool !== 'object') continue
+      if (tool.type === 'namespace') walk(tool.tools)
+      else if (typeof tool.name === 'string') names.push(tool.name)
+    }
+  }
+  for (const item of items) {
+    const record = item as { type?: unknown; tools?: unknown } | null
+    if (record !== null && typeof record === 'object' && record.type === 'tool_search_output') walk(record.tools)
+  }
+  return names
+}
+
 export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
   const discovered = new Set<string>()
   let fromBoundary = 0
@@ -213,6 +231,11 @@ export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
           fromBoundary++
         }
       }
+      continue
+    }
+    if (message.type === 'assistant') {
+      const items = (message as { apexProviderTurn?: { items?: unknown } }).apexProviderTurn?.items
+      if (Array.isArray(items)) for (const name of hostedSearchLoadedNames(items)) discovered.add(name)
       continue
     }
     if (message.type !== 'user') continue

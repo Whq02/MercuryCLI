@@ -32,7 +32,7 @@ console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprov
 
 {
   const { toolToAPISchema } = await import('../../src/utils/api.ts')
-  const { clearToolSchemaCache, clearConversationToolSchemas } = await import('../../src/utils/toolSchemaCache.ts')
+  const { clearToolSchemaCache, clearConversationToolSchemas, getToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const model = 'claude-fable-5-1'
   const fixture = (field: string) => ({
@@ -40,50 +40,36 @@ console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprov
     inputJSONSchema: { type: 'object', properties: { [field]: { type: 'string' } } },
     prompt: async () => `Read with ${field}`,
   })
-  const build = (tool: ReturnType<typeof fixture>, scope = 'main') => toolToAPISchema(tool as never, {
+  const build = (tool: ReturnType<typeof fixture>, scope = 'main', bound = true) => toolToAPISchema(tool as never, {
     getToolPermissionContext: async () => getEmptyToolPermissionContext(),
     tools: [tool] as never,
     agents: [],
     model,
     conversationKey: `${scope}|first|${model}`,
+    bound,
   })
   clearToolSchemaCache()
   clearConversationToolSchemas()
   law.resetLawfulPrefixChanges()
   const original = fixture('before')
-  const selected = fixture('after')
-  const unsolicited = fixture('unsolicited')
+  const refreshed = fixture('after')
   const first = JSON.stringify(await build(original))
   const child = JSON.stringify(await build(original, 'child'))
-  law.requestDeliberateToolChange('main', [selected] as never, 'the server was manually reconnected')
-  check('a reconnect request alone declares no prefix change', law.pendingLawfulPrefixChange('main') === null)
-  check('an older in-flight tool does not consume the requested definition change', JSON.stringify(await build(original)) === first && law.pendingLawfulPrefixChange('main') === null)
-  clearToolSchemaCache()
-  check('an unsolicited same-name refresh is not mistaken for the selected tool', JSON.stringify(await build(unsolicited)) === first && law.pendingLawfulPrefixChange('main') === null)
-  const changed = JSON.stringify(await build(selected))
-  check('the requested definition replaces only its conversation copy', changed !== first && changed.includes('after') && JSON.stringify(await build(selected, 'child')) === child)
-  check('an actual serialized change declares its specific reason once', law.consumeLawfulPrefixChange('main') === 'the server was manually reconnected' && law.consumeLawfulPrefixChange('main') === null && law.consumeLawfulPrefixChange('child') === null)
-  check('later unsolicited refreshes keep the newly selected definition', JSON.stringify(await build(unsolicited)) === changed && law.pendingLawfulPrefixChange('main') === null)
-  law.requestDeliberateToolChange('main', [selected] as never, 'an unchanged reconnect')
-  check('an unchanged reconnect has no change declaration', JSON.stringify(await build(selected)) === changed && law.pendingLawfulPrefixChange('main') === null)
-  const renamed = { ...selected, prompt: async () => 'An explicitly refreshed description' }
-  law.requestDeliberateToolChange('main', [renamed] as never, 'the tool description was refreshed')
-  await toolToAPISchema(selected as never, {
-    getToolPermissionContext: async () => getEmptyToolPermissionContext(),
-    tools: [selected] as never,
-    agents: [],
-    model,
-  })
-  check('a selected refresh renders its description even if another caller repopulated the base cache', JSON.stringify(await build(renamed)).includes('An explicitly refreshed description') && law.consumeLawfulPrefixChange('main') === 'the tool description was refreshed')
-  law.requestDeliberateToolChange('main', [unsolicited] as never, 'a cancelled refresh')
+  law.requestDeliberateToolChange('main', [refreshed] as never, 'the server was manually reconnected')
+  check('a reconnect request declares no prefix change — nothing it does moves the wire', law.pendingLawfulPrefixChange('main') === null)
+  check('a reconnect request re-renders the base definitions (the memo is cleared) so a refreshed description or input is seen', getToolSchemaCache().size === 0)
+  check('a BOUND tool keeps the definition it was sent with after the reconnect, in every conversation: the refreshed input rides a new row, never the prefix', JSON.stringify(await build(refreshed)) === first && JSON.stringify(await build(refreshed, 'child')) === child && law.pendingLawfulPrefixChange('main') === null)
+  const live = JSON.stringify(await build(refreshed, 'main', false))
+  check('an UNBOUND deferred tool (listed, never referenced) takes the refreshed definition at once: it is outside the bound prefix, so nothing drops and nothing is declared', live !== first && live.includes('after') && law.pendingLawfulPrefixChange('main') === null, live)
+  check('once adopted, the refreshed definition is the conversation copy a bound read returns too', JSON.stringify(await build(refreshed)) === live)
   clearConversationToolSchemas('main')
-  await build(unsolicited)
-  check('a new conversation does not inherit a pending refresh reason', law.pendingLawfulPrefixChange('main') === null)
+  check('a new conversation starts from the live definition', JSON.stringify(await build(refreshed)) === live && law.pendingLawfulPrefixChange('main') === null)
   clearConversationToolSchemas()
   law.resetLawfulPrefixChanges()
 }
 const adapter = readFileSync(join(ROOT, 'src/services/mcp/useManageMCPConnections.ts'), 'utf8')
-check('the interactive adapter requests refreshed definitions only after a successful manual reconnect', /event\.cause === 'reconnect-manual' && event\.connection\.type === 'connected' && event\.tools !== undefined\) \{\s*requestDeliberateToolChange/.test(adapter))
+check('the interactive adapter requests refreshed definitions after a successful manual reconnect', /event\.cause === 'reconnect-manual' && event\.connection\.type === 'connected' && event\.tools !== undefined\) \{\s*requestDeliberateToolChange/.test(adapter))
+check('…and after a tools/list_changed refetch, so the refreshed definitions are seen without a restart', /gateRefetchedTools\(client\.name, refetched as Tool\[\]\)\s*\n\s*requestDeliberateToolChange\(/.test(adapter))
 
 console.log(failures === 0 ? 'deliberate tool changes: all green' : `deliberate tool changes: ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

@@ -143,7 +143,7 @@ show('the anchored Edit after the file changed and Grep showed another range', s
 const knowledge = seen.knowledge?.text ?? ''
 tally.check('C1 the actual Read supplied the range anchor and the Edit was refused', knowledgeAnchor.startsWith('ra:') && seen.knowledge?.isError === true)
 tally.check('C2 the refusal does not claim every refused line was read: the changed window is no longer read knowledge, and the stale anchor names the window to re-read', !knowledge.includes('read this session: 1-10') && knowledge.includes('Stale anchor:') && knowledge.includes('re-read lines 1-5 of'), knowledge.slice(0, 1200))
-tally.check('C3 the words name the stale anchor and the current one', knowledge.includes(`expected_anchor: ${knowledgeAnchor}`) && /current_anchor: ra:[0-9a-f]{12}:L1\+5/.test(knowledge), knowledge.slice(0, 1200))
+tally.check('C3 the words name the stale anchor and the Read to do, never a current anchor to paste', knowledge.includes(`expected_anchor: ${knowledgeAnchor}`) && /Reread: re-read lines 1-5 of .* \(offset: 1, limit: 5\)/.test(knowledge) && !knowledge.includes('current_anchor'), knowledge.slice(0, 1200))
 tally.check('C4 the refused edit writes nothing', readFileSync(knowledgeFile, 'utf8') === knowledgeOriginal.replace('const k1 = 1', 'const k1 = 1000'))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })

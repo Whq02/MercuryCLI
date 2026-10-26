@@ -147,7 +147,7 @@ console.log('— Z. drift between preview and apply writes NOTHING —')
   const r = await callTool({ op: 'apply', plan_id: prev.data.planId }, ctx)
   check('drifted apply refused', r.data.outcome === 'failed')
   check('nothing written on drift (epsilon intact)', readFileSync(e, 'utf8') === 'one\ntwo\nthree\n')
-  check('the refusal names the drifted file with its current anchor', r.data.result.includes('zeta.ts') && /current anchor fa:/.test(r.data.result), r.data.result.slice(0, 240))
+  check('the refusal names the drifted file and the reread, never its current anchor', r.data.result.includes(`re-read ${f} (full file) to refresh the anchor`) && !/(?:fa|ra):[0-9a-f]{12}/.test(r.data.result), r.data.result.slice(0, 600))
 }
 
 console.log('— N. already-satisfied and the repetition ceiling —')

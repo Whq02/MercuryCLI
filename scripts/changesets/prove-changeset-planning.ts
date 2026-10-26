@@ -245,7 +245,7 @@ console.log('── §3 duplicates, anchors, hunks — ALL failures collected �
     ctx,
   )
   check('malformed + stale anchors ALL collected in one refusal', bad.ok === false && (bad.failures?.length ?? 0) === 2)
-  check('stale member carries the current anchor + reread hint', bad.ok === false && bad.failures!.some(f => f.code === 'stale-anchor' && /current: fa:[0-9a-f]{12}/.test(f.message)))
+  check('stale member names the reread without handing back a current anchor', bad.ok === false && bad.failures!.some(f => f.path === bPath && f.code === 'stale-anchor' && f.message === `stale anchor — re-read ${bPath} (full file) to refresh the anchor`) && !bad.failures!.some(f => /(?:fa|ra):[0-9a-f]{12}/.test(f.message)))
   check('the valid member is NOT planned (whole-set refusal)', bad.ok === false && /whole set is refused/.test(bad.message))
 
   for (const [idx, label] of [[0, 'first'], [1, 'middle'], [2, 'last']] as const) {
@@ -304,7 +304,7 @@ console.log('── §3b a stale anchor relocates through the ring exactly as Ed
   _resetSnapshotRingForTesting()
   const miss = write('ringmiss.ts', '// pad\n' + v1)
   const ringMiss = planChangeSet([member(miss, [{ lines: '7', replace: 'x' }], staleAnchor)], ctx)
-  check('a ring miss refuses with the stale-anchor message', ringMiss.ok === false && ringMiss.failures?.[0]?.code === 'stale-anchor' && /current: fa:/.test(ringMiss.failures[0].message))
+  check('a ring miss refuses with the stale-anchor reread instruction and no current anchor', ringMiss.ok === false && ringMiss.failures?.[0]?.code === 'stale-anchor' && ringMiss.failures[0].message === `stale anchor — re-read ${miss} (full file) to refresh the anchor` && !ringMiss.failures[0].message.includes(anchorOf(miss)))
   rememberAnchoredSnapshot(ctx.ownerKey as never, staleAnchor, v1, miss)
   process.env.MERCURY_EDIT_STALE_RECOVERY = '0'
   const offArm = planChangeSet([member(miss, [{ lines: '7', replace: 'x' }], staleAnchor)], ctx)

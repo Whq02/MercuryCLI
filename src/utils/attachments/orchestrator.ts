@@ -37,6 +37,7 @@ import {
   getContractReminderAttachments,
   getTaskReminderAttachments,
 } from './reminders.js'
+import { getToolSchemaDeltaAttachment } from './toolSchemaDelta.js'
 import {
   getCriticalSystemReminderAttachment,
   getMaxBudgetUsdAttachment,
@@ -139,6 +140,7 @@ export async function getAttachments(
         getHeldToolsAttachment(String(rosterOwnerFromToolUseContext(toolUseContext)), messages ?? []),
       ),
     ),
+    maybe('tool_schema_delta', () => getToolSchemaDeltaAttachment(toolUseContext, messages ?? [])),
     maybe('mcp_instructions_delta', () =>
       Promise.resolve(
         getMcpInstructionsDeltaAttachment(

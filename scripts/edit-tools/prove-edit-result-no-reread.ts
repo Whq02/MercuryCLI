@@ -114,9 +114,9 @@ section('C. BOTH WRITE SUCCESSES CARRY IT ONCE (RED on the base: absent)')
   const file = join(fixtures, 'written.txt')
   const ctx = makeContext()
   const created = await write(file, 'first\n', ctx)
-  check('C1 the create result keeps its first line and carries the sentence on the next', carries(created) && oneSentence(created) && created.ok && created.text === `File created successfully at: ${file}\n${SENTENCE}`, textOf(created))
+  check('C1 the create result keeps its first line, carries the sentence on the next and ends with the anchor of what it wrote', carries(created) && oneSentence(created) && created.ok && created.text === `File created successfully at: ${file}\n${SENTENCE}\n(anchor: ${mintFileAnchor('first\n')})`, textOf(created))
   const updated = await write(file, 'second\n', ctx)
-  check('C2 the update result carries it after the success clause', carries(updated) && oneSentence(updated) && updated.ok && updated.text === `The file ${file} has been updated successfully. ${SENTENCE}`, textOf(updated))
+  check('C2 the update result carries it after the success clause and ends with the anchor of what it wrote', carries(updated) && oneSentence(updated) && updated.ok && updated.text === `The file ${file} has been updated successfully. ${SENTENCE}\n(anchor: ${mintFileAnchor('second\n')})`, textOf(updated))
 }
 
 section('D. NEVER ON A REFUSAL OR A NO-CHANGE')

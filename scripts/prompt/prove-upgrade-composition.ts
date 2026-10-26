@@ -90,9 +90,12 @@ try {
       if (sidecar) {
         check('the complete recorded prompt replays byte-equal', JSON.stringify(replay) === JSON.stringify(systemTexts(original.body)))
         check('the recorded whole carries neither the constitution nor lineage', !replay.join('\n').includes(MERCURY_CONSTITUTION) && !replay.join('\n').includes('# Lineage'))
-        const toolNames = (body: unknown): string[] => ((body as { tools?: Array<{ name?: string }> }).tools ?? []).map(tool => tool.name ?? '')
-        check('on a moved build the roster is decided afresh at the first request: the resumed request offers the live tools (the crewmate verb among them), not the recorded roster', JSON.stringify(toolNames(requests[1]?.body)) !== JSON.stringify(toolNames(original.body)) && toolNames(requests[1]?.body).includes('Crewmate') && !toolNames(original.body).includes('Crewmate'), toolNames(requests[1]?.body).join(','))
-        check('the recorded thinking, minted over the old roster, is dropped once at that request and never on the next (the prefix moved by its tools alone; the system replayed whole)', drops[0] === 1 && drops.slice(1).every(count => count === 0) && JSON.stringify(bindingDropsFor(requests[1]?.body)).includes('prefix_binding_mismatch'), JSON.stringify(drops))
+        const tools = (body: unknown): unknown[] => ((body as { tools?: Array<Record<string, unknown>> }).tools ?? []).map(({ cache_control, ...definition }) => definition)
+        check('a moved build replays the recorded roster and every definition byte for byte on both resumed requests', requests.length === 3 && requests.slice(1).every(request => JSON.stringify(tools(request.body)) === JSON.stringify(tools(original.body))))
+        check('the recorded thinking stays bound across the upgrade and the next request: no block drops', drops.length === 2 && drops.every(count => count === 0), JSON.stringify(drops))
+        const thinking = (body: unknown): Array<{ type?: string; thinking?: string; signature?: string }> => ((body as { messages?: Array<{ content?: unknown }> }).messages ?? []).flatMap(message => Array.isArray(message.content) ? message.content.filter(block => block.type === 'thinking') : [])
+        const recorded = thinking(requests[1]?.body ?? {}).find(block => block.thinking === 'Recorded thinking.')
+        check('the resumed requests carry the original signed thinking unchanged, not merely a zero-drop report after stripping it', recorded !== undefined && typeof recorded.signature === 'string' && recorded.signature.length > 0 && thinking(requests[2]?.body ?? {}).some(block => JSON.stringify(block) === JSON.stringify(recorded)))
       } else {
         const text = replay.join('\n')
         check('the missing-record leg sends the constitution whole with one identity and no old floor', text.includes(MERCURY_CONSTITUTION) && !text.includes(oldWords) && (text.match(/You are/g) ?? []).length === 1)

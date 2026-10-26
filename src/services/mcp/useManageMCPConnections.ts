@@ -180,6 +180,7 @@ export function useManageMCPConnections(
               fetchToolsForClient.cache.delete(client.name)
               const refetched = await fetchToolsForClient(client)
               const admitted = gateRefetchedTools(client.name, refetched as Tool[])
+              requestDeliberateToolChange(String(processMainOwner()), admitted, `the MCP server ${client.name} changed its tools`)
               registry.applyServerUpdate(client.name, { tools: admitted as never })
             } catch (error) {
               logMCPError(client.name, `tools refetch after list_changed failed: ${String(error)}`)

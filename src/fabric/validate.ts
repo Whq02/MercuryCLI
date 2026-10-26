@@ -180,6 +180,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   agent_roster: z.looseObject({ rows: z.array(z.looseObject({ agents: objectList.nullish() })) }),
   deferred_tools_delta: z.looseObject({ addedNames: z.array(z.string()).optional(), addedLines: list, removedNames: list, body: z.string().optional() }),
   held_tools: z.looseObject({ names: z.array(z.string()), body: z.string() }),
+  tool_schema_delta: z.looseObject({ tools: objectList, body: z.string() }),
   mcp_instructions_delta: z.looseObject({ addedBlocks: list, removedNames: list }),
   mcp_servers_failed: z.looseObject({ servers: objectList, body: z.string() }),
   harness_map_delta: z.looseObject({ added: list, removed: list }),

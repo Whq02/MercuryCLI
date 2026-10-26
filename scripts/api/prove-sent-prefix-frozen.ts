@@ -426,7 +426,7 @@ section('serialized tool definitions remain fixed across refresh and reconstruct
   freshProcess()
   restoreBoundPrefixFromMessages([persisted])
   const forked = await schemas(await plan(livePool, 'forked-conversation'))
-  check('a fork restores definitions under its new conversation identity; the one whose live input schema moved goes out live', j(forked.slice(1)) === j(first.slice(1)) && j(forked[0]).includes('"after"') && !j(forked[0]).includes('"before"') && j(forked[0]).includes('Changed description'))
+  check('a fork restores definitions under its new conversation identity; a bound tool whose live input schema moved still goes out as recorded (the change rides a new row, never the bound prefix)', j(forked) === j(first) && j(forked[0]).includes('"before"') && !j(forked[0]).includes('"after"'), j(forked[0]))
   const late = tool('LateFixture', 'lookup', 'Late description', true)
   await schemas(await plan([...livePool, late], 'forked-conversation'))
   const expanded = await boundPrefixRecordToEmit('forked-conversation', [...messages, persisted] as never, model)

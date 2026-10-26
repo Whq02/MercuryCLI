@@ -419,7 +419,7 @@ const roads: Road[] = [
     form: 'openai-native',
     dialect: 'responses',
     fetch: call => [{ calls: [call], search: [COMPUTER] }],
-    afterFold: 'searched-again',
+    afterFold: 'carried',
   },
   {
     name: 'text · gpt-5.3-codex on the Responses wire: the admitted schema joins the tools array',
@@ -444,7 +444,7 @@ const roads: Road[] = [
     dialect: 'anthropic',
     env: { MERCURY_TOOL_SEARCH: '1' },
     fetch: clientFetch('toolu'),
-    afterFold: 'searched-again',
+    afterFold: 'carried',
   },
 ]
 
@@ -537,10 +537,12 @@ for (const road of roads) {
   }
   check('(f) the compaction made its summary request and landed; the fetch turn is folded away', compactThrew === undefined && compacted !== undefined && captured.length > before && !compacted.some(m => m.type === 'assistant'), compactThrew ?? `${captured.length - before} requests; rows=${compacted?.map(m => m.type).join(',')}`)
   const boundary = compacted?.find(m => m.type === 'system' && (m as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { preCompactDiscoveredTools?: string[] } } | undefined
-  if (road.form === 'openai-native') {
-    check('(f) the boundary carries no admission: the native admission is a server-side item, not a tool_reference', boundary?.compactMetadata?.preCompactDiscoveredTools === undefined, JSON.stringify(boundary?.compactMetadata?.preCompactDiscoveredTools))
-  } else {
-    check('(f) the boundary carries the admission (preCompactDiscoveredTools)', boundary?.compactMetadata?.preCompactDiscoveredTools?.join(',') === COMPUTER, JSON.stringify(boundary?.compactMetadata?.preCompactDiscoveredTools))
+  check(`(f) the boundary carries the admission (preCompactDiscoveredTools)${road.form === 'openai-native' ? ' read off the hosted search items the turn record kept' : ''}`, boundary?.compactMetadata?.preCompactDiscoveredTools?.join(',') === COMPUTER, JSON.stringify(boundary?.compactMetadata?.preCompactDiscoveredTools))
+  const carriedRecord = compacted?.find(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'bound_prefix') as { attachment?: { roster?: Array<{ name: string; deferred: boolean; definition?: string }> } } | undefined
+  if (carriedRecord !== undefined) {
+    const mark = carriedRecord.attachment?.roster?.find(entry => entry.name === COMPUTER)
+    check('(f) the stable prefix the fold carries lists the admitted tool in full (its mark flipped, its definition without defer_loading)', mark !== undefined && mark.deferred === false && !(mark.definition ?? '').includes('defer_loading'), JSON.stringify(mark))
+    check('(f) the fold receipt says the stable prefix moved for exactly that tool', (boundary?.compactMetadata as { cacheEpoch?: { state?: string; loadedInFull?: string[] } } | undefined)?.cacheEpoch?.state === 'moved' && JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: { loadedInFull?: string[] } } | undefined)?.cacheEpoch?.loadedInFull) === JSON.stringify([COMPUTER]), JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: unknown } | undefined)?.cacheEpoch))
   }
   if (compacted !== undefined) history = compacted
 

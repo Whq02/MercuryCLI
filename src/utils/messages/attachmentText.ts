@@ -217,6 +217,7 @@ const renderers: Renderers = {
   },
   usage_limit_notice: item => notice((require('../../services/providers/limitWarning.js') as typeof import('../../services/providers/limitWarning.js')).usageWarningNoticeText(item.text, item.pct)),
   held_tools: item => reminders(item.body),
+  tool_schema_delta: item => reminders(item.body),
   deferred_tools_delta: item => item.body !== undefined ? reminders(item.body) : changedLists([
     [item.addedLines, DEFERRED_TOOLS_ANNOUNCEMENT_HEAD + '\n', '\n'],
     [item.removedNames, 'The following deferred tools are no longer available in this session (their server disconnected or the operator turned them off). Do not search for them — ToolSearch will return no match:\n', '\n'],

@@ -379,13 +379,7 @@ function staleRefusalText(plan: ChangeSetPlan, stalePaths: string[]): string {
     `Stale plan ${plan.id} — ${stalePaths.length} file(s) changed since the plan was made. Nothing was written.`,
   ]
   for (const p of stalePaths) {
-    let current = ''
-    try {
-      current = mintFileAnchor(readFileSync(p, 'utf8').replaceAll('\r\n', '\n'))
-    } catch {
-      current = 'unreadable'
-    }
-    lines.push(`  ${displayPath(p)}: current anchor ${current} — re-read this file`)
+    lines.push(`  ${displayPath(p)}: changed since the plan — re-read ${p} (full file) to refresh the anchor`)
   }
   lines.push('Re-read the drifted files, then re-plan with op:"preview" (plans are immutable).')
   return lines.join('\n')
@@ -1117,7 +1111,7 @@ Atomic multi-file text change sets: one call prepares, reviews, and applies an a
 
 Operations:
 1. { op: "apply", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.
-2. { op: "preview", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply with current anchors and exact reread instructions.
+2. { op: "preview", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.
 3. { op: "status", plan_id } — plan state + per-file freshness.
 4. { op: "discard", plan_id } — retire a prepared plan.
 

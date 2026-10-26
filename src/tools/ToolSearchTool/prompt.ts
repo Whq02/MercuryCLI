@@ -34,34 +34,42 @@ export function loadsInFullFor(tool: Tool, model: string | undefined): boolean {
   return qualifiedIdSpaceOf(model)?.route !== 'local'
 }
 
-type RecordedMarks = { model: string; length: number; marks: ReadonlyMap<string, boolean> | null }
-const recordedMarksByHistory = new WeakMap<readonly Message[], RecordedMarks>()
+type HistoryMarks = { model: string | undefined; length: number; marks: ReadonlyMap<string, boolean> | null; carried: ReadonlySet<string> }
+const marksByHistory = new WeakMap<readonly Message[], HistoryMarks>()
 
-function recordedDeferralMarks(messages: readonly Message[], model: string): ReadonlyMap<string, boolean> | null {
-  const cached = recordedMarksByHistory.get(messages)
-  if (cached !== undefined && cached.model === model && cached.length === messages.length) return cached.marks
+function historyMarks(messages: readonly Message[], model: string | undefined): HistoryMarks {
+  const cached = marksByHistory.get(messages)
+  if (cached !== undefined && cached.model === model && cached.length === messages.length) return cached
   let marks: Map<string, boolean> | null = null
-  const first = messages.find(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
-  const suffix = `|${first?.uuid ?? 'empty'}|${model}`
-  for (let i = messages.length - 1; i >= 0; i--) {
+  const carried = new Set<string>()
+  let first: string | null = null
+  for (let i = 0; i < messages.length; i++) {
     const message = messages[i]!
-    if (message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
+    if (first === null && (message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))) first = message.uuid
+    if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
+      const names = (message as { compactMetadata?: { preCompactDiscoveredTools?: unknown } }).compactMetadata?.preCompactDiscoveredTools
+      if (Array.isArray(names)) for (const name of names) if (typeof name === 'string') carried.add(name)
+      continue
+    }
+    if (model === undefined || message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
     const record = message.attachment
-    if (!record.boundKey.endsWith(suffix)) continue
+    if (!record.boundKey.endsWith(`|${first ?? 'empty'}|${model}`)) continue
     marks = new Map(record.roster.flatMap(item => {
       const family = expandLspFamily(item.name)
       return family.map(name => [name, record.rosterEnabled && (family.length > 1 && name !== 'LspRead' ? true : item.deferred)] as const)
     }))
-    break
   }
-  recordedMarksByHistory.set(messages, { model, length: messages.length, marks })
-  return marks
+  const computed = { model, length: messages.length, marks, carried }
+  marksByHistory.set(messages, computed)
+  return computed
 }
 
 export function isDeferredToolFor(tool: Tool, model: string | undefined, permissionMode?: string, messages: readonly Message[] = []): boolean {
-  if (model !== undefined && messages.length > 0) {
-    const recorded = recordedDeferralMarks(messages, model)?.get(tool.name)
+  if (messages.length > 0) {
+    const history = historyMarks(messages, model)
+    const recorded = history.marks?.get(tool.name)
     if (recorded !== undefined) return recorded
+    if (history.carried.has(tool.name)) return false
   }
   return isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)
 }

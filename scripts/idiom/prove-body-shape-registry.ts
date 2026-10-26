@@ -88,6 +88,13 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'body is missing', field: 'body', fields: { names: ['Read'] } },
     ],
   },
+  tool_schema_delta: {
+    good: { tools: [{ name: 'Bash', digest: 'ab12cd34ef56' }], body: 'b' },
+    bad: [
+      { label: 'tools is text', field: 'tools', fields: { tools: 'Bash', body: 'b' } },
+      { label: 'body is missing', field: 'body', fields: { tools: [{ name: 'Bash', digest: 'ab12cd34ef56' }] } },
+    ],
+  },
   mcp_instructions_delta: {
     good: { addedNames: [], addedBlocks: ['b'], removedNames: [] },
     bad: [{ label: 'addedBlocks is an object', field: 'addedBlocks', fields: { addedNames: [], addedBlocks: {}, removedNames: [] } }],

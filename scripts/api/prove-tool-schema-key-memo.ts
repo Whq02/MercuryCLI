@@ -37,13 +37,14 @@ function fakeTool(name: string, schema: Record<string, unknown>): Record<string,
   }
 }
 
-const buildOnce = (tool: Record<string, unknown>, conversationKey?: string) =>
+const buildOnce = (tool: Record<string, unknown>, conversationKey?: string, bound?: boolean) =>
   toolToAPISchema(tool as never, {
     getToolPermissionContext: async () => getEmptyToolPermissionContext(),
     tools: [tool] as never,
     agents: [],
     model: 'claude-sonnet-5',
     conversationKey,
+    bound,
   })
 
 section('K1 · counted operations — one serialization per schema object across N calls')
@@ -136,6 +137,28 @@ section('K5 · concurrent first renders publish one definition')
   release()
   check('overlapping renders return the first completed definition byte for byte', JSON.stringify(await first) === JSON.stringify(settled))
   check('later calls return that same definition', JSON.stringify(await buildOnce(slow, key)) === JSON.stringify(settled))
+}
+section('K6 · unbound first renders and refreshes publish only against the snapshot they read')
+for (const primed of [false, true]) {
+  clearToolSchemaCache()
+  clearConversationToolSchemas()
+  const key = `unbound-${primed}|first|claude-sonnet-5`
+  if (primed) await buildOnce(fakeTool('memo-unbound-race', { type: 'object', properties: { original: { type: 'string' } } }), key)
+  let release: () => void = () => {}
+  const pending = new Promise<void>(resolve => { release = resolve })
+  const slow = fakeTool('memo-unbound-race', { type: 'object', properties: { slow: { type: 'string' } } })
+  slow.prompt = async () => { await pending; return 'slow unbound description' }
+  const fast = fakeTool('memo-unbound-race', { type: 'object', properties: { fast: { type: 'number' } } })
+  fast.prompt = async () => 'fast unbound description'
+  const waiting = buildOnce(slow, key, false)
+  const settled = await buildOnce(fast, key, false)
+  const expected = JSON.stringify(settled)
+  release()
+  check(`${primed ? 'refresh' : 'first render'}: the unbound winner carries its live schema`, expected.includes('"fast"') && !expected.includes('"original"'))
+  check(`${primed ? 'refresh' : 'first render'}: the older render returns the published snapshot instead of overwriting it`, JSON.stringify(await waiting) === expected)
+  check(`${primed ? 'refresh' : 'first render'}: a bound request keeps the winner`, JSON.stringify(await buildOnce(slow, key, true)) === expected)
+  ;(settled as { input_schema: { properties: Record<string, unknown> } }).input_schema.properties.fast = { type: 'boolean' }
+  check(`${primed ? 'refresh' : 'first render'}: mutating a returned schema cannot change the base memo used by another conversation`, JSON.stringify(await buildOnce(fast, `${key}-other`, false)) === expected)
 }
 clearConversationToolSchemas()
 

@@ -126,7 +126,7 @@ section('§3 an unread file addressed by hunks with a wrong anchor (RED on 015ac
   check('the refusal carries no anchor over the file', carriesDigest(text) === null, `carried: ${carriesDigest(text)} — ${text}`)
 }
 
-section('§4 the same wrong anchor on a file this session HAS read keeps the helpful anchor words (the fix is for the unread file only)')
+section('§4 the same wrong anchor on a file this session HAS read: the refusal names the Read to do and hands no anchor value to paste')
 {
   const ctx = makeContext()
   const r = await read({ file_path: file }, ctx)
@@ -134,7 +134,8 @@ section('§4 the same wrong anchor on a file this session HAS read keeps the hel
   const v = await edit({ file_path: file, old_string: 'OTHER=plain', new_string: 'OTHER=changed', expected_anchor: WRONG_FILE }, ctx)
   const text = textOf(v)
   check('the edit is refused on the stale anchor', !v.ok, text.slice(0, 160))
-  check("the refusal names the file's current anchor so the model can carry it", text.includes(`current_anchor: ${trueFileAnchor}`), text)
+  check('the refusal names the Read that refreshes the anchor', /Reread: re-read .*\(full file\) to refresh the anchor/.test(text), text)
+  check("the refusal carries no anchor value: not the file's current anchor, no current_anchor line", !text.includes(trueFileAnchor) && !text.includes('current_anchor'), text)
 }
 
 section('§5 the file is untouched')

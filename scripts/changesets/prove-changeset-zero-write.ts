@@ -197,7 +197,7 @@ for (const [idx, label, drift] of [
   writeFileSync(drift, `drifted-${label}\n`)
   const before = treeDigest()
   const r = await callTool({ op: 'apply', plan_id: pv.data.planId }, ctx)
-  check(`drift at the ${label} target refuses with current anchors`, r.effect.outcome === 'failed' && /current anchor fa:[0-9a-f]{12}/.test(r.data.result) && /re-read/i.test(r.data.result))
+  check(`drift at the ${label} target refuses, names the Read to do and hands no anchor value`, r.effect.outcome === 'failed' && /changed since the plan — re-read .*\(full file\) to refresh the anchor/.test(r.data.result) && !/fa:[0-9a-f]{12}/.test(r.data.result))
   check(`drift at the ${label} target wrote NOTHING`, treeDigest() === before)
   writeFileSync(drift, original)
 }

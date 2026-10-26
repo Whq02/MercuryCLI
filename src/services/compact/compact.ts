@@ -1866,7 +1866,7 @@ export async function compactConversation(
       compactionUsage: usage,
       ...(proseSkippedReceipt !== undefined ? { notes: [proseSkippedReceipt] } : {}),
     }
-    const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage)
+    const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered)
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
     let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
@@ -2091,7 +2091,7 @@ export async function partialCompactConversation(
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
-    const cacheEpoch = carryFoldPrefix(allMessages, buildPostCompactMessages(partialResult), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage)
+    const cacheEpoch = carryFoldPrefix(allMessages, buildPostCompactMessages(partialResult), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered)
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partialResult.attachments.push(cacheEpoch.attachment)
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))

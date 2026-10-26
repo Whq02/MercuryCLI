@@ -481,7 +481,7 @@ export function planChangeSet(
           message:
             anchorCheck.reason === 'malformed'
               ? `expected_anchor '${member.expected_anchor}' is invalid: pass the bare fa:… or ra:… value without the surrounding "(anchor: …)" text`
-              : `stale anchor (current: ${anchorCheck.currentAnchor ?? 'unknown'}) — ${anchorCheck.rereadHint}`,
+              : `stale anchor — ${anchorCheck.rereadHint}`,
         })
         continue
       }

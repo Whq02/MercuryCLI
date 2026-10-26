@@ -15,6 +15,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'context_efficiency',
   'deferred_tools_delta',
   'held_tools',
+  'tool_schema_delta',
   'agent_roster',
   'mcp_instructions_delta',
   'mcp_servers_failed',

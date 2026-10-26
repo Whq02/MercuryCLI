@@ -5,7 +5,6 @@ import { isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../too
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { clearConversationToolSchemas, resetConversationToolSchemas, restoreConversationToolSchema } from '../../utils/toolSchemaCache.js'
-import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import {
   extractDiscoveredToolNames,
   isToolReferenceBlock,
@@ -121,18 +120,23 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
   return missingBound
 }
 
-function rosterMovedWithBuild(owner: string, missing: readonly string[]): string | null {
+function rosterCannotReplay(missing: readonly string[]): string | null {
   const retired = missing.filter(name => expandLspFamily(name).length <= 1)
-  if (retired.length > 0) return `the recorded roster names ${retired.join(', ')}, which this build no longer offers`
-  const { recordedBuildFor } = require('./anthropic/prefixLedger.js') as typeof import('./anthropic/prefixLedger.js')
-  const { productBuild } = require('./anthropic/thinkingBinding.js') as typeof import('./anthropic/thinkingBinding.js')
-  const recorded = recordedBuildFor(owner)
-  if (!recorded.recorded) return null
-  const current = productBuild()
-  const tree = runningBuildTree()
-  if (recorded.build === current && (recorded.tree ?? null) === tree) return null
-  const spell = (build: string | undefined, buildTree: string | null | undefined): string => `${build ?? 'an earlier build'}${buildTree ? ` (tree ${buildTree})` : ''}`
-  return `the recorded roster was written by ${spell(recorded.build, recorded.tree)} and this is ${spell(current, tree)}`
+  if (retired.length > 0) return `the recorded roster names ${retired.join(', ')}, which this build no longer offers and the record carries no definition for`
+  return null
+}
+
+function referencedToolNamesOf(messages: readonly Message[]): Set<string> {
+  const names = extractDiscoveredToolNames(messages as Message[])
+  for (const message of messages) {
+    if (message.type !== 'assistant') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type === 'tool_use' && typeof block.name === 'string') names.add(block.name)
+    }
+  }
+  return names
 }
 
 function firstConversationRow(messages: readonly Message[]): string {
@@ -172,6 +176,7 @@ export interface ToolPayloadPlan {
   deferredNames: ReadonlySet<string>
   admittedNames: ReadonlySet<string>
   isDeferredUnadmitted(name: string): boolean
+  isBound(name: string): boolean
   restoredMissingTools: readonly string[]
   admissionDeclarations: readonly AdmissionDeclaration[]
 }
@@ -190,7 +195,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     const restore = armedRestoreFor(latchKey)
     if (restore !== null) {
       restoredMissingTools = seedRosterLatchFromRestore(latchKey, restore, tools)
-      const moved = rosterMovedWithBuild(input.latchKey ?? '', restoredMissingTools)
+      const moved = rosterCannotReplay(restoredMissingTools)
       if (moved !== null) {
         rosterLatches.delete(latchKey)
         resetConversationToolSchemas(latchKey)
@@ -221,8 +226,9 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   if (latched !== undefined) {
     for (const name of latched.deferred) deferredNames.add(name)
   } else if (enabled) {
+    const carried = boundaryAdmittedNames(messages)
     for (const t of tools) {
-      if (defers(t)) deferredNames.add(t.name)
+      if (defers(t) && !carried.has(t.name)) deferredNames.add(t.name)
     }
   }
 
@@ -268,29 +274,29 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   const admittedNames = enabled && !serverSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
   let admissionDeclarations: AdmissionDeclaration[] = []
-  if (enabled && wire.form === 'text') {
+  if (enabled && (wire.form === 'text' || wire.form === 'text-append')) {
     const available = new Map(roster.map(tool => [tool.name, tool]))
+    const carried = boundaryAdmittedNames(messages)
+    const rides = (name: string): boolean => {
+      const tool = available.get(name)
+      return tool !== undefined && (deferredNames.has(name) || (carried.has(name) && defers(tool)))
+    }
+    const tail = wire.form === 'text' ? [...admittedNames, ...carried] : [...carried]
+    const appended = new Set<string>()
     roster = [
-      ...roster.filter(tool => !deferredNames.has(tool.name)),
-      ...[...admittedNames].flatMap(name => {
-        const tool = available.get(name)
-        return tool !== undefined && deferredNames.has(name) ? [tool] : []
+      ...roster.filter(tool => !rides(tool.name)),
+      ...tail.flatMap(name => {
+        if (!rides(name) || appended.has(name)) return []
+        appended.add(name)
+        return [available.get(name)!]
       }),
     ]
+    if (wire.form === 'text-append') admissionDeclarations = admissionDeclarationsOf(messages, available, deferredNames, new Set(roster.map(tool => tool.name)))
   } else if (enabled && serverSearch) {
     roster = roster.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
-  } else if (enabled && wire.form === 'text-append') {
-    const available = new Map(roster.map(tool => [tool.name, tool]))
-    roster = [
-      ...roster.filter(tool => !deferredNames.has(tool.name)),
-      ...[...boundaryAdmittedNames(messages)].flatMap(name => {
-        const tool = available.get(name)
-        return tool !== undefined && deferredNames.has(name) ? [tool] : []
-      }),
-    ]
-    admissionDeclarations = admissionDeclarationsOf(messages, available, deferredNames, new Set(roster.map(tool => tool.name)))
   }
 
+  let referenced: Set<string> | null = null
   return {
     enabled,
     ...(latchKey !== null ? { conversationKey: latchKey } : {}),
@@ -300,6 +306,11 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     deferredNames,
     admittedNames,
     isDeferredUnadmitted: (name: string) => enabled && !serverSearch && deferredNames.has(name) && !admittedNames.has(name),
+    isBound: (name: string) => {
+      if (!deferredNames.has(name)) return true
+      referenced ??= referencedToolNamesOf(messages)
+      return referenced.has(name)
+    },
     restoredMissingTools,
     admissionDeclarations,
   }

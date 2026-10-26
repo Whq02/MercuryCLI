@@ -152,10 +152,11 @@ section('E. FileEdit enforces anchors (the full stale→reread→success journey
   const msg = (staleValidate as { message?: string }).message ?? ''
   check('E2 stale anchor refuses with errorCode 11',
     staleValidate.result === false && (staleValidate as { errorCode?: number }).errorCode === 11)
-  check('E3 refusal is typed: expected/current/Reread lines',
+  check('E3 refusal is typed: the expected anchor and the Reread line, no current anchor to paste',
     msg.includes(`expected_anchor: ${fullAnchor}`) &&
-    /current_anchor: fa:[0-9a-f]{12}/.test(msg) &&
-    msg.includes('Reread:'))
+    !/current_anchor/.test(msg) &&
+    !msg.includes(mintFileAnchor(readFileSync(target, 'utf8'))) &&
+    /Reread: re-read .*\(full file\) to refresh the anchor/.test(msg))
 
   const rereadCtx = makeContext(freshStamp())
   const rereadText = await readViaTool(target, rereadCtx)

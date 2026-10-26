@@ -1006,11 +1006,13 @@ async function readMultiRangeTextLane(
   }
   const st = ideReadTextAvailable() ? { size: 0, mtimeMs: Date.now() } : await stat(resolvedPath)
   const useFastReverse = !ideReadTextAvailable() && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail') && !(bom[0] === 0xff && bom[1] === 0xfe)
+  const wholeLines = ideReadTextAvailable() || st.size <= declared.maxSizeBytes ? undefined : 0
   const counted = useFastReverse
     ? null
-    : (await readRangeViaIde(resolvedPath, 0, 0, undefined, context.abortController.signal)) ??
-      (await readFileInRange(resolvedPath, 0, 0, undefined, context.abortController.signal))
+    : (await readRangeViaIde(resolvedPath, 0, wholeLines, undefined, context.abortController.signal)) ??
+      (await readFileInRange(resolvedPath, 0, wholeLines, undefined, context.abortController.signal))
   let totalLines = counted !== null ? realLineTotal(counted) : 0
+  const anchor = counted !== null && wholeLines === undefined && changeTransactionEnabled() ? mintFileAnchor(counted.content) : undefined
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const blocks: string[] = []
   const rawPieces: string[] = []
@@ -1139,6 +1141,7 @@ async function readMultiRangeTextLane(
       numLines: totalShownLines,
       startLine: firstStartLine,
       totalLines,
+      ...(anchor !== undefined ? { anchor } : {}),
       ...(overCap !== undefined ? { overCap } : {}),
     },
   }
@@ -1146,6 +1149,7 @@ async function readMultiRangeTextLane(
   if (anchored && totalShownLines > 0) {
     resultLineAnchors.add(data)
   }
+  if (anchor !== undefined && counted !== null && (anchorPatchEnabled() || staleEditRecoveryEnabled())) rememberAnchoredSnapshot(owner, anchor, counted.content, resolvedPath)
   return { data }
 }
 
@@ -1558,7 +1562,7 @@ function serializeTextResult(file: TextFile, data: object): string {
   const resolvedNote = resolvedName !== undefined ? `(resolved near-miss filename to ${resolvedName})\n` : ''
   const preRendered = resultPreRenderedBody.get(data)
   if (preRendered !== undefined) {
-    return `${resolvedNote}${preRendered}`
+    return `${resolvedNote}${preRendered}${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}`
   }
   if (file.content === '') {
     if (file.totalLines > 0 && file.startLine > file.totalLines) {

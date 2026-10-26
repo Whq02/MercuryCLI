@@ -91,7 +91,7 @@ console.log('— A. ambiguous relocation refuses with the current anchor —')
   const patch = [`file ${p} ${oldAnchor}`, 'replace 3', '|   return NEW'].join('\n')
   const r = await callTool({ op: 'apply', patch }, ctx)
   check('ambiguous relocation refused', r.data.outcome === 'failed', r.data.result.slice(0, 240))
-  check('the refusal says ambiguous and carries the current anchor', /ambiguous/.test(r.data.result) && /current_anchor: fa:/.test(r.data.result), r.data.result.slice(0, 300))
+  check('the refusal says ambiguous and names the Read to do, not an anchor to paste', /ambiguous/.test(r.data.result) && /re-read .*\(full file\) to refresh the anchor/.test(r.data.result) && !/current_anchor/.test(r.data.result), r.data.result.slice(0, 300))
   check('nothing written', readFileSync(p, 'utf8') === before)
 }
 
@@ -143,7 +143,7 @@ console.log('— N. no ring snapshot ⇒ the plain typed staleness refusal —')
   const foreign = 'fa:00000000feed'
   const r = await callTool({ op: 'apply', patch: [`file ${p} ${foreign}`, 'replace 1', '| X'].join('\n') }, ctx)
   check('unknown stale anchor refuses typed', r.data.outcome === 'failed' && /Stale anchor|stale/.test(r.data.result), r.data.result.slice(0, 240))
-  check('the refusal carries the current anchor + reread hint', /current_anchor: fa:/.test(r.data.result) && /Reread|re-read/i.test(r.data.result), r.data.result.slice(0, 300))
+  check('the refusal carries the reread hint and no current anchor', !/current_anchor/.test(r.data.result) && /Reread: re-read .*\(full file\) to refresh the anchor/.test(r.data.result), r.data.result.slice(0, 300))
 }
 
 console.log('')

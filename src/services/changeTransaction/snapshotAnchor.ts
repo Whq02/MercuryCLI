@@ -104,8 +104,7 @@ export function formatAnchorFailure(
       ? 'Malformed anchor: pass the bare fa:… or ra:… value in expected_anchor without the surrounding "(anchor: …)" text.'
       : 'Stale anchor: the file content no longer matches the read that produced this anchor.',
     `expected_anchor: ${expectedAnchor}`,
+    `Reread: ${check.rereadHint}`,
   ]
-  if (check.currentAnchor) lines.push(`current_anchor: ${check.currentAnchor}`)
-  lines.push(`Reread: ${check.rereadHint}`)
   return lines.join('\n')
 }
