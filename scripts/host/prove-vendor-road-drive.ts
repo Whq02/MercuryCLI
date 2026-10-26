@@ -129,8 +129,9 @@ try {
       check('Lambda waits for cloud-init and launches the recipe in Docker as ubuntu', record.target?.user === 'ubuntu' && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('cloud-init status --wait')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
     } else if (vendor === 'vast') check('Vast uses direct root SSH', record.target?.user === 'root' && record.target?.port === 2222)
     else check(label + ' uses VM startup readiness and Docker without Stop', !mounted!.screen().includes('Stop ·') && record.target?.port === 22 && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('/workspace/.mercury-vm-ready')) && ssh!.commands.some((row: any) => row.args?.at(-1)?.includes('docker run --rm --gpus all')))
-    await choose('Logs'); await until('Machine controls'); await until('installing · building llama.cpp · downloading weights')
+    await choose('Logs'); await until('Engine log'); await until('installing · building llama.cpp · downloading weights')
     check(label + ' Logs shows the engine log from the machine, not the vendor container log', !((fixture as { requests?: { path: string }[] }).requests ?? []).some(row => /logs/.test(row.path)))
+    mounted!.push(KEY.esc); await until('Machine controls')
     if (vendor === 'vast') {
       await choose('Stop ·'); await until('Confirm stop'); await choose('Confirm stop'); await until('Stopped · compute ended')
       check('Vast Stop retains the instance and verifies stopped state', vast.state.stops === 1 && vast.state.pods.size === 1 && readHostRecord(record.id)?.status === 'EXITED')
@@ -184,7 +185,7 @@ try {
   await close(); mounted!.unmount(); await mount(120)
   open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('Rent · Runpod'); await capture('120-connected-three-vendors')
   await close(); denyVastStock = true
-  open(); await until('Which model?'); await choose('Qwen3.8-27B'); await until('WEIGHTS'); await until('Vast.ai: stock unread')
+  open(); await until('Which model?'); await until('Vast.ai: stock unread'); await choose('Qwen3.8-27B'); await until('WEIGHTS')
   check('Unreadable Vast stock keeps the other rental rows', ['Rent · Runpod', 'Rent · Lambda'].every(label => mounted!.screen().includes(label)))
   await close(); denyVastStock = false; denyVastPods = true
   open(); await until('Which model?'); await until('Vast.ai: could not be read')

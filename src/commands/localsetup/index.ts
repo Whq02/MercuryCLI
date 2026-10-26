@@ -6,6 +6,6 @@ export default {
   seat: 'screen',
   userPrivate: true,
   supportsNonInteractive: false,
-  description: 'Set up a local model: find or install Ollama, start it, choose a model (on the server, or one it can pull that fits this machine), set its window, pick it — each step asks before it runs',
+  description: 'Set up a local model from Hugging Face, the Bank, Ollama or a running server',
   load: () => import('./localsetup.js'),
 } satisfies Command

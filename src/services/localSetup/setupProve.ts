@@ -8,7 +8,7 @@ import { settleModelSelection, type SettledSelection } from '../../utils/model/m
 import { rec, resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
 import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelDoor, type SessionModelSlice, type SessionSwitchReceipt, type SetupIo } from './setupTypes.js'
 
-export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind }
+export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind; pickAfterReply?: boolean }
 
 export function setupModelIdOf(tag: string, server?: LocalServerKind): string {
   const listing = cachedLocalModels().filter(m => m.id.toLowerCase() === tag.toLowerCase())
@@ -154,9 +154,8 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
     return { model, wireId: tag, server: seam.server ?? 'ollama', settled: 'unavailable', settledBy: 'none', settledDetail: `${tag} is not listed by any local server`, saved: '', ok: false, firstLine: '', fault: `${tag} is not listed by any local server`, timings: { totalMs: io.now() - started }, words: `${tag} is not listed by any local server` }
   }
   const model = setupModelIdOf(record.id, record.server)
-  const switched = await switchSessionModel(model, io)
-  const settled = switched.settled
-  const saved = switched.settled === 'refused' ? '' : io.persist(model).sentence
+  let switched: SessionSwitch = seam.pickAfterReply ? { settled: 'unavailable', settledBy: 'none' } : await switchSessionModel(model, io)
+  let saved = seam.pickAfterReply || switched.settled === 'refused' ? '' : io.persist(model).sentence
   const request = proveRequestOf(record)
   const timings: ProveTimings = { totalMs: 0 }
   let doneRow: Record<string, unknown> | undefined
@@ -195,6 +194,12 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
     .map(line => line.trim())
     .find(line => line !== '') ?? ''
   const ok = fault === undefined && finished && firstLine !== ''
+  if (seam.pickAfterReply && ok) {
+    io.signal?.throwIfAborted()
+    switched = await switchSessionModel(model, io)
+    if (!['refused', 'unavailable'].includes(switched.settled)) saved = io.persist(model).sentence
+  }
+  const settled = switched.settled
   const windowWords =
     record.server === 'ollama'
       ? window !== undefined

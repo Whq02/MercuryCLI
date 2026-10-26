@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync } from 'node:fs'
 import { HostPreparationCleanupFailed, prepareKeptWeights } from './keptWeights.js'
 import { gigabytes, keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, writeKeptVolume, type KeptVolume } from './volumes.js'
 import { randomUUID } from 'node:crypto'
@@ -20,10 +20,10 @@ import { hostNotice } from './notices.js'
 import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
 import type { HostRecipe } from './recipes.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
-import { bankDownloadScript, bankModelPath, bytesWords, folderBytes, recordBankFailure, sealBank, shortFolder, verifyBank } from './bank.js'
+import { bankModelPath, bytesWords, recordBankFailure, shortFolder, verifyBank } from './bank.js'
+import { pullIntoBank } from './bankPull.js'
 import { bankUploadBudget, bankUploadPreference, uploadBankForRental } from './keepSafe.js'
 import { downloadPrivateRepoForRental, type WeightsSource } from './weightsSource.js'
-import { runBoxScript } from './boxExecution.js'
 import { reconcileRecord } from '../projectServices/serviceManager.js'
 import { HostEngineDeath, engineDeathAfterReady, ensureHostKey, hostRunner, inspectSsh, sshArguments, startHostEngine, waitHostEngine, openHostTunnel, closeHostTunnel, type HostRunner, type SshTarget } from './ssh.js'
 import { hostRetuneLive, reconcileHostTune, tunedRecipe } from './tune.js'
@@ -37,7 +37,6 @@ class HostLinkLost extends Error {
 }
 const quote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'"
 const unauthorized = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && (error.status === 401 || error.status === 403)
-const localOs = (): 'darwin' | 'linux' | 'windows' => process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux'
 const inferredWeightsSource = (record: HostRecord, recipe: HostRecipe | undefined, vendor: HostVendorId): WeightsSource => {
   if (record.volumeId) return { kind: 'volume', volumeId: record.volumeId }
   const preference = recipe && (vendor === 'vast' || vendor === 'lambda') ? bankUploadPreference(recipe) : undefined
@@ -141,12 +140,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         removeHostRecord(id)
         return
       }
-      mkdirSync(path, { recursive: true })
       mark('downloading from Hugging Face' + (token ? ' with your Hugging Face token' : ''))
-      const expected = recipe.weightsGb * 1e9
-      const progress = setInterval(() => { try { mark('downloading ' + bytesWords(folderBytes(path)) + ' of ' + bytesWords(expected)) } catch {} }, Math.max(1000, pause))
-      try { await runBoxScript({ os: localOs(), target: undefined }, bankDownloadScript(recipe, path), runner, signal, 12 * 3600_000, token ? { HF_TOKEN: token.key } : undefined) } finally { clearInterval(progress) }
-      const receipt = await sealBank(recipe, folder, signal, mark)
+      const receipt = await pullIntoBank(recipe, folder, { signal, token: token?.key, runner, progress: mark, pollMs: Math.max(1000, pause) })
       mark('banked')
       hostNotice(initial, 'banked', initial.name + ' · banked on ' + shortFolder(folder) + ' · ' + bytesWords(receipt.bytes))
       removeHostRecord(id)

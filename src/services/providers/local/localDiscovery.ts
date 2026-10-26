@@ -6,6 +6,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import type { LocalServerKind } from '../openaicompat/compatWire.js'
 import { kvGeometryOf, type KvGeometry } from '../../localServer/localServerMemory.js'
 import { resolveLocalApiKey } from './localAccounts.js'
+import { ggufServerRoots } from '../../localSetup/ggufServers.js'
 
 export type { LocalServerKind }
 
@@ -78,6 +79,7 @@ export function localProbeTargets(
   let targets: { kind: LocalServerKind; root: string }[]
   if (pinned === undefined || pinned === '') {
     targets = [...DEFAULT_LOCAL_PROBE_TARGETS]
+    for (const root of ggufServerRoots()) if (!targets.some(target => target.root === root)) targets.push({ kind: 'llamacpp', root })
   } else if (pinned.toLowerCase() === 'none') {
     targets = []
   } else {

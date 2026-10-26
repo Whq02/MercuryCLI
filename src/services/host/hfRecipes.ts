@@ -39,12 +39,12 @@ export interface HfModel {
   ggufContext?: number
   config: Record<string, unknown>
 }
-interface HfFile { path: string; size: number; sha256?: string; git?: string }
+export interface HfFile { path: string; size: number; sha256?: string; git?: string }
 export type HfSearchOutcome = { state: 'ready'; models: HfModel[] } | { state: 'offline'; words: string }
 type HfRepoOutcome = { ok: true; files: HfFile[]; config: Record<string, unknown>; revision?: string } | { ok: false; words: string }
 type HfDerivation = { ok: true; recipe: HostRecipe; engine: string; format: string; weightsGb: number } | { ok: false; reason: string }
 export interface DerivedHfRecipe { repo: string; recipe: HostRecipe; engine: string; format: string; weightsGb: number; derivedAt: number; engineCheck?: string }
-interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
+export interface HfHubOptions { signal?: AbortSignal; token?: string; base?: string; timeoutMs?: number }
 type HfEngineCheck = (base: string, repo: string, revision: string, weightFile: string, options: { token?: string; signal?: AbortSignal }) => Promise<GgufEngineCheck>
 const VLLM_QUANT_METHODS = new Set(['awq', 'auto_awq', 'awq_marlin', 'gptq', 'auto_gptq', 'gptq_marlin', 'fp8', 'fbgemm_fp8', 'fp_quant', 'modelopt', 'modelopt_fp4', 'modelopt_mxfp8', 'modelopt_mixed', 'compressed-tensors', 'experts_int8', 'quark', 'moe_wna16', 'torchao', 'inc', 'mxfp4', 'gpt_oss_mxfp4', 'deepseek_v4_fp8', 'mxfp8', 'humming', 'bitsandbytes', 'gguf'])
 const EXL_FORMATS: Readonly<Record<string, string>> = { exl2: 'EXL2', exl3: 'EXL3' }
@@ -171,11 +171,11 @@ const quantOf = (path: string): string | undefined => {
 }
 const isGgufWeight = (path: string): boolean => /\.gguf$/i.test(path) && !/(^|\/)mmproj/i.test(path)
 const isSafetensorsWeight = (path: string): boolean => /\.safetensors$/i.test(path) && !/(^|\/)(original|consolidated)\//i.test(path)
-function quantGroups(files: readonly HfFile[]): { quant: string; files: HfFile[]; bytes: number }[] {
+export function ggufQuantGroups(files: readonly HfFile[], includeUnlabelled = false): { quant: string; files: HfFile[]; bytes: number }[] {
   const groups = new Map<string, { quant: string; files: HfFile[]; bytes: number }>()
   for (const file of files) {
     if (!isGgufWeight(file.path)) continue
-    const quant = quantOf(file.path)
+    const quant = quantOf(file.path) ?? (includeUnlabelled ? 'GGUF' : undefined)
     if (!quant) continue
     const sharded = /-\d{5}-of-\d{5}\.gguf$/i.test(file.path)
     const key = (file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '') + '|' + quant + '|' + file.path.replace(/-\d{5}-of-\d{5}\.gguf$/i, '').replace(/\.gguf$/i, '') + '|' + (sharded ? 'shards' : 'single')
@@ -193,7 +193,7 @@ function quantGroups(files: readonly HfFile[]): { quant: string; files: HfFile[]
   })
 }
 export function chooseGgufQuant(files: readonly HfFile[]): { quant: string; files: HfFile[]; bytes: number } | undefined {
-  const groups = quantGroups(files)
+  const groups = ggufQuantGroups(files)
   const preferred = FOUR_BIT_QUANTS.map(quant => groups.find(group => group.quant === quant)).find(Boolean)
   return preferred ?? [...groups].sort((a, b) => b.bytes - a.bytes)[0]
 }

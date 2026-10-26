@@ -91,7 +91,7 @@ async function findLine(io: ResolvedSetupIo): Promise<string> {
   return 'which ollama'
 }
 
-async function* streamed<T, R>(run: (emit: (item: T) => void) => Promise<R>): AsyncGenerator<T, R, void> {
+export async function* streamed<T, R>(run: (emit: (item: T) => void) => Promise<R>): AsyncGenerator<T, R, void> {
   const queue: T[] = []
   let wake: (() => void) | undefined
   let settled = false

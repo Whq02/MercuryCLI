@@ -13,13 +13,14 @@ import {
   type LocalSetupSummary,
 } from '../../components/LocalSetupDialog.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import { runSetupRoad, type SessionModelSetter } from '../../services/localSetup/index.js'
+import type { SessionModelSetter } from '../../services/localSetup/index.js'
+import { runLocalSetupRoad } from '../../services/localSetup/ggufRoad.js'
 import { useSetAppStateMaybe } from '../../state/AppState.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 
 export type SetupRoadRow = { tag: string; words: string; on?: string; current?: boolean; tested?: boolean }
-export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean; keys?: string; rows?: readonly SetupRoadRow[] }
+export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean; keys?: string; rows?: readonly SetupRoadRow[]; input?: string }
 export type SetupRoadResult = { label: string; outcome: 'ran' | 'skipped' | 'failed'; rc?: number; lastLine: string; detail?: object | undefined }
 export type SetupRoadReady = { model: string; ok?: boolean; window?: number; timings: { totalMs: number }; words?: string }
 export type SetupRoadSummary = {
@@ -38,7 +39,7 @@ export type SetupRoadEvent =
   | { type: 'result'; result: SetupRoadResult }
   | { type: 'done'; summary: SetupRoadSummary }
 export type SetupRoadConsent = (plan: SetupRoadPlan) => Promise<LocalSetupConsent>
-export type SetupRoadRunner = (consent: SetupRoadConsent) => AsyncIterable<SetupRoadEvent>
+export type SetupRoadRunner = (consent: SetupRoadConsent, signal?: AbortSignal) => AsyncIterable<SetupRoadEvent>
 
 const LABEL_ORDER: readonly string[] = ['1', '2', '2b', '3', '4', '4b', '5', '6']
 
@@ -55,6 +56,7 @@ export function setupAskOf(plan: SetupRoadPlan): LocalSetupAsk {
     ...(plan.title !== undefined ? { title: plan.title } : {}),
     ...(plan.keys !== undefined ? { keys: plan.keys } : {}),
     ...(plan.rows !== undefined ? { rows: plan.rows.map(setupRowOf) } : {}),
+    ...(plan.input !== undefined ? { input: plan.input } : {}),
   }
 }
 
@@ -127,23 +129,23 @@ export function setupDialogEventOf(event: SetupRoadEvent): LocalSetupEvent {
 }
 
 export function dialogRoadFrom(run: SetupRoadRunner): LocalSetupRoad {
-  return consent =>
+  return (consent, signal) =>
     (async function* (): AsyncGenerator<LocalSetupEvent> {
-      for await (const event of run(plan => consent(setupAskOf(plan)))) yield setupDialogEventOf(event)
+      for await (const event of run(plan => consent(setupAskOf(plan)), signal)) yield setupDialogEventOf(event)
     })()
 }
 
-export type LocalSetupRoadIo = { setAppState?: SessionModelSetter | undefined }
+export type LocalSetupRoadIo = { setAppState?: SessionModelSetter | undefined; repo?: string }
 
 export function localSetupRoadOf(io: LocalSetupRoadIo): LocalSetupRoad {
   const setAppState = io.setAppState
-  return dialogRoadFrom(consent => runSetupRoad(consent, setAppState === undefined ? {} : { setAppState }))
+  return dialogRoadFrom((consent, signal) => runLocalSetupRoad(consent, { ...(setAppState === undefined ? {} : { setAppState }), repo: io.repo, signal }))
 }
 
 export function LocalSetupPopupBody({ geometry, road, io }: { geometry: SettingsPopupGeometry; road?: LocalSetupRoad; io?: LocalSetupRoadIo }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const screenSetter = useSetAppStateMaybe()
-  const built = React.useMemo(() => road ?? localSetupRoadOf({ setAppState: io?.setAppState ?? screenSetter ?? undefined }), [road, io, screenSetter])
+  const built = React.useMemo(() => road ?? localSetupRoadOf({ ...io, setAppState: io?.setAppState ?? screenSetter ?? undefined }), [road, io, screenSetter])
   return <LocalSetupDialog road={built} width={geometry.inner} rowBudget={geometry.rowBudget} onLine={frame.setLine} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
 }
 
@@ -162,7 +164,7 @@ export function openLocalSetupPopup(io: LocalSetupRoadIo = {}): void {
   openSettingsPopup(localSetupPopupRequest(undefined, io))
 }
 
-export const call = async (_args: string, context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
-  openLocalSetupPopup({ setAppState: context.setAppState })
+export const call = async (args: string, context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
+  openLocalSetupPopup({ setAppState: context.setAppState, ...(args.trim() ? { repo: args.trim() } : {}) })
   return { type: 'skip' }
 }

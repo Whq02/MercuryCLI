@@ -233,6 +233,7 @@ export interface SetupStepPlan {
   keys: string
   skippable: boolean
   rows?: SetupModelRow[]
+  input?: string
 }
 
 export interface SetupStepResult {

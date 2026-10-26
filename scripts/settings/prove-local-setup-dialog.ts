@@ -127,7 +127,7 @@ async function* fixtureRoad(consent: Consent): AsyncGenerator<Record<string, unk
   const ready = { model: MODEL, wireId: 'qwen3.5:9b', server: 'ollama', settled: 'applied', saved: '', ok: true, firstLine: 'ready', window: 131072, timings: { totalMs: 41_000, loadMs: 9_800, evalTokens: 14 }, words: `ready · ${MODEL} · 128k window · reply in 41 s` }
   yield { type: 'done', summary: { ran, skipped, failed: [], notDone: [], reason: 'finished', model: MODEL, ready, words: `ready · ${MODEL}` } }
 }
-mock.module('../../src/services/localSetup/index.js', () => ({ runSetupRoad: fixtureRoad }))
+mock.module('../../src/services/localSetup/ggufRoad.js', () => ({ runLocalSetupRoad: fixtureRoad }))
 
 let localServer = false
 const ids = ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local']

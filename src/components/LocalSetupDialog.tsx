@@ -7,11 +7,12 @@ import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { truncateStartToWidth, truncateToWidth } from '../utils/truncate.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
+import TextInput from './TextInput.js'
 
 export const LOCAL_SETUP_POPUP_WIDTH = 120
 export const LOCAL_SETUP_POPUP_ROWS = 33
 export const LOCAL_SETUP_POPUP_HINT = '↵ run · s skip · esc stop · ←→ line tail · ↑↓ scroll · pgup/pgdn page · click outside closes'
-export const LOCAL_SETUP_OPENING_LINE = 'local model set-up · six steps · each says what it will run and waits for ↵'
+export const LOCAL_SETUP_OPENING_LINE = 'local models · Hugging Face · Bank · Ollama · running server'
 export const LOCAL_SETUP_KEYS = '↵ run · s skip · esc stop'
 export const LOCAL_SETUP_WILL_RUN = 'will run'
 export const LOCAL_SETUP_RUNNING = 'running…'
@@ -52,6 +53,7 @@ export type LocalSetupAsk = {
   needsSudo?: boolean
   keys?: string
   rows?: LocalSetupChoiceRow[]
+  input?: string
 }
 
 export type LocalSetupReady = {
@@ -85,7 +87,7 @@ export type LocalSetupAction =
   | { kind: 'ended' }
   | { kind: 'error'; words: string }
 
-export type LocalSetupRoad = (consent: (ask: LocalSetupAsk) => Promise<LocalSetupConsent>) => AsyncIterable<LocalSetupEvent>
+export type LocalSetupRoad = (consent: (ask: LocalSetupAsk) => Promise<LocalSetupConsent>, signal?: AbortSignal) => AsyncIterable<LocalSetupEvent>
 
 export type LocalSetupStepPhase = 'asking' | 'running' | 'ran' | 'skipped' | 'failed' | 'stopped'
 
@@ -98,6 +100,7 @@ export type LocalSetupStepState = {
   keys: string
   phase: LocalSetupStepPhase
   rows?: LocalSetupChoiceRow[]
+  input?: string
   cursor?: number
   progress?: string
   result?: string
@@ -159,7 +162,7 @@ export function localSetupChoiceRows(rows: readonly LocalSetupChoiceRow[], curso
   return rows.map((row, index) => {
     const under = cursor === index
     const mark = under ? LOCAL_SETUP_CURSOR : ' '
-    const text = `${ROW_INDENT}${mark} ${row.tag.padEnd(column)}  ${row.words}`
+    const text = `${ROW_INDENT}${mark} ${truncateStartToWidth(row.tag, column).padEnd(column)}  ${row.words}`
     return { text: truncateToWidth(text, width), tone: under ? 'primary' : 'secondary', bold: under, choice: index }
   })
 }
@@ -215,6 +218,7 @@ export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupActio
         keys: ask.keys ?? LOCAL_SETUP_KEYS,
         phase: 'asking',
         ...(ask.rows !== undefined && ask.rows.length > 0 ? { rows: ask.rows } : {}),
+        ...(ask.input !== undefined ? { input: ask.input } : {}),
       }
       return { ...state, steps: [...state.steps, next] }
     }
@@ -357,6 +361,9 @@ export function LocalSetupDialog({
   const [state, setState] = useState<LocalSetupState>(LOCAL_SETUP_INITIAL)
   const [tail, setTail] = useState(false)
   const [scroll, setScroll] = useState<number | null>(null)
+  const [input, setInput] = useState('')
+  const [inputCursor, setInputCursor] = useState(0)
+  const controllerRef = useRef<AbortController | null>(null)
   const answerRef = useRef<((answer: LocalSetupConsent) => void) | null>(null)
   const stopRef = useRef(false)
   const stateRef = useRef<LocalSetupState>(LOCAL_SETUP_INITIAL)
@@ -368,8 +375,12 @@ export function LocalSetupDialog({
   }, [])
   useEffect(() => {
     let live = true
+    const controller = new AbortController()
+    controllerRef.current = controller
     const consent = (ask: LocalSetupAsk): Promise<LocalSetupConsent> => {
       if (stopRef.current) return Promise.resolve('stop')
+      setInput('')
+      setInputCursor(0)
       if (live) dispatch({ kind: 'ask', ask })
       return new Promise(resolve => {
         answerRef.current = resolve
@@ -377,7 +388,7 @@ export function LocalSetupDialog({
     }
     void (async () => {
       try {
-        for await (const event of road(consent)) {
+        for await (const event of road(consent, controller.signal)) {
           if (!live) break
           dispatch(event)
         }
@@ -389,6 +400,7 @@ export function LocalSetupDialog({
     return () => {
       live = false
       stopRef.current = true
+      controller.abort()
       answerRef.current?.('stop')
       answerRef.current = null
     }
@@ -411,28 +423,31 @@ export function LocalSetupDialog({
     return true
   }
   const rows = localSetupRows(state, width, tail)
-  const budget = Math.max(1, rowBudget)
+  const budget = Math.max(1, rowBudget - (localSetupAsking(state)?.input !== undefined ? 1 : 0))
   const asking = localSetupAsking(state)
   const choice = localSetupIsChoice(asking) ? asking : undefined
   const cursorRow = choice !== undefined && choice.cursor !== undefined ? rows.findIndex(row => row.choice === choice.cursor) : -1
   const window = localSetupWindow(rows.length, budget, cursorRow >= 0 ? localSetupScrollFor(rows.length, budget, cursorRow) : scroll)
   usePopupListNavigation(choice?.cursor ?? -1, choice?.rows.length ?? 0, Math.max(1, budget - 2), cursor => dispatch({ kind: 'focus', cursor }), choice !== undefined)
-  usePopupListNavigation(window.start, Math.max(1, rows.length - budget + 2), Math.max(1, budget - 1), setScroll, choice === undefined)
+  usePopupListNavigation(window.start, Math.max(1, rows.length - budget + 2), Math.max(1, budget - 1), setScroll, choice === undefined && asking?.input === undefined)
   useInput((input, key, event) => {
     if (key.escape) {
       event.stopImmediatePropagation()
       if (escapeFromOutsidePress() || state.ended) {
         stopRef.current = true
         answer('stop')
+        controllerRef.current?.abort()
         onClose?.(state.summary ? localSetupSummaryWords(state.summary, stepTitles(state)) : undefined)
         return
       }
       if (!answer('stop')) {
         stopRef.current = true
         dispatch({ kind: 'consent', answer: 'stop' })
+        controllerRef.current?.abort()
       }
       return
     }
+    if (asking?.input !== undefined) return
     if (key.leftArrow || key.rightArrow) {
       event.stopImmediatePropagation()
       setTail(key.rightArrow)
@@ -464,12 +479,13 @@ export function LocalSetupDialog({
     ...(window.below > 0 ? [{ text: `↓ ${window.below} more`, tone: 'muted' as const }] : []),
   ]
   return (
-    <Box flexDirection="column" width={width} flexShrink={0} maxHeight={budget} overflow="hidden">
+    <Box flexDirection="column" width={width} flexShrink={0} maxHeight={Math.max(1, rowBudget)} overflow="hidden">
       {shown.map((row, index) => (
         <Box key={`${window.start}:${index}`} height={1} flexShrink={0}>
           <Text color={colour(row.tone)} bold={row.bold === true} wrap="truncate-end">{row.text}</Text>
         </Box>
       ))}
+      {asking?.input !== undefined && <TextInput value={input} onChange={value => setInput(value.replace(/[\r\n\t]+/g, '').slice(0, 240))} onSubmit={() => { if (pastOpenEvent() && input.trim()) answer({ pick: input.trim() }) }} focus showCursor multiline={false} disableCursorMovementForUpDownKeys disableEscapeDoublePress disablePageKeyCursorMovement inputFilter={value => pastOpenEvent() ? value : ''} columns={width} cursorOffset={inputCursor} onChangeCursorOffset={setInputCursor} placeholder={asking.input} />}
     </Box>
   )
 }
