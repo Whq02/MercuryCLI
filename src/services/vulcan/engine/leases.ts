@@ -30,6 +30,7 @@ const LEASE_FILENAME = 'project-leases.sqlite'
 const LEASE_STORAGE_NAMES = [LEASE_FILENAME, `${LEASE_FILENAME}-journal`, `${LEASE_FILENAME}-wal`, `${LEASE_FILENAME}-shm`]
 const owned = new Map<string, { root: string; holder: LeaseHolder }>()
 const ended = new Set<string>()
+const agentLifetimes = new Map<string, { ended: boolean }>()
 let closing = false
 let hooksInstalled = false
 let sessionRevision = 0
@@ -38,6 +39,32 @@ function holderKey(root: string, holder: LeaseHolder): string {
   return JSON.stringify([root, holder.sessionId, holder.agentId])
 }
 
+function agentKey(holder: LeaseHolder): string {
+  return JSON.stringify([holder.sessionId, holder.agentId, holder.pid])
+}
+
+export function beginAgentProjectLeases(agentId: string, signal: AbortSignal): () => Promise<void> {
+  const holder = projectLeaseHolder(agentId)
+  const key = agentKey(holder)
+  const lifetime = { ended: false }
+  agentLifetimes.set(key, lifetime)
+  let ending: Promise<void> | undefined
+  const end = (): Promise<void> => {
+    signal.removeEventListener('abort', onAbort)
+    if (agentLifetimes.get(key) !== lifetime) return Promise.resolve()
+    lifetime.ended = true
+    ending ??= Promise.all([...owned.values()]
+      .filter(entry => sameHolder(entry.holder, holder))
+      .map(entry => transaction(entry.root, () => undefined).catch(error => {
+        logForDebugging(`project lease cleanup could not release agent ${agentId}: ${String(error)}`)
+      }))).then(() => undefined)
+    return ending
+  }
+  const onAbort = (): void => { void end() }
+  if (signal.aborted) onAbort()
+  else signal.addEventListener('abort', onAbort, { once: true })
+  return end
+}
 export function projectLeaseHolder(agentId?: string): LeaseHolder {
   return { sessionId: getSessionId(), agentId: agentId ?? 'main', pid: process.pid, procStart: procStartToken(process.pid) }
 }
@@ -156,7 +183,7 @@ async function transaction<T>(projectRoot: string, change: (leases: ProjectLease
         const lease = JSON.parse(raw) as ProjectLease
         validateHolder(lease.holder)
         const alive = holderAlive({ owner: lease.holder.sessionId, pid: lease.holder.pid, procStart: lease.holder.procStart, acquiredAt: 0 }, 'assume-alive', starts.get(raw) ?? null)
-        const sessionEnded = lease.holder.pid === process.pid && ended.has(holderKey(realpathSync(projectRoot), lease.holder))
+        const sessionEnded = lease.holder.pid === process.pid && (ended.has(holderKey(realpathSync(projectRoot), lease.holder)) || agentLifetimes.get(agentKey(lease.holder))?.ended === true)
         return alive && !sessionEnded ? [lease] : []
       })
       const result = change(leases)
@@ -203,6 +230,7 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
   const resolved = [...new Set(paths.map(file => canonicalProjectLeasePath(root, file)))]
   const identity = { ...holder }
   remember(root, identity)
+  const lifetime = agentLifetimes.get(agentKey(identity))
   const sessionId = getSessionId()
   const revision = sessionRevision
   const liveToken = procStartToken(identity.pid) ?? await getProcessStartTokenAsync(identity.pid)
@@ -210,6 +238,7 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
   if (!holderAlive({ owner: identity.sessionId, pid: identity.pid, procStart: identity.procStart, acquiredAt: 0 }, 'assume-alive', liveToken)) throw new Error('the lease holder process has ended')
   return transaction<ProjectLeaseTakeResult>(root, leases => {
     if (identity.pid === process.pid && (closing || ended.has(holderKey(root, identity)) || revision !== sessionRevision || sessionId !== getSessionId())) throw new Error('the lease holder session has ended')
+    if (identity.pid === process.pid && (lifetime?.ended || agentLifetimes.get(agentKey(identity)) !== lifetime)) throw new Error('the lease holder agent has ended')
     const conflict = leases.find(lease => resolved.includes(lease.path) && !sameHolder(lease.holder, identity))
     if (conflict) return { ok: false, conflict, message: `${conflict.path} is leased by session ${conflict.holder.sessionId}, agent ${conflict.holder.agentId} (pid ${conflict.holder.pid})` }
     const acquiredAt = new Date().toISOString()
@@ -218,13 +247,24 @@ export async function takeProjectLeases(projectRoot: string, paths: readonly str
   })
 }
 
-export async function releaseProjectLeases(projectRoot: string, holder: LeaseHolder = projectLeaseHolder(), paths?: readonly string[]): Promise<{ ok: true; released: string[] }> {
+export async function releaseProjectLeases(projectRoot: string, holder: LeaseHolder = projectLeaseHolder(), paths?: readonly string[], options: { agentId?: string; all?: boolean } = {}): Promise<{ ok: true; released: string[] }> {
   validateHolder(holder)
+  if (options.all && options.agentId !== undefined) throw new Error('choose agentId or all, not both')
+  if (options.agentId !== undefined && !options.agentId.trim()) throw new Error('agentId must name an agent')
+  const override = options.all === true || options.agentId !== undefined
+  if (override && holder.agentId !== 'main') throw new Error('only the session director can release another agent’s leases')
   const resolved = paths ? new Set(paths.map(file => canonicalProjectLeasePath(projectRoot, file))) : null
+  const selected = (lease: ProjectLease): boolean => override
+    ? lease.holder.sessionId === holder.sessionId && (options.all === true || lease.holder.agentId === options.agentId)
+    : sameHolder(lease.holder, holder)
   return transaction<{ ok: true; released: string[] }>(projectRoot, leases => {
+    const conflict = override ? leases.find(lease => !selected(lease) && (resolved
+      ? resolved.has(lease.path)
+      : options.agentId !== undefined && lease.holder.agentId === options.agentId && !leases.some(selected))) : undefined
+    if (conflict) throw new Error(`${conflict.path} is leased by session ${conflict.holder.sessionId}, agent ${conflict.holder.agentId} (pid ${conflict.holder.pid})`)
     const released: string[] = []
     for (let i = leases.length - 1; i >= 0; i--) {
-      if (sameHolder(leases[i].holder, holder) && (!resolved || resolved.has(leases[i].path))) released.push(leases.splice(i, 1)[0].path)
+      if (selected(leases[i]) && (!resolved || resolved.has(leases[i].path))) released.push(leases.splice(i, 1)[0].path)
     }
     return { ok: true, released }
   })

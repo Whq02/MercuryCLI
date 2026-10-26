@@ -33,6 +33,7 @@ import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
 import { claimDiagnosticsRoot, releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
+import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import { readToolCallChain, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
@@ -727,6 +728,7 @@ export async function* runAgent(
 
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
+  const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
   noteAgentEffortWord(agentId, resolvedEffort)
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
@@ -1300,6 +1302,7 @@ export async function* runAgent(
     }
     throw thrown
   } finally {
+    await endProjectLeases()
     await fireCrewmateEnd()
     watchdog.cancel()
     accountant.end()
