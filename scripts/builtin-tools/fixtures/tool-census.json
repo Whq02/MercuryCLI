@@ -1598,6 +1598,9 @@
         "units": [
           "web-access"
         ],
+        "conditions": [
+          "a session model on a provider with its own search (Anthropic or OpenAI)"
+        ],
         "class": "observation",
         "cancellation": "cooperative",
         "latency": "interactive",
