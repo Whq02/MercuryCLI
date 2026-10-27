@@ -301,6 +301,10 @@ export function isStreamFaultRecoveryNudgeText(text: string): boolean {
   return text === STREAM_FAULT_RECOVERY_NUDGE
 }
 
+export function isStreamFaultRecoveryNudgeEcho(text: string): boolean {
+  return text.trim().startsWith(STREAM_FAULT_RECOVERY_NUDGE)
+}
+
 export function isEmptyReplyRecoveryNudgeText(text: string): boolean {
   return text === EMPTY_REPLY_RECOVERY_NUDGE
 }

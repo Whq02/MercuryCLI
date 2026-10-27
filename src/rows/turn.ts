@@ -11,9 +11,11 @@ import { legacyYieldsOf } from '../run-core/project-legacy.js'
 import type { QueryParams } from '../run-core/turn-machine.js'
 import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
-import { INVALID_API_KEY_ERROR_MESSAGE } from '../services/api/errors.js'
+import { INVALID_API_KEY_ERROR_MESSAGE, isStreamFaultRecoveryNudgeEcho } from '../services/api/errors.js'
 import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
 import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
+import { toolCallShapedAnswer } from '../services/providers/local/toolCallMarkup.js'
+import { emptyReplyEndedLine, emptyReplyKindOf } from '../services/providers/emptyReply.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
@@ -94,7 +96,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
+import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
@@ -1008,6 +1010,11 @@ export class Conversation {
                 turnMessages.push(systemMessage)
                 await recordDelta()
               }
+              if (systemMessage.subtype === 'stream_cut') {
+                const text = String((systemMessage as { content?: unknown }).content ?? '')
+                notices.push({ level: 'warning', text })
+                yield noticeRow(scope, 'warning', text)
+              }
               break
             }
             shouldRecord = true
@@ -1111,6 +1118,26 @@ export class Conversation {
           return
         }
         notices.push({ level: 'warning', text: `${tools.join(', ')} was not approved; the run continued with other tools.` })
+      }
+      const unexecuted = toolCallShapedAnswer(answer)
+      if (unexecuted !== undefined) {
+        yield* endTurn('failed', { error: { message: unexecutedToolCallSentence(unexecuted.names), class: 'model' } })
+        return
+      }
+      if (isStreamFaultRecoveryNudgeEcho(answer)) {
+        const faultWords = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
+        yield* endTurn('failed', {
+          error: {
+            message: faultWords !== '' ? faultWords : TERMINAL_FAILURE_SENTENCES.model_error,
+            class: apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : 'model',
+          },
+        })
+        return
+      }
+      if (answer === '' && lastAssistant !== undefined && emptyReplyKindOf(lastAssistant) === 'empty') {
+        const emptyReplies = turnMessages.filter(message => message.type === 'assistant' && !seedMessages.has(message) && emptyReplyKindOf(message as AssistantMessage) === 'empty').length
+        yield* endTurn('failed', { error: { message: emptyReplyEndedLine(Math.max(1, emptyReplies - 1)), class: 'model' } })
+        return
       }
       yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return

@@ -604,6 +604,10 @@ export function toolCallsRefusedSentence(terminal: Extract<Terminal, { reason: '
   return `The turn failed: every tool call the model made (${terminal.tools.join(', ')}) was refused before execution, and ${terminal.corrections} correction${terminal.corrections === 1 ? '' : 's'} did not produce a valid call`
 }
 
+export function unexecutedToolCallSentence(tools: readonly string[]): string {
+  return `The turn failed: the model answered with a tool call (${tools.join(', ')}) that was not executed`
+}
+
 export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; maxTimeMs?: number; message?: string }) => string> = {
   blocked: d => d.message ?? 'Blocked on the operator',
   interrupted: () => 'Interrupted',

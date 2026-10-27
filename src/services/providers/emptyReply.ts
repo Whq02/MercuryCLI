@@ -32,6 +32,10 @@ export function emptyReplyNoticeLine(action: string): string {
   return `The provider returned an empty reply — ${action}`
 }
 
+export function emptyReplyEndedLine(retries: number): string {
+  return emptyReplyNoticeLine(`the model was already asked for its answer ${retries === 1 ? 'once' : `${retries} times`}; the turn ends here`)
+}
+
 export function markEmptyReply(message: AssistantMessage, kind: EmptyReplyKind = 'empty', note?: string): void {
   const marked = message as MarkedAssistantMessage
   marked.providerEmptyReply = true

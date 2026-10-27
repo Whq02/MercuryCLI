@@ -1,6 +1,6 @@
 import { schemaPropertyType, typeTextBySchema } from './schemaTyping.js'
 
-type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral'
+type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral' | 'json'
 
 interface MarkupToolCall {
   name: string
@@ -298,6 +298,87 @@ const readMistral: Reader = (text, toolOf) => {
   return text.split('[TOOL_CALLS]').length - 1 === spans.length ? spans : null
 }
 
+type JsonCallRead = MarkupToolCall[] | 'undeclared' | null
+
+function firstString(...values: unknown[]): string | undefined {
+  return values.find((value): value is string => typeof value === 'string')
+}
+
+function jsonCallOf(value: unknown, toolOf: (name: string) => MarkupToolFacts | undefined, anyName: boolean): MarkupToolCall | 'undeclared' | null {
+  const object = rec(value)
+  if (object === undefined) return null
+  const inner = rec(object.function)
+  const callNamed = firstString(object.tool_name, object.tool, object.function, inner?.name)
+  const name = callNamed ?? firstString(object.name)
+  if (name === undefined || !NAME.test(name)) return null
+  const argued = object.arguments ?? inner?.arguments
+  const raw = argued ?? (anyName && callNamed === undefined ? undefined : (object.parameters ?? object.input ?? inner?.parameters))
+  if (raw === undefined) return null
+  const args = rec(raw) ?? (typeof raw === 'string' ? rec(parseJson(raw)) : undefined)
+  if (args === undefined) return null
+  if (toolOf(name) === undefined) return 'undeclared'
+  return { name, argumentsRaw: argumentsRawOf(args) }
+}
+
+function jsonCallsOf(value: unknown, toolOf: (name: string) => MarkupToolFacts | undefined, anyName: boolean): JsonCallRead {
+  const items = Array.isArray(value) ? value : [value]
+  if (items.length === 0) return null
+  const calls: MarkupToolCall[] = []
+  for (const item of items) {
+    const read = jsonCallOf(item, toolOf, anyName)
+    if (read === null) return null
+    if (read === 'undeclared') return 'undeclared'
+    calls.push(read)
+  }
+  return calls
+}
+
+const FENCE_BEFORE = /(?:`{3,}|~{3,})[A-Za-z_-]*[ \t]*\r?\n?[ \t]*$/
+const FENCE_AFTER = /^[ \t]*\r?\n?[ \t]*(?:`{3,}|~{3,})/
+
+function readJson(text: string, regions: readonly Region[], toolOf: (name: string) => MarkupToolFacts | undefined, anyName: boolean): Span[] | null {
+  const regionAt = (index: number): Region | undefined => regions.find(region => index >= region.start && index < region.end)
+  const spans: Span[] = []
+  let at = 0
+  while (at < text.length) {
+    const open = text[at]
+    if (open !== '{' && open !== '[') {
+      at += 1
+      continue
+    }
+    const close = balancedJsonEnd(text, at)
+    if (close < 0) {
+      at += 1
+      continue
+    }
+    const region = regionAt(at)
+    if (region !== undefined && (region.inner === undefined || text.slice(region.inner.start, region.inner.end).trim() !== text.slice(at, close + 1))) {
+      at = close + 1
+      continue
+    }
+    const read = jsonCallsOf(parseJson(text.slice(at, close + 1)), toolOf, anyName)
+    if (read === 'undeclared') return null
+    if (read === null) {
+      at = close + 1
+      continue
+    }
+    let start = at
+    let end = close + 1
+    if (region !== undefined) {
+      start = region.start
+      end = region.end
+    } else {
+      const before = FENCE_BEFORE.exec(text.slice(0, at))
+      if (before !== null && regionAt(before.index) === undefined) start = before.index
+      const after = FENCE_AFTER.exec(text.slice(close + 1))
+      if (after !== null) end += after[0].length
+    }
+    for (const call of read) spans.push({ start, end, call })
+    at = end
+  }
+  return spans.length > 0 ? spans : null
+}
+
 function withoutSpans(text: string, spans: readonly Span[]): string {
   let out = ''
   let cursor = 0
@@ -312,6 +393,7 @@ function withoutSpans(text: string, spans: readonly Span[]): string {
 interface Region {
   start: number
   end: number
+  inner?: { start: number; end: number }
 }
 
 function inlineCodeRegions(text: string, from: number, to: number, regions: Region[]): void {
@@ -339,7 +421,7 @@ function inlineCodeRegions(text: string, from: number, to: number, regions: Regi
 
 function codeRegions(text: string): Region[] {
   const regions: Region[] = []
-  let fence: { char: string; length: number; start: number } | undefined
+  let fence: { char: string; length: number; start: number; innerStart: number } | undefined
   let proseFrom = 0
   let lineStart = 0
   for (;;) {
@@ -349,17 +431,17 @@ function codeRegions(text: string): Region[] {
     if (fence === undefined) {
       if (run !== null) {
         inlineCodeRegions(text, proseFrom, lineStart, regions)
-        fence = { char: run[1]![0]!, length: run[1]!.length, start: lineStart }
+        fence = { char: run[1]![0]!, length: run[1]!.length, start: lineStart, innerStart: newline < 0 ? text.length : newline + 1 }
       }
     } else if (run !== null && run[1]![0] === fence.char && run[1]!.length >= fence.length && run[2]!.trim() === '') {
-      regions.push({ start: fence.start, end: lineEnd })
+      regions.push({ start: fence.start, end: lineEnd, inner: { start: fence.innerStart, end: lineStart } })
       fence = undefined
       proseFrom = lineEnd
     }
     if (newline < 0) break
     lineStart = newline + 1
   }
-  if (fence !== undefined) regions.push({ start: fence.start, end: text.length })
+  if (fence !== undefined) regions.push({ start: fence.start, end: text.length, inner: { start: fence.innerStart, end: text.length } })
   else inlineCodeRegions(text, proseFrom, text.length, regions)
   return regions
 }
@@ -383,13 +465,17 @@ function readSpans(text: string, toolOf: (name: string) => MarkupToolFacts | und
   return null
 }
 
-export function extractToolCallMarkup(text: string, tools: readonly MarkupToolFacts[]): ToolCallMarkupExtraction | undefined {
-  if (text.trim() === '' || tools.length === 0) return undefined
-  const byName = new Map(tools.map(tool => [tool.name, tool] as const))
-  const toolOf = (name: string): MarkupToolFacts | undefined => byName.get(name)
-  const visible = maskRegions(text, codeRegions(text))
+function extract(text: string, toolOf: (name: string) => MarkupToolFacts | undefined, anyName: boolean): ToolCallMarkupExtraction | undefined {
+  const regions = codeRegions(text)
+  const visible = maskRegions(text, regions)
   const read = readSpans(visible, toolOf)
-  if (read === null || read.spans.length === 0) return undefined
+  if (read === null) {
+    if (text.includes('<tool_call>')) return undefined
+    const spans = readJson(text, regions, toolOf, anyName)
+    if (spans === null || text.slice(spans[spans.length - 1]!.end).trim() !== '') return undefined
+    return { shape: 'json', calls: spans.map(span => span.call), text: withoutSpans(text, spans) }
+  }
+  if (read.spans.length === 0) return undefined
   const spans = [...read.spans].sort((a, b) => a.start - b.start)
   if (text.slice(spans[spans.length - 1]!.end).trim() !== '') return undefined
   const calls: MarkupToolCall[] = []
@@ -405,4 +491,16 @@ export function extractToolCallMarkup(text: string, tools: readonly MarkupToolFa
     calls.push(whole.call)
   }
   return { shape: read.shape, calls, text: withoutSpans(text, spans) }
+}
+
+export function extractToolCallMarkup(text: string, tools: readonly MarkupToolFacts[]): ToolCallMarkupExtraction | undefined {
+  if (text.trim() === '' || tools.length === 0) return undefined
+  const byName = new Map(tools.map(tool => [tool.name, tool] as const))
+  return extract(text, name => byName.get(name), false)
+}
+
+export function toolCallShapedAnswer(text: string): { shape: ToolCallMarkupShape; names: string[] } | undefined {
+  if (text.trim() === '') return undefined
+  const read = extract(text, name => ({ name }), true)
+  return read === undefined ? undefined : { shape: read.shape, names: [...new Set(read.calls.map(call => call.name))] }
 }

@@ -117,6 +117,76 @@ section('6b · a call is read only when the LAST shape ends the text; a shape in
   check('a code fence inside an argument value is the value, byte for byte', JSON.stringify(args(fencedValue?.calls[0]?.argumentsRaw)) === JSON.stringify({ path: 'NOTES.md', content }), fencedValue?.calls[0]?.argumentsRaw)
 }
 
+section('6c · bare or fenced JSON (qwen2.5-coder 3B on Ollama drops the <tool_call> wrapper its template asks for; Llama 3.1 JSON tool calling; Command R\'s Action fence): a declared name mints, an undeclared one stays text')
+{
+  const FENCE = '```'
+  const TICK = '`'
+  const WRITE = '{"name":"write","arguments":{"path":"hello.py","content":"print(\\"hi\\")\\n"}}'
+  const WRITE_ARGS = { path: 'hello.py', content: 'print("hi")\n' }
+  const bare = extractToolCallMarkup(WRITE, TOOLS)
+  check('the bare object as the whole text reads json: one write call, the arguments whole, no text left', bare?.shape === 'json' && bare.calls.length === 1 && bare.calls[0]?.name === 'write' && JSON.stringify(args(bare.calls[0]?.argumentsRaw)) === JSON.stringify(WRITE_ARGS) && bare.text === '', JSON.stringify(bare))
+  const fenced = extractToolCallMarkup(`${FENCE}json\n${WRITE}\n${FENCE}\n`, TOOLS)
+  check('the same object as the sole content of a ```json fence is the call, the fence gone', fenced?.shape === 'json' && fenced.calls.length === 1 && JSON.stringify(args(fenced.calls[0]?.argumentsRaw)) === JSON.stringify(WRITE_ARGS) && fenced.text === '', JSON.stringify(fenced))
+  const plainFence = extractToolCallMarkup(`${FENCE}\n${WRITE}\n${FENCE}`, TOOLS)
+  check('a bare ``` fence reads the same', plainFence?.shape === 'json' && plainFence.calls.length === 1 && plainFence.text === '', JSON.stringify(plainFence))
+  const prose = extractToolCallMarkup(`Sure, I'll create the file now.\n${WRITE}`, TOOLS)
+  check('a prose sentence before the object: the prose stays as the text, the call mints', prose?.calls.length === 1 && prose.calls[0]?.name === 'write' && prose.text === "Sure, I'll create the file now.", JSON.stringify(prose))
+  const proseFenced = extractToolCallMarkup(`Sure, I'll create the file now.\n\n${FENCE}json\n${WRITE}\n${FENCE}\n`, TOOLS)
+  check('prose then the fenced object: the same', proseFenced?.calls.length === 1 && proseFenced.text === "Sure, I'll create the file now.", JSON.stringify(proseFenced))
+  check('an object naming a tool the request did not declare stays text', extractToolCallMarkup('{"name":"Nope","arguments":{"x":1}}', TOOLS) === undefined)
+  check('the undeclared object inside a fence stays text too', extractToolCallMarkup(`${FENCE}json\n{"name":"Nope","arguments":{"x":1}}\n${FENCE}`, TOOLS) === undefined)
+  check('a declared name without an arguments object is not a call', extractToolCallMarkup('{"name":"Read"}', TOOLS) === undefined)
+  check('a declared name with arguments that are not an object is not a call', extractToolCallMarkup('{"name":"Read","arguments":"/tmp/a.ts"}', TOOLS) === undefined)
+  check('the object followed by prose is not a call (the text does not end on it)', extractToolCallMarkup(`${WRITE}\nThat is what I would run if you agree.`, TOOLS) === undefined)
+  check('a JSON object that is not a call stays text', extractToolCallMarkup('{"path": "hello.py", "ok": true}', TOOLS) === undefined)
+  check('a call object nested inside another object is not a call', extractToolCallMarkup('{"plan": {"name":"Read","arguments":{"file_path":"/tmp/a.ts"}}}', TOOLS) === undefined)
+  check('the object inside single backticks is a quoted example, never a call', extractToolCallMarkup(`The format is ${TICK}${WRITE}${TICK}`, TOOLS) === undefined)
+  const parameters = extractToolCallMarkup('{"type": "function", "name": "Read", "parameters": {"file_path": "/tmp/a.ts", "offset": 12}}', TOOLS)
+  check('Llama 3.1 JSON tool calling ("parameters" beside a "type" key · meta-llama/llama-models llama3_1/prompt_format.md) reads the same', parameters?.shape === 'json' && JSON.stringify(args(parameters.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts', offset: 12 }), JSON.stringify(parameters))
+  const wrapper = extractToolCallMarkup('{"type":"function","function":{"name":"Read","arguments":{"file_path":"/tmp/a.ts"}}}', TOOLS)
+  check('the wire\'s own tool_calls entry echoed as text ({"function": {"name", "arguments"}}) reads', wrapper?.shape === 'json' && wrapper.calls[0]?.name === 'Read' && JSON.stringify(args(wrapper.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts' }), JSON.stringify(wrapper))
+  const stringArgs = extractToolCallMarkup('{"name":"Read","arguments":"{\\"file_path\\":\\"/tmp/a.ts\\"}"}', TOOLS)
+  check('arguments as a JSON string parse to the object (the Qwen docs: arguments are JSON-formatted strings)', stringArgs?.shape === 'json' && JSON.stringify(args(stringArgs.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts' }), JSON.stringify(stringArgs))
+  const input = extractToolCallMarkup('{"name":"Read","input":{"file_path":"/tmp/a.ts"}}', TOOLS)
+  check('"input" as the arguments key reads', input?.shape === 'json' && JSON.stringify(args(input.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts' }), JSON.stringify(input))
+  const commandR = extractToolCallMarkup(`Action: ${FENCE}json\n[\n    {\n        "tool_name": "Read",\n        "parameters": {\n            "file_path": "/tmp/a.ts"\n        }\n    }\n]\n${FENCE}`, TOOLS)
+  check('Command R: "Action: ```json" then an array of {"tool_name", "parameters"} (docs.cohere.com/docs/prompting-command-r) reads one call, the fence opening mid-line; "Action:" stays as the text', commandR?.shape === 'json' && commandR.calls.length === 1 && commandR.calls[0]?.name === 'Read' && JSON.stringify(args(commandR.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts' }) && commandR.text === 'Action:', JSON.stringify(commandR))
+  const two = extractToolCallMarkup('[{"name":"Read","arguments":{"file_path":"a"}},{"name":"Read","arguments":{"file_path":"b"}}]', TOOLS)
+  check('an array of two call objects reads two calls in order', two?.calls.length === 2 && JSON.stringify(args(two.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: 'a' }) && JSON.stringify(args(two.calls[1]?.argumentsRaw)) === JSON.stringify({ file_path: 'b' }) && two.text === '', JSON.stringify(two))
+  const twoLines = extractToolCallMarkup('{"name":"Read","arguments":{"file_path":"a"}}\n{"name":"Read","arguments":{"file_path":"b"}}', TOOLS)
+  check('two objects on two lines read two calls', twoLines?.calls.length === 2 && twoLines.text === '', JSON.stringify(twoLines))
+  check('an array holding one declared and one undeclared name: nothing is read (never a half turn)', extractToolCallMarkup('[{"name":"Read","arguments":{"file_path":"a"}},{"name":"Nope","arguments":{}}]', TOOLS) === undefined)
+  check('an undeclared object before a declared one: nothing is read', extractToolCallMarkup('{"name":"Nope","arguments":{}}\n{"name":"Read","arguments":{"file_path":"a"}}', TOOLS) === undefined)
+  check('an array of plain values is not a call', extractToolCallMarkup('[1, 2, 3]', TOOLS) === undefined)
+  check('with no tools on the request nothing is read', extractToolCallMarkup(WRITE, []) === undefined)
+  check('an unbalanced object stays text', extractToolCallMarkup('{"name":"write","arguments":{"path":"hello.py"', TOOLS) === undefined)
+  const ticked = extractToolCallMarkup(`{"name":"bash","arguments":{"command":"echo ${TICK}date${TICK} > out.txt"}}`, TOOLS)
+  check('backticks inside an argument value are the value, byte for byte', JSON.stringify(args(ticked?.calls[0]?.argumentsRaw)) === JSON.stringify({ command: `echo ${TICK}date${TICK} > out.txt` }), ticked?.calls[0]?.argumentsRaw)
+  const noted = `# Notes\n\n${FENCE}ts\nconst a = 1\n${FENCE}\n`
+  const fencedValue = extractToolCallMarkup(`${FENCE}json\n${JSON.stringify({ name: 'write', arguments: { path: 'NOTES.md', content: noted } })}\n${FENCE}`, TOOLS)
+  check('a code fence inside a fenced call\'s argument value is the value, byte for byte', JSON.stringify(args(fencedValue?.calls[0]?.argumentsRaw)) === JSON.stringify({ path: 'NOTES.md', content: noted }), fencedValue?.calls[0]?.argumentsRaw)
+  const asGiven = extractToolCallMarkup('{"name":"Read","arguments":{"file_path":"/tmp/a.ts","offset":"12"}}', TOOLS)
+  check('the arguments ride as the model wrote them (a string stays a string here; the gate types it by the schema, proved in §7)', JSON.stringify(args(asGiven?.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts', offset: '12' }), asGiven?.calls[0]?.argumentsRaw)
+}
+
+section('6d · the headless reader: a tool-call-shaped answer in any shape, declared tool or not, names its calls; prose does not')
+{
+  const { toolCallShapedAnswer } = await import('../../src/services/providers/local/toolCallMarkup.ts')
+  check('a bare JSON call to an undeclared tool is tool-call-shaped', JSON.stringify(toolCallShapedAnswer('{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}')) === JSON.stringify({ shape: 'json', names: ['Write'] }), JSON.stringify(toolCallShapedAnswer('{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}')))
+  check('the fenced one too, with prose before it', toolCallShapedAnswer('Creating it:\n```json\n{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}\n```')?.names[0] === 'Write')
+  check('a Qwen XML envelope naming an undeclared function is tool-call-shaped', toolCallShapedAnswer('<tool_call>\n<function=Nope>\n<parameter=x>\n1\n</parameter>\n</function>\n</tool_call>')?.shape === 'qwen-xml')
+  check('a Mistral marker is tool-call-shaped', toolCallShapedAnswer('[TOOL_CALLS]Nope[ARGS]{"x": 1}')?.shape === 'mistral')
+  check('plain prose is not', toolCallShapedAnswer('Done. The tests pass.') === undefined)
+  check('a JSON object that is not a call is not', toolCallShapedAnswer('{"ok": true, "files": ["hello.py"]}') === undefined)
+  check('a call followed by prose is not (the answer does not end on it)', toolCallShapedAnswer('{"name":"Write","arguments":{}}\nShall I run it?') === undefined)
+  check('an empty answer is not', toolCallShapedAnswer('') === undefined)
+  check('with no roster, "name" beside "parameters" is data (an API spec, a config), not a call', toolCallShapedAnswer('{"name": "deploy", "parameters": {"region": "eu-west-1"}}') === undefined)
+  check('with no roster, "name" beside "input" is data too', toolCallShapedAnswer('{"name": "job", "input": {"rows": 3}}') === undefined)
+  check('"tool_name" beside "parameters" is a call whatever the roster', toolCallShapedAnswer('{"tool_name": "deploy", "parameters": {"region": "eu-west-1"}}')?.names[0] === 'deploy')
+  check('the function wrapper is a call whatever the roster', toolCallShapedAnswer('{"type":"function","function":{"name":"deploy","arguments":{"region":"eu-west-1"}}}')?.names[0] === 'deploy')
+  check('beside a declared tool, "name" with "parameters" still reads as the call (§6c)', extractToolCallMarkup('{"name": "Read", "parameters": {"file_path": "/tmp/a.ts"}}', TOOLS)?.calls[0]?.name === 'Read')
+}
+
 section('7 · settlement through the local lane on both transports: the markup becomes a gated tool_use block, the prose a text block, the stop reason tool_use')
 const script: { ollama?: Record<string, unknown>[]; compat?: unknown[] } = {}
 const fixture = Bun.serve({
@@ -254,6 +324,54 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
   ]
   const settled = await drive(llamaRecord)
   check('the Mistral grammar through the compat road mints the same way', settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/a.ts' }) && settled.stop === 'tool_use', JSON.stringify(settled))
+}
+
+section('7a · the reported shape (qwen2.5-coder 3B on Ollama, tools declared, the call written as bare or fenced JSON in the content): one Write tool_use mints through the gate, exactly like the other shapes')
+const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const WRITE = FileWriteTool.name
+const coderRecord: LocalModelRecord = { id: 'qwen2.5-coder:3b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'qwen2', parameterSize: '3.1B' }
+const writeCall = JSON.stringify({ name: WRITE, arguments: { file_path: '/tmp/hello.py', content: 'print("Hello, world!")\n' } })
+const createAsk = { messages: [createUserMessage({ content: 'Create a file hello.py that prints a greeting.' })], tools: [FileReadTool, FileWriteTool] }
+{
+  script.ollama = [
+    { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: writeCall }, done: false },
+    doneRow({ model: 'qwen2.5-coder:3b' }),
+  ]
+  const settled = await drive(coderRecord, createAsk)
+  check('Ollama /api/chat, the bare JSON object as the whole content, no tool_calls, done_reason stop: one Write tool_use mints with the typed input, no text block, the stop reason tool_use', settled.toolUses.length === 1 && settled.toolUses[0]!.name === WRITE && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/hello.py', content: 'print("Hello, world!")\n' }) && settled.texts.length === 0 && settled.stop === 'tool_use', JSON.stringify(settled))
+}
+{
+  script.ollama = [
+    { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: 'Sure! Here is the tool call to create the file:\n\n```json\n' }, done: false },
+    { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: `${writeCall}\n\`\`\`` }, done: false },
+    doneRow({ model: 'qwen2.5-coder:3b' }),
+  ]
+  const settled = await drive(coderRecord, createAsk)
+  check('the same call inside a ```json fence after a sentence, streamed in two pieces: the Write block mints, the sentence stays as the text', settled.toolUses.length === 1 && settled.toolUses[0]!.name === WRITE && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/hello.py', content: 'print("Hello, world!")\n' }) && settled.texts.length === 1 && settled.texts[0] === 'Sure! Here is the tool call to create the file:' && settled.stop === 'tool_use', JSON.stringify(settled))
+}
+{
+  script.ollama = [
+    { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: `{"name":"${READ}","arguments":{"file_path":"/tmp/a.ts","offset":"12"}}` }, done: false },
+    doneRow({ model: 'qwen2.5-coder:3b' }),
+  ]
+  const settled = await drive(coderRecord, createAsk)
+  check('a number the model wrote as a string is typed by the schema at the gate', settled.toolUses.length === 1 && JSON.stringify(settled.toolUses[0]!.input) === JSON.stringify({ file_path: '/tmp/a.ts', offset: 12 }) && settled.stop === 'tool_use', JSON.stringify(settled))
+}
+{
+  script.ollama = [
+    { model: 'qwen2.5-coder:3b', message: { role: 'assistant', content: '{"name":"create_file","arguments":{"path":"hello.py","content":"print(1)"}}' }, done: false },
+    doneRow({ model: 'qwen2.5-coder:3b' }),
+  ]
+  const settled = await drive(coderRecord, createAsk)
+  check('a JSON call naming a tool the request did not declare stays text: no tool_use, the turn ends', settled.toolUses.length === 0 && settled.texts.length === 1 && settled.texts[0]!.includes('create_file') && settled.stop === 'end_turn', JSON.stringify(settled))
+}
+{
+  script.compat = [
+    { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: { role: 'assistant', content: `\`\`\`json\n${writeCall}\n\`\`\`\n` }, finish_reason: null }] },
+    { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 40, completion_tokens: 20 } },
+  ]
+  const settled = await drive(llamaRecord, createAsk)
+  check('the fenced JSON call through the OpenAI-compatible local road (llama.cpp, LM Studio) mints the same way', settled.toolUses.length === 1 && settled.toolUses[0]!.name === WRITE && settled.texts.length === 0 && settled.stop === 'tool_use', JSON.stringify(settled))
 }
 
 section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTED this session (its definition rides the ToolSearch result row, not the tools term) mints from markup; the same tool unadmitted stays text')

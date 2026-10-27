@@ -184,7 +184,7 @@ import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/t
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
-import { emptyReplyKindOf, emptyReplyNoteOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
+import { emptyReplyEndedLine, emptyReplyKindOf, emptyReplyNoteOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
 import type { Terminal, Continue } from '../query/transitions.js'
@@ -1826,10 +1826,7 @@ async function* runEventMachine(
         }
         yield emit({
           kind: 'notice',
-          message: createSystemMessage(
-            emptyReplyNoticeLine(`the model was already asked for its answer ${emptyReplyRecoveryCount === 1 ? 'once' : `${emptyReplyRecoveryCount} times`}; the turn ends here`),
-            'warning',
-          ),
+          message: createSystemMessage(emptyReplyEndedLine(emptyReplyRecoveryCount), 'warning'),
         })
       }
 
