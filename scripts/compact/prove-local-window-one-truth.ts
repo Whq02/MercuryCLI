@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -16,6 +16,9 @@ const proofHome = mkdtempSync(join(base, 'local-window-one-truth-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
 process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+const debugLog = join(proofHome, 'd.log')
+process.env.DEBUG = '1'
+process.argv.push('--log-file', debugLog)
 
 let failures = 0
 let checks = 0
@@ -294,7 +297,7 @@ section('§5 the headless road (mercury run --format rows): a model ALREADY RESI
   check('the model is resident at 4,096 (the tester\'s curl /api/generate with num_ctx 4096 before the run)', resident.contextWindow?.tokens === SERVED_DEFAULT && resident.contextWindow.source === 'served' && resident.loaded === true, JSON.stringify(resident.contextWindow))
   w.writeLocalWindowSetting(resident, 32768)
   const customSystemPrompt = 'the system prompt of this session. '.repeat(1_573)
-  async function headless(model: string, prompt: string): Promise<{ outcome: Record<string, unknown> | undefined; chat: { numCtx: number | undefined } | undefined }> {
+  async function headless(model: string, prompt: string, system = customSystemPrompt): Promise<{ outcome: Record<string, unknown> | undefined; chat: { numCtx: number | undefined } | undefined }> {
     let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
     const conversation = new Conversation({
       cwd: proofHome,
@@ -308,7 +311,7 @@ section('§5 the headless road (mercury run --format rows): a model ALREADY RESI
         appState = f(appState as never) as unknown as Record<string, unknown>
       }) as never,
       readFileState: createFileStateCacheWithSizeLimit(100),
-      customSystemPrompt,
+      customSystemPrompt: system,
       userSpecifiedModel: model,
       thinkingConfig: { type: 'disabled' } as never,
       maxTurns: 1,
@@ -338,7 +341,71 @@ section('§5 the headless road (mercury run --format rows): a model ALREADY RESI
   const shortError = short.outcome?.error as { message?: string; class?: string } | undefined
   record(`true 4k model, a short prompt (the request road's guard refuses): outcome ${JSON.stringify(short.outcome?.status)} · class ${JSON.stringify(shortError?.class)}`)
   check('a short prompt reaches the request road and its guard refuses with the same sentence and the same class, before any send', short.outcome?.status === 'failed' && shortError?.class === 'context_limit' && localSentence(shortError.message) && short.chat === undefined, JSON.stringify(shortError))
+  const overflow32 = await headless(CODER_MODEL, 'answer briefly', `${customSystemPrompt} ${'genuinely overflow the planned window. '.repeat(12_000)}`)
+  const overflow32Error = overflow32.outcome?.error as { message?: string; class?: string } | undefined
+  check('a genuine overflow of the 32k planned window keeps the local context_limit refusal and sends nothing', overflow32.outcome?.status === 'failed' && overflow32Error?.class === 'context_limit' && (overflow32Error.message ?? '').includes('32768 tokens') && overflow32.chat === undefined, JSON.stringify(overflow32Error))
   bootstrap.setSessionPersistenceDisabled(false)
+}
+
+section('§6 a 32k auto-compaction trigger budgets the measured fixed material plus one turn, and three tool turns never attempt a fold below that point')
+{
+  const autoCompact = await import('../../src/services/compact/autoCompact.ts')
+  const { bindRequestGauge } = await import('../../src/services/run/requestGauge.ts')
+  const { flushDebugLogs } = await import('../../src/utils/debug.ts')
+  w.writeLocalWindowSetting(coder, 32768)
+  const thresholdFor = autoCompact.getAutoCompactThresholdWithFixed
+  const smallBefore = autoCompact.getAutoCompactThreshold(CODER_MODEL)
+  const smallAfter = thresholdFor(CODER_MODEL, 13_900)
+  const largeBefore = autoCompact.getAutoCompactThreshold('compat/my-model')
+  const largeAfter = thresholdFor('compat/my-model', 13_900)
+  record(`32k threshold with 13,900 fixed tokens: ${fmt(smallBefore)} → ${fmt(smallAfter)}; 200k: ${fmt(largeBefore)} → ${fmt(largeAfter)}`)
+  check('32k: 5,394 becomes fixed 13,900 + one 5,394-token turn = 19,294', smallBefore === 5_394 && smallAfter === 19_294, `${smallBefore} → ${smallAfter}`)
+  check('200k: the existing 157,000 trigger is byte-identical with the same fixed material', largeBefore === 157_000 && largeAfter === 157_000, `${largeBefore} → ${largeAfter}`)
+
+  const statuses: Array<{ exit?: string }> = []
+  const appState = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
+  const ctx = {
+    abortController: new AbortController(),
+    options: { commands: [], tools: [], engineModel: CODER_MODEL, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    getAppState: () => appState,
+    setAppState: () => {},
+    messages: [],
+    readFileState: createFileStateCacheWithSizeLimit(100),
+    setInProgressToolUseIDs: () => {},
+    setResponseLength: () => {},
+    updateFileHistoryState: () => {},
+    updateAttributionState: () => {},
+    setSDKStatus: (word: unknown) => {
+      const status = (word as { compacting?: { exit?: string } } | null)?.compacting
+      if (status !== undefined) statuses.push(status)
+    },
+    agentId: undefined,
+  }
+  const messages: Message[] = [createUserMessage({ content: 'run the three-turn local fixture' })]
+  for (let turn = 1; turn <= 3; turn++) {
+    const assistant = createAssistantMessage({ content: [{ type: 'tool_use', id: `local-call-${turn}`, name: 'Bash', input: { command: `turn ${turn}` } }] as never })
+    assistant.message.model = CODER_MODEL
+    assistant.message.stop_reason = turn === 3 ? 'end_turn' : 'tool_use'
+    assistant.message.usage = { input_tokens: turn === 3 ? 16_000 : 100, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } as never
+    messages.push(assistant, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `local-call-${turn}`, content: `tool result ${turn}` }] as never }))
+  }
+  bindRequestGauge(messages, `local:${CODER_MODEL}:c1`, 0, { digest: 'local-32k-fixed', tokens: 13_900 })
+  const systemPrompt = ['the 13.9k fixed local prompt measured by the request gauge']
+  const cache = { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages, postFoldCarry: [] } as never
+  let tracking = { compacted: false, turnCounter: 0, turnId: 'local-32k', consecutiveFailures: undefined as number | undefined }
+  const outcomes: Array<{ wasCompacted: boolean; consecutiveFailures?: number }> = []
+  rmSync(debugLog, { force: true })
+  for (let turn = 0; turn < 3; turn++) {
+    const outcome = await autoCompact.autoCompactIfNeeded(messages, ctx as never, cache, 'sdk', tracking)
+    outcomes.push(outcome)
+    tracking = { ...tracking, turnCounter: tracking.turnCounter + 1, consecutiveFailures: outcome.consecutiveFailures }
+  }
+  await flushDebugLogs()
+  const debug = readFileSync(debugLog, 'utf8')
+  const skips = debug.split('\n').filter(line => line.includes('autoCompact:') && line.includes('skip'))
+  record(`three-turn failure counts ${JSON.stringify(outcomes.map(outcome => outcome.consecutiveFailures))}; failed statuses ${statuses.filter(status => status.exit === 'failed').length}; debug skips ${skips.length}`)
+  check('three tool turns produce no failed compaction status and no fold attempt', statuses.filter(status => status.exit === 'failed').length === 0 && outcomes.every(outcome => !outcome.wasCompacted), JSON.stringify({ statuses, outcomes }))
+  check('three tool turns produce no [ERROR] stack and exactly one debug skip', !debug.includes('[ERROR]') && skips.length === 1, JSON.stringify({ errors: debug.split('\n').filter(line => line.includes('[ERROR]')), skips }))
 }
 
 ollama.server.close()

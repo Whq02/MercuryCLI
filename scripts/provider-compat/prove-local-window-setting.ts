@@ -52,7 +52,7 @@ const OLLAMA_MODEL = 'qwen3.5:9b-q4_K_M'
 const LM_MODEL = 'google/gemma-4-26b-a4b'
 const ollamaHits: Hit[] = []
 const lmHits: Hit[] = []
-const ollamaState = { loadedCtx: undefined as number | undefined, errorNext: undefined as string | undefined }
+const ollamaState = { loadedCtx: undefined as number | undefined, errorNext: undefined as string | undefined, errorRows: [] as unknown[] }
 const ollama = await serve((req, body, res) => {
   const url = req.url ?? ''
   if (url === '/api/tags') return json(res, 200, { models: [{ name: OLLAMA_MODEL, model: OLLAMA_MODEL, details: { family: 'qwen35' } }] }), true
@@ -63,6 +63,11 @@ const ollama = await serve((req, body, res) => {
     const options = body.options as { num_ctx?: number } | undefined
     ollamaState.loadedCtx = options?.num_ctx ?? 262144
     res.writeHead(200, { 'content-type': 'application/x-ndjson' })
+    if (ollamaState.errorRows.length > 0) {
+      res.write(JSON.stringify({ error: ollamaState.errorRows.shift() }) + '\n')
+      res.end()
+      return true
+    }
     if (ollamaState.errorNext !== undefined) {
       res.write(JSON.stringify({ error: ollamaState.errorNext }) + '\n')
       ollamaState.errorNext = undefined
@@ -234,7 +239,68 @@ section('6 · the runtime road: the Ollama profile streams /api/chat through the
   check('the settlement carries the thinking block, the text block and the refused-or-settled tool call, no api error', blocks.some(b => b.type === 'thinking' && (b.thinking ?? '').includes('Let me look')) && blocks.some(b => b.type === 'text' && (b.text ?? '').includes('Reading it now')) && !yielded.some(m => m.isApiErrorMessage === true), j(blocks.map(b => b.type)))
 }
 
-section('7 · LM Studio: the setting applies through the documented load road — unload the instance, load with context_length, the served window follows')
+section('7 · an Ollama NDJSON error row carries its own HTTP class, and the shared runtime spends its one retry before returning that class')
+{
+  const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  async function faultFor(error: unknown): Promise<{ status?: number; retryable: boolean; code: string; kind: string } | undefined> {
+    ollamaState.errorRows = [error]
+    let fault: { status?: number; retryable: boolean; code: string; kind: string } | undefined
+    for await (const event of streamOllamaChat({ url: `${ollama.root}/api/chat`, request: { model: OLLAMA_MODEL, messages: [{ role: 'user', content: 'x' }] } }, {})) {
+      if (event.type === 'stream-fault') fault = event.fault
+    }
+    return fault
+  }
+  const serverWords = 'llama-server chat error: map[code:500 message:The model produced output that does not match the expected peg-native format type:server_error]'
+  const server = await faultFor(serverWords)
+  check('map[code:500 … type:server_error] becomes status 500, retryable, typed server_error', server?.status === 500 && server.retryable && compatFaultToTypedError(server as never) === 'server_error', j(server))
+  const plain = await faultFor('x')
+  check('an error row with no code or server type keeps status 400, not retryable, invalid_request', plain?.status === 400 && !plain.retryable && compatFaultToTypedError(plain as never) === 'invalid_request', j(plain))
+  const rate = await faultFor({ code: 429, message: 'slow down', type: 'rate_limit_error' })
+  check('an object error with code 429 becomes status 429, retryable, rate_limit', rate?.status === 429 && rate.retryable && compatFaultToTypedError(rate as never) === 'rate_limit', j(rate))
+  const serverType = await faultFor({ message: 'the renderer failed', type: 'server_error' })
+  check('server_error without a code falls back to status 500 and retryable server_error', serverType?.status === 500 && serverType.retryable && compatFaultToTypedError(serverType as never) === 'server_error', j(serverType))
+  const statusField = await faultFor({ status: 503, message: 'temporarily unavailable' })
+  check('a numeric status field supplies the same class map', statusField?.status === 503 && statusField.retryable && compatFaultToTypedError(statusField as never) === 'server_error', j(statusField))
+
+  const { Conversation } = await import('../../src/rows/turn.ts')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+  const bootstrap = await import('../../src/bootstrap/state.ts')
+  bootstrap.setIsInteractive(false)
+  bootstrap.setAskChannel('none')
+  bootstrap.setSessionPersistenceDisabled(true)
+  let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
+  const conversation = new Conversation({
+    cwd: HOME,
+    tools: [] as never,
+    commands: [],
+    mcpClients: [],
+    agents: { activeAgents: [], allAgents: [] } as never,
+    canUseTool: (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } })) as never,
+    getAppState: () => appState as never,
+    setAppState: ((f: (prev: never) => never): void => {
+      appState = f(appState as never) as unknown as Record<string, unknown>
+    }) as never,
+    readFileState: createFileStateCacheWithSizeLimit(100),
+    customSystemPrompt: 'Ollama error-class fixture',
+    userSpecifiedModel: `local/${OLLAMA_MODEL}`,
+    thinkingConfig: { type: 'disabled' } as never,
+    maxTurns: 1,
+  })
+  const before = ollamaHits.length
+  ollamaState.errorRows = [serverWords, serverWords]
+  let outcome: Record<string, unknown> | undefined
+  for await (const row of conversation.turn('answer briefly')) {
+    const draft = row as unknown as Record<string, unknown>
+    if (draft.type === 'outcome') outcome = draft
+  }
+  const chats = ollamaHits.slice(before).filter(hit => hit.url === '/api/chat')
+  const error = outcome?.error as { class?: string; message?: string } | undefined
+  check('the headless run retries once, then ends failed with class server and the server\'s own words', chats.length === 2 && outcome?.status === 'failed' && error?.class === 'server' && (error.message ?? '').includes('peg-native format'), JSON.stringify({ chats: chats.length, outcome }))
+  bootstrap.setSessionPersistenceDisabled(false)
+}
+
+section('8 · LM Studio: the setting applies through the documented load road — unload the instance, load with context_length, the served window follows')
 {
   w.__resetLocalWindowsForTest()
   check('discovery states the loaded instance (8192 served)', gemma.contextWindow?.tokens === 8192 && gemma.contextWindow.source === 'served')
@@ -251,7 +317,7 @@ section('7 · LM Studio: the setting applies through the documented load road �
   check('the words: 64k · served 64k · applied at load', w.localWindowValueWords(gemma, 65536).includes('64k') && w.localWindowValueWords(gemma, 65536).includes('applied at load'), w.localWindowValueWords(gemma, 65536))
 }
 
-section('8 · the /config row (pure): the value words per kind and the n/a outside the local lane')
+section('9 · the /config row (pure): the value words per kind and the n/a outside the local lane')
 {
   __resetLocalDiscoveryForTest()
   await refreshLocalDiscovery({ force: true })
@@ -270,7 +336,7 @@ section('8 · the /config row (pure): the value words per kind and the n/a outsi
   check('a vLLM model: not applicable, the note says the server fixes its window at start', !fixed.applies && fixed.valueText.includes('set at server start') && fixed.note.includes('fixes its window when it starts'), fixed.valueText)
 }
 
-section("9 · the small-machine warning on the two pick surfaces (red on the base): on an 8 GiB darwin box a pick that fits but leaves little room is said once, in the picker's bracket and the /config row's note, with the smaller rung; auto, server, a roomy pick and a refused pick read as before")
+section("10 · the small-machine warning on the two pick surfaces (red on the base): on an 8 GiB darwin box a pick that fits but leaves little room is said once, in the picker's bracket and the /config row's note, with the smaller rung; auto, server, a roomy pick and a refused pick read as before")
 {
   const memory = await import('../../src/services/localServer/localServerMemory.ts')
   const truthModule = await import('../../src/services/localServer/localServerTruth.ts')

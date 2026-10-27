@@ -205,13 +205,34 @@ class LineSplitter {
 
 type RowOutcome = { events: CompatStreamEvent[]; done: boolean }
 
+function ollamaStatus(value: unknown): number | undefined {
+  const status = typeof value === 'number' ? value : typeof value === 'string' && /^\d{3}$/.test(value) ? Number(value) : undefined
+  return status !== undefined && status >= 100 && status <= 599 ? status : undefined
+}
+
+function ollamaErrorFault(error: unknown): ReturnType<typeof mapCompatHttpFailure> {
+  const object = rec(error)
+  const message = typeof error === 'string' ? error : typeof object?.message === 'string' ? object.message : ''
+  const explicitStatus = ollamaStatus(object?.code) ?? ollamaStatus(object?.status)
+  const embeddedStatus = ollamaStatus(/\bcode:(\d{3})\b/.exec(message)?.[1])
+  const embeddedType = /\btype:([A-Za-z0-9_-]+)/.exec(message)?.[1]
+  const type = typeof object?.type === 'string' ? object.type : embeddedType
+  if (explicitStatus === undefined && embeddedStatus === undefined && type !== 'server_error') {
+    return { kind: 'api-error', code: 'api-error', message, retryable: false, status: 400 }
+  }
+  const status = explicitStatus ?? embeddedStatus ?? 500
+  const mapped = mapCompatHttpFailure(status, { error: { ...object, message, ...(type !== undefined ? { type } : {}) } })
+  return { ...mapped, kind: 'api-error' }
+}
+
 function decodeRow(parsed: unknown, calls: CompatCompletedToolCall[], seen: { model?: string }, shape: OllamaStreamShape): RowOutcome {
   const row = rec(parsed)
   if (row === undefined) return { events: [], done: false }
   shape.rows += 1
   const events: CompatStreamEvent[] = []
-  if (typeof row.error === 'string' && row.error !== '') {
-    events.push({ type: 'stream-fault', fault: { kind: 'api-error', code: 'api-error', message: row.error, retryable: false, status: 400 } })
+  const error = typeof row.error === 'string' && row.error !== '' || rec(row.error) !== undefined ? row.error : undefined
+  if (error !== undefined) {
+    events.push({ type: 'stream-fault', fault: ollamaErrorFault(error) })
     return { events, done: true }
   }
   const model = typeof row.model === 'string' ? row.model : undefined

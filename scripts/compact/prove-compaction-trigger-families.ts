@@ -169,7 +169,7 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
   check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow))
   const source = src('src/services/compact/autoCompact.ts')
-  check('the maintenance ladder receives the trigger\'s own threshold (recompactionInfo.autoCompactThreshold)', /const threshold = getAutoCompactThreshold\(model\)[\s\S]{0,400}autoCompactThreshold: threshold/.test(source))
+  check('the maintenance ladder receives the trigger\'s fixed-aware threshold (recompactionInfo.autoCompactThreshold)', /const threshold = getAutoCompactThresholdWithFixed\(model, fixedTokens\)[\s\S]{0,400}autoCompactThreshold: threshold/.test(source))
   check('the trigger awaits the window source before deciding', /await awaitContextWindowSource\(model\)/.test(source))
 }
 

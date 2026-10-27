@@ -12,6 +12,7 @@ import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.
 import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../../utils/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { readRequestGauge } from '../run/requestGauge.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { setLastSummarizedMessageId } from '../SessionMemory/sessionMemoryUtils.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
@@ -29,6 +30,7 @@ import {
   buildPostCompactMessages,
   compactionPausedForHistoryText,
   CompactionRefusedForHistoryError,
+  estimateFixedRequestTokens,
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   foldRemedyIsHeadless,
@@ -122,16 +124,26 @@ export function getEffectiveContextWindowSize(model: string, settingsWindow?: nu
 }
 
 export function getAutoCompactThreshold(model: string): number {
+  return autoCompactThreshold(model, 0)
+}
+
+function autoCompactThreshold(model: string, fixedTokens: number): number {
   const full = getBlockingLimit(model)
+  const oneTurn = Math.ceil(full / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR)
+  const fixedFloor = Math.max(0, Math.ceil(fixedTokens)) + oneTurn
   const pctRaw = flagEnv('MERCURY_AUTOCOMPACT_PCT_OVERRIDE')
   if (pctRaw !== undefined && pctRaw !== '') {
     const pct = Number.parseFloat(pctRaw)
     if (Number.isFinite(pct) && pct > 0 && pct <= 100) {
       const effective = getEffectiveContextWindowSize(model)
-      return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
+      return Math.min(Math.max(1, Math.floor((effective * pct) / 100), fixedTokens > 0 ? fixedFloor : 1), full)
     }
   }
-  return Math.max(1, full - AUTOCOMPACT_BUFFER_TOKENS, Math.ceil(full / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR))
+  return Math.max(1, full - AUTOCOMPACT_BUFFER_TOKENS, fixedFloor)
+}
+
+export function getAutoCompactThresholdWithFixed(model: string, fixedTokens: number): number {
+  return autoCompactThreshold(model, fixedTokens)
 }
 
 export function autoCompactDisabledReason(): 'MERCURY_COMPACT=0' | 'MERCURY_AUTO_COMPACT=0' | 'turned off in /config' | null {
@@ -211,6 +223,7 @@ export function detectFixedPrefixOverflow(
   messages: Message[],
   model: string,
   snipTokensFreed: number = 0,
+  fixedTokens: number = 0,
 ): { prefixTokens: number; thresholdTokens: number; documentBlockCount: number; imageBlockCount: number } | null {
   let lastUsage: ReturnType<typeof getTokenUsage> | undefined
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -227,7 +240,7 @@ export function detectFixedPrefixOverflow(
     Math.max(0, totalInput - snipTokensFreed - estimate),
     getEffectiveContextWindowSize(model),
   )
-  const thresholdTokens = getAutoCompactThreshold(model)
+  const thresholdTokens = getAutoCompactThresholdWithFixed(model, fixedTokens)
   if (prefixTokens <= thresholdTokens) return null
 
   let documentBlockCount = 0
@@ -289,6 +302,11 @@ const advanceState = new OwnerScopedStore<CompactionState>({
   create: () => ({ lastFiredTurn: null, rearmed: true }),
 })
 
+const fixedMaterialSkipState = new OwnerScopedStore<{ noted: boolean }>({
+  name: 'autocompact-fixed-material-skip',
+  create: () => ({ noted: false }),
+})
+
 
 export async function autoCompactIfNeeded(
   messages: Message[],
@@ -328,6 +346,15 @@ export async function autoCompactIfNeeded(
 
   const model = toolUseContext.options.engineModel
   let measuredRawTokenCount: number | null = null
+  let fixedTokens: number | undefined
+  let fixedMaterialHeld = false
+  const measureFixed = async (): Promise<number> => readRequestGauge(messages, model)?.fixed.tokens ?? estimateFixedRequestTokens(toolUseContext, cacheSafeParams)
+  const noteFixedSkip = (message: string): void => {
+    const slot = fixedMaterialSkipState.get(ownerFromToolUseContext(toolUseContext))
+    if (slot.noted) return
+    slot.noted = true
+    logForDebugging(message)
+  }
   let compact: boolean
   if (forced) {
     if (querySource === 'session_memory' || querySource === 'compact') {
@@ -342,9 +369,25 @@ export async function autoCompactIfNeeded(
       measuredRawTokenCount = raw
     })
     if (compact && messages.length === 0) return { ...notCompacted, measuredRawTokenCount }
+    if (compact) {
+      fixedTokens = await measureFixed()
+      const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
+      const blocking = getBlockingLimit(model)
+      const oneTurn = Math.ceil(blocking / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR)
+      const threshold = getAutoCompactThresholdWithFixed(model, fixedTokens)
+      if (fixedTokens + oneTurn > blocking) {
+        noteFixedSkip(`autoCompact: skipping — fixed material (~${fixedTokens} tokens) plus one turn (${oneTurn} tokens) exceeds the window's room (${blocking} tokens)`)
+        compact = false
+        fixedMaterialHeld = true
+      } else if (tokenCount < threshold) {
+        noteFixedSkip(`autoCompact: skipping at ${tokenCount} tokens — fixed material (~${fixedTokens} tokens) plus one turn (${oneTurn} tokens) raises the fold point to ${threshold} tokens`)
+        compact = false
+        fixedMaterialHeld = true
+      }
+    }
   }
 
-  if (!compact && advanceTriggerEnabled() && isAutoCompactEnabled()) {
+  if (!compact && !fixedMaterialHeld && advanceTriggerEnabled() && isAutoCompactEnabled()) {
     if (querySource !== 'session_memory' && querySource !== 'compact' && querySource !== 'context_agent') {
       try {
         const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
@@ -366,11 +409,15 @@ export async function autoCompactIfNeeded(
   }
   if (!compact) return { ...notCompacted, measuredRawTokenCount }
 
-  const overflow = detectFixedPrefixOverflow(messages, model, snipTokensFreed)
+  fixedTokens ??= await measureFixed()
+  const overflow = detectFixedPrefixOverflow(messages, model, snipTokensFreed, fixedTokens)
   if (overflow !== null) {
-    logForDebugging(
-      `autoCompact: fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`,
-    )
+    const message = `autoCompact: fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`
+    if (!forced) {
+      noteFixedSkip(`autoCompact: skipping — fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`)
+      return { ...notCompacted, measuredRawTokenCount }
+    }
+    logForDebugging(message)
   }
 
   const refills = rapidRefillCount(tracking)
@@ -378,7 +425,7 @@ export async function autoCompactIfNeeded(
   if (tripped) logForDebugging('autoCompact: rapid-refill breaker tripped — this fold lands, then automatic compaction pauses for the run')
   const breaker = tripped ? { rapidRefillBreakerTripped: true as const } : {}
 
-  const threshold = getAutoCompactThreshold(model)
+  const threshold = getAutoCompactThresholdWithFixed(model, fixedTokens)
   const recompactionInfo: RecompactionInfo = {
     isRecompaction: tracking?.compacted === true,
     turnsSincePreviousCompact: tracking?.compacted === true ? tracking.turnCounter : -1,
