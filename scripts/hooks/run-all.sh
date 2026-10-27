@@ -33,6 +33,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-detail-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hooks-menu-refresh.tsx" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hooks-menu-refresh.tsx" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-endings.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-endings.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-command-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-command-runner.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-debug-output-bound.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-debug-output-bound.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-fire.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-fire.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-session-state.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-session-state.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-start-model.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-start-model.ts" "$__t" "$__rc"

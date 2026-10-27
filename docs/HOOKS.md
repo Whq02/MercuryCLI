@@ -231,7 +231,10 @@ and the model reads the words; a `stop` ends the turn with its words; a
 `notice` is one line; a failure is one line. Every line is saved with the
 session, survives a resume, and is painted by a daemon-hosted terminal UI from
 the session file.
-A `run` hook's environment is the scrubbed process environment plus
+A `run` hook inherits your shell environment by default, including provider keys and
+other variables you exported; credentials in Mercury's own store are
+not added. Mercury removes its own session stamps, session tokens, OpenTelemetry
+variables and browser-secret variables, then adds
 `MERCURY_PROJECT_DIR`, `MERCURY_SESSION_ID` and `MERCURY_HOOK_EVENT`; on
 `session.start` and `file.changed` also `MERCURY_ENV_FILE`, a file where
 lines of `NAME=value` reach every later shell command of the session; an

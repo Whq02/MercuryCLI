@@ -93,7 +93,7 @@ async def main():
                 payload = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': name, 'arguments': arguments}}
                 request = urllib.request.Request(server.config['url'], json.dumps(payload).encode(), headers={**server.config['headers'], 'Content-Type': 'application/json'})
                 return json.load(urllib.request.urlopen(request))
-            assert call('missing', {})['error']['message'] == 'unknown tool'
+            assert call('missing', {})['error']['message'] == 'ValueError: see the server log'
             assert call('empty', None)['result']['content'][0]['text'] == '{}'
             request = urllib.request.Request(server.config['url'], method='DELETE', headers={**server.config['headers'], 'Origin': 'https://example.invalid'})
             try: urllib.request.urlopen(request)

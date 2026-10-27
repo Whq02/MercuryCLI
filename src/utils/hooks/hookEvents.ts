@@ -68,9 +68,15 @@ export function emitHookStarted(hookId: string, hookName: string, hookEvent: str
   deliver({ type: 'started', hookId, hookName, hookEvent })
 }
 
+function hookOutputForDebugLog(output: string): string {
+  if (output.length <= 5_000) return output
+  const totalBytes = Buffer.byteLength(output, 'utf8')
+  return `${output.slice(0, 4_000)}\n[${totalBytes} bytes total]\n${output.slice(-1_000)}`
+}
+
 export function emitHookResponse(params: Omit<HookResponseEvent, 'type'>): void {
   const logged = params.outcome === 'error' ? params.stderr || params.stdout || params.output : params.stdout || params.stderr || params.output
-  if (logged) logForDebugging(`hook ${params.hookName} (${params.hookEvent}) ${params.outcome}: ${logged}`)
+  if (logged) logForDebugging(`hook ${params.hookName} (${params.hookEvent}) ${params.outcome}: ${hookOutputForDebugLog(logged)}`)
   deliver({ type: 'response', ...params })
 }
 

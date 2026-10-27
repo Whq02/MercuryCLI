@@ -1,5 +1,6 @@
 import asyncio
 import gc
+import hmac
 import json
 import os
 import signal
@@ -8,6 +9,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest import TestCase
+from unittest.mock import patch
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from mercury_cli_sdk import MercuryError, MercuryExitError, MercurySpawnError, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit, connect, connect_sync, define_tool, row_of, run, serve_tools, __version__
 from mercury_cli_sdk.testing import fixture_outcome_row, fixture_session_row, fixture_turn, start_fixture_server
@@ -259,6 +263,48 @@ loop.close()
         assert json.loads(await asyncio.wait_for(call2, 5))['result']['content'][0]['text'] == 'cancelled'
 
 
+async def tool_server_token_compare():
+    tool = define_tool('ping', 'Ping', {}, lambda _: 'pong')
+    async with await serve_tools([tool]) as server:
+        expected = server.config['headers']['Authorization']
+        def request(body, authorization=expected, method=None):
+            headers = {**server.config['headers'], 'Authorization': authorization, 'Content-Type': 'application/json'}
+            req = Request(server.config['url'], None if body is None else json.dumps(body).encode(), headers, method=method)
+            with urlopen(req, timeout=10) as response:
+                return response.status if body is None else json.load(response)
+        with patch('mercury_cli_sdk.helpers.hmac.compare_digest', wraps=hmac.compare_digest) as compare:
+            answer = await asyncio.to_thread(request, {'jsonrpc': '2.0', 'id': 1, 'method': 'ping'})
+            assert answer['result'] == {}
+            for body, method in [({'jsonrpc': '2.0', 'id': 2, 'method': 'ping'}, None), (None, 'DELETE')]:
+                try: await asyncio.to_thread(request, body, 'Bearer ' + '0' * 64, method)
+                except HTTPError as error: assert error.code == 403
+                else: raise AssertionError('a wrong token was accepted')
+            assert await asyncio.to_thread(request, None, expected, 'DELETE') == 200
+            assert compare.call_count == 4, compare.call_args_list
+            assert all(call.args[1] == expected for call in compare.call_args_list), compare.call_args_list
+
+
+async def tool_server_error_text():
+    def owned(_): raise MercuryError('safe detail')
+    def foreign(_): raise RuntimeError('private detail')
+    tools = [define_tool('owned', 'Owned error', {}, owned), define_tool('foreign', 'Foreign error', {}, foreign)]
+    async with await serve_tools(tools) as server:
+        def call(name):
+            body = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': name, 'arguments': {}}}
+            req = Request(server.config['url'], json.dumps(body).encode(), {**server.config['headers'], 'Content-Type': 'application/json'})
+            with urlopen(req, timeout=10) as response: return json.load(response)
+        own = await asyncio.to_thread(call, 'owned')
+        assert own['result']['content'][0]['text'] == 'MercuryError: safe detail' and own['result']['isError'] is True, own
+        with TestCase().assertLogs('mercury_cli_sdk.helpers', level='ERROR') as logs:
+            other = await asyncio.to_thread(call, 'foreign')
+        assert other['result']['content'][0]['text'] == 'RuntimeError: see the server log', other
+        assert 'private detail' not in json.dumps(other) and 'private detail' in '\n'.join(logs.output), logs.output
+        with TestCase().assertLogs('mercury_cli_sdk.helpers', level='ERROR') as logs:
+            missing = await asyncio.to_thread(call, 'missing')
+        assert missing['error']['message'] == 'ValueError: see the server log', missing
+        assert 'unknown tool' not in json.dumps(missing) and 'unknown tool' in '\n'.join(logs.output), logs.output
+
+
 async def bounded_rows():
     from mercury_cli_sdk import connect_sync
     from mercury_cli_sdk.testing import start_fixture_server
@@ -443,6 +489,8 @@ async def main():
     await check('Python Windows road' + ('' if WINDOWS else ' driven on this host') + ': cancel ends the child and settles interrupted, terminate and the wire escalation report the signal sent, a natural exit 1 stays exit 1', windows_road)
     await check('Python host exit terminates live children', host_exit)
     await check('Python fork safety and thread-safe tool cancellation', fork_and_thread_cancel)
+    await check('Python tool-server token comparison uses compare_digest on POST and DELETE', tool_server_token_compare)
+    await check('Python tool-server errors name owned details and log foreign details server-side', tool_server_error_text)
     await check('Python max_rows cap and clear_rows()', bounded_rows)
     pyproject = Path(__file__).resolve().parents[2].joinpath('sdk-py/pyproject.toml').read_text()
     assert __version__ in pyproject and 'Programming Language :: Python :: 3.14' in pyproject

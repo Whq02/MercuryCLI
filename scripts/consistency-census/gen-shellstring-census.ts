@@ -103,6 +103,11 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test',
   },
   {
+    test: f => f === 'scripts/permissions/prove-child-environment.ts',
+    cls: 'test-fixture',
+    why: 'drives Shell.exec through the real Bash road on purpose — the environment a Bash child receives is the subject under test',
+  },
+  {
     test: f => f === 'scripts/bash/prove-windows-batch-invocation.ts',
     cls: 'test-fixture',
     why: 'drives Shell.exec at a PATH-found .cmd on purpose — whether the Windows system shell runs a batch by its bare name with every argument byte intact is the subject under test',

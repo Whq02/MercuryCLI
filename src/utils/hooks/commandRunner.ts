@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
+import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { getExtensionDataDir } from '../../extensions/paths.js'
 import { recordHookFailure } from '../../extensions/health.js'
 import { optionSchemaFor } from '../../extensions/load/optionSchema.js'
@@ -80,7 +81,7 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
   let command = run.command
   let extensionOptions: OptionValues | undefined
   const env: NodeJS.ProcessEnv = {
-    ...subprocessEnv(),
+    ...scrubSessionEnvStamps(subprocessEnv()).env,
     MERCURY_PROJECT_DIR: toHookPath(getProjectRoot()),
     MERCURY_SESSION_ID: getHookRunContext()?.sessionId ?? getSessionId(),
     MERCURY_HOOK_EVENT: run.event,

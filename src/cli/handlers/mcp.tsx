@@ -185,7 +185,10 @@ export async function mcpRemoveHandler(
 
 
 export async function mcpListHandler(): Promise<void> {
-  const { servers: configs } = await getMercuryMcpConfigs()
+  const { servers: configs, errors: notices } = await getMercuryMcpConfigs()
+  for (const notice of notices) {
+    if (notice.kind === 'document-bounded') process.stdout.write(`${notice.message}\n`)
+  }
   const names = Object.keys(configs)
   const skippedForTrust = mcpServersSkippedForTrustLine()
   if (skippedForTrust !== null) process.stdout.write(`${skippedForTrust}\n`)

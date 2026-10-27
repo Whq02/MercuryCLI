@@ -2,14 +2,17 @@ from __future__ import annotations
 import asyncio
 import base64
 from pathlib import Path
+import hmac
 import inspect
 import json
+import logging
 import secrets
 import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Annotated, Any, Awaitable, Callable, Literal, Mapping, NotRequired, Required, TypedDict, Union, get_args, get_origin, get_type_hints, is_typeddict, cast
 from types import UnionType
+from .errors import MercuryError
 from .parse import validate
 from .generated import InputBlock, PermissionMode, EffortLevel, PermissionRequestResultChoice0, PermissionRequestResultChoice1
 from .version import __version__
@@ -137,6 +140,14 @@ class ToolServer:
     async def __aexit__(self, *exc: Any) -> None: await self.close()
 
 
+logger = logging.getLogger(__name__)
+
+
+def _tool_server_error_text(error: Exception) -> str:
+    if isinstance(error, MercuryError): return f'{type(error).__name__}: {error}'
+    return f'{type(error).__name__}: see the server log'
+
+
 async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> ToolServer:
     """Serve inline tools over bearer-authenticated loopback MCP HTTP; the event loop must keep running while tools execute."""
     if len({t.name for t in tools}) != len(tools): raise ValueError('duplicate tool name')
@@ -155,18 +166,19 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
             if inspect.isawaitable(value): value = await value
             return {'content': [{'type': 'text', 'text': value}]} if isinstance(value, str) else value
         except Exception as error:
-            return {'content': [{'type': 'text', 'text': str(error)}], 'isError': True}
+            logger.exception('inline tool %s failed', tool.name)
+            return {'content': [{'type': 'text', 'text': _tool_server_error_text(error)}], 'isError': True}
         finally: pending.pop(id, None)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None: pass
         def do_GET(self) -> None: self.send_error(405)
         def do_DELETE(self) -> None:
-            if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
+            if not hmac.compare_digest(self.headers.get('Authorization', ''), f'Bearer {token}') or self.headers.get('Origin'): self.send_error(403); return
             loop.call_soon_threadsafe(lambda: [context.cancelled.set() for context in list(pending.values())])
             self.send_response(200); self.end_headers()
         def do_POST(self) -> None:
-            if self.headers.get('Authorization') != f'Bearer {token}' or self.headers.get('Origin'): self.send_error(403); return
+            if not hmac.compare_digest(self.headers.get('Authorization', ''), f'Bearer {token}') or self.headers.get('Origin'): self.send_error(403); return
             id = None
             try:
                 message = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
@@ -192,7 +204,8 @@ async def serve_tools(tools: list[ToolDefinition], name: str = 'sdk-tools') -> T
                     self.reply({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32601, 'message': 'unknown method'}}); return
                 self.reply({'jsonrpc': '2.0', 'id': id, 'result': result})
             except Exception as error:
-                self.reply({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': str(error)}})
+                logger.exception('inline tool request failed')
+                self.reply({'jsonrpc': '2.0', 'id': id, 'error': {'code': -32602, 'message': _tool_server_error_text(error)}})
         def reply(self, value: Mapping[str, Any]) -> None:
             data = json.dumps(value).encode()
             self.send_response(200)

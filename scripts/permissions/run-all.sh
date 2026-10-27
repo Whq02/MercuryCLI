@@ -9,7 +9,7 @@
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts scripts/lib/scriptedTurn.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
-# gate-watch: docs/TRUST.md AGENTS.md
+# gate-watch: docs/TRUST.md docs/HOOKS.md AGENTS.md
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/tools/GrepTool/GrepTool.ts src/tools/TransactionTool/TransactionTool.ts
 # gate-watch: src/services/ide/ideTransaction.ts src/utils/fsOperations.ts src/utils/shell/readOnlyCommandValidation.ts src/utils/projectHomeStores.ts
 # gate-watch: src/mneme/mnemeGates.ts src/mneme/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts

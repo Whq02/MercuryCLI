@@ -52,15 +52,17 @@ type ParsedMcpDocument = { mcpServers: Record<string, ScopedMcpServerConfig> }
 type ParseResult = {
   config: ParsedMcpDocument | null
   errors: McpConfigError[]
+  notices: string[]
 }
 
 type ScopeRead = {
   servers: Record<string, ScopedMcpServerConfig>
   errors: McpConfigError[]
+  notices: string[]
 }
 
 function flat(result: ParseResult): ScopeRead {
-  return { servers: result.config?.mcpServers ?? {}, errors: result.errors }
+  return { servers: result.config?.mcpServers ?? {}, errors: result.errors, notices: result.notices }
 }
 
 
@@ -181,6 +183,7 @@ function windowsNpxWarning(
 const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
 
 const McpDocumentShape = z.object({ mcpServers: z.record(z.string(), z.unknown()) })
+export const MCP_SERVERS_MAX_PER_DOCUMENT = 64
 
 export function parseMcpConfig({
   configObject,
@@ -205,11 +208,17 @@ export function parseMcpConfig({
         scope,
         severity: 'fatal' as const,
       })),
+      notices: [],
     }
   }
   const mcpServers: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
   const errors: McpConfigError[] = []
-  for (const [serverName, rawEntry] of Object.entries(document.data.mcpServers)) {
+  const entries = Object.entries(document.data.mcpServers)
+  const notices = filePath !== undefined && entries.length > MCP_SERVERS_MAX_PER_DOCUMENT
+    ? [`MCP file ${file}: ${entries.length.toLocaleString('en-US')} servers, the first ${MCP_SERVERS_MAX_PER_DOCUMENT} loaded`]
+    : []
+  const keptEntries = filePath === undefined ? entries : entries.slice(0, MCP_SERVERS_MAX_PER_DOCUMENT)
+  for (const [serverName, rawEntry] of keptEntries) {
     const entry = McpServerConfigSchema().safeParse(rawEntry)
     if (!entry.success) {
       errors.push({
@@ -249,7 +258,7 @@ export function parseMcpConfig({
     if (npxWarning !== null) errors.push(npxWarning)
     mcpServers[serverName] = { ...effective, scope, ...(unexpanded === undefined ? {} : { unexpanded }) } as ScopedMcpServerConfig
   }
-  return { config: { mcpServers }, errors }
+  return { config: { mcpServers }, errors, notices }
 }
 
 export function parseMcpConfigFromFilePath({
@@ -264,7 +273,7 @@ export function parseMcpConfigFromFilePath({
   const read = readConfigFile(filePath)
   switch (read.kind) {
     case 'absent':
-      return { config: null, errors: [] }
+      return { config: null, errors: [], notices: [] }
     case 'unreadable':
       logError(`Failed to read MCP config file ${filePath}: ${read.message}`)
       return {
@@ -279,6 +288,7 @@ export function parseMcpConfigFromFilePath({
             severity: 'fatal',
           },
         ],
+        notices: [],
       }
     case 'invalid-json':
       logError(
@@ -296,6 +306,7 @@ export function parseMcpConfigFromFilePath({
             severity: 'fatal',
           },
         ],
+        notices: [],
       }
     case 'content':
       return parseMcpConfig({ configObject: read.value, expandVars, scope, filePath })
@@ -328,9 +339,10 @@ function lockedProjectMcpFile(): string {
 }
 
 export function getProjectMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
+  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [], notices: [] }
   const servers: Record<string, ScopedMcpServerConfig> = {}
   const errors: McpConfigError[] = []
+  const notices: string[] = []
   for (const directory of projectDirectoryChain().reverse()) {
     const result = flat(
       parseMcpConfigFromFilePath({
@@ -341,15 +353,17 @@ export function getProjectMcpConfigs(): ScopeRead {
     )
     Object.assign(servers, result.servers)
     errors.push(...result.errors)
+    notices.push(...result.notices)
   }
-  return { servers, errors }
+  return { servers, errors, notices }
 }
 
 export function getProjectMcpConfigsFromCwd(): {
   servers: Record<string, ScopedMcpServerConfig>
   errors: McpConfigError[]
+  notices: string[]
 } {
-  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
+  if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [], notices: [] }
   return flat(
     parseMcpConfigFromFilePath({
       filePath: projectMcpFilePath(getCwd()),
@@ -423,18 +437,18 @@ function getEnterpriseMcpConfigs(): ScopeRead {
 }
 
 function getUserMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('userSettings')) return { servers: {}, errors: [] }
+  if (!isSettingSourceEnabled('userSettings')) return { servers: {}, errors: [], notices: [] }
   const servers = getGlobalConfig().mcpServers
-  if (!servers) return { servers: {}, errors: [] }
+  if (!servers) return { servers: {}, errors: [], notices: [] }
   return flat(
     parseMcpConfig({ configObject: { mcpServers: servers }, expandVars: true, scope: 'user' }),
   )
 }
 
 function getLocalMcpConfigs(): ScopeRead {
-  if (!isSettingSourceEnabled('localSettings')) return { servers: {}, errors: [] }
+  if (!isSettingSourceEnabled('localSettings')) return { servers: {}, errors: [], notices: [] }
   const servers = getCurrentProjectConfig().mcpServers
-  if (!servers) return { servers: {}, errors: [] }
+  if (!servers) return { servers: {}, errors: [], notices: [] }
   return flat(
     parseMcpConfig({ configObject: { mcpServers: servers }, expandVars: true, scope: 'local' }),
   )
@@ -443,6 +457,7 @@ function getLocalMcpConfigs(): ScopeRead {
 export function getMcpConfigsByScope(scope: 'project' | 'user' | 'local' | 'enterprise'): {
   servers: Record<string, ScopedMcpServerConfig>
   errors: McpConfigError[]
+  notices: string[]
 } {
   return scope === 'project'
     ? getProjectMcpConfigs()
@@ -691,6 +706,9 @@ export type McpResolutionNotice = {
   extensionName: string
   duplicateOf: string
   message: string
+} | {
+  kind: 'document-bounded'
+  message: string
 }
 
 function getExtensionProvidedMcpServers(): Record<string, ScopedMcpServerConfig> {
@@ -700,6 +718,10 @@ function getExtensionProvidedMcpServers(): Record<string, ScopedMcpServerConfig>
     logForDebugging(`MCP extension server loading failed: ${String(error)}`)
     return {}
   }
+}
+
+function documentBoundNotices(...reads: ScopeRead[]): McpResolutionNotice[] {
+  return reads.flatMap(read => read.notices.map(message => ({ kind: 'document-bounded' as const, message })))
 }
 
 function suppressionNotices(suppressed: Array<{ name: string; duplicateOf: string }>): McpResolutionNotice[] {
@@ -725,10 +747,10 @@ export async function getMercuryMcpConfigs(
   if (doesEnterpriseMcpConfigExist()) {
     const enterprise = getEnterpriseMcpConfigs()
     const { allowed } = filterMcpServersByPolicy(enterprise.servers)
-    return { servers: allowed, errors: [] }
+    return { servers: allowed, errors: documentBoundNotices(enterprise) }
   }
 
-  const emptyRead: ScopeRead = { servers: {}, errors: [] }
+  const emptyRead: ScopeRead = { servers: {}, errors: [], notices: [] }
   const mcpLocked = isRestrictedToExtensionsOnly('mcp')
   const projectUntrusted = untrustedWorkspaceHeadless()
   if (projectUntrusted) {
@@ -769,7 +791,7 @@ export async function getMercuryMcpConfigs(
   }
 
   const { allowed } = filterMcpServersByPolicy(merged)
-  return { servers: allowed, errors: suppressionNotices(suppressed) }
+  return { servers: allowed, errors: [...documentBoundNotices(user, project, local), ...suppressionNotices(suppressed)] }
 }
 
 export async function getAllMcpConfigs(): Promise<{

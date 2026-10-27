@@ -1375,6 +1375,13 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/permissions/prove-child-environment.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const bash = await exec(`env > ${JSON.stringify(bashDump)}`, new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: ",
+      "cls": "test-fixture",
+      "why": "drives Shell.exec through the real Bash road on purpose — the environment a Bash child receives is the subject under test"
+    },
+    {
       "file": "scripts/permissions/prove-commit-gate.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
