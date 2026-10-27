@@ -22,6 +22,14 @@ const chatSse = (text: string): string =>
     'data: [DONE]\n\n',
   ].join('')
 
+const chatSseTrailingReasoning = (text: string): string =>
+  [
+    sse({ id: 'c', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }] }),
+    sse({ id: 'c', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { reasoning_content: 'an afterthought the wire carries after the answer' }, finish_reason: null }] }),
+    sse({ id: 'c', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 4, completion_tokens: 2 } }),
+    'data: [DONE]\n\n',
+  ].join('')
+
 const captured: Array<{ path: string }> = []
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
@@ -37,7 +45,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && path.endsWith('/chat/completions')) {
       captured.push({ path })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
-      res.end(chatSse('settled by the glm lane'))
+      const body = Buffer.concat(chunks).toString('utf8')
+      res.end(body.includes('then think') ? chatSseTrailingReasoning('settled by the glm lane') : chatSse('settled by the glm lane'))
       return
     }
     res.writeHead(404, { 'content-type': 'application/json' })
@@ -167,6 +176,12 @@ try {
   })
   check('glm-lane completion answers (multi-auth by construction)', glm === 'settled by the glm lane', glm)
   check('the two lanes hit DIFFERENT fixture paths', captured.some(c => c.path.endsWith('/v1/messages')) && captured.some(c => c.path === '/zai/v4/chat/completions'), JSON.stringify(captured))
+  const trailing = await oneShotCompletion({
+    model: 'glm-5.2',
+    prompt: 'say the word, then think',
+    signal: new AbortController().signal,
+  })
+  check('a reasoning block minted AFTER the answer never blanks the completion', trailing === 'settled by the glm lane', trailing)
 
   section('completion() schema failure raises typed into the cell')
   const cs = await runCell(

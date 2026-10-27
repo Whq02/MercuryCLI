@@ -312,7 +312,7 @@ export async function oneShotCompletion(args: {
           .join('')
       }
       if (e.isApiErrorMessage) apiError = text ?? 'provider error'
-      else final = text
+      else if (text !== null && text !== '') final = (final ?? '') + text
     }
   }
   if (apiError !== null && (final === null || final.trim() === '')) {
