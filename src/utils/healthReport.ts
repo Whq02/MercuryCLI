@@ -7,7 +7,7 @@ import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
-import { gitArgs } from './git/spawnArgs.js'
+import { gitArgs, gitArgsAsync } from './git/spawnArgs.js'
 import { endProcessTree, strikeProcessGroupNow } from './processGroup.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
@@ -180,12 +180,13 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
       ? { GIT_OBJECT_DIRECTORY: objects, GIT_ALTERNATE_OBJECT_DIRECTORIES: resolvePath(cwdDir, repoObjects) }
       : {}),
   }
-  const run = (args: string[]): Promise<string | null> =>
-    new Promise(resolvePromise => {
+  const run = async (args: string[]): Promise<string | null> => {
+    const argv = await gitArgsAsync(args, cwdDir)
+    return new Promise(resolvePromise => {
       const windows = process.platform === 'win32'
       const child = execFile(
         'git',
-        gitArgs(args, cwdDir),
+        argv,
         { windowsHide: true, cwd: cwdDir, env, ...(windows ? {} : { detached: true, timeout: 15_000, ...(signal ? { signal } : {}) }) },
         (err, stdout) => {
           treeScratchGits.delete(child)
@@ -195,6 +196,7 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
       treeScratchGits.add(child)
       if (windows) void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
     })
+  }
   try {
     if (signal?.aborted) return null
     if ((await run(['read-tree', 'HEAD'])) === null) return null
@@ -474,10 +476,11 @@ function readTsVersion(tsPath: string): string | null {
   }
 }
 
-function execGit(args: string[], cwd: string, timeoutMs = 1500): Promise<string | null> {
+async function execGit(args: string[], cwd: string, timeoutMs = 1500): Promise<string | null> {
+  const argv = await gitArgsAsync(args, cwd)
   return new Promise(resolve => {
     try {
-      execFile('git', gitArgs(args, cwd), { windowsHide: true, cwd, timeout: timeoutMs, env: { ...subprocessEnv() } }, (err, stdout) => {
+      execFile('git', argv, { windowsHide: true, cwd, timeout: timeoutMs, env: { ...subprocessEnv() } }, (err, stdout) => {
         resolve(err ? null : stdout.trim())
       })
     } catch {

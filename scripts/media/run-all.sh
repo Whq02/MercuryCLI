@@ -5,6 +5,8 @@
 # gate-watch: src/components/permissions/MediaPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx src/commands.ts src/utils/cockpit/settingsPopup.ts
 # gate-watch: docs/MEDIA.md docs/README.md scripts/lib/hermetic.ts src/services/mcp/client.ts src/services/mcp/sdk.ts src/Tool.ts src/utils/permissions/decision/engine.ts src/utils/settings/settings.ts
 # gate-watch: src/bootstrap/state.ts src/ink.ts src/services/mcp/sessionKitPin.ts src/services/mcp/useManageMCPConnections.ts src/state/AppState.tsx src/state/store.ts src/utils/config.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/SurfaceRouter.tsx src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/input-core/pending-input.ts
+# gate-watch: src/screens/Chat.tsx src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/state/AppStateStore.ts src/utils/cockpit/helmFocus.ts src/utils/daemonStanddown.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

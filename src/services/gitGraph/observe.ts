@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
-import { gitArgs } from '../../utils/git/spawnArgs.js'
+import { gitArgs, gitArgsAsync } from '../../utils/git/spawnArgs.js'
 import type {
   GitCommitMeta,
   GitConflict,
@@ -35,11 +35,12 @@ export function git(root: string, args: string[]): string {
   })
 }
 
-export function gitAsync(root: string, args: string[]): Promise<string> {
+export async function gitAsync(root: string, args: string[]): Promise<string> {
+  const argv = await gitArgsAsync(args, root)
   return new Promise((resolve, reject) => {
     execFile(
       'git',
-      gitArgs(args, root),
+      argv,
       {
         windowsHide: true,
         cwd: root,

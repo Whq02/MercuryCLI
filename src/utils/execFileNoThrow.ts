@@ -3,7 +3,7 @@ import { execa, type Options as ExecaOptions } from 'execa'
 import { getCwd } from './cwd.js'
 import { logError } from './log.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { gitArgs, isGitExecutable } from './git/spawnArgs.js'
+import { gitArgsAsync, isGitExecutable } from './git/spawnArgs.js'
 
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
@@ -77,7 +77,7 @@ export async function execFileNoThrowWithCwd(
       stdin: options.stdin,
     } as ExecaOptions
     try {
-      const argv = isGitExecutable(file) ? gitArgs(args, options.cwd) : args
+      const argv = isGitExecutable(file) ? await gitArgsAsync(args, options.cwd) : args
       const result = await execa(file, argv, execaOptions)
       return {
         stdout: typeof result.stdout === 'string' ? result.stdout : '',

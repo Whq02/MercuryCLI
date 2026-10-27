@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { gitExe } from '../git.js'
@@ -123,12 +123,9 @@ type RepositoryLayout = { root: string; gitDir: string; commonDir: string }
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
-function repositoryLayout(cwd: string): RepositoryLayout | null {
-  const known = layoutCache.get(cwd)
-  if (known && existsSync(known.gitDir) && existsSync(known.commonDir)) return known
-  let facts: string
+function readGitSync(args: string[], cwd: string): string | null {
   try {
-    facts = execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir'], {
+    return execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, ...args], {
       cwd,
       encoding: 'utf8',
       env: subprocessEnv(),
@@ -139,6 +136,33 @@ function repositoryLayout(cwd: string): RepositoryLayout | null {
   } catch {
     return null
   }
+}
+
+function readGitAsync(args: string[], cwd: string): Promise<string | null> {
+  return new Promise(resolveRead => {
+    try {
+      execFile(
+        gitExe(),
+        [...GIT_SPAWN_CONFIG, ...args],
+        { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: 5_000, windowsHide: true },
+        (error: Error | null, stdout: string) => resolveRead(error ? null : stdout),
+      )
+    } catch {
+      resolveRead(null)
+    }
+  })
+}
+
+const LAYOUT_ARGS = ['rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir']
+const FILTER_ARGS = ['config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$']
+
+function knownLayout(cwd: string): RepositoryLayout | null {
+  const known = layoutCache.get(cwd)
+  return known && existsSync(known.gitDir) && existsSync(known.commonDir) ? known : null
+}
+
+function layoutFrom(cwd: string, facts: string | null): RepositoryLayout | null {
+  if (facts === null) return null
   const [rootLine, gitDirLine, commonLine] = facts.split('\n')
   if (!rootLine || !gitDirLine || !commonLine) return null
   const layout = { root: canonical(rootLine), gitDir: canonical(gitDirLine), commonDir: canonical(resolve(cwd, commonLine)) }
@@ -146,26 +170,24 @@ function repositoryLayout(cwd: string): RepositoryLayout | null {
   return layout
 }
 
-function repositoryFilters(cwd: string): string[] {
-  const layout = repositoryLayout(cwd)
-  if (layout === null) return []
+function repositoryLayout(cwd: string): RepositoryLayout | null {
+  return knownLayout(cwd) ?? layoutFrom(cwd, readGitSync(LAYOUT_ARGS, cwd))
+}
+
+async function repositoryLayoutAsync(cwd: string): Promise<RepositoryLayout | null> {
+  return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd))
+}
+
+function cachedFilters(layout: RepositoryLayout): { fingerprint: string; skipped: string[] | null } {
+  const fingerprint = configFingerprint([join(layout.commonDir, 'config'), join(layout.gitDir, 'config.worktree')])
+  const cached = filterCache.get(layout.commonDir)
+  return { fingerprint, skipped: cached?.fingerprint === fingerprint ? cached.skipped : null }
+}
+
+function filtersFrom(layout: RepositoryLayout, fingerprint: string, configured: string | null): string[] {
   const { root, gitDir, commonDir } = layout
-  const fingerprint = configFingerprint([join(commonDir, 'config'), join(gitDir, 'config.worktree')])
-  const cached = filterCache.get(commonDir)
-  if (cached?.fingerprint === fingerprint) return cached.skipped
-  let configured = ''
-  try {
-    configured = execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$'], {
-      cwd: root,
-      encoding: 'utf8',
-      env: subprocessEnv(),
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5_000,
-      windowsHide: true,
-    })
-  } catch {}
   const filters = new Map<string, string[]>()
-  for (const line of configured.split('\n')) {
+  for (const line of (configured ?? '').split('\n')) {
     const match = /^filter\.(.+)\.(clean|smudge|process)\s(.*)$/.exec(line)
     if (!match) continue
     const commands = filters.get(match[1]!) ?? []
@@ -177,54 +199,88 @@ function repositoryFilters(cwd: string): string[] {
   return skipped
 }
 
+function repositoryFilters(cwd: string): string[] {
+  const layout = repositoryLayout(cwd)
+  if (layout === null) return []
+  const { fingerprint, skipped } = cachedFilters(layout)
+  return skipped ?? filtersFrom(layout, fingerprint, readGitSync(FILTER_ARGS, layout.root))
+}
+
+async function repositoryFiltersAsync(cwd: string): Promise<string[]> {
+  const layout = await repositoryLayoutAsync(cwd)
+  if (layout === null) return []
+  const { fingerprint, skipped } = cachedFilters(layout)
+  return skipped ?? filtersFrom(layout, fingerprint, await readGitAsync(FILTER_ARGS, layout.root))
+}
+
 export function gitFilterSkipMessages(cwd: string): string[] {
   return repositoryFilters(cwd).map(name => `filter ${name} skipped: its command lives inside this repository`)
 }
 
+function filterArgsOf(names: string[]): string[] {
+  return names.flatMap(name => ['clean', 'smudge', 'process'].flatMap(kind => ['-c', `filter.${name}.${kind}=`]))
+}
+
 function filterConfig(cwd: string | undefined): string[] {
   if (!cwd) return []
-  return repositoryFilters(cwd).flatMap(name => ['clean', 'smudge', 'process'].flatMap(kind => ['-c', `filter.${name}.${kind}=`]))
+  return filterArgsOf(repositoryFilters(cwd))
 }
 
-function scopedConfig(cwd: string, key: string): Array<{ scope: string; value: string }> {
-  try {
-    return execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'config', '--show-scope', '--get-all', key], {
-      cwd,
-      encoding: 'utf8',
-      env: subprocessEnv(),
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5_000,
-      windowsHide: true,
-    }).split('\n').filter(Boolean).map(line => {
-      const tab = line.indexOf('\t')
-      return { scope: line.slice(0, tab), value: line.slice(tab + 1) }
-    })
-  } catch {
-    return []
-  }
+async function filterConfigAsync(cwd: string | undefined): Promise<string[]> {
+  if (!cwd) return []
+  return filterArgsOf(await repositoryFiltersAsync(cwd))
 }
 
-function networkConfig(command: string, cwd: string | undefined): string[] {
-  if (!cwd || !NETWORK_COMMANDS.has(command)) return []
+type ScopedRow = { scope: string; value: string }
+
+function scopedRowsFrom(text: string | null): ScopedRow[] {
+  return (text ?? '').split('\n').filter(Boolean).map(line => {
+    const tab = line.indexOf('\t')
+    return { scope: line.slice(0, tab), value: line.slice(tab + 1) }
+  })
+}
+
+function scopedConfig(cwd: string, key: string): ScopedRow[] {
+  return scopedRowsFrom(readGitSync(['config', '--show-scope', '--get-all', key], cwd))
+}
+
+async function scopedConfigAsync(cwd: string, key: string): Promise<ScopedRow[]> {
+  return scopedRowsFrom(await readGitAsync(['config', '--show-scope', '--get-all', key], cwd))
+}
+
+const repositoryScoped = (row: ScopedRow): boolean => row.scope === 'local' || row.scope === 'worktree'
+
+function networkArgsOf(ssh: ScopedRow[], credentials: ScopedRow[], askPass: ScopedRow[]): string[] {
   const out: string[] = []
-  const ssh = scopedConfig(cwd, 'core.sshCommand')
-  if (ssh.some(row => row.scope === 'local' || row.scope === 'worktree')) {
-    const user = ssh.filter(row => row.scope !== 'local' && row.scope !== 'worktree').at(-1)?.value
+  if (ssh.some(repositoryScoped)) {
+    const user = ssh.filter(row => !repositoryScoped(row)).at(-1)?.value
     out.push('-c', `core.sshCommand=${user || 'ssh'}`)
   }
-  const credentials = scopedConfig(cwd, 'credential.helper')
-  if (credentials.some(row => row.scope === 'local' || row.scope === 'worktree')) {
+  if (credentials.some(repositoryScoped)) {
     out.push('-c', 'credential.helper=')
     for (const row of credentials) {
-      if (row.scope !== 'local' && row.scope !== 'worktree') out.push('-c', `credential.helper=${row.value}`)
+      if (!repositoryScoped(row)) out.push('-c', `credential.helper=${row.value}`)
     }
   }
-  const askPass = scopedConfig(cwd, 'core.askPass')
-  if (askPass.some(row => row.scope === 'local' || row.scope === 'worktree')) {
-    const user = askPass.filter(row => row.scope !== 'local' && row.scope !== 'worktree').at(-1)?.value
+  if (askPass.some(repositoryScoped)) {
+    const user = askPass.filter(row => !repositoryScoped(row)).at(-1)?.value
     out.push('-c', `core.askPass=${user ?? ''}`)
   }
   return out
+}
+
+const NETWORK_KEYS = ['core.sshCommand', 'credential.helper', 'core.askPass'] as const
+
+function networkConfig(command: string, cwd: string | undefined): string[] {
+  if (!cwd || !NETWORK_COMMANDS.has(command)) return []
+  const [ssh, credentials, askPass] = NETWORK_KEYS.map(key => scopedConfig(cwd, key))
+  return networkArgsOf(ssh!, credentials!, askPass!)
+}
+
+async function networkConfigAsync(command: string, cwd: string | undefined): Promise<string[]> {
+  if (!cwd || !NETWORK_COMMANDS.has(command)) return []
+  const [ssh, credentials, askPass] = await Promise.all(NETWORK_KEYS.map(key => scopedConfigAsync(cwd, key)))
+  return networkArgsOf(ssh!, credentials!, askPass!)
 }
 
 function subcommandIndex(args: string[]): number {
@@ -244,16 +300,36 @@ function subcommandIndex(args: string[]): number {
   return at
 }
 
-export function gitArgs(args: string[], cwd?: string): string[] {
+type SpawnShape = { command: string; insertAt: number; diff: string[]; base: readonly string[] }
+
+function spawnShape(args: string[]): SpawnShape {
   const at = subcommandIndex(args)
   const command = args[at] ?? ''
   const stashShow = command === 'stash' && args[at + 1] === 'show'
   const patch = PATCH_COMMANDS.has(command) || stashShow
   const insertAt = stashShow ? at + 2 : at + 1
   const diff = patch ? GIT_DIFF_CONFIG.filter(flag => !args.includes(flag)) : []
-  const filters = FILTER_COMMANDS.has(command) ? filterConfig(cwd) : []
   const base = args.includes('core.fsmonitor=false') ? [] : GIT_SPAWN_CONFIG
-  return [...base, ...filters, ...networkConfig(command, cwd), ...args.slice(0, insertAt), ...diff, ...args.slice(insertAt)]
+  return { command, insertAt, diff, base }
+}
+
+function assemble(args: string[], shape: SpawnShape, filters: string[], network: string[]): string[] {
+  return [...shape.base, ...filters, ...network, ...args.slice(0, shape.insertAt), ...shape.diff, ...args.slice(shape.insertAt)]
+}
+
+export function gitArgs(args: string[], cwd?: string): string[] {
+  const shape = spawnShape(args)
+  const filters = FILTER_COMMANDS.has(shape.command) ? filterConfig(cwd) : []
+  return assemble(args, shape, filters, networkConfig(shape.command, cwd))
+}
+
+export async function gitArgsAsync(args: string[], cwd?: string): Promise<string[]> {
+  const shape = spawnShape(args)
+  const [filters, network] = await Promise.all([
+    FILTER_COMMANDS.has(shape.command) ? filterConfigAsync(cwd) : Promise.resolve([] as string[]),
+    networkConfigAsync(shape.command, cwd),
+  ])
+  return assemble(args, shape, filters, network)
 }
 
 export function isGitExecutable(file: string): boolean {

@@ -22,7 +22,7 @@ import {
   type GitChangeSignal,
 } from './git/gitFilesystem.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { gitArgs } from './git/spawnArgs.js'
+import { gitArgs, gitArgsAsync } from './git/spawnArgs.js'
 import { whichSync } from './which.js'
 
 
@@ -175,11 +175,12 @@ const PROBE_MAX_BUFFER = 16 * 1024 * 1024
 
 type ProbeOutcome = { status: number; stdout: string; fault: null } | { status: null; stdout: ''; fault: string }
 
-function runGitProbe(args: string[], extraEnv?: NodeJS.ProcessEnv): Promise<ProbeOutcome> {
+async function runGitProbe(args: string[], extraEnv?: NodeJS.ProcessEnv): Promise<ProbeOutcome> {
+  const argv = await gitArgsAsync(args, getCwd())
   return new Promise(resolvePromise => {
     execFile(
       gitExe(),
-      gitArgs(args, getCwd()),
+      argv,
       {
         windowsHide: true,
         cwd: getCwd(),

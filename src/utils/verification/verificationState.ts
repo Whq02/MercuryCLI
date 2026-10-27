@@ -5,7 +5,7 @@ import { sanitizePath } from '../sessionStoragePortable.js'
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { gitExe, markGitTreeSuspect } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
-import { gitArgs } from '../git/spawnArgs.js'
+import { gitArgs, gitArgsAsync } from '../git/spawnArgs.js'
 import { logForDebugging } from '../debug.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -277,10 +277,11 @@ function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): strin
   }
 }
 
-function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[], watch?: RepositoryWatch): Promise<string> {
+async function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[], watch?: RepositoryWatch): Promise<string> {
+  const argv = await gitArgsAsync(args, cwd)
   return new Promise((resolve, reject) => {
     let unregister = (): void => {}
-    const child = execFile(gitExe(), gitArgs(args, cwd), { windowsHide: true, cwd, env, timeout: scanTimeoutMs(), maxBuffer: MAX_GIT_OUTPUT }, (err, stdout) => {
+    const child = execFile(gitExe(), argv, { windowsHide: true, cwd, env, timeout: scanTimeoutMs(), maxBuffer: MAX_GIT_OUTPUT }, (err, stdout) => {
       unregister()
       if (goneChildren.has(child)) reject(new RepositoryGoneError(args[0] ?? 'git'))
       else if (err) reject(stepError(args[0] ?? 'git', err))
