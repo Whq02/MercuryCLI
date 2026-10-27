@@ -69,6 +69,7 @@ import {
 } from './openaiAccounts.js'
 import {
   evaluateGptCandidate,
+  liveGptEffortCatalogue,
   liveGptListedEffortWords,
   qualifiedGptCandidates,
   refreshOpenaiCatalogue,
@@ -564,9 +565,13 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   const wireMessages = renderAdmissionRecordsAsText(projectedMessages)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
+  const kept = candidate === undefined ? liveGptEffortCatalogue(modelId) : undefined
+  const remembered = kept !== undefined && kept.vocabulary.length > 0 ? kept : undefined
   let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
-    : { source: 'model-default' }
+    : remembered !== undefined
+      ? resolveGptReasoningProfile(requestedEffort, { supportedReasoningEfforts: [...remembered.vocabulary], ...(remembered.defaultEffort !== undefined ? { defaultReasoningEffort: remembered.defaultEffort } : {}) })
+      : { source: 'model-default' }
   const settlementNotes: string[] = []
   const accountRoad = auth.account.label
   const listedWords = candidate !== undefined ? liveGptListedEffortWords(modelId) : undefined
@@ -592,7 +597,8 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       : undefined
   let effortAdjusted: EffortAdjustedV1 | undefined = receiptOf(profile)
   if (qualification.kind === 'degraded') {
-    settlementNotes.push(qualification.note)
+    if (remembered === undefined) settlementNotes.push(qualification.note)
+    else logForDebugging(qualification.note, { level: 'info' })
   }
   if (deferralFormReissued !== undefined) settlementNotes.push(deferralFormReissued)
 

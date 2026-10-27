@@ -227,7 +227,7 @@ export function openaiSourceIdentity(
 ): string {
   if (sourceKind === 'api-key') return credentialFingerprint(resolveOpenaiApiKey(env)?.key)
   const tokens = readAuthFile()?.tokens
-  return credentialFingerprint(tokens?.refreshToken ?? tokens?.accountId ?? tokens?.accessToken)
+  return credentialFingerprint(tokens?.accountId ?? tokens?.refreshToken ?? tokens?.accessToken)
 }
 
 export function openaiSourceMatchesCredential(sourceKind: OpenaiAccountSourceKind, credential: string): boolean {

@@ -371,7 +371,7 @@ export interface GptReasoningProfile {
 
 export function resolveGptReasoningProfile(
   requested: string | undefined,
-  live: OpenaiLiveModel,
+  live: Pick<OpenaiLiveModel, 'supportedReasoningEfforts' | 'defaultReasoningEffort'>,
 ): GptReasoningProfile {
   const supported = live.supportedReasoningEfforts
   if (supported.length === 0) {
@@ -412,6 +412,10 @@ export function liveGptInputModalities(modelId: string): readonly string[] | und
 }
 
 function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
+  return liveGptRow(modelId)?.row
+}
+
+function liveGptRow(modelId: string): { kind: OpenaiAccountSourceKind; canonicalId: string; row: OpenaiLiveModel | undefined } | undefined {
   const canonicalId = liveGptCanonicalId(modelId)
   if (canonicalId === undefined) return undefined
   const discovery = primeOpenaiDiscovery()
@@ -419,7 +423,7 @@ function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
   if (!account) return undefined
   const snapshot = getCachedOpenaiCatalogue(account.kind)
   const row = snapshot?.models.find(m => m.id.toLowerCase() === canonicalId)
-  return row === undefined ? undefined : rowAsWireServes(row, account.kind)
+  return { kind: account.kind, canonicalId, row: row === undefined ? undefined : rowAsWireServes(row, account.kind) }
 }
 
 function liveGptCanonicalId(modelId: string): string | undefined {
@@ -451,20 +455,29 @@ export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccount
   return served.length === live.supportedReasoningEfforts.length ? live : { ...live, supportedReasoningEfforts: served }
 }
 
-export function liveGptEffortCatalogue(modelId: string):
-  | { vocabulary: readonly string[]; stated: boolean; defaultEffort?: string }
-  | undefined {
-  const model = liveGptModel(modelId)
-  if (!model) return undefined
-  return {
-    vocabulary: [...model.supportedReasoningEfforts],
-    stated: model.reasoningEffortsStated,
-    ...(model.defaultReasoningEffort ? { defaultEffort: model.defaultReasoningEffort } : {}),
+export type LiveGptEffortCatalogue = { vocabulary: readonly string[]; stated: boolean; defaultEffort?: string }
+
+const servedEffortCatalogues = new Map<string, LiveGptEffortCatalogue>()
+
+export function liveGptEffortCatalogue(modelId: string): LiveGptEffortCatalogue | undefined {
+  const live = liveGptRow(modelId)
+  if (live === undefined) return undefined
+  const key = `${live.kind}:${live.canonicalId}`
+  if (live.row === undefined) {
+    const kept = servedEffortCatalogues.get(key)
+    return kept === undefined ? undefined : { ...kept, vocabulary: [...kept.vocabulary] }
   }
+  const served: LiveGptEffortCatalogue = {
+    vocabulary: [...live.row.supportedReasoningEfforts],
+    stated: live.row.reasoningEffortsStated,
+    ...(live.row.defaultReasoningEffort ? { defaultEffort: live.row.defaultReasoningEffort } : {}),
+  }
+  if (served.vocabulary.length > 0) servedEffortCatalogues.set(key, served)
+  return served
 }
 
 export function liveGptDefaultEffort(modelId: string): string | undefined {
-  return liveGptModel(modelId)?.defaultReasoningEffort
+  return liveGptEffortCatalogue(modelId)?.defaultEffort
 }
 
 export function liveGptListedEffortWords(modelId: string): readonly string[] | undefined {
@@ -520,4 +533,5 @@ export function readOpenaiAccountAgain(env: NodeJS.ProcessEnv = process.env): { 
 export function __resetOpenaiCatalogueForTest(): void {
   catalogueCache.clear()
   catalogueInFlight.clear()
+  servedEffortCatalogues.clear()
 }

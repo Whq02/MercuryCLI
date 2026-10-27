@@ -17,6 +17,7 @@
 # gate-watch: src/utils/cockpit/quota.ts src/utils/model/* src/utils/accounts/signInRefusal.ts src/daemon/signInView.ts
 # gate-watch: src/utils/cockpit/helmVitalsModel.ts src/Tool.ts src/utils/crew/engineDispatch.ts src/state/AppState.tsx
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/types.ts src/daemon/sessionSeat.ts
+# gate-watch: src/services/providers/openai/openaiAccounts.ts src/services/providers/openai/openaiCatalogue.ts src/utils/effort.ts src/services/engine-connector/seatProjections.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
