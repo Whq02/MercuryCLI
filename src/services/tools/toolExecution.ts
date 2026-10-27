@@ -58,6 +58,7 @@ import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { getAllBaseTools } from '../../tools.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../../utils/permissions/ruleReason.js'
+import { displayToolName } from '../../utils/toolNameDisplay.js'
 import type { HookAnnounce, HookPermissionOutcome } from './toolHooks.js'
 import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
@@ -349,13 +350,14 @@ export async function* runToolUse(
     yield answer
     if (toolUseContext.abortController.signal.aborted) return
     recordToolCall(owner, {
-      toolName: requestedName, toolUseID, roundHandle, roundID, roundOrdinal,
+      toolName: displayToolName(requestedName), toolUseID, roundHandle, roundID, roundOrdinal,
       arguments: rawInput, result: toolResultBlockOf(answer.message, toolUseID), messages: toolUseContext.messages,
     })
     if (ownRound !== null) for (const message of closeRound(owner, ownRound).messages) yield { message }
     return
   }
   if (!tool) {
+    const shownName = displayToolName(requestedName)
     const closest = closestToolByName(toolUseContext.options.tools, requestedName)
     const loadRoad =
       closest !== undefined &&
@@ -373,10 +375,10 @@ export async function* runToolUse(
       withheldByRule !== null
         ? withheldByRule
         : closest === undefined
-          ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given${offeredToolNamesClause(toolUseContext.options.tools)} (a ToolSearch query loads a deferred tool when one is offered).`
+          ? `No such tool available: ${shownName}. It is not in this session's tool list — call one of the tools you were given${offeredToolNamesClause(toolUseContext.options.tools)} (a ToolSearch query loads a deferred tool when one is offered).`
           : loadRoad
-            ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
-            : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
+            ? `No such tool available: ${shownName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
+            : `No such tool available: ${shownName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
     const unavailable = errorResultUpdate({
       toolUseID,
       content: unknownToolText,
@@ -386,7 +388,7 @@ export async function* runToolUse(
     yield unavailable
     if (toolUseContext.abortController.signal.aborted) return
     recordToolCall(owner, {
-      toolName: requestedName, toolUseID, roundHandle, roundID, roundOrdinal,
+      toolName: shownName, toolUseID, roundHandle, roundID, roundOrdinal,
       arguments: rawInput, result: toolResultBlockOf(unavailable.message, toolUseID), messages: toolUseContext.messages,
     })
     if (ownRound !== null) for (const message of closeRound(owner, ownRound).messages) yield { message }

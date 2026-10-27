@@ -6,6 +6,7 @@ import { stripNullArgs } from './openai/openaiWire.js'
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTyping.js'
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../tools/MemoryTools/prompt.js'
+import { displayToolName } from '../../utils/toolNameDisplay.js'
 
 interface IncomingToolCall {
   id: string
@@ -125,7 +126,7 @@ function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: 
 export const REFUSAL_RAW_DIAGNOSTIC_CHARS = 2_000
 
 export function toolCallRefusalDiagnostic(refusal: RefusedToolCall): string {
-  const name = refusal.name.trim() === '' ? 'unnamed' : refusal.name
+  const name = refusal.name.trim() === '' ? 'unnamed' : displayToolName(refusal.name)
   const length = refusal.argumentsLength ?? refusal.argumentsRaw.length
   const raw = refusal.argumentsRaw.slice(0, REFUSAL_RAW_DIAGNOSTIC_CHARS)
   const cut = length > raw.length ? `, the first ${raw.length} shown` : ''
@@ -150,7 +151,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
   }
   const tool = findToolByName(tools, call.name)
   if (!tool) {
-    return refused(call, 'unknown-tool', `No such tool available: ${call.name}`, tools.map(offered => offered.name))
+    return refused(call, 'unknown-tool', `No such tool available: ${displayToolName(call.name)}`, tools.map(offered => offered.name))
   }
   const raw = call.argumentsRaw.trim() === '' ? '{}' : call.argumentsRaw
   let parsed: unknown
@@ -226,7 +227,7 @@ function issueSummary(reason: string): string {
 }
 
 export function toolCallRefusalNote(lane: string, refusal: RefusedToolCall): string {
-  const name = refusal.name.trim() === '' ? 'unnamed' : refusal.name
+  const name = refusal.name.trim() === '' ? 'unnamed' : displayToolName(refusal.name)
   switch (refusal.code) {
     case 'unknown-tool':
       return `[${lane}] No such tool available: ${name} — it is not in this session's tool list, so it was not executed. Call one of the tools you were given${offeredToolNamesClause((refusal.offered ?? []).map(offered => ({ name: offered })))} (a ToolSearch query loads a deferred tool when one is offered).`
@@ -261,7 +262,7 @@ export function refusedCallInput(refusal: RefusedToolCall): Record<string, unkno
 }
 
 export function toolCallRefusalResultText(refusal: RefusedToolCall): string {
-  const name = refusal.name.trim() === '' ? 'the tool' : refusal.name
+  const name = refusal.name.trim() === '' ? 'the tool' : displayToolName(refusal.name)
   switch (refusal.code) {
     case 'schema':
       return `${refusal.reason}\nThe call did not run. Send it again with arguments that match ${name}'s input schema exactly (required parameters present, correct types, no extra fields on strict tools).`
@@ -288,7 +289,7 @@ export const TOOL_CALL_REFUSAL_CORRECTION_HEAD =
 
 export function toolCallRefusalCorrection(refusals: readonly RefusedToolCall[]): string {
   const items = refusals.map(refusal => {
-    const name = refusal.name.trim() === '' ? '(no tool name)' : refusal.name
+    const name = refusal.name.trim() === '' ? '(no tool name)' : displayToolName(refusal.name)
     const headline =
       refusal.code === 'unknown-tool'
         ? `unknown tool ${name}: ${refusal.reason}`

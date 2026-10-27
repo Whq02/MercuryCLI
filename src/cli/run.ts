@@ -32,6 +32,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { SessionId } from '../types/ids.js'
 import { hasConversationTurn, loadConversationForResume } from '../utils/conversationRecovery.js'
+import { caretEscape } from '../utils/caretEscape.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
 import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
@@ -2580,10 +2581,10 @@ export async function runHeadless(
     await flushWrite(process.stdout, `${jsonStringify(last)}\n`)
   } else if (options.outputFormat !== 'rows') {
     if (last.status === 'completed') {
-      const text = last.answer ?? ''
+      const text = caretEscape(last.answer ?? '')
       await flushWrite(process.stdout, text.endsWith('\n') ? text : `${text}\n`)
     } else {
-      if ((last.status === 'blocked' || last.status === 'turn_limit') && last.answer) await flushWrite(process.stdout, last.answer.replace(/\n?$/, '\n'))
+      if ((last.status === 'blocked' || last.status === 'turn_limit') && last.answer) await flushWrite(process.stdout, caretEscape(last.answer).replace(/\n?$/, '\n'))
       const sentence =
         last.status === 'refused' || last.status === 'failed'
           ? (last.error?.message ?? (last.status === 'refused' ? 'The request was refused' : 'The turn failed'))

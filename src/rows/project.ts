@@ -2,6 +2,7 @@ import stripAnsi from 'strip-ansi'
 import { randomUUID, type UUID as CryptoUUID } from 'node:crypto'
 import { BASH_STDERR_TAG, BASH_STDOUT_TAG, LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { unescapeXml } from '../utils/xml.js'
+import { displayToolName } from '../utils/toolNameDisplay.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
@@ -191,7 +192,7 @@ export function itemRowsOf(scope: RowScope, messageId: string, content: unknown,
             message_id: messageId,
             block: index,
             call_id: typeof block.id === 'string' ? block.id : `${messageId}.${index}`,
-            tool: typeof block.name === 'string' ? block.name : '',
+            tool: typeof block.name === 'string' ? displayToolName(block.name) : '',
             input: block.input !== null && typeof block.input === 'object' && !Array.isArray(block.input) ? (block.input as Record<string, unknown>) : {},
           }),
         )
@@ -225,7 +226,7 @@ export function refusedCallRowsOf(scope: RowScope, messageId: string, refused: r
     } catch {
       input = {}
     }
-    rows.push(scoped(scope, { type: 'tool_call' as const, message_id: messageId, block: firstBlock + offset, call_id: call.id, tool: call.name, input }))
+    rows.push(scoped(scope, { type: 'tool_call' as const, message_id: messageId, block: firstBlock + offset, call_id: call.id, tool: displayToolName(call.name), input }))
     rows.push(scoped(scope, { type: 'tool_result' as const, call_id: call.id, status: 'refused' as const, output: call.reason }))
   })
   return rows

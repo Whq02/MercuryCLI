@@ -106,6 +106,11 @@ export function relativePath(from: string, to: string, platform: ReturnType<type
   return [...up, ...down].join('/')
 }
 
+export function relativePathEscapes(relative: string, platform: ReturnType<typeof getPlatform> = getPlatform()): boolean {
+  if (relative === '..' || relative.startsWith('../')) return true
+  return platform === 'windows' && relative.startsWith('..\\')
+}
+
 function foldMacSymlinks(path: string): string {
   let folded = path
   if (folded.startsWith('/private/var/')) {
@@ -129,7 +134,7 @@ export function allWorkingDirectories(_context: ToolPermissionContext): Set<stri
 export function pathInWorkingPath(path: string, workingPath: string): boolean {
   const rel = relativePath(normalizeForWorkingDirCompare(workingPath), normalizeForWorkingDirCompare(path))
   if (rel === '') return true
-  if (rel.startsWith('..')) return false
+  if (relativePathEscapes(rel)) return false
   if (rel.startsWith('/')) return false
   return true
 }
@@ -595,7 +600,7 @@ function walkMatchingRules(
   for (const [root, entries] of groups) {
     const base = root === null ? getCwd() : root
     const relative = relativePath(base, candidatePath === '' ? getCwd() : candidatePath)
-    if (behavior === 'allow' ? relative.startsWith('..') : /^\.+(?:\/|$)/.test(relative)) continue
+    if (relativePathEscapes(relative)) continue
     if (relative === '') continue
 
     const matcher = ignore()
@@ -624,7 +629,7 @@ export function pathMatchesRulePattern(path: string, pattern: string, source: Pe
   const expanded = expandPath(path)
   const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
   const relative = relativePath(root === null ? getCwd() : root, candidatePath)
-  if (relative === '' || /^\.+(?:\/|$)/.test(relative)) return false
+  if (relative === '' || relativePathEscapes(relative)) return false
   const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
   return ignore().add(stripped).test(relative).ignored
 }
@@ -654,7 +659,7 @@ export function normalizePatternsToPath(
         continue
       }
       const rel = relativePath(refRoot, pr)
-      if (rel.startsWith('..')) continue
+      if (relativePathEscapes(rel)) continue
       results.add(joinPosix(rel, pattern))
     }
   }
