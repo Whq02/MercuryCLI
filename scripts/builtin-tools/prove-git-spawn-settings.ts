@@ -22,6 +22,7 @@ const { gitAdapter } = await import('../../src/services/resources/adapters/git.t
 const { parseMercuryRef } = await import('../../src/services/resources/contracts.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 const { execFileNoThrowWithCwd } = await import('../../src/utils/execFileNoThrow.ts')
+const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -146,6 +147,13 @@ try {
   clear('network')
   await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
   check('Mercury ls-remote does not use the repository SSH command', !marked('network'))
+  clear('network')
+  try { plain(['remote', 'show', 'origin']) } catch {}
+  check('plain remote show honors the repository SSH command', marked('network'))
+  clear('network')
+  await execFileNoThrowWithCwd('git', ['remote', 'show', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  check('Mercury remote show does not use the repository SSH command', !marked('network'))
+  check('the network settings ride remote, pull, push, clone, submodule and archive as well as fetch and ls-remote', ['remote', 'pull', 'push', 'clone', 'submodule', 'archive', 'fetch', 'ls-remote'].every(command => gitArgs([command, 'origin'], root).includes('core.sshCommand=ssh')))
 
   const credentialPort = await new Promise<number>(resolvePort => credentialServer.listen(0, '127.0.0.1', () => {
     const address = credentialServer.address()
@@ -161,6 +169,9 @@ try {
   clear('credential')
   await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
   check('Mercury ls-remote does not use the repository credential helper', !marked('credential'))
+  check('before a repository askPass program is set, the network settings name none', !gitArgs(['ls-remote', 'origin'], root).some(word => word.startsWith('core.askPass=')))
+  plain(['config', 'core.askPass', join(home, 'askpass.sh')])
+  check('a repository-scoped askPass program is replaced by the user\'s own, else none, on ls-remote, fetch and remote', ['ls-remote', 'fetch', 'remote'].every(command => gitArgs([command, 'origin'], root).includes('core.askPass=')))
 } finally {
   credentialServer.close()
   rmSync(home, { recursive: true, force: true })

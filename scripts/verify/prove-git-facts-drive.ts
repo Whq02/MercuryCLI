@@ -3,6 +3,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { gitSubcommandArgv } from '../lib/git.ts'
 
 if (process.platform === 'win32') {
   console.log('prove-git-facts-drive: the posix PTY engine — skipped on win32')
@@ -255,7 +256,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
     .filter(Boolean)
     .map(l => {
       const [start = '0', ppid = '', cwd = '', ...argv] = l.split('\t')
-      return { start: Number(start), ppid, cwd, argv: argv.join('\t') }
+      return { start: Number(start), ppid, cwd, argv: gitSubcommandArgv(argv.join(' ').split(' ')).join(' ') }
     })
   const idleEnd = touchAtMs ?? winEnd
   const idleRows = winStart !== undefined && idleEnd !== undefined ? all.filter(r => r.start >= winStart && r.start < idleEnd) : []

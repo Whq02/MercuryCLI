@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { gitSubcommandArgv } from '../lib/git.ts'
 
 if (process.platform === 'win32') {
   console.log('prove-tree-fingerprint-budget: the shim legs need a posix shell — skipped on win32')
@@ -32,7 +33,8 @@ writeFileSync(
   join(SHIM_DIR, 'git'),
   [
     '#!/bin/bash',
-    'if [ -n "$GIT_SHIM_SLEEP_MS" ] && { [ -z "$GIT_SHIM_SLEEP_FOR" ] || [ "$1" = "$GIT_SHIM_SLEEP_FOR" ]; }; then sleep "$(awk "BEGIN{print $GIT_SHIM_SLEEP_MS/1000}")"; fi',
+    'sub=""; i=1; while [ $i -le $# ]; do w="${!i}"; case "$w" in -c|-C|--exec-path|--git-dir|--work-tree|--namespace|--config-env) i=$((i+2)); continue;; -*) i=$((i+1)); continue;; esac; sub="$w"; break; done',
+    'if [ -n "$GIT_SHIM_SLEEP_MS" ] && { [ -z "$GIT_SHIM_SLEEP_FOR" ] || [ "$sub" = "$GIT_SHIM_SLEEP_FOR" ]; }; then sleep "$(awk "BEGIN{print $GIT_SHIM_SLEEP_MS/1000}")"; fi',
     `printf '%s\\t%s\\n' "$PWD" "$*" >> "${LOG}"`,
     `exec "${REAL_GIT}" "$@"`,
     '',
@@ -88,7 +90,7 @@ function rows(): Row[] {
     .filter(Boolean)
     .map(l => {
       const [cwd = '', ...argv] = l.split('\t')
-      return { cwd, argv: argv.join('\t') }
+      return { cwd, argv: gitSubcommandArgv(argv.join(' ').split(' ')).join(' ') }
     })
 }
 const mark = (): number => rows().length

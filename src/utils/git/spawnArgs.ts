@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { gitExe } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 
 export const GIT_SPAWN_CONFIG = ['--no-pager', '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat'] as const
@@ -9,7 +10,7 @@ export const GIT_DIFF_CONFIG = ['--no-ext-diff', '--no-textconv'] as const
 const VALUE_GLOBALS = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
 const PATCH_COMMANDS = new Set(['diff', 'show', 'log', 'format-patch', 'range-diff', 'blame'])
 const FILTER_COMMANDS = new Set(['add', 'checkout', 'stash', 'apply', 'merge'])
-const NETWORK_COMMANDS = new Set(['fetch', 'ls-remote'])
+const NETWORK_COMMANDS = new Set(['fetch', 'ls-remote', 'remote', 'pull', 'push', 'clone', 'submodule', 'archive'])
 
 type RepositoryFilters = {
   fingerprint: string
@@ -118,10 +119,16 @@ function configFingerprint(paths: string[]): string {
   }).join('|')
 }
 
-function repositoryFilters(cwd: string): string[] {
+type RepositoryLayout = { root: string; gitDir: string; commonDir: string }
+
+const layoutCache = new Map<string, RepositoryLayout>()
+
+function repositoryLayout(cwd: string): RepositoryLayout | null {
+  const known = layoutCache.get(cwd)
+  if (known && existsSync(known.gitDir) && existsSync(known.commonDir)) return known
   let facts: string
   try {
-    facts = execFileSync('git', [...GIT_SPAWN_CONFIG, 'rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir'], {
+    facts = execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir'], {
       cwd,
       encoding: 'utf8',
       env: subprocessEnv(),
@@ -130,19 +137,25 @@ function repositoryFilters(cwd: string): string[] {
       windowsHide: true,
     })
   } catch {
-    return []
+    return null
   }
   const [rootLine, gitDirLine, commonLine] = facts.split('\n')
-  if (!rootLine || !gitDirLine || !commonLine) return []
-  const root = canonical(rootLine)
-  const gitDir = canonical(gitDirLine)
-  const commonDir = canonical(resolve(cwd, commonLine))
+  if (!rootLine || !gitDirLine || !commonLine) return null
+  const layout = { root: canonical(rootLine), gitDir: canonical(gitDirLine), commonDir: canonical(resolve(cwd, commonLine)) }
+  layoutCache.set(cwd, layout)
+  return layout
+}
+
+function repositoryFilters(cwd: string): string[] {
+  const layout = repositoryLayout(cwd)
+  if (layout === null) return []
+  const { root, gitDir, commonDir } = layout
   const fingerprint = configFingerprint([join(commonDir, 'config'), join(gitDir, 'config.worktree')])
   const cached = filterCache.get(commonDir)
   if (cached?.fingerprint === fingerprint) return cached.skipped
   let configured = ''
   try {
-    configured = execFileSync('git', [...GIT_SPAWN_CONFIG, 'config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$'], {
+    configured = execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$'], {
       cwd: root,
       encoding: 'utf8',
       env: subprocessEnv(),
@@ -175,7 +188,7 @@ function filterConfig(cwd: string | undefined): string[] {
 
 function scopedConfig(cwd: string, key: string): Array<{ scope: string; value: string }> {
   try {
-    return execFileSync('git', [...GIT_SPAWN_CONFIG, 'config', '--show-scope', '--get-all', key], {
+    return execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, 'config', '--show-scope', '--get-all', key], {
       cwd,
       encoding: 'utf8',
       env: subprocessEnv(),
@@ -205,6 +218,11 @@ function networkConfig(command: string, cwd: string | undefined): string[] {
     for (const row of credentials) {
       if (row.scope !== 'local' && row.scope !== 'worktree') out.push('-c', `credential.helper=${row.value}`)
     }
+  }
+  const askPass = scopedConfig(cwd, 'core.askPass')
+  if (askPass.some(row => row.scope === 'local' || row.scope === 'worktree')) {
+    const user = askPass.filter(row => row.scope !== 'local' && row.scope !== 'worktree').at(-1)?.value
+    out.push('-c', `core.askPass=${user ?? ''}`)
   }
   return out
 }

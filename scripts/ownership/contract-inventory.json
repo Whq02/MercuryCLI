@@ -329,6 +329,7 @@
     "wrapFetchWithStepUpDetection"
    ],
    "src/services/mcp/config.ts": [
+    "MCP_SERVERS_MAX_PER_DOCUMENT",
     "PROJECT_MCP_FILE",
     "PROJECT_MCP_FILE_SPELLING",
     "addMcpConfig",
@@ -469,6 +470,7 @@
     "createCompactCanUseTool",
     "createPostCompactFileAttachments",
     "createSkillAttachmentIfNeeded",
+    "estimateFixedRequestTokens",
     "fitPostCompactUnderThreshold",
     "foldFamilyOf",
     "foldFirstByteAllowanceMs",
@@ -514,6 +516,7 @@
     "detectFixedPrefixOverflow",
     "foldModelFor",
     "getAutoCompactThreshold",
+    "getAutoCompactThresholdWithFixed",
     "getBlockingLimit",
     "getEffectiveContextWindowSize",
     "isAutoCompactEnabled",

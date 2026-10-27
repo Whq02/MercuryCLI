@@ -48,3 +48,22 @@ export function gitOutOrNull(
   opts.onMiss(r)
   return null
 }
+
+const GIT_GLOBALS_WITH_VALUE = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
+
+export function gitSubcommandArgv(argv: readonly string[]): string[] {
+  let at = 0
+  while (at < argv.length) {
+    const word = argv[at]!
+    if (GIT_GLOBALS_WITH_VALUE.has(word)) {
+      at += 2
+      continue
+    }
+    if (word.startsWith('-')) {
+      at++
+      continue
+    }
+    break
+  }
+  return argv.slice(at)
+}
