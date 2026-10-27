@@ -67,7 +67,7 @@ const composer = read('src/components/PromptInput/useComposerKeybindings.ts')
 check('the stash handler asks the latch first: the second press sends now, every other press stashes as today', composer.includes("'chat:stash': () => {\n        if (pressSendNow(focusedSendNowLive())) {\n          void sendFocusedWordsNow().then(receipt => {") && composer.includes('          return\n        }\n        performStash()\n      },'))
 check('an applied send paints nothing; a refusal paints its sentence on the notice row', composer.includes("if (receipt.outcome === 'applied') return") && composer.includes("addNotification({ key: 'send-now', text: receipt.detail ?? 'no reason given', priority: 'immediate' })"))
 const reserved = read('src/keybindings/reservedShortcuts.ts')
-check('ctrl+s is not a terminal-reserved key here: the product owns it (flow control is off in the terminals it runs in)', reserved.includes('ctrl+s / ctrl+q are deliberately') && !/key: 'ctrl\+s'/.test(reserved))
+check('ctrl+s is not a terminal-reserved key here: the product owns it (flow control is off in the terminals it runs in)', !/key: 'ctrl\+[sq]'/.test(reserved))
 
 section('§5 the road — the cockpit fact, the connector verb, the daemon action, the runner method')
 const fact = read('src/services/engine-connector/sendNowLive.ts')
