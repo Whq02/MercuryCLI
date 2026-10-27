@@ -33,13 +33,20 @@ const createHashHex = (text: string): string => createHash('sha256').update(text
 console.log('── §1 tag grammar ──')
 check('v1.2.0-beta.1 parses', JSON.stringify(parsePrivateTag('v1.2.0-beta.1')) === JSON.stringify({ major: 1, minor: 2, patch: 0, label: 'beta', counter: 1 }))
 check('v10.20.30-beta.42 parses', parsePrivateTag('v10.20.30-beta.42')?.counter === 42)
-for (const bad of ['v1.2.0', '1.2.0-beta.1', 'v1.2.0-beta-rc.1', 'v1.2.0-beta.0', 'v1.2.0-beta.01', 'v1.2-beta.1', 'archive/bug-audit', 'bench-corpus-v1', 'v1.2.0-beta.1.5', 'V1.2.0-beta.1', 'v1.2.0-beta.1 ']) {
+for (const bad of ['1.2.0-beta.1', 'v1.2.0-beta-rc.1', 'v1.2.0-beta.0', 'v1.2.0-beta.01', 'v1.2-beta.1', 'archive/bug-audit', 'bench-corpus-v1', 'v1.2.0-beta.1.5', 'V1.2.0-beta.1', 'v1.2.0-beta.1 ']) {
   check(`rejects tag ${JSON.stringify(bad)}`, parsePrivateTag(bad) === null)
 }
 check('version form 1.2.0-beta.1 parses', parsePrivateVersion('1.2.0-beta.1') !== null)
 check('version form rejects v-prefixed', parsePrivateVersion('v1.2.0-beta.1') === null)
 check('format round-trips', formatPrivateVersion(parsePrivateTag('v3.4.5-beta.7')!) === '3.4.5-beta.7')
 check('v1.0.0-beta.1 parses with the beta label', JSON.stringify(parsePrivateTag('v1.0.0-beta.1')) === JSON.stringify({ major: 1, minor: 0, patch: 0, label: 'beta', counter: 1 }))
+check('v1.0.0 parses as the final release of its triple', JSON.stringify(parsePrivateTag('v1.0.0')) === JSON.stringify({ major: 1, minor: 0, patch: 0, label: '', counter: 0 }))
+check('v1.0.0-rc.1 parses with the rc label', JSON.stringify(parsePrivateTag('v1.0.0-rc.1')) === JSON.stringify({ major: 1, minor: 0, patch: 0, label: 'rc', counter: 1 }))
+check('the final release formats without a prerelease part', formatPrivateVersion(parsePrivateTag('v1.0.0')!) === '1.0.0')
+check('rc.1 orders above beta.44', comparePrivateVersions(parsePrivateVersion('1.0.0-rc.1')!, parsePrivateVersion('1.0.0-beta.44')!) > 0)
+check('the final release orders above rc.1 and beta.44', comparePrivateVersions(parsePrivateVersion('1.0.0')!, parsePrivateVersion('1.0.0-rc.1')!) > 0 && comparePrivateVersions(parsePrivateVersion('1.0.0')!, parsePrivateVersion('1.0.0-beta.44')!) > 0)
+check('the next patch orders above the final release', comparePrivateVersions(parsePrivateVersion('1.0.1-beta.1')!, parsePrivateVersion('1.0.0')!) > 0)
+check('a bare triple with a trailing dot or a leading zero is rejected', parsePrivateTag('v1.0.0.') === null && parsePrivateTag('v1.0.0-rc.0') === null)
 check('a hyphenated label is not a channel tag', parsePrivateTag('v1.0.0-beta-2.1') === null)
 check('labels order as semver identifiers: beta before rc', comparePrivateVersions(parsePrivateVersion('1.0.0-beta.9')!, parsePrivateVersion('1.0.0-rc.1')!) < 0)
 check('counters order within a label', comparePrivateVersions(parsePrivateVersion('1.0.0-beta.1')!, parsePrivateVersion('1.0.0-beta.2')!) < 0)

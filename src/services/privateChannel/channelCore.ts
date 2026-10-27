@@ -10,29 +10,30 @@ interface PrivateVersion {
 }
 
 export function formatPrivateVersion(v: PrivateVersion): string {
-  return `${v.major}.${v.minor}.${v.patch}-${v.label}.${v.counter}`
+  const core = `${v.major}.${v.minor}.${v.patch}`
+  return v.label === '' ? core : `${core}-${v.label}.${v.counter}`
 }
 
-const TAG_RE = /^v(\d+)\.(\d+)\.(\d+)-([a-z]+)\.([1-9]\d*)$/
-const VERSION_RE = /^(\d+)\.(\d+)\.(\d+)-([a-z]+)\.([1-9]\d*)$/
+const TAG_RE = /^v(\d+)\.(\d+)\.(\d+)(?:-([a-z]+)\.([1-9]\d*))?$/
+const VERSION_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([a-z]+)\.([1-9]\d*))?$/
 
 export function parsePrivateTag(tag: string): PrivateVersion | null {
   const m = TAG_RE.exec(tag)
   if (!m) return null
-  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]), label: m[4]!, counter: Number(m[5]) }
+  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]), label: m[4] ?? '', counter: m[5] === undefined ? 0 : Number(m[5]) }
 }
 
 export function parsePrivateVersion(version: string): PrivateVersion | null {
   const m = VERSION_RE.exec(version)
   if (!m) return null
-  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]), label: m[4]!, counter: Number(m[5]) }
+  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]), label: m[4] ?? '', counter: m[5] === undefined ? 0 : Number(m[5]) }
 }
 
 export function comparePrivateVersions(a: PrivateVersion, b: PrivateVersion): number {
   if (a.major !== b.major) return a.major - b.major
   if (a.minor !== b.minor) return a.minor - b.minor
   if (a.patch !== b.patch) return a.patch - b.patch
-  if (a.label !== b.label) return a.label < b.label ? -1 : 1
+  if (a.label !== b.label) return a.label === '' ? 1 : b.label === '' ? -1 : a.label < b.label ? -1 : 1
   return a.counter - b.counter
 }
 
