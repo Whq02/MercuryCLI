@@ -101,6 +101,7 @@ export const HOOK_NOTICE_CODES = { failed: 'hook_failed', block: 'hook_blocked',
 export const HOOK_FAILED_CODE = HOOK_NOTICE_CODES.failed
 export const TOOL_WITHHELD_CODE = 'tool_withheld'
 export const MCP_SERVER_FAILED_CODE = 'mcp_server_failed'
+export const MCP_SERVER_SKIPPED_CODE = 'mcp_server_skipped'
 
 export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string; blocks?: boolean }): string {
   const who = `hook ${hook.name} (${hook.event})`

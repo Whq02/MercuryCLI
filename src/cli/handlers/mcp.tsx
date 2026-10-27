@@ -12,12 +12,14 @@ import {
   getMcpConfigByName,
   getMcpConfigsByScope,
   getMercuryMcpConfigs,
+  mcpServerSkippedForApprovalLine,
   mcpServerSkippedForTrustLine,
+  mcpServersSkippedForApprovalLines,
   mcpServersSkippedForTrustLine,
   removeMcpConfig,
 } from '../../services/mcp/config.js'
 import { isMcpCatalogueMember } from '../../services/mcp/membership.js'
-import { clipToWord, describeMcpConfigIssues } from '../../services/mcp/utils.js'
+import { clipToWord, describeMcpConfigIssues, mcpConfigAsWritten } from '../../services/mcp/utils.js'
 import {
   clearMcpClientConfig,
   clearServerTokensFromLocalStorage,
@@ -187,8 +189,10 @@ export async function mcpListHandler(): Promise<void> {
   const names = Object.keys(configs)
   const skippedForTrust = mcpServersSkippedForTrustLine()
   if (skippedForTrust !== null) process.stdout.write(`${skippedForTrust}\n`)
+  const skippedForApproval = mcpServersSkippedForApprovalLines()
+  for (const { line } of skippedForApproval) process.stdout.write(`${line}\n`)
   if (names.length === 0) {
-    if (skippedForTrust === null) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
+    if (skippedForTrust === null && skippedForApproval.length === 0) process.stdout.write(`No MCP servers configured. Add one with: ${binaryName()} mcp add\n`)
     await gracefulShutdown(0)
     return
   }
@@ -199,22 +203,17 @@ export async function mcpListHandler(): Promise<void> {
     { concurrency: getMcpServerConnectionBatchSize() },
   )
   names.forEach((name, index) => {
-    const config = configs[name] as {
-      type?: string
-      url?: string
-      command?: string
-      args?: unknown
-    }
+    const config = configs[name] as ScopedMcpServerConfig
+    const written = mcpConfigAsWritten(config)
     const status = renderStatus(outcomes[index]!)
     if (config.type === 'sse' || config.type === 'http') {
-      process.stdout.write(`${name}: ${describeUrlRedacted(config.url ?? '')} (${config.type.toUpperCase()}) — ${status}\n`)
+      process.stdout.write(`${name}: ${describeUrlRedacted(written.url ?? '')} (${config.type.toUpperCase()}) — ${status}\n`)
     } else if (config.type === 'claudeai-proxy') {
-      process.stdout.write(`${name}: ${describeUrlRedacted(config.url ?? '')} — ${status}\n`)
+      process.stdout.write(`${name}: ${describeUrlRedacted(written.url ?? '')} — ${status}\n`)
     } else if (config.type === 'stdio' || config.type === undefined) {
-      const args = Array.isArray(config.args) ? (config.args as string[]).join(' ') : ''
-      process.stdout.write(`${name}: ${config.command ?? ''} ${args} — ${status}\n`)
+      process.stdout.write(`${name}: ${written.command ?? ''} ${written.args.join(' ')} — ${status}\n`)
     } else {
-      const target = typeof (config as { url?: unknown }).url === 'string' ? ` ${describeUrlRedacted((config as { url: string }).url)}` : ''
+      const target = written.url === undefined ? '' : ` ${describeUrlRedacted(written.url)}`
       process.stdout.write(`${name}:${target} (${String(config.type)}) — ${status}\n`)
     }
   })
@@ -227,19 +226,20 @@ export async function mcpGetHandler(name: string): Promise<void> {
   if (!config) {
     return cliError(`No MCP server named ${name} is configured`)
   }
-  const skippedForTrust = mcpServerSkippedForTrustLine(name, config)
-  if (skippedForTrust !== null) {
-    process.stdout.write(`${skippedForTrust}\n`)
+  const skipped = mcpServerSkippedForTrustLine(name, config) ?? mcpServerSkippedForApprovalLine(name, config)
+  if (skipped !== null) {
+    process.stdout.write(`${skipped}\n`)
     await gracefulShutdown(0)
     return
   }
   const outcome = await probeServer(name, config)
+  const written = mcpConfigAsWritten(config)
   process.stdout.write(`${name}:\n`)
   process.stdout.write(`  Scope: ${config.scope ?? 'local'}\n`)
   process.stdout.write(`  Status: ${renderStatus(outcome)}\n`)
   if (config.type === 'sse' || config.type === 'http') {
     process.stdout.write(`  Type: ${config.type}\n`)
-    process.stdout.write(`  URL: ${describeUrlRedacted(config.url ?? '')}\n`)
+    process.stdout.write(`  URL: ${describeUrlRedacted(written.url ?? '')}\n`)
     if (config.headers && Object.keys(config.headers).length > 0) {
       process.stdout.write('  Headers:\n')
       for (const line of describeHeadersRedacted(config.headers).split(', ')) {
@@ -260,9 +260,8 @@ export async function mcpGetHandler(name: string): Promise<void> {
     }
   } else if (config.type === 'stdio' || config.type === undefined) {
     process.stdout.write('  Type: stdio\n')
-    process.stdout.write(`  Command: ${config.command ?? ''}\n`)
-    const args = Array.isArray(config.args) ? config.args.join(' ') : ''
-    process.stdout.write(`  Args: ${args}\n`)
+    process.stdout.write(`  Command: ${written.command ?? ''}\n`)
+    process.stdout.write(`  Args: ${written.args.join(' ')}\n`)
     if (config.env && Object.keys(config.env).length > 0) {
       process.stdout.write('  Environment:\n')
       for (const line of describeEnvRedacted(config.env)) {
@@ -271,8 +270,8 @@ export async function mcpGetHandler(name: string): Promise<void> {
     }
   } else {
     process.stdout.write(`  Type: ${String(config.type)}\n`)
-    if (typeof (config as { url?: unknown }).url === 'string') {
-      process.stdout.write(`  URL: ${describeUrlRedacted((config as { url: string }).url)}\n`)
+    if (written.url !== undefined) {
+      process.stdout.write(`  URL: ${describeUrlRedacted(written.url)}\n`)
     }
   }
   process.stdout.write('\n')

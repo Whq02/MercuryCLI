@@ -383,8 +383,8 @@ for (const cols of [80, 120]) {
     ['crash-resume', h(CrashResumeDialog, { origin: 'fixture', component: 'fixture', message: 'Fixture recovery', sessionId: 'fixture', cwd: fixtureRoot, moreCount: 0, onDone: noAction }), 'Resume that session', false],
     ['cost-threshold', h(CostThresholdDialog, { onDone: noAction }), 'Got it', false],
     ['sovereign', h(SovereignModeDialog, { onAccept: noAction }), 'No, exit', false],
-    ['mcp-approval', h(MCPServerApprovalDialog, { serverName: 'fixture', onDone: noAction }), 'fixture', false],
-    ['mcp-multiselect', h(MCPServerMultiselectDialog, { serverNames: options.map(row => row.label), onDone: noAction }), 'choice 01', true],
+    ['mcp-approval', h(MCPServerApprovalDialog, { serverName: 'fixture', config: { command: 'fixture', args: [] }, onDone: noAction }), 'fixture', false],
+    ['mcp-multiselect', h(MCPServerMultiselectDialog, { serverNames: options.map(row => row.label), configs: Object.fromEntries(options.map(row => [row.label, { command: 'fixture', args: [] }])), onDone: noAction }), 'choice 01', true],
     ['help-commands', h(Commands, { commands: options.map(row => ({ name: row.label.replace(' ', '-'), description: 'Fixture command', type: 'local', isEnabled: () => true, userFacingName: () => row.label.replace(' ', '-') })) as never, maxHeight: 24, columns: cols, title: 'Fixture commands', onCancel: noAction, onPick: noAction }), 'Fixture commands', true],
   ]
   for (const [name, element, ready, pages] of cases) {

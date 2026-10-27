@@ -22,6 +22,7 @@ import {
   excludeCommandsByServer,
   excludeToolsByServer,
   filterMcpPromptsByServer,
+  mcpConfigAsWritten,
 } from '../../services/mcp/utils.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { getOauthAccountInfo } from '../../utils/auth.js'
@@ -428,7 +429,7 @@ export function MCPRemoteServerMenu({
         ) : null}
         <Text>
           <Text dimColor>URL: </Text>
-          {describeUrlRedacted(remote.config.url)}
+          {describeUrlRedacted(mcpConfigAsWritten(remote.config).url ?? remote.config.url)}
         </Text>
         <Text>
           <Text dimColor>Config: </Text>

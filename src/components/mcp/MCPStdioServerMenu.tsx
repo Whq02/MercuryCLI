@@ -9,6 +9,7 @@ import {
   describeMcpConfigFilePath,
   filterMcpPromptsByServer,
   filterResourcesByServer,
+  mcpConfigAsWritten,
 } from '../../services/mcp/utils.js'
 import { useAppState } from '../../state/AppState.js'
 import { Dialog } from '../design-system/Dialog.js'
@@ -52,6 +53,7 @@ export function MCPStdioServerMenu({
   const status = client.type === 'needs-auth' ? 'failed' : client.type
   const toolCount = serverToolsCount
   const config = server.config as StdioServerInfo['config']
+  const written = mcpConfigAsWritten(config)
 
   const storeEntry = getMcpConfigByName(server.name)
   const configLocation = describeMcpConfigFilePath(
@@ -99,10 +101,8 @@ export function MCPStdioServerMenu({
         )}
         <Text wrap="truncate-end">
           <Text dimColor>Command: </Text>
-          {config.command}
-          {config.args && config.args.length > 0
-            ? ` ${config.args.join(' ')}`
-            : ''}
+          {written.command}
+          {written.args.length > 0 ? ` ${written.args.join(' ')}` : ''}
         </Text>
         <Text>
           <Text dimColor>Config: </Text>

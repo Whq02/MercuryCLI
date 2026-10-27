@@ -346,7 +346,9 @@
     "getProjectMcpConfigs",
     "getProjectMcpConfigsFromCwd",
     "isMcpServerDisabled",
+    "mcpServerSkippedForApprovalLine",
     "mcpServerSkippedForTrustLine",
+    "mcpServersSkippedForApprovalLines",
     "mcpServersSkippedForTrustLine",
     "parseMcpConfig",
     "parseMcpConfigFromFilePath",
@@ -408,6 +410,7 @@
     "type:McpSSEServerConfig",
     "type:McpServerConfig",
     "type:McpStdioServerConfig",
+    "type:McpUnexpandedStrings",
     "type:ScopedMcpServerConfig",
     "type:ServerResource",
     "type:Transport"

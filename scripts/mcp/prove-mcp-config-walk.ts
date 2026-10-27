@@ -61,6 +61,10 @@ writeFileSync(
   join(PROJ, '.mercury', 'settings.json'),
   JSON.stringify({ kit: { projectOff: ['proj-rejected'] } }),
 )
+writeFileSync(
+  join(PROJ, '.mercury', 'settings.local.json'),
+  JSON.stringify({ kit: { projectOn: ['proj-only'] } }),
+)
 
 saveCurrentProjectConfig(current => ({
   ...current,
@@ -73,10 +77,10 @@ console.log('============================================================')
 console.log(' getMercuryMcpConfigs — the io precedence walk')
 console.log('============================================================')
 
-section('W2a — FC-144: no trust record, no headless auto-approval')
+section('W2a — FC-144: no trust record, no project server, approval or not')
 {
   const { servers } = await walkUntrusted({})
-  check("an untrusted checkout's project MCP server is not in the walk (no auto-approval)", !('proj-only' in servers), j(Object.keys(servers).sort()))
+  check("an untrusted checkout's approved project MCP server is not in the walk", !('proj-only' in servers), j(Object.keys(servers).sort()))
 }
 saveCurrentProjectConfig(current => ({ ...current, hasTrustDialogAccepted: true }))
 
@@ -94,7 +98,7 @@ section('W1–W5 — the hermetic walk (trusted workspace)')
   check('W1 the user scope resolves from the global config (scope-tagged)', userOnly?.scope === 'user', j(userOnly))
 
   const projOnly = servers['proj-only'] as { scope?: string } | undefined
-  check('W2 non-interactive + projectSettings enabled ⇒ the project MCP server auto-approves', projOnly?.scope === 'project', j(projOnly))
+  check('W2 trusted + approved in the local settings ⇒ the project MCP server joins the walk', projOnly?.scope === 'project', j(projOnly))
 
   check('W3 kit.projectOff REJECTS the named project server', !('proj-rejected' in servers))
 

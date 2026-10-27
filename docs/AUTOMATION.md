@@ -227,6 +227,15 @@ or picker, `-w` to run in a managed worktree, and `--lean` for a minimal session
 A `run` has no host to answer permission asks: its permission rules and mode
 decide what can run, and a call that still needs approval is denied.
 
+A project's MCP servers (`.mercury/mcp.json`) join a run only in a trusted
+folder and only once you approved each server on the card an interactive start
+there shows, or with `kit.trustProjectServers` set in your user or local
+settings. An approval is keyed to the server's definition as written (its
+command, arguments, URL and environment variable names), so a changed
+definition needs approving again. Until then the run skips the server, says so
+on stderr and in a `notice` row (`code: "mcp_server_skipped"`), and continues;
+`mercury mcp list` and `mercury mcp get` skip it the same way.
+
 ### TypeScript (Node 24, zero dependencies)
 
 ```ts

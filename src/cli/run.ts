@@ -139,6 +139,7 @@ import {
   getMcpConfigByName,
   getMercuryMcpConfigs,
   filterMcpServersByPolicy,
+  mcpServersSkippedForApprovalLines,
 } from '../services/mcp/config.js'
 import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
@@ -278,8 +279,8 @@ import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTP
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
 import { getAllBaseTools, getTools, mcpToolPartition, toolsWithheldByDeny } from '../tools.js'
 import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
-import { MCP_SERVER_FAILED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
-import { filterToolsByServer, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
+import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
+import { filterToolsByServer, mcpConfigAsWritten, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
 import { withoutMcpToolCardHeader } from '../services/mcp/toolCard.js'
 import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsAnswer.js'
 import { clearToolRosterLatches, clearToolRosterRestore, heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
@@ -555,6 +556,15 @@ export async function runHeadless(
       const words = mcpServerFailedWords(server.name, server.reason)
       enqueueRow(noticeRow(liveScope(), 'warning', words, MCP_SERVER_FAILED_CODE))
       if (options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${words}\n`)
+    }
+  }
+  const skippedMcpTold = new Set<string>()
+  const tellSkippedProjectMcpServers = (): void => {
+    for (const { name, line } of mcpServersSkippedForApprovalLines()) {
+      if (skippedMcpTold.has(name)) continue
+      skippedMcpTold.add(name)
+      enqueueRow(noticeRow(liveScope(), 'warning', line, MCP_SERVER_SKIPPED_CODE))
+      if (options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${line}\n`)
     }
   }
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
@@ -1265,6 +1275,7 @@ export async function runHeadless(
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
           for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
         }
+        tellSkippedProjectMcpServers()
         tellFailedMcpServers()
         for await (const message of ask({
           commands: dedupedCommands,
@@ -1828,14 +1839,15 @@ export async function runHeadless(
     initial: Object.fromEntries(getAppState().mcp.clients.filter(client => ['user', 'local', 'project', 'enterprise'].includes(client.config.scope) || client.config.extensionSource !== undefined).map(client => [client.name, client.config])),
     ready: () => !awaitingSessionClaim,
     approve: async (name, config) => {
-      const target = 'url' in config ? config.url : config.command
+      const written = mcpConfigAsWritten(config)
+      const target = written.url ?? written.command
       const key = `mcp-project-${randomUUID()}`
       const result = await asks.askPermission({
         kind: 'tool', tool_use_id: key, tool_name: 'MCP', title: `Trust new project MCP server ${name}`,
         input: { server: name, target, scope: 'project' },
         reason: 'MCP servers may execute code or access external systems. Use this project server?',
       }, { key })
-      return result.outcome === 'allow'
+      return result.outcome === 'allow' ? 'allow' : result.unanswered === true ? 'unanswered' : 'deny'
     },
     reconcile: (next, previous) => serializeMcpChange(async () => {
       for (const row of getAppState().mcp.clients) {

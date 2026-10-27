@@ -53,7 +53,8 @@ export type McpSSEServerConfig = z.infer<ReturnType<typeof McpSSEServerConfigSch
 export type McpHTTPServerConfig = z.infer<ReturnType<typeof McpHTTPServerConfigSchema>>
 export type McpAnthropicProxyServerConfig = z.infer<ReturnType<typeof McpAnthropicProxyServerConfigSchema>>
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
-export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string }
+export type McpUnexpandedStrings = { command?: string; args?: string[]; url?: string }
+export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings }
 
 type ServerIdentity = { name: string; config: ScopedMcpServerConfig }
 type ConnectionFacts = {

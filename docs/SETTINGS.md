@@ -227,8 +227,8 @@ the server definitions themselves.
 
 | Key | What it sets |
 | --- | --- |
-| `kit.trustProjectServers` | Approves project-defined MCP servers without an individual approval card. |
-| `kit.projectOn`, `kit.projectOff` | Project MCP server names approved or disabled in this settings source. |
+| `kit.trustProjectServers` | Approves project-defined MCP servers without an individual approval card. Read from your user and local settings only; a checked-in project settings file cannot set it. |
+| `kit.projectOn`, `kit.projectOff` | Project MCP servers approved or disabled in this settings source. An approval is written as `name#digest`, keyed to the server's definition as written; a bare name approves the current definition once and is rewritten in that form. Read from your user and local settings only. |
 | `kit.permit`, `kit.deny` | Server policy entries. Each entry names exactly one of `serverName`, `serverCommand` (an argument array), or `serverUrl`. Denies take precedence. |
 | `kit.managedOnly` | When set by managed policy, uses only that policy's server allowlist. |
 | `events.hooks` | The hooks, by event: one entry per hook with its own match; [HOOKS.md](HOOKS.md) defines the events and the entry. |

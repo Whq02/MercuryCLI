@@ -136,8 +136,8 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
     /projectUntrusted \? emptyRead : getProjectMcpConfigs\(\)/.test(src('services', 'mcp', 'config.ts')),
   )
   check(
-    'mcp approval: headless auto-approve now requires TRUST (call-shaped)',
-    /getIsNonInteractiveSession\(\) && projectSourceEnabled && checkHasTrustDialogAccepted\(\)/.test(
+    'mcp approval: no road and no trust record approves a project server (call-shaped)',
+    !/getIsNonInteractiveSession\(\)|checkHasTrustDialogAccepted\(\)|sovereignConsentSeen/.test(
       src('services', 'mcp', 'utils.ts'),
     ),
   )
@@ -145,27 +145,40 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
 
 section('§4 PROJECT MCP UNDER THE GATE')
 {
-  const { getProjectMcpServerStatus } = await import('../../src/services/mcp/utils.js')
-  const { getMercuryMcpConfigs } = await import('../../src/services/mcp/config.js')
+  const { getProjectMcpServerStatus, projectMcpApprovalEntry } = await import('../../src/services/mcp/utils.js')
+  const { getMercuryMcpConfigs, getProjectMcpConfigsFromCwd } = await import('../../src/services/mcp/config.js')
   setIsInteractive(false)
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
   resetSettingsCache()
+  const fixsrv = getProjectMcpConfigsFromCwd().servers.fixsrv!
   check(
     "gated: the checkout server is NOT auto-approved ('pending')",
-    getProjectMcpServerStatus('fixsrv') === 'pending',
-    getProjectMcpServerStatus('fixsrv'),
+    getProjectMcpServerStatus('fixsrv', fixsrv) === 'pending',
+    getProjectMcpServerStatus('fixsrv', fixsrv),
   )
   const gatedServers = Object.keys((await getMercuryMcpConfigs()).servers)
   check('gated: the assembly excludes the project MCP file server', !gatedServers.includes('fixsrv'), JSON.stringify(gatedServers))
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
   check(
-    'trusted: headless auto-approval stands (the historical behavior)',
-    getProjectMcpServerStatus('fixsrv') === 'approved',
+    "trusted but never approved: still 'pending' (trust alone approves nothing)",
+    getProjectMcpServerStatus('fixsrv', fixsrv) === 'pending',
+    getProjectMcpServerStatus('fixsrv', fixsrv),
   )
   const trustedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('trusted: the assembly carries the project MCP file server', trustedServers.includes('fixsrv'))
+  check('trusted but never approved: the assembly leaves the project MCP file server out', !trustedServers.includes('fixsrv'), JSON.stringify(trustedServers))
+  writeFileSync(join(PROJ, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { projectOn: [projectMcpApprovalEntry('fixsrv', fixsrv)] } }))
+  resetSettingsCache()
+  check(
+    "trusted and approved for this definition: 'approved'",
+    getProjectMcpServerStatus('fixsrv', fixsrv) === 'approved',
+    getProjectMcpServerStatus('fixsrv', fixsrv),
+  )
+  const approvedServers = Object.keys((await getMercuryMcpConfigs()).servers)
+  check('trusted and approved: the assembly carries the project MCP file server', approvedServers.includes('fixsrv'), JSON.stringify(approvedServers))
+  rmSync(join(PROJ, '.mercury', 'settings.local.json'), { force: true })
+  resetSettingsCache()
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
 }
@@ -241,7 +254,11 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
     )
     check('trusted run: the config-home hook still fires', existsSync(marker('user-marker')))
     const trustedList = run(['mcp', 'list'])
-    check('trusted mcp list: the checkout server is listed', trustedList.stdout.includes('fixsrv'))
+    check(
+      'trusted mcp list: the never-approved checkout server is named as skipped, not probed',
+      trustedList.stdout.includes('MCP server fixsrv (project) skipped: not approved · open Mercury in this folder to approve it') && !/fixsrv: node/.test(trustedList.stdout),
+      trustedList.stdout.slice(0, 200).replace(/\s+/g, ' '),
+    )
 
     rmSync(LIVE_HOME, { recursive: true, force: true })
     rmSync(LIVE_PROJ, { recursive: true, force: true })

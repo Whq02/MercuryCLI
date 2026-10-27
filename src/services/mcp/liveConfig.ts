@@ -4,21 +4,21 @@ import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { checkHasTrustDialogAccepted, getCurrentProjectConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getMercuryMcpConfigs, getProjectMcpConfigs } from './config.js'
 import { disabledMcpServerNamesIn } from './disabledRecord.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed, refreshDynamicMcpConfig, watchMcpConfigChanges } from './dynamicMcpSeed.js'
 import { isMcpOrgan } from './membership.js'
 import { sessionKitOf, applyProcessSessionKitEdit } from './sessionKitPin.js'
-import { getProjectMcpServerStatus } from './utils.js'
+import { getProjectMcpServerStatus, recordProjectMcpServerChoices } from './utils.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
 type Configs = Record<string, ScopedMcpServerConfig>
+export type ProjectMcpApprovalAnswer = 'allow' | 'deny' | 'unanswered'
 type LivePorts = {
   hosted: boolean
   initial: Configs
   ready: () => boolean
-  approve: (name: string, config: ScopedMcpServerConfig) => Promise<boolean>
+  approve: (name: string, config: ScopedMcpServerConfig) => Promise<ProjectMcpApprovalAnswer>
   reconcile: (next: Configs, previous: Configs) => Promise<void>
 }
 
@@ -36,15 +36,13 @@ export function watchLiveMcpConfig(ports: LivePorts): { stop: () => void; refres
       if (checkHasTrustDialogAccepted() && !doesEnterpriseMcpConfigExist()) {
         const project = filterMcpServersByPolicy(getProjectMcpConfigs().servers).allowed
         for (const [name, config] of Object.entries(project)) {
-          if (refused.has(name) || getProjectMcpServerStatus(name, ports.hosted) !== 'pending') continue
+          if (refused.has(name) || getProjectMcpServerStatus(name, config) !== 'pending') continue
           if (known.has(name) && previous[name]?.scope === 'project' && JSON.stringify(previous[name]) === JSON.stringify(config)) continue
-          const approved = await ports.approve(name, config)
+          const answer = await ports.approve(name, config)
           if (stopped) return
-          const current = getSettingsForSource('localSettings')?.kit ?? {}
-          updateSettingsForSource('localSettings', { kit: approved
-            ? { projectOn: [...new Set([...(current.projectOn ?? []), name])] }
-            : { projectOff: [...new Set([...(current.projectOff ?? []), name])] } })
-          if (!approved) refused.add(name)
+          if (answer === 'allow') recordProjectMcpServerChoices({ approved: [{ name, config }] })
+          else if (answer === 'deny') recordProjectMcpServerChoices({ rejected: [name] })
+          if (answer !== 'allow') refused.add(name)
         }
       }
       const dynamic = dynamicMcpConfigSnapshot() ?? {}

@@ -219,6 +219,15 @@ servers. Project-scope API-key helpers do not execute there either. A trust
 grant on the folder or an ancestor enables those project sources. The user's
 own configuration and managed policy still apply.
 
+A project MCP server (one defined in `.mercury/mcp.json`) needs more than the
+trust grant: it starts in a headless run, and in `mercury mcp list` and
+`mercury mcp get`, only after you approved it on the card an interactive start
+in that folder shows, or with `kit.trustProjectServers` set in your user or
+local settings. The approval is keyed to the server's definition as written
+(its command, arguments, URL and environment variable names), so a changed
+definition is asked about again. Until a server is approved, a run skips it,
+says so on stderr and in a `notice` row, and continues.
+
 A hosted session (a daemon-hosted session, an editor session or another
 `mercury runner`) puts a call that needs approval to its host as
 `permission/request`. The host answers allow or deny. A host declaring

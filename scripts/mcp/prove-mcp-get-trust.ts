@@ -92,9 +92,10 @@ try {
     check('mcp list in the same folder says the counted reason and starts nothing either', listed.out.includes('its 1 project MCP server was not loaded') && !existsSync(untrusted.sentinel), listed.out.slice(0, 400))
   }
 
-  console.log('\n§2 the same folder, trusted: `mcp get adder` probes it and prints Status')
+  console.log('\n§2 the same folder, trusted and the server approved: `mcp get adder` probes it and prints Status')
   {
     const trusted = project('trusted')
+    writeFileSync(join(trusted.dir, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { projectOn: ['adder'] } }))
     const got = mcp(home([trusted.dir]), trusted.dir, 'get', 'adder')
     console.log(`  rc=${got.rc} · ${JSON.stringify(got.out.trim().split('\n').slice(0, 4))}`)
     check('exit 0', got.rc === 0, String(got.rc))

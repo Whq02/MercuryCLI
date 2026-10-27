@@ -1,13 +1,10 @@
 import { createHash } from 'node:crypto'
 
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { checkHasTrustDialogAccepted } from '../../utils/config.js'
 import { getProjectPathForConfig } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
-import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
-import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
+import { getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './config.js'
 import { getMcpPrefix } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
@@ -15,6 +12,7 @@ import type {
   ConfigScope,
   McpServerConfig,
   MCPServerConnection,
+  McpUnexpandedStrings,
   ScopedMcpServerConfig,
   ServerResource,
   Transport,
@@ -336,39 +334,116 @@ export function parseHeaders(headerArray: string[]): Record<string, string> {
 }
 
 
+type McpDefinitionRecord = {
+  command?: string
+  args?: string[]
+  url?: string
+  env?: Record<string, string>
+  unexpanded?: McpUnexpandedStrings
+}
+
+export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConfig): { command?: string; args: string[]; url?: string } {
+  const record = config as McpDefinitionRecord
+  const written = record.unexpanded ?? {}
+  const command = written.command ?? record.command
+  const url = written.url ?? record.url
+  return {
+    ...(command === undefined ? {} : { command }),
+    args: written.args ?? record.args ?? [],
+    ...(url === undefined ? {} : { url }),
+  }
+}
+
+export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
+  const definition = { ...mcpConfigAsWritten(config), env: Object.keys((config as McpDefinitionRecord).env ?? {}).sort() }
+  return createHash('sha256').update(JSON.stringify(sortKeysDeep(definition))).digest('hex').slice(0, 16)
+}
+
+const APPROVAL_DIGEST = /^[0-9a-f]{16}$/
+
+function approvalEntryParts(entry: string): { name: string; digest?: string } {
+  const at = entry.lastIndexOf('#')
+  if (at > 0 && APPROVAL_DIGEST.test(entry.slice(at + 1))) return { name: entry.slice(0, at), digest: entry.slice(at + 1) }
+  return { name: entry }
+}
+
+export function projectMcpApprovalEntry(serverName: string, config: McpServerConfig | ScopedMcpServerConfig): string {
+  return `${serverName}#${projectMcpServerDefinitionDigest(config)}`
+}
+
+function approvalMatch(entries: ReadonlyArray<string> | undefined, serverName: string, digest: string): 'definition' | 'name' | null {
+  const normalized = normalizeNameForMCP(serverName)
+  let byName: 'name' | null = null
+  for (const entry of entries ?? []) {
+    const parts = approvalEntryParts(entry)
+    if (normalizeNameForMCP(parts.name) !== normalized) continue
+    if (parts.digest === digest) return 'definition'
+    if (parts.digest === undefined) byName = 'name'
+  }
+  return byName
+}
+
+export type ProjectMcpChoiceSource = 'userSettings' | 'localSettings'
+
+export function recordProjectMcpServerChoices(
+  choices: {
+    approved?: ReadonlyArray<{ name: string; config: McpServerConfig | ScopedMcpServerConfig }>
+    rejected?: ReadonlyArray<string>
+    trustAll?: boolean
+  },
+  source: ProjectMcpChoiceSource = 'localSettings',
+): void {
+  const current = getSettingsForSource(source)?.kit ?? {}
+  const kit: { projectOn?: string[]; projectOff?: string[]; trustProjectServers?: boolean } = {}
+  const approved = choices.approved ?? []
+  if (approved.length > 0) {
+    const names = new Set(approved.map(({ name }) => normalizeNameForMCP(name)))
+    const kept = (current.projectOn ?? []).filter(entry => !names.has(normalizeNameForMCP(approvalEntryParts(entry).name)))
+    kit.projectOn = [...kept, ...approved.map(({ name, config }) => projectMcpApprovalEntry(name, config))]
+  }
+  const rejected = choices.rejected ?? []
+  if (rejected.length > 0) kit.projectOff = [...new Set([...(current.projectOff ?? []), ...rejected])]
+  if (choices.trustAll === true) kit.trustProjectServers = true
+  if (Object.keys(kit).length > 0) updateSettingsForSource(source, { kit })
+}
+
+function upgradeProjectMcpApproval(serverName: string, config: McpServerConfig | ScopedMcpServerConfig): void {
+  const normalized = normalizeNameForMCP(serverName)
+  for (const source of ['userSettings', 'localSettings'] as const) {
+    const entries = getSettingsForSource(source)?.kit?.projectOn ?? []
+    const plain = entries.some(entry => {
+      const parts = approvalEntryParts(entry)
+      return parts.digest === undefined && normalizeNameForMCP(parts.name) === normalized
+    })
+    if (plain) recordProjectMcpServerChoices({ approved: [{ name: serverName, config }] }, source)
+  }
+}
+
 export function getProjectMcpServerStatus(
   serverName: string,
-  requireExplicitApproval = false,
+  config: McpServerConfig | ScopedMcpServerConfig,
 ): 'approved' | 'rejected' | 'pending' {
-  const settings = getInitialSettings()
   const normalized = normalizeNameForMCP(serverName)
-  const matches = (names: string[] | undefined): boolean =>
-    (names ?? []).some(name => normalizeNameForMCP(name) === normalized)
-
-  if (matches(settings?.kit?.projectOff)) return 'rejected'
-  if (matches(settings?.kit?.projectOn) || settings?.kit?.trustProjectServers === true) {
-    return 'approved'
+  const digest = projectMcpServerDefinitionDigest(config)
+  let match: 'definition' | 'name' | null = null
+  for (const source of ['userSettings', 'localSettings'] as const) {
+    const kit = getSettingsForSource(source)?.kit
+    if ((kit?.projectOff ?? []).some(name => normalizeNameForMCP(name) === normalized)) return 'rejected'
+    if (kit?.trustProjectServers === true) return 'approved'
+    const found = approvalMatch(kit?.projectOn, serverName, digest)
+    if (found === 'definition') match = 'definition'
+    else if (found === 'name' && match === null) match = 'name'
   }
-
-  const projectSourceEnabled = isSettingSourceEnabled('projectSettings')
-  const skipSources = ['userSettings', 'localSettings', 'flagSettings', 'policySettings'] as const
-  const consentSkip = skipSources.some(
-    source => getSettingsForSource(source)?.guardrails?.sovereignConsentSeen === true,
-  )
-  if (consentSkip && projectSourceEnabled) return 'approved'
-
-  if (!requireExplicitApproval && getIsNonInteractiveSession() && projectSourceEnabled && checkHasTrustDialogAccepted()) {
-    return 'approved'
-  }
-
-  return 'pending'
+  if (match === null) return 'pending'
+  if (match === 'name') upgradeProjectMcpApproval(serverName, config)
+  return 'approved'
 }
 
 
 export function getLoggingSafeMcpBaseUrl(
   config: McpServerConfig | ScopedMcpServerConfig,
 ): string | undefined {
-  const url = (config as { url?: unknown }).url
+  const url = mcpConfigAsWritten(config).url
   if (typeof url !== 'string') return undefined
   try {
     const parsed = new URL(url)

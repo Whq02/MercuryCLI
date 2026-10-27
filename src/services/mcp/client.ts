@@ -75,7 +75,7 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'
-import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
+import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 
 
 export class McpAuthError extends Error {
@@ -728,12 +728,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     timer = setTimeout(() => {
       timedOut = true
       const transportLabel = inProcess ? 'in-process' : type
-      const stdioConfig = config as { command?: string; args?: string[] }
+      const written = mcpConfigAsWritten(config)
       const stderrFirstLine = stderrBuffer.trim().split('\n')[0]?.trim().slice(0, 200) ?? ''
       const spawnedTail =
         stdioTransport === null
           ? ''
-          : ` · spawned ${[stdioConfig.command ?? '', ...(stdioConfig.args ?? [])].join(' ').trim()} · ${stderrFirstLine !== '' ? `stderr began: ${stderrFirstLine}` : 'nothing on stderr'}`
+          : ` · spawned ${[written.command ?? '', ...written.args].join(' ').trim()} · ${stderrFirstLine !== '' ? `stderr began: ${stderrFirstLine}` : 'nothing on stderr'}`
       reject(
         new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp${spawnedTail}`,
@@ -777,11 +777,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
     if (type === 'stdio' || type === 'sse' || type === 'http') {
       const stderrTail = Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ').slice(0, 300)
+      const written = mcpConfigAsWritten(config)
       throw new Error(
         describeMcpConnectFailure(err, {
           transport: type,
-          command: type === 'stdio' ? (config as { command?: string }).command : undefined,
-          url: typeof config.url === 'string' ? config.url : undefined,
+          command: type === 'stdio' ? written.command : undefined,
+          url: written.url,
           stderrTail,
         }),
         { cause: err },

@@ -3,44 +3,33 @@ import React, { useCallback } from 'react'
 import { Box, Text } from '../ink.js'
 import { Select } from './CustomSelect/index.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import {
-  getSettingsForSource,
-  updateSettingsForSource,
-} from '../utils/settings/settings.js'
-
-function addTo(list: string[] | undefined, name: string): string[] {
-  const existing = list ?? []
-  return existing.includes(name) ? existing : [...existing, name]
-}
+import type { McpServerConfig, ScopedMcpServerConfig } from '../services/mcp/types.js'
+import { recordProjectMcpServerChoices } from '../services/mcp/utils.js'
 
 export function MCPServerApprovalDialog({
   serverName,
+  config,
   onDone,
 }: {
   serverName: string
+  config: McpServerConfig | ScopedMcpServerConfig
   onDone: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
 
   const choose = useCallback(
     (choice: 'enable-all' | 'enable' | 'disable') => {
-      const current = getSettingsForSource('localSettings') ?? {}
       if (choice === 'disable') {
-        updateSettingsForSource('localSettings', { kit: { projectOff: addTo(
-            current.kit?.projectOff,
-            serverName,
-          ) } })
+        recordProjectMcpServerChoices({ rejected: [serverName] })
       } else {
-        updateSettingsForSource('localSettings', {
-          kit: {
-            projectOn: addTo(current.kit?.projectOn, serverName),
-            ...(choice === 'enable-all' ? { trustProjectServers: true } : {}),
-          },
+        recordProjectMcpServerChoices({
+          approved: [{ name: serverName, config }],
+          ...(choice === 'enable-all' ? { trustAll: true } : {}),
         })
       }
       onDone()
     },
-    [serverName, onDone],
+    [serverName, config, onDone],
   )
 
   return (

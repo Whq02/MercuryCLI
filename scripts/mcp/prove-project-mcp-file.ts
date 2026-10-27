@@ -39,7 +39,7 @@ const projectFile = join(PROJ, '.mercury', 'mcp.json')
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(projectFile, JSON.stringify({ mcpServers: { 'in-home': stdio('in-home-cmd') } }))
 writeFileSync(join(PROJ, otherName), JSON.stringify({ mcpServers: { 'other-file': stdio('other-file-cmd') } }))
-writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
+writeFileSync(join(PROJ, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
 saveCurrentProjectConfig(current => ({ ...current, hasTrustDialogAccepted: true }))
 
 const config = await import('../../src/services/mcp/config.ts')

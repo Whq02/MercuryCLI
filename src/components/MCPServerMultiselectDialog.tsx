@@ -3,34 +3,29 @@ import React, { useCallback } from 'react'
 import { Box, Text } from '../ink.js'
 import { SelectMulti } from './CustomSelect/index.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import {
-  getSettingsForSource,
-  updateSettingsForSource,
-} from '../utils/settings/settings.js'
-
-function unionInto(list: string[] | undefined, names: string[]): string[] {
-  return [...new Set([...(list ?? []), ...names])]
-}
+import type { McpServerConfig, ScopedMcpServerConfig } from '../services/mcp/types.js'
+import { recordProjectMcpServerChoices } from '../services/mcp/utils.js'
 
 export function MCPServerMultiselectDialog({
   serverNames,
+  configs,
   onDone,
 }: {
   serverNames: string[]
+  configs: Record<string, McpServerConfig | ScopedMcpServerConfig>
   onDone: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
 
   const commit = useCallback(
     (enabled: string[], disabled: string[]) => {
-      const current = getSettingsForSource('localSettings') ?? {}
-      const kit: { projectOn?: string[]; projectOff?: string[] } = {}
-      if (enabled.length > 0) kit.projectOn = unionInto(current.kit?.projectOn, enabled)
-      if (disabled.length > 0) kit.projectOff = unionInto(current.kit?.projectOff, disabled)
-      if (kit.projectOn || kit.projectOff) updateSettingsForSource('localSettings', { kit })
+      recordProjectMcpServerChoices({
+        approved: enabled.flatMap(name => (configs[name] === undefined ? [] : [{ name, config: configs[name] as McpServerConfig }])),
+        rejected: disabled,
+      })
       onDone()
     },
-    [onDone],
+    [configs, onDone],
   )
 
   return (

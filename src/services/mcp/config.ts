@@ -31,6 +31,7 @@ import {
   McpServerConfigSchema,
   type ConfigScope,
   type McpServerConfig,
+  type McpUnexpandedStrings,
   type ScopedMcpServerConfig,
 } from './types.js'
 import { getProjectMcpServerStatus } from './utils.js'
@@ -93,7 +94,7 @@ function readConfigFile(filePath: string): ConfigFileRead {
 
 function expandServerConfig(
   config: McpServerConfig,
-): { config: McpServerConfig; missingVars: string[] } {
+): { config: McpServerConfig; missingVars: string[]; unexpanded?: McpUnexpandedStrings } {
   const missing = new Set<string>()
   const expand = (value: string): string => {
     const { expanded, missingVars } = expandEnvVarsInString(value)
@@ -107,14 +108,21 @@ function expandServerConfig(
       stdio.env === undefined
         ? undefined
         : Object.fromEntries(Object.entries(stdio.env).map(([key, value]) => [key, expand(value)]))
+    const command = expand(stdio.command)
+    const args = (stdio.args ?? []).map(expand)
+    const unexpanded: McpUnexpandedStrings = {
+      ...(command === stdio.command ? {} : { command: stdio.command }),
+      ...(args.every((value, index) => value === stdio.args?.[index]) ? {} : { args: [...(stdio.args ?? [])] }),
+    }
     return {
       config: {
         ...stdio,
-        command: expand(stdio.command),
-        args: (stdio.args ?? []).map(expand),
+        command,
+        args,
         ...(expandedEnv === undefined ? {} : { env: expandedEnv }),
       },
       missingVars: [...missing],
+      ...(Object.keys(unexpanded).length === 0 ? {} : { unexpanded }),
     }
   }
   if (type === 'sse' || type === 'http' || type === 'ws') {
@@ -133,14 +141,16 @@ function expandServerConfig(
             ...(remote.oauth.clientId === undefined ? {} : { clientId: expand(remote.oauth.clientId) }),
             ...(remote.oauth.authServerMetadataUrl === undefined ? {} : { authServerMetadataUrl: expand(remote.oauth.authServerMetadataUrl) }),
           }
+    const url = expand(remote.url)
     return {
       config: {
         ...(config as object),
-        url: expand(remote.url),
+        url,
         ...(expandedHeaders === undefined ? {} : { headers: expandedHeaders }),
         ...(expandedOauth === undefined ? {} : { oauth: expandedOauth }),
       } as McpServerConfig,
       missingVars: [...missing],
+      ...(url === remote.url ? {} : { unexpanded: { url: remote.url } }),
     }
   }
   return { config, missingVars: [] }
@@ -213,9 +223,11 @@ export function parseMcpConfig({
       continue
     }
     let effective = entry.data as McpServerConfig
+    let unexpanded: McpUnexpandedStrings | undefined
     if (expandVars) {
-      const { config: expanded, missingVars } = expandServerConfig(effective)
+      const { config: expanded, missingVars, unexpanded: written } = expandServerConfig(effective)
       effective = expanded
+      unexpanded = written
       if (missingVars.length > 0) {
         errors.push({
           filePath: file,
@@ -235,7 +247,7 @@ export function parseMcpConfig({
     }
     const npxWarning = windowsNpxWarning(serverName, effective, scope, file)
     if (npxWarning !== null) errors.push(npxWarning)
-    mcpServers[serverName] = { ...effective, scope } as ScopedMcpServerConfig
+    mcpServers[serverName] = { ...effective, scope, ...(unexpanded === undefined ? {} : { unexpanded }) } as ScopedMcpServerConfig
   }
   return { config: { mcpServers }, errors }
 }
@@ -373,6 +385,25 @@ export function mcpServerSkippedForTrustLine(name: string, config: ScopedMcpServ
   }
   if (trusted) return null
   return skippedForTrustSentence(`its project MCP server ${name} was`, true)
+}
+
+export function mcpServerSkippedForApprovalLine(name: string, config: ScopedMcpServerConfig): string | null {
+  if (config.scope !== 'project') return null
+  if (getProjectMcpServerStatus(name, config) === 'approved') return null
+  return `MCP server ${name} (project) skipped: not approved · open Mercury in this folder to approve it`
+}
+
+export function mcpServersSkippedForApprovalLines(): Array<{ name: string; line: string }> {
+  if (doesEnterpriseMcpConfigExist() || isRestrictedToExtensionsOnly('mcp') || untrustedWorkspaceHeadless()) return []
+  const local = getLocalMcpConfigs().servers
+  const { allowed } = filterMcpServersByPolicy(getProjectMcpConfigs().servers)
+  const lines: Array<{ name: string; line: string }> = []
+  for (const [name, config] of Object.entries(allowed)) {
+    if (name in local) continue
+    const line = mcpServerSkippedForApprovalLine(name, config)
+    if (line !== null) lines.push({ name, line })
+  }
+  return lines
 }
 
 export const PROJECT_MCP_FILE_SPELLING = `${MERCURY_PROJECT_DIR}/${PROJECT_MCP_FILE}`
@@ -713,7 +744,7 @@ export async function getMercuryMcpConfigs(
 
   const approvedProject: Record<string, ScopedMcpServerConfig> = {}
   for (const [name, config] of Object.entries(project.servers)) {
-    if (getProjectMcpServerStatus(name) === 'approved') approvedProject[name] = config
+    if (getProjectMcpServerStatus(name, config) === 'approved') approvedProject[name] = config
   }
 
   const extraTargets = extraDedupTargets === undefined ? {} : await extraDedupTargets
