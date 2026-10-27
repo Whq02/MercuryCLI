@@ -164,7 +164,7 @@ section('1 · discovery with nothing loaded: the window is ABSENT, the trained m
   await refreshLocalDiscovery({ force: true })
   check('the record exists with the trained maximum and no served window', record().contextWindow === undefined && record().modelMaxContext === 262144 && record().loaded === false, JSON.stringify(record().contextWindow))
   const budget = resolveContextWindow(PERSISTED)
-  check('the budget is the LABELLED fallback until first send (never 4096)', budget.effectiveWindow === 200_000 && budget.source === 'fallback' && (budget.fallbackReason ?? '').includes('not loaded'), JSON.stringify(budget))
+  check('the budget is the window the first send will carry — auto on an unread machine: the trained max 262144, live-current, the note naming the choice (never 4096, never a fallback the request would not send)', budget.effectiveWindow === 262144 && budget.source === 'live-current' && (budget.fallbackReason ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(budget))
   check('no load was sent by discovery (a probe never loads a model)', !state.hits.some(h => h.url === '/api/generate' || h.url === '/api/chat'), shape(state.hits))
   check('this fixture states no KV geometry and the machine is not read, so auto is the trained max the model states: 256k for the ≈62k request (never twice the estimate — the window comes out bigger, not smaller)', record().geometry === undefined && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window === AUTO_62K && windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).reason === 'max' && autoLocalWindow(EST_62K, 262144) === 131072, `${EST_62K} → ${windowModule.chooseLocalWindow(record(), EST_62K, undefined, null).window}`)
 }

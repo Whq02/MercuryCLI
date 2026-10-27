@@ -16,6 +16,7 @@ import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
 import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
 import { toolCallShapedAnswer } from '../services/providers/local/toolCallMarkup.js'
 import { emptyReplyEndedLine, emptyReplyKindOf } from '../services/providers/emptyReply.js'
+import { localFitRefusalFacts } from '../services/providers/local/localCatalogue.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
@@ -1146,6 +1147,8 @@ export class Conversation {
     const watermarkIndex = errorWatermark ? allErrors.indexOf(errorWatermark) : -1
     const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => withoutStackFrames(entry.error))
     const errorClass: ErrorClass = settled.errorClass ?? (settled.status === 'interrupted' ? 'interrupt' : 'internal')
+    const apiErrorText = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
+    const localFitRefused = localFitRefusalFacts(apiErrorText) !== null
     let message: string
     if (settled.status === 'interrupted') {
       message = OUTCOME_SENTENCES.interrupted({})
@@ -1160,10 +1163,12 @@ export class Conversation {
       message = OUTCOME_SENTENCES.loop_stopped({})
     } else if (terminal.reason === 'tool_calls_refused') {
       message = toolCallsRefusedSentence(terminal)
+    } else if (terminal.reason === 'blocking_limit' && localFitRefused) {
+      message = apiErrorText
     } else {
       message = TERMINAL_FAILURE_SENTENCES[terminal.reason]
     }
-    const finalClass: ErrorClass = (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
+    const finalClass: ErrorClass = localFitRefused ? 'context_limit' : (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
     yield* endTurn(settled.status, {
       error: {
         message,

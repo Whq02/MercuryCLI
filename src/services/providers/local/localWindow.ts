@@ -1,8 +1,9 @@
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { fitLocalWindowOn, localWindowRefusal, localWindowRoomWarning, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
 import { cachedLocalMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
-import type { LocalModelRecord } from './localDiscovery.js'
-import { LOCAL_MODEL_PREFIX, localRecordFor } from './localCatalogue.js'
+import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
+import type { LocalContextSource, LocalModelRecord } from './localDiscovery.js'
+import { LOCAL_MODEL_PREFIX, localContextSourceWords, localRecordFor } from './localCatalogue.js'
 
 export type LocalWindowSetting = 'server' | 'max' | number
 
@@ -67,6 +68,7 @@ export function writeLocalWindowSetting(record: Pick<LocalModelRecord, 'id'>, se
     else next[key] = setting
     return { ...config, localModelWindows: next }
   })
+  bumpCatalogueEpoch()
 }
 
 export function doubledRequestWindow(estTokens: number, modelMax?: number): number {
@@ -174,6 +176,14 @@ export function heldLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>)
   return held.get(holdKey(record))
 }
 
+function setHeld(record: Pick<LocalModelRecord, 'id' | 'server'>, hold: HeldLocalWindow | undefined): void {
+  const key = holdKey(record)
+  const before = held.get(key)
+  if (hold === undefined) held.delete(key)
+  else held.set(key, hold)
+  if (before?.window !== hold?.window || before?.setting !== hold?.setting) bumpCatalogueEpoch()
+}
+
 export function adoptableLocalWindow(hold: Pick<HeldLocalWindow, 'window' | 'setting'>, resident: number | undefined, estTokens: number): resident is number {
   if (resident === undefined || resident === hold.window) return false
   if (hold.setting !== undefined && hold.setting !== 'server') return false
@@ -183,14 +193,14 @@ export function adoptableLocalWindow(hold: Pick<HeldLocalWindow, 'window' | 'set
 
 export function adoptLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>, hold: HeldLocalWindow, resident: number): HeldLocalWindow {
   const adopted: HeldLocalWindow = { ...hold, window: resident, reason: 'srv', words: `${fmt(resident)} · the window the server already holds this model at — adopted, so the runner is not reloaded`, adopted: true }
-  held.set(holdKey(record), adopted)
+  setHeld(record, adopted)
   return adopted
 }
 
 export function releaseOutgrownLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>, estTokens: number): boolean {
   const hold = held.get(holdKey(record))
   if (hold === undefined || hold.adopted !== true || localWindowFits(hold.window, estTokens)) return false
-  held.delete(holdKey(record))
+  setHeld(record, undefined)
   return true
 }
 
@@ -200,14 +210,45 @@ export function decideLocalWindow(record: LocalWindowDecisionRecord, estTokens: 
   const application = localWindowApplication(record)
   if (application === 'server-start' || application === 'none') {
     const none: HeldLocalWindow = { window: undefined, reason: 'srv', words: application === 'server-start' ? 'set at server start' : 'not applicable to this server', setting, estTokens }
-    held.set(holdKey(record), none)
+    setHeld(record, none)
     return none
   }
   const before = held.get(holdKey(record))
   if (before !== undefined && before.setting === setting) return before
   const decided: HeldLocalWindow = { ...chooseLocalWindow(record, estTokens, setting, truth), setting, estTokens }
-  held.set(holdKey(record), decided)
+  setHeld(record, decided)
   return decided
+}
+
+export const LOCAL_WINDOW_HELD_WORDS = 'chosen by Mercury for this session (auto) — /config → Local model window'
+export const LOCAL_WINDOW_SETTING_WORDS = 'your setting — /config → Local model window'
+
+export interface LocalPlannedWindow {
+  tokens: number
+  source: 'held' | 'setting' | 'auto' | LocalContextSource
+  reason: LocalWindowReason | undefined
+  sourceWords: string
+}
+
+function statedLocalWindow(record: Pick<LocalModelRecord, 'contextWindow'>): LocalPlannedWindow | undefined {
+  const stated = record.contextWindow
+  if (stated === undefined) return undefined
+  return { tokens: stated.tokens, source: stated.source, reason: stated.source === 'served' ? 'srv' : undefined, sourceWords: localContextSourceWords(stated.source) }
+}
+
+export function localPlannedWindow(record: LocalWindowDecisionRecord, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): LocalPlannedWindow | undefined {
+  const application = localWindowApplication(record)
+  if (application !== 'request' && application !== 'load') return statedLocalWindow(record)
+  const hold = heldLocalWindow(record)
+  if (hold !== undefined && hold.setting === setting) {
+    if (hold.window === undefined) return statedLocalWindow(record)
+    return { tokens: hold.window, source: 'held', reason: hold.reason, sourceWords: setting === undefined ? LOCAL_WINDOW_HELD_WORDS : LOCAL_WINDOW_SETTING_WORDS }
+  }
+  if (setting === 'server') return statedLocalWindow(record)
+  const choice = chooseLocalWindow(record, 0, setting, truth)
+  if (choice.window === undefined) return statedLocalWindow(record)
+  if (setting === undefined && (choice.reason === 'req' || choice.reason === 'srv')) return undefined
+  return { tokens: choice.window, source: setting === undefined ? 'auto' : 'setting', reason: choice.reason, sourceWords: setting === undefined ? LOCAL_WINDOW_HELD_WORDS : LOCAL_WINDOW_SETTING_WORDS }
 }
 
 export async function ensureLocalWindowTruth(record: LocalWindowDecisionRecord, setting: LocalWindowSetting | undefined = localWindowSettingOf(record)): Promise<LocalServerTruth | null> {
@@ -289,9 +330,8 @@ export function localWindowValueWords(record: LocalWindowWordsRecord, setting: L
 export function localWindowReasonTag(model: string, window: number): LocalWindowReason | undefined {
   const record = localRecordFor(model)
   if (record === undefined || !(window > 0)) return undefined
-  const hold = heldLocalWindow(record)
-  if (hold?.window !== undefined) return hold.window === window ? hold.reason : undefined
-  return record.contextWindow?.source === 'served' && record.contextWindow.tokens === window ? 'srv' : undefined
+  const planned = localPlannedWindow(record)
+  return planned !== undefined && planned.tokens === window ? planned.reason : undefined
 }
 
 export function localWindowRuleWords(model: string, window: number): string | undefined {

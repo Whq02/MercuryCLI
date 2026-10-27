@@ -274,7 +274,8 @@ section('§2 generous: a request that fits is never refused; the refusal fires o
   state.loadedCtx = undefined
   __resetLocalDiscoveryForTest()
   await refreshLocalDiscovery({ force: true })
-  check('L4 stands: with no held window and no served window (the model unloaded) the guard is absent and nothing is refused, however large', callModel.localGuardWindow(record()) === undefined && callModel.localLaneProfileFor(record()).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) === undefined)
+  check('L4 stands: with no held window, no served window and no trained max stated the guard is absent and nothing is refused, however large', callModel.localGuardWindow({ ...record(), modelMaxContext: undefined }) === undefined && callModel.localLaneProfileFor({ ...record(), modelMaxContext: undefined }).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) === undefined)
+  check('with the trained max stated and the model unloaded the guard reads the window the first send will carry (262144, chosen by Mercury) — a request past it refuses before the send, as the send itself would', callModel.localGuardWindow(record())?.tokens === MODEL_MAX && (callModel.localGuardWindow(record())?.sourceWords ?? '').includes('auto') && (callModel.localLaneProfileFor(record()).requestFitRefusal?.({ requestBytes: 4_000_000, estTokens: 1_000_000, toolCount: 78, wireModel: MODEL }) ?? '').includes(`${MODEL_MAX} tokens — chosen by Mercury`), j(callModel.localGuardWindow(record())))
 }
 
 section('§3 the unreadable machine (red on the base): with no memory truth the window comes out bigger, not smaller — the trained max, else the served window, else twice the request and never under 64k')

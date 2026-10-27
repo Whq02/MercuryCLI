@@ -96,7 +96,7 @@ const { refreshLocalDiscovery, readServedWindow, ensureServedWindow, __resetLoca
 const catalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const { getLocalModelOptions, localRecordFor, localWindowWords } = catalogue
 const { localLaneProfileFor, localGuardWindow, localModelAcceptsEffort } = await import('../../src/services/providers/local/localCallModel.ts')
-const { localWindowApplication, localWindowValueWords, __resetLocalWindowsForTest } = await import('../../src/services/providers/local/localWindow.ts')
+const { localWindowApplication, localWindowValueWords, __resetLocalWindowsForTest, writeLocalWindowSetting } = await import('../../src/services/providers/local/localWindow.ts')
 const { buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
@@ -134,9 +134,13 @@ section('2 · the window law on LM Studio is `load`: the served-window road read
   check('another window at send: the instance is unloaded by id, then the model is loaded with context_length — the reload the docs name', unload?.path === '/api/v1/models/unload' && unload.body.instance_id === INSTANCE && load?.path === '/api/v1/models/load' && load.body.model === MODEL && load.body.context_length === 131072, JSON.stringify(loads.slice(before)))
   check('the record follows the reloaded instance (131072, served, loaded)', changed.contextWindow?.tokens === 131072 && changed.contextWindow.source === 'served' && changed.loaded === true, JSON.stringify(changed.contextWindow))
   await ensureServedWindow(record, {}, { numCtx: SERVED })
-  check('the silent-truncation guard reads the served figure and the source words', localGuardWindow(record)?.tokens === SERVED && localGuardWindow(record)?.sourceWords === 'served', JSON.stringify(localGuardWindow(record)))
+  __resetLocalWindowsForTest()
+  check('under auto with nothing held the silent-truncation guard reads the window the first send will load (the trained max 262144 on an unread machine), naming the choice', localGuardWindow(record)?.tokens === TRAINED && (localGuardWindow(record)?.sourceWords ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(localGuardWindow(record)))
+  writeLocalWindowSetting(record, 'server')
+  check('under the server default the guard reads the served figure and the source words', localGuardWindow(record)?.tokens === SERVED && localGuardWindow(record)?.sourceWords === 'served', JSON.stringify(localGuardWindow(record)))
   const profile = localLaneProfileFor(record)
   check('a request inside the window is not refused; one past it is, naming the served window', profile.requestFitRefusal?.({ estTokens: 18_000, toolCount: 12 }) === undefined && (profile.requestFitRefusal?.({ estTokens: 200_000, toolCount: 12 }) ?? '').includes(`${SERVED} tokens — served`))
+  writeLocalWindowSetting(record, undefined)
   check('LM Studio keeps tool_choice and takes the effort ladder for a model that declares reasoning', profile.omitsToolChoice !== true && localModelAcceptsEffort(record))
 }
 

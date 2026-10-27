@@ -776,12 +776,15 @@ function baseResolveContextWindow(
   }
 
   if (model.trim().toLowerCase().startsWith('local/')) {
-    const { localRecordFor, localContextSourceWords, localUnloadedWindowWords } =
+    const { localRecordFor, localUnloadedWindowWords } =
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
+    const { localPlannedWindow } =
+      require('../../services/providers/local/localWindow.js') as typeof import('../../services/providers/local/localWindow.js')
     const record = localRecordFor(normalizeForEnginePins(model))
-    if (record?.contextWindow) {
-      const window = record.contextWindow.tokens
-      const note = `local server context: ${localContextSourceWords(record.contextWindow.source)}`
+    const planned = record ? localPlannedWindow(record) : undefined
+    if (planned !== undefined) {
+      const window = planned.tokens
+      const note = `local server context: ${planned.sourceWords}`
       if (window > MODEL_CONTEXT_WINDOW_DEFAULT && is1mContextDisabled()) {
         return finish({
           effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
@@ -794,7 +797,7 @@ function baseResolveContextWindow(
         effectiveWindow: window,
         source: 'live-current',
         staticDefault: window,
-        ...(record.contextWindow.source === 'served' ? {} : { fallbackReason: note }),
+        ...(planned.source === 'served' ? {} : { fallbackReason: note }),
       })
     }
     return finish({

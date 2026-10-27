@@ -153,11 +153,14 @@ section('3 · the hold: one chosen window per model per process; a changed setti
   const guardAuto = w.decideLocalWindow(qwen, 62_000, undefined)
   const guard = localGuardWindow(qwen, guardAuto)
   check('the guard reads the chosen window as the served figure until ps confirms, naming auto', guard?.tokens === 262144 && (guard?.sourceWords ?? '').includes('auto'), j(guard))
+  w.writeLocalWindowSetting(qwen, 8192)
   const set = localGuardWindow(qwen, w.decideLocalWindow(qwen, 62_000, 8192))
   check('a user setting is the guard\'s window, named as the setting', set?.tokens === 8192 && (set?.sourceWords ?? '').includes('your setting'), j(set))
   const profile = localLaneProfileFor(qwen)
   const refusal = profile.requestFitRefusal?.({ requestBytes: 248_000, estTokens: 62_000, toolCount: 63, wireModel: OLLAMA_MODEL })
   check('the fit refusal on that setting names it and the in-app road', (refusal ?? '').includes('8192 tokens — your setting — /config → Local model window'), String(refusal))
+  w.writeLocalWindowSetting(qwen, undefined)
+  check('the setting back to auto: the 8k hold is stale and the guard reads the auto decision (256k) at once — no restart', localGuardWindow(qwen)?.tokens === 262144 && (localGuardWindow(qwen)?.sourceWords ?? '').includes('auto'), j(localGuardWindow(qwen)))
   w.__resetLocalWindowsForTest()
 }
 

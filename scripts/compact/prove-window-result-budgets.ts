@@ -61,6 +61,8 @@ function wholePointer(result: any, expected: string): boolean {
 }
 try {
   await refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: `ollama=http://127.0.0.1:${server.port}` } })
+  const { writeLocalWindowSetting } = await load('src/services/providers/local/localWindow.ts')
+  for (const name of windows.keys()) writeLocalWindowSetting({ id: name }, 'server')
   console.log('\nwindow-scaled floor and raising law')
   const fn = limits.toolResultBudgetsForWindow
   const b8k = typeof fn === 'function' ? fn(8_000) : null

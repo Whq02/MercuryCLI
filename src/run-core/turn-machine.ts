@@ -91,6 +91,7 @@ import type {
 } from '../types/message.js'
 import { logError } from '../utils/log.js'
 import {
+  API_ERROR_MESSAGE_PREFIX,
   EMPTY_REPLY_RECOVERY_NUDGE,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
   continuableStreamFaultTextOf,
@@ -181,6 +182,7 @@ import { requestWaitLine, streamEndReceiptLine } from '../services/providers/str
 import { interruptedToolsLine, turnCutOf, turnCutResultText, type TurnCut } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/toolEconomy.js'
+import { localPromptFitRefusal } from '../services/providers/local/localCallModel.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
@@ -1323,6 +1325,19 @@ async function* runEventMachine(
         toolUseContext.options.engineModel,
       )
       if (level === 'blocked') {
+        const localUnfit = localPromptFitRefusal(currentModel, { messages: messagesForQuery, systemPrompt: fullSystemPrompt, tools: toolUseContext.options.tools })
+        if (localUnfit !== undefined) {
+          yield emit({
+            kind: 'notice',
+            message: createAssistantAPIErrorMessage({
+              content: `${API_ERROR_MESSAGE_PREFIX}: ${localUnfit}`,
+              error: 'invalid_request',
+            }),
+          })
+          const terminal: Terminal = { reason: 'blocking_limit' }
+          yield emit({ kind: 'run_terminal', terminal })
+          return terminal
+        }
         if (overflowLadderArmed(querySource)) {
           const blockingLimit = getBlockingLimit(toolUseContext.options.engineModel)
           const signal = estimateOverflowSignal({

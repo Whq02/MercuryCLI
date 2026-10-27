@@ -23,7 +23,7 @@ import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.j
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
-import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localWindowApplication, localWindowDecisionLine, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
@@ -34,18 +34,31 @@ export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   return record.server === 'vllm' || record.server === 'llamacpp'
 }
 
-export function localGuardWindow(record: LocalModelRecord, hold: HeldLocalWindow | undefined = heldLocalWindow(record)): { tokens: number; sourceWords: string } | undefined {
-  const application = localWindowApplication(record)
-  const applies = application === 'request' || application === 'load'
-  if (applies && hold !== undefined && hold.window !== undefined) {
-    return {
-      tokens: hold.window,
-      sourceWords: hold.setting === undefined ? 'chosen by Mercury for this session (auto) — /config → Local model window' : 'your setting — /config → Local model window',
+export function localGuardWindow(record: LocalModelRecord, hold?: HeldLocalWindow): { tokens: number; sourceWords: string } | undefined {
+  if (hold !== undefined) {
+    const application = localWindowApplication(record)
+    if ((application === 'request' || application === 'load') && hold.window !== undefined) {
+      return { tokens: hold.window, sourceWords: hold.setting === undefined ? LOCAL_WINDOW_HELD_WORDS : LOCAL_WINDOW_SETTING_WORDS }
     }
+    const stated = record.contextWindow
+    if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
+    return { tokens: stated.tokens, sourceWords: localContextSourceWords(stated.source) }
   }
-  const stated = record.contextWindow
-  if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
-  return { tokens: stated.tokens, sourceWords: localContextSourceWords(stated.source) }
+  const planned = localPlannedWindow(record)
+  if (planned === undefined || planned.source === 'model-max') return undefined
+  return { tokens: planned.tokens, sourceWords: planned.sourceWords }
+}
+
+export function localPromptFitRefusal(model: string, params: LocalEstimateParams): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined) return undefined
+  const guard = localGuardWindow(record)
+  if (guard === undefined) return undefined
+  const toolWire = localToolWireGuess(params.tools, params.messages)
+  const fixed = localPreComposeEstimate({ ...params, messages: [], toolWire })
+  if (fixed <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
+  const estTokens = localPreComposeEstimate({ ...params, toolWire })
+  return localFitRefusalSentence({ id: record.id, estTokens, toolCount: toolWire.schemas, window: guard.tokens, sourceWords: guard.sourceWords })
 }
 
 export const LOCAL_WIRE_BYTES_PER_TOKEN = 3.9

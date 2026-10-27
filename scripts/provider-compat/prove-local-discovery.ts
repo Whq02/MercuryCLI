@@ -225,14 +225,27 @@ section('5 · the picker rows')
   check('every row is selectable (the dispatch refuses typed)', rows.every(r => r.unavailable === undefined))
 }
 
-section('6 · the capability edge')
+section('6 · the capability edge: the window is the one Mercury will send — under the server-default setting the server\'s stated figure, under auto the decision (the trained max on an unread machine)')
 {
+  const w = await import('../../src/services/providers/local/localWindow.ts')
+  w.__resetLocalWindowsForTest()
+  w.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const served = resolveContextWindow('local/qwen3:8b')
-  check('a served window budgets live-current without a fallback note', served.effectiveWindow === 32768 && served.source === 'live-current' && served.fallbackReason === undefined)
+  check('server default: a served window budgets live-current without a fallback note', served.effectiveWindow === 32768 && served.source === 'live-current' && served.fallbackReason === undefined, JSON.stringify(served))
+  w.writeLocalWindowSetting({ id: 'qwen3:8b' }, undefined)
+  const auto = resolveContextWindow('local/qwen3:8b')
+  check('auto: the budget is the window the first request will send — the trained max 40,960 on an unread machine (the served 32,768 is below it, so the request reloads), the note naming the choice', auto.effectiveWindow === 40960 && auto.source === 'live-current' && (auto.fallbackReason ?? '').includes('chosen by Mercury for this session (auto)'), JSON.stringify(auto))
+  w.writeLocalWindowSetting({ id: 'llava:latest' }, 'server')
   const dflt = resolveContextWindow('local/llava:latest')
-  check('an unstated window budgets the LABELLED conservative default and names the state (not loaded · trained maximum · read at first send)', dflt.effectiveWindow === 200_000 && dflt.source === 'fallback' && (dflt.fallbackReason ?? '').includes('not loaded') && (dflt.fallbackReason ?? '').includes('trained maximum 262k') && (dflt.fallbackReason ?? '').includes('read at first send'), JSON.stringify(dflt))
+  check('server default on an unstated window: the LABELLED conservative default, naming the state (not loaded · trained maximum · read at first send)', dflt.effectiveWindow === 200_000 && dflt.source === 'fallback' && (dflt.fallbackReason ?? '').includes('not loaded') && (dflt.fallbackReason ?? '').includes('trained maximum 262k') && (dflt.fallbackReason ?? '').includes('read at first send'), JSON.stringify(dflt))
+  w.writeLocalWindowSetting({ id: 'llava:latest' }, undefined)
+  const dfltAuto = resolveContextWindow('local/llava:latest')
+  check('auto on an unstated window with a trained maximum: the budget is that maximum (262,144), the window Mercury sends on an unread machine', dfltAuto.effectiveWindow === 262144 && dfltAuto.source === 'live-current' && (dfltAuto.fallbackReason ?? '').includes('chosen by Mercury'), JSON.stringify(dfltAuto))
+  w.writeLocalWindowSetting({ id: 'meta-llama-3.1-8b-instruct' }, 'server')
   const modelMax = resolveContextWindow('local/meta-llama-3.1-8b-instruct')
-  check('a model-max window is labelled as the server-set size', modelMax.effectiveWindow === 131072 && (modelMax.fallbackReason ?? '').includes('model max'))
+  check('server default: a model-max window is labelled as the server-set size', modelMax.effectiveWindow === 131072 && (modelMax.fallbackReason ?? '').includes('model max'), JSON.stringify(modelMax))
+  w.writeLocalWindowSetting({ id: 'meta-llama-3.1-8b-instruct' }, undefined)
+  check('auto: the same figure, now the window Mercury loads it at', resolveContextWindow('local/meta-llama-3.1-8b-instruct').effectiveWindow === 131072 && (resolveContextWindow('local/meta-llama-3.1-8b-instruct').fallbackReason ?? '').includes('chosen by Mercury'), JSON.stringify(resolveContextWindow('local/meta-llama-3.1-8b-instruct')))
   const unknown = resolveContextWindow('local/nobody:latest')
   check('an undiscovered local id falls to the conservative default, labelled', unknown.effectiveWindow === 200_000 && unknown.source === 'fallback' && (unknown.fallbackReason ?? '').includes('not discovered'))
   check('effort: an Ollama thinking model takes the documented ladder (max yes, xhigh no)', modelSupportsEffort('local/qwen3:8b') && modelSupportsMaxEffort('local/qwen3:8b') && !modelSupportsXHighEffort('local/qwen3:8b'))
@@ -315,10 +328,16 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
+  const gaugeWindows = await import('../../src/services/providers/local/localWindow.ts')
+  gaugeWindows.__resetLocalWindowsForTest()
+  gaugeWindows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const live = g.modelGauge('local/qwen3:8b')
   check('a discovered local main paints live', live.state === 'live', live.state)
   if (live.state === 'live') {
-    check('the window is the SERVED truth (32768, live-current — no fallback note)', live.data.window === 32768 && live.data.windowSource === 'live-current' && live.data.windowReason === undefined, `${live.data.window} · ${live.data.windowSource}`)
+    check('server default: the window is the SERVED truth (32768, live-current — no fallback note)', live.data.window === 32768 && live.data.windowSource === 'live-current' && live.data.windowReason === undefined, `${live.data.window} · ${live.data.windowSource}`)
+    gaugeWindows.writeLocalWindowSetting({ id: 'qwen3:8b' }, undefined)
+    const auto = g.modelGauge('local/qwen3:8b')
+    check('auto: the gauge reads the window the request will send (the trained max 40,960), the reason naming the choice', auto.state === 'live' && auto.data.window === 40960 && (auto.data.windowReason ?? '').includes('chosen by Mercury'), auto.state === 'live' ? `${auto.data.window} · ${auto.data.windowReason ?? ''}` : auto.state)
     check("the provider is routeLaw's 'local'", live.data.provider === 'local', String(live.data.provider))
     check('the provider is USABLE with the keyless credential word (discovery is presence)', live.data.usability?.usable === true && live.data.usability.credential === 'keyless', JSON.stringify(live.data.usability))
   }
@@ -370,6 +389,10 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
+  const windows = await import('../../src/services/providers/local/localWindow.ts')
+  windows.__resetLocalWindowsForTest()
+  windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
+  windows.writeLocalWindowSetting({ id: 'llama3.2:latest' }, 'server')
   const qwen = localRecordFor('local/qwen3:8b')!
   const profile = localLaneProfileFor(qwen)
   const refusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
@@ -383,11 +406,17 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   const numCtxRefusal = localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' })
   check('a Modelfile num_ctx is a STATED window: a request past it by more than a third (120,000 bytes ≈ 31k on 16384) refuses with its number and source', (numCtxRefusal ?? '').includes('16384') && (numCtxRefusal ?? '').includes('num_ctx'), String(numCtxRefusal))
   check('within a third of the stated window (80,000 bytes ≈ 21k on 16384) the request is SENT — the estimate could be that far off, and the server\'s own answer is the truth', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 80_000, estTokens: 20_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
+  windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, undefined)
+  windows.writeLocalWindowSetting({ id: 'llama3.2:latest' }, undefined)
+  const autoRefusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
+  check('under auto the guard reads the window the request will send (the trained max 40,960 on an unread machine) and names the choice', (autoRefusal ?? '').includes('40960 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(autoRefusal))
+  check('under auto a Modelfile num_ctx below the trained max no longer guards: the request sends num_ctx 131072 and the 31k request fits it', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
   const llava = localRecordFor('local/llava:latest')!
   check('an unstated window (unloaded, no num_ctx) never refuses', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
   const trainedOnly = { ...llava, contextWindow: { tokens: 131072, source: 'model-max' as const } }
   check('a trained maximum the server merely lists (model-max) never refuses — only served/modelfile do', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
 
+  windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const chatCountBefore = ollamaChatRequests.length
   const fat = 'x'.repeat(200_000)
@@ -414,6 +443,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   })()
   check('the runtime refuses BEFORE dispatch (one typed api-error yielded)', errorMessage !== undefined && errorText.includes('cannot fit') && errorText.includes('silently truncate'), errorText.slice(0, 160))
   check('NO chat request reached the server', ollamaChatRequests.length === chatCountBefore, `${ollamaChatRequests.length - chatCountBefore} escaped`)
+  windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, undefined)
 }
 
 for (const s of [ollama.server, lmstudio.server, lmstudioOld.server, vllm.server, llamacpp.server]) s.close()
