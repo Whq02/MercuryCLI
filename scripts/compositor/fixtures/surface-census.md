@@ -86,9 +86,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workflows | panes | `src/commands/workflows` |
 | /zen | — | `src/commands/zen` |
 
-## Slash routes — transcript prints (local: 21)
+## Slash routes — transcript prints (local: 22)
 
-`/advise` · `/bootmenu` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/jev` · `/keybindings` · `/kill` · `/llmhost` · `/localsetup` · `/lsp` · `/mouse` · `/restart` · `/rewind` · `/seats` · `/update-notes` · `/usage` · `/vim` · `/voice`
+`/advise` · `/bootmenu` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/imagesetup` · `/jev` · `/keybindings` · `/kill` · `/llmhost` · `/localsetup` · `/lsp` · `/mouse` · `/restart` · `/rewind` · `/seats` · `/update-notes` · `/usage` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 2)
 
