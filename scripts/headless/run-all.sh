@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/daemon/prove-unattended-ask-denied.ts scripts/settings/prove-settings-watch-beside-a-named-pipe.ts
 # gate-watch: src/Tool* src/bootstrap/state* src/cli/run* src/cli/structuredIO*
-# gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts src/services/providers/local/localAccounts.ts
+# gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts src/services/providers/local/localAccounts.ts scripts/headless/prove-git-readonly-settings.ts
 # gate-watch: src/utils/sdkEventQueue* src/utils/task/sdkAgentFrames* src/tools/AgentTool/foregroundExecution* src/tools/AgentTool/agentToolUtils* src/cost-tracker*
 # gate-watch: scripts/compact/overflowFixture.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/headless/turnDriver.ts src/cli/headless/hostAskLiveness.ts src/cli/headless/runnerAsks.ts src/cli/headless/runnerMethods.ts

@@ -22,6 +22,7 @@ import {
   type GitChangeSignal,
 } from './git/gitFilesystem.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { gitArgs } from './git/spawnArgs.js'
 import { whichSync } from './which.js'
 
 
@@ -178,7 +179,7 @@ function runGitProbe(args: string[], extraEnv?: NodeJS.ProcessEnv): Promise<Prob
   return new Promise(resolvePromise => {
     execFile(
       gitExe(),
-      args,
+      gitArgs(args, getCwd()),
       {
         windowsHide: true,
         cwd: getCwd(),

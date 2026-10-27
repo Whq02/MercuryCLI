@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
+import { gitArgs } from '../../utils/git/spawnArgs.js'
 import type {
   GitCommitMeta,
   GitConflict,
@@ -22,10 +23,8 @@ const MAX_HUNK_LINES = 120
 const MAX_CONFLICT_LINES = 80
 const GIT_TIMEOUT_MS = 30_000
 
-const PLAIN_PATHS = ['-c', 'core.quotepath=false']
-
 export function git(root: string, args: string[]): string {
-  return execFileSync('git', [...PLAIN_PATHS, ...args], {
+  return execFileSync('git', gitArgs(args, root), {
     windowsHide: true,
     cwd: root,
     encoding: 'utf8',
@@ -40,7 +39,7 @@ export function gitAsync(root: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       'git',
-      [...PLAIN_PATHS, ...args],
+      gitArgs(args, root),
       {
         windowsHide: true,
         cwd: root,

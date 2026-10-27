@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useEffect, useState } from 'react'
 import { useFocusedWorkspaceCwd } from './useFocusedWorkspaceCwd.js'
+import { gitArgs } from '../utils/git/spawnArgs.js'
 
 type WorkspaceBranchV1 = { cwd: string; folder: string; branch: string | null }
 
@@ -26,7 +27,7 @@ export function useFocusedWorkspaceBranch(): WorkspaceBranchV1 {
   useEffect(() => {
     let alive = true
     setBranch(readBranchSync(cwd))
-    execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { windowsHide: true, cwd, timeout: 500 }, (err, stdout) => {
+    execFile('git', gitArgs(['rev-parse', '--abbrev-ref', 'HEAD'], cwd), { windowsHide: true, cwd, timeout: 500 }, (err, stdout) => {
       if (!alive || err) return
       const b = stdout.trim()
       if (b && b !== 'HEAD') setBranch(b)

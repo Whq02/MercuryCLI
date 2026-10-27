@@ -1,5 +1,6 @@
 
 import { mkdtempSync, rmSync } from 'node:fs'
+import { gitArgs } from './git/spawnArgs.js'
 
 export function sweepProbeDir(
   dir: string,
@@ -921,7 +922,7 @@ export async function probeGitGraph(): Promise<CheckResult> {
   const owner = fixtureOwnerKey(ownerMod, 'gitgraph')
   const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-git-'))
   const sh = (args: string[]): string =>
-    execFileSync('git', args, {
+    execFileSync('git', gitArgs(args, root), {
       windowsHide: true,
       cwd: root,
       encoding: 'utf8',

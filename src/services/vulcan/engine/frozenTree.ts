@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } f
 import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
+import { gitArgs } from '../../../utils/git/spawnArgs.js'
 
 const GODOT_STATE_DIR = '.godot'
 
@@ -85,7 +86,7 @@ export const runGit: GitRunner = (root, args, env) =>
   new Promise(resolve => {
     execFile(
       'git',
-      ['-C', root, ...args],
+      gitArgs(['-C', root, ...args], root),
       {
         windowsHide: true,
         maxBuffer: 64 * 1024 * 1024,

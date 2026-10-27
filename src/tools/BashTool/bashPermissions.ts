@@ -25,6 +25,7 @@ import {
 import {
   withBashParseScope,
   parseForSecurity,
+  preparedCommandRoot,
   extractShellCScript,
   prepareShellCScripts,
   shellCCommands,
@@ -50,6 +51,7 @@ import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
+import { gitArgs } from '../../utils/git/spawnArgs.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 
@@ -498,6 +500,40 @@ async function checkCommandAndSuggestRules(
   return { ...check, suggestions } as PermissionResult
 }
 
+function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
+  if (depth > SHELL_C_MAX_DEPTH) return command
+  const root = preparedCommandRoot(command)
+  if (!root || root.type === 'ERROR') return command
+  const spans: Array<{ start: number; end: number; text: string }> = []
+  const visit = (node: Node): void => {
+    if (node.type === 'command') {
+      const parsed = preparedSecurityParse(node.text)
+      const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
+      if (simple && simple.envVars.length === 0 && simple.globOperand !== true && checkPreparedReadOnlyConstraints({ command: node.text, cwd }, false).behavior === 'allow') {
+        if (simple.argv[0] === 'git') {
+          const text = shellCommandText(['git', ...gitArgs(simple.argv.slice(1), cwd)])
+          if (text !== node.text) spans.push({ start: node.startIndex, end: node.endIndex, text })
+        } else {
+          const script = extractShellCScript(simple)
+          if (script !== null) {
+            const rewritten = rewriteReadOnlyGitCommand(script, cwd, depth + 1)
+            if (rewritten !== script) {
+              const argv = [...simple.argv]
+              argv[2] = rewritten
+              spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(argv) })
+            }
+          }
+        }
+      }
+    }
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  let rewritten = command
+  for (const span of spans.sort((a, b) => b.start - a.start)) rewritten = rewritten.slice(0, span.start) + span.text + rewritten.slice(span.end)
+  return rewritten
+}
+
 
 type PrefixFn = (
   command: string,
@@ -546,7 +582,10 @@ export function bashToolHasPermission(
     if (result.behavior === 'deny') return result
     const cwd = checkShellCwd(resolvedInput, context)
     if (cwd !== null) return cwd
-    return result.behavior === 'allow' ? { ...result, updatedInput: resolvedInput } : result
+    if (result.behavior !== 'allow') return result
+    const carried = ('updatedInput' in result && result.updatedInput ? result.updatedInput : resolvedInput) as BashInput
+    const merged = { ...resolvedInput, ...carried }
+    return { ...result, updatedInput: { ...merged, command: rewriteReadOnlyGitCommand(merged.command, resolveShellCwd(merged.cwd)) } }
   })
 }
 

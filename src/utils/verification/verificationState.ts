@@ -5,6 +5,7 @@ import { sanitizePath } from '../sessionStoragePortable.js'
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { gitExe, markGitTreeSuspect } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { gitArgs } from '../git/spawnArgs.js'
 import { logForDebugging } from '../debug.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -262,7 +263,7 @@ export async function invalidateTreeScans(cwd: string): Promise<void> {
 
 function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): string {
   try {
-    return execFileSync(gitExe(), args, {
+    return execFileSync(gitExe(), gitArgs(args, cwd), {
       windowsHide: true,
       cwd,
       env,
@@ -279,7 +280,7 @@ function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): strin
 function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[], watch?: RepositoryWatch): Promise<string> {
   return new Promise((resolve, reject) => {
     let unregister = (): void => {}
-    const child = execFile(gitExe(), args, { windowsHide: true, cwd, env, timeout: scanTimeoutMs(), maxBuffer: MAX_GIT_OUTPUT }, (err, stdout) => {
+    const child = execFile(gitExe(), gitArgs(args, cwd), { windowsHide: true, cwd, env, timeout: scanTimeoutMs(), maxBuffer: MAX_GIT_OUTPUT }, (err, stdout) => {
       unregister()
       if (goneChildren.has(child)) reject(new RepositoryGoneError(args[0] ?? 'git'))
       else if (err) reject(stepError(args[0] ?? 'git', err))
@@ -362,7 +363,7 @@ function scanRecordSync(cwd: string): TreeScanRecord | null {
     const shape = parseShapeProbe(cwd, gitTextSync(cwd, env, SHAPE_PROBE))
     if (shape) {
       const ceiling = scanCeiling()
-      const res = spawnSync(gitExe(), COUNT_PROBE, {
+      const res = spawnSync(gitExe(), gitArgs(COUNT_PROBE, cwd), {
         windowsHide: true,
         cwd,
         env,
@@ -392,7 +393,7 @@ function countFilesAsync(cwd: string, env: NodeJS.ProcessEnv, ceiling: number): 
     }
     let child: ReturnType<typeof spawn>
     try {
-      child = spawn(gitExe(), COUNT_PROBE, { windowsHide: true, cwd, env, stdio: ['ignore', 'pipe', 'ignore'] })
+      child = spawn(gitExe(), gitArgs(COUNT_PROBE, cwd), { windowsHide: true, cwd, env, stdio: ['ignore', 'pipe', 'ignore'] })
     } catch {
       finish({ files: 0, above: false })
       return

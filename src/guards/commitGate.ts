@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
+import { gitArgs } from '../utils/git/spawnArgs.js'
 import picomatch from 'picomatch'
 import {
   GENERATED_ASSETS_MAP,
@@ -259,7 +260,7 @@ function gitLines(root: string, args: string[]): string[] {
   const split = args.indexOf('--')
   const at = split < 0 ? args.length : split
   const argv = paths ? [...args.slice(0, at), '-z', ...(args.includes('--name-only') ? ['--no-renames', '--no-relative'] : []), ...args.slice(at)] : args
-  const output = execFileSync('git', argv, { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
+  const output = execFileSync('git', gitArgs(argv, root), { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
   return paths ? output.split(String.fromCharCode(0)).filter(Boolean) : output.split('\n').map(line => line.trim()).filter(Boolean)
 }
 
@@ -350,7 +351,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const root = commitRepositoryRoot(commitSeg.text, directory)
   if (root === null) return null
   const repositoryArgs = commitRepositoryArguments(commitSeg.text)
-  const readGitMap = (revision: string): string => execFileSync('git', [...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
+  const readGitMap = (revision: string): string => execFileSync('git', gitArgs([...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
   const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', `:(top,literal)${GENERATED_ASSETS_MAP}`]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
   let previousMap: string | null = null
   try { previousMap = readGitMap('HEAD') } catch {  }
@@ -385,7 +386,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
     try {
       text = workingPaths.has(path)
         ? readFileSync(join(root, path), 'utf8')
-        : execFileSync('git', [...prefix, 'show', `:${path}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
+        : execFileSync('git', gitArgs([...prefix, 'show', `:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
     } catch {
       try {
         text = readFileSync(join(root, path), 'utf8')
@@ -405,7 +406,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
     }
   }
   const previousContentOf = (path: string): string | null => {
-    try { return execFileSync('git', [...prefix, 'show', `HEAD:${path}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch { return null }
+    try { return execFileSync('git', gitArgs([...prefix, 'show', `HEAD:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch { return null }
   }
   const chainedVerifies = chainedSegmentsBeforeCommit(command).filter(segment => realpathSync(checkDirectories.get(segment) ?? directory) === realpathSync(root))
   const unchecked = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, previousContentOf, readFile, chainedVerifies: [] })

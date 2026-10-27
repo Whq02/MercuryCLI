@@ -39,7 +39,7 @@ function flags(...groups: Flags[]): Flags {
 
 const statFlags: Flags = { '--stat': none, '--numstat': none, '--shortstat': none, '--name-only': none, '--name-status': none }
 const colourFlags: Flags = { '--color': none, '--no-color': none }
-const patchFlags: Flags = { '--patch': none, '-p': none, '--no-patch': none, '--no-ext-diff': none, '-s': none }
+const patchFlags: Flags = { '--patch': none, '-p': none, '--no-patch': none, '--no-ext-diff': none, '--no-textconv': none, '-s': none }
 const logDisplayFlags: Flags = { '--oneline': none, '--graph': none, '--decorate': none, '--no-decorate': none, '--date': str, '--relative-date': none }
 const refSelectionFlags: Flags = { '--all': none, '--branches': none, '--tags': none, '--remotes': none }
 const dateFilterFlags: Flags = { '--since': str, '--after': str, '--until': str, '--before': str }
@@ -247,7 +247,7 @@ const CHECKSUM_FLAGS: Flags = { '-b': none, '-c': none, '-t': none, '--tag': non
 const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
   walked('xargs', { '-I': char, '-E': 'EOF', '-n': num, '-P': num, '-0': none, '--null': none, '-a': str, '--arg-file': str, '-d': str, '--delimiter': str, '-L': num, '-p': none, '--interactive': none, '-r': none, '--no-run-if-empty': none, '-t': none, '--verbose': none }, { targets: ['echo', 'printf', 'wc', 'grep', 'head', 'tail'], unixOnly: true }),
   git('diff', flags(statFlags, colourFlags, {
-    '--dirstat': none, '--summary': none, '--patch-with-stat': none, '--word-diff': none, '--word-diff-regex': str, '--color-words': none, '--no-renames': none, '--no-ext-diff': none,
+    '--dirstat': none, '--summary': none, '--patch-with-stat': none, '--word-diff': none, '--word-diff-regex': str, '--color-words': none, '--no-renames': none, '--no-ext-diff': none, '--no-textconv': none,
     '--check': none, '--ws-error-highlight': str, '--full-index': none, '--binary': none, '--abbrev': num, '--break-rewrites': none, '--find-renames': none, '--find-copies': none,
     '--find-copies-harder': none, '--irreversible-delete': none, '--diff-algorithm': str, '--histogram': none, '--patience': none, '--minimal': none, '--ignore-space-at-eol': none,
     '--ignore-space-change': none, '--ignore-all-space': none, '--ignore-blank-lines': none, '--inter-hunk-context': num, '--function-context': none, '--exit-code': none, '--quiet': none,

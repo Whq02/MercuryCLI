@@ -12,6 +12,7 @@ import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
 import { beginTransaction, transitionTransaction } from '../primitives/transactionPlane.js'
 import type { GitPlan, GitPlanGroup, GitPlanState } from './contracts.js'
 import { git, gitStatus, hunkId, isGitRepo } from './observe.js'
+import { gitArgs, gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
 
 const PLAN_RING = 16
 
@@ -128,7 +129,7 @@ function simulateHunkSequence(
   const tmpIndex = path.join(tmpdir(), `mercury-gitplan-sim-${process.pid}-${Date.now()}`)
   const env = { ...subprocessEnv(), GIT_INDEX_FILE: tmpIndex }
   try {
-    execFileSync('git', ['read-tree', 'HEAD'], { windowsHide: true, cwd: root, env, timeout: 30_000 })
+    execFileSync('git', gitArgs(['read-tree', 'HEAD'], root), { windowsHide: true, cwd: root, env, timeout: 30_000 })
     for (const [gi, g] of groups.entries()) {
       for (const [file, ids] of Object.entries(g.hunks ?? {})) {
         const patch = patches.get(file)
@@ -137,7 +138,7 @@ function simulateHunkSequence(
         if (chosen.length === 0) continue
         const patchText = `${[...patch.headerLines, ...chosen.flatMap(h => [h.header, ...h.raw])].join('\n')}\n`
         try {
-          execFileSync('git', ['apply', '--cached', '--whitespace=nowarn', '-'], {
+          execFileSync('git', gitArgs(['apply', '--cached', '--whitespace=nowarn', '-'], root), {
             windowsHide: true,
             cwd: root,
             env,
@@ -353,7 +354,7 @@ export function applyPlan(
     try {
       const indexEnv = { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_INDEX_FILE: tmpIndex }
       const gitIndexed = (args: string[], input?: string): string =>
-        execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
+        execFileSync('git', gitArgs(args, plan.root), {
           windowsHide: true,
           cwd: plan.root,
           encoding: 'utf8',
@@ -477,7 +478,7 @@ export function stageSelection(
         return { state: 'refused', reason: `hunk id(s) not found for '${file}' — re-inspect hunks (they are content-derived)` }
       }
       const patchText = `${[...patch.headerLines, ...chosen.flatMap(h => [h.header, ...h.raw])].join('\n')}\n`
-      execFileSync('git', ['apply', '--cached', '--whitespace=nowarn', '-'], {
+      execFileSync('git', gitArgs(['apply', '--cached', '--whitespace=nowarn', '-'], root), {
         windowsHide: true,
         cwd: root,
         input: patchText,
@@ -486,7 +487,7 @@ export function stageSelection(
       })
     }
     const staged = git(root, ['diff', '--cached', '--name-only']).split('\n').filter(Boolean)
-    return { state: 'ok', detail: `staged: ${staged.join(', ') || '(nothing)'}` }
+    return { state: 'ok', detail: [`staged: ${staged.join(', ') || '(nothing)'}`, ...gitFilterSkipMessages(root)].join('\n') }
   } catch (err) {
     return { state: 'refused', reason: `stage failed: ${(err as Error).message.slice(0, 200)}` }
   }
@@ -529,7 +530,7 @@ export function resolveConflict(
       claim: `conflict '${path}' resolved (${'take' in resolution ? resolution.take : 'explicit content'}) and staged`,
       refs: [`mercury://git/status`],
     })
-    return { state: 'ok', detail: `resolved '${path}' — staged; evidence mercury://evidence/${ev.id}` }
+    return { state: 'ok', detail: [`resolved '${path}' — staged; evidence mercury://evidence/${ev.id}`, ...gitFilterSkipMessages(root)].join('\n') }
   } catch (err) {
     return { state: 'refused', reason: `resolve failed: ${(err as Error).message.slice(0, 200)}` }
   }

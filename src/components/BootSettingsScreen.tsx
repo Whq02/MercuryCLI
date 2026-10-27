@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { basename } from 'node:path';
 import { execFile } from 'node:child_process';
 import { subprocessEnv } from '../utils/subprocessEnv.js'
+import { gitArgs } from '../utils/git/spawnArgs.js'
 import { Box, useInput, wrapText } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../bootstrap/state.js';
@@ -134,11 +135,11 @@ type ApplyState = { phase: 'closed' } | { phase: 'loading' } | { phase: 'ready';
 
 function gitTailProbe(onTail: (tail: string) => void): () => void {
   let alive = true;
-  execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { windowsHide: true, encoding: 'utf8', timeout: 800, env: { ...subprocessEnv() } }, (bErr, bOut) => {
+  execFile('git', gitArgs(['rev-parse', '--abbrev-ref', 'HEAD']), { windowsHide: true, encoding: 'utf8', timeout: 800, env: { ...subprocessEnv() } }, (bErr, bOut) => {
     if (!alive || bErr) return;
     const branch = bOut.trim();
     if (!branch) return;
-    execFile('git', ['status', '--porcelain', '-uno'], { windowsHide: true, encoding: 'utf8', timeout: 1500, env: { ...subprocessEnv() } }, (stErr, stOut) => {
+    execFile('git', gitArgs(['status', '--porcelain', '-uno']), { windowsHide: true, encoding: 'utf8', timeout: 1500, env: { ...subprocessEnv() } }, (stErr, stOut) => {
       if (!alive) return;
       const clean = stErr ? null : stOut.trim() === '';
       onTail(`  ${branchChip(branch)}` + (clean === null ? '' : clean ? ' · clean' : ' · uncommitted'));

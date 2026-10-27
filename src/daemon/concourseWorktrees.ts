@@ -8,6 +8,7 @@ import { PROJECT_CONFIG_DIR_NAMES } from '../utils/projectConfig.js'
 import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 import { ensureDirInDaemonHome } from './daemonHome.js'
+import { gitArgs } from '../utils/git/spawnArgs.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -32,7 +33,7 @@ function git(
   cwd: string,
   ...args: string[]
 ): { ok: boolean; stdout: string; stderr: string; unavailable?: boolean } {
-  const res = spawnSync(gitExe(), ['-C', cwd, ...args], {
+  const res = spawnSync(gitExe(), gitArgs(['-C', cwd, ...args], cwd), {
     windowsHide: true,
     encoding: 'utf8',
     timeout: 30_000,
@@ -60,7 +61,7 @@ async function gitAsync(
   return await new Promise(resolveDone => {
     let child: ReturnType<typeof spawn>
     try {
-      child = spawn(gitExe(), ['-C', cwd, ...args], {
+      child = spawn(gitExe(), gitArgs(['-C', cwd, ...args], cwd), {
         windowsHide: true,
         env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
         stdio: ['ignore', 'pipe', 'pipe'],

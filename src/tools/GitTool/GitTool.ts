@@ -13,6 +13,7 @@ import { stat } from 'node:fs/promises'
 import { expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
+import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
 
 function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
@@ -253,6 +254,7 @@ async function runOp(
         result: [
           `${input.planId} APPLIED — ${out.commits.length} commit(s):`,
           ...out.commits.map(c => `  ${c.sha.slice(0, 8)} ${c.message.split('\n')[0]} (${c.files.length} file(s)) — mercury://git/commit/${c.sha} · mercury://transaction/${c.transactionId}`),
+          ...gitFilterSkipMessages(root),
           `record: mercury://git/plan/${input.planId}`,
         ].join('\n'),
         outcome: 'succeeded',
