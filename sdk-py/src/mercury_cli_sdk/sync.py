@@ -7,7 +7,7 @@ from typing import Any, AsyncIterable, Coroutine, Iterator, Literal, Mapping, Ty
 from .client import ConnectKwargs, Listener, RunKwargs, RunOptions, run
 from .generated import InitializeParamsHost, InputBlock
 from .runner import ElicitationHandler, HostHandler, PermissionHandler, ReadTextFileHandler, WriteTextFileHandler, connect, MercurySession
-from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult
+from .generated import InitializeResultFile_checkpoints, TypedSyncRequests, DEFAULT_TIMEOUT, DefaultTimeout, OutcomeRow, TypedOutcome, InputRow, InitializeResult, QueueAddResult, QueueWithdrawResult, TurnInterruptResult, SessionFactsResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult, SessionSendNowResult
 from .parse import PromptContent, StreamRow
 from .errors import MercuryConnectionError, MercuryTimeoutError, RunExit
 from .structured import RunResult as RunResult, StructuredSchema, TypedRunResult as TypedRunResult
@@ -121,6 +121,7 @@ class SyncSession(TypedSyncRequests):
     def leave(self) -> SessionLeaveResult: return self._wait(self.session.leave())
     def set_spawn_switch(self, switch: Literal['subagents', 'workflows'], on: bool) -> SessionSetSpawnSwitchResult: return self._wait(self.session.set_spawn_switch(switch, on))
     def background_shell(self) -> ShellBackgroundResult: return self._wait(self.session.background_shell())
+    def send_now(self) -> SessionSendNowResult: return self._wait(self.session.send_now())
     def notify_credentials_changed(self, params: dict[str, Any] | None = None) -> None: self._wait(self.session.notify_credentials_changed(params))
     def claim(self, *, session_id: str, model: str | None = None, mode: str | None = None, effort: str | None = None, resume: bool | None = None, restart_reason: str | None = None, openai_catalogue: Any = None) -> SessionClaimResult:
         return self._wait(self.session.claim(session_id=session_id, model=model, mode=mode, effort=effort, resume=resume, restart_reason=restart_reason, openai_catalogue=openai_catalogue))

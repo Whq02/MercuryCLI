@@ -1,6 +1,7 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
+import { SEND_NOW_NOTHING_QUEUED, sendQueuedWordsNow } from './headless/sendNow.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -2415,6 +2416,10 @@ export async function runHeadless(
       const taken = requestShellBackground()
       if (taken > 0) return { taken }
       throw refused('no shell command is running in the main conversation', 'no-shell')
+    },
+    'session/send_now': () => {
+      if (inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
+      return sendQueuedWordsNow(getAppState, setAppState)
     },
     'agent/stop': async params => {
       try {

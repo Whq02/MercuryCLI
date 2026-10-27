@@ -418,7 +418,7 @@ console.log('§W the wire')
       controlArm.includes('scheduleEdit refused — ') &&
       controlArm.includes('SATURN_ID_PATTERN.test(scheduleId)') &&
       controlArm.includes('...(scheduleEdit !== undefined ? { scheduleEdit } : {})') &&
-      controlArm.includes('contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave, sessionId, by }'),
+      controlArm.includes('contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now, sessionId, by }'),
   )
 
   const main = read('src/daemon/main.ts')

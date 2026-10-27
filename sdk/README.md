@@ -92,6 +92,7 @@ try {
   await attempt(() => session.sendNote('absent-agent', 'Hello'))
   await session.interrupt()
   await attempt(() => session.backgroundShell())
+  await session.sendNow()
   await attempt(() => session.stopAgent('absent-agent'))
   await attempt(() => session.resumeAgent('absent-agent'))
   await session.mcpTools('absent-server')

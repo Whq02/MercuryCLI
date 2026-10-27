@@ -119,6 +119,12 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async backgroundShell(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
+  async sendNow(): Promise<AgentControlReceiptV1> {
+    return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
+  queuedSendCount(): number {
+    return 0
+  }
   async pauseGate(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }

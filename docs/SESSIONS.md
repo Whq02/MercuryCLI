@@ -173,6 +173,13 @@ before the pick keeps its place: it may still join the running turn at a
 tool boundary, and a line that joined the running turn is that turn's own
 and runs on its model. Sent while the session only waits on its background
 work, or holds a finished task's notice, the pick applies at once.
+While the turn waits inside a tool call with a sent line behind it, the
+status row adds `ctrl+s s sends now`: ctrl held and `s` pressed twice within
+two seconds sends the waiting line into the running turn at once. A
+crewmate or a shell command the turn was waiting on moves to the background
+and keeps running (its result arrives as a notification), a Sleep ends, and
+the line opens the agent's next step; one `ctrl+s` alone stashes the draft
+as before.
 Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.

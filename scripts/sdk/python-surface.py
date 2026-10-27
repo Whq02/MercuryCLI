@@ -103,7 +103,7 @@ async def main():
         print('PASS Python helper unknown tool, null arguments and DELETE origin checks')
     assert define_agent({'description': 'reader', 'prompt': 'read only'})['prompt'] == 'read only'
     assert isinstance(input_row_of({'type': 'shell', 'command': 'echo'}), RowRead)
-    conv_names = ('mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background')
+    conv_names = ('mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background', 'session/send_now')
     conv_methods = {'initialize': methods['initialize'] * 2, **{name: [{'result': sample(METHODS[name]['result'])}, {'result': sample(METHODS[name]['result'])}] for name in conv_names}}
     async with await start_fixture_server({'methods': conv_methods}) as server:
         async with await connect(mercury=server.mercury) as session:
@@ -114,6 +114,7 @@ async def main():
             assert await session.leave() == conv_methods['session/leave'][0]['result']
             assert await session.set_spawn_switch('subagents', True) == conv_methods['session/set_spawn_switch'][0]['result']
             assert await session.background_shell() == conv_methods['shell/background'][0]['result']
+            assert await session.send_now() == conv_methods['session/send_now'][0]['result']
             await session.notify_credentials_changed()
         def sync_conv():
             with connect_sync(mercury=server.mercury) as session:
@@ -124,6 +125,7 @@ async def main():
                 assert session.leave() == conv_methods['session/leave'][1]['result']
                 assert session.set_spawn_switch('subagents', True) == conv_methods['session/set_spawn_switch'][1]['result']
                 assert session.background_shell() == conv_methods['shell/background'][1]['result']
+                assert session.send_now() == conv_methods['session/send_now'][1]['result']
                 session.notify_credentials_changed()
         await asyncio.to_thread(sync_conv)
         assert sum(1 for r in server.received if r.get('method') == 'credentials/changed') == 2

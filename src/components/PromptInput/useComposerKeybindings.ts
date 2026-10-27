@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useCallback } from 'react'
 import * as pendingInput from '../../input-core/pending-input.js'
+import { pressSendNow } from '../../input-core/sendNowChord.js'
+import { focusedSendNowLive, sendFocusedWordsNow } from '../../services/engine-connector/sendNowLive.js'
 import type { Notification } from '../../context/notifications.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
@@ -178,6 +180,13 @@ export function useComposerKeybindings({
         void openExternalEditor()
       },
       'chat:stash': () => {
+        if (pressSendNow(focusedSendNowLive())) {
+          void sendFocusedWordsNow().then(receipt => {
+            if (receipt.outcome === 'applied') return
+            addNotification({ key: 'send-now', text: receipt.detail ?? 'no reason given', priority: 'immediate' })
+          })
+          return
+        }
         performStash()
       },
       'chat:modelPicker': () => {

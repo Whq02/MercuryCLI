@@ -68,6 +68,7 @@ import {
   withdrawSessionSend,
   relayCredentialChange,
   backgroundSessionShell,
+  sendSessionNow,
   pauseSessionGate,
   leaveSession,
 } from './sessionSeat.js'
@@ -816,6 +817,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'background-shell') {
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return backgroundSessionShell(sessionId, roster)
+          }
+          if (action === 'send-now') {
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return sendSessionNow(sessionId, roster)
           }
           if (action === 'pause-gate') {
             if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: 'pause-gate requires paused' }

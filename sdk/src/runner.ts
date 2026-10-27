@@ -328,6 +328,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   leave() { return this.request('session/leave', {}) }
   setSpawnSwitch(kind: ParamsOf<'session/set_spawn_switch'>['switch'], on: boolean) { return this.request('session/set_spawn_switch', { switch: kind, on }) }
   backgroundShell() { return this.request('shell/background', {}) }
+  sendNow() { return this.request('session/send_now', {}) }
   notifyCredentialsChanged(params: ParamsOf<'credentials/changed'> = {}) { this.notify('credentials/changed', params) }
   async claim(params: ParamsOf<'session/claim'>) {
     const receipt = await this.request('session/claim', params)

@@ -106,6 +106,7 @@ async def main():
         await attempt(session.send_note('absent-agent', 'Hello'))
         await session.interrupt()
         await attempt(session.background_shell())
+        await session.send_now()
         await attempt(session.stop_agent('absent-agent'))
         await attempt(session.resume_agent('absent-agent'))
         await session.mcp_tools('absent-server')

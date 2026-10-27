@@ -1078,6 +1078,25 @@ export async function backgroundSessionShell(
   return crewVerbRefusal(asked.failure, "this session's runner predates shift+B · /daemon restart, then reopen the session")
 }
 
+export async function sendSessionNow(
+  sessionId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  const asked = await askSeat(roster, rec.runnerId, 'session/send_now', {}, 'send-now', deadlineMs)
+  if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
+  if (asked.ok) {
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat send-now applied: ${rec.runnerId}`)
+    return appliedDetail(asked.result)
+  }
+  return crewVerbRefusal(asked.failure, "this session's runner predates ctrl+s s · /daemon restart, then reopen the session")
+}
+
 export async function pauseSessionGate(
   sessionId: string,
   paused: boolean,

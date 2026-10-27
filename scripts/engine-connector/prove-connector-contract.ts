@@ -44,6 +44,8 @@ const DOORS = [
   'stopAgent',
   'resumeAgent',
   'backgroundShell',
+  'sendNow',
+  'queuedSendCount',
   'pauseGate',
   'leave',
   'setKit',

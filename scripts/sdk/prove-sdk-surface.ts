@@ -76,7 +76,7 @@ try {
   for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') assert(rpc.received.some(r => r.method === name), name)
 } finally { await rpc.close() }
 
-const convenienceMethods = Object.fromEntries(['mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background'].map(name => [name, [{ result: example(sdk.METHODS[name as sdk.MethodName].result) }]]))
+const convenienceMethods = Object.fromEntries(['mcp/tools', 'mcp/action', 'session/pause_gate', 'session/quiesce', 'session/leave', 'session/set_spawn_switch', 'shell/background', 'session/send_now'].map(name => [name, [{ result: example(sdk.METHODS[name as sdk.MethodName].result) }]]))
 const convenienceRpc = await startFixtureServer({ methods: { initialize: methods.initialize, ...convenienceMethods } })
 try {
   const s = await sdk.connect({ mercury: convenienceRpc.mercury })
@@ -88,6 +88,7 @@ try {
     assert.deepEqual(await s.leave(), convenienceMethods['session/leave']![0]!.result)
     assert.deepEqual(await s.setSpawnSwitch('subagents', true), convenienceMethods['session/set_spawn_switch']![0]!.result)
     assert.deepEqual(await s.backgroundShell(), convenienceMethods['shell/background']![0]!.result)
+    assert.deepEqual(await s.sendNow(), convenienceMethods['session/send_now']![0]!.result)
     s.notifyCredentialsChanged()
   } finally { await s.close() }
   assert(convenienceRpc.received.some(r => r.method === 'credentials/changed'))

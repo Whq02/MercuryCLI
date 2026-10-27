@@ -2,7 +2,7 @@
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 17
+export const MERCURY_DAEMON_PROTO = 18
 
 export const MIN_PROTO = 1
 
@@ -29,6 +29,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/mcp-action': 15,
   'sessionControl/mcp-tools': 16,
   sessionFileRestore: 17,
+  'sessionControl/send-now': 18,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -39,7 +40,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:9ff2f801385f052dc5054615c57696b0c7a5aea6f39118121bcdf18df44b1abc'
+export const DAEMON_PROTO_SHAPE = 'sha256:371452895dc0f3a61bed0137c0dca6e99b5e174dfd1cdd4a00439612f96b0310'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -255,6 +256,7 @@ export type DaemonRequest =
         | 'contract'
         | 'set-kit'
         | 'set-schedule'
+        | 'send-now'
       sessionId: string
       by: string
       reason?: string

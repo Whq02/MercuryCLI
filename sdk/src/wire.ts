@@ -510,6 +510,9 @@ export interface MethodParams {
   "shell/background": {
 
 }
+  "session/send_now": {
+
+}
   "schedule/edit": {
   edit: unknown
 }
@@ -716,6 +719,12 @@ export interface MethodResults {
   "shell/background": {
   taken: number
 }
+  "session/send_now": {
+  queued: number
+  released: number
+  crewmates: number
+  shells: number
+}
   "schedule/edit": {
   outcome: 'applied' | 'noop' | 'refused'
   detail?: string
@@ -820,7 +829,7 @@ export interface MethodResults {
 export type MethodName = keyof MethodParams
 export type ParamsOf<M extends MethodName> = MethodParams[M]
 export type ResultOf<M extends MethodName> = MethodResults[M]
-export type HostRequestName = "initialize" | "session/claim" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "schedule/roster"
+export type HostRequestName = "initialize" | "session/claim" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "session/send_now" | "schedule/roster"
 export type HostNotificationName = "credentials/changed" | "$/cancel_request"
 export type RunnerRequestName = "schedule/edit" | "permission/request" | "elicitation/request" | "fs/read_text_file" | "fs/write_text_file" | "terminal/create" | "terminal/output" | "terminal/wait_for_exit" | "terminal/kill" | "terminal/release"
 export type RunnerNotificationName = "$/cancel_request" | "row" | "session/applied" | "elicitation/complete"
@@ -1956,6 +1965,47 @@ export const METHODS: Record<MethodName, MethodSchema> = {
       },
       "required": [
         "taken"
+      ]
+    }
+  },
+  "session/send_now": {
+    "from": "host",
+    "kind": "request",
+    "scope": "none",
+    "deadlineMs": 10000,
+    "params": {
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "queued": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "released": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "crewmates": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "shells": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "queued",
+        "released",
+        "crewmates",
+        "shells"
       ]
     }
   },

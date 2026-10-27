@@ -11,6 +11,7 @@ import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '.
 import type { RunnerStateFactV1 } from '../services/engine-connector/seatProjections.js'
 import type { SampleRowV1, WorkRowV1 } from '../services/engine-connector/types.js'
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
+import { SEND_NOW_HINT } from '../input-core/sendNowChord.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
@@ -24,6 +25,7 @@ import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'
 import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
+import { useFocusedSendNowLive } from '../services/engine-connector/sendNowLive.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
@@ -239,11 +241,12 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
   return live.inFlight ? '' : 'ready'
 }
 
-export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>, shellRunning = false): string {
+export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>, shellRunning = false, sendNow = false): string {
   const rung = escRungOf({ inFlight: live.inFlight, interrupting: s.interrupting, hardStopping: s.hardStopping })
   const hint = escRungHint(rung)
   const background = shellRunning && rung === 'in-flight' ? keyHintLabel('⇧b backgrounds') : ''
-  return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${keyHintLabel('⇧← back')}`
+  const sends = sendNow && rung === 'in-flight' ? SEND_NOW_HINT : ''
+  return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${sends !== '' ? `${sends} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
@@ -305,6 +308,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const workRows = useFocusedWorkRows()
   const samples = useFocusedSamples()
   const shellRunning = useFocusedShellRunning()
+  const sendNow = useFocusedSendNowLive()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
   const c = getFocusedSessionConnector()
@@ -338,7 +342,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const backHint =
     crewmate !== null && !crewmate.pinned
       ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
-      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false)
+      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
   const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel

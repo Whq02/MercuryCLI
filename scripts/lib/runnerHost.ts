@@ -7,7 +7,7 @@ import type { Capabilities, ElicitationRequestParams, InitializeResult, ParamsOf
 import type { Frame } from './rows.ts'
 import { silentSeatReport } from './seatForensics.ts'
 
-export type HostVerb = 'session/claim' | 'session/facts' | 'session/set_model' | 'session/set_effort' | 'session/set_mode' | 'session/set_spawn_switch' | 'session/set_kit' | 'session/rewind' | 'session/pause_gate' | 'session/quiesce' | 'queue/add' | 'queue/withdraw' | 'turn/interrupt' | 'agent/stop' | 'agent/resume' | 'shell/background' | 'schedule/roster'
+export type HostVerb = 'session/claim' | 'session/facts' | 'session/set_model' | 'session/set_effort' | 'session/set_mode' | 'session/set_spawn_switch' | 'session/set_kit' | 'session/rewind' | 'session/pause_gate' | 'session/quiesce' | 'queue/add' | 'queue/withdraw' | 'turn/interrupt' | 'agent/stop' | 'agent/resume' | 'shell/background' | 'session/send_now' | 'schedule/roster'
 
 export type HostedRunner = {
   child: ChildProcess

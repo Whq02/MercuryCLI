@@ -2113,6 +2113,26 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
+  async sendNow(): Promise<AgentControlReceiptV1> {
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.record.sessionId, by: 'operator' })
+      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
+  queuedSendCount(): number {
+    let count = 0
+    for (const s of this.sends) {
+      if (s.state === 'queued' && s.heldFor === undefined && s.withdrawing !== true && !isNoticeKey(s.clientMessageId)) count += 1
+    }
+    return count
+  }
+
   async pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
     try {
       const reply = await this.chainRpc({ op: 'sessionControl', action: 'pause-gate', sessionId: this.record.sessionId, by: 'operator', paused })

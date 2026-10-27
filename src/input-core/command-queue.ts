@@ -143,6 +143,23 @@ export function queuedWordsWaitForTurnEnd(): boolean {
   return wordsWaitForTurnEnd
 }
 
+export function queuedOperatorLines(): QueuedCommand[] {
+  return queue.filter(cmd => isOperatorLine(cmd) && cmd.agentId === undefined)
+}
+
+export function releaseQueuedWordsToTurn(): number {
+  let released = 0
+  for (let i = 0; i < queue.length; i++) {
+    const cmd = queue[i]!
+    if (cmd.waitsForTurnEnd !== true) continue
+    const { waitsForTurnEnd: _held, ...rest } = cmd
+    queue[i] = rest
+    released += 1
+  }
+  if (released > 0) commit()
+  return released
+}
+
 let drainingNow: ReadonlySet<QueuedCommand> = new Set()
 
 export function markDraining(commands: readonly QueuedCommand[]): void {

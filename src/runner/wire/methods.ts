@@ -392,6 +392,15 @@ export const METHODS = {
     scope: 'none',
     deadlineMs: 10_000,
   }),
+  'session/send_now': method({
+    name: 'session/send_now',
+    from: 'host',
+    kind: 'request',
+    params: empty,
+    result: lazySchema(() => z.object({ queued: z.number().int().min(0), released: z.number().int().min(0), crewmates: z.number().int().min(0), shells: z.number().int().min(0) })),
+    scope: 'none',
+    deadlineMs: 10_000,
+  }),
   'schedule/edit': method({
     name: 'schedule/edit',
     from: 'runner',
