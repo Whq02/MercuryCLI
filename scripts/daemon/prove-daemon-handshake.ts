@@ -388,8 +388,16 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
     },
     client,
   )
-  check('F1 a NEWER daemon mirrors the line, never a crash', newer.state === 'newer' && newer.line === "daemon v1.7.0 (newer than this Mercury v1.6.0) running with 1 live session — this Mercury's features wait until it restarts · /daemon restart when ready", String(newer.line))
-  const idleNewer = hsMod.applyHeal({ ...newer, live: 0, liveSessions: 0 }, { state: 'refused', live: 0, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' })
+  check('F1 a NEWER daemon of a newer version is the installed build: the reopen line, never a crash', newer.state === 'newer' && newer.heal === 'reopen' && newer.line === 'Mercury v1.7.0 is installed — close this window and open Mercury again', String(newer.line))
+  const newerProto = hsMod.decideHandshake(
+    {
+      kind: 'hello',
+      reply: { ok: true, op: 'hello', proto: 3, minProto: 1, ready: true, version: '1.6.0', buildTree: 'bbbb', pid: 9, startedAt: 1, ownerPid: null, foreground: false, live: 1, liveSessions: 1, warm: 0, restartArmed: false } as never,
+    },
+    client,
+  )
+  check('F1b a NEWER-protocol daemon of the same version restarts when idle, with the honest line', newerProto.state === 'newer' && newerProto.heal === 'restart-when-idle' && newerProto.line === "daemon v1.6.0 (protocol 3, newer than this Mercury's 2) running with 1 live session — this Mercury's features wait until it restarts · /daemon restart when ready", String(newerProto.line))
+  const idleNewer = hsMod.applyHeal({ ...newerProto, live: 0, liveSessions: 0 }, { state: 'refused', live: 0, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' })
   check('F2 a refused heal puts the reason ON the line', idleNewer.line !== null && idleNewer.line.includes('runs on a terminal'), String(idleNewer.line))
   const rebuilt = hsMod.decideHandshake(
     {
