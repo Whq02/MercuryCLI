@@ -127,17 +127,27 @@ export function getAutoCompactThreshold(model: string): number {
   return autoCompactThreshold(model, 0)
 }
 
+function pctOverride(): number | undefined {
+  const pctRaw = flagEnv('MERCURY_AUTOCOMPACT_PCT_OVERRIDE')
+  if (pctRaw === undefined || pctRaw === '') return undefined
+  const pct = Number.parseFloat(pctRaw)
+  return Number.isFinite(pct) && pct > 0 && pct <= 100 ? pct : undefined
+}
+
+function thresholdOverridden(): boolean {
+  const limitRaw = process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  if (limitRaw !== undefined && limitRaw !== '') return true
+  return pctOverride() !== undefined
+}
+
 function autoCompactThreshold(model: string, fixedTokens: number): number {
   const full = getBlockingLimit(model)
   const oneTurn = Math.ceil(full / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR)
   const fixedFloor = Math.max(0, Math.ceil(fixedTokens)) + oneTurn
-  const pctRaw = flagEnv('MERCURY_AUTOCOMPACT_PCT_OVERRIDE')
-  if (pctRaw !== undefined && pctRaw !== '') {
-    const pct = Number.parseFloat(pctRaw)
-    if (Number.isFinite(pct) && pct > 0 && pct <= 100) {
-      const effective = getEffectiveContextWindowSize(model)
-      return Math.min(Math.max(1, Math.floor((effective * pct) / 100), fixedTokens > 0 ? fixedFloor : 1), full)
-    }
+  const pct = pctOverride()
+  if (pct !== undefined) {
+    const effective = getEffectiveContextWindowSize(model)
+    return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
   }
   return Math.max(1, full - AUTOCOMPACT_BUFFER_TOKENS, fixedFloor)
 }
@@ -369,7 +379,7 @@ export async function autoCompactIfNeeded(
       measuredRawTokenCount = raw
     })
     if (compact && messages.length === 0) return { ...notCompacted, measuredRawTokenCount }
-    if (compact) {
+    if (compact && !thresholdOverridden()) {
       fixedTokens = await measureFixed()
       const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
       const blocking = getBlockingLimit(model)
@@ -413,7 +423,7 @@ export async function autoCompactIfNeeded(
   const overflow = detectFixedPrefixOverflow(messages, model, snipTokensFreed, fixedTokens)
   if (overflow !== null) {
     const message = `autoCompact: fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`
-    if (!forced) {
+    if (!forced && !thresholdOverridden()) {
       noteFixedSkip(`autoCompact: skipping — fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`)
       return { ...notCompacted, measuredRawTokenCount }
     }

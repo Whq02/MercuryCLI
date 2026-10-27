@@ -219,13 +219,16 @@ section('2 · absence is absent, never a throw')
   const linux = await readLocalServerTruth({
     ...baseIo(),
     platform: 'linux',
+    availableMemoryBytes: 48 * GIB,
     pathExists: path => path === '/etc/systemd/system/ollama.service',
     readText: path => (path === SYSTEMD_OLLAMA_OVERRIDE ? '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0"\nEnvironment="OLLAMA_MAX_LOADED_MODELS=2"\n' : path === '/proc/16812/environ' ? 'PATH=/usr/bin\0OLLAMA_HOST=0.0.0.0\0OLLAMA_MAX_LOADED_MODELS=2\0' : undefined),
     writable: () => false,
     run: async (file, args) => (file === 'ps' && args[0] === '-axo' ? `16812     1 /usr/local/bin/ollama serve\n42323 16812 /usr/local/lib/ollama/runners/cuda_v12/ollama_llama_server --model x --ctx-size 8192 --parallel 2\n` : undefined),
   })
   check('Linux systemd: the override with its Environment= lines, root needed, the env from /proc, the runner from --ctx-size/--parallel', linux.launchForm.kind === 'systemd' && linux.launchForm.path === SYSTEMD_OLLAMA_OVERRIDE && linux.launchForm.env?.['OLLAMA_MAX_LOADED_MODELS'] === '2' && linux.launchForm.writable === false && linux.process?.env['OLLAMA_HOST'] === '0.0.0.0' && linux.runners[0]?.context === 8192 && linux.runners[0].slots === 2, JSON.stringify([linux.launchForm, linux.process, linux.runners]))
-  check('Linux: the ceiling is total memory, named as no GPU reading', linux.machine.usableMemoryBytes === 48 * GIB && linux.machine.usableSource === 'total memory (no GPU reading)')
+  check('Linux: the ceiling is the free memory, named as such; with no available reading it equals the total', linux.machine.usableMemoryBytes === 48 * GIB && linux.machine.usableSource === 'free memory (no GPU reading or MemAvailable)')
+  const linuxBusy = await readLocalServerTruth({ ...baseIo(), platform: 'linux', availableMemoryBytes: 6 * GIB, pathExists: () => false, run: async () => '' })
+  check('Linux with 6 GiB available on the 48 GiB box: the ceiling is the 6 GiB', linuxBusy.machine.usableMemoryBytes === 6 * GIB && linuxBusy.machine.totalMemoryBytes === 48 * GIB)
   const windows = await readLocalServerTruth({ ...baseIo(), platform: 'win32' })
   check('Windows: the form names the user environment variables; no process read', windows.launchForm.kind === 'windows' && windows.process === undefined)
   const { parseServerLogMemory, parseMemoryWords } = modules.truth
