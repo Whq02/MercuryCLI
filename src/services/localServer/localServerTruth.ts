@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { accessSync, closeSync, constants, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs'
-import { homedir, totalmem, userInfo } from 'node:os'
+import { freemem, homedir, totalmem, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { localProbeTargets, type LocalServerKind } from '../providers/local/localDiscovery.js'
@@ -29,6 +29,7 @@ export interface LocalServerIo {
   home?: string
   uid?: number
   totalMemoryBytes?: number
+  availableMemoryBytes?: number
   readText?: (path: string) => string | undefined
   readTail?: (path: string, bytes: number) => string | undefined
   listDir?: (path: string) => string[]
@@ -92,6 +93,7 @@ export interface MachineTruth {
   totalMemoryBytes: number
   usableMemoryBytes: number
   usableSource: string
+  usableIsAvailable?: true
 }
 
 export interface LocalServerTruth {
@@ -194,6 +196,7 @@ export function resolveLocalServerIo(io: LocalServerIo): Required<Omit<LocalServ
     home: io.home ?? homedir(),
     uid: io.uid ?? defaultUid(),
     totalMemoryBytes: io.totalMemoryBytes ?? totalmem(),
+    availableMemoryBytes: io.availableMemoryBytes ?? freemem(),
     readText: io.readText ?? defaultReadText,
     readTail: io.readTail ?? defaultReadTail,
     listDir: io.listDir ?? defaultListDir,
@@ -637,11 +640,11 @@ async function readMachineSide(io: Io, kind: LocalServerKind | undefined): Promi
   } catch {
     launchForm = { kind: 'unknown', note: 'the launch form could not be read' }
   }
-  let machine: MachineTruth = { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory' }
+  let machine = defaultMachineTruth(io.platform, io.totalMemoryBytes, io.availableMemoryBytes)
   try {
     machine = await readMachineTruth(io, launchForm)
   } catch {
-    machine = { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory' }
+    machine = defaultMachineTruth(io.platform, io.totalMemoryBytes, io.availableMemoryBytes)
   }
   return {
     ...(processTruth.process ? { process: processTruth.process } : {}),
@@ -651,10 +654,18 @@ async function readMachineSide(io: Io, kind: LocalServerKind | undefined): Promi
   }
 }
 
-export function defaultMachineTruth(platform: NodeJS.Platform, totalMemoryBytes: number): MachineTruth {
+export function defaultMachineTruth(platform: NodeJS.Platform, totalMemoryBytes: number, availableMemoryBytes: number = totalMemoryBytes): MachineTruth {
   const base = { platform, totalMemoryBytes }
   if (platform === 'darwin') return { ...base, usableMemoryBytes: Math.round(totalMemoryBytes * METAL_DEFAULT_WORKING_SET), usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }
+  if (platform === 'linux' || platform === 'win32') return { ...base, usableMemoryBytes: availableMemoryBytes, usableSource: platform === 'linux' ? 'free memory (no GPU reading or MemAvailable)' : 'available memory (no GPU reading)', usableIsAvailable: true }
   return { ...base, usableMemoryBytes: totalMemoryBytes, usableSource: 'total memory (no GPU reading)' }
+}
+
+export function parseLinuxMemAvailable(text: string | undefined): number | undefined {
+  const match = /^MemAvailable:\s+(\d+)\s*kB\s*$/m.exec(text ?? '')
+  if (!match) return undefined
+  const kib = Number(match[1])
+  return Number.isFinite(kib) && kib >= 0 ? kib * 1024 : undefined
 }
 
 export function parseNvidiaSmiMemory(text: string): number | undefined {
@@ -715,7 +726,11 @@ export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Pro
     const gpu = await readDiscreteGpuMemory(io)
     if (gpu !== undefined) return { ...base, usableMemoryBytes: gpu.bytes, usableSource: gpu.source }
   }
-  return defaultMachineTruth(io.platform, total)
+  if (io.platform === 'linux') {
+    const available = parseLinuxMemAvailable(io.readText('/proc/meminfo'))
+    if (available !== undefined) return { ...base, usableMemoryBytes: available, usableSource: 'MemAvailable in /proc/meminfo', usableIsAvailable: true }
+  }
+  return defaultMachineTruth(io.platform, total, io.availableMemoryBytes)
 }
 
 export const LOCAL_SERVER_TRUTH_TTL_MS = 15_000

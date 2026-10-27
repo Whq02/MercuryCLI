@@ -17,6 +17,7 @@ export interface LocalWindowFitInput {
   machineBytes: number
   usableBytes: number
   usableSource?: string
+  availableBytes?: number
   slots?: number
   cacheType?: string
   measured?: LocalWindowMeasured
@@ -39,6 +40,7 @@ export interface LocalWindowFit {
   totalBytes: number
   usableBytes: number
   usableSource?: string
+  availableBytes?: number
   machineBytes: number
   trainedMax?: number
   slots: number
@@ -103,6 +105,7 @@ export function fitLocalWindow(input: LocalWindowFitInput): LocalWindowFit {
     totalBytes: chosen.totalBytes,
     usableBytes: input.usableBytes,
     ...(input.usableSource !== undefined ? { usableSource: input.usableSource } : {}),
+    ...(input.availableBytes !== undefined ? { availableBytes: input.availableBytes } : {}),
     machineBytes: input.machineBytes,
     ...(input.trainedMax !== undefined ? { trainedMax: input.trainedMax } : {}),
     slots,
@@ -166,14 +169,20 @@ export function serverMeasuredOf(truth: LocalServerTruth | null, name: string): 
 
 export function fitLocalWindowOn(truth: LocalServerTruth, model: { name: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; measured?: LocalWindowMeasured }, slots: number = serverSlotsOf(truth), cacheType: string | undefined = serverCacheTypeOf(truth)): LocalWindowFit {
   const measured = serverMeasuredOf(truth, model.name) ?? model.measured
+  const availableBytes = truth.machine.usableIsAvailable === true ? truth.machine.usableMemoryBytes : undefined
+  const residentBytes =
+    availableBytes !== undefined && measured !== undefined && measured.bytes > kvCacheBytes(model.geometry, measured.window, Math.max(1, Math.floor(measured.slots ?? slots ?? 1)), cacheType)
+      ? measured.bytes
+      : 0
   return fitLocalWindow({
     name: model.name,
     weightsBytes: model.weightsBytes,
     geometry: model.geometry,
     ...(model.trainedMax !== undefined ? { trainedMax: model.trainedMax } : {}),
     machineBytes: truth.machine.totalMemoryBytes,
-    usableBytes: truth.machine.usableMemoryBytes,
+    usableBytes: truth.machine.usableMemoryBytes + residentBytes,
     usableSource: truth.machine.usableSource,
+    ...(availableBytes !== undefined ? { availableBytes } : {}),
     slots,
     ...(cacheType !== undefined ? { cacheType } : {}),
     ...(measured !== undefined ? { measured } : {}),

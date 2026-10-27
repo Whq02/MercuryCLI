@@ -98,7 +98,7 @@ enableConfigs()
 const w = await import('../../src/services/providers/local/localWindow.ts')
 const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
 const { __pinLocalServerTruthForTest, __resetLocalServerTruthForTest } = truthModule
-const defaultMachineTruth: (platform: NodeJS.Platform, totalMemoryBytes: number) => { platform: NodeJS.Platform; totalMemoryBytes: number; usableMemoryBytes: number; usableSource: string } =
+const defaultMachineTruth: (platform: NodeJS.Platform, totalMemoryBytes: number, availableMemoryBytes?: number) => { platform: NodeJS.Platform; totalMemoryBytes: number; usableMemoryBytes: number; usableSource: string } =
   (truthModule as { defaultMachineTruth?: typeof defaultMachineTruth }).defaultMachineTruth ?? (() => ({ platform: 'darwin', totalMemoryBytes: 0, usableMemoryBytes: 0, usableSource: 'absent on the base' }))
 const memory = await import('../../src/services/localServer/localServerMemory.ts')
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
@@ -226,7 +226,7 @@ section('4 · the fallbacks, said in the words: with no geometry or no memory tr
   check('no trained max, a served 128k: the served window, reason srv', served.window === 131072 && served.reason === 'srv' && served.words.startsWith('128k · the served window'), served.words)
   const neither = w.chooseLocalWindow(unstated, 73_000, undefined, null)
   check('no trained max and no served window: twice the request (144k), reason req, the words say why', neither.window === 147456 && neither.reason === 'req' && neither.words.startsWith('144k · twice the first request, rounded up to 16k, never under 64k (≈73k asked)') && neither.words.includes('no trained max stated and no served window'), neither.words)
-  check('the Linux fraction rule is total memory; the darwin rule is three quarters', defaultMachineTruth('linux', 16 * GIB).usableMemoryBytes === 16 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableMemoryBytes === 12 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableSource.startsWith('about three quarters'))
+  check('the Linux fallback is available memory; the darwin rule is three quarters of unified memory', defaultMachineTruth('linux', 16 * GIB, 6 * GIB).usableMemoryBytes === 6 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableMemoryBytes === 12 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableSource.startsWith('about three quarters'))
   check('with no truth cached the sync decision falls back the same way (the trained max)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'max')
   w.__resetLocalWindowsForTest()
 }

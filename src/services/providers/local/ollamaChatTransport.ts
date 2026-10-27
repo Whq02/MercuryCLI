@@ -29,11 +29,14 @@ import {
   startLocalLivenessLoop,
   type LocalLivenessLoop,
 } from '../localLiveness.js'
+import { gibWords } from '../../localServer/localServerMemory.js'
+import { localWindowLoad, type LocalWindowFit } from '../../localServer/localWindowFit.js'
 import {
   describeTransportFailure,
   mapCompatHttpFailure,
   startLocalSilenceWatch,
   type CompatChatRequest,
+  type CompatFault,
   type CompatCompletedToolCall,
   type CompatStreamEvent,
   type CompatStreamOptions,
@@ -48,6 +51,23 @@ export interface OllamaChatKnobs {
   numBatch?: number
   think?: boolean | string
   keepAlive?: string | number
+  fit?: LocalWindowFit
+}
+
+export const LOCAL_RUNNER_KILLED_CODE = 'local-runner-killed'
+
+export function ollamaRunnerKilledFault(fault: CompatFault, fit: LocalWindowFit | undefined, window: number | undefined): CompatFault | undefined {
+  if (fit === undefined || !/process has terminated|signal:\s*killed/i.test(fault.message)) return undefined
+  const needed = localWindowLoad(fit, window ?? fit.window).totalBytes
+  const free = fit.availableBytes ?? fit.usableBytes
+  return {
+    ...fault,
+    kind: 'api-error',
+    code: LOCAL_RUNNER_KILLED_CODE,
+    classification: 'server_error',
+    message: `the local runner was killed, probably out of memory (needed about ${gibWords(needed)}, ${gibWords(free)} free) · a smaller window in /model fits`,
+    retryable: false,
+  }
 }
 
 type OllamaMessage = {
@@ -480,7 +500,8 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
       } catch {
         body = undefined
       }
-      yield fault(mapCompatHttpFailure(response.status, body, response.headers))
+      const mapped = mapCompatHttpFailure(response.status, body, response.headers)
+      yield fault(ollamaRunnerKilledFault(mapped, knobs.fit, knobs.numCtx) ?? mapped)
       return
     }
     if (!response.body) {

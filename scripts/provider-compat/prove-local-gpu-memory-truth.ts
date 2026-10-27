@@ -28,15 +28,16 @@ const GIB = 1024 ** 3
 const gib = (bytes: number): string => `${(bytes / GIB).toFixed(1)} GiB`
 const noServer: typeof fetch = (async () => new Response('{}', { status: 404 })) as unknown as typeof fetch
 
-function machine(seam: LocalServerIo & { smi?: Record<string, string>; logs?: Record<string, string> }): Promise<import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth> {
-  const { smi = {}, logs = {}, ...rest } = seam
+function machine(seam: LocalServerIo & { smi?: Record<string, string>; logs?: Record<string, string>; meminfo?: string }): Promise<import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth> {
+  const { smi = {}, logs = {}, meminfo = 'MemAvailable: 6291456 kB\n', ...rest } = seam
   return truth.readLocalMachineTruth(
     {
       env: { MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:9' },
       fetchImpl: noServer,
       totalMemoryBytes: 64 * GIB,
+      availableMemoryBytes: 6 * GIB,
       home: '/home/box',
-      readText: () => undefined,
+      readText: path => (path === '/proc/meminfo' ? meminfo : undefined),
       readTail: path => logs[path],
       listDir: () => [],
       pathExists: () => false,
@@ -50,8 +51,8 @@ function machine(seam: LocalServerIo & { smi?: Record<string, string>; logs?: Re
 
 section('1 · Linux without a systemd log: the card is read from nvidia-smi, never the 64 GiB of system RAM')
 {
-  const before = truth.defaultMachineTruth('linux', 64 * GIB)
-  check('the base reading for a Linux box with no GPU line is the whole system RAM (the mis-sizing)', before.usableMemoryBytes === 64 * GIB && before.usableSource === 'total memory (no GPU reading)')
+  const before = truth.defaultMachineTruth('linux', 64 * GIB, 6 * GIB)
+  check('the base reading for a Linux box with no GPU line or MemAvailable is free memory, never total RAM', before.usableMemoryBytes === 6 * GIB && before.usableSource === 'free memory (no GPU reading or MemAvailable)')
   const nvidia = await machine({ platform: 'linux', smi: { 'nvidia-smi': '16384\n' } })
   check('nvidia-smi memory.total 16384 MiB reads as 16.0 GiB usable', nvidia.machine.usableMemoryBytes === 16 * GIB, `${gib(nvidia.machine.usableMemoryBytes)} · ${nvidia.machine.usableSource}`)
   check('the source names nvidia-smi', nvidia.machine.usableSource.includes('nvidia-smi'), nvidia.machine.usableSource)
@@ -92,17 +93,17 @@ section('4 · what stays: a Mac\'s unified memory, and a Linux box with no GPU t
   const macDefault = await machine({ platform: 'darwin', totalMemoryBytes: 48 * GIB, smi: { 'nvidia-smi': '16384\n' } })
   check('darwin without the sysctl answer: the Metal default working set, the system reading (a Mac has no discrete card)', macDefault.machine.usableMemoryBytes === Math.round(48 * GIB * truth.METAL_DEFAULT_WORKING_SET), `${gib(macDefault.machine.usableMemoryBytes)} · ${macDefault.machine.usableSource}`)
   const bare = await machine({ platform: 'linux' })
-  check('linux with neither tool nor log: total memory (no GPU reading), as today', bare.machine.usableMemoryBytes === 64 * GIB && bare.machine.usableSource === 'total memory (no GPU reading)', bare.machine.usableSource)
+  check('linux with no GPU tool reads MemAvailable: 6.0 GiB of the 64 GiB box', bare.machine.usableMemoryBytes === 6 * GIB && bare.machine.usableSource === 'MemAvailable in /proc/meminfo', bare.machine.usableSource)
 }
 
 section('5 · the sizing follows the card: qwen3.5:27b on a 16 GiB card beside 64 GiB of RAM')
 {
   const candidate = SETUP_PULL_CANDIDATES.find(c => c.tag === 'qwen3.5:27b')!
-  const ram = await machine({ platform: 'linux' })
+  const ram = await machine({ platform: 'linux', availableMemoryBytes: 64 * GIB, meminfo: 'MemAvailable: 67108864 kB\n' })
   const card = await machine({ platform: 'linux', smi: { 'nvidia-smi': '16384\n' } })
   const onRam = fitLocalWindowOn(ram, { name: candidate.tag, weightsBytes: candidate.sizeBytes, geometry: candidate.geometry, trainedMax: candidate.trainedMax })
   const onCard = fitLocalWindowOn(card, { name: candidate.tag, weightsBytes: candidate.sizeBytes, geometry: candidate.geometry, trainedMax: candidate.trainedMax })
-  check('against 64 GiB of RAM the 27B is sized to a large window (the mis-sizing a 16 GB-card owner saw)', onRam.fits && onRam.window >= 131072, `${onRam.fits} ${onRam.window}`)
+  check('against 64 GiB available the 27B keeps its large window', onRam.fits && onRam.window >= 131072, `${onRam.fits} ${onRam.window}`)
   check('against the 16 GiB card the same model does not fit (17 GB of weights alone)', !onCard.fits, `${onCard.fits} ${onCard.window}`)
   const nine = SETUP_PULL_CANDIDATES.find(c => c.tag === 'qwen3.5:9b')!
   const nineOnCard = fitLocalWindowOn(card, { name: nine.tag, weightsBytes: nine.sizeBytes, geometry: nine.geometry, trainedMax: nine.trainedMax })

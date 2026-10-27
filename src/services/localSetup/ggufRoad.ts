@@ -22,7 +22,7 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
   let keptServer = false
   const plan = (label: SetupStepLabel, title: string, found = '', willRun = ''): SetupStepPlan => ({ step: Number(label[0]) as SetupStepPlan['step'], label, kind: 'choose', title, found, willRun, needsSudo: false, keys: '↵ run · esc stop', skippable: false })
   const ask = async (row: SetupStepPlan): Promise<Awaited<ReturnType<SetupConsentFn>>> => { current = row.label; signal.throwIfAborted(); return consent(row) }
-  const done = (reason: SetupSummary['reason'], words: string, ready?: SetupSummary['ready']): SetupEvent => ({ type: 'done', summary: { ran, skipped: [], failed: reason === 'ended' ? [current] : [], notDone: [], reason, words, ...(ready ? { ready, model: ready.model } : { kept: io.currentModel() ?? undefined }) } })
+  const done = (reason: SetupSummary['reason'], words: string, ready?: SetupSummary['ready']): SetupEvent => ({ type: 'done', summary: { ran, skipped: [], failed: reason === 'ended' && !ran.includes(current) ? [current] : [], notDone: [], reason, words, ...(ready ? { ready, model: ready.model } : { kept: io.currentModel() ?? undefined }) } })
   const result = (label: SetupStepLabel, words: string): SetupEvent => { ran.push(label); return { type: 'result', result: { step: Number(label[0]) as SetupStepPlan['step'], label, kind: 'choose', outcome: 'ran', lastLine: words } } }
   try {
     let source = 'Hugging Face'

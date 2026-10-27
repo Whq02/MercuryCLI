@@ -17,6 +17,8 @@ const { discoverLocalServers } = await import('../../src/services/providers/loca
 const { ggufServerRoots } = await import('../../src/services/localSetup/ggufServers.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
+const { setupSummaryOf } = await import('../../src/commands/localsetup/localsetup.tsx')
+const { localSetupSummaryRows } = await import('../../src/components/LocalSetupDialog.tsx')
 type SetupStepPlan = import('../../src/services/localSetup/setupTypes.ts').SetupStepPlan
 type SetupConsent = import('../../src/services/localSetup/setupTypes.ts').SetupConsent
 type SetupSummary = import('../../src/services/localSetup/setupTypes.ts').SetupSummary
@@ -95,6 +97,16 @@ try {
   assert.equal(listing.models[0]!.fit?.fits, false)
   assert.ok(hits.every(hit => !hit.includes('/resolve/main/')))
   console.log('PASS pinned repository tree, all GGUF sizes, fit and projector')
+  const emptyBank = await run(row => row.label === '1' ? { pick: 'Bank' } : 'run', { repo: undefined })
+  assert.equal(emptyBank.reason, 'ended')
+  const emptyView = setupSummaryOf(emptyBank)
+  assert.deepEqual(emptyView.done, ['1'])
+  assert.deepEqual(emptyView.notDone, [])
+  const emptyRows = localSetupSummaryRows(emptyView, { '1': 'Local models' })
+  assert.equal(emptyRows.filter(row => row.includes('1 Local models')).length, 1)
+  assert.ok(emptyRows.includes('done: 1 Local models'))
+  assert.ok(emptyRows.includes('not done: nothing'))
+  console.log('PASS empty Bank lists Local models in exactly one summary section')
   const denied = await run(() => 'stop')
   assert.equal(denied.reason, 'stopped')
   assert.equal(downloads, 0)
@@ -142,6 +154,10 @@ try {
   console.log('PASS fresh free-memory check and owned-server cleanup on stop')
   const bank = await run(row => row.label === '1' ? { pick: 'Bank' } : row.rows ? { pick: row.rows[0]!.tag } : row.label === '5' ? 'stop' : 'run', { repo: undefined })
   assert.equal(bank.reason, 'stopped')
+  const bankView = setupSummaryOf(bank)
+  const bankListed = [...bankView.done, ...(bankView.skipped ?? []), ...bankView.notDone]
+  assert.equal(new Set(bankListed).size, bankListed.length)
+  assert.equal(bankView.notDone.filter(step => bankView.done.includes(step)).length, 0)
   assert.equal(downloads, 2)
   const original = Buffer.from(readFileSync(join(destination, 'Any-Q6_K.gguf')))
   const corrupt = Buffer.from(original); corrupt[corrupt.length - 1] ^= 1

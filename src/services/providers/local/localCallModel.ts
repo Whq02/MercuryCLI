@@ -181,14 +181,17 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     toolDeclarationRow: toolDeclarationRowInResult,
     ...(record.server === 'ollama'
       ? {
-          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) =>
-            ollamaChatTransport(
+          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) => {
+            const fit = heldLocalWindow(record)?.fit
+            return ollamaChatTransport(
               { ...options, url: ollamaChatUrl(record.baseUrl) },
               {
                 ...heldLocalKnobs(record),
                 ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
+                ...(fit !== undefined ? { fit } : {}),
               },
-            ),
+            )
+          },
           effortOnWire: ollamaEffortOnWire,
         }
       : {}),
