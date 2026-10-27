@@ -13,12 +13,21 @@ const ModelSchema = z.object({
   licenseNotice: z.string().optional(), paramsBackend: z.string().optional(),
   slots: z.record(z.string(), z.string()).refine(slots => Object.keys(slots).length > 0),
 }).passthrough()
+const digest = z.string().regex(/^[a-f0-9]{64}$/i)
+const RuntimeFileSchema = z.object({ asset: z.string().regex(/^[A-Za-z0-9._-]+\.zip$/), bytes: positive, sha256: digest }).passthrough()
+const RuntimeVariantSchema = z.object({ variant: z.string().regex(/^[a-z0-9]+$/), binary: z.string().regex(/^[A-Za-z0-9._-]+$/), files: z.array(RuntimeFileSchema).min(1) }).passthrough()
+const RuntimeTableSchema = z.object({ tag: z.string().min(1), platforms: z.record(z.string().regex(/^[a-z0-9]+-[a-z0-9]+$/), z.array(RuntimeVariantSchema).min(1)) }).passthrough()
+const RuntimeRowSchema = z.object({ tag: z.string().min(1), asset: z.string().min(1), bytes: positive, sha256: digest }).passthrough()
+  .transform((row): z.infer<typeof RuntimeTableSchema> => ({ tag: row.tag, platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: row.asset, bytes: row.bytes, sha256: row.sha256 }] }] } }))
+const RuntimeSchema = z.union([RuntimeTableSchema, RuntimeRowSchema])
 const CatalogueSchema = z.object({
-  runtime: z.object({ tag: z.string(), asset: z.string(), bytes: positive, sha256: z.string().regex(/^[a-f0-9]{64}$/i) }).passthrough(),
+  runtime: RuntimeSchema,
   models: z.array(ModelSchema), files: z.array(FileSchema),
 }).passthrough()
 export type MediaModel = z.infer<typeof ModelSchema>
 type MediaFile = z.infer<typeof FileSchema>
+export type MediaRuntimeVariant = z.infer<typeof RuntimeVariantSchema>
+export type MediaRuntimeTable = z.infer<typeof RuntimeTableSchema>
 export type MediaCatalogue = z.infer<typeof CatalogueSchema>
 
 export function modelFilePath(root: string, path: string): string {

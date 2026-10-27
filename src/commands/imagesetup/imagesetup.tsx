@@ -6,7 +6,7 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import { imageToCells } from '../../services/visual/imageDisplay.js'
 import { gibWords } from '../../services/localServer/localServerMemory.js'
-import { mediaPullPlan, mediaProgressWords, mediaSizeWords, pullMedia, readMediaSnapshot, runMediaSetup, MediaSetupPaused, type MediaPullPlan, type MediaSnapshot } from '../../services/media/setup.js'
+import { mediaPullPlan, mediaProgressWords, mediaRuntimeRowWords, mediaSizeWords, pullMedia, readMediaSnapshot, runMediaSetup, MediaSetupPaused, type MediaPullPlan, type MediaSnapshot } from '../../services/media/setup.js'
 import { saveMediaSettings, readMediaSettings } from '../../services/media/settings.js'
 import { generateMediaTestImage, type MediaTestImage } from '../../services/media/generation.js'
 import { openSettingsPopup, closeSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
@@ -96,15 +96,16 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
   }
   const row = snapshot?.rows[cursor - 1]
   useInput((input, key, event) => {
-    if (key.ctrl || key.meta) return
-    event.stopImmediatePropagation()
     if (key.escape) {
+      event.stopImmediatePropagation()
       if (ask) { consent.current?.(false); consent.current = null; setAsk(null); return }
       if (operation.current) { operation.current.abort(); return }
       if (image) { setImage(undefined); return }
       frame.close()
       return
     }
+    if (key.ctrl || key.meta) return
+    event.stopImmediatePropagation()
     if (ask) {
       if (input.toLowerCase() === 'y' && pastOpen()) { consent.current?.(true); consent.current = null; setAsk(null) }
       else if (input.toLowerCase() === 'n') { consent.current?.(false); consent.current = null; setAsk(null) }
@@ -141,7 +142,7 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
   const visible = Math.max(1, Math.floor((geometry.rowBudget - 4) / 2))
   const start = Math.max(0, Math.min(cursor - 1, snapshot.rows.length - visible))
   return <Box flexDirection="column">
-    <Text color={cursor === 0 ? tokens.accent : tokens.textPrimary}>{cursor === 0 ? '› ' : '  '}stable-diffusion.cpp · {snapshot.runtimeInstalled ? 'installed' : `pull ${mediaSizeWords(snapshot.catalogue.runtime.bytes)}`} · MIT</Text>
+    <Text color={cursor === 0 ? tokens.accent : tokens.textPrimary}>{cursor === 0 ? '› ' : '  '}{mediaRuntimeRowWords(snapshot)}</Text>
     {snapshot.rows.slice(start, start + visible).map((item, index) => <Box key={item.model.id} flexDirection="column">
       <Text color={cursor === start + index + 1 ? tokens.accent : tokens.textPrimary}>{cursor === start + index + 1 ? '› ' : '  '}{item.model.id} · {item.model.kind} · {item.model.license}{snapshot.config[item.model.kind === 'image' ? 'imageModel' : 'videoModel'] === item.model.id ? ' · default' : ''}</Text>
       <Text wrap="truncate-end" dimColor>  {item.words}</Text>

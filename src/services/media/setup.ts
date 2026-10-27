@@ -11,8 +11,23 @@ import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServe
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
 type MediaRow = { model: MediaModel; installed: boolean; bytes: number; pullBytes: number; fit: MediaFit; words: string }
-export type MediaSnapshot = { root: string; runtimeInstalled: boolean; catalogue: MediaCatalogue; config: MediaConfig; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number; rows: MediaRow[] }
+export type MediaRuntimeChoice = { variant: string; binary: string; words: string; bytes: number; args: string[] }
+export type MediaSnapshot = { root: string; runtimeInstalled: boolean; runtime?: MediaRuntimeChoice; catalogue: MediaCatalogue; config: MediaConfig; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number; rows: MediaRow[] }
 const GiB = 1024 ** 3
+const RUNTIME_WORDS: Record<string, string> = { metal: 'Metal', vulkan: 'Vulkan', cuda12: 'CUDA 12', cpu: 'CPU', rocm: 'ROCm' }
+
+export function mediaRuntimeChoice(catalogue: MediaCatalogue, platform: string = process.platform, arch: string = process.arch, gpu?: 'nvidia' | 'amd'): MediaRuntimeChoice | undefined {
+  const variants = catalogue.runtime.platforms[`${platform}-${arch}`]
+  if (!variants?.length) return undefined
+  const chosen = (gpu === 'nvidia' ? variants.find(row => row.variant === 'cuda12') : undefined) ?? variants[0]!
+  return { variant: chosen.variant, binary: chosen.binary, words: RUNTIME_WORDS[chosen.variant] ?? chosen.variant, bytes: chosen.files.reduce((n, file) => n + file.bytes, 0), args: ['pull-runtime', '--variant', chosen.variant] }
+}
+
+export function mediaRuntimeRowWords(snapshot: Pick<MediaSnapshot, 'runtime' | 'runtimeInstalled'>): string {
+  const name = snapshot.runtime ? `stable-diffusion.cpp (${snapshot.runtime.words})` : 'stable-diffusion.cpp'
+  const state = snapshot.runtimeInstalled ? 'installed' : snapshot.runtime ? `pull ${mediaSizeWords(snapshot.runtime.bytes)}` : ''
+  return [name, state, 'MIT'].filter(part => part !== '').join(' · ')
+}
 
 export function mediaSizeWords(bytes: number): string {
   if (bytes >= 1e9) return gbWords(bytes)
@@ -60,7 +75,15 @@ export async function readMediaSnapshot(settings: MediaSettings = readMediaSetti
     resolveSetupIo().readTruth(),
   ])
   const freeBytes = freeDisk(root)
-  return { root, runtimeInstalled: mediaHealth({ root, enabled: true }).status === 'ok' && runtimeTag(root) === catalogue.runtime.tag, catalogue, config, totalMemoryBytes: truth.machine.totalMemoryBytes, usableMemoryBytes: truth.machine.usableMemoryBytes, freeBytes, rows: mediaRows(catalogue, root, truth.machine, freeBytes) }
+  const runtime = mediaRuntimeChoice(catalogue, process.platform, process.arch, truth.machine.gpu)
+  return { root, runtimeInstalled: mediaRuntimeInstalled(catalogue, root, runtime), ...(runtime ? { runtime } : {}), catalogue, config, totalMemoryBytes: truth.machine.totalMemoryBytes, usableMemoryBytes: truth.machine.usableMemoryBytes, freeBytes, rows: mediaRows(catalogue, root, truth.machine, freeBytes) }
+}
+
+export function mediaRuntimeInstalled(catalogue: MediaCatalogue, root: string, runtime: MediaRuntimeChoice | undefined, record = runtimeRecord(root), health = mediaHealth({ root, enabled: true }).status): boolean {
+  if (health !== 'ok' || record?.tag !== catalogue.runtime.tag) return false
+  if (!runtime) return true
+  const installed = record.variant ?? catalogue.runtime.platforms[`${process.platform}-${process.arch}`]?.[0]?.variant
+  return installed === runtime.variant
 }
 
 export type MediaPullPlan = { args: string[]; title: string; bytes: number; license: string; source: string; root: string }
@@ -74,7 +97,7 @@ function mediaLicenseWords(model: MediaModel): string {
 }
 
 export function mediaPullPlan(snapshot: MediaSnapshot, id?: string): MediaPullPlan {
-  if (id === undefined) return { args: ['pull-runtime'], title: 'stable-diffusion.cpp', bytes: snapshot.catalogue.runtime.bytes, license: 'MIT', source: 'github.com/leejet/stable-diffusion.cpp', root: snapshot.root }
+  if (id === undefined) return { args: snapshot.runtime?.args ?? ['pull-runtime'], title: 'stable-diffusion.cpp', bytes: snapshot.runtime?.bytes ?? 0, license: 'MIT', source: 'github.com/leejet/stable-diffusion.cpp', root: snapshot.root }
   const row = snapshot.rows.find(row => row.model.id === id)
   if (!row) throw new Error('Choose a model from the catalogue.')
   const files = mediaModelFiles(snapshot.catalogue, row.model)
@@ -151,6 +174,9 @@ export function mediaProgressWords(event: MediaProgress): string {
   return event.event === 'error' ? stripTerminalControls(event.message ?? 'Download failed.') : ''
 }
 
-function runtimeTag(root: string): string | undefined {
-  try { return (JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: string }).tag } catch { return undefined }
+function runtimeRecord(root: string): { tag?: string; variant?: string } | undefined {
+  try {
+    const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: unknown; variant?: unknown }
+    return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}) }
+  } catch { return undefined }
 }

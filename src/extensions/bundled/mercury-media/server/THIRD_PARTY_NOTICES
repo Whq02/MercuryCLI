@@ -205,3 +205,20 @@ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+--------------------
+
+stable-diffusion.cpp master-1015-e41fbcf
+MIT; downloaded by setup pull-runtime from https://github.com/leejet/stable-diffusion.cpp/releases/tag/master-1015-e41fbcf, never bundled. Its notices (ggml.txt, stable-diffusion.cpp.txt) travel inside each runtime archive:
+  sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip
+  sd-master-e41fbcf-bin-win-vulkan-x64.zip
+  sd-master-e41fbcf-bin-win-cuda12-x64.zip
+  sd-master-e41fbcf-bin-win-cpu-x64.zip
+  sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip
+  sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64.zip
+
+--------------------
+
+NVIDIA CUDA runtime libraries (cudart64_12.dll, cublas64_12.dll, cublasLt64_12.dll)
+NVIDIA CUDA Toolkit End User License Agreement, https://docs.nvidia.com/cuda/eula/index.html; its Attachment A lists the CUDA runtime and cuBLAS libraries as distributable. Downloaded by setup pull-runtime --variant cuda12 on Windows from the same release, never bundled:
+  cudart-sd-bin-win-cu12-x64.zip

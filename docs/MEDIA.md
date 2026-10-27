@@ -14,17 +14,25 @@ or model weights.
 
 Open `/imagesetup` to download the runtime and models. Completing a model
 pull turns Local media on and connects it in the current session. The
-bundled runtime needs Apple Silicon macOS, `curl` and `unzip`.
-Video posters also need `ffmpeg` on PATH.
+bundled runtime runs on Apple Silicon macOS, x64 Windows and x64 Linux.
+Apple Silicon gets the Metal build; Windows gets the Vulkan build, or the
+CUDA 12 build when an NVIDIA card is present; Linux gets the Vulkan build.
+There is no build for arm64 Windows or arm64 Linux yet. On macOS and Linux
+the pull needs `curl` and `unzip`; Windows needs nothing beyond PowerShell
+5.1. Video posters, and on Windows and Linux image previews larger than
+1024 pixels, also need `ffmpeg` on PATH.
 
 ## Set up a model
 
 1. **Read the table.** The top line shows the media folder, total memory in
-   GiB and free disk space. The runtime row names `stable-diffusion.cpp` and
-   its MIT licence. Each model shows its id, kind, licence and default slot,
+   GiB and free disk space. The runtime row names `stable-diffusion.cpp`, the
+   build it pulls for this computer (Metal, Vulkan or CUDA 12) and its MIT
+   licence. Each model shows its id, kind, licence and default slot,
    followed by the remaining pull size and total disk size in GB, memory in
-   GiB, available seconds per image, and whether it fits. The runtime archive
-   is 37.6 MB; model sizes are listed below. Shared files count once in a pull.
+   GiB, available seconds per image, and whether it fits. The runtime
+   download is 37.6 MB on macOS, 29.7 MB for Vulkan on Windows, 907.0 MB for
+   CUDA 12 (the engine and NVIDIA's runtime libraries) and 37.6 MB for Vulkan
+   on Linux; model sizes are listed below. Shared files count once in a pull.
 2. **Pull the runtime.** Use ↑↓ to select its row and press **p**. The card
    shows the download size, destination, source and licence. Its keys are
    `y download · n back`. Nothing downloads until you press **y**.

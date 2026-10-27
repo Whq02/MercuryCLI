@@ -1,9 +1,20 @@
 {
   "runtime": {
     "tag": "master-1015-e41fbcf",
-    "asset": "sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip",
-    "bytes": 37584335,
-    "sha256": "933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c"
+    "platforms": {
+      "darwin-arm64": [
+        {"variant":"metal","binary":"sd-server","files":[{"asset":"sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip","bytes":37584335,"sha256":"933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c"}]}
+      ],
+      "win32-x64": [
+        {"variant":"vulkan","binary":"sd-server.exe","files":[{"asset":"sd-master-e41fbcf-bin-win-vulkan-x64.zip","bytes":29744345,"sha256":"259ceeb62f1069190d24c85ea1c4549d2d61deb0ef712510dbe98d79ce93a38b"}]},
+        {"variant":"cuda12","binary":"sd-server.exe","files":[{"asset":"sd-master-e41fbcf-bin-win-cuda12-x64.zip","bytes":343503038,"sha256":"56141f67eb8c2b3b3b295d54a56be29040abc2efdf81584dbd94725fce5d474d"},{"asset":"cudart-sd-bin-win-cu12-x64.zip","bytes":563452046,"sha256":"fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d"}]},
+        {"variant":"cpu","binary":"sd-server.exe","files":[{"asset":"sd-master-e41fbcf-bin-win-cpu-x64.zip","bytes":18080790,"sha256":"bfc02f16df7744296ecc7720503a2b633575490dd7d8b448aee035c1fc836bec"}]}
+      ],
+      "linux-x64": [
+        {"variant":"vulkan","binary":"sd-server","files":[{"asset":"sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip","bytes":37644143,"sha256":"0ae9ef34eea1ff6a229b892144a65ed8c00b6438c5ba783cdeca77024b2fc697"}]},
+        {"variant":"cpu","binary":"sd-server","files":[{"asset":"sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64.zip","bytes":27320021,"sha256":"422bc495ca647d95e9bd88b04d3eaae52e641d89497ea0dda7335f44c46e9109"}]}
+      ]
+    }
   },
   "files": [
     {"path":"diffusion_models/z_image_turbo-Q8_0.gguf","repo":"leejet/Z-Image-Turbo-GGUF","source":"z_image_turbo-Q8_0.gguf","bytes":6577440704,"sha256":"df1c5baa86d1398c979495a6072dbcee79444fdb884a2445582ba0769c44e9a1"},

@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mediaRows, mediaPullPlan, pullMedia, runMediaSetup, MediaSetupPaused, mediaSizeWords, type MediaProgress, type MediaSnapshot } from '../../src/services/media/setup.js'
+import { mediaRows, mediaPullPlan, mediaRuntimeChoice, pullMedia, runMediaSetup, MediaSetupPaused, mediaSizeWords, type MediaProgress, type MediaSnapshot } from '../../src/services/media/setup.js'
 import { modelFilePath, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { catalogue, installFixture, proofHome, root, serverPath } from './fixture.ts'
 
@@ -30,12 +30,13 @@ try {
   assert.equal(rows[0]!.pullBytes, 4)
   assert.equal(rows[0]!.installed, false)
   assert.equal(mediaSizeWords(37584335), '37.6 MB')
-  const snapshot: MediaSnapshot = { root, catalogue, rows, config: { imageModel: 'image-one' }, runtimeInstalled: false, freeBytes: 100, ...machine }
+  const snapshot: MediaSnapshot = { root, catalogue, rows, config: { imageModel: 'image-one' }, runtimeInstalled: false, runtime: mediaRuntimeChoice(catalogue, 'darwin', 'arm64'), freeBytes: 100, ...machine }
   const plan = mediaPullPlan(snapshot, 'image-one')
   assert.deepEqual(plan.args, ['pull-model', 'image-one'])
   assert.equal(plan.bytes, 4)
   assert.equal(plan.license, 'Apache-2.0')
   assert.equal(mediaPullPlan(snapshot).bytes, 64)
+  assert.deepEqual(mediaPullPlan(snapshot).args, ['pull-runtime', '--variant', 'metal'])
   const progress: MediaProgress[] = []
   const runner = (args: string[], report: (event: MediaProgress) => void, signal?: AbortSignal) => runMediaSetup(args, report, signal, { root, serverPath })
   assert.equal(await pullMedia(plan, async () => false, runner, event => progress.push(event)), false)

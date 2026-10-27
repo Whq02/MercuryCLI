@@ -94,6 +94,7 @@ export interface MachineTruth {
   usableMemoryBytes: number
   usableSource: string
   usableIsAvailable?: true
+  gpu?: 'nvidia' | 'amd'
 }
 
 export interface LocalServerTruth {
@@ -701,17 +702,18 @@ export function parseRocmSmiMemory(text: string): number | undefined {
   return cards > 0 ? total : undefined
 }
 
-async function readDiscreteGpuMemory(io: Io): Promise<{ bytes: number; source: string } | undefined> {
+async function readDiscreteGpuMemory(io: Io): Promise<{ bytes: number; source: string; vendor: 'nvidia' | 'amd' } | undefined> {
   const nvidia = parseNvidiaSmiMemory((await io.run('nvidia-smi', ['--query-gpu=memory.total', '--format=csv,noheader,nounits'])) ?? '')
-  if (nvidia !== undefined) return { bytes: nvidia, source: 'the GPU memory nvidia-smi reports (memory.total, every card)' }
+  if (nvidia !== undefined) return { bytes: nvidia, source: 'the GPU memory nvidia-smi reports (memory.total, every card)', vendor: 'nvidia' }
   const rocm = parseRocmSmiMemory((await io.run('rocm-smi', ['--showmeminfo', 'vram', '--json'])) ?? '')
-  if (rocm !== undefined) return { bytes: rocm, source: 'the GPU memory rocm-smi reports (VRAM total, every card)' }
+  if (rocm !== undefined) return { bytes: rocm, source: 'the GPU memory rocm-smi reports (VRAM total, every card)', vendor: 'amd' }
   return undefined
 }
 
 export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Promise<MachineTruth> {
   const total = io.totalMemoryBytes
-  const base = { platform: io.platform, totalMemoryBytes: total }
+  const gpu = io.platform === 'darwin' ? undefined : await readDiscreteGpuMemory(io)
+  const base = { platform: io.platform, totalMemoryBytes: total, ...(gpu ? { gpu: gpu.vendor } : {}) }
   if (launchForm.logPath) {
     const tail = io.readTail(launchForm.logPath, LOG_TAIL_BYTES)
     if (tail !== undefined) {
@@ -722,10 +724,7 @@ export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Pro
   if (io.platform === 'darwin') {
     const limit = Number((await io.run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim())
     if (Number.isFinite(limit) && limit > 0) return { ...base, usableMemoryBytes: Math.round(limit * 1024 * 1024), usableSource: 'iogpu.wired_limit_mb' }
-  } else {
-    const gpu = await readDiscreteGpuMemory(io)
-    if (gpu !== undefined) return { ...base, usableMemoryBytes: gpu.bytes, usableSource: gpu.source }
-  }
+  } else if (gpu !== undefined) return { ...base, usableMemoryBytes: gpu.bytes, usableSource: gpu.source }
   if (io.platform === 'linux') {
     const available = parseLinuxMemAvailable(io.readText('/proc/meminfo'))
     if (available !== undefined) return { ...base, usableMemoryBytes: available, usableSource: 'MemAvailable in /proc/meminfo', usableIsAvailable: true }

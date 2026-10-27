@@ -9,7 +9,7 @@ export const root = join(proofHome, 'media')
 const engine = join(proofHome, 'engine')
 export const serverPath = join(engine, 'dist', 'server.js')
 export const catalogue: MediaCatalogue = {
-  runtime: { tag: 'fixture-1', asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) },
+  runtime: { tag: 'fixture-1', platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) }] }] } },
   files: [
     { path: 'image.gguf', bytes: 8, repo: 'fixture/images', source: 'image.gguf', sha256: 'b'.repeat(64) },
     { path: 'other.gguf', bytes: 4, repo: 'fixture/images', source: 'other.gguf', sha256: 'c'.repeat(64) },
