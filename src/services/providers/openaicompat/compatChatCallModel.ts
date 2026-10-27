@@ -528,7 +528,7 @@ export async function* compatChatCallModel(
       return
     }
   }
-  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
   const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages

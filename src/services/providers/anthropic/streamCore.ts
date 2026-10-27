@@ -255,6 +255,7 @@ export type Options = {
   skipCacheWrite?: boolean
   temperatureOverride?: number
   effortValue?: EffortValue
+  ridesSessionEffort?: boolean
   mcpTools: Tools
   hasPendingMcpServers?: boolean
   callChain?: ToolCallChain
@@ -455,10 +456,11 @@ async function* queryModel(
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
   const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId })
-  let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' })
+  const effortAsked = options.ridesSessionEffort === false ? undefined : effortTruth.requested
+  let effortOnWire: EffortStampV1 = effortStampOf(effortAsked, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' })
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
-    effortOnWire = effortStampOf(effortTruth.requested, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
+    effortOnWire = effortStampOf(effortAsked, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
     signInRequest = captureSignInRequest('anthropic')
     captureAPIRequest(params, options.querySource)
   }
@@ -556,7 +558,7 @@ async function* queryModel(
     messagesForAPI,
     API_MAX_MEDIA_PER_REQUEST,
   )
-  const retiredScreenshots = retireOlderScreenshots(messagesForAPI)
+  const retiredScreenshots = retireOlderScreenshots(messagesForAPI, undefined, undefined, rosterOwnerKey)
   messagesForAPI =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
@@ -600,7 +602,7 @@ async function* queryModel(
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
 
-  const effort = resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
+  const effort = options.ridesSessionEffort === false ? undefined : resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
 
   const startIncludingRetries = Date.now()
   let start = Date.now()
@@ -1774,7 +1776,7 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
     messages: [createUserMessage({ content: question.userPrompt })], systemPrompt,
     thinkingConfig: { type: 'disabled' }, tools: [], signal: question.signal,
     options: {
-      ...question.options, enablePromptCaching: question.options.enablePromptCaching ?? false,
+      ridesSessionEffort: false, ...question.options, enablePromptCaching: question.options.enablePromptCaching ?? false,
       outputFormat: question.outputFormat, getToolPermissionContext: async () => getEmptyToolPermissionContext(),
     },
   }

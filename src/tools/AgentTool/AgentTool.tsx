@@ -638,9 +638,7 @@ export const AgentTool = buildTool({
       (input.run_in_background === true || agentDef.background === true) &&
       !BACKGROUND_TASKS_DISABLED
 
-    const querySource =
-      options.querySource ??
-      getQuerySourceForAgent(agentDef.agentType, isBuiltInAgent(agentDef))
+    const querySource = getQuerySourceForAgent(agentDef.agentType, isBuiltInAgent(agentDef))
 
     const definitionSchema = (agentDef as { outputSchema?: Record<string, unknown> }).outputSchema
     const structuredOutputSpec = (() => {

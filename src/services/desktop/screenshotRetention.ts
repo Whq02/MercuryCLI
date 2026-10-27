@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { detectImageFormatFromBuffer } from '../../utils/imageResizer.js'
+import { settleWireEdits, type WireEdit } from '../../utils/messages/wireEdits.js'
 import { noteScreenshot, screenshotPathForToolUse } from './desktopSession.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
 
@@ -154,6 +155,7 @@ export function retireOlderScreenshots<M extends Message>(
   messages: M[],
   keep: number = SCREENSHOT_KEEP_RECENT,
   highWater: number = SCREENSHOT_WIRE_HIGH_WATER,
+  owner?: string,
 ): RetiredScreenshots<M> {
   const live: Array<{ index: number; toolUseId: string }> = []
   messages.forEach((message, index) => {
@@ -172,7 +174,7 @@ export function retireOlderScreenshots<M extends Message>(
     else retired.set(entry.index, new Set([entry.toolUseId]))
   }
   if (retired.size === 0) return { messages, firstEdited: -1 }
-  let firstEdited = -1
+  const edits: WireEdit[] = []
   const projected = messages.map((message, index) => {
     const ids = retired.get(index)
     if (ids === undefined) return message
@@ -180,10 +182,10 @@ export function retireOlderScreenshots<M extends Message>(
     if (blocks === null) return message
     const rebuilt = blocks.map(block => {
       if (!isScreenshotResult(block) || !ids.has(block.tool_use_id)) return block
+      edits.push({ index, key: `retired:${block.tool_use_id}` })
       return withImagesReplaced(block, earlierScreenshotText(screenshotPathForToolUse(block.tool_use_id) ?? ''))
     })
-    if (firstEdited === -1) firstEdited = index
     return rebuildUser(message, rebuilt)
   })
-  return { messages: projected, firstEdited }
+  return settleWireEdits(owner, projected, edits)
 }

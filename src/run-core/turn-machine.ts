@@ -838,7 +838,9 @@ async function* streamModel(
                 String(rosterOwnerFromToolUseContext(toolUseContext)),
                 iter.messagesForQuery,
                 iter.currentModel,
-                { rosterOnly: toolUseContext.agentId != null },
+                toolUseContext.agentId != null
+                  ? { rosterOnly: true, context: { userContext: run.userContext, systemContext: run.params.systemContext } }
+                  : { rosterOnly: false },
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }

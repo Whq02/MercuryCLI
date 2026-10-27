@@ -134,12 +134,34 @@ export interface ZaiFault {
 
 const RETRYABLE_ZAI_CODES = new Set([1302, 1305, 1113, 1234, 1230])
 
-export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }): ZaiFault {
+const ZAI_RESET_SENTENCE = /(?:will reset at|resets? at)\s+(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/i
+const ZAI_RESET_WINDOW = /for (?:the past )?(\d+)\s*(hour|day)s?\b/i
+const ZAI_RESET_ZONE_OFFSET_MS = 8 * 60 * 60 * 1000
+const ZAI_RESET_FURTHEST_MS = 31 * 24 * 60 * 60 * 1000
+const ZAI_RESET_SLACK_MS = 60 * 60 * 1000
+
+export function zaiStatedResetWaitMs(message: string, nowMs: number = Date.now()): number | undefined {
+  const match = ZAI_RESET_SENTENCE.exec(message)
+  if (match === null) return undefined
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number) as [number, number, number, number, number, number]
+  const resetsAtMs = Date.UTC(year, month - 1, day, hour, minute, second) - ZAI_RESET_ZONE_OFFSET_MS
+  if (!Number.isFinite(resetsAtMs)) return undefined
+  const waitMs = resetsAtMs - nowMs
+  if (waitMs <= 0 || waitMs > ZAI_RESET_FURTHEST_MS) return undefined
+  const window = ZAI_RESET_WINDOW.exec(message)
+  if (window !== null) {
+    const unitMs = window[2]!.toLowerCase() === 'day' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000
+    if (waitMs > Number(window[1]) * unitMs + ZAI_RESET_SLACK_MS) return undefined
+  }
+  return waitMs
+}
+
+export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }, nowMs: number = Date.now()): ZaiFault {
   const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const codeNum = Number(err?.code ?? o?.code)
   const message = String(err?.message ?? o?.message ?? `HTTP ${status}`)
-  const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+  const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined) ?? zaiStatedResetWaitMs(message, nowMs)
   const asked = retryAfterMs !== undefined ? { retryAfterMs } : {}
   if (Number.isFinite(codeNum) && codeNum > 0) {
     return {

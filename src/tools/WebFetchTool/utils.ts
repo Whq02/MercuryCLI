@@ -5,6 +5,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
 import { AbortError } from '../../utils/errors.js'
 import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
+import { extractTextContent } from '../../utils/messages/text.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { isPreapprovedHost } from './preapproved.js'
@@ -193,8 +194,9 @@ export async function applyPromptToMarkdown(
     hasAppendSystemPrompt: false,
   }
   const textOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null => {
-    const first = response.message.content[0]
-    return first?.type === 'text' ? first.text : null
+    const content = response.message.content
+    const text = typeof content === 'string' ? content : extractTextContent(content, '\n')
+    return text.trim() === '' ? null : text
   }
   const refusalOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null =>
     response.isApiErrorMessage === true ? (textOf(response) ?? 'the reply carried no text') : null

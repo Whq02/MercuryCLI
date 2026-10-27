@@ -39,6 +39,8 @@
 # gate-watch: src/rows/* src/runner/wire/* scripts/settings/settings-schema.json
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/persistModelChoice.ts src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/query/deps.ts src/utils/attachments/toolSchemaDelta.ts
+# gate-watch: src/services/desktop/desktopSession.ts src/utils/messages/wireEdits.ts
+# gate-watch: src/tools/AgentTool/resumeAgent.ts src/utils/attachments/types.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -88,6 +90,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-histo
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-record-life.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-record-life.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-restart-keeps-thinking.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-restart-keeps-thinking.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-agent-roster.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-agent-roster.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-agent-context.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-agent-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-agent-record-resume.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-agent-record-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-roster-marks.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-roster-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lawful-change-owners.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-lawful-change-owners.ts" "$__t" "$__rc"
@@ -107,9 +110,11 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-roa
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-refusal-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-image-refusal-recovery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-cap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-cap.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-rescue.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-rescue.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-fitted-images-keep-later-thinking.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-fitted-images-keep-later-thinking.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-field-e004-image-sizer.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-field-e004-image-sizer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sized-copy-follows-limits.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sized-copy-follows-limits.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-block.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-text-block.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-side-question-effort.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-side-question-effort.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unrecognised-4xx-sentence.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-unrecognised-4xx-sentence.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

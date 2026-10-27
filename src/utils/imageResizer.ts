@@ -11,6 +11,7 @@ import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
 import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'
 import { logError } from './log.js'
+import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
 
 
 export class ImageResizeError extends Error {
@@ -379,6 +380,46 @@ const sizedImageCache = new Map<string, Base64ImageSource>()
 let sizedImageCacheBytes = 0
 const leftOutImages = new Set<string>()
 const leftOutReceipts = new Map<string, ImagesLeftOutReceiptV1>()
+const fittedImagesByOwner = new Map<string, Map<number, Array<{ hash: string; sidePx: number }>>>()
+
+export function resetFittedImagesForTesting(): void {
+  fittedImagesByOwner.clear()
+}
+
+function imageHash(data: string): string {
+  return createHash('sha256').update(data).digest('hex')
+}
+
+function rememberedFitSidePx(owner: string | undefined, data: string): number | undefined {
+  if (owner === undefined) return undefined
+  const sameLength = fittedImagesByOwner.get(owner)?.get(data.length)
+  if (sameLength === undefined) return undefined
+  const hash = imageHash(data)
+  return sameLength.find(entry => entry.hash === hash)?.sidePx
+}
+
+function rememberFit(owner: string | undefined, data: string, hash: string, sidePx: number): void {
+  if (owner === undefined) return
+  let byLength = fittedImagesByOwner.get(owner)
+  if (byLength === undefined) {
+    byLength = new Map()
+    fittedImagesByOwner.set(owner, byLength)
+  }
+  let entries = byLength.get(data.length)
+  if (entries === undefined) {
+    entries = []
+    byLength.set(data.length, entries)
+  }
+  const held = entries.find(entry => entry.hash === hash)
+  if (held === undefined) entries.push({ hash, sidePx })
+  else if (sidePx < held.sidePx) held.sidePx = sidePx
+}
+
+function effectiveSidePx(owner: string | undefined, data: string, sidePx: number | null): number | null {
+  const remembered = rememberedFitSidePx(owner, data)
+  if (remembered === undefined) return sidePx
+  return sidePx === null ? remembered : Math.min(sidePx, remembered)
+}
 
 export function imageLeftOutNote(dims: { width: number; height: number }, mediaType: string | undefined, sidePx: number): string {
   return `[An image of ${dims.width}x${dims.height} px${mediaType ? ` (${mediaType})` : ''} could not be sized to this request's ${sidePx} px limit and was left out of the request; the transcript keeps it.]`
@@ -449,10 +490,10 @@ export function countRequestImages(messages: readonly unknown[]): number {
   return count
 }
 
-function sizedImageKey(data: string, sidePx: number, limits: ImageLimits): string {
+function sizedImageKey(data: string, sidePx: number, limits: ImageLimits, hash: string = imageHash(data)): string {
   const ceiling = limits.maxBase64Bytes ?? limits.maxRequestBytes
   const patches = limits.maxPatchesPerImage === null ? 'none' : `${limits.maxPatchesPerImage.patchPx}x${limits.maxPatchesPerImage.count}`
-  return `${sidePx}:${ceiling}:${patches}:${data.length}:${createHash('sha256').update(data).digest('hex')}`
+  return `${sidePx}:${ceiling}:${patches}:${data.length}:${hash}`
 }
 
 function rememberSized(key: string, source: Base64ImageSource): void {
@@ -467,7 +508,10 @@ function rememberSized(key: string, source: Base64ImageSource): void {
   sizedImageCacheBytes += source.data.length
 }
 
-type SizedImage = { kind: 'as-is' } | { kind: 'sized'; source: Base64ImageSource } | { kind: 'left-out'; note: string }
+type SizedImage =
+  | { kind: 'as-is' }
+  | { kind: 'sized'; source: Base64ImageSource; key: string; hash: string }
+  | { kind: 'left-out'; note: string; key: string; hash: string }
 
 function rememberLeftOut(key: string): void {
   if (leftOutImages.size >= LEFT_OUT_MEMO_CAP) leftOutImages.clear()
@@ -485,23 +529,25 @@ async function sizedImageSource(
   if (dims === null) {
     if (!overManyImagesThreshold(limits, imagesInRequest)) return { kind: 'as-is' }
     logForDebugging(`an image whose size could not be read is left out of a request of ${imagesInRequest} images (the ${sidePx} px cap applies and nothing says it fits; a one-line note takes its place; the transcript keeps it)`, { level: 'warn' })
-    return { kind: 'left-out', note: imageUnreadableNote(block.source.media_type, sidePx, imagesInRequest) }
+    const hash = imageHash(block.source.data)
+    return { kind: 'left-out', note: imageUnreadableNote(block.source.media_type, sidePx, imagesInRequest), key: `unreadable:${sizedImageKey(block.source.data, sidePx, limits, hash)}`, hash }
   }
   if (Math.max(dims.width, dims.height) <= sidePx) return { kind: 'as-is' }
-  const key = sizedImageKey(block.source.data, sidePx, limits)
+  const hash = imageHash(block.source.data)
+  const key = sizedImageKey(block.source.data, sidePx, limits, hash)
   const remembered = sizedImageCache.get(key)
-  if (remembered !== undefined) return { kind: 'sized', source: remembered }
+  if (remembered !== undefined) return { kind: 'sized', source: remembered, key, hash }
   const note = imageLeftOutNote(dims, block.source.media_type, sidePx)
-  if (leftOutImages.has(key)) return { kind: 'left-out', note }
+  if (leftOutImages.has(key)) return { kind: 'left-out', note, key, hash }
   try {
-    const resized = await maybeResizeAndDownsampleImageBlock(block as unknown as ImageBlockParam, { limits, model, imagesInRequest, role: 'input' })
+    const resized = await maybeResizeAndDownsampleImageBlock(block as unknown as ImageBlockParam, { limits: { ...limits, maxSidePx: sidePx }, model, imagesInRequest, role: 'input' })
     if (resized.block.source.type !== 'base64') return { kind: 'as-is' }
     rememberSized(key, resized.block.source)
-    return { kind: 'sized', source: resized.block.source }
+    return { kind: 'sized', source: resized.block.source, key, hash }
   } catch (error) {
     logForDebugging(`an image of ${dims.width}x${dims.height} px could not be sized to the request's ${sidePx} px cap and is left out of the request (a one-line note takes its place; the transcript keeps it): ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
     rememberLeftOut(key)
-    return { kind: 'left-out', note }
+    return { kind: 'left-out', note, key, hash }
   }
 }
 
@@ -512,15 +558,24 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await engineModel()))
   const images = countRequestImages(messages)
   const sidePx = requestImageSidePx(limits, images)
+  const owner = options?.owner
+  const conversation = owner === undefined ? undefined : conversationEditKey(owner, messages as Array<{ type: string; uuid?: unknown }>)
   const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, leftOut: 0, sidePx }
-  if (sidePx === null || images === 0) return identity
+  if (images === 0 || (sidePx === null && (conversation === undefined || (fittedImagesByOwner.get(conversation)?.size ?? 0) === 0))) return identity
   let leftOut = 0
-  const fitBlock = async (block: unknown): Promise<unknown> => {
+  let leftOutCap: number | null = sidePx
+  const edits: WireEdit[] = []
+  const fitBlock = async (block: unknown, index: number): Promise<unknown> => {
     if (!isBase64ImageRecord(block)) return block
-    const fitted = await sizedImageSource(block, sidePx, limits, options?.model, images)
+    const capPx = effectiveSidePx(conversation, block.source.data, sidePx)
+    if (capPx === null) return block
+    const fitted = await sizedImageSource(block, capPx, limits, options?.model, images)
     if (fitted.kind === 'as-is') return block
+    rememberFit(conversation, block.source.data, fitted.hash, capPx)
+    edits.push({ index, key: `${fitted.kind}:${fitted.key}` })
     if (fitted.kind === 'sized') return { ...block, source: fitted.source }
     leftOut++
+    leftOutCap = capPx
     return { type: 'text', text: fitted.note }
   }
   let firstEdited = -1
@@ -536,7 +591,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
     let changed = false
     const blocks: unknown[] = []
     for (const block of content) {
-      const fitted = await fitBlock(block)
+      const fitted = await fitBlock(block, index)
       if (fitted !== block) {
         changed = true
         sized++
@@ -551,7 +606,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
       let innerChanged = false
       const inner: unknown[] = []
       for (const part of nested) {
-        const fitted = await fitBlock(part)
+        const fitted = await fitBlock(part, index)
         if (fitted !== part) {
           innerChanged = true
           sized++
@@ -575,9 +630,10 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   }
   if (firstEdited === -1) return identity
   sized -= leftOut
-  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null && images > limits.manyImages.threshold ? `, the cap for a request with more than ${limits.manyImages.threshold} images` : ''})`)
-  if (leftOut > 0 && options?.owner !== undefined) leftOutReceipts.set(options.owner, { count: leftOut, images, sidePx, at: Date.now() })
-  return { messages: out, firstEdited, images, sized, leftOut, sidePx }
+  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx ?? 'their remembered'} px a side${leftOut > 0 ? `, ${leftOut} left out of the request` : ''} (${limits.family} limits${limits.manyImages !== null && images > limits.manyImages.threshold ? `, the cap for a request with more than ${limits.manyImages.threshold} images` : ''})`)
+  if (leftOut > 0 && owner !== undefined && leftOutCap !== null) leftOutReceipts.set(owner, { count: leftOut, images, sidePx: leftOutCap, at: Date.now() })
+  const settled = settleWireEdits(owner, out, edits)
+  return { messages: settled.messages, firstEdited: settled.firstEdited, images, sized, leftOut, sidePx }
 }
 
 

@@ -252,7 +252,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     if (shaped.length > 0) toolDeclarations.set(declaration.toolUseId, toolDeclarationRowAsText(mapToolsToZai(shaped)))
   }
   const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
-  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
   const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages

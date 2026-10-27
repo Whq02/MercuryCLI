@@ -25,6 +25,7 @@ export function scriptedCallModel(
   if (script === 'hammer-breaker') return scriptedHammerBreaker
   if (script === ANSWER_TEXT_SCRIPT) return scriptedAnswerText
   if (script === CHATTY_BASH_SCRIPT) return scriptedChattyBash
+  if (script === OPENING_TEXT_SCRIPT) return scriptedOpeningText
   if ((ONE_TOOL_SCRIPTS as readonly string[]).includes(script)) {
     return scriptedOneTool(script as OneToolScript)
   }
@@ -121,6 +122,55 @@ const scriptedAnswerText: CallModel = async function* scriptedAnswerText(params)
   yield { type: 'stream_event', event: { type: 'ping' } } as never
   if (params.signal.aborted) return
   yield createAssistantMessage({ content: ONE_TOOL_SETTLED_TEXT }) as never
+}
+
+const OPENING_TEXT_SCRIPT = 'opening-text'
+const OPENING_TEXT_FILES = ['package.json', 'README.md', 'docs/README.md'] as const
+const OPENING_TEXT_WORDS = 'Before I touch anything: the manifest names the package, so the greeting runs against that name. I will read the three files and report what came back.'
+const OPENING_TEXT_CLOSING_WORDS = 'All three files read; the manifest still names the package.'
+const OPENING_TEXT_DELTA_MS = 60
+
+let openingTextCalls = 0
+
+function usageOf(): { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number } {
+  return { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+}
+
+const scriptedOpeningText: CallModel = async function* scriptedOpeningText(params) {
+  openingTextCalls += 1
+  const call = openingTextCalls
+  const id = `msg_opening_${call}`
+  const streamEvent = (event: Record<string, unknown>): never => ({ type: 'stream_event', event }) as never
+  yield streamEvent({ type: 'message_start', message: { id, type: 'message', role: 'assistant', model: 'scripted', content: [], stop_reason: null, stop_sequence: null, usage: usageOf() } })
+  const blocks: Array<{ type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }> = []
+  const stopReason = call <= OPENING_TEXT_FILES.length ? 'tool_use' : 'end_turn'
+  if (call === 1 || call > OPENING_TEXT_FILES.length) {
+    const words = call === 1 ? OPENING_TEXT_WORDS : OPENING_TEXT_CLOSING_WORDS
+    const index = blocks.length
+    yield streamEvent({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } })
+    for (const piece of words.split(/(?<= )/)) {
+      yield streamEvent({ type: 'content_block_delta', index, delta: { type: 'text_delta', text: piece } })
+      await sleep(OPENING_TEXT_DELTA_MS, params.signal)
+      if (params.signal.aborted) return
+    }
+    yield streamEvent({ type: 'content_block_stop', index })
+    blocks.push({ type: 'text', text: words })
+  }
+  if (call <= OPENING_TEXT_FILES.length) {
+    const index = blocks.length
+    const input = { file_path: join(getCwd(), OPENING_TEXT_FILES[call - 1]!) }
+    const toolUseId = `toolu_opening_${call}`
+    yield streamEvent({ type: 'content_block_start', index, content_block: { type: 'tool_use', id: toolUseId, name: 'Read', input: {} } })
+    yield streamEvent({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } })
+    yield streamEvent({ type: 'content_block_stop', index })
+    blocks.push({ type: 'tool_use', id: toolUseId, name: 'Read', input })
+  }
+  yield streamEvent({ type: 'message_delta', delta: { stop_reason: stopReason, stop_sequence: null }, usage: { output_tokens: 1 } })
+  yield streamEvent({ type: 'message_stop' })
+  const message = createAssistantMessage({ content: blocks as never })
+  message.message.id = id
+  message.message.stop_reason = stopReason
+  yield message as never
 }
 
 let chattyBashCalls = 0

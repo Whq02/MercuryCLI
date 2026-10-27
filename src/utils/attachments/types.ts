@@ -60,6 +60,7 @@ type ContextBodies = {
   bound_prefix: {
     boundKey: string; rosterEnabled: boolean; roster: BoundPrefixToolMark[]
     sections: BoundPrefixSection[]; systemContext: Record<string, string>
+    userContext?: Record<string, string>
   }
   dead_thinking: { dead: DeadThinkingMark[] }
 }

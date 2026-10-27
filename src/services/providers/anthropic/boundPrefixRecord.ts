@@ -12,6 +12,12 @@ import { carriesRecordedWhole, restoreWholeRecordedComposition, staticCompositio
 interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
   fold?: boolean
+  context?: RequestContexts
+}
+
+export interface RequestContexts {
+  userContext: Record<string, string>
+  systemContext: Record<string, string>
 }
 
 interface BoundPrefixRecordData {
@@ -20,6 +26,7 @@ interface BoundPrefixRecordData {
   roster: BoundPrefixToolMark[]
   sections: BoundPrefixSection[]
   systemContext: Record<string, string>
+  userContext?: Record<string, string>
 }
 
 const MEMO_KEY = undefined
@@ -52,7 +59,16 @@ export async function buildBoundPrefixRecordData(
   if (latch === undefined) return null
   const definitions = getConversationToolSchemas(boundKey)
   const roster: BoundPrefixToolMark[] = latch.names.map(name => ({ name, deferred: latch.deferred.has(name), ...(definitions.has(name) ? { definition: definitions.get(name)! } : {}) }))
-  if (opts?.rosterOnly === true) return { boundKey, rosterEnabled: latch.enabled, roster, sections: [], systemContext: {} }
+  if (opts?.rosterOnly === true) {
+    return {
+      boundKey,
+      rosterEnabled: latch.enabled,
+      roster,
+      sections: [],
+      systemContext: { ...(opts.context?.systemContext ?? {}) },
+      ...(opts.context !== undefined ? { userContext: { ...opts.context.userContext } } : {}),
+    }
+  }
   const sections: BoundPrefixSection[] = []
   for (const [name, entry] of getSystemPromptSectionCache()) {
     for (const [key, value] of entry.byKey ?? []) {
@@ -84,17 +100,33 @@ export async function boundPrefixRecordToEmit(
   const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey) ?? null
   const compatible = recorded !== null && Array.isArray(recorded.sections) && !staticCompositionChanged(recorded.sections)
   if (compatible && rosterSignatureOf(recorded) === signature) return null
+  const recordedContexts = compatible && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
   return createAttachmentMessage({
     type: 'bound_prefix',
     boundKey: data.boundKey,
     rosterEnabled: data.rosterEnabled,
     roster: data.roster,
     sections: compatible ? recorded.sections : data.sections,
-    systemContext:
-      compatible && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
-        ? recorded.systemContext
-        : data.systemContext,
+    systemContext: recordedContexts ? recorded.systemContext : data.systemContext,
+    ...(recordedContexts && isContextRecord(recorded.userContext)
+      ? { userContext: recorded.userContext }
+      : data.userContext !== undefined
+        ? { userContext: data.userContext }
+        : {}),
   })
+}
+
+function isContextRecord(value: unknown): value is Record<string, string> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.values(value as Record<string, unknown>).every(entry => typeof entry === 'string')
+}
+
+export function recordedRequestContexts(messages: readonly Message[], boundKey: string): Partial<RequestContexts> | null {
+  const record = [...messages].reverse().map(boundPrefixAttachmentOf).find(entry => entry?.boundKey === boundKey) ?? null
+  if (record === null) return null
+  const out: Partial<RequestContexts> = {}
+  if (isContextRecord(record.userContext) && Object.keys(record.userContext).length > 0) out.userContext = { ...record.userContext }
+  if (isContextRecord(record.systemContext) && Object.keys(record.systemContext).length > 0) out.systemContext = { ...record.systemContext }
+  return out.userContext === undefined && out.systemContext === undefined ? null : out
 }
 
 function rosterSignatureOf(record: Pick<BoundPrefixRecordData, 'boundKey' | 'rosterEnabled' | 'roster'>): string {

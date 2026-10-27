@@ -102,6 +102,8 @@ const TOOL_USE_READ = {
   type: 'tool_use', id: 'toolu_read1', name: 'Read',
   input: { file_path: join(RUNTIME_CWD, 'package.json') },
 }
+export const OPENING_PARAGRAPH = 'Before I touch anything: the manifest names the package orchard, so the greeting runs against that name. I will read it, run the greeting three times, and report what came back.'
+export const CLOSING_PARAGRAPH = 'All three greetings answered; the manifest still names orchard.'
 const TOOL_USE_STRUCTURE = {
   type: 'tool_use', id: 'toolu_struct1', name: 'Structure',
   input: { op: 'preview', action: 'replace', replacement: 'return greetOperator(name)' },
@@ -396,7 +398,7 @@ export function encodeFixtureTranscript(
 }
 
 export function writeSyntheticSession(
-  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'expand' | 'workflow' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
+  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'opening-text' | 'expand' | 'workflow' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
   sid: string = SID,
 ): void {
   purgeFixtureDraft(sid)
@@ -686,6 +688,42 @@ export function writeSyntheticSession(
           message: { role: 'user', content: TOOL_RESULT_READ.content },
           toolUseResult: TOOL_RESULT_READ.toolUseResult,
           timestamp: '2026-06-19T12:00:05.000Z' }),
+      ]
+    : variant === 'opening-text'
+    ? [
+        base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001',
+          message: { role: 'user', content: 'check the manifest and run the greeting three times' },
+          timestamp: '2026-06-19T12:00:01.000Z' }),
+        base({ parentUuid: '00000000-0000-4000-8000-000000000001', type: 'assistant',
+          uuid: '00000000-0000-4000-8000-000000000002', requestId: 'req_open_1',
+          message: { id: 'msg_open_1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+            content: [{ type: 'text', text: OPENING_PARAGRAPH }, TOOL_USE_READ], stop_reason: 'tool_use', stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 } },
+          timestamp: '2026-06-19T12:00:02.000Z' }),
+        base({ parentUuid: '00000000-0000-4000-8000-000000000002', type: 'user',
+          uuid: '00000000-0000-4000-8000-000000000003',
+          message: { role: 'user', content: TOOL_RESULT_READ.content },
+          toolUseResult: TOOL_RESULT_READ.toolUseResult,
+          timestamp: '2026-06-19T12:00:03.000Z' }),
+        ...[1, 2, 3].flatMap(n => [
+          base({ parentUuid: `00000000-0000-4000-8000-0000000000${n === 1 ? '03' : n === 2 ? '05' : '07'}`, type: 'assistant',
+            uuid: `00000000-0000-4000-8000-0000000000${n === 1 ? '04' : n === 2 ? '06' : '08'}`, requestId: `req_open_bash_${n}`,
+            message: { id: `msg_open_bash_${n}`, type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+              content: [{ type: 'tool_use', id: `toolu_open_bash${n}`, name: 'Bash', input: { command: `echo greeting ${n}`, description: `Greeting ${n}` } }], stop_reason: 'tool_use', stop_sequence: null,
+              usage: { input_tokens: 1, output_tokens: 1 } },
+            timestamp: `2026-06-19T12:00:0${3 + n}.000Z` }),
+          base({ parentUuid: `00000000-0000-4000-8000-0000000000${n === 1 ? '04' : n === 2 ? '06' : '08'}`, type: 'user',
+            uuid: `00000000-0000-4000-8000-0000000000${n === 1 ? '05' : n === 2 ? '07' : '09'}`,
+            message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_open_bash${n}`, content: [{ type: 'text', text: `greeting ${n}` }] }] },
+            toolUseResult: { stdout: `greeting ${n}`, stderr: '', interrupted: false, isImage: false, noOutputExpected: false },
+            timestamp: `2026-06-19T12:00:0${3 + n}.500Z` }),
+        ]),
+        base({ parentUuid: '00000000-0000-4000-8000-000000000009', type: 'assistant',
+          uuid: '00000000-0000-4000-8000-000000000010', requestId: 'req_open_final',
+          message: { id: 'msg_open_final', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+            content: [{ type: 'text', text: CLOSING_PARAGRAPH }], stop_reason: 'end_turn', stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 } },
+          timestamp: '2026-06-19T12:00:08.000Z' }),
       ]
     : variant === 'lifecycle'
     ? [
@@ -2200,6 +2238,21 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const sends =
       name === 'tool-cards-detail' ? [{ atTick: 38, data: String.fromCharCode(15) }] : []
     return { argv: ['node', BIN, '--resume', SID], sends, total: name === 'tool-cards-detail' ? 60 : 45, cols, rows }
+  }
+  if (name === 'opening-text') {
+    writeSyntheticSession('opening-text')
+    return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
+  }
+  if (name === 'opening-text-live') {
+    writeSyntheticSession('short')
+    return {
+      requiresEnv: { MERCURY_SCRIPTED_STREAM: 'opening-text' },
+      argv: ['node', BIN, '--resume', SID],
+      sends: [{ atTick: 30, data: 'read the three files and report\r' }],
+      total: 140,
+      cols,
+      rows,
+    }
   }
   if (name === 'changeset-card' || name === 'changeset-card-detail') {
     writeSyntheticSession('changeset')

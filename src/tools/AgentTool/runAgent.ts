@@ -823,11 +823,13 @@ export async function* runAgent(
       if (requestedProfile !== sessionResolution.profile) {
         try {
           const slice = await getInstructionSliceForProfile(requestedProfile)
-          userContext = { ...userContext }
-          if (slice.instructionPrompt) {
-            userContext[INSTRUCTIONS_CONTEXT_KEY] = slice.instructionPrompt
-          } else {
-            userContext = withoutInstructionBlob(userContext)
+          if (override?.userContext === undefined) {
+            userContext = { ...userContext }
+            if (slice.instructionPrompt) {
+              userContext[INSTRUCTIONS_CONTEXT_KEY] = slice.instructionPrompt
+            } else {
+              userContext = withoutInstructionBlob(userContext)
+            }
           }
           instructionCapture = {
             profile: requestedProfile,

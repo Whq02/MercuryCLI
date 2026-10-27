@@ -1957,7 +1957,7 @@ export async function compactConversation(
           : { state: 'none', reason: 'no substantive run' },
     })
 
-    reAppendSessionMetadata()
+    if (context.agentId === undefined) reAppendSessionMetadata()
 
     return {
       ...partial,
@@ -2068,7 +2068,7 @@ export async function partialCompactConversation(
     annotateBoundaryWithPreservedSegment(boundary, relinkAnchor, kept)
     annotateBoundaryWithWork(boundary, allMessages, kept, summaryMessage.uuid)
 
-    reAppendSessionMetadata()
+    if (context.agentId === undefined) reAppendSessionMetadata()
 
     const usage = (response.message as { usage?: NonNullableUsage }).usage
     const callUsageTotal = usage

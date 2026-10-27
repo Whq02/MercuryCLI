@@ -596,7 +596,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   }
   if (deferralFormReissued !== undefined) settlementNotes.push(deferralFormReissued)
 
-  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
   const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages

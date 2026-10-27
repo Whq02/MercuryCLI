@@ -40,7 +40,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
-import { restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
+import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.js'
 import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
@@ -145,6 +145,8 @@ export async function resumeAgentBackground(args: {
     }
   }
   const restoredKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
+  const recordedContexts = restoredKey === null ? null : recordedRequestContexts(transcript.messages, restoredKey)
+  if (recordedContexts !== null) logForDebugging(`resumeAgent: crewmate ${agentId} resumes with the contexts its first exchange recorded (${Object.keys(recordedContexts).join(', ')}), so its signed prefix holds`)
   try {
     const rebuilt = rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)
     if (rebuilt.files > 0) logForDebugging(`read ledger: crewmate ${agentId} read or wrote ${rebuilt.lines} line(s) of ${rebuilt.files} file(s) before this resume; they still read the same and count as read`)
@@ -307,6 +309,8 @@ export async function resumeAgentBackground(args: {
           override: {
             agentId,
             abortController: task.abortController!,
+            ...(recordedContexts?.userContext !== undefined ? { userContext: recordedContexts.userContext } : {}),
+            ...(recordedContexts?.systemContext !== undefined ? { systemContext: recordedContexts.systemContext } : {}),
           },
           model: restoredModel,
           availableTools: tools,

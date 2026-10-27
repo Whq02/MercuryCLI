@@ -29,7 +29,7 @@ function isMainThreadCompaction(querySource: string | undefined): boolean {
 
 export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, preservedMessages?: readonly Message[]): void {
   const normalized: PostCompactScope = typeof scope === 'string' ? { querySource: scope } : (scope ?? {})
-  const mainThread = isMainThreadCompaction(normalized.querySource)
+  const mainThread = normalized.agentId === undefined && isMainThreadCompaction(normalized.querySource)
 
   const owner =
     normalized.owner ??
