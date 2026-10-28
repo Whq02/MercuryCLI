@@ -40,7 +40,7 @@ import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
 import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
 import { BootAgentsScreen } from './BootAgentsScreen.js';
 import { BootHealthScreen } from './BootHealthScreen.js';
-import { BootLoginsScreen, loginsFamilyCounts } from './BootLoginsScreen.js';
+import { BootLoginsScreen, loginsGlance } from './BootLoginsScreen.js';
 import { BootResumeScreen } from './BootResumeScreen.js';
 import { BootSaturnScreen, fireDeltaWords } from './BootSaturnScreen.js';
 import { BootSettingsScreen } from './BootSettingsScreen.js';
@@ -270,8 +270,7 @@ export function BootSplashScreen(): React.ReactNode {
 
   const loginsCtx = useMemo(() => {
     try {
-      const { familyIds, signed } = loginsFamilyCounts(deriveFamilySlotGroups());
-      return signed > 0 ? `${signed} of ${familyIds.length} signed in` : 'not signed in — sign in to providers';
+      return loginsGlance(deriveFamilySlotGroups());
     } catch {
       return null;
     }

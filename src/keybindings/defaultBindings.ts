@@ -46,6 +46,7 @@ const SHIPPED_KEYS = {
     'ctrl+x g': 'app:contentSearch',
     'ctrl+x k': 'command:workbench',
     'ctrl+x s': 'command:sessions',
+    'ctrl+x y': 'command:copy',
     'ctrl+x c': 'app:openSurfaceSwitcher',
     'ctrl+x ctrl+x': 'concourse:closeSession',
     'ctrl+o': 'app:toggleTranscript',
@@ -182,6 +183,7 @@ const SHIPPED_KEYS = {
     'ctrl+c': 'messageActions:ctrlc',
     enter: 'messageActions:enter',
     c: 'messageActions:c',
+    'ctrl+x y': 'messageActions:c',
     p: 'messageActions:p',
   },
   DiffDialog: {

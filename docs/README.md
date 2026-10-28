@@ -17,7 +17,8 @@ the guides by task; each page describes the installed product.
 - [MCP-SERVER.md](MCP-SERVER.md): receive outside reports from scoped MCP clients, read session rows and search project memory over stdio or authenticated HTTP.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
-map and `/keybindings` opens your keybindings file.
+map and `/keybindings` opens your keybindings file; `ctrl+x y` copies the last
+reply to the clipboard (`/copy`).
 
 ## Working in a session
 

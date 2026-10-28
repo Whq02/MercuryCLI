@@ -37,6 +37,7 @@ const ADVANCED: Section[] = [
       { action: 'app:fileOpen', context: 'Global', fallback: 'ctrl+x f', label: 'file open (@path)' },
       { action: 'app:contentSearch', context: 'Global', fallback: 'ctrl+x g', label: 'content search (@file#L)' },
       { action: 'command:sessions', context: 'Global', fallback: 'ctrl+x s', label: 'session switcher' },
+      { action: 'command:copy', context: 'Global', fallback: 'ctrl+x y', label: 'copy the last reply (/copy)' },
     ],
   },
   {

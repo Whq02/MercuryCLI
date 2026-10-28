@@ -85,6 +85,20 @@ shared by the runner, picker and the health check through the current credential
 `model-refusals` directory, so a separate health check can read a recorded refusal
 too; it never makes a provider request to discover one.
 
+AUTH's `Anthropic` row checks the claude.ai sign-in before it answers, and
+the `OpenAI` row does the same for a ChatGPT subscription: a sign-in whose
+access token has not reached its expiry is read locally and makes no request;
+one past its expiry is renewed through its refresh grant, the one request the
+check makes, and the row reads `renewed on this check`; a grant the provider
+refuses marks the sign-in expired, the row warns with `sign-in expired` and
+its fix is the same line the chat shows (`/logins <family>` reconnects). The
+same check runs once when Mercury opens, so an expired sign-in shows on the
+boot screen's Logins row (`<Family> sign-in expired`) before a first prompt is
+sent. When a prompt does meet an expired sign-in, its words come back to the
+composer under the error line and are sent again on their own once `/logins`
+lands a credential (or `/model` moves the session to a family that is signed
+in) while the composer still holds them unchanged.
+
 INTERFACE's `Browser` row names the executable the Browser tool resolves:
 Chrome for Testing with its build id and managed cache path, or your
 explicit executable pin. Installed Chrome, Edge, Chromium and Brave apps are

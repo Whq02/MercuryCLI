@@ -1095,18 +1095,6 @@ export function Config({
     },
   })
   items.push({
-    id: 'copyFullResponse',
-    label: 'Always copy full response',
-    kind: 'boolean',
-    setByYou: config.copyFullResponse === true,
-    value: boolValue(config.copyFullResponse === true),
-    change: () => {
-      writeGlobal(c => ({ ...c, copyFullResponse: c.copyFullResponse !== true }))
-      recordToggle('copyFullResponse', `set always-copy-full-response to ${config.copyFullResponse !== true ? 'on' : 'off'}`)
-    },
-  })
-
-  items.push({
     id: 'theme',
     label: 'Theme',
     kind: 'managed-enum',

@@ -687,15 +687,13 @@ mock.module('../../src/hooks/useDiffData.ts', () => ({ ...diffModule, useDiffDat
 const diffSourcesModule = await import('../../src/components/diff/diffSources.ts')
 mock.module('../../src/components/diff/diffSources.ts', () => ({ ...diffSourcesModule, enumerateExtraSources: async () => [] }))
 const { DiffDialog } = await import('../../src/components/diff/DiffDialog.tsx')
-const copyCommand = await import('../../src/commands/copy/copy.tsx')
 const cachingCommand = await import('../../src/commands/caching/caching.tsx')
-const response = options.map(row => '\x60\x60\x60ts\n' + row.label + '\n\x60\x60\x60').join('\n\n')
 for (const cols of [80, 120]) {
-  for (const name of ['diff', 'copy', 'caching']) {
+  for (const name of ['diff', 'caching']) {
     let closed = false
     const close = () => { closed = true }
-    const context = { messages: [{ type: 'assistant', uuid: 'fixture', message: { role: 'assistant', content: [{ type: 'text', text: response }] } }], options: { tools: [], commands: [], agents: [] }, getAppState: getDefaultAppState, setAppState() {} }
-    const body = name === 'diff' ? h(DiffDialog, { messages: [], onDone: close }) : name === 'copy' ? await copyCommand.call(close, context as never, '') : await cachingCommand.call(close, context as never, '')
+    const context = { messages: [], options: { tools: [], commands: [], agents: [] }, getAppState: getDefaultAppState, setAppState() {} }
+    const body = name === 'diff' ? h(DiffDialog, { messages: [], onDone: close }) : await cachingCommand.call(close, context as never, '')
     const scene = await mount(h(ModalContext.Provider, { value: { rows: 24, columns: cols, scrollRef: null } }, body), cols)
     const selected = () => {
       const at = scene.cursor()

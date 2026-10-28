@@ -122,6 +122,7 @@ import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
+import { useAuthWallHold } from '../hooks/useAuthWallHold.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
 import {
@@ -715,6 +716,11 @@ export function Chat({
   const setPastedContents = useCallback((next: Record<number, PastedContent>) => {
     pendingInput.setPastedContents(next);
   }, []);
+  const authWallHold = useAuthWallHold(
+    messages,
+    { text: () => pendingInput.text(), restore: (text: string) => setInputValue(text) },
+    () => getFocusedSessionConnector().modelFacts().effective,
+  );
   const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
 
   const scrollRef = useRef<ScrollBoxHandle | null>(null);
@@ -1274,6 +1280,11 @@ export function Chat({
           else setInputValue(doneOptions.nextInput);
         }
         pendingInput.popStash();
+        if (seatCommand.name === 'logins' || seatCommand.name === 'model') {
+          authWallHold.afterDoor(seatCommand.name, hold => {
+            void onSubmitRef.current(hold.text, INERT_PROMPT_HELPERS, undefined, { rearmed: true });
+          });
+        }
       };
       try {
         const module = await seatCommand.load();
@@ -1302,7 +1313,7 @@ export function Chat({
         releaseDialogSlot();
       }
     }
-  }, [addNotification, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
+  }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
   useEffect(() => {

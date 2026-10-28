@@ -322,6 +322,10 @@ function tokensFresh(tokens: OpenaiStoredTokens | undefined, nowMs: number): boo
   )
 }
 
+export function openaiSubscriptionTokenFresh(nowMs: number = Date.now()): boolean {
+  return tokensFresh(readAuthFile()?.tokens, nowMs)
+}
+
 function acquireRefreshLock(nowMs: number): boolean {
   const path = refreshLockPath()
   for (let attempt = 0; attempt < 2; attempt++) {

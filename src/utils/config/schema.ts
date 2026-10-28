@@ -159,7 +159,6 @@ type Appearance = {
   showExpandedTasks?: boolean
   defaultCritter?: string
   editorMode?: EditorMode
-  copyFullResponse: boolean
   copyOnSelect?: boolean
   mouseCapture?: boolean
   terminalProgressBarEnabled: boolean
@@ -311,7 +310,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     showExpandedTasks: false,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
-    copyFullResponse: false,
   }
 }
 
@@ -335,7 +333,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
   'lspRecommendationIgnoredCount',
-  'copyFullResponse',
   'copyOnSelect',
   'mouseCapture',
   'defaultCritter',

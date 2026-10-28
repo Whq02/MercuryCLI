@@ -68,11 +68,11 @@ const RIGHT = '\x1b[C'
 const DOWNS = 12
 const SIZES: Array<[number, number]> = [[64, 20], [80, 24], [100, 30], [177, 49]]
 const RESIZE_STOPS: Array<[number, number]> = [[64, 20], [100, 30], [177, 49]]
-const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'contract', 'mission'])
-const TEXT_ROUTES = ['contract', 'mission']
+const NOT_A_VIEW = new Set(['exit', 'logout', 'zen', 'keysetup', 'rename', 'title', 'crewmates', 'browse', 'contract', 'mission', 'copy'])
+const TEXT_ROUTES = ['contract', 'mission', 'copy']
 const MARK: Readonly<Record<string, string>> = {
   defaultprovider: 'Default provider', hooks: 'configured hook', permissions: 'Permissions:', export: 'Export conversation', saturn: 'saturn scheduler',
-  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', copy: 'Mercury — copy', mcp: 'Mercury · mcp', mission: 'Mission',
+  keys: 'input atlas', workbench: 'Mercury — prompts', console: 'Mercury — console', sessions: 'Mercury · resume', mcp: 'Mercury · mcp', mission: 'Mission',
   context: 'Mercury — context', feedback: 'Feedback — which kind', samples: 'SAMPLES · this session', showcase: 'Mercury — showcase',
 }
 const markOf = (name: string): RegExp => {
@@ -158,7 +158,7 @@ const commands = await getCommands(process.cwd())
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 const routes = commands.filter(command => command.type === 'local-jsx' && !NOT_A_VIEW.has(command.name) && (onlyRoute === undefined || command.name === onlyRoute))
 console.log(`routes: ${routes.map(command => command.name).join(' ')}`)
-const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'copy', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'run', 'runs', 'samples', 'saturn', 'sessions', 'showcase', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
+const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'realms', 'run', 'runs', 'samples', 'saturn', 'sessions', 'showcase', 'skills', 'submodels', 'trace', 'workbench', 'workflows']
 if (onlyRoute === undefined) check('every view route the compositor census knows is in the walk (the nine that never paint a view are named)', expectedRoutes.every(name => routes.some(command => command.name === name)), expectedRoutes.filter(name => !routes.some(command => command.name === name)).join(' '))
 
 const sessionFile = workerTranscriptPath({ sessionId: SEED_SESSION, workspaceId: process.cwd() })
@@ -192,7 +192,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
   else releaseFocusedSessionConnector()
   const state = getDefaultAppState()
   const context = {
-    messages: command.name === 'copy' || command.name === 'feedback' ? seedMessages() : [], options: { engineModel: getEngineModel(), theme: 'dark', commands, tools: [], mcpClients: [], mcpResources: {}, debug: false, verbose: false, maxThinkingTokens: 0, agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: false },
+    messages: command.name === 'feedback' ? seedMessages() : [], options: { engineModel: getEngineModel(), theme: 'dark', commands, tools: [], mcpClients: [], mcpResources: {}, debug: false, verbose: false, maxThinkingTokens: 0, agentDefinitions: { activeAgents: [], allAgents: [] }, isNonInteractiveSession: false },
     getAppState: () => state, setAppState: () => {}, setMessages: () => {}, onChangeAPIKey: () => {},
     abortController: new AbortController(), readFileState: new Map(), setToolJSX: () => {},
   }

@@ -46,7 +46,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
-| /copy | ilist irow | `src/commands/copy` |
+| /copy | — | `src/commands/copy` |
 | /crewmates | — | `src/commands/crewmates` |
 | /critter | ilist | `src/commands/critter` |
 | /daemon | — | `src/commands/daemon` |

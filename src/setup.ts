@@ -16,6 +16,7 @@ import type { PermissionMode } from './utils/permissions/PermissionMode.js'
 import { getPlanSlug } from './utils/plans.js'
 import { getRecentReleaseNotes } from './utils/releaseNotes.js'
 import { prefetchApiKeyFromApiKeyHelperIfSafe } from './utils/auth.js'
+import { signInsCheckedAtOpen } from './utils/accounts/signInFreshness.js'
 import { consumeSessionHomePin } from './utils/sessionStorage/sessionHomePin.js'
 import { saveWorktreeState } from './utils/sessionStorage.js'
 import { setCwd } from './utils/Shell.js'
@@ -153,6 +154,7 @@ export async function setup(
 
   initSinks()
   if (checkHasTrustDialogAccepted()) prefetchApiKeyFromApiKeyHelperIfSafe(getIsNonInteractiveSession())
+  if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()
   if (!isBareMode()) await readActivityWhenNotesAreUnseen()
 
   const { noteRootSovereign } = await import('./utils/permissions/rootNotice.js')

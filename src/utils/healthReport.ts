@@ -653,7 +653,9 @@ function providerAuthChecks(): CheckSpec[] {
       return {
         id: 'auth-anthropic',
         label: meta.label,
-        run: () => {
+        run: async () => {
+          const { checkAnthropicSignInFresh } = await import('./accounts/signInFreshness.js')
+          const fresh = await checkAnthropicSignInFresh()
           const { anthropicCredentialPresence } =
             require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
           const presence = anthropicCredentialPresence()
@@ -672,12 +674,12 @@ function providerAuthChecks(): CheckSpec[] {
               fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
-          if (presence.expired) {
+          if (presence.expired || fresh.state === 'expired') {
             const { anthropicSignInWords } =
               require('../services/providers/anthropicRefusal.js') as typeof import('../services/providers/anthropicRefusal.js')
             return {
               status: 'warn' as const,
-              evidence: `${presence.credentialLabel ?? 'claude.ai sign-in'} — sign-in EXPIRED (dead or spent refresh token; no network probe)`,
+              evidence: `${presence.credentialLabel ?? 'claude.ai sign-in'} — sign-in expired`,
               fix: anthropicSignInWords(),
             }
           }
@@ -685,7 +687,9 @@ function providerAuthChecks(): CheckSpec[] {
           if (tok.hasToken) {
             return {
               status: 'ok' as const,
-              evidence: `bearer token via ${tok.source} (present — validity untested: no network probe by design)`,
+              evidence: fresh.probed && fresh.state === 'valid'
+                ? `bearer token via ${tok.source} (renewed on this check)`
+                : `bearer token via ${tok.source} (present — validity untested: no network probe by design)`,
             }
           }
           const key = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
@@ -699,7 +703,20 @@ function providerAuthChecks(): CheckSpec[] {
     return {
       id: `auth-${provider.id}`,
       label: meta.label,
-      run: () => {
+      run: async () => {
+        if (provider.id === 'openai') {
+          const { checkOpenaiSignInFresh } = await import('./accounts/signInFreshness.js')
+          const fresh = await checkOpenaiSignInFresh()
+          if (fresh.state === 'expired') {
+            const { credentialWallLine } =
+              require('../services/providers/credentialWall.js') as typeof import('../services/providers/credentialWall.js')
+            return {
+              status: 'warn' as const,
+              evidence: 'ChatGPT subscription — sign-in expired',
+              fix: credentialWallLine('openai', 'sign-in'),
+            }
+          }
+        }
         const account = provider.description.account
         if (account.kind === 'none') {
           if (provider.id === routedFamily) {

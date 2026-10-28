@@ -110,7 +110,7 @@ export function windowsClipInput(text: string): Buffer {
   return Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')])
 }
 
-type NativeRoute = 'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe'
+type NativeRoute = 'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe' | 'powershell'
 
 const LINUX_TOOLS: ReadonlyArray<{ route: NativeRoute; file: string; args: string[] }> = [
   { route: 'wl-copy', file: 'wl-copy', args: [] },
@@ -124,20 +124,30 @@ async function runNative(
   file: string,
   args: string[],
   input: string | Buffer,
+  env?: NodeJS.ProcessEnv,
 ): Promise<boolean> {
   const result = await execFileNoThrow(file, args, {
     useCwd: false,
     timeout: SUBPROCESS_TIMEOUT_MS,
     input,
+    ...(env !== undefined ? { env } : {}),
   })
   return result.code === 0
 }
+
+export function pbcopyLocaleEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv | undefined {
+  const effective = env.LC_ALL || env.LC_CTYPE || env.LANG || ''
+  return /utf-?8/i.test(effective) ? undefined : { LC_ALL: 'en_US.UTF-8' }
+}
+
+const SET_CLIPBOARD_SCRIPT =
+  '[Console]::InputEncoding = [System.Text.Encoding]::UTF8; $text = [Console]::In.ReadToEnd(); Set-Clipboard -Value $text'
 
 async function copyNative(text: string): Promise<NativeRoute | null> {
   try {
     switch (process.platform) {
       case 'darwin':
-        return (await runNative('pbcopy', [], text)) ? 'pbcopy' : null
+        return (await runNative('pbcopy', [], text, pbcopyLocaleEnv())) ? 'pbcopy' : null
       case 'linux': {
         if (linuxTool === null) return null
         if (linuxTool) {
@@ -158,7 +168,9 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
           timeout: SUBPROCESS_TIMEOUT_MS,
           input: windowsClipInput(text),
         })
-        return ok.code === 0 ? 'clip.exe' : null
+        if (ok.code === 0) return 'clip.exe'
+        const fallback = await runNative('powershell', ['-NoProfile', '-NonInteractive', '-Command', SET_CLIPBOARD_SCRIPT], text)
+        return fallback ? 'powershell' : null
       }
       default:
         return null
@@ -168,10 +180,17 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
   }
 }
 
+const TERMINALS_WITHOUT_OSC52: ReadonlySet<string> = new Set(['Apple_Terminal'])
+
+export function terminalDropsOsc52(env: NodeJS.ProcessEnv = process.env): boolean {
+  return TERMINALS_WITHOUT_OSC52.has(env.TERM_PROGRAM ?? '')
+}
+
 export interface ClipboardReceipt {
   sequence: string
-  settled: Array<'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe' | 'tmux-buffer' | typeof CLIPBOARD_FILE_ROUTE>
+  settled: Array<NativeRoute | 'tmux-buffer' | typeof CLIPBOARD_FILE_ROUTE>
   osc52Emitted: boolean
+  noRoad: boolean
   confirmation: string
 }
 
@@ -201,6 +220,7 @@ export async function setClipboardWithReceipt(text: string): Promise<ClipboardRe
       sequence: '',
       settled: file === 'written' ? [CLIPBOARD_FILE_ROUTE] : [],
       osc52Emitted: false,
+      noRoad: file !== 'written',
       confirmation: file === 'written' ? `copied (${CLIPBOARD_FILE_ROUTE})` : 'the clipboard file could not be written',
     })
   }
@@ -225,8 +245,9 @@ export async function setClipboardWithReceipt(text: string): Promise<ClipboardRe
     settled.length > 0
       ? `copied (${settled.join(' + ')})`
       : 'offered to the terminal via OSC 52 — delivery depends on your terminal'
+  const noRoad = settled.length === 0 && terminalDropsOsc52()
 
-  return publishClipboardReceipt({ sequence, settled, osc52Emitted: true, confirmation })
+  return publishClipboardReceipt({ sequence, settled, osc52Emitted: true, noRoad, confirmation })
 }
 
 export async function setClipboard(text: string): Promise<string> {

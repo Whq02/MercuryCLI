@@ -114,6 +114,7 @@ import {
   type ProviderUsability,
 } from '../services/providers/providerUsability.js';
 import type { ProviderFamilyPresence } from '../services/providers/providerUsage.js';
+import { providerDisplayName } from '../services/providers/routeLaw.js';
 import { mostRecentSignInFamily } from '../utils/model/computedDefault.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -182,6 +183,17 @@ export function loginsFamilyCounts(groups: readonly FamilySlotGroup[]): { family
   const familyIds = [...new Set(loginsCatalogue().map(a => a.familyId))];
   const signed = familyIds.filter(id => (groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn)).length;
   return { familyIds, signed };
+}
+
+export function loginsExpiredFamilies(groups: readonly FamilySlotGroup[]): ProviderId[] {
+  return groups.filter(g => g.slots.some(s => s.expired === true && !s.signedIn)).map(g => g.family.id as ProviderId);
+}
+
+export function loginsGlance(groups: readonly FamilySlotGroup[]): string {
+  const expired = loginsExpiredFamilies(groups);
+  if (expired.length > 0) return `${providerDisplayName(expired[0]!)} sign-in expired — sign in again`;
+  const { familyIds, signed } = loginsFamilyCounts(groups);
+  return signed > 0 ? `${signed} of ${familyIds.length} signed in` : 'not signed in — sign in to providers';
 }
 
 export function loginsArmSlots(arm: LoginsArmV1, group: FamilySlotGroup | undefined): AccountSlot[] {

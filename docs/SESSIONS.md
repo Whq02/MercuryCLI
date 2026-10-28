@@ -141,6 +141,14 @@ row says so, naming the family, the reason and the commands (`/logins <family>`
 connects it, `/model` changes the default); the saved choice is left as it
 stands, so the next chat returns to it the moment that family signs in;
 `/model` in that chat saves a new default and the next New Session runs it.
+A claude.ai or ChatGPT sign-in is checked once when Mercury opens and
+whenever `/health` runs: a sign-in past its expiry is renewed through its
+refresh grant, and one the provider refuses shows as `<Family> sign-in
+expired` on the boot screen's Logins row and in `/health` before a first
+prompt is sent. A prompt that still meets an expired sign-in is not lost: the
+error line paints, its words come back to the composer, and they are sent
+again on their own once `/logins` lands a credential (or `/model` moves the
+session to a signed-in family) while the composer holds them unchanged.
 The board's New
 Session strip starts on the same saved choice; its own effort pick, when
 you make one, applies to that one session. A resumed session
@@ -266,7 +274,15 @@ compact cards or with full output (choose the display in `/config` under Tool
 output). Review changes with `/diff`, by source, file and hunk; `! <command>`
 runs a shell command in chat with a live output tail; `/mouse off` returns the
 pointer to the terminal for native text selection and copying (saved in
-`/config` as Mouse capture). A required argument starts with `<…>` in a skill's
+`/config` as Mouse capture). `/copy` puts the last reply on the system
+clipboard as the model wrote it, with its line breaks, emoji and right-to-left
+text and none of the screen's wrapping or row marks; `/copy 2` takes the reply
+before it, `/copy code` the last fenced code block, and `ctrl+x y` runs `/copy`
+from the composer (with a message focused through `shift+up`, the same chord
+copies that message). The text goes through `pbcopy` on macOS, `clip` on
+Windows and `wl-copy`, `xclip` or `xsel` on Linux; over SSH, or where none of
+those answers, the terminal itself is asked to take it (OSC 52) and the row
+says so. A required argument starts with `<…>` in a skill's
 usage (for example, `/update-config` and `/debug`): send one alone and you get
 its description and usage without starting a turn, or select it in typeahead and
 `Enter` leaves `/name ` ready for the argument (`/loop` has no required argument

@@ -7,7 +7,7 @@
 # gate-watch: src/components/MessageSelector* src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/commands/appearance/appearance.tsx src/commands/caching/caching.tsx
-# gate-watch: src/commands/console/console.tsx src/commands/copy/copy.tsx src/commands/effort/EffortPopup.tsx
+# gate-watch: src/commands/console/console.tsx src/commands/effort/EffortPopup.tsx
 # gate-watch: src/commands/health/HealthCertificate.tsx src/commands/run/run.tsx
 # gate-watch: src/components/* src/components/PromptInput/* src/components/Settings/*
 # gate-watch: src/components/agents/studio/AgentStudio.tsx src/components/agents/studio/StudioEditor.tsx

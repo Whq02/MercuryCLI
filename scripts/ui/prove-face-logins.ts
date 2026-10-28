@@ -544,7 +544,9 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the boot face exposes its actual Logins count composer', countExpression !== '')
   const screenModule = await import('../../src/components/BootLoginsScreen.js')
   const sharedCount = (screenModule as unknown as Record<string, unknown>).loginsFamilyCounts
-  t.check('the boot face and Logins summary share one count owner', typeof sharedCount === 'function' && countExpression.includes('loginsFamilyCounts'))
+  const sharedGlance = (screenModule as unknown as Record<string, unknown>).loginsGlance
+  const loginsScreenSource = read('src/components/BootLoginsScreen.tsx')
+  t.check('the boot face and Logins summary share one count owner (the glance composes the one count)', typeof sharedCount === 'function' && typeof sharedGlance === 'function' && countExpression.includes('loginsGlance') && /export function loginsGlance[\s\S]*?loginsFamilyCounts\(groups\)/.test(loginsScreenSource))
   if (countExpression !== '') {
     const js = new Bun.Transpiler({ loader: 'tsx' }).transformSync(`const compose = ${countExpression}`)
     for (const signedExtras of [false, true]) {
@@ -554,8 +556,8 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
       }))
       for (const snapshot of [facts, signedOutFacts()]) {
         const groups = [...snapshot.groups, ...extra]
-        const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsFamilyCounts', `${js}\nreturn compose`)(
-          () => groups.map(group => group.family), () => groups, sharedCount,
+        const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsGlance', `${js}\nreturn compose`)(
+          () => groups.map(group => group.family), () => groups, sharedGlance,
         ) as () => string | null
         const expected = snapshot === facts ? '4 of 22 signed in' : 'not signed in — sign in to providers'
         t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))

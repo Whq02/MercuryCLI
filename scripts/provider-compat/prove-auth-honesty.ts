@@ -372,7 +372,7 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   const pickerSrc = readFileSync(join(import.meta.dir, '../../src/commands/model/mercuryModel.tsx'), 'utf8')
   check("picker: the Anthropic group detail keys on presence.expired with the /logins line", pickerSrc.includes('anthropicPresence.expired') && pickerSrc.includes('sign-in expired — /logins reconnects'))
   const healthSrc = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
-  check('health AUTH row: expired branch present (warn + observed wording, no probe)', healthSrc.includes('presence.expired') && healthSrc.includes('sign-in EXPIRED (dead or spent refresh token; no network probe)'))
+  check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', healthSrc.includes("presence.expired || fresh.state === 'expired'") && healthSrc.includes('— sign-in expired`') && healthSrc.includes('fix: anthropicSignInWords()'))
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   process.env.ANTHROPIC_AUTH_TOKEN = 'env-shadow-token'
   clearOAuthTokenCache()
