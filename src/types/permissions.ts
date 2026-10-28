@@ -85,6 +85,7 @@ export type PermissionRuleReasonsBySource = Partial<Record<PermissionRuleSource,
 
 export type ToolPermissionContext = {
   mode: InternalPermissionMode
+  baseTools?: readonly string[]
   alwaysAllowRules: ToolPermissionRulesBySource
   alwaysDenyRules: ToolPermissionRulesBySource
   alwaysAskRules: ToolPermissionRulesBySource

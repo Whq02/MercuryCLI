@@ -46,6 +46,7 @@ import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../utils/text/hiddenCharacterFindings.js'
 import { baseDirLine } from './baseDirLine.js'
+import { checkHasTrustDialogAccepted } from '../utils/config/trust.js'
 
 export type LoadedFrom =
   | 'skills'
@@ -453,7 +454,7 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
   )
 
   const extensionsOnly = isRestrictedToExtensionsOnly('skills')
-  const projectEnabled = isSettingSourceEnabled('projectSettings') && !extensionsOnly
+  const projectEnabled = isSettingSourceEnabled('projectSettings') && !extensionsOnly && checkHasTrustDialogAccepted()
 
   if (isBareMode()) return []
 
@@ -533,7 +534,7 @@ function splitConditional(commands: Command[]): Command[] {
   return unconditional
 }
 
-const loadAllSkillsMemo = memoize(loadAllSkillsUncached)
+const loadAllSkillsMemo = memoize(loadAllSkillsUncached, (cwd: string) => `${cwd}|${checkHasTrustDialogAccepted()}`)
 
 export function getSkillDirCommands(cwd: string): Promise<Command[]> {
   return loadAllSkillsMemo(cwd)
@@ -578,6 +579,7 @@ export function onDynamicSkillsLoaded(callback: () => void): () => void {
 }
 
 function dynamicSkillsRefused(): boolean {
+  if (!checkHasTrustDialogAccepted()) return true
   if (!isSettingSourceEnabled('projectSettings') || isRestrictedToExtensionsOnly('skills')) {
     logForDebugging('skills: dynamic directories refused (project settings disabled or extensions-only policy)')
     return true

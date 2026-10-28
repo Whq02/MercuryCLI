@@ -19,7 +19,7 @@ const INLINE_OPENER = '!`'
 type ShellToolLike = {
   name: string
   maxResultSizeChars: number
-  call: (input: never, context: ToolUseContext) => AsyncGenerator<unknown>
+  call: (input: never, context: ToolUseContext) => Promise<unknown> | AsyncIterable<unknown>
   mapToolResultToToolResultBlockParam: (result: never, toolUseID: string) => never
 }
 
@@ -68,9 +68,9 @@ async function runEmbeddedCommand(
     logForDebugging(`promptShellExecution: permission check failed for ${slashCommandName}: ${command} (${reason})`)
     throw new MalformedCommandError(`Permission check failed for the matched pattern "${command}": ${reason}`)
   }
-  let lastResult: unknown
-  for await (const update of tool.call({ command } as never, context)) {
-    lastResult = update
+  let lastResult = await tool.call({ command } as never, context)
+  if (lastResult !== null && typeof lastResult === 'object' && Symbol.asyncIterator in lastResult) {
+    for await (const update of lastResult as AsyncIterable<unknown>) lastResult = update
   }
   const result = (lastResult as { data?: unknown })?.data ?? lastResult
   const block = await processToolResultBlock(tool as never, result as never, randomUUID(), context.options.engineModel)
@@ -98,7 +98,7 @@ export async function executeShellCommandsInPrompt(
   }
   if (matches.length === 0) return text
 
-  const outputs = await Promise.all(
+  const outcomes = await Promise.allSettled(
     matches.map(async ({ command }): Promise<string | null> => {
       const trimmed = command.trim()
       if (trimmed === '') return null
@@ -118,6 +118,9 @@ export async function executeShellCommandsInPrompt(
       }
     }),
   )
+  const failed = outcomes.find(outcome => outcome.status === 'rejected')
+  if (failed?.status === 'rejected') throw failed.reason
+  const outputs = outcomes.map(outcome => outcome.status === 'fulfilled' ? outcome.value : null)
 
   let result = text
   matches.forEach(({ full, command }, index) => {

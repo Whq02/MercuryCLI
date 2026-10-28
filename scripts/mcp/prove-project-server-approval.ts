@@ -240,6 +240,16 @@ try {
     resetSettingsCache()
     tally.check('the writer records name#digest in the local settings', JSON.stringify(localEntries(w)) === JSON.stringify([projectMcpApprovalEntry('probe', probe)]), JSON.stringify(localEntries(w)))
     tally.check('approved for this definition', getProjectMcpServerStatus('probe', probe) === 'approved', getProjectMcpServerStatus('probe', probe))
+    const originalCwd = process.cwd()
+    const otherCwd = join(w.project, 'other')
+    mkdirSync(otherCwd)
+    try {
+      process.chdir(otherCwd)
+      tally.check('a different stdio working directory needs approval', getProjectMcpServerStatus('probe', probe) === 'pending')
+    } finally {
+      process.chdir(originalCwd)
+    }
+    tally.check('the original stdio working directory stays approved', getProjectMcpServerStatus('probe', probe) === 'approved')
     const changed = { ...probe, args: [...probe.args, '--changed'] }
     tally.check('a changed definition has another digest and reads pending', projectMcpServerDefinitionDigest(changed) !== projectMcpServerDefinitionDigest(probe) && getProjectMcpServerStatus('probe', changed) === 'pending', getProjectMcpServerStatus('probe', changed))
     tally.check('the digest reads the definition as written, not the expanded values', projectMcpServerDefinitionDigest({ ...probe, args: ['expanded'], unexpanded: { args: probe.args } }) === projectMcpServerDefinitionDigest(probe))

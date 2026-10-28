@@ -13,6 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
+;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
 const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
 const { parseFrontmatterPaths } = await import('../../src/services/instructions/sourceText.ts')
 const skillsMod = await import('../../src/skills/loadSkillsDir.ts')

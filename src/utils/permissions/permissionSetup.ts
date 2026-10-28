@@ -515,6 +515,7 @@ export async function initializeToolPermissionContext(args: {
 
   let context = {
     mode: args.permissionMode,
+    ...(args.baseToolsCli === undefined ? {} : { baseTools: parseToolListFromCLI(args.baseToolsCli) }),
     alwaysAllowRules: { cliArg: allowRules },
     alwaysDenyRules: { cliArg: denyRules },
     alwaysAskRules: {},

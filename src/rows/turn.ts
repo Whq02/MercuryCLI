@@ -29,6 +29,7 @@ import type { HookProgress } from '../types/hooks.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
 import { getGlobalConfig } from '../utils/config.js'
+import { createGetAppStateWithAllowedTools } from '../utils/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
 import type { FileStateCache } from '../utils/fileStateCache.js'
 import { cloneFileStateCache } from '../utils/fileStateCache.js'
@@ -625,22 +626,10 @@ export class Conversation {
       this.recordCursor = turnMessages.length
     }
 
-    if (inputResult.allowedTools && inputResult.allowedTools.length > 0) {
-      config.setAppState(prev => ({
-        ...prev,
-        toolPermissionContext: {
-          ...prev.toolPermissionContext,
-          alwaysAllowRules: {
-            ...prev.toolPermissionContext.alwaysAllowRules,
-            command: [...new Set([...(prev.toolPermissionContext.alwaysAllowRules.command ?? []), ...inputResult.allowedTools!])],
-          },
-        },
-      }))
-    }
-
     const effectiveModel = inputResult.model ?? resolvedModel
     steps.lastModel = effectiveModel
     toolUseContext = buildContext(turnMessages, effectiveModel)
+    toolUseContext.getAppState = createGetAppStateWithAllowedTools(toolUseContext.getAppState, inputResult.allowedTools ?? [])
 
     let capturedStopReason: string | null = null
 

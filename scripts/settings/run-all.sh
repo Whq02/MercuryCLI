@@ -32,6 +32,7 @@
 # gate-watch: src/ink/squash-text-nodes.ts src/keybindings/useKeybinding.ts src/keybindings/writeBindings.ts
 # gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/instructions/* src/services/instructions/adapters/**
+# gate-watch: src/utils/fsOperations.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/vitalsBus.ts src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts

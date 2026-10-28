@@ -14,6 +14,7 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
 process.chdir(project)
+;(await import(join(SRC, 'bootstrap/state.ts'))).setSessionTrustAccepted(true)
 
 const skills = await import(join(SRC, 'skills/loadSkillsDir.ts'))
 

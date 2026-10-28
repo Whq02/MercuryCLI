@@ -1,4 +1,6 @@
 import { statSync } from 'node:fs'
+import { refreshProviderDiscovery } from '../services/providers/providerDiscovery.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -203,8 +205,16 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
   if (isSaturnDisabled()) return report
   const now = ports.now()
   const windowMs = saturnCatchupWindowMs()
+  const records = ports.records()
+  const box = readBoxSchedules(ports.dir)
+  const local = (key: string | undefined): boolean => key !== undefined && declaredRouteOf(key) === 'local'
+  if (box.schedules.some(schedule => local(schedule.modelKey)) || records.some(rec =>
+    Array.isArray(rec.schedules) && rec.schedules.filter(saturnScheduleRowUsable).some(schedule =>
+      local(schedule.action.kind === 'birth' ? schedule.modelKey : rec.modelKey ?? schedule.modelKey)))) {
+    await refreshProviderDiscovery('local', { force: true })
+  }
 
-  for (const rec of ports.records()) {
+  for (const rec of records) {
     const sessionId = rec.sessionId
     const parked = isParkedRecord(rec)
     const movesBefore = report.fired + report.held + report.missed + report.replayed + report.dropped
@@ -496,7 +506,6 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
   }
 
   {
-    const box = readBoxSchedules(ports.dir)
     report.pending += box.schedules.length + box.heldFires.length
     if (box.heldFires.length > 0) {
       const releasable: Array<{ scheduleId: string; dueAt: number }> = []

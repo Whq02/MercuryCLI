@@ -23,6 +23,7 @@ process.env.HOME = home
 process.env.MERCURY_CONFIG_DIR = configHome
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(project)
+;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
 
 const BODY = [
   `dir mercury=${MERCURY_DIR_TOKEN}`,

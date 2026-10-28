@@ -290,12 +290,18 @@ section('C5 the argv builder spells only options the door declares, with the val
       badValues.push(`a value with no flag: ${token}`)
       continue
     }
-    const option = options.get(token)
+    const equals = token.indexOf('=')
+    const flag = equals < 0 ? token : token.slice(0, equals)
+    const option = options.get(flag)
     if (option === undefined) {
       unknownFlags.push(token)
       continue
     }
-    used.push(token)
+    used.push(flag)
+    if (equals >= 0) {
+      if (option.value !== 'variadic' || token.slice(equals + 1).startsWith('-')) badValues.push(token)
+      continue
+    }
     if (option.value === 'none') continue
     if (option.value === 'required' || option.value === 'optional') {
       const next = args[i + 1]

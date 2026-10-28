@@ -153,7 +153,10 @@ def argv_of(options: RunOptions, door: Literal['run', 'runner'] = 'run') -> list
     for name in ['sovereign', 'allow_sovereign', 'only_mcp', 'partial', 'continue_', 'fork', 'ephemeral', 'lean', 'advise', 'no_commands']:
         if getattr(options, name): args.append('--' + name.rstrip('_').replace('_', '-'))
     for name in ['allowed_tools', 'block_tools', 'toolset', 'mcp', 'provider_preview']:
-        if getattr(options, name): args += ['--' + name.replace('_', '-'), *getattr(options, name)]
+        flag = '--' + name.replace('_', '-')
+        for value in getattr(options, name):
+            if value.startswith('-'): raise MercuryError(f"error: option '{flag}' argument '{value}' is invalid.")
+            args.append(f'{flag}={value}')
     for name in ['schema', 'config', 'agent_defs']:
         value = getattr(options, name)
         if name == 'schema' and value is not None: value = schema_object(value, options.cwd)

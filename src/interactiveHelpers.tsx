@@ -23,7 +23,7 @@ import { SovereignModeDialog } from './components/SovereignModeDialog.js'
 import { ExternalInstructionIncludesDialog } from './components/ExternalInstructionIncludesDialog.js'
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from './state/AppState.js'
-import type { Command } from './commands.js'
+import { clearCommandMemoizationCaches, getCommands, type Command } from './commands.js'
 import { getGlobalConfig, saveGlobalConfig } from './utils/config.js'
 import {
   getCustomApiKeyStatus,
@@ -227,7 +227,8 @@ export async function showSetupScreens(
 
   {
     const cwd = getCwd()
-    const trustedThroughTheProject = !isPathTrusted(cwd) && checkHasTrustDialogAccepted()
+    const trustedBefore = checkHasTrustDialogAccepted()
+    const trustedThroughTheProject = !isPathTrusted(cwd) && trustedBefore
     if (trustedThroughTheProject) setPathTrusted(cwd)
     if (!trustedThroughTheProject && !isPathTrusted(cwd)) {
       const steps: SetupRailStep[] =
@@ -254,6 +255,10 @@ export async function showSetupScreens(
       ))
     }
     setSessionTrustAccepted(true)
+    if (!trustedBefore) {
+      clearCommandMemoizationCaches()
+      if (commands !== undefined) commands.splice(0, commands.length, ...await getCommands(cwd))
+    }
     registerBackgroundNode('setup:prefetch-system-context', async () => {
       await import('./utils/queryContext.js')
     })

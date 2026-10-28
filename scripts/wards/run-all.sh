@@ -12,7 +12,7 @@
 # gate-watch: src/skills/bundled/mcp-smithy/SKILL.md src/skills/bundled/updateConfig.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/fire.ts src/guards/**
 # gate-watch: src/guards/generatedAssets.ts src/services/tools/toolExecution.ts
-# gate-watch: scripts/lib/linearGrowth.ts
+# gate-watch: scripts/lib/linearGrowth.ts scripts/daemon/dupline-world.ts
 # gate-watch: src/skills/bundled/** scripts/ui/lib/emojiProperties.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
 # gate-watch: docs/INSTALL.md

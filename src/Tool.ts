@@ -109,6 +109,7 @@ type ReadonlyRuleReasonsBySource = {
 
 export type ToolPermissionContext = {
   readonly mode: InternalPermissionMode
+  readonly baseTools?: readonly string[]
   readonly alwaysAllowRules: ReadonlyRulesBySource
   readonly alwaysDenyRules: ReadonlyRulesBySource
   readonly alwaysAskRules: ReadonlyRulesBySource

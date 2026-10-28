@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/daemon/prove-unattended-ask-denied.ts scripts/settings/prove-settings-watch-beside-a-named-pipe.ts
-# gate-watch: src/Tool* src/bootstrap/state* src/cli/run* src/cli/structuredIO*
+# gate-watch: src/Tool* src/bootstrap/state* src/cli/run* src/cli/structuredIO* src/cli/ndjsonSafeStringify.ts
+# gate-watch: src/tools.ts src/types/permissions.ts src/utils/permissions/permissionSetup.ts
 # gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts src/services/providers/local/localAccounts.ts scripts/headless/prove-git-readonly-settings.ts
 # gate-watch: src/utils/sdkEventQueue* src/utils/task/sdkAgentFrames* src/tools/AgentTool/foregroundExecution* src/tools/AgentTool/agentToolUtils* src/cost-tracker*
 # gate-watch: scripts/compact/overflowFixture.ts

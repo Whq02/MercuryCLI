@@ -355,7 +355,11 @@ export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConf
 }
 
 export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
-  const definition = { ...mcpConfigAsWritten(config), env: Object.keys((config as McpDefinitionRecord).env ?? {}).sort() }
+  const definition = {
+    ...mcpConfigAsWritten(config),
+    env: Object.keys((config as McpDefinitionRecord).env ?? {}).sort(),
+    ...('command' in config ? { cwd: process.cwd() } : {}),
+  }
   return createHash('sha256').update(JSON.stringify(sortKeysDeep(definition))).digest('hex').slice(0, 16)
 }
 

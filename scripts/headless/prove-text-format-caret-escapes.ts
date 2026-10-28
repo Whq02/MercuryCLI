@@ -21,7 +21,8 @@ const CLEAR = '\x1b[2J'
 const C1_CSI = '\x9b'
 const ARABIC = 'مرحبا بالعالم'
 const EMOJI = '🚀✨'
-const ANSWER = `A${TITLE}B${CLIPBOARD}C${CLEAR}D\rE\x08F${C1_CSI}G\x7fH\x00I\ttab\nline two ${ARABIC} ${EMOJI} end`
+const C1_ALL = Array.from({ length: 32 }, (_, index) => String.fromCharCode(0x80 + index)).join('')
+const ANSWER = `${C1_ALL}A${TITLE}B${CLIPBOARD}C${CLEAR}D\rE\x08F${C1_CSI}G\x7fH\x00I\ttab\nline two ${ARABIC} ${EMOJI} end`
 const RAW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/
 
 type ChatBody = { messages?: Array<{ role?: string; content?: unknown }>; tools?: unknown[] }
@@ -129,6 +130,8 @@ try {
     const rows = await run([reply(ANSWER)], 'rows')
     const outcome = frameLines(rows.stdout.toString('utf8')).find(isOutcome) as { answer?: string } | undefined
     tally.check('rows: the outcome answer is the raw model text', outcome?.answer === ANSWER, JSON.stringify(outcome?.answer))
+    tally.check('rows: every C1 control character is escaped on the wire', !/[\u0080-\u009F]/.test(rows.stdout.toString('utf8')))
+    tally.check('rows: C0 controls are escaped on the wire', !/[\u0000-\u0009\u000B-\u001F]/.test(rows.stdout.toString('utf8')))
     const lines = rows.stdout.toString('utf8').split('\n').filter(line => line.trim() !== '')
     const allJson = lines.every(line => {
       try {
@@ -147,6 +150,8 @@ try {
       parsed = undefined
     }
     tally.check('json: the outcome answer is the raw model text', parsed?.answer === ANSWER, JSON.stringify(parsed?.answer ?? js.stdout.toString('utf8').slice(0, 300)))
+    tally.check('json: every C1 control character is escaped on the wire', !/[\u0080-\u009F]/.test(js.stdout.toString('utf8')))
+    tally.check('json: C0 controls are escaped on the wire', !/[\u0000-\u0009\u000B-\u001F]/.test(js.stdout.toString('utf8')))
   }
 } finally {
   ollama.close()

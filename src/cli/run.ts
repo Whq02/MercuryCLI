@@ -2636,7 +2636,7 @@ export async function runHeadless(
       ),
     ) as OutcomeRow)
   if (options.outputFormat === 'json') {
-    await flushWrite(process.stdout, `${jsonStringify(last)}\n`)
+    await flushWrite(process.stdout, `${ndjsonSafeStringify(last)}\n`)
   } else if (options.outputFormat !== 'rows') {
     if (last.status === 'completed') {
       const text = caretEscape(last.answer ?? '')

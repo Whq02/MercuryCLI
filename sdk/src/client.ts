@@ -85,7 +85,10 @@ export function argvOf(options: RunOptions, door: 'run' | 'runner' = 'run'): Run
     if (given === true) args.push(name)
   }
   const list = (name: string, given: readonly string[] | undefined): void => {
-    if (given !== undefined && given.length > 0) args.push(name, ...given)
+    for (const entry of given ?? []) {
+      if (entry.startsWith('-')) throw new MercuryError(`error: option '${name}' argument '${entry}' is invalid.`, null)
+      args.push(`${name}=${entry}`)
+    }
   }
   const json = (given: string | Record<string, unknown> | undefined): string | undefined => (given === undefined ? undefined : typeof given === 'string' ? given : JSON.stringify(given))
   value('--model', options.model)

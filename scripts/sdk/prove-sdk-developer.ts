@@ -82,8 +82,8 @@ try {
         assert.deepEqual(agent.tools, ['Read'])
         const agents = JSON.parse(task.args[task.args.indexOf('--agent-defs') + 1]!)
         assert.equal(agents.reader.tools.includes('mcp__sdk-tools__echo'), autoAllowTools)
-        assert.equal(task.args.includes('mcp__sdk-tools__echo'), autoAllowTools)
-        const config = JSON.parse(task.args[task.args.indexOf('--mcp') + 1]!).mcpServers['sdk-tools']
+        assert.equal(task.args.includes('--allowed-tools=mcp__sdk-tools__echo'), autoAllowTools)
+        const config = JSON.parse(task.args.find(arg => arg.startsWith('--mcp='))!.slice('--mcp='.length)).mcpServers['sdk-tools']
         await task.sendPrompt('finish'); task.closeInput(); await task.outcome
         await assert.rejects(fetch(config.url))
       } finally { await task.close(); await fixture.close() }

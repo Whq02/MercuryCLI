@@ -8,6 +8,7 @@ import { getOriginalCwd } from '../bootstrap/state.js'
 import { addBootNote } from '../substrate/bootNotes.js'
 import { discoveryPoolWidth, mapWithConcurrency } from './concurrency.js'
 import { getMercuryHome } from './envUtils.js'
+import { checkHasTrustDialogAccepted } from './config/trust.js'
 import { normalizePathForComparison } from './file.js'
 import { findCanonicalGitRoot, findGitRoot } from './git.js'
 import { parseFrontmatter, type FrontmatterData } from './frontmatterParser.js'
@@ -323,7 +324,7 @@ async function loadMarkdownFilesUncached(subdir: string, cwd: string): Promise<M
 
   const agentsAllowed = subdir !== 'agents' || !isRestrictedToExtensionsOnly('agents')
   const userAllowed = isSettingSourceEnabled('userSettings') && agentsAllowed
-  const projectAllowed = isSettingSourceEnabled('projectSettings') && agentsAllowed
+  const projectAllowed = isSettingSourceEnabled('projectSettings') && agentsAllowed && (subdir !== 'commands' || checkHasTrustDialogAccepted())
 
   const projectDirs = projectAllowed ? getProjectDirsUpToHome(subdir, cwd) : []
 
@@ -360,7 +361,7 @@ async function loadMarkdownFilesUncached(subdir: string, cwd: string): Promise<M
 export const loadMarkdownFilesForSubdir = memoize(
   (subdir: string, cwd: string): Promise<MarkdownFile[]> =>
     loadMarkdownFilesUncached(subdir, cwd),
-  (subdir: string, cwd: string) => `${subdir}|${cwd}`,
+  (subdir: string, cwd: string) => `${subdir}|${cwd}|${subdir === 'commands' ? checkHasTrustDialogAccepted() : ''}`,
 )
 
 export function clearMarkdownFileCache(): void {

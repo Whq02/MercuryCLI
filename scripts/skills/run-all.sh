@@ -13,6 +13,9 @@
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/utils/suggestions/commandSuggestions.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
+# gate-watch: scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts
+# gate-watch: src/rows/turn.ts src/utils/config/trust.ts
+# gate-watch: src/interactiveHelpers.tsx src/components/TrustDialog/TrustDialog.tsx
 # gate-watch: README.md docs/** src/utils/settings/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

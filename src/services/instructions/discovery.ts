@@ -22,7 +22,8 @@ import type {
 import { parseInstructionFileContent, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
 export function pathInInstructionRoots(path: string): boolean {
-  return pathInWorkingPath(path, getOriginalCwd())
+  const fs = getFsImplementation()
+  return pathInWorkingPath(safeResolvePath(fs, path).resolvedPath, safeResolvePath(fs, getOriginalCwd()).resolvedPath)
 }
 
 function handleInstructionFileReadError(
@@ -225,9 +226,10 @@ export async function processInstructionFile(
       })
       continue
     }
+    const includeTarget = safeResolvePath(getFsImplementation(), resolvedIncludePath).resolvedPath
     const isExternal =
-      !pathInInstructionRoots(resolvedIncludePath) &&
-      !pathInWorkingPath(resolvedIncludePath, dirname(resolvedPath))
+      !pathInInstructionRoots(includeTarget) &&
+      !pathInWorkingPath(includeTarget, dirname(resolvedPath))
     if (isExternal && !includeExternal) {
       diagnostics?.push({
         kind: 'external-import-blocked',

@@ -32,6 +32,7 @@ console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
+;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
 
 section('§1 the classifier and the two overlay halves, pure')
 {

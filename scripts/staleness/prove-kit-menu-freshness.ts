@@ -31,6 +31,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 {
   const globalConfig = await import('../../src/utils/config/globalConfig.js')
   globalConfig.enableConfigs()
+  ;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
   const loader = await import('../../src/skills/loadSkillsDir.js')
 
   const ground = mkdtempSync(join(tmpdir(), 'stale-kitmenu-ground-'))

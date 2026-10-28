@@ -22,6 +22,7 @@ export type WardRule = {
   outsideQuotes?: boolean
   refusal?: boolean
   foldLines?: boolean
+  wholeCommand?: boolean
   generatedPaths?: GeneratedPath[]
   leadingMarker?: string
   windowsRoots?: boolean
@@ -372,7 +373,7 @@ export const REFUSAL_WARDS: readonly WardRule[] = [
   { name: 'no-device-write', scope: 'bash', teach: 'A raw write to a device node (dd of=/dev/…, a redirect into a disk) overwrites a disk sight-unseen.', refusal: true, skipCommentLines: false, patterns: ['\\bdd\\b[^\\n;|&]*\\bof=["\']?\\/dev\\/(?!null\\b|zero\\b|full\\b|random\\b|urandom\\b|stdout\\b|stderr\\b|stdin\\b|tty|fd\\/|shm\\/)', '>\\s*["\']?\\/dev\\/(?:r?disk\\d|sd[a-z]|hd[a-z]|nvme\\d|mmcblk\\d|vd[a-z]|xvd[a-z]|loop\\d|dm-\\d|md\\d)'] },
   { name: 'no-disk-format', scope: 'bash', teach: 'Formatting or repartitioning a disk (mkfs, fdisk, parted, diskutil erase, format) destroys everything on it.', refusal: true, skipCommentLines: false, outsideQuotes: true, patterns: [CMD_START + '(?:mkfs(?:\\.[a-z0-9]+)?' + WORD_END + '|(?:mke2fs|mkswap|wipefs|cfdisk|sgdisk)' + WORD_END + '|(?:fdisk|sfdisk|gdisk)(?!\\s+-l\\b)' + WORD_END + '|parted(?!\\s+(?:-l|--list|print)\\b)' + WORD_END + '|diskutil\\s+(?:erase\\w*|partitionDisk|zeroDisk|randomDisk|secureErase|reformat|apfs\\s+(?:deleteContainer|eraseVolume|deleteVolume))\\b|format(?:\\.com)?\\s+[A-Za-z]:|(?:Format-Volume|Clear-Disk|Initialize-Disk)\\b)'] },
   { name: 'no-system-halt', scope: 'bash', teach: 'Shutting down, rebooting or halting the machine ends every session on it, the operator\'s included.', refusal: true, skipCommentLines: false, outsideQuotes: true, patterns: [CMD_START + '(?:(?:shutdown|reboot|halt|poweroff)' + WORD_END + '|(?:init|telinit)\\s+[06]\\b|systemctl\\s+(?:poweroff|reboot|halt|kexec)\\b|(?:Stop-Computer|Restart-Computer)\\b)'] },
-  { name: 'no-fork-bomb', scope: 'bash', teach: 'A process that forks itself without bound takes the machine down.', refusal: true, skipCommentLines: false, patterns: ['(:|\\w+)\\s*\\(\\s*\\)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', 'function\\s+(\\w+)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', '\\bfork\\s+while\\s+fork\\b'] },
+  { name: 'no-fork-bomb', scope: 'bash', teach: 'A process that forks itself without bound takes the machine down.', refusal: true, skipCommentLines: false, wholeCommand: true, patterns: ['(?<!\\w)(:|\\w+)\\s*\\(\\s*\\)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', '\\bfunction\\s+(\\w+)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', '\\bfork\\s+while\\s+fork\\b'] },
   { name: 'no-root-recursive-delete', scope: 'bash', windowsRoots: true, homePath: 'itself', teach: 'A recursive delete of the filesystem root, the home directory or a system directory destroys the machine or the operator\'s files; delete inside the project, a worktree or a scratch directory instead.', refusal: true, skipCommentLines: false, patterns: [
     '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\']?(?:\\/(?:\\*|\\s|$|["\'])|~(?:\\/\\*?)?(?:\\s|$|["\'])|\\$\\{?HOME\\}?(?:\\/\\*?)?(?:\\s|$|["\'])|\\/(?:Users|home)(?:\\/[^\\/\\s"\']+)?\\/?\\*?(?:\\s|$|["\'])|\\/root\\/?\\*?(?:\\s|$|["\'])|\\/(?:etc|usr|bin|sbin|lib|lib64|opt|boot|dev|proc|sys|System|Library|Applications|cores)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/var(?!\\/(?:tmp|folders)\\/)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/private(?!\\/(?:tmp|var\\/(?:tmp|folders))\\/)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/Volumes(?:\\/[^\\/\\s"\']+)?\\/?\\*?(?:\\s|$|["\']))',
     '\\b(?:rd|rmdir)\\s+\\/s\\b[^\\n;|&]*\\s["\']?[A-Za-z]:\\\\?["\']?(?:\\s|$)',
@@ -1254,7 +1255,8 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
             ? (words ??= readShellCommand(target.text, dialect, false))
             : (folded ??= foldContinuations(target.text, dialect))
     if (work) countWardWork(work, 'characters', text.length)
-    const lines = text.split('\n')
+    const wholeCommand = target.scope === 'bash' && rule.wholeCommand === true
+    const lines = wholeCommand ? [text] : text.split('\n')
     for (let i = 0; i < lines.length; i++) {
       if (work) countWardWork(work, 'steps')
       const line = lines[i] ?? ''
@@ -1276,7 +1278,7 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
           allow: false,
           rule,
           excerpt: m[0].slice(0, 80),
-          line: i + 1,
+          line: wholeCommand ? text.slice(0, m.index ?? 0).split('\n').length : i + 1,
           target: target.path || pending.toolName,
         }
       }
