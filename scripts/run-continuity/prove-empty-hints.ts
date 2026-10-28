@@ -14,7 +14,7 @@ console.log('empty-state hint honesty (hints-fire law) ──')
   const s = src('src/commands/run/run.tsx')
   check(
     '/run: row verbs gated on a snapshot with rows',
-    /snap && rows\.length > 0 \? \['↑↓ select', '↵ evidence', 'g reconcile'\] : \['g reconcile'\]/.test(s),
+    /snap && rows\.length > 0 \? \['↑↓ select', 'pgup\/pgdn page', '↵ evidence', 'g reconcile'\] : \['g reconcile'\]/.test(s),
   )
   check('/run: no unconditional row-verb array survives', !s.includes("controls: string[] = ['↑↓ select'"))
 }
