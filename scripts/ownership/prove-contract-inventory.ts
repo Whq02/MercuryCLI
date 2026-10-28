@@ -74,6 +74,8 @@ const MODULES: Record<string, string[]> = {
     'src/services/tools/toolExecution.ts',
     'src/services/tools/toolOrchestration.ts',
     'src/services/run/effectObserver.ts',
+    'src/tools/DocumentTool/DocumentTool.ts',
+    'src/tools/DocumentTool/schema.ts',
   ],
   compaction: [
     'src/services/compact/compact.ts',

@@ -1,5 +1,5 @@
 {
-  "base": "a4d19ec49ae1a4e2d34247457f6c6ee1b0cd8abb",
+  "base": "c2daa8c25b400220d6616be450423a4aebdf215d",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3254,6 +3254,9 @@
                 "maximum": 9007199254740991
               }
             },
+            "required": [
+              "name"
+            ],
             "additionalProperties": false
           },
           "ref": {
@@ -3512,6 +3515,61 @@
                       "maximum": 9007199254740991
                     }
                   },
+                  "additionalProperties": false
+                },
+                "ref": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "root": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "nth": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "all": {
+                  "type": "boolean"
+                },
+                "points": {
+                  "type": "boolean"
+                },
+                "clipboard": {
+                  "type": "boolean"
+                },
+                "focusApp": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
                   "additionalProperties": false
                 },
                 "ref": {
@@ -4252,6 +4310,477 @@
         "required": [
           "query"
         ]
+      },
+      "eager_input_streaming": true
+    },
+    {
+      "name": "Document",
+      "description": "Create and handle research documents locally. The output extension selects the format. Inputs, templates and image paths use read permissions; every destination uses write permissions. Existing outputs require expectedSha256 keyed by absolute path, using the digest returned by inspect. A changed destination refuses rather than replacing newer work.\n\ncreate: output plus markdown or blocks (heading, paragraph, list, table, image, pageBreak, footnote). Outputs: docx, pdf, pptx, xlsx, html, md. titlePage, header, footer, metadata, paper (A4 or Letter), margin (points) and pageNumbers configure paged documents. Images are local PNG or JPEG files. Footnote text uses [^id] with a footnote block or a Markdown definition. CSV text, JSON record arrays and named sheets create XLSX. template plus replacements fills {{key}} placeholders in a DOCX while keeping its styles; do not combine a template with new blocks.\n\nconvert: source and output. DOCX, PDF, HTML and Markdown convert between each other; PPTX converts to PDF; XLSX and CSV convert both ways. PDF-to-PDF with pages extracts those ranges in the stated order; rotate turns the extracted pages clockwise. With no pages, it keeps all pages. append:true adds markdown or blocks to a source DOCX; metadata sets title and author. Use a different output to keep the source unchanged.\n\nmerge: sources in order and one PDF output. split: one source PDF and parts:[{pages,output}]. Page numbers start at 1; ranges such as 1-3,7 preserve order. All destinations are checked before any file is written.\n\ninspect: source only. Returns pages where known, outline, table dimensions, image counts, metadata, word count and sha256, not the body. DOCX pagination depends on layout; explicit breaks are counted separately. PDF tables are not inferred from positioned text. Each PDF page reports whether it has a text layer and images.\n\ncite: bibtex, references or dois; style is apa, ieee, chicago or harvard. Returns a reference list and in-text keys; optional output is md, html or docx. These are basic journal-article and book formats, not a CSL processor; Chicago is author-date. Only dois triggers network requests, to api.crossref.org; redirects and automatic retries are refused. Crossref metadata is public; abstracts may carry copyright and are not used.\n\nPDF creation uses the provisioned bundled browser for HTML typography, or pdf-lib with a plain layout when no browser is available. renderer can select browser or plain explicitly. The plain font cannot encode every script; use the browser for those characters. Conversion uses LibreOffice or pandoc when installed and suitable, with a separate temporary profile and no source overwrite; renderer can select either explicitly. External relationships, linked fields and embedded programs stay off external converters. Pure-JavaScript conversion reflows content; slide text fallback does not preserve slide layout. Results name the road and any conversion warnings. Check the exported pages before handing over a report.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "create",
+              "convert",
+              "merge",
+              "split",
+              "inspect",
+              "cite"
+            ]
+          },
+          "output": {
+            "description": "Destination file; extension selects the format",
+            "type": "string"
+          },
+          "source": {
+            "description": "Input document path",
+            "type": "string"
+          },
+          "sources": {
+            "description": "merge: ordered PDF paths",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "heading"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 6
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "paragraph"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "ordered": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "items"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "table"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "rows"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "image"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "width": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "pageBreak"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "footnote"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "sheets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "rows"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "csv": {
+            "description": "CSV text for a worksheet",
+            "type": "string"
+          },
+          "json": {
+            "description": "Records for a worksheet",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "sheet": {
+            "description": "Worksheet name, required when exporting one of several sheets",
+            "type": "string"
+          },
+          "template": {
+            "description": "DOCX template path with {{key}} placeholders",
+            "type": "string"
+          },
+          "replacements": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "append": {
+            "description": "Append content to source DOCX, keeping existing parts",
+            "type": "boolean"
+          },
+          "titlePage": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "subtitle": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "additionalProperties": false
+          },
+          "header": {
+            "type": "string"
+          },
+          "footer": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "paper": {
+            "type": "string",
+            "enum": [
+              "A4",
+              "Letter"
+            ]
+          },
+          "margin": {
+            "description": "Page margins in points; default 54",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "pageNumbers": {
+            "type": "boolean"
+          },
+          "renderer": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "browser",
+              "plain",
+              "libreoffice",
+              "pandoc"
+            ]
+          },
+          "pages": {
+            "description": "1-based page ranges, for example 1-3,7; preserves order",
+            "type": "string"
+          },
+          "parts": {
+            "description": "split: page ranges and destination per part",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pages": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pages",
+                "output"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rotate": {
+            "description": "Clockwise degrees applied to selected PDF pages",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "multipleOf": 90
+          },
+          "expectedSha256": {
+            "description": "Existing output path to digest from inspect; required for replacement",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "bibtex": {
+            "type": "string"
+          },
+          "dois": {
+            "description": "DOIs to resolve through api.crossref.org, only when requested",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "authors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "family": {
+                        "type": "string"
+                      },
+                      "given": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "family"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "year": {
+                  "type": "string"
+                },
+                "container": {
+                  "type": "string"
+                },
+                "volume": {
+                  "type": "string"
+                },
+                "issue": {
+                  "type": "string"
+                },
+                "pages": {
+                  "type": "string"
+                },
+                "publisher": {
+                  "type": "string"
+                },
+                "doi": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "authors"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "apa",
+              "ieee",
+              "chicago",
+              "harvard"
+            ]
+          }
+        },
+        "required": [
+          "op"
+        ],
+        "additionalProperties": false
       },
       "eager_input_streaming": true
     }

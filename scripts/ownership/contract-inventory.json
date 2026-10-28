@@ -438,6 +438,21 @@
     "subscribeToolStart",
     "subscribeToolTerminal",
     "type:ToolTerminalEvent"
+   ],
+   "src/tools/DocumentTool/DocumentTool.ts": [
+    "DOCUMENT_MANUAL",
+    "DOCUMENT_TOOL_NAME",
+    "DOCUMENT_WIRE",
+    "DocumentTool",
+    "renderDocument",
+    "type:DocumentIO"
+   ],
+   "src/tools/DocumentTool/schema.ts": [
+    "documentSchema",
+    "type:Block",
+    "type:DocumentInput",
+    "type:DocumentProduct",
+    "type:Reference"
    ]
   },
   "compaction": {

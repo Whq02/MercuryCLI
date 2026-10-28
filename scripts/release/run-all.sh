@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: scripts/release/** .github/workflows/private-release.yml
 # gate-watch: src/services/privateChannel/artifactSigning.ts src/services/privateChannel/releaseTarget.ts vendor/*.lock.json
+# gate-watch: vendor/document-licences/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

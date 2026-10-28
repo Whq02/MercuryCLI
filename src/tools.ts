@@ -92,6 +92,7 @@ import { SleepTool } from './tools/SleepTool/SleepTool.js'
 import { CheckpointTool } from './tools/CheckpointTool/CheckpointTool.js'
 import { RewindTool } from './tools/RewindTool/RewindTool.js'
 import { StructureTool } from './tools/StructureTool/StructureTool.js'
+import { DocumentTool } from './tools/DocumentTool/DocumentTool.js'
 import { SyntheticOutputTool } from './tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { TaskCreateTool } from './tools/TaskCreateTool/TaskCreateTool.js'
 import { TaskGetTool } from './tools/TaskGetTool/TaskGetTool.js'
@@ -209,6 +210,7 @@ export function getAllBaseTools(): Tools {
     ListMcpResourcesTool,
     ReadMcpResourceTool,
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
+    DocumentTool,
   ]
   return tools.filter((tool): tool is Tool => Boolean(tool))
 }

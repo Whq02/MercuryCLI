@@ -1,0 +1,16 @@
+{
+  "verified": "2026-10-28",
+  "packaging": "JavaScript bundled by Bun; versions and transitive dependencies pinned in bun.lock",
+  "licenceSources": [
+    {"name":"saxes","version":"5.0.1","file":"document-licences/saxes-5.0.1.LICENSE","sha256":"0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e","url":"https://github.com/lddubeau/saxes/blob/v5.0.1/LICENSE"}
+  ],
+  "packages": [
+    {"name":"@xmldom/xmldom","version":"0.8.15","license":"MIT","url":"https://registry.npmjs.org/@xmldom/xmldom/-/xmldom-0.8.15.tgz","sha256":"119a4f40e960cd93471458634c115274bac3fe29652f55e2cbd286f84913b495","integrity":"sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==","unpackedBytes":217513,"metadata":"https://registry.npmjs.org/@xmldom/xmldom/0.8.15"},
+    {"name":"docx","version":"9.15.0","license":"MIT","url":"https://registry.npmjs.org/docx/-/docx-9.15.0.tgz","sha256":"1e54f917d6b5f45fbc3d421248b8066a7f303ef32930e817a0e6d0855a32c203","integrity":"sha512-+7gjG6c7aHdi7Yr4idGCsLe6oCXomrCT9cq4SwdNKDH1IQKNIP5t4LIRtCrIYd87k3EO7YTl3VobYCy8Gd+6qg==","archiveBytes":5076149,"unpackedBytes":20412530,"metadata":"https://registry.npmjs.org/docx/9.15.0"},
+    {"name":"pdf-lib","version":"1.17.1","license":"MIT","url":"https://registry.npmjs.org/pdf-lib/-/pdf-lib-1.17.1.tgz","sha256":"a7cc1eaf12e41e612a7be581162a63b18118aefc01e90f6a1f35347b1f324a1c","integrity":"sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==","archiveBytes":4226739,"unpackedBytes":19461112,"metadata":"https://registry.npmjs.org/pdf-lib/1.17.1"},
+    {"name":"exceljs","version":"4.4.0","license":"MIT","url":"https://registry.npmjs.org/exceljs/-/exceljs-4.4.0.tgz","sha256":"8adac13d192ce80e11304732d3ab96708b2c64bb54771b5da4f946e5eea55a18","integrity":"sha512-XctvKaEMaj1Ii9oDOqbW/6e1gXknSY4g/aLCDicOXqBE4M0nRWkUu0PTp++UPNzoFY12BNHMfs/VadKIS6llvg==","archiveBytes":4716975,"unpackedBytes":21825509,"metadata":"https://registry.npmjs.org/exceljs/4.4.0"},
+    {"name":"pptxgenjs","version":"4.0.1","license":"MIT","url":"https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-4.0.1.tgz","sha256":"305e8870cc03c4402efb99d4a62cb73f611af64998b8988915d6c65b7fe7a5f0","integrity":"sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==","archiveBytes":813698,"unpackedBytes":2605307,"metadata":"https://registry.npmjs.org/pptxgenjs/4.0.1"},
+    {"name":"mammoth","version":"1.13.0","license":"BSD-2-Clause","url":"https://registry.npmjs.org/mammoth/-/mammoth-1.13.0.tgz","sha256":"fe778792e43b06dbbff93d20e22951fe1bc55a05eb04ec823961e8639c62260b","integrity":"sha512-2cawcYFcP7ISfXbBcL9lmVgTNWo88v/52ND1gnywHtVT/pX0//puPnf0iMPV9ZgmuvNOE+zkIhDgZ9M2c2dDDg==","archiveBytes":438003,"unpackedBytes":1671388,"metadata":"https://registry.npmjs.org/mammoth/1.13.0"},
+    {"name":"marked","version":"18.0.11","license":"MIT","url":"https://registry.npmjs.org/marked/-/marked-18.0.11.tgz","sha256":"cef55476c7551e73e1a89118fa69fee9f7eef9960e9c774ad266e22ee966b994","integrity":"sha512-HnslJfsZkRPBDJRHvVtAaWlZHEpSu7u8LgQuJCELjRKuWR+hpq4A7sLq3p8HaI9ypVoXDXxV34CsQJEe1+J5Aw==","archiveBytes":119809,"unpackedBytes":479846,"metadata":"https://registry.npmjs.org/marked/18.0.11"}
+  ]
+}

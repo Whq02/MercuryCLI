@@ -1008,6 +1008,9 @@ let grammarPackMissing: string[] = [];
   }
 }
 
+const { vendorDocumentLibraries } = await import('./scripts/vendor/documentLibraries.ts');
+const documentLibraries = await vendorDocumentLibraries(ROOT, OUT);
+
 {
   const verifier = await Bun.build({
     entrypoints: [resolve(SRC, 'services/privateChannel/verifyArtifactStandalone.ts')],
@@ -1302,6 +1305,7 @@ const manifest = {
         remedy:
           'install the platform\'s prebuilt sharp packages (bun install fetches node_modules/@img/*), then re-run `bun run build.ts` — the runtime takes the pure-JavaScript image road meanwhile (PNG/BMP shrink; JPEG/WebP/GIF pass through unshrunk)',
       },
+  documentLibraries,
   degraded: [
     ...(rgVendored ? [] : ['search']),
     ...(debugpyVendored ? [] : ['python-debugger']),

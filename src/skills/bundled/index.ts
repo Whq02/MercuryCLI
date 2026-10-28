@@ -9,6 +9,7 @@ import { registerProviderApisSkill } from './provider-apis.js'
 import { registerSkillForgeSkill } from './skill-forge.js'
 import { registerLoopSkill } from './loop.js'
 import { registerScheduleRemoteAgentsSkill } from './scheduleRemoteAgents.js'
+import { registerResearchSkill } from './research.js'
 
 export function initBundledSkills(): void {
   registerUpdateConfigSkill()
@@ -24,4 +25,5 @@ export function initBundledSkills(): void {
 
   registerLoopSkill()
   registerScheduleRemoteAgentsSkill()
+  registerResearchSkill()
 }

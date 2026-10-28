@@ -17,7 +17,7 @@ const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
 const { SkillTool } = await import('../../src/tools/SkillTool/SkillTool.ts')
 const { getSkillListingAttachments } = await import('../../src/utils/attachments/skillListing.ts')
 initBundledSkills()
-const expected = ['mercury-docs', 'update-config', 'keybindings-help', 'loop', 'schedule', 'skillify', 'skill-forge', 'extension-maker', 'mcp-smithy', 'provider-apis', 'debug'].sort()
+const expected = ['mercury-docs', 'update-config', 'keybindings-help', 'loop', 'schedule', 'skillify', 'skill-forge', 'extension-maker', 'mcp-smithy', 'provider-apis', 'debug', 'research'].sort()
 const absent = [['pdf', 'documents'], ['slide', 'decks'], ['spread', 'sheets'], ['word', 'documents'], ['sim', 'plify'], ['ver', 'ifier'], ['app', 'proof']].map((parts, index) => parts.join([2, 4, 5].includes(index) ? '' : '-'))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -25,7 +25,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const names = getBundledSkills().map(skill => skill.name).sort()
-check('the bundled shelf is exactly the eleven named skills', JSON.stringify(names) === JSON.stringify(expected), names.join(' '))
+check('the bundled shelf is exactly the twelve named skills', JSON.stringify(names) === JSON.stringify(expected), names.join(' '))
 const context = {
   options: { tools: [SkillTool], engineModel: 'fixture-model' },
   getAppState: () => ({ mcp: { commands: [] } }),
