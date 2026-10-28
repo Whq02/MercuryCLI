@@ -1,7 +1,8 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
-import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../api/errorPrefix.js'
+import { PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
 import {
   type OverflowSignal,
   overflowGapTokens,
