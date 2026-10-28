@@ -1,3 +1,6 @@
+import { createReadStream, createWriteStream } from 'node:fs'
+import { Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
@@ -124,6 +127,28 @@ export async function applyShellOutputFilter(out: string, raw: { taskId: string;
     }
   }
   return `${filtered.text}\n${outputFilterFooter(filtered.leftOut, rawPath)}`
+}
+
+export async function redactedCopy(source: string, destination: string, redact: (text: string) => string): Promise<void> {
+  await mkdir(dirname(destination), { recursive: true })
+  let carry = ''
+  const redacting = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      const text = carry + chunk.toString('utf8')
+      const cut = text.lastIndexOf('\n')
+      if (cut === -1) {
+        carry = text
+        callback()
+        return
+      }
+      carry = text.slice(cut + 1)
+      callback(null, redact(text.slice(0, cut + 1)))
+    },
+    flush(callback) {
+      callback(null, carry === '' ? undefined : redact(carry))
+    },
+  })
+  await pipeline(createReadStream(source, { encoding: 'utf8' }), redacting, createWriteStream(destination))
 }
 
 export function formatExcerpt(content: string, maxLength: number): string {

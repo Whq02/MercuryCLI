@@ -3,6 +3,7 @@ import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../To
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { controlCharacterPathRefusal } from '../../utils/path.js'
 import {
   structureEnabled,
   structurePolyglotEnabled,
@@ -387,6 +388,10 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
     }
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    for (const file of input.files ?? []) {
+      const pathRefusal = controlCharacterPathRefusal(file)
+      if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    }
     if (!structureEnabled()) {
       return { result: false as const, message: 'the structural plane is disabled (MERCURY_STRUCTURE=0)', errorCode: 1 }
     }

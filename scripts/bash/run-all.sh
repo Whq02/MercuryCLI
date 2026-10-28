@@ -32,6 +32,7 @@
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json scripts/vendor/build-brush.ts scripts/vendor/patches/brush-0.4.0-windows.patch src/services/privateChannel/releaseTarget.ts .gitattributes
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
+# gate-watch: src/utils/config/derived.ts src/utils/permissions/shellProtectedPaths.ts src/tools/GrepTool/GrepTool.ts src/utils/verification/scanCeiling.ts
 # gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
 # gate-watch: src/context.ts src/utils/gitRules.ts src/utils/config/globalConfig.ts src/utils/settings/settingsCache.ts src/tools/BashTool/BashToolResultMessage.tsx
 # gate-watch: src/services/tools/toolExecution.ts src/utils/hooks/sessionHooks.ts src/utils/messages/**
@@ -103,6 +104,9 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-input-redirect-read.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-approval-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-approval-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pipe-quoted-whitespace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pipe-quoted-whitespace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-awk-operands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-awk-operands.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flagged-file-operands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flagged-file-operands.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-followed-links-ask.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-followed-links-ask.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-result-redaction.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-result-redaction.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-plain-tool-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-plain-tool-result.ts" "$__t" "$__rc"

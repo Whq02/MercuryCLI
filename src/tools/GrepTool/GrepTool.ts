@@ -25,7 +25,7 @@ import {
   findSimilarFile,
   suggestPathUnderCwd,
 } from '../../utils/file.js'
-import { NUL_PATH_MESSAGE, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath, toRelativePath } from '../../utils/path.js'
 import {
   envFileReadAsk,
   envFileTargetsInGlob,
@@ -536,8 +536,9 @@ export const GrepTool = buildTool({
   },
   async validateInput(input: Input) {
     if (input.path !== undefined) {
-      if (hasNulByte(input.path)) {
-        return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+      const pathRefusal = controlCharacterPathRefusal(input.path)
+      if (pathRefusal !== null) {
+        return { result: false as const, message: pathRefusal, errorCode: 1 }
       }
       if (windowsPathNeedsPermission(input.path)) return { result: true as const }
       const expanded = expandPath(input.path)

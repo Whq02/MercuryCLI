@@ -177,6 +177,34 @@ function pyrightOperandsRead(operands: readonly string[]): boolean {
   return !operands.some(token => token === '--watch' || token === '-w')
 }
 
+const XARGS_VALUE_FLAGS = new Set(['-a', '--arg-file', '-d', '--delimiter', '-E', '--eof', '-I', '--replace', '-J', '-L', '--max-lines', '-n', '--max-args', '-P', '--max-procs', '-s', '--max-chars'])
+const XARGS_READING_TARGETS = new Set([
+  'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'less', 'more', 'sort', 'uniq', 'cut', 'paste', 'column', 'file', 'stat', 'md5sum', 'sha1sum', 'sha256sum', 'shasum', 'strings', 'hexdump', 'od', 'xxd', 'base64', 'nl',
+  'diff', 'cmp', 'comm', 'tac', 'rev', 'fold', 'fmt', 'pr', 'expand', 'unexpand', 'tsort', 'awk', 'sed', 'jq', 'du', 'ls', 'find', 'tree', 'fd', 'fdfind', 'realpath', 'readlink', 'info', 'man', 'pyright', 'test',
+])
+
+function xargsOperandsRead(operands: readonly string[]): boolean {
+  let argFile = false
+  let i = 0
+  while (i < operands.length) {
+    const token = operands[i] as string
+    if (token === '') {
+      i++
+      continue
+    }
+    if (token === '--') {
+      i++
+      break
+    }
+    if (!token.startsWith('-')) break
+    const name = token.includes('=') ? token.slice(0, token.indexOf('=')) : token
+    if (name === '-a' || name === '--arg-file') argFile = true
+    i += XARGS_VALUE_FLAGS.has(name) && !token.includes('=') ? 2 : 1
+  }
+  const target = operands[i]
+  return target === undefined || argFile || !XARGS_READING_TARGETS.has(target)
+}
+
 const PLAIN_OPERANDS = /[<>()$`|{}&;\r\n]/
 
 function plainOperands(text: string): boolean {
@@ -245,7 +273,7 @@ const FD_FLAGS: Flags = { '-H': none, '--hidden': none, '-I': none, '--no-ignore
 const CHECKSUM_FLAGS: Flags = { '-b': none, '-c': none, '-t': none, '--tag': none }
 
 const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
-  walked('xargs', { '-I': char, '-E': 'EOF', '-n': num, '-P': num, '-0': none, '--null': none, '-a': str, '--arg-file': str, '-d': str, '--delimiter': str, '-L': num, '-p': none, '--interactive': none, '-r': none, '--no-run-if-empty': none, '-t': none, '--verbose': none }, { targets: ['echo', 'printf', 'wc', 'grep', 'head', 'tail'], unixOnly: true }),
+  walked('xargs', { '-I': char, '-E': 'EOF', '-n': num, '-P': num, '-0': none, '--null': none, '-a': str, '--arg-file': str, '-d': str, '--delimiter': str, '-L': num, '-p': none, '--interactive': none, '-r': none, '--no-run-if-empty': none, '-t': none, '--verbose': none }, { targets: ['echo', 'printf', 'wc', 'grep', 'head', 'tail'], readsOnly: xargsOperandsRead, unixOnly: true }),
   git('diff', flags(statFlags, colourFlags, {
     '--dirstat': none, '--summary': none, '--patch-with-stat': none, '--word-diff': none, '--word-diff-regex': str, '--color-words': none, '--no-renames': none, '--no-ext-diff': none, '--no-textconv': none,
     '--check': none, '--ws-error-highlight': str, '--full-index': none, '--binary': none, '--abbrev': num, '--break-rewrites': none, '--find-renames': none, '--find-copies': none,

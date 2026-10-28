@@ -58,7 +58,7 @@ import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistor
 import { LOSSY_DECODE_MESSAGE, readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
-import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath, hasControlCharacter } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
@@ -764,7 +764,7 @@ export const FileEditTool = buildTool({
     )
   },
   backfillObservableInput(input: FileEditInput): void {
-    if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
+    if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandStructuredTargetPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
@@ -804,8 +804,9 @@ export const FileEditTool = buildTool({
     )
   },
   async validateInput(input: FileEditInput, context: ToolUseContext) {
-    if (hasNulByte(input.file_path)) {
-      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    const pathRefusal = controlCharacterPathRefusal(input.file_path)
+    if (pathRefusal !== null) {
+      return { result: false as const, message: pathRefusal, errorCode: 1 }
     }
     const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {

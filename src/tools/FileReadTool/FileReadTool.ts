@@ -55,7 +55,7 @@ import { getCanonicalName } from '../../utils/model/model.js'
 import { isMnemeFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
-import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath, hasControlCharacter } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
@@ -1647,7 +1647,7 @@ export const FileReadTool = buildTool({
     return input?.file_path || getCwd()
   },
   backfillObservableInput(input: Input): void {
-    if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
+    if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
@@ -1682,8 +1682,9 @@ export const FileReadTool = buildTool({
     if (input.lossless && (input.outline || (!(input.ranges?.length) && (input.offset === undefined || input.limit === undefined)))) {
       return { result: false as const, message: 'lossless requires offset + limit or ranges, without outline.', errorCode: 1 }
     }
-    if (hasNulByte(input.file_path)) {
-      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    const pathRefusal = controlCharacterPathRefusal(input.file_path)
+    if (pathRefusal !== null) {
+      return { result: false as const, message: pathRefusal, errorCode: 1 }
     }
     const pages = selectedPages(input.pages)
     let parsedRange: { firstPage: number; lastPage: number } | null = null

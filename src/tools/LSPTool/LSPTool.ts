@@ -16,7 +16,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { logError } from '../../utils/log.js'
-import { expandPath } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { runMercuryLspOp, type MercuryLspOpInput, type MercuryLspOpOutput } from './mercuryOps.js'
@@ -347,6 +347,10 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
 
 async function validateInput(name: LspToolName, input: LspInput) {
   const refuse = (message: string, errorCode = 3) => ({ result: false as const, message, errorCode })
+  for (const path of [input.filePath, ...(input.paths ?? []), input.targetPath, input.newPath]) {
+    const pathRefusal = controlCharacterPathRefusal(path)
+    if (pathRefusal !== null) return refuse(pathRefusal, 1)
+  }
   if (name === 'LspRead') {
     const error = readArgumentError(input)
     if (error) return refuse(error)

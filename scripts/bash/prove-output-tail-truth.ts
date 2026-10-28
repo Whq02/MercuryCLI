@@ -139,7 +139,7 @@ section('§5 spill finalization never blocks the thread (awaited async, both twi
   for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
     const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
     check(`${rel}: no sync stat/truncate/link/copy anywhere`, !/\b(?:statSync|truncateSync|linkSync|copyFileSync)\s*\(/.test(src))
-    check(`${rel}: the off-lining block awaits its link and its copy fallback`, src.includes('await link(') && src.includes('await copyFile('))
+    check(`${rel}: the off-lining block awaits its streamed copy`, src.includes('await redactedCopy(result.outputFilePath, destination, redact)'))
   }
 }
 

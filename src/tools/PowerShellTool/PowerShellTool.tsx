@@ -39,6 +39,7 @@ import {
   buildImageToolResult,
   formatExcerpt,
   formatOutput,
+  redactedCopy,
   isImageOutput,
   outputBudgetClause,
   resizeShellImageOutput,
@@ -55,7 +56,9 @@ import {
 import type { PowerShellProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { existsSync } from 'node:fs'
-import { copyFile, link, stat, truncate } from 'node:fs/promises'
+import { stat, truncate } from 'node:fs/promises'
+import { createShellResultRedactor } from '../../utils/redactSecrets.js'
+import { controlCharacterPathRefusal } from '../../utils/path.js'
 import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
@@ -344,7 +347,8 @@ async function* runPowerShell(
     const accumulator = new EndTruncatingAccumulator()
     const trailingTrimmed = result.stdout.trimEnd()
     accumulator.append(trailingTrimmed + '\n')
-    let out = stripEmptyLines(accumulator.toString())
+    const redact = createShellResultRedactor()
+    let out = stripEmptyLines(redact(accumulator.toString()))
     out = await applyShellOutputFilter(out, { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
     const interpretation = interpretCommandResult(input.command, result.code, trailingTrimmed, result.stderr)
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
@@ -369,11 +373,7 @@ async function* runPowerShell(
         persistedOutputSize = stats.size
         const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
         if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
-        try {
-          await link(result.outputFilePath, destination)
-        } catch {
-          await copyFile(result.outputFilePath, destination)
-        }
+        await redactedCopy(result.outputFilePath, destination, redact)
         persistedOutputPath = destination
       } catch {  }
     }
@@ -447,6 +447,8 @@ export const PowerShellTool = buildTool({
     return { isSearch, isRead }
   },
   async validateInput(input: PowerShellToolInput) {
+    const cwdRefusal = controlCharacterPathRefusal(input.cwd)
+    if (cwdRefusal !== null) return { result: false as const, message: cwdRefusal, errorCode: 1 }
     if (sleepGatePreconditions(input)) {
       const blocked = detectSleep(input.command)
       if (blocked) {

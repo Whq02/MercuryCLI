@@ -14,6 +14,7 @@ import { jsonParse } from '../../utils/slowOperations.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parseCellId } from '../../utils/notebook.js'
+import { controlCharacterPathRefusal } from '../../utils/path.js'
 import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from './constants.js'
@@ -175,6 +176,8 @@ export const NotebookEditTool = buildTool({
   },
   async validateInput(input: Input, context: ToolUseContext): Promise<ValidationResult> {
     const { notebook_path, cell_id, new_source, cell_type, edit_mode } = input
+    const pathRefusal = controlCharacterPathRefusal(notebook_path)
+    if (pathRefusal !== null) return refuse(pathRefusal, 1)
     const resolvedPath = resolveNotebookPath(notebook_path)
 
     if (isUncShaped(resolvedPath)) return { result: true }

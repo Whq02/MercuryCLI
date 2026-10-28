@@ -38,7 +38,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, getFileModificationTime, suggestPathUnderCwd } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { expandPath } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import {
   checkReadPermissionForTool,
@@ -222,6 +222,8 @@ export const AstEditTool = buildTool({
     return getAstEditDescription(options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
+    const pathRefusal = controlCharacterPathRefusal(input.path)
+    if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
     if (input.pattern.trim() === '') {
       return { result: false as const, message: 'pattern is empty — give a structural pattern such as "oldName($$$ARGS)".', errorCode: 1 }
     }

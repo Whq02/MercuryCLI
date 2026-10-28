@@ -70,7 +70,7 @@ import {
   fileHistoryTrackEdit,
 } from '../../utils/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { expandPath } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { checkWritePermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
@@ -1161,6 +1161,10 @@ Not this tool (refused by name): file creation (Write) · binary content · note
     return input.op !== 'apply'
   },
   async validateInput(input: Input) {
+    for (const change of input.changes ?? []) {
+      const pathRefusal = controlCharacterPathRefusal(change.file_path) ?? controlCharacterPathRefusal(change.new_path)
+      if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    }
     if (input.op === 'preview') {
       const hasChanges = input.changes != null && input.changes.length > 0
       const hasPatch = input.patch != null && input.patch.length > 0

@@ -58,6 +58,7 @@ import {
   outputBudgetClause,
   resizeShellImageOutput,
   applyShellOutputFilter,
+  redactedCopy,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
@@ -78,10 +79,11 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { modifiedSinceReadMessage } from '../FileEditTool/otherSession.js'
 import { tailFile } from '../../utils/fsOperations.js'
-import { copyFile, link, stat, truncate } from 'node:fs/promises'
+import { stat, truncate } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
-import { expandPath } from '../../utils/path.js'
+import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
+import { createShellResultRedactor } from '../../utils/redactSecrets.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 
@@ -641,7 +643,8 @@ async function* runBash(
 
     let stderr = ''
 
-    let out = await applyShellOutputFilter(accumulator.toString(), { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
+    const redact = createShellResultRedactor()
+    let out = await applyShellOutputFilter(redact(accumulator.toString()), { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
     const windowed = result.outputFilePath === undefined
     const clause = outputBudgetClause(budget)
@@ -666,11 +669,7 @@ async function* runBash(
         persistedOutputSize = stats.size
         const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
         if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
-        try {
-          await link(result.outputFilePath, destination)
-        } catch {
-          await copyFile(result.outputFilePath, destination)
-        }
+        await redactedCopy(result.outputFilePath, destination, redact)
         persistedOutputPath = destination
       } catch {
       }
@@ -824,6 +823,8 @@ export const BashTool = buildTool({
     return `Running ${input.description ?? truncateForSummary(input.command)}`
   },
   async validateInput(input: BashToolInput) {
+    const cwdRefusal = controlCharacterPathRefusal(input.cwd)
+    if (cwdRefusal !== null) return { result: false as const, message: cwdRefusal, errorCode: 1 }
     if (input.command.trim() === '') {
       return { result: false as const, message: EMPTY_COMMAND_REFUSAL, errorCode: 1 }
     }

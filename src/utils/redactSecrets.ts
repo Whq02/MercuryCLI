@@ -10,6 +10,9 @@ const SECRET_REDACTION = '[redacted]'
 const SECRET_NAME = /(?:api[-_]?key|private[-_]?key|token|password|passwd|secret|authorization|credential)s?$/i
 const SECRET_ASSIGNMENT = /(\b[\w-]*(?:api[_-]?key|private[_-]?key|token|password|passwd|secret|credential)s?["']?[ \t]*[:=][ \t]*)(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|(\[redacted\]|[^\s"'&;,}\[\]<>`)]+))/gi
 const PREFIXED_SECRET = /\b(?:ctx7sk-[A-Za-z0-9_-]{10,}|sk-ant-[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[bp]-[A-Za-z0-9-]{10,}|AIza[A-Za-z0-9_-]{35}|AKIA[A-Z0-9]{16})(?![A-Za-z0-9_])/g
+const PRIVATE_KEY_BLOCK = /-----BEGIN[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----|$)/gi
+const ENV_SECRET_NAME = /key|token|secret|password|passwd|credential/i
+const ENV_ASSIGNMENT = /^([ \t]*(?:export[ \t]+|declare[ \t]+-[A-Za-z-]+[ \t]+|setenv[ \t]+)?)([A-Za-z_][A-Za-z0-9_]*)=(.+)$/gm
 
 function stringsIn(value: unknown, all: boolean, into: Set<string>): void {
   if (typeof value === 'string') {
@@ -47,18 +50,37 @@ export async function sessionSecretValues(): Promise<string[]> {
   return [...values]
 }
 
+function exactMatcher(values: readonly string[]): RegExp | null {
+  const distinct = [...new Set(values.filter(Boolean))].sort((a, b) => b.length - a.length)
+  return distinct.length ? new RegExp(distinct.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null
+}
+
+export function createShellResultRedactor(): (text: string) => string {
+  const names = new Set([...ALL_PROVIDER_CREDENTIAL_ENV_VARS, ...Object.keys(process.env).filter(name => ENV_SECRET_NAME.test(name))])
+  const exact = exactMatcher([...names].map(name => process.env[name]).filter((value): value is string => typeof value === 'string' && value.length >= 8))
+  return (text: string): string => {
+    let result = exact ? text.replace(exact, () => SECRET_REDACTION) : text
+    result = result.replace(PRIVATE_KEY_BLOCK, SECRET_REDACTION)
+    result = result.replace(PREFIXED_SECRET, SECRET_REDACTION)
+    result = redactKnownShapes(result, SECRET_REDACTION)
+    return result.replace(ENV_ASSIGNMENT, (match, prefix: string, name: string, value: string) => {
+      if (!ENV_SECRET_NAME.test(name)) return match
+      const quote = /^(["']).*\1$/s.test(value) ? (value[0] as string) : ''
+      return `${prefix}${name}=${quote}${SECRET_REDACTION}${quote}`
+    })
+  }
+}
+
 function redactAuthorization(value: string): string {
   const scheme = value.match(/^(?:Bearer|Basic|Digest)[ \t]+/i)?.[0] ?? ''
   return scheme + SECRET_REDACTION
 }
 
 export function createSecretRedactor(knownSecrets: readonly string[] = []): (text: string) => string {
-  const values = [...new Set(knownSecrets.filter(Boolean).flatMap(value => [value, JSON.stringify(value).slice(1, -1)]))]
-    .sort((a, b) => b.length - a.length)
-  const exact = values.length ? new RegExp(values.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null
+  const exact = exactMatcher(knownSecrets.filter(Boolean).flatMap(value => [value, JSON.stringify(value).slice(1, -1)]))
   return (text: string): string => {
     let result = exact ? text.replace(exact, () => SECRET_REDACTION) : text
-    result = result.replace(/-----BEGIN[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----|$)/gi, SECRET_REDACTION)
+    result = result.replace(PRIVATE_KEY_BLOCK, SECRET_REDACTION)
     result = result.replace(PREFIXED_SECRET, SECRET_REDACTION)
     result = redactKnownShapes(result, SECRET_REDACTION)
     result = result.replace(/(\bBearer[ \t]+)[A-Za-z0-9._~+\/-]+=*/gi, `$1${SECRET_REDACTION}`)

@@ -21,9 +21,21 @@ function defaultBaseDir(): string {
 const POSIX_DRIVE_PREFIX = /^\/[a-zA-Z]\//
 
 export const NUL_PATH_MESSAGE = 'Path contains null bytes'
+export const CONTROL_PATH_MESSAGE = 'Path contains control characters'
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/
 
 export function hasNulByte(path: string): boolean {
   return path.includes('\0')
+}
+
+export function hasControlCharacter(path: string): boolean {
+  return CONTROL_CHARACTER.test(path)
+}
+
+export function controlCharacterPathRefusal(path: string | undefined): string | null {
+  if (path === undefined) return null
+  if (hasNulByte(path)) return NUL_PATH_MESSAGE
+  return hasControlCharacter(path) ? CONTROL_PATH_MESSAGE : null
 }
 
 export function expandPath(path: string, baseDir: string = defaultBaseDir()): string {

@@ -18,6 +18,7 @@
 # gate-watch: src/utils/task/framework.ts
 # gate-watch: src/entrypoints/cli.tsx src/main.tsx src/setup.ts src/cli/runArgs.ts src/cli/sessionArgs.ts src/state/onChangeAppState.ts src/utils/permissions/rootNotice.ts
 # gate-watch: src/services/instructions/** src/utils/processUserInput/** src/utils/config/trust.ts
+# gate-watch: src/tools/BashTool/pathValidation.ts src/utils/permissions/shellProtectedPaths.ts
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/anthropic/cacheAndUsage.ts
 # gate-watch: src/rows/* src/runner/wire/* src/query/transitions.ts src/utils/messages/turnCut.ts scripts/mcp/_fixture-estate-server.mjs

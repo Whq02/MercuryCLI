@@ -18,6 +18,7 @@ import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
+import { scanCeiling } from './scanCeiling.js'
 
 export type VerificationScope =
   | 'full-gate'
@@ -127,7 +128,6 @@ const EXCLUDE_HARNESS = HARNESS_DIRS.map(d => `:(exclude,glob)**/${d}/**`)
 const SLOW_SCAN_MS = 2_000
 const SCAN_INTERVAL_FLOOR_MS = 30_000
 const SCAN_INTERVAL_CAP_MS = 600_000
-const DEFAULT_SCAN_CEILING = 100_000
 const DEFAULT_SCAN_TIMEOUT_MS = 30_000
 const STALE_INDEX_LOCK_MS = 60_000
 const MAX_GIT_OUTPUT = 16 * 1024 * 1024
@@ -158,11 +158,6 @@ export interface TreeScanRecord {
 
 const treeScanRecords = new Map<string, TreeScanRecord | null>()
 const digestInFlight = new Map<string, Promise<string | null>>()
-
-function scanCeiling(): number {
-  const raw = Number(flagEnv('MERCURY_TREE_SCAN_CEILING'))
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_SCAN_CEILING
-}
 
 function scanTimeoutMs(): number {
   const raw = Number(flagEnv('MERCURY_TREE_SCAN_TIMEOUT_MS'))

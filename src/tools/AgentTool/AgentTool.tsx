@@ -1,6 +1,7 @@
 
 import { realpathSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
+import { hasControlCharacter } from '../../utils/path.js'
 import { z, type ZodType } from 'zod'
 import type { PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -133,7 +134,7 @@ const CWD_PARAM_DESCRIPTION =
   "The absolute directory the crewmate starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder."
 
 function agentDirectoryOf(spelling: string): string {
-  if (!isAbsolute(spelling)) {
+  if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
     throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
   }
   const onDisk = getPlatform() === 'windows' && /^\/[a-zA-Z]\//.test(spelling) ? posixPathToWindowsPath(spelling) : spelling

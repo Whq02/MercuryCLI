@@ -1,4 +1,5 @@
-import { posix as posixPath, win32 as win32Path } from 'node:path'
+import { readdirSync, realpathSync, statSync, type Dirent } from 'node:fs'
+import { join, posix as posixPath, win32 as win32Path } from 'node:path'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type {
   PermissionResult,
@@ -26,6 +27,7 @@ import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
+import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 
 
 export type PathCommand =
@@ -34,6 +36,9 @@ export type PathCommand =
   | 'tr' | 'file' | 'stat' | 'diff' | 'awk' | 'strings' | 'hexdump' | 'od'
   | 'base64' | 'nl' | 'grep' | 'rg' | 'sed' | 'git' | 'jq' | 'sha256sum'
   | 'sha1sum' | 'md5sum' | 'tee' | 'dd'
+  | 'xargs' | 'tree' | 'fd' | 'fdfind' | 'du' | 'realpath' | 'readlink' | 'comm' | 'cmp'
+  | 'tac' | 'rev' | 'fold' | 'fmt' | 'pr' | 'expand' | 'unexpand' | 'tsort' | 'info' | 'man'
+  | 'date' | 'pyright' | 'test'
 
 export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   cd: 'read', ls: 'read', find: 'read', cat: 'read', head: 'read', tail: 'read',
@@ -41,6 +46,9 @@ export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   tr: 'read', file: 'read', stat: 'read', diff: 'read', awk: 'read', strings: 'read',
   hexdump: 'read', od: 'read', base64: 'read', nl: 'read', grep: 'read', rg: 'read',
   git: 'read', jq: 'read', sha256sum: 'read', sha1sum: 'read', md5sum: 'read',
+  xargs: 'read', tree: 'read', fd: 'read', fdfind: 'read', du: 'read', realpath: 'read', readlink: 'read',
+  comm: 'read', cmp: 'read', tac: 'read', rev: 'read', fold: 'read', fmt: 'read', pr: 'read',
+  expand: 'read', unexpand: 'read', tsort: 'read', info: 'read', man: 'read', date: 'read', pyright: 'read', test: 'read',
   mkdir: 'create', touch: 'create', tee: 'create', dd: 'create',
   rm: 'write', rmdir: 'write', mv: 'write', cp: 'write', sed: 'write',
 }
@@ -67,23 +75,158 @@ const FIND_PATH_PREDICATES = new Set([
 ])
 const FIND_GLOBAL_OPTIONS = new Set(['-H', '-L', '-P'])
 
-const GREP_CONSUMING = new Set([
-  '-e', '--regexp', '-f', '--file', '--exclude', '--include', '--exclude-dir',
-  '--include-dir', '-m', '--max-count', '-A', '--after-context', '-B',
-  '--before-context', '-C', '--context',
-])
-const RG_CONSUMING = new Set([
-  '-e', '--regexp', '-f', '--file', '-t', '--type', '-T', '--type-not', '-g',
-  '--glob', '-m', '--max-count', '--max-depth', '-r', '--replace', '-A',
-  '--after-context', '-B', '--before-context', '-C', '--context',
-])
-const PATTERN_ALREADY_SUPPLIED = new Set(['-e', '--regexp', '-f', '--file'])
-const FILE_NAME_FILTERS = new Set(['-g', '--glob', '--include'])
-const ENV_METADATA_COMMANDS: ReadonlySet<PathCommand> = new Set(['cd', 'ls', 'find', 'file', 'stat', 'wc', 'sha256sum', 'sha1sum', 'md5sum'])
-const JQ_CONSUMING = new Set([
-  '-e', '--expression', '-f', '--from-file', '--arg', '--argjson', '--slurpfile',
-  '--rawfile', '--args', '--jsonargs', '-L', '--library-path', '--indent', '--tab',
-])
+type OptionGrammar = { readonly letters: string; readonly longs: ReadonlySet<string>; readonly pairs?: ReadonlySet<string> }
+
+const GREP_GRAMMAR: OptionGrammar = {
+  letters: 'efmABCdD',
+  longs: new Set(['--regexp', '--file', '--exclude', '--include', '--exclude-dir', '--include-dir', '--exclude-from', '--max-count', '--after-context', '--before-context', '--context', '--label', '--devices', '--directories', '--binary-files', '--group-separator']),
+}
+const RG_GRAMMAR: OptionGrammar = {
+  letters: 'efgtTmrABCEMjd',
+  longs: new Set([
+    '--regexp', '--file', '--type', '--type-not', '--glob', '--iglob', '--max-count', '--max-depth', '--maxdepth', '--replace', '--after-context', '--before-context', '--context',
+    '--encoding', '--max-columns', '--threads', '--color', '--colors', '--type-add', '--type-clear', '--pre', '--pre-glob', '--sort', '--sortr', '--max-filesize', '--dfa-size-limit',
+    '--regex-size-limit', '--path-separator', '--field-context-separator', '--field-match-separator', '--context-separator', '--ignore-file', '--engine', '--hyperlink-format', '--generate',
+  ]),
+}
+const JQ_GRAMMAR: OptionGrammar = {
+  letters: 'fL',
+  longs: new Set(['--from-file', '--library-path', '--indent']),
+  pairs: new Set(['--arg', '--argjson', '--slurpfile', '--rawfile']),
+}
+const XARGS_GRAMMAR: OptionGrammar = { letters: 'adEIJLnPs', longs: new Set(['--arg-file', '--delimiter', '--max-args', '--max-procs', '--max-chars', '--process-slot-var']) }
+const TREE_GRAMMAR: OptionGrammar = { letters: 'LPIHTo', longs: new Set(['--filelimit', '--charset', '--sort', '--timefmt', '--infofile', '--gitfile', '--hintro', '--houtro']) }
+const FD_GRAMMAR: OptionGrammar = {
+  letters: 'tedcExXjSo',
+  longs: new Set([
+    '--type', '--extension', '--max-depth', '--maxdepth', '--min-depth', '--exact-depth', '--color', '--exclude', '--exec', '--exec-batch', '--threads', '--size', '--changed-within',
+    '--changed-before', '--owner', '--max-results', '--path-separator', '--max-buffer-time', '--batch-size', '--search-path', '--base-directory', '--ignore-file', '--format', '--and',
+  ]),
+}
+const DU_GRAMMAR: OptionGrammar = { letters: 'dBtX', longs: new Set(['--max-depth', '--block-size', '--threshold', '--time-style', '--exclude', '--exclude-from', '--files0-from']) }
+const DIFF_GRAMMAR: OptionGrammar = {
+  letters: 'CUWxXSIFDL',
+  longs: new Set([
+    '--context', '--unified', '--width', '--exclude', '--exclude-from', '--starting-file', '--ignore-matching-lines', '--show-function-line', '--ifdef', '--label', '--from-file', '--to-file',
+    '--tabsize', '--horizon-lines', '--line-format', '--old-line-format', '--new-line-format', '--unchanged-line-format', '--old-group-format', '--new-group-format', '--changed-group-format', '--unchanged-group-format', '--palette', '--color',
+  ]),
+}
+const INFO_GRAMMAR: OptionGrammar = { letters: 'fndok', longs: new Set(['--file', '--node', '--directory', '--output', '--apropos', '--init-file', '--index-search', '--restore', '--dribble', '--variable']) }
+const MAN_GRAMMAR: OptionGrammar = { letters: 'lMCSsLPpeRET', longs: new Set(['--local-file', '--manpath', '--config-file', '--sections', '--locale', '--pager', '--preprocessor', '--extension', '--recode', '--encoding', '--troff-device', '--systems', '--html']) }
+const DATE_GRAMMAR: OptionGrammar = { letters: 'rdsf', longs: new Set(['--reference', '--date', '--set', '--file', '--rfc-3339', '--resolution']) }
+const PYRIGHT_GRAMMAR: OptionGrammar = { letters: 'pt', longs: new Set(['--project', '--typeshedpath', '--typeshed-path', '--venvpath', '--venv-path', '--pythonpath', '--pythonversion', '--pythonplatform', '--level', '--threads', '--verifytypes']) }
+
+const GREP_FILES = new Set(['-f', '--file', '--exclude-from'])
+const RG_FILES = new Set(['-f', '--file', '--ignore-file'])
+const PATTERN_FLAGS = new Set(['-e', '--regexp', '-f', '--file'])
+const FILE_NAME_FILTERS = new Set(['-g', '--glob', '--iglob', '--include'])
+const XARGS_FILES = new Set(['-a', '--arg-file'])
+const TREE_FILES = new Set(['--infofile', '--gitfile', '--hintro', '--houtro'])
+const FD_FILES = new Set(['--search-path', '--base-directory', '--ignore-file'])
+const DU_FILES = new Set(['-X', '--exclude-from', '--files0-from'])
+const DIFF_FILES = new Set(['-X', '--exclude-from', '--from-file', '--to-file'])
+const INFO_FILES = new Set(['-f', '--file', '-d', '--directory', '--init-file'])
+const MAN_FILES = new Set(['-l', '--local-file', '-M', '--manpath', '-C', '--config-file'])
+const DATE_FILES = new Set(['-r', '--reference', '-f', '--file'])
+const PYRIGHT_FILES = new Set(['-p', '--project', '--typeshedpath', '--typeshed-path', '--venvpath', '--venv-path', '--pythonpath'])
+const JQ_FILES = new Set(['-f', '--from-file', '-L', '--library-path', '--slurpfile', '--rawfile'])
+const TEST_FILE_UNARIES = /^-[bcdefgGhkLNOprsSuwx]$/
+const TEST_FILE_BINARIES = new Set(['-nt', '-ot', '-ef'])
+const ENV_METADATA_COMMANDS: ReadonlySet<PathCommand> = new Set(['cd', 'ls', 'find', 'file', 'stat', 'wc', 'sha256sum', 'sha1sum', 'md5sum', 'tree', 'fd', 'fdfind', 'du', 'realpath', 'readlink', 'date', 'test'])
+
+function walkOptions(args: readonly string[], grammar: OptionGrammar, onFlag: (name: string, values: string[]) => void, onOperand: (value: string) => void): void {
+  let optionsEnded = false
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    if (!optionsEnded && arg === '--') {
+      optionsEnded = true
+      continue
+    }
+    if (optionsEnded || !arg.startsWith('-') || arg === '-') {
+      onOperand(arg)
+      continue
+    }
+    if (arg.startsWith('--')) {
+      const equals = arg.indexOf('=')
+      const name = equals === -1 ? arg : arg.slice(0, equals)
+      if (equals !== -1) {
+        onFlag(name, [arg.slice(equals + 1)])
+      } else if (grammar.pairs?.has(name)) {
+        const values = args.slice(i + 1, i + 3)
+        i += values.length
+        onFlag(name, values)
+      } else if (grammar.longs.has(name) && args[i + 1] !== undefined) {
+        onFlag(name, [args[++i] as string])
+      } else {
+        onFlag(name, [])
+      }
+      continue
+    }
+    for (let k = 1; k < arg.length; k++) {
+      const letter = arg[k] as string
+      if (!grammar.letters.includes(letter)) {
+        onFlag(`-${letter}`, [])
+        continue
+      }
+      const attached = arg.slice(k + 1)
+      if (attached.length > 0) onFlag(`-${letter}`, [attached])
+      else if (args[i + 1] !== undefined) onFlag(`-${letter}`, [args[++i] as string])
+      else onFlag(`-${letter}`, [])
+      break
+    }
+  }
+}
+
+function flaggedFile(name: string, values: string[], files: ReadonlySet<string>, operands: string[]): void {
+  if (!files.has(name)) return
+  const value = values[values.length - 1]
+  if (value !== undefined && value !== '-') operands.push(value)
+}
+
+function extractFlagged(grammar: OptionGrammar, files: ReadonlySet<string>, positionals: 'all' | 'slash' | 'none' = 'all', fallback: string[] = []): (args: string[]) => string[] {
+  return args => {
+    const operands: string[] = []
+    let seen = 0
+    walkOptions(args, grammar, (name, values) => flaggedFile(name, values, files, operands), value => {
+      seen++
+      if (positionals === 'all' || (positionals === 'slash' && value.includes('/'))) operands.push(value)
+    })
+    return seen === 0 && positionals === 'all' ? [...operands, ...fallback] : operands
+  }
+}
+
+function extractFdOperands(args: string[]): string[] {
+  const operands: string[] = []
+  const paths: string[] = []
+  let searchPaths = 0
+  let patternSeen = false
+  walkOptions(args, FD_GRAMMAR, (name, values) => {
+    if (FD_FILES.has(name)) searchPaths++
+    flaggedFile(name, values, FD_FILES, operands)
+  }, value => {
+    if (!patternSeen) patternSeen = true
+    else paths.push(value)
+  })
+  return paths.length === 0 && searchPaths === 0 ? [...operands, '.'] : [...operands, ...paths]
+}
+
+function extractTestOperands(args: string[]): string[] {
+  const operands: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string
+    const next = args[i + 1]
+    if (TEST_FILE_UNARIES.test(arg) && next !== undefined) {
+      operands.push(next)
+      i++
+    } else if (TEST_FILE_BINARIES.has(arg)) {
+      const previous = args[i - 1]
+      if (previous !== undefined) operands.push(previous)
+      if (next !== undefined) operands.push(next)
+      i++
+    }
+  }
+  return operands
+}
 
 export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> = {
   cd: args => {
@@ -101,21 +244,35 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
     const deleteStyle = args.some(a => a === '-d' || a === '--delete' || (a.startsWith('-') && a.includes('d')))
     return operands.slice(deleteStyle ? 1 : 2)
   },
-  grep: args => extractPatternCommand(args, GREP_CONSUMING, ['-r', '-R', '--recursive']),
-  rg: args => extractPatternCommand(args, RG_CONSUMING, undefined),
+  grep: args => extractPatternCommand(args, GREP_GRAMMAR, GREP_FILES, ['-r', '-R', '--recursive', '--dereference-recursive']),
+  rg: args => extractPatternCommand(args, RG_GRAMMAR, RG_FILES, undefined),
   sed: extractSedOperands,
-  jq: args => extractPatternCommand(args, JQ_CONSUMING, null),
+  jq: extractJqOperands,
   git: extractGitOperands,
   tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
   dd: args => args.filter(a => a.startsWith('of=') && !/^of=\/dev\/(?:null|stdout|stderr|fd\/[12])$/.test(a)).map(a => a.slice(3)),
   awk: extractAwkOperands,
+  xargs: extractFlagged(XARGS_GRAMMAR, XARGS_FILES, 'none'),
+  tree: extractFlagged(TREE_GRAMMAR, TREE_FILES, 'all', ['.']),
+  fd: extractFdOperands,
+  fdfind: extractFdOperands,
+  du: extractFlagged(DU_GRAMMAR, DU_FILES, 'all', ['.']),
+  diff: extractFlagged(DIFF_GRAMMAR, DIFF_FILES),
+  info: extractFlagged(INFO_GRAMMAR, INFO_FILES, 'slash'),
+  man: extractFlagged(MAN_GRAMMAR, MAN_FILES, 'slash'),
+  date: extractFlagged(DATE_GRAMMAR, DATE_FILES, 'none'),
+  pyright: extractFlagged(PYRIGHT_GRAMMAR, PYRIGHT_FILES),
+  test: extractTestOperands,
   mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
   mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,
   tail: extractBaseline, sort: extractBaseline, uniq: extractBaseline, wc: extractBaseline,
   cut: extractBaseline, paste: extractBaseline, column: extractBaseline, file: extractBaseline,
-  stat: extractBaseline, diff: extractBaseline, strings: extractBaseline,
+  stat: extractBaseline, strings: extractBaseline,
   hexdump: extractBaseline, od: extractBaseline, base64: extractBaseline, nl: extractBaseline,
   sha256sum: extractBaseline, sha1sum: extractBaseline, md5sum: extractBaseline,
+  realpath: extractBaseline, readlink: extractBaseline, comm: extractBaseline, cmp: extractBaseline,
+  tac: extractBaseline, rev: extractBaseline, fold: extractBaseline, fmt: extractBaseline, pr: extractBaseline,
+  expand: extractBaseline, unexpand: extractBaseline, tsort: extractBaseline,
 }
 
 const AWK_READ_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-i', '--include', '-l', '--load'])
@@ -196,44 +353,36 @@ function envFileNameFilter(value: string | undefined, operands: string[]): void 
   if (value !== undefined) operands.push(...envFileTargetsInGlob(value))
 }
 
-function extractPatternCommand(
-  args: string[],
-  consuming: Set<string>,
-  recursiveFlags: string[] | undefined | null,
-): string[] {
+function extractPatternCommand(args: string[], grammar: OptionGrammar, files: ReadonlySet<string>, recursiveFlags: string[] | undefined): string[] {
   const operands: string[] = []
+  const paths: string[] = []
   let patternSeen = false
-  let optionsEnded = false
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i] as string
-    if (!optionsEnded && arg === '--') {
-      optionsEnded = true
-      continue
-    }
-    if (!optionsEnded && arg.startsWith('-') && arg !== '-') {
-      if (consuming.has(arg)) {
-        if (PATTERN_ALREADY_SUPPLIED.has(arg)) patternSeen = true
-        i++
-        if (FILE_NAME_FILTERS.has(arg)) envFileNameFilter(args[i], operands)
-      }
-      const fused = arg.match(/^(--glob|--include)=(.+)$/)
-      if (fused) envFileNameFilter(fused[2], operands)
-      continue
-    }
-    if (!patternSeen) {
-      patternSeen = true
-      continue
-    }
-    operands.push(arg)
-  }
-  if (operands.length === 0) {
-    if (Array.isArray(recursiveFlags)) {
-      if (args.some(a => recursiveFlags.includes(a))) return ['.']
-      return []
-    }
-    if (recursiveFlags === undefined) return ['.']
-    return []
-  }
+  let recursive = recursiveFlags === undefined
+  walkOptions(args, grammar, (name, values) => {
+    if (PATTERN_FLAGS.has(name) || name === '--files') patternSeen = true
+    if (recursiveFlags?.includes(name)) recursive = true
+    if (FILE_NAME_FILTERS.has(name)) envFileNameFilter(values[0], operands)
+    flaggedFile(name, values, files, operands)
+  }, value => {
+    if (!patternSeen) patternSeen = true
+    else paths.push(value)
+  })
+  if (paths.length === 0 && recursive) paths.push('.')
+  return [...operands, ...paths]
+}
+
+function extractJqOperands(args: string[]): string[] {
+  const operands: string[] = []
+  let filterSeen = false
+  let argsMode = false
+  walkOptions(args, JQ_GRAMMAR, (name, values) => {
+    if (name === '-f' || name === '--from-file') filterSeen = true
+    if (name === '--args' || name === '--jsonargs') argsMode = true
+    flaggedFile(name, values, JQ_FILES, operands)
+  }, value => {
+    if (!filterSeen) filterSeen = true
+    else if (!argsMode) operands.push(value)
+  })
   return operands
 }
 
@@ -422,6 +571,9 @@ const COMMAND_ACTION: Record<PathCommand, string> = {
   strings: 'read strings from', hexdump: 'dump', od: 'dump', base64: 'encode',
   nl: 'number lines of', grep: 'search', rg: 'search', sed: 'edit', git: 'run git on',
   jq: 'query', sha256sum: 'hash', sha1sum: 'hash', md5sum: 'hash', tee: 'write', dd: 'write',
+  xargs: 'read', tree: 'list', fd: 'search', fdfind: 'search', du: 'inspect', realpath: 'inspect', readlink: 'inspect',
+  comm: 'compare', cmp: 'compare', tac: 'read', rev: 'read', fold: 'read', fmt: 'read', pr: 'read',
+  expand: 'read', unexpand: 'read', tsort: 'read', info: 'read', man: 'read', date: 'inspect', pyright: 'read', test: 'inspect',
 }
 
 export function createPathChecker(command: PathCommand, operationTypeOverride?: FileOperationType) {
@@ -469,24 +621,122 @@ function runPathChecker(
   const operands = PATH_EXTRACTORS[command](args)
   const flowRead = context.mode === 'flow' && operationType === 'read' && command !== 'cd'
   const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
+  const roots: string[] = []
   for (const operand of operands) {
     const check = validatePath(operand, cwd, context, operationType)
     if (!check.allowed) {
       if (flowRead && check.decisionReason === undefined) continue
-      if (check.decisionReason?.type === 'rule') {
-        return ruleDeny(denySubject(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
-      }
-      return {
-        behavior: 'ask',
-        message: composedMessage(command, check.resolvedPath, context, check.decisionReason),
-        blockedPath: check.resolvedPath,
-        decisionReason: check.decisionReason,
-      }
+      return operandRefusal(command, check, context, operationType)
     }
     const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
     if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
+    roots.push(check.resolvedPath)
+  }
+  if (operationType === 'read' && !flowRead && FOLLOWS_LINKS[command]?.(args) === true) {
+    const followed = followedLinksRefusal(command, roots, cwd, context, operationType)
+    if (followed !== null) return followed
   }
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
+}
+
+function operandRefusal(command: PathCommand, check: ReturnType<typeof validatePath>, context: ToolPermissionContext, operationType: FileOperationType): PermissionResult {
+  if (check.decisionReason?.type === 'rule') {
+    return ruleDeny(denySubject(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
+  }
+  return {
+    behavior: 'ask',
+    message: composedMessage(command, check.resolvedPath, context, check.decisionReason),
+    blockedPath: check.resolvedPath,
+    decisionReason: check.decisionReason,
+  }
+}
+
+function flagNames(args: string[], grammar: OptionGrammar): Set<string> {
+  const names = new Set<string>()
+  walkOptions(args, grammar, name => { names.add(name) }, () => {})
+  return names
+}
+
+const LS_GRAMMAR: OptionGrammar = { letters: 'ITw', longs: new Set(['--block-size', '--format', '--hide', '--ignore', '--indicator-style', '--quoting-style', '--sort', '--time', '--time-style', '--width', '--tabsize']) }
+
+const FOLLOWS_LINKS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
+  grep: args => {
+    const flags = flagNames(args, GREP_GRAMMAR)
+    return flags.has('-R') || flags.has('--dereference-recursive')
+  },
+  rg: args => {
+    const flags = flagNames(args, RG_GRAMMAR)
+    return flags.has('-L') || flags.has('--follow')
+  },
+  find: args => args.includes('-L') || args.includes('-follow'),
+  ls: args => {
+    const flags = flagNames(args, LS_GRAMMAR)
+    return (flags.has('-L') || flags.has('--dereference')) && (flags.has('-R') || flags.has('--recursive'))
+  },
+  du: args => {
+    const flags = flagNames(args, DU_GRAMMAR)
+    return flags.has('-L') || flags.has('--dereference')
+  },
+  tree: args => flagNames(args, TREE_GRAMMAR).has('-l'),
+  fd: args => {
+    const flags = flagNames(args, FD_GRAMMAR)
+    return flags.has('-L') || flags.has('--follow')
+  },
+  fdfind: args => {
+    const flags = flagNames(args, FD_GRAMMAR)
+    return flags.has('-L') || flags.has('--follow')
+  },
+  diff: args => {
+    const flags = flagNames(args, DIFF_GRAMMAR)
+    return (flags.has('-r') || flags.has('--recursive')) && !flags.has('--no-dereference')
+  },
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function followedLinksRefusal(command: PathCommand, roots: string[], cwd: string, context: ToolPermissionContext, operationType: FileOperationType): PermissionResult | null {
+  const budget = scanCeiling()
+  const seen = new Set<string>()
+  const queue = roots.filter(isDirectory).map(root => ({ dir: root, root }))
+  let visited = 0
+  while (queue.length > 0) {
+    const { dir, root } = queue.pop() as { dir: string; root: string }
+    let real: string
+    try {
+      real = realpathSync(dir)
+    } catch {
+      continue
+    }
+    if (seen.has(real)) continue
+    seen.add(real)
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(real, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (++visited > budget) {
+        const message = `${command} follows links under ${root}, a tree of more than ${budget.toLocaleString('en-US')} entries; narrow the search, or approve`
+        return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
+      }
+      const full = join(real, entry.name)
+      if (entry.isSymbolicLink()) {
+        const check = validatePath(full, cwd, context, operationType)
+        if (!check.allowed) return operandRefusal(command, check, context, operationType)
+        if (isDirectory(check.resolvedPath)) queue.push({ dir: check.resolvedPath, root })
+      } else if (entry.isDirectory()) {
+        queue.push({ dir: full, root })
+      }
+    }
+  }
+  return null
 }
 
 function denySubject(command: PathCommand, path: string): string {

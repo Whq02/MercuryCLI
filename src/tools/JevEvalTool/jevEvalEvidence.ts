@@ -1,6 +1,6 @@
 import { basename, extname } from 'node:path'
 import { getFsImplementation } from '../../utils/fsOperations.js'
-import { expandPath, hasNulByte } from '../../utils/path.js'
+import { expandPath, hasControlCharacter, hasNulByte } from '../../utils/path.js'
 import {
   JEV_EVAL_FILE_KEY,
   JEV_EVAL_FORMAT_BY_EXTENSION,
@@ -296,6 +296,7 @@ type FileRead = { ok: true; path: string; text: string; bytes: number } | { ok: 
 
 function readEvidenceFile(index: number, given: string): FileRead {
   if (hasNulByte(given)) return refuse(`evidence[${index}].file.path contains a NUL byte; nothing was read and nothing was sent`)
+  if (hasControlCharacter(given)) return refuse(`evidence[${index}].file.path contains a control character; nothing was read and nothing was sent`)
   const path = expandPath(given)
   const fs = getFsImplementation()
   let size: number
