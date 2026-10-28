@@ -127,6 +127,7 @@ pub struct TreeElement {
 #[napi(object)]
 pub struct TreeAnswer {
     pub elements: Vec<TreeElement>,
+    pub focused: Option<TreeElement>,
     pub truncated: bool,
     pub reason: Option<String>,
     pub scope: Option<String>,
@@ -136,7 +137,7 @@ pub struct TreeAnswer {
 
 impl TreeAnswer {
     pub fn refused(reason: &str) -> TreeAnswer {
-        TreeAnswer { elements: Vec::new(), truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
+        TreeAnswer { elements: Vec::new(), focused: None, truncated: false, reason: Some(reason.to_string()), scope: None, web_content: None, web_accessibility: None }
     }
 }
 
@@ -406,12 +407,15 @@ pub fn focused_text(pid: u32) -> Result<Option<FocusedText>> {
 }
 
 #[napi]
-pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Option<String>, request_web_accessibility: Option<bool>) -> TreeAnswer {
+pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Option<String>, request_web_accessibility: Option<bool>, observation: Option<bool>) -> TreeAnswer {
     #[cfg(target_os = "macos")]
-    { imp::accessibility_tree(pid as i32, max_depth, max_count, scope.as_deref().unwrap_or("app"), request_web_accessibility.unwrap_or(false)) }
+    {
+        if observation == Some(true) { return imp::accessibility_observation(pid as i32); }
+        imp::accessibility_tree(pid as i32, max_depth, max_count, scope.as_deref().unwrap_or("app"), request_web_accessibility.unwrap_or(false))
+    }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (scope, request_web_accessibility);
+        let _ = (scope, request_web_accessibility, observation);
         imp::accessibility_tree(pid as i32, max_depth, max_count)
     }
 }

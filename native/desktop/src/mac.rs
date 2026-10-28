@@ -454,15 +454,16 @@ unsafe fn ax_attribute(element: CFTypeRef, name: &str) -> CFTypeRef {
     if status == 0 { value } else { ptr::null() }
 }
 
-unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord>) {
-    if !AXIsProcessTrusted() { return (None, None); }
+unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord>, Option<String>) {
+    if !AXIsProcessTrusted() { return (None, None, None); }
     let app = AXUIElementCreateApplication(pid);
-    if app.is_null() { return (None, None); }
+    if app.is_null() { return (None, None, None); }
     let budget = std::env::var("MERCURY_DESKTOP_OWNER_TIMEOUT_MS").ok().and_then(|s| s.parse::<u32>().ok()).filter(|n| *n > 0 && *n <= 5000).unwrap_or(1000);
     AXUIElementSetMessagingTimeout(app, budget as f32 / 1000.0);
     let focused = ax_attribute(app, "AXFocusedWindow");
     CFRelease(app);
-    if focused.is_null() { return (None, None); }
+    if focused.is_null() { return (None, None, None); }
+    let title = ax_string(focused, "AXTitle");
     let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
     let mut window_id = 0u32;
     let private_id = if !symbol.is_null() {
@@ -483,11 +484,11 @@ unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord
     if let Some(id) = private_id {
         let private = window_facts(pid, Some(id), None);
         if let (Some(a), Some(b)) = (&private.0, &public.0) {
-            if a != b { return (None, None); }
+            if a != b { return (None, None, title); }
         }
-        if private.0.is_some() { return private; }
+        if private.0.is_some() { return (private.0, private.1, title); }
     }
-    public
+    (public.0, public.1, title)
 }
 
 pub fn frontmost_application() -> ApplicationAnswer {
@@ -507,8 +508,8 @@ pub fn frontmost_application() -> ApplicationAnswer {
         let Some(identity) = identity.filter(|s| !s.is_empty()) else {
             return ApplicationAnswer::refused("the frontmost application has no bundle identifier");
         };
-        let (window_id, bounds) = focused_window_facts(pid);
-        let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), None, bounds);
+        let (window_id, bounds, title) = focused_window_facts(pid);
+        let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), title, bounds);
         answer.window_id = window_id;
         answer
     })
@@ -635,6 +636,68 @@ pub fn focused_text(pid: i32) -> Result<Option<FocusedText>, String> {
     })
 }
 
+pub fn accessibility_observation(pid: i32) -> TreeAnswer {
+    autoreleasepool(|_| unsafe {
+        if !AXIsProcessTrusted() { return TreeAnswer::refused("Accessibility is not granted"); }
+        let app = AXUIElementCreateApplication(pid);
+        if app.is_null() { return TreeAnswer::refused("the application has no accessibility element"); }
+        AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
+        let window = ax_attribute(app, "AXFocusedWindow");
+        let focused = ax_attribute(app, "AXFocusedUIElement");
+        CFRelease(app);
+        if window.is_null() {
+            if !focused.is_null() { CFRelease(focused); }
+            return TreeAnswer::refused("the focused window is unavailable");
+        }
+        let started = std::time::Instant::now();
+        let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
+        let mut elements = vec![tree_element(window, 0, focused)];
+        let mut ancestors: Vec<CFTypeRef> = Vec::new();
+        let mut cursor = if focused.is_null() { ptr::null() } else { CFRetain(focused) };
+        let mut inside = false;
+        while !cursor.is_null() {
+            if CFEqual(cursor, window) != 0 {
+                inside = true;
+                CFRelease(cursor);
+                break;
+            }
+            if ancestors.len() >= 32 || started.elapsed() >= budget || ancestors.iter().any(|seen| CFEqual(*seen, cursor) != 0) {
+                CFRelease(cursor);
+                break;
+            }
+            ancestors.push(cursor);
+            cursor = ax_attribute(cursor, "AXParent");
+        }
+        if inside {
+            for ancestor in &ancestors {
+                if ax_string(*ancestor, "AXSubrole").as_deref() == Some("AXApplicationDialog") || ax_string(*ancestor, "AXRole").as_deref() == Some("AXSheet") {
+                    elements.push(tree_element(*ancestor, 1, focused));
+                }
+            }
+        }
+        for ancestor in ancestors { CFRelease(ancestor); }
+        let mut stack: Vec<(CFTypeRef, u32)> = ax_children(window).into_iter().rev().map(|child| (child, 1)).collect();
+        let mut truncated = false;
+        while let Some((element, depth)) = stack.pop() {
+            if elements.len() >= 200 || started.elapsed() >= budget {
+                CFRelease(element);
+                for (rest, _) in stack.drain(..) { CFRelease(rest); }
+                truncated = true;
+                break;
+            }
+            elements.push(tree_element(element, depth, focused));
+            if depth < 3 {
+                for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
+            }
+            CFRelease(element);
+        }
+        let focused_element = if inside && !focused.is_null() { Some(tree_element(focused, 0, focused)) } else { None };
+        if !focused.is_null() { CFRelease(focused); }
+        CFRelease(window);
+        TreeAnswer { elements, focused: focused_element, truncated, reason: None, scope: Some("window".to_string()), web_content: None, web_accessibility: None }
+    })
+}
+
 pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str, request_web: bool) -> TreeAnswer {
     autoreleasepool(|_| unsafe {
         if !AXIsProcessTrusted() {
@@ -705,10 +768,11 @@ pub fn accessibility_tree(pid: i32, max_depth: u32, max_count: u32, scope: &str,
             }
             CFRelease(element);
         }
+        let focused_element = if focused.is_null() { None } else { Some(tree_element(focused, 0, focused)) };
         if !focused.is_null() { CFRelease(focused); }
         if !window.is_null() { CFRelease(window); }
         let web_content = if elements.iter().any(|element| element.role.starts_with("AXWebArea")) { Some("available") } else if requested { Some("pending") } else if truncated { None } else { Some("absent") };
-        TreeAnswer { elements, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested) }
+        TreeAnswer { elements, focused: focused_element, truncated, reason, scope: Some(scope.to_string()), web_content: web_content.map(str::to_string), web_accessibility: Some(requested) }
     })
 }
 

@@ -76,7 +76,7 @@ import {
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { regionRefusal, sameWindow, settledCapture, windowOnDisplay, targetMatches, targetPoint, targetWords, treeObservation, verificationWords, pageContentNote, type CaptureRegion } from './fastRoad.js'
+import { regionRefusal, sameWindow, settledCapture, windowOnDisplay, targetMatches, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
 import { CAPTCHA_HANDOFF, namesCaptcha, treeNamesCaptcha } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
@@ -790,7 +790,7 @@ async function takeScreenshot(
   const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
   setScreen(owner, screen)
   noteScreenshot(owner, screen.toolUseId, file)
-  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${frameWords} · ${await factsLine(driver, screen)}${captured.settled ? ` · ${captured.settled}` : ''}`
+  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${frameWords} · ${await factsLine(driver, screen)}`
   return {
     ok: true,
     line,
@@ -885,7 +885,7 @@ type(text) ≤${TYPE_TEXT_CAP} chars; newline/tab only controls. key(key); hold(
 tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}; scope:window|app; find(target).
 wait(durationMs?,until?) pauses/polls for a tree target (${WAIT_DEFAULT_MS} default, ${WAIT_CAP_MS} max). Image only with capture:true or a matched until; capture:false overrides. cursor/displays/frontmost read facts.
 sequence(steps:[acts,tree,find,wait]): each step checked; first failure stops; no nesting. One final image unless capture:false. Put capture/region/scale/settleMs on the sequence.
-Acts: no image/settle unless capture:true. label?; verify:true checks tree change, not task success. settleMs ${SETTLE_DEFAULT_MS} default, ${SETTLE_CAP_MS} cap; local stability is not page readiness. Use wait-until.
+Acts: capture:true for images; label?; verify:true checks tree change, not success. settleMs ${SETTLE_DEFAULT_MS} default, ${SETTLE_CAP_MS} cap; changed/unchanged tracks title/focus, not page readiness. Use wait-until.
 
 The first act in an application asks; later acts ride its grant. Other reads never ask; tree asks like an act. find/wait-until use tree's permission. Sovereign runs without asks. One session drives at a time. Never type into this session's terminal: only the application-switch chord is allowed there; clicks stay outside its window. esc/ctrl+c interrupts and releases input. Acts pause for operator typing, refusing if it continues.
 Never solve a captcha: send captcha:true for a visual challenge and hand it to the operator; named tree challenges also refuse. Screenshots leave saved history.`
@@ -1027,6 +1027,9 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
         const steps = input.steps!.map(step => inputSchema().parse(step))
         const lines: string[] = []
         let completed = 0
+        let afterState = ''
+        let lastBefore: DesktopObservation = {}
+        let lastMayRead = false
         for (const step of steps) {
           if (signal.aborted) {
             await driver.releaseAll()
@@ -1048,8 +1051,17 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
             outcome = 'failed'
             return finish()
           }
-          const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) || step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
-          lines.push(answer.data.result)
+          const last = completed === steps.length - 1
+          if (last) {
+            const front = await driver.frontmostApplication()
+            lastBefore = front.ok ? { app: front.value } : {}
+            lastMayRead = ACT_ACTIONS.has(step.action) || permissionAction(step) === 'tree' || (front.ok && appApproved(owner, front.value.identity))
+            if (!ACT_ACTIONS.has(step.action) && lastMayRead) lastBefore = await readObservation(driver, signal, false, lastBefore.app?.identity)
+          }
+          const answer = await ComputerTool.call(ACT_ACTIONS.has(step.action) ? { ...step, capture: false, settleMs: last ? input.settleMs : 0 } : step.action === 'wait' ? { ...step, capture: false } : step, context, canUseTool, parentAssistantMessage)
+          const stepLines = answer.data.result.split('\n')
+          afterState = stepLines.find(line => /^(?:changed|unchanged) · now:/.test(line)) ?? ''
+          lines.push(stepLines.filter(line => !/^(?:changed|unchanged) · now:/.test(line)).join('\n'))
           if (answer.data.outcome !== 'succeeded') {
             result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
             outcome = 'failed'
@@ -1058,17 +1070,28 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
           completed++
         }
         outcome = 'succeeded'
-        result = `sequence ${completed}/${steps.length} completed\n${lines.join('\n')}`
         if (input.capture !== false) {
-          const shot = await takeShot(undefined, undefined, clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS))
+          const shot = await takeShot(undefined, undefined)
           if (shot.ok) {
             adoptShot(shot)
-            result += `\n${shot.line}`
+            lines.push(shot.line)
           } else {
-            result += `\n${shot.aborted ? interruptedAfterActText('sequence') : shot.text}`
+            lines.push(shot.aborted ? interruptedAfterActText('sequence') : shot.text)
             if (shot.aborted) outcome = 'failed'
           }
         }
+        if (!signal.aborted && (input.capture !== false || !afterState)) {
+          const front = await driver.frontmostApplication()
+          const after = lastMayRead ? await readObservation(driver, signal, false, lastBefore.app?.identity) : front.ok ? { app: front.value } : {}
+          afterState = `${afterState.startsWith('changed · ') || observationChanged(lastBefore, after) ? 'changed' : 'unchanged'} · ${treeObservation(after)}`
+        }
+        if (signal.aborted) {
+          await driver.releaseAll()
+          outcome = 'failed'
+          afterState = ''
+          lines.push(interruptedAfterActText('sequence'))
+        }
+        result = `sequence ${completed}/${steps.length} completed${afterState ? `\n${afterState}` : ''}\n${lines.join('\n')}`
         return finish()
       }
       if (ACT_ACTIONS.has(input.action)) {
@@ -1157,41 +1180,25 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
         }
         if (!viaGrant) approveApp(owner, judged ?? live)
         outcome = 'succeeded'
-        let observed = treeObservation(plan.beforeTree)
-        if (input.verify) {
-          const after = await driver.frontmostApplication()
-          if (!after.ok || !sameWindow(after.value, front.value)) observed += ' · verification: front window changed — read tree in the application now in front'
-          else {
-            const tree = await driver.accessibilityTree(after.value, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
-            const current = await driver.frontmostApplication()
-            observed = !current.ok || !sameWindow(current.value, after.value) ? 'verification unknown: front window changed while reading — take a screenshot' : verificationWords(plan.beforeTree, tree.ok ? tree.value : undefined)
-          }
-        }
-        if (observed) act.words += ` · ${observed}`
         if (input.label) act.words += ` · ${input.label}`
-        if (signal.aborted) {
+        const settleMs = clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS)
+        const deadline = Date.now() + settleMs
+        let shot: Shot | undefined
+        if (input.capture === true) {
+          shot = await takeShot(undefined, input.label, settleMs, input.region ? undefined : plan.observe)
+          if (shot.ok) adoptShot(shot)
+        }
+        const { observation: after, changed } = await settledObservation(driver, { app: ready.value, tree: plan.beforeTree }, signal, shot ? 0 : Math.max(0, deadline - Date.now()), input.verify)
+        if (signal.aborted || (shot && !shot.ok && shot.aborted)) {
           await driver.releaseAll()
           result = interruptedAfterActText(input.action)
           outcome = 'failed'
           return finish()
         }
-        if (input.capture !== true) {
-          result = `${act.words} · ${await factsLine(driver, screenOf(owner))}`
-          return finish()
+        result = `${act.words} · ${shot ? shot.ok ? shot.line : shot.text : await factsLine(driver, screenOf(owner))}\n${changed ? 'changed' : 'unchanged'} · ${treeObservation(after)}`
+        if (input.verify) {
+          result += `\n${after.app && sameWindow(after.app, front.value) ? verificationWords(plan.beforeTree, after.tree) : 'verification: front window changed — read tree in the application now in front'}`
         }
-        const shot = await takeShot(undefined, input.label, clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS), input.region ? undefined : plan.observe)
-        if (!shot.ok) {
-          if (shot.aborted) {
-            await driver.releaseAll()
-            result = interruptedAfterActText(input.action)
-            outcome = 'failed'
-            return finish()
-          }
-          result = `${act.words} · ${shot.text}`
-          return finish()
-        }
-        adoptShot(shot)
-        result = `${act.words} · ${shot.line}`
         return finish()
       }
       const turnFront = await driver.frontmostApplication()

@@ -238,6 +238,7 @@ interface DesktopAddonTreeElement {
 
 export interface DesktopAddonTree {
   elements: DesktopAddonTreeElement[]
+  focused?: DesktopAddonTreeElement | null
   truncated: boolean
   reason?: string | null
   scope?: string | null
@@ -256,7 +257,7 @@ export interface DesktopAddon {
   focusedText?(pid: number): DesktopFocusedText | null
   frontmostApplication(): DesktopAddonApplication
   ownTerminalApplication(identity?: string, tty?: string, front?: number): DesktopAddonApplication
-  accessibilityTree(pid: number, maxDepth: number, maxCount: number, scope?: string, requestWebAccessibility?: boolean): DesktopAddonTree
+  accessibilityTree(pid: number, maxDepth: number, maxCount: number, scope?: string, requestWebAccessibility?: boolean, observation?: boolean): DesktopAddonTree
   cursor(): DesktopAddonCursor
   mouseMove(x: number, y: number): void
   mouseDown(button: string): void

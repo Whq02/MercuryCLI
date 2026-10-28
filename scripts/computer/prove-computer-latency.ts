@@ -56,7 +56,7 @@ driver.capture = async () => ({ ok: true, value: { ...captured.value, png: frame
 const started = performance.now()
 const result = await call({ action: 'click', target: { name: 'Save' }, capture: true, settleMs: 1000 })
 const elapsed = performance.now() - started
-check('settle identifies a stable target region', result.outcome === 'succeeded' && result.result.includes('target region stable'), result.result)
+check('settle reports the after-state without target-stability prose', result.outcome === 'succeeded' && result.result.includes('unchanged · now: window "Page"') && !result.result.includes('target region stable'), result.result)
 check('target settle uses two captures instead of the animation cap', reads === 2 && elapsed < 900, `${reads} captures, ${elapsed.toFixed(2)} ms`)
 check('local settling keeps the whole window at its default half scale', result.screen?.pointWidth === 400 && result.screen?.pointHeight === 300 && result.screen?.imageWidth === 200 && result.screen?.imageHeight === 150, JSON.stringify(result.screen))
 rows.push({ operation: 'animated-target-settle', medianMs: +elapsed.toFixed(2), minMs: +elapsed.toFixed(2), maxMs: +elapsed.toFixed(2), samples: 1 })

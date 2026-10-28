@@ -558,7 +558,24 @@ export class FakeDesktopDriver implements DesktopDriver {
     let children = this.scene.tree
     if (limits.scope === 'window' && window) children = [window]
     else if (limits.scope === 'app' && window) children = [window, ...children.filter(node => node !== window && node.role !== 'AXMenuBar'), ...children.filter(node => node.role === 'AXMenuBar')]
-    const tree = flattenTree({ role: 'AXApplication', title: app.name, children }, limits)
+    const focusPath = (nodes: FakeTreeNode[]): FakeTreeNode[] => {
+      for (const node of nodes) {
+        if (node.focused && !node.role.includes('Window')) return [node]
+        const path = focusPath(node.children ?? [])
+        if (path.length) return [node, ...path]
+      }
+      return []
+    }
+    const path = focusPath(children)
+    const focus = path.at(-1)
+    const tree = flattenTree(limits.observation && window ? window : { role: 'AXApplication', title: app.name, children }, limits)
+    tree.focused = focus ? flattenTree(focus, { depth: 0, count: 1 }).elements[0]! : null
+    if (limits.observation) {
+      for (const node of path.filter(node => /\b(?:AXApplicationDialog|AXSheet)\b/.test(node.role))) {
+        const element = flattenTree(node, { depth: 0, count: 1 }).elements[0]!
+        if (!tree.elements.some(row => row.role === element.role && row.title === element.title && JSON.stringify(row.frame) === JSON.stringify(element.frame))) tree.elements.push(element)
+      }
+    }
     if (limits.scope === 'window' && window) tree.scope = 'window'
     this.record('accessibilityTree', 'done', { app: app.identity, ...limits, elements: tree.elements.length, truncated: tree.truncated })
     return answer(tree)

@@ -103,6 +103,7 @@ export interface DesktopFocusedText {
 
 export interface DesktopTree {
   elements: DesktopTreeElement[]
+  focused?: DesktopTreeElement | null
   truncated: boolean
   reason: string | null
   scope?: 'window' | 'app'
@@ -113,6 +114,7 @@ export interface DesktopTreeLimits {
   depth: number
   count: number
   scope?: 'window' | 'app'
+  observation?: boolean
 }
 
 export type DesktopGrant = 'granted' | 'denied' | 'not-required' | 'unknown'

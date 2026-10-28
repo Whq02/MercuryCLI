@@ -51,7 +51,7 @@ const acts = [
 for (const act of acts) {
   const before = captures
   const out = await call({ ...act, settleMs: 0 })
-  check(`${act.action}: default returns words and focus, no image or capture`, out.outcome === 'succeeded' && !out.imagePath && captures === before && out.result.includes('focus before input'), out.result)
+  check(`${act.action}: default returns words and focus, no image or capture`, out.outcome === 'succeeded' && !out.imagePath && captures === before && out.result.includes('now: window "Proof" · focus AXButton "Save"'), out.result)
 }
 const requested = await call({ action: 'click', target: { name: 'Save' }, capture: true, settleMs: 0 })
 check('capture:true attaches an image', requested.outcome === 'succeeded' && !!requested.imagePath, requested.result)

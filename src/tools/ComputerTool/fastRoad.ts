@@ -42,9 +42,80 @@ export function pageContentNote(tree?: DesktopTree): string {
   return ''
 }
 
-export function treeObservation(tree?: DesktopTree): string {
-  const focused = tree?.elements.find(element => element.focused === true && !element.role.includes('Window'))
-  return focused ? `focus before input: ${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'focus before input unknown'
+export interface DesktopObservation {
+  app?: DesktopApplication
+  tree?: DesktopTree
+}
+
+export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string): Promise<DesktopObservation> {
+  const front = await driver.frontmostApplication()
+  if (!front.ok || signal.aborted) return {}
+  if (identity !== undefined && front.value.identity !== identity) return { app: front.value }
+  const tree = await driver.accessibilityTree(front.value, { depth: verify ? 32 : 3, count: verify ? 2000 : 200, scope: 'window', observation: !verify }, signal)
+  if (signal.aborted) return { app: front.value }
+  const current = await driver.frontmostApplication()
+  if (!current.ok || signal.aborted) return {}
+  if (!sameWindow(front.value, current.value) || front.value.title !== current.value.title) return { app: current.value }
+  return { app: current.value, ...(tree.ok ? { tree: tree.value } : {}) }
+}
+
+function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
+  if (!app || !/(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|opera|orion|arc)(?:[.\s-]|$)/i.test(`${app.identity} ${app.name}`)) return null
+  const address = tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value?.trim()
+  if (!address || /\s/.test(address)) return null
+  try {
+    const url = new URL(address.includes('://') ? address : `https://${address}`)
+    if (!['https:', 'http:'].includes(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost' && !url.hostname.startsWith('['))) return null
+    return `${url.host}${url.pathname}`
+  } catch { return null }
+}
+
+function windowTitle({ app, tree }: DesktopObservation): string | null {
+  return tree?.elements.find(element => /^AXWindow(?:\s|$)/.test(element.role))?.title ?? app?.title ?? null
+}
+
+function focusedElement(tree?: DesktopTree): DesktopTreeElement | null {
+  const focused = tree?.focused ?? tree?.elements.find(element => element.focused === true && !element.role.includes('Window'))
+  return focused && !focused.role.includes('Window') ? focused : null
+}
+
+export function observationChanged(before: DesktopObservation, after: DesktopObservation): boolean {
+  if (before.app && after.app && (before.app.identity !== after.app.identity || before.app.windowId !== after.app.windowId)) return true
+  const beforeTitle = windowTitle(before)
+  const afterTitle = windowTitle(after)
+  if (beforeTitle !== null && afterTitle !== null && beforeTitle !== afterTitle) return true
+  const focusKey = (tree?: DesktopTree): string | undefined => {
+    const focused = focusedElement(tree)
+    if (!tree || (tree.focused === undefined && !focused && tree.truncated)) return undefined
+    return JSON.stringify(focused && [focused.role, focused.title, focused.frame])
+  }
+  const beforeFocus = focusKey(before.tree)
+  const afterFocus = focusKey(after.tree)
+  return beforeFocus !== undefined && afterFocus !== undefined && beforeFocus !== afterFocus
+}
+
+export async function settledObservation(driver: DesktopDriver, before: DesktopObservation, signal: AbortSignal, settleMs: number, verify = false): Promise<{ observation: DesktopObservation; changed: boolean }> {
+  const deadline = Date.now() + settleMs
+  const bounded = settleMs > 0 ? AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(settleMs))]) : signal
+  let observation: DesktopObservation = {}
+  for (;;) {
+    const current = await readObservation(driver, bounded, verify, before.app?.identity)
+    if (current.app) observation = current
+    const changed = observationChanged(before, observation)
+    if (changed || bounded.aborted || Date.now() >= deadline) return { observation, changed }
+    try { await sleep(Math.min(50, Math.max(0, deadline - Date.now())), bounded) } catch (error) {
+      if (!bounded.aborted) throw error
+      return { observation, changed }
+    }
+  }
+}
+
+export function treeObservation({ app, tree }: DesktopObservation): string {
+  const title = windowTitle({ app, tree })
+  const dialog = tree?.elements.find(element => /\b(?:AXApplicationDialog|AXSheet)\b/.test(element.role))
+  const focused = focusedElement(tree)
+  const url = browserAddress(app, tree)
+  return `now: window ${title ? JSON.stringify(title) : 'unknown'}${dialog ? ` · dialog ${dialog.title ? JSON.stringify(dialog.title) : 'unknown'}` : ''} · focus ${focused ? `${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'unknown'}${url ? ` · url ${url}` : ''}`
 }
 
 export function verificationWords(before?: DesktopTree, after?: DesktopTree): string {
@@ -103,7 +174,7 @@ export function windowOnDisplay(bounds: DesktopBounds, display: DesktopDisplay):
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : undefined
 }
 
-export async function settledCapture(driver: DesktopDriver, display: DesktopDisplay, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds, window?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number }; settled: string }> {
+export async function settledCapture(driver: DesktopDriver, display: DesktopDisplay, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds, window?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
   if (region) {
     const refusal = regionRefusal(region, map ?? null)
     if (refusal || !map) throw new Error(refusal ?? 'region has no screenshot frame')
@@ -128,12 +199,10 @@ export async function settledCapture(driver: DesktopDriver, display: DesktopDisp
     if (signal.aborted) throw new Error('interrupted')
     const frame = nativeRegion ? { capture: answer.value, points: { width: answer.value.width / answer.value.scale, height: answer.value.height / answer.value.scale } } : await cropCapture(answer.value, display, bounds)
     if (signal.aborted) throw new Error('interrupted')
-    if (settleMs === 0) return { ...frame, settled: '' }
+    if (settleMs === 0) return frame
     const local = observe && !region ? await observationPixels(frame.capture, frame.points, observe) : null
     const pixels = local ?? frame.capture.png
-    const where = local ? 'target region' : region ? 'capture region' : window ? 'window' : 'screen'
-    if (previous?.equals(pixels)) return { ...frame, settled: local ? 'screen stable in target region (target region stable; other regions not checked)' : `${where} stable` }
-    if (Date.now() >= deadline) return { ...frame, settled: `settle cap reached: ${where} kept changing — use wait-until for the expected element` }
+    if (previous?.equals(pixels) || Date.now() >= deadline) return frame
     previous = pixels
     await sleep(Math.min(50, Math.max(0, deadline - Date.now())), signal)
   }

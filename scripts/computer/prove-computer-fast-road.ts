@@ -86,7 +86,7 @@ const shots = join(process.env.MERCURY_CONFIG_DIR!, 'desktop-shots')
 const shotCount = () => { try { return readdirSync(shots).filter(p => p.endsWith('.png')).length } catch { return 0 } }
 const beforeShots = shotCount()
 const settled = await call({ action: 'click', target, capture: true, settleMs: 2000 })
-check('settle reports stable, not a blind timer', settled.outcome === 'succeeded' && settled.result.includes('screen stable'), settled.result)
+check('settle reports the unchanged after-state without stability prose', settled.outcome === 'succeeded' && settled.result.includes('unchanged · now: window "Document"') && !settled.result.includes('screen stable'), settled.result)
 check('settle compares changing frames and stops when equal', captures >= 4 && captures <= 5, String(captures))
 check('settle saves only its final screenshot', shotCount() === beforeShots + 1, `${beforeShots} -> ${shotCount()}`)
 driver.capture = originalCapture

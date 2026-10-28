@@ -119,7 +119,7 @@ section('§5 an abort at the settle skips the screenshot after the act')
 section('§6 without an abort the act completes with its screenshot')
 {
   const { result, outcome, from } = await act({ action: 'click', x: 812, y: 300, capture: true, settleMs: 0 }, null)
-  check('the click succeeds with a screenshot after it', outcome === 'succeeded' && tail(from) === 'accessibilityTree:done,click:done,capture:done', `${outcome} · ${tail(from)} · ${result}`)
+  check('the click succeeds with a screenshot and an after-state read', outcome === 'succeeded' && tail(from) === 'accessibilityTree:done,click:done,capture:done,accessibilityTree:done', `${outcome} · ${tail(from)} · ${result}`)
   check('the result line carries the act and the screenshot', result.includes('click (812, 300)') && result.includes('screenshot:'), result)
   await claim.releaseDesktopClaim()
 }
