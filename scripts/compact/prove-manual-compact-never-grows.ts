@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -173,6 +173,41 @@ section('D the line\'s shape: the key the command recognises, and the one senten
   check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ')
   check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900))
   check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', nothingToCompactLine(960, false))
+}
+
+section('E the projection does not perform reads, authorize unseen content, or populate the user-context memo')
+{
+  const { getUserContext } = await import('../../src/context.ts')
+  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { fileGeneration, seenLinesOf } = await import('../../src/services/changeTransaction/seenLines.ts')
+  const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+  const { recallAnchoredSnapshot } = await import('../../src/services/changeTransaction/snapshotRing.ts')
+  const { registerFileReadListener } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const filename = join(proofHome, 'projection-only.txt')
+  const current = 'These changed bytes have not been shown to the model.\n'
+  writeFileSync(filename, current)
+  const short = makeMessages(10, 0, 0)
+  const context = makeCommandContext(short)
+  const reads = context.readFileState as InstanceType<typeof FileStateCache>
+  reads.set(filename, { content: 'Previously read bytes.\n', timestamp: 1, offset: 0, limit: undefined })
+  const snapshot = JSON.stringify([...reads.entries()])
+  const owner = ownerFromToolUseContext(context as never)
+  const generation = fileGeneration(filename) ?? undefined
+  const anchor = mintFileAnchor(current)
+  const seenBefore = JSON.stringify(seenLinesOf(owner, filename, generation))
+  let notifications = 0
+  const unsubscribe = registerFileReadListener(path => { if (path === filename) notifications++ })
+  getUserContext.cache.clear?.()
+  const projection = await projectManualFold(short as never, context as never, { systemPrompt: [], userContext: { currentDate: 'fixture date' }, systemContext: {}, toolUseContext: context, forkContextMessages: short } as never, undefined)
+  unsubscribe()
+  check('the projection still estimates a refused first fold', projection !== null && projection.after >= projection.before, JSON.stringify(projection))
+  check('the read-file state is byte-identical', JSON.stringify([...reads.entries()]) === snapshot, JSON.stringify([...reads.entries()]))
+  check('no read event was emitted', notifications === 0, String(notifications))
+  check('unseen file lines have not been recorded as displayed', JSON.stringify(seenLinesOf(owner, filename, generation)) === seenBefore)
+  check('no unseen anchor snapshot was retained', recallAnchoredSnapshot(owner, anchor) === undefined)
+  check('the projection used its input context, not the live memo', !getUserContext.cache.has(undefined))
+  const repeated = await projectManualFold(short as never, context as never, { systemPrompt: [], userContext: { currentDate: 'fixture date' }, systemContext: {}, toolUseContext: context, forkContextMessages: short } as never, undefined)
+  check('repeating the projection produces the same estimates', repeated?.before === projection?.before && repeated?.after === projection?.after, JSON.stringify({ projection, repeated }))
 }
 
 await fixture.close()

@@ -572,6 +572,7 @@ export async function createPostCompactFileAttachments(
   toolUseContext: ToolUseContext,
   maxFiles: number,
   preservedMessages: Message[] = [],
+  project = false,
 ): Promise<AttachmentMessage[]> {
   const preservedReads = collectPreservedReadPaths(preservedMessages)
   const candidates = Object.entries(readFileState)
@@ -580,13 +581,22 @@ export async function createPostCompactFileAttachments(
     .sort((a, b) => b[1].timestamp - a[1].timestamp)
     .slice(0, maxFiles)
 
-  const generated = await Promise.all(
-    candidates.map(([path]) =>
-      generateFileAttachment(path, toolUseContext, 'compact', {
-        limit: POST_COMPACT_MAX_TOKENS_PER_FILE,
-      }).catch(() => null),
-    ),
-  )
+  const generated = project
+    ? candidates.map(([path, state]) => {
+      const lines = state.content.split('\n')
+      const shown = lines.slice(0, POST_COMPACT_MAX_TOKENS_PER_FILE)
+      return {
+        type: 'file' as const, filename: path, displayPath: path,
+        content: { type: 'text' as const, file: { filePath: path, content: shown.join('\n'), numLines: shown.length, startLine: 1, totalLines: lines.length } },
+      }
+    })
+    : await Promise.all(
+      candidates.map(([path]) =>
+        generateFileAttachment(path, toolUseContext, 'compact', {
+          limit: POST_COMPACT_MAX_TOKENS_PER_FILE,
+        }).catch(() => null),
+      ),
+    )
 
   const results: AttachmentMessage[] = []
   let total = 0
@@ -1334,12 +1344,13 @@ async function assembleAttachments(
   preserved: Message[],
   callSite: 'compact_full' | 'compact_partial',
   ledger: Array<[string, FileState]>,
+  projection?: { userContext: Record<string, string> },
 ): Promise<AttachmentMessage[]> {
   const [files, asyncAgents] = await Promise.all([
-    createPostCompactFileAttachments(snapshot, context, POST_COMPACT_MAX_FILES_TO_RESTORE, preserved),
+    createPostCompactFileAttachments(snapshot, context, POST_COMPACT_MAX_FILES_TO_RESTORE, preserved, projection !== undefined),
     createAsyncAgentAttachmentsIfNeeded(context),
   ])
-  restorePreservedReads(context, ledger, preserved)
+  if (projection === undefined) restorePreservedReads(context, ledger, preserved)
   const attachments: AttachmentMessage[] = [...files, ...asyncAgents]
   const skills = createSkillAttachmentIfNeeded(context.agentId, context.options.commands)
   if (skills !== null) attachments.push(skills)
@@ -1353,7 +1364,7 @@ async function assembleAttachments(
   ]
   for (const delta of deltas) attachments.push(createAttachmentMessage(delta))
   if (!context.agentId) {
-    for (const row of await getUserContextAttachment(preserved)) {
+    for (const row of await getUserContextAttachment(preserved, projection?.userContext)) {
       attachments.push(createAttachmentMessage(row))
     }
   }
@@ -1719,7 +1730,7 @@ export async function projectManualFold(
   const workingRoundsFolded = groupMessagesByApiRound(head).filter(group => group.some(row => row.type === 'assistant')).length
   const snapshot: Record<string, { content: string; timestamp: number }> = {}
   for (const [path, state] of context.readFileState.entries()) snapshot[path] = { content: state.content, timestamp: state.timestamp }
-  const attachments = await assembleAttachments(snapshot, context, keep, 'compact_full', [...context.readFileState.entries()])
+  const attachments = await assembleAttachments(snapshot, context, keep, 'compact_full', [...context.readFileState.entries()], { userContext: cacheSafeParams.userContext })
   const after = landingCount([marker, ...operatorBlock(keep), summaryOf(keep), ...keep, ...attachments])
   return { context: input, before: landingCount(messages), after, kept: keep.length, folds: head.length, workingRoundsFolded }
 }
