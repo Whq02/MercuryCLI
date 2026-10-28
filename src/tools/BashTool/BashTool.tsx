@@ -85,6 +85,7 @@ import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { createShellResultRedactor } from '../../utils/redactSecrets.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
+import { shellWebContentNotice } from './webContent.js'
 import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '../../utils/boxLock.js'
 
 export type { BashProgress }
@@ -291,6 +292,7 @@ async function* runBash(
   const abortController = context.abortController
   const isMainThread = agentId === undefined
   const cwd = resolveShellCwd(input.cwd)
+  const webNotice = await shellWebContentNotice(input.command)
   const setToolJSX = context.setToolJSX
   const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
@@ -438,7 +440,7 @@ async function* runBash(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv, ...backgroundFacts() }
+    return { stdout: webNotice, stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv, ...backgroundFacts() }
   }
 
   let backgroundAsked = false
@@ -487,7 +489,7 @@ async function* runBash(
       return await postProcess(result)
     }
     return {
-      stdout: latest.all,
+      stdout: webNotice + latest.all,
       stderr: '',
       interrupted: false,
       backgroundTaskId: backgroundId,
@@ -499,7 +501,7 @@ async function* runBash(
   if (backgroundId !== undefined) {
     const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
     return {
-      stdout: soFar.stdout,
+      stdout: webNotice + soFar.stdout,
       stderr: '',
       interrupted: false,
       backgroundTaskId: backgroundId,
@@ -552,7 +554,7 @@ async function* runBash(
         const fullOutput = latest.all
         const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
         return {
-          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout,
+          stdout: webNotice + (interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout),
           stderr: '',
           interrupted: false,
           backgroundTaskId: backgroundId,
@@ -566,7 +568,7 @@ async function* runBash(
 
       if (foregroundTaskId !== null && shellCommand.status === 'backgrounded') {
         return {
-          stdout: '',
+          stdout: webNotice,
           stderr: '',
           interrupted: false,
           backgroundTaskId: foregroundTaskId,
@@ -656,7 +658,7 @@ async function* runBash(
     if (interpretation.isError && !interruptedByUser) {
       const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
       const notice = sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })
-      const error = new ShellError('', [thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
+      const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
       error.pipelineStatus = result.pipelineStatus
       throw budget.requested === undefined ? error : windowedError(error)
     }
@@ -669,7 +671,13 @@ async function* runBash(
         persistedOutputSize = stats.size
         const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
         if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
-        await redactedCopy(result.outputFilePath, destination, redact)
+        let prefix = webNotice
+        await redactedCopy(result.outputFilePath, destination, text => {
+          const marked = prefix + redact(text)
+          prefix = ''
+          return marked
+        })
+        persistedOutputSize += Buffer.byteLength(webNotice)
         persistedOutputPath = destination
       } catch {
       }
@@ -693,7 +701,7 @@ async function* runBash(
 
     const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })
     return {
-      stdout: formatted.truncatedContent,
+      stdout: webNotice + formatted.truncatedContent,
       stderr,
       interrupted: result.interrupted,
       code: result.code,

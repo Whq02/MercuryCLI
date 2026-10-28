@@ -76,11 +76,45 @@ interface OwnerBrowserState {
   approvedSecretPairings: Set<string>
   checkedActOrigin: { op: string; origin: string } | null
   goneAt: number | null
+  activeCalls: number
+  idleTimer: ReturnType<typeof setTimeout> | null
 }
 
 export const BROWSER_CLOSE_BOUND_MS = 3_000
 export const BROWSER_PROTOCOL_TIMEOUT_MS = 90_000
 export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
+const BROWSER_IDLE_MS = 300_000
+
+function clearIdleLease(state: OwnerBrowserState): void {
+  if (state.idleTimer !== null) clearTimeout(state.idleTimer)
+  state.idleTimer = null
+}
+
+function armIdleLease(state: OwnerBrowserState): void {
+  clearIdleLease(state)
+  if (state.disposed || state.activeCalls > 0 || state.launching || state.session === null) return
+  state.idleTimer = setTimeout(() => {
+    state.idleTimer = null
+    if (state.activeCalls > 0 || state.launching || state.session === null) return
+    const browser = state.session.browser
+    markSessionGone(state, browser)
+    void closeChild(browser)
+  }, BROWSER_IDLE_MS)
+  state.idleTimer.unref?.()
+}
+
+export function beginBrowserActivity(owner: OwnerKey): () => void {
+  const state = ownerStates.get(owner)
+  clearIdleLease(state)
+  state.activeCalls++
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    state.activeCalls--
+    armIdleLease(state)
+  }
+}
 
 export type CloseOutcome = 'closed' | 'killed' | 'gone'
 
@@ -175,9 +209,12 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     approvedSecretPairings: new Set(),
     checkedActOrigin: null,
     goneAt: null,
+    activeCalls: 0,
+    idleTimer: null,
   }),
   dispose: async state => {
     state.disposed = true
+    clearIdleLease(state)
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
@@ -188,7 +225,7 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     session.closeNetwork()
     await closeChild(session.browser)
   },
-  retain: state => state.session !== null || state.launching,
+  retain: state => state.session !== null || state.launching || state.activeCalls > 0,
 })
 registerOwnerScopedStore(ownerStates)
 
@@ -263,6 +300,7 @@ function reapDeadSession(state: OwnerBrowserState): void {
 
 function markSessionGone(state: OwnerBrowserState, browser: DriverBrowser): void {
   if (state.session === null || state.session.browser !== browser) return
+  clearIdleLease(state)
   state.session.closeNetwork()
   state.session = null
   state.approvedOrigins.clear()
@@ -756,7 +794,10 @@ export async function ensureBrowserSession(
   if (state.session && state.session.browser.connected) {
     const sameHeadless = opts.headless === undefined || state.session.headless === opts.headless
     const sameOrigin = wantedOrigin === null || state.session.profileOrigin === wantedOrigin
-    if (sameHeadless && sameOrigin) return state.session
+    if (sameHeadless && sameOrigin) {
+      armIdleLease(state)
+      return state.session
+    }
   }
   if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
   const flight = launchOwnerSession(owner, state, opts)
@@ -806,12 +847,17 @@ async function launchOwnerSession(
   const gate = driverNodeGate()
   if (!gate.ok) return { state: 'unavailable', note: gate.note }
   const cap = browserSessionCap()
-  const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
-  if (others.length >= cap) {
+  const identity = parseOwnerKey(owner)
+  const others = liveBrowserSessionCensus().filter(row => {
+    if (row.owner === owner) return false
+    const other = parseOwnerKey(row.owner)
+    return other.workspace === identity.workspace && other.sessionId === identity.sessionId && other.lane !== 'main'
+  })
+  if (identity.lane !== 'main' && others.length >= cap) {
     const lanes = others.map(row => row.lane).join(', ')
     return {
       state: 'at-capacity',
-      note: `${others.length} of ${cap} concurrent browser sessions are live (${lanes}) — wait for one to finish, close one from its own lane (op:"close"), or raise MERCURY_BROWSER_MAX_SESSIONS`,
+      note: `${others.length} of ${cap} child browser sessions are live in this parent session (${lanes}); the lead has a separate slot. Close a finished session with op:"close", wait for its 5-minute idle lease to expire, or raise MERCURY_BROWSER_MAX_SESSIONS.`,
     }
   }
   const resolution = resolveBrowser()
@@ -1132,6 +1178,7 @@ async function launchOwnerSession(
     unhanded = null
   } finally {
     state.launching = false
+    armIdleLease(state)
     if (unhanded !== null) await closeChild(unhanded)
     if (state.session === null) {
       state.approvedOrigins.clear()
@@ -1162,6 +1209,7 @@ export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
 export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ outcome: CloseOutcome | 'none' }> {
   const state = ownerStates.peek(owner)
   if (!state) return { outcome: 'none' }
+  clearIdleLease(state)
   if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
   if (!state.session) {
     if (state.goneAt === null) return { outcome: 'none' }
@@ -1175,6 +1223,8 @@ export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ ou
   state.goneAt = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
+  state.checkedActOrigin = null
+  clearIdleLease(state)
   return { outcome }
 }
 

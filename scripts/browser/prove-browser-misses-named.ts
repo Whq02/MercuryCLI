@@ -130,12 +130,12 @@ console.log('§4 a selector the tree printed for framed content: no token offere
   const tree = await run({ op: 'extract', mode: 'tree' })
   const frameRow = tree.result.split('\n').find(l => l.includes('Iframe')) ?? ''
   const framedButton = tree.result.split('\n').find(l => l.includes('"Frame button"')) ?? ''
-  check('the Iframe row says selectors do not reach into it', /frame content below: selectors do not reach into it/.test(frameRow), frameRow)
+  check('the Iframe row names the frame parameter', /use frame with its index or URL substring/.test(frameRow), frameRow)
   check('the framed button carries no aria/ token', framedButton !== '' && !framedButton.includes('→ aria/'), framedButton)
   check('main-frame rows still carry their tokens', tree.result.includes('→ aria/Deep button[role="button"]'), tree.result)
   const click = await run({ op: 'click', selector: 'aria/Frame button[role="button"]', timeoutMs: 8000 })
   check('the click fails naming the child frame it lives in', click.outcome === 'failed' && /lives inside a child frame \(http:\/\/127\.0\.0\.1:\d+\/framed\)/.test(click.result), click.result)
-  check('…and says what to do instead', /click by x\/y/.test(click.result) && /open" the frame's URL/.test(click.result), click.result)
+  check('…and names the frame selector road', /set frame to its index from extract or a unique URL substring/.test(click.result), click.result)
   check('…at once, not after the deadline', click.ms < 3000, `${click.ms}ms`)
 }
 

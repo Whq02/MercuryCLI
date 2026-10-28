@@ -1,5 +1,6 @@
 
 import { z } from 'zod'
+import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
 import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
@@ -360,7 +361,9 @@ export type AgentToolResult = z.input<ReturnType<typeof agentToolResultSchema>>
 
 export function countToolUses(messages: readonly Message[]): number {
   let count = 0
+  const nested = new Set<string>()
   for (const message of messages) {
+    for (const id of evalNestedToolIds(message)) nested.add(id)
     if (message.type !== 'assistant') continue
     const content = message.message.content
     if (!Array.isArray(content)) continue
@@ -368,7 +371,7 @@ export function countToolUses(messages: readonly Message[]): number {
       if (block.type === 'tool_use') count++
     }
   }
-  return count
+  return count + nested.size
 }
 
 const EMPTY_USAGE: AgentToolResult['usage'] = {

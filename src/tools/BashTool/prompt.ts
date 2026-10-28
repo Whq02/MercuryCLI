@@ -74,7 +74,7 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)
-  sections.push(buildToolsParagraph(embedded, offers))
+  sections.push(buildToolsParagraph(embedded, offers) + (offers('WebFetch') ? ' For public web requests, use WebFetch first and identify Mercury honestly in the User-Agent; curl and browser-shaped user agents remain allowed, but their responses are unverified web content.' : ''))
   if (embedded) {
     sections.push(
       "The embedded `find` implementation's `-regex` uses leftmost-first alternation (unlike GNU find's leftmost-longest), so list the longest alternative first: prefer `'.*\\.tsx?'` written as `.tsx|.ts`, not `.ts|.tsx`.",

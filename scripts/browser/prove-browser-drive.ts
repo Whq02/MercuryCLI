@@ -702,12 +702,14 @@ console.log('§19 the children cap')
   check('a nonsense cap value falls back to the default (floor 1)', browserSessionCap() === BROWSER_SESSION_CAP_DEFAULT)
   process.env.MERCURY_BROWSER_MAX_SESSIONS = '1'
   const ctxC = { agentId: 'fixture-owner-c' } as Parameters<typeof BrowserTool.call>[1]
-  const refused = await BrowserTool.call({ op: 'open', url: `${B}/` } as ToolInput, ctxC)
+  const child = await BrowserTool.call({ op: 'open', url: `${B}/` } as ToolInput, ctxC)
+  check('the reserved main slot does not consume the one-child allowance', child.data.outcome === 'succeeded', child.data.result)
+  const refused = await BrowserTool.call({ op: 'open', url: `${B}/` } as ToolInput, { agentId: 'fixture-owner-d' } as Parameters<typeof BrowserTool.call>[1])
   check(
-    'a launch past the cap refuses naming live count, lane and the knob',
+    'a launch past the child cap refuses naming live count, lane and the knob',
     refused.data.outcome === 'failed' &&
       refused.data.result.includes('1 of 1') &&
-      refused.data.result.includes('main') &&
+      refused.data.result.includes('fixture-owner-c') &&
       refused.data.result.includes('MERCURY_BROWSER_MAX_SESSIONS'),
     refused.data.result,
   )
@@ -722,6 +724,8 @@ console.log('§19 the children cap')
   check('two owners racing ONE free slot: exactly one child, one at-capacity refusal', wins === 1 && capped === 1, `wins=${wins} capped=${capped}`)
   await disposeBrowserOwner(OWNER_R1)
   await disposeBrowserOwner(OWNER_R2)
+  await disposeBrowserOwner(processOwnerForLane('fixture-owner-c'))
+  await disposeBrowserOwner(processOwnerForLane('fixture-owner-d'))
   delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 }
 

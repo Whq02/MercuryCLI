@@ -62,6 +62,7 @@ ${languageLines}
 - \`timeoutSeconds\` bounds runtime work only: time inside tool, agent and completion calls, permission waits included, never counts. A ${EVAL_WALL_CEILING_MS / 60_000}-minute wall ceiling (permission waits excluded) bounds the whole call.
 - A cell stopped by its budget or an abort comes back as an error: Python keeps its variables; the JS runtime is recreated and its state is gone. \`input()\` is refused, never hung.
 - Output is bounded (head + tail); a cut names the file holding the full stream — Read it back.
+- A finished cell reports its bridge tool-call count and total tool-call time, including permission waits; parallel call durations are summed. Bridge calls also count in the crewmate's existing tool-use total while the cell runs.
 
 ## Dialect notes
 - Both languages: the last expression's value is the cell result, shown after \`⇒\`.

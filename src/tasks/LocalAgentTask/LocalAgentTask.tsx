@@ -13,6 +13,7 @@ import type { AppState } from '../../state/AppState.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
+import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
 import type { ApiUsage } from '../../types/wire.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeSearchOrReadClassification } from '../../Tool.js'
@@ -101,6 +102,7 @@ type AgentLedger = {
 
 export type ProgressTracker = {
   toolUseCount: number
+  bridgeToolUseIds?: Set<string>
   recentActivities: ToolActivity[]
   ledger: AgentLedger
   lastAssistant?: AssistantMessage
@@ -204,6 +206,13 @@ export function updateProgressFromMessage(
   resolveActivityDescription?: ActivityDescriptionResolver,
   tools?: Tools,
 ): void {
+  for (const id of evalNestedToolIds(message)) {
+    const seen = tracker.bridgeToolUseIds ??= new Set<string>()
+    if (!seen.has(id)) {
+      seen.add(id)
+      tracker.toolUseCount++
+    }
+  }
   if (message.type !== 'assistant') return
   const assistant = message as AssistantMessage
   if (tracker.lastAssistant !== undefined && tracker.lastAssistant !== assistant) {

@@ -13,18 +13,22 @@ import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, rende
 import { applyPromptToMarkdown, getURLMarkdownContent, isPreapprovedUrl } from './utils.js'
 import { pageSlice } from './pageBudget.js'
 import { FetchRefusedError } from './fetchErrors.js'
-import { metadataRefusal, metadataSafeAddresses } from './privateHost.js'
+import { metadataRefusal } from './privateHost.js'
+import { withFetchSession } from './fetchTransport.js'
+import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 
 
 const inputSchema = z.strictObject({
-  url: z.string().url().describe('The URL to fetch content from'),
+  url: z.string().url().optional().describe('One URL to fetch; use either url or urls'),
+  urls: z.array(z.string().url().max(2000)).min(1).max(3).optional().describe('Fetch 1-3 URLs in order, each with its own result and permission; page text is bounded to 38,000 bytes each, total result 132,000 bytes'),
   from: z.number().int().nonnegative().optional().describe('Continue at the character offset the previous result names'),
   prompt: z.string().optional().describe('Ask a model for a reading of the page; omit to receive the page’s own words'),
-})
+}).refine(input => (input.url === undefined) !== (input.urls === undefined), { message: 'Pass either url or urls, not both' })
 
 type Input = z.infer<typeof inputSchema>
+type SingleInput = Omit<Input, 'url' | 'urls'> & { url: string }
 
-const outputSchema = z.object({
+const fetchResultSchema = z.object({
   bytes: z.number().describe('Byte size of the fetched content'),
   code: z.number().describe('HTTP status code of the response'),
   codeText: z.string().describe('HTTP status text of the response'),
@@ -33,11 +37,12 @@ const outputSchema = z.object({
   url: z.string().describe('The URL that was fetched'),
 })
 
+const outputSchema = fetchResultSchema.extend({ results: z.array(fetchResultSchema).optional() })
 export type Output = z.infer<typeof outputSchema>
 
 function ruleContentFor(input: Input): string {
   try {
-    return `domain:${new URL(input.url).hostname}`
+    return `domain:${new URL(input.url ?? '').hostname}`
   } catch {
     return `input:${JSON.stringify(input)}`
   }
@@ -87,9 +92,8 @@ const REDIRECT_PHRASES: Record<number, string> = {
   307: 'Temporary Redirect',
 }
 
-async function runFetch(input: Input, context: ToolUseContext): Promise<Output> {
+async function runFetch(input: SingleInput, context: ToolUseContext, maxBytes?: number): Promise<Output> {
   const startTime = Date.now()
-  await metadataSafeAddresses(input.url)
   const fetched = await getURLMarkdownContent(input.url, context.abortController)
 
   if ('type' in fetched) {
@@ -119,7 +123,7 @@ To complete the request, call ${WEB_FETCH_TOOL_NAME} again with url: "${fetched.
   }
 
   const preapproved = isPreapprovedUrl(input.url)
-  const page = pageSlice(fetched.content, input.from)
+  const page = pageSlice(fetched.content, input.from, maxBytes)
   let result: string
   if (input.prompt === undefined) {
     result = page.text
@@ -151,7 +155,7 @@ export const WebFetchTool = buildTool({
   userFacingName: () => 'Fetch',
   searchHint: 'fetches and extracts content from a URL',
   shouldDefer: true,
-  maxResultSizeChars: 100_000,
+  maxResultSizeChars: 140_000,
   inputSchema,
   outputSchema,
   isReadOnly: () => true,
@@ -173,7 +177,7 @@ export const WebFetchTool = buildTool({
   getToolUseSummary,
   async validateInput(input: Input) {
     try {
-      new URL(input.url)
+      inputSchema.parse(input)
       return { result: true as const }
     } catch {
       return {
@@ -185,11 +189,12 @@ export const WebFetchTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
-    const refused = metadataRefusal(input.url)
+    if (input.urls !== undefined) return { behavior: 'allow' as const, updatedInput: input }
+    const refused = metadataRefusal(input.url ?? '')
     if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
     const permissionContext = context.getAppState().toolPermissionContext as ToolPermissionContext
     try {
-      const parsed = new URL(input.url)
+      const parsed = new URL(input.url ?? '')
       if (isPreapprovedHost(parsed.hostname, parsed.pathname)) {
         return {
           behavior: 'allow' as const,
@@ -231,12 +236,41 @@ export const WebFetchTool = buildTool({
     }
     return { behavior: 'ask' as const, message, suggestions }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, canUseTool, parent) {
+    inputSchema.parse(input)
     const start = Date.now()
-    try { return { data: await runFetch(input, context) } } catch (error) {
-      if (!(error instanceof FetchRefusedError)) throw error
-      return { data: { bytes: 0, code: error.code, codeText: 'Not fetched', result: `Source: ${input.url}\n${error.message}`, durationMs: Date.now() - start, url: input.url } }
+    const fetchOne = async (single: SingleInput, batch: boolean): Promise<Output> => {
+      try {
+        return await withFetchSession(ownerFromToolUseContext(context), () => runFetch(single, context, batch ? 38_000 : undefined))
+      } catch (error) {
+        if (context.abortController.signal.aborted || (!batch && !(error instanceof FetchRefusedError))) throw error
+        return { bytes: 0, code: error instanceof FetchRefusedError ? error.code : 0, codeText: 'Not fetched', result: `Source: ${single.url}\n${error instanceof Error ? error.message : String(error)}`, durationMs: Date.now() - start, url: single.url }
+      }
     }
+    if (input.url !== undefined) return { data: await fetchOne({ ...input, url: input.url }, false) }
+    const results: Output[] = []
+    for (const url of input.urls!) {
+      context.abortController.signal.throwIfAborted()
+      const single: SingleInput = { url, from: input.from, prompt: input.prompt }
+      const permission = parent
+        ? await canUseTool(WebFetchTool, single, context, parent, `${context.toolUseId ?? 'webfetch'}-${results.length + 1}`)
+        : await WebFetchTool.checkPermissions(single, context)
+      let row: Output
+      if (permission.behavior !== 'allow') {
+        row = { bytes: 0, code: 0, codeText: 'Not fetched', durationMs: 0, url, result: `Source: ${url}\n${permission.message ?? 'This URL needs permission; fetch it separately to ask.'}` }
+      } else {
+        const allowed = inputSchema.parse(permission.updatedInput ?? single)
+        if (allowed.url === undefined) throw new Error('A batch item permission must name one URL')
+        row = await fetchOne({ ...allowed, url: allowed.url }, true)
+      }
+      if (Buffer.byteLength(row.result) > 43_900) {
+        const prefix = pageSlice(row.result, 0, 43_700)
+        row.result = `${prefix.text}\n[Batch result truncated; fetch this URL separately for the full result.]`
+      }
+      results.push(row)
+    }
+    const summary = results.find(row => row.code < 200 || row.code >= 300) ?? results[0]!
+    return { data: { ...summary, bytes: results.reduce((sum, row) => sum + row.bytes, 0), durationMs: Date.now() - start, result: results.map(row => row.result).join('\n\n'), results } }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: output.result }

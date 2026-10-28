@@ -45,7 +45,7 @@ const inputSchema = () => {
 type InputSchema = ReturnType<typeof inputSchema>
 type EvalToolInput = z.infer<InputSchema>
 
-export type EvalToolOutput = EvalCellOutcome & { language: EvalLanguage; title?: string; screenshot?: BridgeScreenshot }
+export type EvalToolOutput = EvalCellOutcome & { language: EvalLanguage; title?: string; screenshot?: BridgeScreenshot; bridgeTools?: { calls: number; elapsedMs: number } }
 
 const PROGRESS_THROTTLE_MS = 300
 const RUNNING_TICK_MS = 1000
@@ -73,6 +73,7 @@ function composeResultText(output: EvalToolOutput): string {
     parts.push(`[sample] ${sample.title} v${sample.version} → ${sample.url}${sample.ask ? ` · asked: ${sample.ask}` : ''}`)
   }
   for (const note of output.annotations) parts.push(`[note] ${note}`)
+  if (output.bridgeTools && output.bridgeTools.calls > 0) parts.push(`[Bridge tools: ${output.bridgeTools.calls} calls; ${(output.bridgeTools.elapsedMs / 1000).toFixed(2)}s total tool-call time, including permission waits.]`)
   if (parts.length === 0) parts.push('(the cell produced no output)')
   return parts.join('\n')
 }
@@ -141,12 +142,24 @@ const evalToolDef = buildTool({
       onProgress?.({ toolUseID: toolUseId, data })
     }
     let screenshot: BridgeScreenshot | undefined
+    const bridgeCalls = new Map<string, { started: number; elapsed?: number }>()
     const serveBridge = makeEvalBridgeServer({
       owner: ownerFromToolUseContext(context),
       context,
       canUseTool: canUseTool as never,
       cellAbort,
-      onNested: message => emit({ type: 'eval_progress', kind: 'nested', message }),
+      onNested: message => {
+        const now = performance.now()
+        const blocks = message.message.content
+        if (Array.isArray(blocks)) for (const block of blocks) {
+          if (block.type === 'tool_use' && !bridgeCalls.has(block.id)) bridgeCalls.set(block.id, { started: now })
+          if (block.type === 'tool_result') {
+            const call = bridgeCalls.get(block.tool_use_id)
+            if (call && call.elapsed === undefined) call.elapsed = now - call.started
+          }
+        }
+        emit({ type: 'eval_progress', kind: 'nested', message })
+      },
       onScreenshot: captured => {
         screenshot = captured
       },
@@ -221,6 +234,7 @@ const evalToolDef = buildTool({
       flushTail()
       const data: EvalToolOutput = {
         ...outcome,
+        bridgeTools: { calls: bridgeCalls.size, elapsedMs: Math.round([...bridgeCalls.values()].reduce((sum, call) => sum + (call.elapsed ?? performance.now() - call.started), 0)) },
         language: input.language,
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(screenshot !== undefined ? { screenshot } : {}),

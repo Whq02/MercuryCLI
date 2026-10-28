@@ -1,7 +1,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
-import type { ElementHandle, SerializedAXNode } from 'puppeteer-core'
+import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
@@ -26,6 +26,7 @@ import {
   approveWebOrigin,
   approvedOriginList,
   browserSessionCap,
+  beginBrowserActivity,
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
   driverVersion,
@@ -151,6 +152,8 @@ const inputSchema = lazySchema(() =>
       .describe(
         'click/type/scroll/waitFor/extract: the element target — CSS, or aria/<name>[role="<role>"] (role + the exact full accessible name; extract mode:"tree" prints these), text/<substring> (rendered-text substring), xpath/<expr>, or `host >>> inner` piercing shadow roots (type: the focused element when omitted; extract: whole page when omitted)',
       ),
+    frame: z.union([z.number().int().nonnegative(), z.string().min(1)]).optional().describe('Target frame: 0 is the main frame, 1 onwards are child frames in the extract listing; a string matches one frame URL substring. Acts ask for the target frame origin.'),
+    force: z.boolean().optional().describe('click with selector: after reading the overlay, dispatch a DOM click to a covered target; disabled targets still refuse'),
     x: z.number().optional().describe('click: viewport x for a point click (with y; selector wins when both given)'),
     y: z.number().optional().describe('click: viewport y for a point click (with x)'),
     text: z.string().optional().describe('type: the characters to type · waitFor: the page text to await'),
@@ -363,7 +366,7 @@ function statusReport(owner: OwnerKey): string {
   const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
   if (others.length > 0) {
     lines.push(
-      `other live sessions: ${others.length} of ${browserSessionCap()} cap (${others.map(o => o.lane).join(', ')}) — grants never cross owners`,
+      `other live sessions: ${others.length} (${others.map(o => o.lane).join(', ')}); cap: ${browserSessionCap()} children per parent session, plus the lead slot; idle lease: 5 minutes; grants never cross owners`,
     )
   }
   return lines.join('\n')
@@ -403,7 +406,7 @@ function serializeAxTree(node: SerializedAXNode | null): string {
       !framed && n.name && ACTIONABLE_ROLES.has(n.role) && /^[^"[\]]+$/.test(n.name)
         ? `  → aria/${n.name}[role="${n.role}"]`
         : isFrame
-          ? '  (frame content below: selectors do not reach into it — screenshot and click by x/y, or open its URL)'
+          ? '  (frame content below: use frame with its index or URL substring to target it)'
           : ''
     lines.push(`${'  '.repeat(depth)}${head}${state.length > 0 ? ` [${state.join(' ')}]` : ''}${token}`)
     for (const child of n.children ?? []) walk(child, depth + 1, framed || isFrame)
@@ -444,6 +447,27 @@ function capExtract(header: string, body: string, offset = 0): string {
 }
 
 type LiveSession = NonNullable<ReturnType<typeof activeSession>>
+
+function targetSurface(s: LiveSession, frame: Input['frame']): Page | Frame {
+  if (frame === undefined || frame === 0) return s.page
+  const children = s.page.frames().filter(f => f.parentFrame() !== null)
+  const matches = typeof frame === 'number' ? children.filter((_, i) => i + 1 === frame) : children.filter(f => f.url().includes(frame))
+  if (matches.length !== 1) throw new Error(`frame ${JSON.stringify(frame)} matched ${matches.length} child frames; extract lists their indices and URLs`)
+  return matches[0]!
+}
+
+async function targetOrigin(s: LiveSession, frame: Input['frame']): Promise<string> {
+  const surface = targetSurface(s, frame)
+  if (surface === s.page) return originOf(surface.url())
+  const realm = (surface as Frame & { isolatedRealm(): Pick<Frame, 'evaluate'> }).isolatedRealm()
+  const origin = await realm.evaluate(() => window.origin)
+  return origin === 'null' ? 'opaque:' : originOf(origin)
+}
+
+function frameListing(s: LiveSession): string {
+  const frames = s.page.frames().filter(f => f.parentFrame() !== null)
+  return frames.length ? `\nFrames: ${frames.map((f, i) => `${i + 1} = ${f.url()}`).join('; ')}` : ''
+}
 
 function errorPageWords(s: LiveSession): string {
   const failed = s.navFailure.last
@@ -536,19 +560,20 @@ function framesDiagnosis(s: LiveSession): string {
       .slice(0, 3)
       .map(f => f.url().split('?')[0])
       .join(', ')
-    return ` — NOTE: ${children.length} child frame(s) present (${urls}); selectors act on the MAIN frame (per-frame targeting is a named deferral, but extract mode:"tree" projects framed content)`
+    return `; ${children.length} child frame(s) present (${urls}); set frame to an index from extract or a unique URL substring`
   } catch {
     return ''
   }
 }
 
-function actOriginGate(owner: OwnerKey, s: LiveSession, op: string): string | null {
+async function actOriginGate(owner: OwnerKey, s: LiveSession, input: Input): Promise<string | null> {
+  const op = input.op
   const judged = consumeCheckedActOrigin(owner, op)
-  const live = originOf(s.page.url())
+  const live = (await targetOrigin(s, input.frame))
   if (judged !== null && judged !== live) {
     return `${op} refused: the page moved from ${judged} to ${live} between the permission check and the act — nothing done; re-issue to ask for the new origin`
   }
-  approveWebOrigin(owner, judged ?? s.page.url())
+  approveWebOrigin(owner, judged ?? live)
   return null
 }
 
@@ -571,7 +596,7 @@ async function framedOnly(s: LiveSession, selector: string): Promise<string | nu
 }
 
 function framedTargetWords(selector: string, frameUrl: string): string {
-  return `${selector} lives inside a child frame (${frameUrl}) — selectors act on the main frame and do not reach into frames; op:"screenshot" then click by x/y, or op:"open" the frame's URL to drive it directly`
+  return `${selector} lives inside a child frame (${frameUrl}); set frame to its index from extract or a unique URL substring`
 }
 
 async function resolveActTarget(
@@ -579,19 +604,21 @@ async function resolveActTarget(
   selector: string,
   deadline: number,
   signal?: AbortSignal,
+  frame?: Input['frame'],
 ): Promise<ElementHandle<Element>> {
-  const framed = await framedOnly(s, selector)
+  const surface = targetSurface(s, frame)
+  const framed = frame === undefined ? await framedOnly(s, selector) : null
   if (framed !== null) throw new Error(framedTargetWords(selector, framed))
   try {
-    return (await s.page
+    return (await surface
       .locator(selector)
       .setTimeout(deadline)
       .setVisibility('visible')
       .waitHandle({ signal })) as ElementHandle<Element>
   } catch (err) {
     if (isDriverTimeout(err)) {
-      const attached = await s.page.$(selector).catch(() => null)
-      const framedLate = attached ? null : await framedOnly(s, selector)
+      const attached = await surface.$(selector).catch(() => null)
+      const framedLate = attached || frame !== undefined ? null : await framedOnly(s, selector)
       throw new Error(
         attached
           ? `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
@@ -609,9 +636,10 @@ async function resolveReadTarget(
   selector: string,
   deadline: number,
   signal?: AbortSignal,
+  frame?: Input['frame'],
 ): Promise<ElementHandle<Element>> {
   try {
-    const handle = await s.page.waitForSelector(selector, { timeout: deadline, signal })
+    const handle = await targetSurface(s, frame).waitForSelector(selector, { timeout: deadline, signal })
     if (!handle) throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline`)
     return handle as ElementHandle<Element>
   } catch (err) {
@@ -709,6 +737,7 @@ async function pickTargetPoint(
   if (!box || box.width < 10 || box.height < 10) return base
   const jx = base.x + (Math.random() - 0.5) * Math.min(8, box.width * 0.2)
   const jy = base.y + (Math.random() - 0.5) * Math.min(6, box.height * 0.2)
+  if (handle.frame.parentFrame() !== null) return base
   const safe = await s.page
     .evaluate(
       (el, x, y) => {
@@ -765,46 +794,45 @@ async function humanTypeText(s: LiveSession, text: string): Promise<void> {
 }
 
 async function clickGate(s: LiveSession, handle: ElementHandle<Element>): Promise<string | null> {
-  const disabled = await handle.evaluate(
-    el => (el as HTMLButtonElement).disabled === true || el.getAttribute('aria-disabled') === 'true',
-  )
+  const disabled = await isDisabledTarget(handle)
   if (disabled) return 'the target is disabled'
   const point = await handle.clickablePoint()
-  const occluder = await s.page.evaluate(
-    (el, x, y) => {
-      let hit = document.elementFromPoint(x, y)
+  let current: ElementHandle<Element> | null = handle
+  while (current !== null) {
+    const frame: Frame = current.frame
+    const container: ElementHandle<HTMLIFrameElement> | null = await frame.frameElement()
+    const box = container ? await container.boundingBox() : null
+    const border = container ? await container.evaluate(el => ({ x: el.clientLeft, y: el.clientTop })) : { x: 0, y: 0 }
+    const x = point.x - (box?.x ?? 0) - border.x
+    const y = point.y - (box?.y ?? 0) - border.y
+    const occluder = await current.evaluate((el, px, py) => {
+      let hit = document.elementFromPoint(px, py)
       while (hit?.shadowRoot) {
-        const inner = hit.shadowRoot.elementFromPoint(x, y)
+        const inner = hit.shadowRoot.elementFromPoint(px, py)
         if (!inner || inner === hit) break
         hit = inner
       }
-      if (!hit || hit === el || el.contains(hit)) return null
+      if (hit && (hit === el || el.contains(hit))) return null
+      if (!hit) return 'the viewport edge'
       const id = hit.id ? `#${hit.id}` : ''
-      const cls =
-        typeof hit.className === 'string' && hit.className.trim() !== ''
-          ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}`
-          : ''
+      const cls = typeof hit.className === 'string' && hit.className.trim() !== '' ? `.${hit.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.')}` : ''
       return `${hit.tagName.toLowerCase()}${id}${cls}`
-    },
-    handle,
-    point.x,
-    point.y,
-  )
-  if (occluder) {
-    return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder} — dismiss or scroll past it first`
+    }, x, y)
+    if (occluder) return `the click point (${Math.round(point.x)}, ${Math.round(point.y)}) is covered by ${occluder}; click the covering element to dismiss it, or scroll the target into view; after reading the overlay, force: true dispatches a DOM click to the target`
+    current = container
   }
   return null
 }
 
-async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Element> | null) {
-  return await s.page.evaluate(el => {
+async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Element> | null, frame?: Input['frame']) {
+  return await targetSurface(s, frame).evaluate(el => {
     let active: Element | null = document.activeElement
     while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
     if (!active || active === document.body) return null
     const a = active as HTMLInputElement
     const tag = a.tagName.toLowerCase()
     const autocomplete = (a.getAttribute('autocomplete') ?? '').toLowerCase()
-    const held = el === null || el === active || el.contains(active) || (el.shadowRoot?.contains(active) ?? false)
+    const held = document.hasFocus() && (el === null || el === active || el.contains(active) || (el.shadowRoot?.contains(active) ?? false))
     const credAc = ['current-password', 'new-password', 'one-time-code', 'cc-number', 'cc-csc', 'cc-exp'].find(
       t => autocomplete.includes(t),
     )
@@ -911,7 +939,7 @@ The first visit to each origin asks; crossing origins requires approval before f
 
 op:"status" — the resolution verdict (operator pin > managed Chrome-for-Testing cache > unavailable; installed browsers are discovered for information and never driven), driver/browser versions, the live-session state, the session's approved origins and the approval rule; never launches a browser session.
 op:"open" (url, waitUntil?, timeoutMs?) — navigate to an http(s) URL (settles on load by default — networkidle2 for busy SPAs, domcontentloaded for speed; timeoutMs reaches 90s for a cold dev-server compile). A page census of 0 body-text chars means the app is still rendering: waitFor a selector or text before extract/screenshot.
-op:"click" (selector, or x+y) — click an element or a viewport point. Selector clicks auto-wait (present and visible, bounded by timeoutMs) and gate on actionability: a disabled or covered target refuses instead of clicking nowhere. After a click that starts a navigation, op:"waitFor" (navigation) lets it settle.
+op:"click" (selector, or x+y; force?) — click an element or a viewport point. Selector clicks auto-wait (present and visible, bounded by timeoutMs) and gate on actionability: a disabled or covered target refuses instead of clicking nowhere. After reading the overlay, force: true dispatches a DOM click to the covered selector target; disabled targets still refuse. After a click that starts a navigation, op:"waitFor" (navigation) lets it settle.
 op:"type" (text, selector?, clear?, enter?) — type into the selector-named element (auto-waited, focused first, shadow roots resolved) or the currently focused element. Only text-bearing targets accept text (text/search/url/tel/email/number/date-family inputs, textarea, contenteditable); checkboxes/radios/buttons, file inputs and readOnly fields refuse. Credential-shaped fields (password inputs, one-time-code/cc-* autocomplete, password/otp/secret/api-key-shaped names) refuse plain text; the one road into a credential field is secretRef: the operator registers a named secret out-of-band (a MERCURY_BROWSER_SECRET_<NAME> env var, or the browser-secrets file in the config home, owner-only mode) and op:"type" with secretRef:"NAME" + selector fills it — the value never enters this conversation, the fill lands only on credential-shaped targets, and the operator approves the secret + origin pairing (an approved origin alone never covers it).
 op:"scroll" (selector, or dy) — scroll an element into view, or by dy pixels (positive = down).
 op:"waitFor" (selector | text | neither = navigation; state?, timeoutMs?) — event-driven waiting bounded by a deadline (default ${WAIT_DEFAULT_MS}ms, cap ${WAIT_CAP_MS}ms). Selector waits default to visible (a pre-rendered hidden modal is not "present"); state chooses attached or hidden instead. Text waits match case-insensitively with whitespace normalized. A navigation wait whose navigation already landed during the previous act returns at once. Prefer this over any fixed pause.
@@ -920,7 +948,7 @@ op:"select" (selector, values) — choose <select> options by value, falling bac
 op:"press" (key, modifiers?) — press a navigation or edit key (Enter, Escape, Tab, arrows, Backspace, Delete, Home/End, PageUp/PageDown). Printable characters are deliberately not pressable — type owns them, and refuses credential fields.
 op:"hover" (selector) — hover an element (menus and controls that render on hover).
 op:"viewport" (width, height, deviceScaleFactor?) — resize the render surface (session default 1280x800 desktop). A read — no origin ask.
-op:"extract" (mode: "text"|"tree", selector?, offset?) — the page as readable text (innerText) or as an accessibility-tree projection (indented role "name" [state] lines; the tree includes iframe content — selectors do not reach into frames). Output beyond ${EXTRACT_CAP} chars is truncated — offset pages the window, selector narrows the scope.
+op:"extract" (mode: "text"|"tree", selector?, offset?) — the page as readable text (innerText) or as an accessibility-tree projection (indented role "name" [state] lines; the tree includes iframe content; frame selects a child frame). Output beyond ${EXTRACT_CAP} chars is truncated — offset pages the window, selector narrows the scope.
 op:"console" (limit?) — the page's bounded truth ring (last ${CONSOLE_RING_CAP} entries, newest last): console logs, page errors with their stack head, network failures and 4xx/5xx responses (method + path + status), navigation dividers, and dialogs. "why is this page broken" reads from here. JS dialogs are auto-dismissed (beforeunload auto-accepted) and land in the ring with their text; choosing a dialog's answer is not offered.
 op:"info" — current URL, title and the origin's approval state; cheap facts, no side effects.
 op:"screenshot" (fullPage?, selector?, label?) — capture the page, the full scroll height, or one element (selector) to a PNG artifact; the image is attached to the result only when your engine takes image input, else the result names the file.
@@ -928,11 +956,13 @@ op:"close" — end the session (origin approvals die with it). Every op is bound
 
 Selectors: every selector door takes CSS by default, plus four forms the bundled driver resolves everywhere: aria/<name>[role="<role>"] (role + the exact full accessible name — the two fields extract mode:"tree" prints, so a tree line \`button "Save"\` is addressable as aria/Save[role="button"]), text/<substring> (substring of rendered text), xpath/<expr>, and the >>> deep combinator that pierces shadow roots (my-widget >>> input). Read with extract mode:"tree", then act with the selector the tree handed you — never guess a CSS class on an app you have not read.
 
+Frames: pass frame: 1 (child-frame index from extract, 0 is the main frame), or frame: "<unique URL substring>" with click/type/scroll/waitFor/select/hover/extract/screenshot. Selectors, including >>> shadow selectors, resolve inside that frame. Extract lists child-frame indices and URLs. Acts and secret fills use the target frame's origin, not the embedding page's approval. Click coordinates remain main-viewport coordinates; frame requires a selector for click, scroll and screenshot.
+
 Auto-wait: selector acts (click/type/scroll) resolve with a bounded present-and-visible wait (default ${WAIT_DEFAULT_MS}ms, cap ${WAIT_CAP_MS}ms, timeoutMs overrides) — a late-rendered element needs no waitFor first. Scoped reads (extract selector) wait for attached only — hidden content is readable, not actable.
 
 A click that opens a new tab closes it unadopted (one owned page) — op:"open" its URL to follow it.
 
-Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask — on a crossed-to origin too, so an approved page can lead you to read pages elsewhere: name the origin when you report them, and know the operator approved only the origin they were asked for. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorizes another agent, and concurrent browser children are capped (close another session, or the operator raises MERCURY_BROWSER_MAX_SESSIONS). A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
+Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask — on a crossed-to origin too, so an approved page can lead you to read pages elsewhere: name the origin when you report them, and know the operator approved only the origin they were asked for. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorises another agent. The default cap is 3 child browsers per parent session (MERCURY_BROWSER_MAX_SESSIONS changes it), plus a reserved lead slot that children cannot consume. Each browser closes after 5 minutes idle, allowing time to read and reason between acts without retaining unused browsers indefinitely; a running operation never expires, and completion renews the lease. A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
 
 Downloads are never implicit: the driven session denies page-initiated downloads at the protocol level and the result names what was refused — "the link is a download (<type>, <size>, saves as <name>)" on a click, "open failed: <url> is a download (…)" on an open — ${DOWNLOADS_NOT_FOLLOWED}; the one consented download road is provisioning the engine itself — op:"provision" (buildId?) asks the operator before installing a Chrome-for-Testing build (/browser install is the same road by hand). When nothing resolves, provision instead of dead-ending or hand-rolling a headless-Chrome harness. File uploads stay out of scope. The driver needs node >= 22.12.`
   },
@@ -1016,7 +1046,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     }
     const s = activeSession(owner)
     if (!s) return { behavior: 'allow' as const, updatedInput: input }
-    const origin = originOf(s.page.url())
+    let origin: string
+    try { origin = (await targetOrigin(s, input.frame)) } catch { return { behavior: 'allow' as const, updatedInput: input } }
     const ruled = ruleVerdict(`origin:${origin}`)
     if (ruled === 'deny') {
       return {
@@ -1097,6 +1128,12 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     if (input.op === 'open' && (!input.url || !/^https?:\/\//.test(input.url))) {
       return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
     }
+    if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
+      return { result: false as const, message: 'frame requires a selector act/read, a type target, or a selector/text wait', errorCode: 1 }
+    }
+    if (input.force !== undefined && (input.op !== 'click' || !input.selector)) {
+      return { result: false as const, message: 'force requires click with a selector', errorCode: 1 }
+    }
     if (input.op === 'click' && !input.selector && !(typeof input.x === 'number' && typeof input.y === 'number')) {
       return { result: false as const, message: 'click requires selector, or both x and y', errorCode: 1 }
     }
@@ -1167,6 +1204,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
+    const releaseActivity = beginBrowserActivity(owner)
     const sessionAtEntry = activeSession(owner)
     const networkMark = sessionAtEntry?.networkRefusal?.count ?? 0
     let result: string
@@ -1248,7 +1286,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1259,18 +1297,21 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           const deadline = actDeadline(input)
           let target: string
           if (input.selector) {
-            const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s))
+            const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s), input.frame)
             await handle.scrollIntoView()
             await settleBoundingBox(handle, deadline)
             const refusal = await clickGate(s, handle)
-            if (refusal !== null) {
+            if (refusal !== null && !(input.force === true && refusal.includes('covered by'))) {
               result = `click ${input.selector} refused: ${refusal} — nothing clicked`
               outcome = 'failed'
               break
             }
-            const pt = await pickTargetPoint(s, handle)
-            await humanClickPoint(s, pt.x, pt.y)
-            target = input.selector
+            if (input.force === true && refusal !== null) await handle.evaluate(el => (el as HTMLElement).click())
+            else {
+              const pt = await pickTargetPoint(s, handle)
+              await humanClickPoint(s, pt.x, pt.y)
+            }
+            target = `${input.selector}${input.force === true && refusal !== null ? ' (forced DOM click)' : ''}`
           } else {
             const vp = s.page.viewport()
             if (vp && (input.x! < 0 || input.y! < 0 || input.x! >= vp.width || input.y! >= vp.height)) {
@@ -1298,7 +1339,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1306,15 +1347,15 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           if (typeof input.secretRef === 'string') {
-            const secretOrigin = originOf(s.page.url())
-            const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
+            const secretOrigin = (await targetOrigin(s, input.frame))
+            const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s), input.frame)
             if (await isDisabledTarget(requested)) {
               result = `type refused: ${input.selector} is disabled — nothing filled`
               outcome = 'failed'
               break
             }
             await requested.focus()
-            const probe = await probeEditableTarget(s, requested)
+            const probe = await probeEditableTarget(s, requested, input.frame)
             if (!probe || !probe.held) {
               result = `type refused: focus did not land on ${input.selector}${
                 probe ? ` — ${probe.desc} holds focus instead` : ''
@@ -1340,7 +1381,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
             secretInPlay = { value: resolved.value, ref: input.secretRef }
             if (input.clear === true) {
-              await s.page.evaluate(() => {
+              await targetSurface(s, input.frame).evaluate(() => {
                 let active: Element | null = document.activeElement
                 while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
                 const el = active as HTMLInputElement | null
@@ -1356,7 +1397,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               })
               await s.page.keyboard.press('Backspace')
             }
-            const stillHeld = await probeEditableTarget(s, requested)
+            const stillHeld = await probeEditableTarget(s, requested, input.frame)
             if (!stillHeld || !stillHeld.held) {
               result = `type refused mid-act: focus moved to ${stillHeld ? stillHeld.desc : '(nothing)'} before the fill — nothing filled`
               outcome = 'failed'
@@ -1389,9 +1430,9 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             } else {
               await humanTypeText(s, resolved.value)
             }
-            const entered = input.enter === true && (resolved.origin === undefined || originOf(s.page.url()) === resolved.origin)
+            const entered = input.enter === true && (resolved.origin === undefined || (await targetOrigin(s, input.frame)) === resolved.origin)
             if (entered) await s.page.keyboard.press('Enter')
-            approveSecretPairing(owner, input.secretRef, resolved.origin ?? originOf(s.page.url()))
+            approveSecretPairing(owner, input.secretRef, resolved.origin ?? (await targetOrigin(s, input.frame)))
             result = `type: filled secret ${input.secretRef} into ${probe.desc}${entered ? ' + Enter' : ''} at ${pageWhere(s)}`
             outcome = 'succeeded'
             break
@@ -1399,7 +1440,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           const targetName = input.selector ?? '(focused element)'
           let requested: ElementHandle<Element> | null = null
           if (input.selector) {
-            requested = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
+            requested = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame)
             if (await isDisabledTarget(requested)) {
               result = `type refused: ${input.selector} is disabled — nothing typed`
               outcome = 'failed'
@@ -1407,7 +1448,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
             await requested.focus()
           }
-          const probe = await probeEditableTarget(s, requested)
+          const probe = await probeEditableTarget(s, requested, input.frame)
           if (input.selector && (!probe || !probe.held)) {
             result = `type refused: focus did not land on ${targetName}${
               probe ? ` — ${probe.desc} holds focus instead` : ''
@@ -1441,7 +1482,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           if (input.clear === true) {
-            await s.page.evaluate(() => {
+            await targetSurface(s, input.frame).evaluate(() => {
               let active: Element | null = document.activeElement
               while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
               const el = active as HTMLInputElement | null
@@ -1457,7 +1498,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             })
             await s.page.keyboard.press('Backspace')
           }
-          const credNow = await s.page.evaluate(() => {
+          const credNow = await targetSurface(s, input.frame).evaluate(() => {
             let active: Element | null = document.activeElement
             while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
             if (!active || active === document.body) return null
@@ -1477,11 +1518,16 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
+          if (input.frame !== undefined && !(await probeEditableTarget(s, requested, input.frame))?.held) {
+            result = 'type refused mid-act: focus left the target frame; nothing typed'
+            outcome = 'failed'
+            break
+          }
           await humanTypeText(s, input.text!)
           if (input.enter === true) await s.page.keyboard.press('Enter')
           let valueLen: number | null = null
           try {
-            valueLen = await s.page.evaluate(() => {
+            valueLen = await targetSurface(s, input.frame).evaluate(() => {
               let active: Element | null = document.activeElement
               while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
               const el = active as HTMLInputElement | null
@@ -1502,7 +1548,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1510,7 +1556,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           if (input.selector) {
-            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
+            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame)
             await handle.evaluate(el => (el as HTMLElement).scrollIntoView({ block: 'center' }))
             const yNow = await s.page.evaluate(() => window.scrollY)
             result = `scroll: ${input.selector} into view (scrollY ${Math.round(yNow)}) at ${pageWhere(s)}`
@@ -1541,7 +1587,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           try {
             if (input.selector) {
               const state = input.state ?? 'visible'
-              await s.page.waitForSelector(input.selector, {
+              await targetSurface(s, input.frame).waitForSelector(input.selector, {
                 timeout: deadline,
                 signal: signalFor(s),
                 ...(state === 'visible' ? { visible: true } : state === 'hidden' ? { hidden: true } : {}),
@@ -1550,7 +1596,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
                 state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
               result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
             } else if (input.text !== undefined) {
-              await s.page.waitForFunction(
+              await targetSurface(s, input.frame).waitForFunction(
                 (needle: string) => {
                   const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
                   return norm(document.body?.innerText ?? '').includes(norm(needle))
@@ -1594,7 +1640,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1643,7 +1689,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1678,14 +1724,14 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
             break
           }
           s.nav.seen = s.nav.seq
-          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
+          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s), input.frame)
           const isSelect = await handle.evaluate(el => el.tagName === 'SELECT')
           if (!isSelect) {
             result = `select refused: ${input.selector} is not a <select> element — op:"type" fills text fields, op:"click" toggles checkboxes`
@@ -1740,7 +1786,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
@@ -1771,14 +1817,14 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
-          const originGate = actOriginGate(owner, s, input.op)
+          const originGate = await actOriginGate(owner, s, input)
           if (originGate !== null) {
             result = originGate
             outcome = 'failed'
             break
           }
           s.nav.seen = s.nav.seq
-          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
+          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s), input.frame)
           await handle.scrollIntoView()
           const hoverPt = await pickTargetPoint(s, handle)
           await humanMoveTo(s, hoverPt)
@@ -1821,15 +1867,17 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           const scope = input.selector ?? 'body'
-          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s)) : null
+          const where = input.frame === undefined ? pageWhere(s) : targetSurface(s, input.frame).url()
+          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame) : null
           if ((input.mode ?? 'text') === 'text') {
             const text = root
               ? await root.evaluate(deepTextOf)
-              : await s.page.$eval('body', deepTextOf)
-            result = capExtract(`extract text (${scope}) at ${pageWhere(s)}`, text, input.offset ?? 0)
+              : await targetSurface(s, input.frame).$eval('body', deepTextOf)
+            result = capExtract(`extract text (${scope}) at ${where}`, `${frameListing(s)}\n${text}`, input.offset ?? 0)
           } else {
-            const snapshot = await s.page.accessibility.snapshot({ includeIframes: true, ...(root ? { root } : {}) })
-            result = capExtract(`extract tree (${scope}) at ${pageWhere(s)}`, serializeAxTree(snapshot), input.offset ?? 0)
+            const surface = targetSurface(s, input.frame) as Page | (Frame & Pick<Page, 'accessibility'>)
+            const snapshot = await surface.accessibility.snapshot({ includeIframes: true, ...(root ? { root } : {}) })
+            result = capExtract(`extract tree (${scope}) at ${where}`, `${frameListing(s)}\n${serializeAxTree(snapshot)}`, input.offset ?? 0)
           }
           break
         }
@@ -1885,7 +1933,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           const file = screenshotPath(input.label ?? new URL(s.page.url()).hostname)
           if (input.selector) {
-            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
+            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame)
             await handle.screenshot({ path: file as `${string}.png` })
           } else {
             await s.page.screenshot({ path: file as `${string}.png`, fullPage: input.fullPage === true })
@@ -1937,6 +1985,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       outcome = 'failed'
     } finally {
       life?.release()
+      releaseActivity()
     }
     if (secretInPlay !== null) {
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)

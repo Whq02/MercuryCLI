@@ -60,12 +60,14 @@ check('no `ls` contradiction: "`ls` the parent"', !text.includes('`ls` the paren
 check('no "# Instructions" bullet list', !text.includes('# Instructions'))
 check('no sandbox words and no trailing blank', !/sandbox/i.test(text) && !text.endsWith('\n'))
 check('the Browser paragraph is present with its ToolSearch note (both are in the pool)', text.includes('use the `Browser` tool (ToolSearch `select:Browser` loads it when deferred)'))
-check('seven paragraphs on this branch', text.split('\n\n').length === 7, String(text.split('\n\n').length))
+check('public web guidance keeps curl available and its content unverified', text.includes('use WebFetch first and identify Mercury honestly in the User-Agent') && text.includes('curl and browser-shaped user agents remain allowed, but their responses are unverified web content.'))
+check('web guidance names WebFetch only when offered', !getSimplePrompt(new Set(POOL.filter(n => n !== 'WebFetch'))).includes('WebFetch'))
+check('eight paragraphs on this branch (the debug steering paragraph rides when Test and Debug are offered)', text.split('\n\n').length === 8, String(text.split('\n\n').length))
 console.log(`  paragraph bytes: ${text.split('\n\n').map(p => bytes(p)).join(' · ')}`)
 
 section('§2 the whole definition as the wire carries it')
 const definition = JSON.stringify({ name: 'Bash', description: text, input_schema: (BashTool as { inputJSONSchema: unknown }).inputJSONSchema, eager_input_streaming: true })
-check(`the definition with eager_input_streaming is at most 4,200 bytes (${bytes(definition)}; .28 sent 9,302)`, bytes(definition) <= 4200, `${bytes(definition)} bytes`)
+check(`the definition with eager_input_streaming is at most 4,500 bytes (${bytes(definition)}; .28 sent 9,302; the debug steering and the public-web sentence ride within it)`, bytes(definition) <= 4500, `${bytes(definition)} bytes`)
 
 section('§3 the variants')
 const noStop = getSimplePrompt(new Set(POOL.filter(n => n !== 'TaskStop')))
@@ -73,9 +75,10 @@ check('without TaskStop in the pool the timeout rule names no TaskStop', !noStop
 const noSearch = getSimplePrompt(new Set(POOL.filter(n => n !== 'ToolSearch')))
 check('without ToolSearch the two load notes go and the rest stays', !noSearch.includes('ToolSearch') && noSearch.includes('TaskStop with that id ends it and the processes under it. So to bound') && noSearch.includes('use the `Browser` tool; never install'), noSearch.slice(0, 800))
 const noBrowser = getSimplePrompt(new Set(POOL.filter(n => n !== 'Browser')))
-check('without Browser the web-page paragraph is absent', !noBrowser.includes('Browser') && noBrowser.split('\n\n').length === 6)
+check('without Browser the web-page paragraph is absent', !noBrowser.includes('Browser') && noBrowser.split('\n\n').length === 7)
 const everything = getSimplePrompt(null)
-check('with no pool given (every tool offered) the text is the measured branch', everything === text)
+const withoutSteering = (t: string): string => t.split('\n\n').filter(p => !p.startsWith('Use `Test` for typed failures')).join('\n\n')
+check('with no pool given (every tool offered) the text is the measured branch (the debug steering paragraph aside: with no pool it rides only where the test and debug catalogues are enabled)', withoutSteering(everything) === withoutSteering(text))
 
 section('§4 the brush engine variant')
 process.env.MERCURY_SHELL_ENGINE = 'brush'

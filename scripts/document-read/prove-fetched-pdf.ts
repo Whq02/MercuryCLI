@@ -14,7 +14,9 @@ const bytes = pdfFixture([textPage('First page research'), textPage('Second page
 const urls: string[] = []
 const privateHost = { ...await import('../../src/tools/WebFetchTool/privateHost.ts') }
 mock.module('../../src/tools/WebFetchTool/privateHost.ts', () => ({ ...privateHost, metadataSafeAddresses: async () => [{ address: '127.0.0.1', family: 4 }], metadataRefusal: async () => null }))
+const transport = { ...await import('../../src/tools/WebFetchTool/fetchTransport.ts') }
 mock.module('../../src/tools/WebFetchTool/fetchTransport.ts', () => ({
+  ...transport,
   fetchPage: async (url: string) => { urls.push(url); return { status: 200, statusText: 'OK', headers: { 'content-type': 'application/pdf' }, data: Uint8Array.from(bytes).buffer, url } },
   permittedFetchRedirect: () => true,
 }))

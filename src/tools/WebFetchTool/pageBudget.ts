@@ -1,6 +1,6 @@
 export const MAX_FETCH_PAGE_CHARS = 38_000
 
-export function pageSlice(markdown: string, from = 0): { text: string; notice: string; end: number } {
+export function pageSlice(markdown: string, from = 0, maxBytes = Infinity): { text: string; notice: string; end: number } {
   if (!Number.isSafeInteger(from) || from < 0 || from > markdown.length) {
     throw new Error(`from must be a whole character offset from 0 through ${markdown.length}.`)
   }
@@ -11,6 +11,16 @@ export function pageSlice(markdown: string, from = 0): { text: string; notice: s
   if (end < markdown.length) {
     const paragraph = markdown.lastIndexOf('\n\n', end - 2)
     if (paragraph > from + MAX_FETCH_PAGE_CHARS / 2) end = paragraph + 2
+    if (/[\uD800-\uDBFF]/.test(markdown.charAt(end - 1)) && /[\uDC00-\uDFFF]/.test(markdown.charAt(end))) end--
+  }
+  if (Buffer.byteLength(markdown.slice(from, end)) > maxBytes) {
+    let low = from, high = end
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2)
+      if (Buffer.byteLength(markdown.slice(from, mid)) <= maxBytes) low = mid
+      else high = mid - 1
+    }
+    end = low
     if (/[\uD800-\uDBFF]/.test(markdown.charAt(end - 1)) && /[\uDC00-\uDFFF]/.test(markdown.charAt(end))) end--
   }
   const text = markdown.slice(from, end)
