@@ -63,7 +63,15 @@ export function resolveSystemPromptSections(
   )
 }
 
+const clearListeners = new Set<() => void>()
+
+export function onSystemPromptSectionsCleared(listener: () => void): () => void {
+  clearListeners.add(listener)
+  return () => { clearListeners.delete(listener) }
+}
+
 export function clearSystemPromptSections(): void {
   clearSystemPromptSectionState()
   clearBetaHeaderLatches()
+  for (const listener of clearListeners) listener()
 }

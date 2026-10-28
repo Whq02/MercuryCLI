@@ -24,9 +24,22 @@ export function markSessionBootRules(context: ToolPermissionContext): void {
   bootRules = context
 }
 
-export function markSessionPermissionMode(permissionMode: string | undefined): void {
-  if (!permissionMode || permissionMode === bootPermissionMode) return
+const MODE_LINE = 'Permission mode for this run: '
+
+export function permissionModeChangedReminder(permissionMode: string, bootMode: string | undefined): string {
+  return `${MODE_LINE}${permissionMode} (changed by the operator${bootMode ? ` from ${bootMode}` : ''} after boot; the Runtime posture section states the mode at boot).`
+}
+
+export function markSessionPermissionMode(permissionMode: string | undefined): string | null {
+  if (!permissionMode || permissionMode === bootPermissionMode) return null
+  const previous = bootPermissionMode
   bootPermissionMode = permissionMode
+  if (memo === undefined) return null
+  return memo !== null && memo.includes(MODE_LINE) ? permissionModeChangedReminder(permissionMode, previous) : null
+}
+
+export function markSessionPermissionModeAtClaim(permissionMode: string | undefined): void {
+  if (permissionMode) bootPermissionMode = permissionMode
   memo = undefined
 }
 
@@ -118,14 +131,14 @@ export function getRuntimePostureSection(): string | null {
   if (nonInteractive && canAnswerAsks() && getSessionKind() === 'oculus') {
     lines.push(
       OCULUS_POSTURE_LINE +
-        (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
+        (bootPermissionMode ? ` ${MODE_LINE}${bootPermissionMode}.` : ''),
     )
     const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
     if (needs !== null) lines.push(needs)
   } else if (nonInteractive && canAnswerAsks()) {
     lines.push(
       '- Session: non-interactive (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. A denial is policy, not tool failure: prefer tools your rules allow. An ask the host leaves unanswered ends the run as blocked, with the question on its outcome row.' +
-        (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
+        (bootPermissionMode ? ` ${MODE_LINE}${bootPermissionMode}.` : ''),
     )
     const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
     if (needs !== null) lines.push(needs)

@@ -51,6 +51,7 @@ import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
+import { clearAgentPauseRecord, writeAgentPauseRecord } from '../../tasks/LocalAgentTask/pauseCarry.js'
 import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../utils/crew/crewAccountChange.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
@@ -745,6 +746,10 @@ export function budgetCutResumeDelayMs(cut: { resumeAfterMs: number }): number {
   return Math.max(RESUME_AFTER_CUT_FLOOR_MS, cut.resumeAfterMs)
 }
 
+export function windowPauseResumeDelayMs(resumesAtMs: number, nowMs: number = Date.now()): number {
+  return Math.max(RESUME_AFTER_CUT_FLOOR_MS, resumesAtMs - nowMs + RESUME_AFTER_CUT_FLOOR_MS)
+}
+
 const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
 const cutsAlreadyResumed = new WeakSet<AbortController>()
 
@@ -753,6 +758,7 @@ export function automaticResumePending(taskId: string): boolean {
 }
 
 export function cancelAutomaticResume(taskId: string): boolean {
+  void clearAgentPauseRecord(taskId).catch(() => undefined)
   const timer = pendingAutomaticResumes.get(taskId)
   if (timer === undefined) return false
   clearTimeout(timer)
@@ -794,6 +800,7 @@ export function armBudgetCutResume(args: {
     if (armed !== undefined) clearTimeout(armed)
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
+    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
       tasksNow = prev.tasks
@@ -832,6 +839,12 @@ export function armBudgetCutResume(args: {
   }, args.delayMs ?? recoveryBudgetMs())
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.pause !== undefined && args.pause.why !== 'provider overloaded' && args.pause.resumesAtMs !== undefined) {
+    const toolUseId = args.toolUseContext.toolUseId
+    void writeAgentPauseRecord(args.taskId, { pause: { ...args.pause, resumesAtMs: args.pause.resumesAtMs }, description: args.description, armedAt: Date.now(), ...(toolUseId !== undefined && toolUseId !== '' ? { toolUseId } : {}) }).catch((error: unknown) => {
+      logForDebugging(`agent lifecycle: the pause of ${args.taskId} could not be recorded: ${errorMessage(error)}`)
+    })
+  }
   if (args.pause !== undefined && args.pause.why !== 'provider overloaded') {
     unsubscribeAccount = subscribeCrewAccountChange(() => {
       if (pendingAutomaticResumes.get(args.taskId) !== timer) {
@@ -1167,7 +1180,7 @@ export async function runAsyncAgentLifecycle(args: {
             toolUseContext,
             rootSetAppState,
             canUseTool: args.canUseTool,
-            delayMs: Math.max(RESUME_AFTER_CUT_FLOOR_MS, windowPause.resumesAtMs - Date.now() + RESUME_AFTER_CUT_FLOOR_MS),
+            delayMs: windowPauseResumeDelayMs(windowPause.resumesAtMs),
             pause: windowPause,
             prompt: AGENT_WINDOW_RESUME_NOTE,
             summary: `Crewmate "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
@@ -1240,7 +1253,7 @@ export async function runAsyncAgentLifecycle(args: {
         await buildAgentResultEnvelope({
           agentId: String(taskId),
           agentType: metadata.agentType,
-          status: declined ? 'failed' : 'completed',
+          status: windowPause !== null || overload !== null ? 'paused' : declined ? 'failed' : 'completed',
           finalText: finalMessage ?? '',
           usage: {
             totalTokens: getTokenCountFromTracker(tracker),
@@ -1260,6 +1273,7 @@ export async function runAsyncAgentLifecycle(args: {
       ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated), lastCalls: lastToolCallsOf(accumulated) } : {}),
       ...(windowPause !== null
         ? {
+            statusWord: 'paused',
             summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
           }
         : {}),

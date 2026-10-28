@@ -29,6 +29,7 @@ import { mnemeProjectKey } from '../mneme/paths.js'
 import {
   DANGEROUS_uncachedSystemPromptSection,
   keyedSystemPromptSection,
+  onSystemPromptSectionsCleared,
   resolveSystemPromptSections,
   systemPromptSection,
 } from './systemPromptSections.js'
@@ -45,6 +46,29 @@ const PROVIDER_SKILL_PRECEDENCE = `For provider-API work, invoke provider-apis: 
 
 function getModelCurrencySection(): string {
   return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
+}
+
+type StartTask = import('../mneme/entryKnapsack.js').StartTask
+
+const memoryAtStartBySession = new Map<string, Promise<string | null>>()
+onSystemPromptSectionsCleared(() => memoryAtStartBySession.clear())
+
+function memoryAtStartKey(task: StartTask | undefined): string {
+  return `${String(getSessionId())}:${task ? 'request' : 'preview'}`
+}
+
+function memoryAtStartForSession(task: StartTask | undefined): Promise<string | null> {
+  const key = memoryAtStartKey(task)
+  let composed = memoryAtStartBySession.get(key)
+  if (composed === undefined) {
+    composed = composeMemoryAtStart({ task, projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() })
+    memoryAtStartBySession.set(key, composed)
+  }
+  return composed
+}
+
+export function resetMemoryAtStartForTest(): void {
+  memoryAtStartBySession.clear()
 }
 
 function prependBullets(items: Array<string | string[]>): string[] {
@@ -188,7 +212,7 @@ export async function getSystemPrompt(
   const dynamicSpecs = [
     systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
     systemPromptSection('memory', () => loadMemoryPrompt()),
-    keyedSystemPromptSection('memory_at_start', () => memoryTask ? 'request' : 'preview', () => composeMemoryAtStart({ task: memoryTask, projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() })),
+    keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask)),
     keyedSystemPromptSection(
       'entry_page',
       () => (mnemeEnabled() ? 'page' : 'off'),

@@ -22,6 +22,7 @@ export function latchScheduleRow(row: SaturnFactsRowV1): void {
 
 let pendingEdits: ScheduleOpRequestV1[] = []
 let rosterCache: SaturnFactsRowV1[] | null = null
+let rosterPushedAtMs: number | null = null
 let seatObserved = false
 let wakeSink: ((prompt: string, facts?: LocalWakeFacts) => void) | null = null
 const localWakeTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -61,12 +62,17 @@ export function takePendingScheduleEdits(): ScheduleOpRequestV1[] {
   return taken
 }
 
-export function latchSessionScheduleRoster(rows: SaturnFactsRowV1[]): void {
+export function latchSessionScheduleRoster(rows: SaturnFactsRowV1[], pushedAtMs: number = Date.now()): void {
   rosterCache = rows.map(r => ({ ...r }))
+  rosterPushedAtMs = pushedAtMs
 }
 
 export function sessionScheduleRoster(): SaturnFactsRowV1[] | null {
   return rosterCache === null ? null : rosterCache.map(r => ({ ...r }))
+}
+
+export function sessionScheduleRosterPushedAtMs(): number | null {
+  return rosterPushedAtMs
 }
 
 
@@ -112,6 +118,7 @@ export function _resetScheduleBridgeForTesting(): void {
   editDoor = null
   pendingEdits = []
   rosterCache = null
+  rosterPushedAtMs = null
   seatObserved = false
   wakeSink = null
   for (const t of localWakeTimers) clearTimeout(t)

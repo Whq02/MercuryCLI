@@ -30,6 +30,7 @@
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 # gate-watch: src/chatLauncher.tsx
 # gate-watch: src/types/command.ts src/services/privateChannel/installPath.ts
+# gate-watch: src/mneme/entryKnapsack.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
 # gate-watch: src/services/tools/toolExecution.ts
@@ -60,6 +61,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-names.ts" || { __rc=$?; fail=1
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-switches.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-switches.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-provenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-provenance.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runtime-posture.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-runtime-posture.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-stable-across-mode-and-task.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-stable-across-mode-and-task.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-harness-map.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-harness-map.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-policy-honest.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-policy-honest.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-substrate-umbrella.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-substrate-umbrella.ts" "$__t" "$__rc"

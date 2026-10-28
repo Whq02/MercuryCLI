@@ -16,7 +16,7 @@ export interface AgentResultEnvelope {
   version: typeof AGENT_ENVELOPE_VERSION
   agentId: string
   agentType?: string
-  status: 'completed' | 'failed' | 'stopped'
+  status: 'completed' | 'failed' | 'stopped' | 'paused'
   summary: string
   findings: string[]
   changedPaths: string[]

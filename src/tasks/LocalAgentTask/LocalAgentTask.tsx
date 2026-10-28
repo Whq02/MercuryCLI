@@ -429,6 +429,19 @@ export function overloadPauseOf(messages: readonly Message[], model: string | nu
   return { pause: { why: 'provider overloaded', words: overloadPauseWords(who, undefined, status) }, who, status }
 }
 
+export const AGENT_STOPPED_WHILE_PAUSED = 'stopped while paused'
+
+export function stopPausedAgentTask(taskId: string, setAppState: SetAppState): { description: string; pause: AgentPauseV1 } | null {
+  let stopped: { description: string; pause: AgentPauseV1 } | null = null
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status === 'running' || task.paused === undefined) return task
+    stopped = { description: task.description, pause: task.paused }
+    const { paused: _lifted, ...rest } = task
+    return terminalPatch(rest as LocalAgentTaskState, 'killed', { stopReason: AGENT_STOPPED_WHILE_PAUSED })
+  })
+  return stopped
+}
+
 export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) return task

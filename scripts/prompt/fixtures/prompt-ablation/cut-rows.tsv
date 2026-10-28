@@ -4,7 +4,7 @@ M003	main headless	Session date: <date>	Session date:	the user-context reminder'
 M037	main headless	Primary working directory: <project>	Primary working directory:	M002, the head's Working directory line
 M045	main headless crewmate	Mercury's live model catalogue is the source of truth for the ids that run here.	live model catalogue is the source of truth	the Read description (mercury://seat: asked which model runs you, read it and answer from it); M044
 M050	main	Session: interactive.	Session: interactive.	the ask itself (the permission ladder)
-M051	main	Permission asks reach the operator; the current mode is on the shift+tab carousel and can change mid-session.	shift+tab carousel	a mode change re-memos the posture (runtimePosture.ts markSessionPermissionMode); the carousel is operator-only
+M051	main	Permission asks reach the operator; the current mode is on the shift+tab carousel and can change mid-session.	shift+tab carousel	a mode change rides the next user turn as a reminder while the posture block stays as composed (runtimePosture.ts markSessionPermissionMode); the carousel is operator-only
 M052	main headless	Capability kills armed at boot: none.	Capability kills armed at boot: none	the kill gate's own refusal (capabilityGate.ts)
 M053	main	(Kills can be armed mid-session via /kill; live state: /kill.)	Kills can be armed mid-session via /kill	M057 (/help lists commands); /kill is operator-only
 M054	main headless	MCP tool-risk policy: permissive (no max-risk cap set).	MCP tool-risk policy: permissive	toolPolicy.ts refuses a capped MCP tool with its own message

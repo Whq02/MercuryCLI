@@ -94,6 +94,7 @@ export interface SaturnTickerPortsV1 {
   deliver(d: SaturnDeliveryV1): Promise<{ ok: boolean; detail?: string }>
   birth(spec: SaturnBirthSpecV1, opts: { scheduleId: string; dueAt: number; by: string; owner: string }): Promise<{ ok: boolean; sessionId?: string; detail?: string }>
   screenOpen(): boolean
+  rosterChanged?(sessionId: string): void
   dir?: string
 }
 
@@ -205,6 +206,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
   for (const rec of ports.records()) {
     const sessionId = rec.sessionId
     const parked = isParkedRecord(rec)
+    const movesBefore = report.fired + report.held + report.missed + report.replayed + report.dropped
 
     let heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
     let scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
@@ -489,6 +491,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         })
       }
     }
+    if (report.fired + report.held + report.missed + report.replayed + report.dropped !== movesBefore) ports.rosterChanged?.(sessionId)
   }
 
   {

@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 
 import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import { isTerminalTaskStatus, type TaskStateBase } from '../../Task.js'
-import { bareMissWords, finishedAgentFromRow, finishedAgentWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, resolveStopTargetId, stopTask, type FinishedAgent, type FinishedShell } from '../../tasks/stopTask.js'
+import { bareMissWords, finishedAgentFromRow, finishedAgentWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, isPausedAgentRow, resolveStopTargetId, stopTask, stoppedWhilePausedWords, type FinishedAgent, type FinishedShell } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
@@ -161,7 +161,7 @@ export const TaskStopTool = buildTool({
       if (finished?.kind === 'agent') return { data: alreadyFinishedAgentOutput(finished.agent, `${finished.words}; nothing was stopped`) }
     } else if (isFinishedShellRow(task)) {
       return { data: alreadyFinishedOutput(finishedShellFromRow(task)) }
-    } else if (isFinishedAgentRow(task)) {
+    } else if (isFinishedAgentRow(task) && !isPausedAgentRow(task)) {
       const agent = finishedAgentFromRow(task)
       return { data: alreadyFinishedAgentOutput(agent, finishedAgentWords(agent)) }
     }
@@ -169,6 +169,9 @@ export const TaskStopTool = buildTool({
       getAppState: context.getAppState,
       setAppState: context.setAppState,
     })
+    if (result.pausedStop !== undefined) {
+      return { data: { message: stoppedWhilePausedWords(result.taskId, result.pausedStop), task_id: result.taskId, task_type: result.taskType, command: result.command } }
+    }
 
     let settlementClause = ''
     if (result.settlement) {

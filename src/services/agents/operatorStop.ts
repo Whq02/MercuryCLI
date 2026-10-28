@@ -3,7 +3,7 @@ import type { AppState } from '../../state/AppState.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { StopTaskError, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
+import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
@@ -49,6 +49,10 @@ export async function stopAgentByOperator(
   const task = context.getAppState().tasks?.[taskId]
   if (task === undefined) return { outcome: 'refused', reason: await taskNotFoundWords(taskId) }
   const name = nameOf(task)
+  if (isPausedAgentRow(task)) {
+    const stopped = await stopPausedAgent(taskId, context)
+    if (stopped !== null) return { outcome: 'applied', kind: 'agent', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
+  }
   if (task.status !== 'running') return { outcome: 'refused', reason: notRunningWords(name, task.status) }
   if (isLocalWorkflowTask(task)) {
     const receipt = killWorkflowTask(taskId, context.setAppState)

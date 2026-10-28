@@ -77,6 +77,96 @@ export function geminiPlanServesClaude(wireModel: string): boolean {
   return /^claude-/.test(wireModel)
 }
 
+export function anthropicToolCallId(id: string): string {
+  const allowed = id.replace(/[^A-Za-z0-9_-]/g, '_')
+  return allowed === '' ? 'call' : allowed
+}
+
+type ProtoField = { index: number; varint?: number; bytes?: Uint8Array }
+
+function base64Bytes(text: string): Uint8Array | null {
+  if (text === '' || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(text)) return null
+  const bytes = Buffer.from(text, 'base64')
+  return bytes.length === 0 ? null : new Uint8Array(bytes)
+}
+
+function protoFields(bytes: Uint8Array): ProtoField[] | null {
+  const out: ProtoField[] = []
+  let at = 0
+  const varint = (): number | null => {
+    let value = 0
+    let shift = 0
+    for (;;) {
+      if (at >= bytes.length || shift > 49) return null
+      const byte = bytes[at++]!
+      value += (byte & 0x7f) * 2 ** shift
+      if ((byte & 0x80) === 0) return value
+      shift += 7
+    }
+  }
+  while (at < bytes.length) {
+    const key = varint()
+    if (key === null) return null
+    const index = Math.floor(key / 8)
+    const wire = key % 8
+    if (wire === 0) {
+      const value = varint()
+      if (value === null) return null
+      out.push({ index, varint: value })
+    } else if (wire === 2) {
+      const length = varint()
+      if (length === null || at + length > bytes.length) return null
+      out.push({ index, bytes: bytes.subarray(at, at + length) })
+      at += length
+    } else if (wire === 1) {
+      at += 8
+    } else if (wire === 5) {
+      at += 4
+    } else return null
+    if (at > bytes.length) return null
+  }
+  return out
+}
+
+const THOUGHT_KIND_PATTERN = /^[a-z][a-z_]{0,31}$/
+
+export function geminiThoughtKindOf(signature: string): string | null {
+  let bytes = base64Bytes(signature)
+  for (let layer = 0; bytes !== null && layer < 2; layer++) {
+    const envelope = protoFields(bytes)
+    const inner = envelope?.find(field => field.index === 2 && field.bytes !== undefined)?.bytes
+    const meta = inner === undefined ? undefined : protoFields(inner)?.find(field => field.index === 1 && field.bytes !== undefined)?.bytes
+    const kind = meta === undefined ? undefined : protoFields(meta)?.find(field => field.index === 8 && field.bytes !== undefined)?.bytes
+    if (kind !== undefined) {
+      const words = Buffer.from(kind).toString('utf8')
+      return THOUGHT_KIND_PATTERN.test(words) ? words : null
+    }
+    const text = Buffer.from(bytes).toString('latin1')
+    bytes = base64Bytes(text)
+  }
+  return null
+}
+
+function claudeReplayParts(saved: GeminiTurnItem): GeminiPart[] {
+  const parts: GeminiPart[] = []
+  let callIndex = 0
+  for (const part of saved.parts) {
+    if (part.functionCall !== undefined) {
+      const call = saved.calls[callIndex++]
+      const id = part.functionCall.id ?? (call === undefined ? undefined : call.nativeId ?? anthropicToolCallId(call.id))
+      parts.push(id === undefined || id === part.functionCall.id ? part : { ...part, functionCall: { ...part.functionCall, id } })
+      continue
+    }
+    if (part.thought === true) {
+      if (part.thoughtSignature === undefined || part.thoughtSignature === '') continue
+      const kind = geminiThoughtKindOf(part.thoughtSignature)
+      if (kind !== null && kind !== 'thinking') continue
+    }
+    parts.push(part)
+  }
+  return parts
+}
+
 function geminiThinkingConfig(model: string, effort: string | undefined): { thinkingBudget: number; includeThoughts?: boolean } | { thinkingLevel: string } | undefined {
   const budget = typeof effort === 'string' ? ({ low: 1024, medium: 8192, high: 24576 } as Record<string, number>)[effort] : undefined
   if (budget === undefined) return undefined
@@ -88,6 +178,7 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
   const contents: GeminiContent[] = []
   const systems: Array<{ text: string }> = []
   const assistants = messages.filter(message => message.type === 'assistant')
+  const claudeRow = geminiPlanServesClaude(request.model)
   const calls = new Map<string, { name: string; nativeId?: string; ordinal: number }>()
   const responseOrdinals = new Map<GeminiPart, number>()
   let ordinal = 0
@@ -110,8 +201,11 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
       const assistant = assistants[assistantIndex++]
       const saved = replayItem(assistant?.geminiProviderTurn, request.model, row)
       if (saved) {
-        parts = saved.parts
-        for (const call of saved.calls) calls.set(call.id, { name: call.name, ...(call.nativeId ? { nativeId: call.nativeId } : {}), ordinal: ordinal++ })
+        parts = claudeRow ? claudeReplayParts(saved) : saved.parts
+        for (const call of saved.calls) {
+          const nativeId = call.nativeId ?? (claudeRow ? anthropicToolCallId(call.id) : undefined)
+          calls.set(call.id, { name: call.name, ...(nativeId ? { nativeId } : {}), ordinal: ordinal++ })
+        }
         for (const refusal of saved.refused ?? []) {
           const call = calls.get(refusal.id)
           if (call) refusedResults.push(responsePart(call, { error: refusal.reason }))
@@ -120,8 +214,9 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
         parts = contentParts(row.content)
         const imported = geminiValidatesSignatures(request.model) ? GEMINI_SKIP_SIGNATURE_VALIDATION : undefined
         for (const [index, call] of (row.tool_calls ?? []).entries()) {
-          calls.set(call.id, { name: call.function.name, ordinal: ordinal++ })
-          parts.push({ functionCall: { name: call.function.name, args: JSON.parse(call.function.arguments) }, ...(imported && index === 0 ? { thoughtSignature: imported } : {}) })
+          const nativeId = claudeRow ? anthropicToolCallId(call.id) : undefined
+          calls.set(call.id, { name: call.function.name, ...(nativeId ? { nativeId } : {}), ordinal: ordinal++ })
+          parts.push({ functionCall: { name: call.function.name, args: JSON.parse(call.function.arguments), ...(nativeId ? { id: nativeId } : {}) }, ...(imported && index === 0 ? { thoughtSignature: imported } : {}) })
         }
       }
     } else if (row.role === 'tool') {

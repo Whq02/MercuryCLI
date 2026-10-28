@@ -18,7 +18,7 @@ const SUMMARY_CLIP = 500
 export interface NormalizeInput {
   agentId: string
   agentType?: string
-  status: 'completed' | 'failed' | 'stopped'
+  status: 'completed' | 'failed' | 'stopped' | 'paused'
   finalText: string
   usage?: { totalTokens?: number; toolUseCount?: number; durationMs?: number }
 }

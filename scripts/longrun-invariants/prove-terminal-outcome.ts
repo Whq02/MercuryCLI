@@ -288,7 +288,7 @@ const declinedRow = await lifecycleCase(
 {
   const notifs = taskNotifications()
   const body = notifs.map(n => (n as { value?: string }).value ?? '').join('\n')
-  check('declined: envelope block says failed', /status="failed"/.test(body), body.slice(-400))
+  check('declined on a pause: the envelope block says paused, as the notice does', /<envelope v="\d+" status="paused">/.test(body) && !/status="failed"/.test(body), body.slice(-400))
   check("declined on the provider's overload: the notice is the calm paused line naming the overload and the probing, not the error", /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider/.test(body) && !/failed: API Error/.test(body), body.slice(0, 400))
   check("declined on the provider's overload: the row wears the pause", declinedRow?.paused?.why === 'provider overloaded', JSON.stringify(declinedRow?.paused))
 }

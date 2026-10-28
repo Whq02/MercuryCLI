@@ -618,6 +618,14 @@ export function pushScheduleRoster(short: string, roster: SeatRosterPort, dir?: 
   return true
 }
 
+export function pushScheduleRosterForSession(sessionId: string, roster: SeatRosterPort, dir?: string): boolean {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return false
+  const pushed = pushScheduleRoster(rec.runnerId, roster, dir)
+  if (pushed) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
+  return pushed
+}
+
 export function onFactsAnswer(short: string, result: unknown, roster: SeatRosterPort, dir?: string): void {
   const answer = sessionFactsFromWire(result)
   if (answer === null) return

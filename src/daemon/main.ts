@@ -55,6 +55,7 @@ import {
   onSeatRow,
   onSeatSpawned,
   publishSeatFacts,
+  pushScheduleRosterForSession,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
@@ -143,7 +144,7 @@ function resolveDir(args: string[]): string {
   return arg ? resolve(arg) : process.cwd()
 }
 
-function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy): void {
+function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy, roster: TaskRoster | null = null): void {
   try {
     const gone = dropSaturnSelfWakes(sessionId, by, why)
     if (gone.dropped.length > 0) {
@@ -151,6 +152,7 @@ function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeD
       console.error(
         `[daemon] ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${why}) — ${gone.dropped.join(', ')}${gone.droppedHolds > 0 ? `, ${gone.droppedHolds} held fire${gone.droppedHolds === 1 ? '' : 's'} with ${gone.dropped.length === 1 ? 'it' : 'them'}` : ''}`,
       )
+      if (roster !== null) pushScheduleRosterForSession(sessionId, roster)
     }
   } catch (err) {
     logForDebugging(`[daemon] ${sessionId}: self-paced wake drop (${why}) failed — ${err instanceof Error ? err.message : String(err)}; the ticker converges it`)
@@ -801,7 +803,7 @@ async function daemonRun(args: string[]): Promise<void> {
             if (door.closed) return settle({ outcome: 'refused' as const, detail: 'the interrupt did not reach the runner: its door is closed' })
             const sent = door.send('turn/interrupt', { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
             sent.answer.catch(() => undefined)
-            dropSelfWakesAtFlip(sessionId, by, 'interrupted')
+            dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)
             return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` })
           }
           if (action === 'stop-agent' || action === 'resume-agent') {
@@ -1369,6 +1371,9 @@ async function daemonRun(args: string[]): Promise<void> {
             contract: (sessionId, text, by) => applyConcourseContractOp(sessionId, { op: 'set', text }, by),
           }),
           screenOpen: () => (controlServer?.leaseCount() ?? 0) > 0,
+          rosterChanged: sessionId => {
+            if (roster !== null) pushScheduleRosterForSession(sessionId, roster)
+          },
         },
         r => {
           // eslint-disable-next-line no-console

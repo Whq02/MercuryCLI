@@ -149,7 +149,7 @@ import type {
 } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { getEmptyToolPermissionContext, type Tool } from '../Tool.js'
+import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fileCheckpointSource, fileHistoryEnabled, requestFileCheckpoints } from '../utils/fileHistory.js'
@@ -254,7 +254,7 @@ import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, handOverForegroundAgentsToQueuedMessage, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
+import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode, markSessionPermissionModeAtClaim } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
 import { getTranscriptPath, isChainParticipant } from '../utils/sessionStorage/paths.js'
@@ -750,6 +750,27 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
+    const relaunchContext = async (): Promise<ToolUseContext> => {
+      const { toolUseContext } = await buildSideQuestionFallbackParams({
+        tools,
+        commands,
+        mcpClients: [...getAppState().mcp.clients],
+        messages,
+        readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+        getAppState,
+        setAppState,
+        customSystemPrompt: options.systemPrompt,
+        appendSystemPrompt: options.appendSystemPrompt,
+        agents,
+      })
+      return {
+        ...toolUseContext,
+        options: {
+          ...toolUseContext.options,
+          ...(peer !== null ? { hostHoldsAsks: true } : {}),
+        },
+      }
+    }
     try {
       const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
       const carriedReason = carriedReasonOf(runnerRestartReason)
@@ -761,27 +782,7 @@ export async function runHeadless(
           getAppState,
           setAppState,
           canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
-          relaunchContext: async () => {
-            const { toolUseContext } = await buildSideQuestionFallbackParams({
-              tools,
-              commands,
-              mcpClients: [...getAppState().mcp.clients],
-              messages,
-              readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-              getAppState,
-              setAppState,
-              customSystemPrompt: options.systemPrompt,
-              appendSystemPrompt: options.appendSystemPrompt,
-              agents,
-            })
-            return {
-              ...toolUseContext,
-              options: {
-                ...toolUseContext.options,
-                ...(peer !== null ? { hostHoldsAsks: true } : {}),
-              },
-            }
-          },
+          relaunchContext,
         })
         recoveredCommandIds = carried.recoveredCommandIds
         logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
@@ -794,6 +795,20 @@ export async function runHeadless(
       const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
       if (settledLaunches.length > 0) {
         logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { carryPausedCrewmatesOnResume } = await import('../tasks/LocalAgentTask/pauseCarry.js')
+      const carried = await carryPausedCrewmatesOnResume({
+        getAppState,
+        setAppState,
+        canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
+        relaunchContext,
+      })
+      if (carried.length > 0) {
+        logForDebugging(`[session-runner] resume: ${carried.length} paused crewmate(s) re-armed to retry at their stated reset — ${carried.join(', ')}`)
       }
     } catch (error) {
       logError(error)
@@ -1460,7 +1475,7 @@ export async function runHeadless(
       const statusRaw = pick('status')
       if (statusRaw !== undefined) {
         const normalized =
-          statusRaw === AGENT_MESSAGE_STATUS
+          statusRaw === AGENT_MESSAGE_STATUS || statusRaw === 'paused'
             ? undefined
             : ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
               ? statusRaw === 'killed'
@@ -1981,7 +1996,12 @@ export async function runHeadless(
       if (!resolved.ok) throw refused(resolved.error, 'mode')
       const nextContext = resolved.context
       setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-      markSessionPermissionMode(nextContext.mode)
+      const modeReminder = markSessionPermissionMode(nextContext.mode)
+      if (modeReminder !== null) {
+        void import('../utils/messageQueueManager.js').then(({ enqueuePendingNotification }) => {
+          enqueuePendingNotification({ value: wrapInSystemReminder(modeReminder), mode: 'task-notification', priority: 'next', ridesNextWords: true })
+        })
+      }
       void asks.recheckPendingPermissionRequests()
       return { mode: params.mode }
     },
@@ -2085,7 +2105,7 @@ export async function runHeadless(
       if (claimedContext !== undefined) {
         const nextContext = claimedContext
         setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-        markSessionPermissionMode(nextContext.mode)
+        markSessionPermissionModeAtClaim(nextContext.mode)
       }
       await armSessionRunnerWiring(sid)
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason

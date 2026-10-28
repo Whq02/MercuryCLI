@@ -421,7 +421,7 @@ export type HeldAgentNotice = {
   landedWrites?: string
 }
 
-const HELD_NOTICE_STATUSES: ReadonlySet<string> = new Set(['completed', 'failed', 'killed'])
+const HELD_NOTICE_STATUSES: ReadonlySet<string> = new Set(['completed', 'failed', 'killed', 'paused'])
 
 const NOTICE_BLOCK = new RegExp(`<${TASK_NOTIFICATION_TAG}>[\\s\\S]*?</${TASK_NOTIFICATION_TAG}>`, 'g')
 
@@ -439,7 +439,7 @@ export function heldAgentNotices(lines: Iterable<string>, agentIds: ReadonlySet<
     const landed = summary.match(/(\d+ file writes? landed: [^—]+)/)
     const held: HeldAgentNotice = {
       taskId,
-      status: status as HeldAgentNotice['status'],
+      status: status === 'paused' ? 'failed' : (status as HeldAgentNotice['status']),
       value,
       ...(row.agentCompletion !== undefined ? { agentCompletion: row.agentCompletion } : {}),
       ...(row.sentAt !== undefined ? { at: row.sentAt } : row.at !== undefined ? { at: row.at } : {}),

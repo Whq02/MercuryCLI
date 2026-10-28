@@ -306,7 +306,7 @@ console.log('§E only interrupt and stop cancel self-wakes; parking preserves th
   const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
   const main = read('src/daemon/main.ts')
   const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
-  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
+  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered, and hands the roster over so the runner's list follows in the same step", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
   const parkArm = main.slice(main.indexOf("if (action === 'park')"), main.indexOf("if (action === 'set-title')"))
   check('E2 both park doors preserve self-wakes', parkArm.includes('retireConcourseSession(sessionId, by, roster)') && parkArm.includes('parkConcourseSession(sessionId, by, roster ?? undefined)') && !parkArm.includes('dropSelfWakesAtFlip'))
   const stopArm = main.slice(main.indexOf("if (action === 'stop')"), main.indexOf("if (action === 'attach')"))
@@ -315,7 +315,7 @@ console.log('§E only interrupt and stop cancel self-wakes; parking preserves th
   check('E4 park-all preserves self-wakes for every parked session', parkAllArm.includes('parkAllConcourseSessions(') && !parkAllArm.includes('dropSelfWakesAtFlip'))
   const idleEdge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('onIdle: short => {') + 900)
   check('E5 the idle-edge park completion preserves self-wakes', idleEdge.includes('if (completeRequestedPark(short, roster)) {') && !idleEdge.includes('dropSelfWakesAtFlip'))
-  check('E6 the door helper rides the one writer, fail-soft, and names the drop in the daemon log', main.includes('function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy): void') && main.includes('const gone = dropSaturnSelfWakes(sessionId, by, why)') && main.includes('self-paced wake') )
+  check('E6 the door helper rides the one writer, fail-soft, names the drop in the daemon log and pushes the roster when a wake went', main.includes('function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy, roster: TaskRoster | null = null): void') && main.includes('const gone = dropSaturnSelfWakes(sessionId, by, why)') && main.includes('self-paced wake') && main.includes('if (roster !== null) pushScheduleRosterForSession(sessionId, roster)'))
 
   const ticker = read('src/daemon/saturnTicker.ts')
   check("E7 the ticker drops only a stopped record's self-wakes before the ladder runs", ticker.includes('if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && !ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))'))

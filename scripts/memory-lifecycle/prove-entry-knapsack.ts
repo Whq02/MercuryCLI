@@ -182,13 +182,13 @@ try {
     check('the status the /config row reads carries the effective allowance (the configured 4,000 scaled down by the eligible records: 600 × ⌈log₂(1 + eligible)⌉), the pinned characters, what rode and the pool', status.limit === allowanceFor(4000, eligible) && status.limit === 1800 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j({ status, eligible }))
   }
 
-  section('§3 the wiring: one memoized section between the memory page and the lineage page, keyed on preview/request alone so the first real request composes it once and the prefix then stands')
+  section('§3 the wiring: one memoized section between the memory page and the lineage page, keyed on the session and the preview/request distinction alone so the first real request composes it once and the prefix then stands')
   {
     const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
     const memoryAt = prompts.indexOf("systemPromptSection('memory', () => loadMemoryPrompt())")
-    const startAt = prompts.indexOf("keyedSystemPromptSection('memory_at_start', () => memoryTask ? 'request' : 'preview', () => composeMemoryAtStart({ task: memoryTask,")
+    const startAt = prompts.indexOf("keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))")
     const lineageAt = prompts.indexOf("'entry_page'")
-    check('the memory-at-start section is a memoized section keyed on the request/preview distinction only (never cache-breaking, never re-keyed per turn) between the memory section and the entry page', memoryAt >= 0 && startAt > memoryAt && lineageAt > startAt && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j([memoryAt, startAt, lineageAt]))
+    check('the memory-at-start section is a memoized section keyed on the session and the request/preview distinction only (never cache-breaking, never re-keyed per turn) between the memory section and the entry page', memoryAt >= 0 && startAt > memoryAt && lineageAt > startAt && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j([memoryAt, startAt, lineageAt]))
     const contract = readFileSync(join(ROOT, 'src/prompt/behaviourContract.ts'), 'utf8')
     check('the section declares its owner beside the memory section', contract.includes("['dynamic:memory_at_start', 'src/mneme/entryKnapsack.ts']"))
     const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')

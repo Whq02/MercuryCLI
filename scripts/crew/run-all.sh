@@ -57,6 +57,7 @@
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: src/components/HelmLanesRail.tsx src/components/concourse/ConcourseRoute.tsx src/components/concourse/ConcourseStrips.tsx src/components/concourse/controlManifest.ts src/components/mercury-ui/glyphs.ts
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/services/switchboard/spawnSwitches.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalShellTask/killShellTasks.ts src/tasks/taskOutcomeEnvelope.ts src/utils/sdkEventQueue.ts src/utils/cockpit/crewmateWords.ts
+# gate-watch: src/services/api/recoveryBudget.ts src/services/vulcan/engine/leases.ts src/tools/TaskStopTool/TaskStopTool.ts src/tasks/LocalAgentTask/pauseCarry.ts src/tasks/stopTask.ts src/services/agents/operatorStop.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

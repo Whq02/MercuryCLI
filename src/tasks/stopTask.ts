@@ -1,13 +1,18 @@
 import { existsSync, statSync } from 'node:fs'
-import { getSessionId } from '../bootstrap/state.js'
+import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../bootstrap/state.js'
 import type { SetAppState, TaskKillReceipt, TaskStateBase, TaskType } from '../Task.js'
 import type { AppState } from '../state/AppState.js'
 import { getTaskByType } from '../tasks.js'
 import { readAgentTranscript } from '../tools/WorkflowTool/agentTranscriptReader.js'
 import { asAgentId } from '../types/ids.js'
+import { logForDebugging } from '../utils/debug.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'
 import { emitTaskEnded } from '../utils/sdkEventQueue.js'
 import { updateTaskState } from '../utils/task/framework.js'
+import { projectLeaseHolder, releaseProjectLeases } from '../services/vulcan/engine/leases.js'
+import type { AgentPauseV1 } from './LocalAgentTask/agentPause.js'
+import { AGENT_RESUME_DOOR, isLocalAgentTask, stopPausedAgentTask } from './LocalAgentTask/LocalAgentTask.js'
+import { clearAgentPauseRecord } from './LocalAgentTask/pauseCarry.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
@@ -120,6 +125,39 @@ export function finishedAgentWords(agent: FinishedAgent): string {
   return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
 }
 
+export type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number }
+
+export function isPausedAgentRow(task: unknown): task is TaskStateBase & { paused: AgentPauseV1 } {
+  return isLocalAgentTask(task) && task.status !== 'running' && task.paused !== undefined
+}
+
+export function stoppedWhilePausedWords(taskId: string, stop: PausedAgentStop): string {
+  const retry = stop.pause.resumesAtMs !== undefined ? `the retry it had armed for ${new Date(stop.pause.resumesAtMs).toISOString()} is cancelled` : 'no retry stays armed'
+  const leases = stop.leasesReleased > 0 ? `${stop.leasesReleased} lease${stop.leasesReleased === 1 ? '' : 's'} released` : 'no lease was held'
+  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept; ${AGENT_RESUME_DOOR}`
+}
+
+export async function stopPausedAgent(
+  taskId: string,
+  context: { getAppState: () => AppState; setAppState: SetAppState },
+): Promise<PausedAgentStop | null> {
+  const task = context.getAppState().tasks?.[taskId]
+  if (!isPausedAgentRow(task)) return null
+  const { cancelAutomaticResume } = await import('../tools/AgentTool/agentToolUtils.js')
+  cancelAutomaticResume(taskId)
+  await clearAgentPauseRecord(taskId).catch(() => undefined)
+  const stopped = stopPausedAgentTask(taskId, context.setAppState)
+  if (stopped === null) return null
+  let leasesReleased = 0
+  try {
+    const released = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), projectLeaseHolder(), undefined, { agentId: taskId })
+    leasesReleased = released.released.length
+  } catch (error) {
+    logForDebugging(`stop of paused crewmate ${taskId}: its leases could not be released — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  return { ...stopped, leasesReleased }
+}
+
 export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOnDisk | null> {
   let transcriptPath: string | null = null
   try {
@@ -157,12 +195,15 @@ export async function stopTask(
   taskType: TaskType
   command: string
   settlement?: TaskKillReceipt
+  pausedStop?: PausedAgentStop
 }> {
   const task = context.getAppState().tasks?.[taskId]
   if (!task) {
     throw new StopTaskError('not_found', await taskNotFoundWords(taskId))
   }
   if (task.status !== 'running') {
+    const pausedStop = await stopPausedAgent(taskId, context)
+    if (pausedStop !== null) return { taskId, taskType: task.type as TaskType, command: pausedStop.description, pausedStop }
     throw new StopTaskError(
       'not_running',
       `Task ${taskId} is not running (status: ${task.status})`,
