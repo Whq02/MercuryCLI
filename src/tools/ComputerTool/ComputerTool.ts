@@ -62,6 +62,11 @@ import type { AssistantMessage, Message } from '../../types/message.js'
 import { KEY_CHORD_VOCABULARY, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord, type KeyChord } from './keyChord.js'
 import {
   isPixelOutside,
+  outlineTree,
+  outlineRowWords,
+  rememberTreeRefs,
+  resolveTreeRef,
+  type DesktopOutline,
   pixelOfPoint,
   pixelOnScreen,
   pointOfPixel,
@@ -130,9 +135,9 @@ const WAIT_CAP_MS = 10_000
 const HOLD_MIN_MS = 50
 export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
-export const TREE_DEPTH_DEFAULT = 8
+export const TREE_DEPTH_DEFAULT = 12
 export const TREE_DEPTH_CAP = 32
-export const TREE_LIMIT_DEFAULT = 200
+export const TREE_LIMIT_DEFAULT = 400
 export const TREE_LIMIT_CAP = 2_000
 
 export function computerToolEnabled(): boolean {
@@ -164,6 +169,10 @@ const baseSchema = lazySchema(() =>
     depth: z.number().optional(),
     limit: z.number().optional(),
     target: targetSchema().optional().describe('role/name exact; text substring; unique match'),
+    ref: z.number().int().positive().optional().describe('Number from the latest tree/find read'),
+    root: z.union([z.number().int().positive(), targetSchema()]).optional().describe('Subtree root: row number or role/name/text'),
+    all: z.boolean().optional().describe('Include zero-size and outside-window elements'),
+    points: z.boolean().optional().describe('Include centres in last-screenshot pixels'),
     toTarget: targetSchema().optional(),
     until: targetSchema().optional(),
     count: z.number().optional(),
@@ -190,7 +199,7 @@ export type Output = {
 }
 
 const ACT_FIELDS = ['settleMs', 'capture', 'region', 'label', 'verify']
-const TARGET_FIELDS = ['target', 'depth', 'limit']
+const TARGET_FIELDS = ['target', 'ref', 'depth', 'limit']
 const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   screenshot: ['display', 'label', 'region', 'full', 'pixels', 'scale'],
   click: ['x', 'y', 'modifiers', 'count', ...TARGET_FIELDS, ...ACT_FIELDS],
@@ -206,8 +215,8 @@ const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
   cursor: [],
   displays: [],
   frontmost: [],
-  tree: ['depth', 'limit', 'scope', 'pixels'],
-  find: ['target', 'depth', 'limit', 'scope'],
+  tree: ['depth', 'limit', 'scope', 'pixels', 'root', 'all', 'points'],
+  find: ['target', 'depth', 'limit', 'scope', 'root', 'all', 'points'],
   sequence: ['steps', 'settleMs', 'capture', 'region', 'scale'],
 }
 
@@ -254,10 +263,14 @@ function tableRefusal(input: Input): string | null {
   const stray = fieldRefusal(input)
   if (stray !== null) return stray
   const action = input.action
-  if (action !== 'tree' && action !== 'find' && input.target === undefined && input.toTarget === undefined && input.until === undefined) {
+  if (action !== 'tree' && action !== 'find' && input.target === undefined && input.ref === undefined && input.toTarget === undefined && input.until === undefined) {
     for (const field of ['depth', 'limit'] as const) if (input[field] !== undefined) return `${action} does not take ${field}`
   }
-  for (const selector of [input.target, input.toTarget, input.until]) {
+  for (const ref of [input.ref, typeof input.root === 'number' ? input.root : undefined]) {
+    if (ref !== undefined && (!Number.isInteger(ref) || ref < 1)) return 'ref requires a positive row number from tree'
+  }
+  if (input.ref !== undefined && (input.target !== undefined || input.x !== undefined || input.y !== undefined)) return 'choose ref, target or x/y, not more than one'
+  for (const selector of [input.target, input.toTarget, input.until, typeof input.root === 'object' ? input.root : undefined]) {
     if (selector !== undefined && (Object.keys(selector).length === 0 || Object.values(selector).some(value => typeof value !== 'string' || value.trim() === ''))) return 'a target needs a nonempty role, name or text — read tree first'
   }
   if (input.target !== undefined && (input.x !== undefined || input.y !== undefined)) return 'choose target or x/y, not both'
@@ -275,7 +288,7 @@ function tableRefusal(input: Input): string | null {
       if (refusal !== null) return `sequence step ${index + 1}: ${refusal}`
     }
   }
-  if (POINT_ACTIONS.has(action) && input.target === undefined && !(isNumber(input.x) && isNumber(input.y))) {
+  if (POINT_ACTIONS.has(action) && input.target === undefined && input.ref === undefined && !(isNumber(input.x) && isNumber(input.y))) {
     return `${action} requires x and y (pixels of the last screenshot), or target from tree`
   }
   if (action === 'drag' && input.toTarget === undefined && !(isNumber(input.toX) && isNumber(input.toY))) {
@@ -314,7 +327,7 @@ function tableRefusal(input: Input): string | null {
   if (input.settleMs !== undefined && !(isNumber(input.settleMs) && input.settleMs >= 0)) {
     return `${action} takes settleMs as a number of milliseconds`
   }
-  if (action === 'tree' || action === 'find' || input.target !== undefined || input.toTarget !== undefined || input.until !== undefined) {
+  if (action === 'tree' || action === 'find' || input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.until !== undefined) {
     if (input.depth !== undefined && !(Number.isInteger(input.depth) && input.depth >= 0 && input.depth <= TREE_DEPTH_CAP)) {
       return `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP} — ${String(input.depth)} is outside`
     }
@@ -355,7 +368,7 @@ function planOf(owner: OwnerKey, context: ToolUseContext, input: Input): ActPlan
   let point: DesktopPoint | null = null
   let target: DesktopPoint | null = null
   if (POINT_ACTIONS.has(input.action)) {
-    if (input.target === undefined) {
+    if (input.target === undefined && input.ref === undefined) {
       const framed = framePixel(map, messages, input.x!, input.y!)
       if (!framed.ok) return { refusal: `${input.action} refused: ${framed.text}` }
       point = framed.point
@@ -376,14 +389,21 @@ function planOf(owner: OwnerKey, context: ToolUseContext, input: Input): ActPlan
   return { point, target, chord, modifiers, ...(point ? { observe: { x: point.x - 24, y: point.y - 24, width: 48, height: 48 } } : {}) }
 }
 
-async function resolveActTargets(driver: DesktopDriver, input: Input, front: DesktopApplication, plan: ActPlan, signal: AbortSignal): Promise<string | null> {
+async function resolveActTargets(driver: DesktopDriver, input: Input, front: DesktopApplication, plan: ActPlan, signal: AbortSignal, owner: OwnerKey): Promise<string | null> {
   if (namesCaptcha(front.title ?? '')) return CAPTCHA_HANDOFF
   if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
-  const fullReach = input.target !== undefined || input.toTarget !== undefined || input.verify === true
+  const fullReach = input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.verify === true
   const tree = await driver.accessibilityTree(front, { depth: input.depth ?? (fullReach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), count: input.limit ?? (fullReach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), scope: 'window' }, signal)
-  if (!tree.ok) return input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
+  if (!tree.ok) return input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
   if (treeNamesCaptcha(tree.value)) return CAPTCHA_HANDOFF
   plan.beforeTree = tree.value
+  if (input.ref !== undefined) {
+    const elements = resolveTreeRef(owner, front, tree.value, input.ref)
+    const point = targetPoint({ ...tree.value, elements }, {})
+    if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
+    plan.point = point
+    if (elements[0]?.frame) plan.observe = elements[0].frame
+  }
   for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
     if (selector === undefined) continue
     const point = targetPoint(tree.value, selector)
@@ -464,7 +484,7 @@ async function ownTerminalRefusal(
 }
 
 function startWords(input: Input): string {
-  return input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`
+  return input.ref !== undefined ? `ref:${input.ref}` : input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`
 }
 
 function endWords(input: Input): string {
@@ -638,35 +658,22 @@ async function frontmostWords(driver: DesktopDriver): Promise<string> {
 }
 
 function treeLimitsOf(input: Input): DesktopTreeLimits {
-  const targeted = input.action === 'find' || input.until !== undefined
+  if (input.action === 'tree' || input.action === 'find') return { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: input.scope ?? 'window' }
+  const targeted = input.until !== undefined
   return { depth: input.depth ?? (targeted ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), count: input.limit ?? (targeted ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), scope: input.scope ?? 'window' }
 }
 
-function treeWords(app: DesktopApplication, tree: DesktopTree, limits: { depth: number; count: number }, map: ScreenMap | null): string {
+function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { depth: number; count: number }, map: ScreenMap | null, points: boolean): string {
   const deepest = tree.elements.reduce((most, element) => Math.max(most, element.depth), 0)
-  const lines: string[] = [
-    `tree: ${app.name} (${app.identity}) — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest} (limit ${limits.count}, depth ${limits.depth}) · frames @x,y w×h in screen points${map !== null ? '; (x, y) px is the element\'s centre in the last screenshot' : ''}`,
+  const lines = [
+    `tree: ${app.name} — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest}`,
+    ...tree.elements.map(element => outlineRowWords(element, map, points)),
   ]
-  for (const element of tree.elements) {
-    const parts = [element.role]
-    if (element.title !== null) parts.push(JSON.stringify(element.title))
-    if (element.value !== null) parts.push(`value=${JSON.stringify(element.value)}`)
-    const frame = element.frame
-    if (element.focused === true) parts.push('[focused]')
-    if (frame !== null) {
-      parts.push(`@${Math.round(frame.x)},${Math.round(frame.y)} ${Math.round(frame.width)}×${Math.round(frame.height)}`)
-      if (map !== null) {
-        const pixel = pixelOfPoint(map, { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 })
-        if (pixelOnScreen(map, pixel)) parts.push(`· (${pixel.x}, ${pixel.y}) px`)
-      }
-    }
-    lines.push(`${'  '.repeat(element.depth)}${parts.join(' ')}`)
-  }
   lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
   const pageNote = pageContentNote(tree)
   if (pageNote) lines.push(pageNote)
   if (tree.truncated) {
-    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — raise limit or depth to read more, or act on what is shown`)
+    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — narrow with root or find, raise limit or depth to read more, or act on what is shown`)
   }
   return lines.join('\n')
 }
@@ -875,7 +882,7 @@ screenshot: front window; full:true or display:N for a display. region:{x,y,widt
 Terminal bundle IDs: screenshot/tree return AX text (visible range when available, else whole; cut at 15000 chars). pixels:true bypasses text. No clipboard or input.
 click(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX,toY OR toTarget; scroll adds dx/dy wheel notches, positive down/right.
 type(text) ≤${TYPE_TEXT_CAP} chars; newline/tab only controls. key(key); hold(key,durationMs) 50–${HOLD_CAP_MS}ms. Keys: ${KEY_CHORD_VOCABULARY}.
-tree(depth?,limit?,scope?): roles, titles, values, frames, focus; budgets ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}. scope:window default; app includes other windows/menus. find(target) filters.
+tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}; scope:window|app; find(target).
 wait(durationMs?,until?) pauses/polls for a tree target (${WAIT_DEFAULT_MS} default, ${WAIT_CAP_MS} max). Image only with capture:true or a matched until; capture:false overrides. cursor/displays/frontmost read facts.
 sequence(steps:[acts,tree,find,wait]): each step checked; first failure stops; no nesting. One final image unless capture:false. Put capture/region/scale/settleMs on the sequence.
 Acts: no image/settle unless capture:true. label?; verify:true checks tree change, not task success. settleMs ${SETTLE_DEFAULT_MS} default, ${SETTLE_CAP_MS} cap; local stability is not page readiness. Use wait-until.
@@ -1109,7 +1116,7 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
           outcome = 'failed'
           return finish()
         }
-        const targeting = await resolveActTargets(driver, input, front.value, plan, signal)
+        const targeting = await resolveActTargets(driver, input, front.value, plan, signal, owner)
         const resolvedTerminal = targeting === null ? await ownTerminalRefusal(driver, input, front.value, plan) : null
         if (targeting !== null || resolvedTerminal !== null) {
           result = targeting ?? resolvedTerminal!
@@ -1353,8 +1360,27 @@ Never solve a captcha: send captcha:true for a visual challenge and hand it to t
             break
           }
           if (checked?.viaGrant !== true) approveApp(owner, judged ?? { identity: app.identity, name: app.name })
-          const shown = input.action === 'find' ? { ...tree.value, elements: targetMatches(tree.value, input.target!) } : tree.value
-          result = input.action === 'tree' && !input.pixels && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : treeWords(app, shown, limits, screenOf(owner))
+          const keptLimits = { depth: input.depth ?? TREE_DEPTH_DEFAULT, count: input.limit ?? TREE_LIMIT_DEFAULT }
+          let root: DesktopTree['elements'][number] | undefined
+          if (input.root !== undefined) {
+            const matches = typeof input.root === 'number' ? resolveTreeRef(owner, app, tree.value, input.root) : targetMatches(tree.value, input.root)
+            const point = targetPoint({ ...tree.value, elements: matches }, {})
+            if ('refusal' in point && (matches.length !== 1 || tree.value.truncated)) {
+              result = `${input.action} refused: ${typeof input.root === 'number' ? `ref:${input.root}` : targetWords(input.root)}${point.refusal}`
+              outcome = 'failed'
+              break
+            }
+            root = matches[0]
+          }
+          const outlined = outlineTree(tree.value, app.bounds, { all: input.all, root, ...(input.action === 'find' ? { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP } : keptLimits) })
+          let shown = outlined
+          if (input.action === 'find') {
+            const matches = targetMatches(outlined, input.target!) as DesktopOutline['elements']
+            const elements = matches.filter(element => element.depth <= keptLimits.depth).slice(0, keptLimits.count)
+            shown = { ...outlined, elements, truncated: outlined.truncated || elements.length !== matches.length, reason: elements.length !== matches.length ? `the limit of ${keptLimits.count} elements or depth ${keptLimits.depth}` : outlined.reason }
+          }
+          rememberTreeRefs(owner, app, tree.value, shown)
+          result = input.action === 'tree' && !input.pixels && input.root === undefined && input.scope !== 'app' && isTerminalApplication(app) ? await readTerminalText(driver, app, signal, tree.value) : treeWords(app, shown, keptLimits, screenOf(owner), input.points === true)
           if (treeNamesCaptcha(tree.value)) result += `\n${CAPTCHA_HANDOFF}`
           outcome = 'succeeded'
           break

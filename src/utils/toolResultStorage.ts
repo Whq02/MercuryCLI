@@ -214,7 +214,6 @@ async function applySizePersistence(
   if (isToolResultContentEmpty(content)) {
     return { ...block, content: `(The ${toolName} tool completed successfully with no output)` }
   }
-  if (hasImageBlock(content)) return block
   if (typeof content === 'string' && content.startsWith(PERSISTED_OUTPUT_TAG)) return block
   const declared = threshold ?? DEFAULT_MAX_RESULT_SIZE_CHARS
   const limit = room === undefined ? declared : Math.min(declared, room.shareChars)
@@ -224,9 +223,21 @@ async function applySizePersistence(
     return { ...block, content: clampResultToRoom(content, room) }
   }
   const roomBound = room !== undefined && contentSizeOf(content) <= declared
-  const persisted = await persistToolResult(content as string | TextBlockLike[], block.tool_use_id)
+  const mixed = Array.isArray(content) && content.some(part => part.type !== 'text')
+  const text = mixed ? (content as TextBlockLike[]).filter(part => part.type === 'text').map(part => part.text ?? '').join('\n') : content
+  const persisted = await persistToolResult(text as string | TextBlockLike[], block.tool_use_id)
   if (isPersistError(persisted)) return block
-  return { ...block, content: buildLargeToolResultMessage(persisted, roomBound ? room.words : undefined) }
+  const cutWords = [roomBound ? room.words : undefined, toolName === 'Computer' ? 'narrow with root or find' : undefined].filter(Boolean).join('; ') || undefined
+  const replacement = buildLargeToolResultMessage(persisted, cutWords)
+  if (!mixed) return { ...block, content: replacement }
+  let inserted = false
+  type ContentBlocks = Exclude<ToolResultBlockParam['content'], string | undefined>
+  return { ...block, content: (content as ContentBlocks).flatMap((part): ContentBlocks => {
+    if (part.type !== 'text') return [part]
+    if (inserted) return []
+    inserted = true
+    return [{ type: 'text' as const, text: replacement }]
+  }) }
 }
 
 export async function processToolResultBlock<T>(

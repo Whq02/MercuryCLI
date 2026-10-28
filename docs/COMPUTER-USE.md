@@ -18,7 +18,11 @@ to identify one element. A missing, ambiguous or truncated match, or an element
 without bounds, refuses with a remedy. Targets, `find` and `wait` with `until`
 are resolved afresh before the act at depth 32 and 2000 elements unless you
 pass smaller `depth` or `limit` values. `find` accepts the same target and
-returns matching bounds without an image.
+returns matching numbered rows without an image. `ref: 7` on a mouse action
+uses row `[7]` from the latest `tree` or `find`. References are checked again
+before input; a missing element or a new tree read makes the old reference
+unusable. `root: 7` or `root: { role: "AXApplicationDialog", name: "Settings" }`
+limits a tree or find read to that subtree.
 
 For example, `click` with `target: { role: "AXButton", name: "Save" }` clicks
 that control's centre. `move` hovers over a target; `scroll` scrolls at it;
@@ -26,9 +30,8 @@ that control's centre. `move` hovers over a target; `scroll` scrolls at it;
 remain available. `click` also accepts `count: 3` for a triple-click.
 
 On macOS, `tree`, `find` and `wait` with `until` use the focused window by
-default. `scope: "app"` includes the other windows and menus, with the focused
-window first. Focused controls carry `[focused]` when the application exposes
-that fact. The driver requests web-content accessibility on the application;
+default. `scope: "app"` includes the other windows, with the focused window
+first, but omits hidden menu entries. The driver requests web-content accessibility on the application;
 a browser may take about two seconds to expose its page after the first read.
 A result says when page content is still starting or unavailable. Use a longer
 `wait` with `until` while it starts; use a screenshot when no page tree is exposed.
@@ -165,11 +168,16 @@ the consent is yours alone, and sovereign mode is the one posture that
 answers it automatically, whatever the access type below saves.
 
 One read asks like an act: `tree`, the accessibility tree of the
-application in front. It answers one line per element, indented by depth,
-with the element's role, title, value and frame in screen points (and the
-centre in pixels of the last screenshot, so the model can click it), bounded
-by a depth and a count the model may set; when the tree goes on past them
-the result says so. It is read on macOS through the Accessibility API, under
+application in front. It answers an outline, `[n] role "title" value`, indented
+by kept depth. Empty non-interactive wrappers disappear and adjacent static
+text fragments join into one row. A static-text child repeating its parent's
+value is omitted; the text stays in the parent's row. Zero-size, outside-window
+and duplicate text rows return with `all: true`. `points: true` adds the centre as `(x,y)px` when
+it is inside the last screenshot. The default budget is 12 kept levels and
+400 kept rows, up to depth 32 and 2000 rows. `root` starts depth at the chosen
+subtree; `find` keeps the outline indentation. A cut says to narrow with
+`root` or `find`, or raise the depth or count. Result text over 20,000
+characters is saved with a preview even when an image accompanies it. It is read on macOS through the Accessibility API, under
 the same Accessibility grant as the keyboard; it sends no input and reads no
 clipboard. Because it reads what an application shows (its controls and
 their text), the first tree in an application asks by the application's

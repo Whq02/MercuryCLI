@@ -48,7 +48,7 @@ const click = driver.acts.find(a => a.act === 'click')
 check('the exact element centre reached the driver in points', JSON.stringify(click?.detail.at) === JSON.stringify({ x: 120, y: 90 }), JSON.stringify(click))
 check('the result names the target, cursor and front application', clicked.result.includes('Save') && clicked.result.includes('cursor') && clicked.result.includes('Editor'), clicked.result)
 const found = await call({ action: 'find', target })
-check('find gives the element bounds without an image', found.outcome === 'succeeded' && found.result.includes('@100,80 40×20') && !found.imagePath, found.result)
+check('find gives a numbered target without an image', found.outcome === 'succeeded' && /\[\d+\] AXButton "Save"/.test(found.result) && !found.result.includes('@') && !found.imagePath, found.result)
 const originalTree = driver.accessibilityTree.bind(driver)
 driver.accessibilityTree = async (...args) => {
   const tree = await originalTree(...args)
