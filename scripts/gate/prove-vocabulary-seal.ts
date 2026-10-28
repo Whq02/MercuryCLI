@@ -206,6 +206,8 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/utils/shell/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
   ['src/utils/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],
   ['src/utils/bash/specs/pyright.ts', 'run-short', 'pyright project selection'],
+  ['src/tools/BashTool/pathValidation.ts', 'run-short', 'pyright project selection (the path-check grammar)'],
+  ['docs/MCP-SERVER.md', 'words', "ChatGPT's own name for its hosted apps, quoted with its links"],
   ['src/tools/AgentTool/reviewerPolicy.ts', 'run-short', 'mktemp scratch selection'],
   ['src/utils/processGroup.ts', 'run-short', 'POSIX process inspection'],
   ['src/daemon/processSweepPosix.ts', 'run-short', 'POSIX process inspection'],
