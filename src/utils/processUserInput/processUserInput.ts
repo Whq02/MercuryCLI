@@ -32,6 +32,7 @@ import {
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
 import { logError } from '../log.js'
+import { parseSlashCommand } from '../slashCommandParsing.js'
 import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
 import { untoldHiddenCharacterLines } from '../text/hiddenCharacterFindings.js'
 
@@ -304,9 +305,10 @@ async function processUserInputBase(
   }
 
   const syntaxPrompt = options.syntaxInput ?? prompt
+  const slashLine =
+    mode === 'prompt' && typeof syntaxPrompt === 'string' && syntaxPrompt.startsWith('/') && parseSlashCommand(syntaxPrompt) !== null
 
   if (bridgeOrigin === true && typeof prompt === 'string' && prompt.startsWith('/')) {
-    const { parseSlashCommand } = await import('../slashCommandParsing.js')
     const parsed = parseSlashCommand(prompt)
     if (parsed) {
       const command = context.options.commands.find(
@@ -336,7 +338,7 @@ async function processUserInputBase(
   const collectAttachments =
     skipAttachments !== true &&
     typeof syntaxPrompt === 'string' &&
-    (mode !== 'prompt' || skipSlashCommands || !syntaxPrompt.startsWith('/'))
+    (mode !== 'prompt' || skipSlashCommands || !slashLine)
   if (collectAttachments) {
     try {
       for await (const attachment of getAttachmentMessages(
@@ -365,12 +367,7 @@ async function processUserInputBase(
       setToolJSX,
       uuid,
     )
-  } else if (
-    mode === 'prompt' &&
-    typeof syntaxPrompt === 'string' &&
-    syntaxPrompt.startsWith('/') &&
-    !skipSlashCommands
-  ) {
+  } else if (slashLine && !skipSlashCommands) {
     const { processSlashCommand } = await import('./processSlashCommand.js')
     const literalBlocks: ContentBlockParam[] = options.syntaxInput !== undefined && typeof prompt === 'string' && prompt.startsWith(syntaxPrompt)
       ? [{ type: 'text', text: prompt.slice(syntaxPrompt.length).trimStart() }]

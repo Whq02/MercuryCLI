@@ -427,12 +427,9 @@ export async function processSlashCommand(
 
   const parsed = parseSlashCommand(inputString)
   if (!parsed) {
-    const explanation =
-      'Commands are in the form `/command-name [arguments]` — a slash, a command name, then optional arguments.'
     return {
-      messages: [caveat, ...attachmentMessages, createUserMessage({ content: explanation })],
-      shouldQuery: false,
-      resultText: explanation,
+      messages: [createUserMessage({ content: inputString, uuid: (uuid ?? randomUUID()) as UUID }), ...attachmentMessages],
+      shouldQuery: true,
     }
   }
   const { commandName, args } = parsed

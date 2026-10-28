@@ -256,7 +256,7 @@ export function dequeue(
   if (idx === -1) return undefined
   const [dequeued] = queue.splice(idx, 1)
   commit()
-  logOperation('dequeue')
+  logOperation('dequeue', undefined, dequeued)
   rememberTaken(dequeued ? [dequeued] : [])
   consumeNotices(queuedNoticeKeys(dequeued ? [dequeued] : []))
   emitConsumption('dequeued', dequeued ? [dequeued] : [])
@@ -270,8 +270,8 @@ export function dequeueAll(): QueuedCommand[] {
   const commands = [...queue]
   queue.length = 0
   commit()
-  for (const _cmd of commands) {
-    logOperation('dequeue')
+  for (const cmd of commands) {
+    logOperation('dequeue', undefined, cmd)
   }
   rememberTaken(commands)
   consumeNotices(queuedNoticeKeys(commands))
@@ -297,8 +297,8 @@ export function dequeueAllMatching(
   queue.length = 0
   queue.push(...remaining)
   commit()
-  for (const _cmd of matched) {
-    logOperation('dequeue')
+  for (const cmd of matched) {
+    logOperation('dequeue', undefined, cmd)
   }
   rememberTaken(matched)
   retireNotices(queuedNoticeKeys(matched), 'discarded when its crewmate was stopped')
@@ -328,8 +328,8 @@ export function remove(commandsToRemove: QueuedCommand[]): void {
   if (queue.length !== before) {
     commit()
   }
-  for (const _cmd of commandsToRemove) {
-    logOperation('remove')
+  for (const cmd of removed) {
+    logOperation('remove', undefined, cmd)
   }
   rememberTaken(removed)
   consumeNotices(queuedNoticeKeys(removed))

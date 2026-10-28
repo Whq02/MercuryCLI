@@ -29,6 +29,7 @@ import { UserToolResultMessage } from './messages/UserToolResultMessage/UserTool
 import { MessageModel } from './MessageModel.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
 import { SYNTHETIC_MODEL } from '../utils/messages/factories.js'
+import { parseReferences } from '../history.js'
 
 type Props = {
   message: RenderableMessage
@@ -271,7 +272,12 @@ function MessageInner({
           ? message.message.content
           : [{ type: 'text' as const, text: String(message.message.content) }]
         const pasteIds =
-          (message as { imagePasteIds?: number[] }).imagePasteIds ?? []
+          (message as { imagePasteIds?: number[] }).imagePasteIds ??
+          content.flatMap(block =>
+            block.type === 'text'
+              ? parseReferences(block.text).filter(ref => ref.match.startsWith('[Image')).map(ref => ref.id)
+              : [],
+          )
         let imageOrdinal = 0
         const blocks = content.map((block, index) => {
           if (block.type === 'text') {
