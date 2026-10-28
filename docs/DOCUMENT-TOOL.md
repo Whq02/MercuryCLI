@@ -9,7 +9,7 @@ The `Document` tool creates, converts and inspects local documents. Ask Mercury 
   "op": "create",
   "output": "report.docx",
   "markdown": "# Findings\n\nThe result, with its source citation.",
-  "metadata": { "title": "Research report", "author": "Research team" },
+  "metadata": { "title": "Research report", "author": "Research desk" },
   "paper": "A4",
   "pageNumbers": true
 }
