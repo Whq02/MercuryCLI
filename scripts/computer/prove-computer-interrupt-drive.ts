@@ -10,7 +10,7 @@ for (const size of SIZES) {
     `interrupt-${size.cols}`,
     [
       { kind: 'tool_use', preText: 'Looking at the screen.\n', name: 'Computer', input: { action: 'screenshot' } },
-      { kind: 'tool_use', preText: 'Clicking the document.\n', name: 'Computer', input: { action: 'click', x: 812, y: 300 } },
+      { kind: 'tool_use', preText: 'Clicking the document.\n', name: 'Computer', input: { action: 'click', x: 400, y: 200 } },
       { kind: 'tool_use', preText: 'Typing.\n', name: 'Computer', input: { action: 'type', text: 'hello' } },
       { kind: 'tool_use', preText: 'Pressing enter.\n', name: 'Computer', input: { action: 'key', key: 'Enter' } },
       { kind: 'text', text: 'Done.' },

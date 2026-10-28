@@ -13,8 +13,8 @@ for (const size of SIZES) {
     `ask-${size.cols}`,
     [
       { kind: 'tool_use', preText: 'Looking at the screen.\n', name: 'Computer', input: { action: 'screenshot' } },
-      { kind: 'tool_use', preText: 'Clicking the document.\n', name: 'Computer', input: { action: 'click', x: 812, y: 300 } },
-      { kind: 'tool_use', preText: 'Clicking again.\n', name: 'Computer', input: { action: 'click', x: 900, y: 340 } },
+      { kind: 'tool_use', preText: 'Clicking the document.\n', name: 'Computer', input: { action: 'click', x: 400, y: 200, capture: true } },
+      { kind: 'tool_use', preText: 'Clicking again.\n', name: 'Computer', input: { action: 'click', x: 500, y: 240, capture: true } },
       { kind: 'text', text: 'Done.' },
     ],
     { holdMs: 1500 },
@@ -30,7 +30,7 @@ for (const size of SIZES) {
   const card = res.marks.card ?? []
   printFrame(`${size.cols}×${size.rows} the card`, card)
   check(`${size.cols}: the card title names the Computer tool`, rowsHaving(card, 'Computer'))
-  check(`${size.cols}: the body names the act in TextEdit as the first act in this application`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (812, 300)'), joined(card).slice(0, 400))
+  check(`${size.cols}: the body names the act in TextEdit as the first act in this application`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (400, 200)'), joined(card).slice(0, 400))
   check(`${size.cols}: the options row is ON the frame`, optionsRow(card), card.filter(r => /\d\./.test(r)).join(' · '))
   check(`${size.cols}: the five choices in order — Yes, No, 1 hour, 24 hours, sovereign mode`, ['1. Yes', '2. No, and tell Mercury', '3. Yes, for 1 hour', '4. Yes, for 24 hours', '5. Enable sovereign mode'].every(needle => card.some(r => r.includes(needle))), card.filter(r => /\d\. /.test(r)).join(' · '))
   check(`${size.cols}: the card asks how long`, joined(card.map(r => r.replace(/[│╭╮╰╯─]/g, ' '))).includes('and for how long?'), joined(card).slice(0, 400))
@@ -43,8 +43,11 @@ for (const size of SIZES) {
   check(`${size.cols}: the result card names the act`, joined(done).toLowerCase().includes('computer click'), joined(done).slice(0, 600))
   check(`${size.cols}: the turn ended (Done.) with no card on the second act`, rowsHaving(done, 'Done.') && !rowsHaving(done, CARD_NEEDLE))
   check(`${size.cols}: the footer is gone after the turn`, !rowsHaving(done, 'hands off'))
-  const log = actLog(leg.log).map(a => `${a.act}:${a.outcome}`)
-  check(`${size.cols}: the fake log carries each captcha tree preflight before its click and the same three captures`, log.join(',') === 'capture:done,accessibilityTree:done,click:done,capture:done,accessibilityTree:done,click:done,capture:done', log.join(','))
+  const acts = actLog(leg.log)
+  const log = acts.map(a => `${a.act}:${a.outcome}`)
+  const inputsAndCaptures = acts.filter(a => a.act !== 'accessibilityTree').map(a => `${a.act}:${a.outcome}`)
+  const clicks = acts.filter(a => a.act === 'click')
+  check(`${size.cols}: the fake log carries each captcha tree preflight before its click and the same three captures`, inputsAndCaptures.join(',') === 'capture:done,click:done,capture:done,click:done,capture:done' && clicks.every(a => acts[acts.indexOf(a) - 1]?.act === 'accessibilityTree') && JSON.stringify(clicks.map(a => a.detail.at)) === JSON.stringify([{ x: 500, y: 300 }, { x: 600, y: 340 }]), log.join(','))
   const files = sessionFiles(join(leg.home, 'projects'))
   const persisted = files.map(f => readFileSync(f, 'utf8')).join('\n')
   check(`${size.cols}: a session file was written`, files.length > 0)
