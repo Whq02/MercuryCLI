@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { gitSubcommandArgv } from '../lib/git.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -62,11 +63,8 @@ process.chdir(REPO)
 function shimRows(): string[] {
   return readFileSync(SHIM_LOG, 'utf8').split('\n').filter(Boolean).map(l => l.split('\t')[1] ?? '')
 }
-const LEADING_CONFIG_PAIR = /^-c \S+ /
 function plainShape(row: string): string {
-  let shape = row
-  while (LEADING_CONFIG_PAIR.test(shape)) shape = shape.replace(LEADING_CONFIG_PAIR, '')
-  return shape
+  return gitSubcommandArgv(row.split(' ')).join(' ')
 }
 function countShape(rows: string[], head: string): number {
   return rows.filter(r => plainShape(r).startsWith(head)).length
