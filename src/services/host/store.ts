@@ -14,6 +14,7 @@ export interface HostRecord {
   vendor?: 'runpod' | 'vast' | 'lambda' | 'huggingface' | 'hyperstack' | 'verda' | 'digitalocean'
   id: string; name: string; recipe: string; price: number; startedAt: string; status: string
   machineId?: string
+  externalJob?: string
   target?: SshTarget; localPort?: number; provider?: string
   sessionId?: string; workspace?: string; sshKey?: string; apiBaseUrl?: string
   jobKind?: 'setup' | 'watch' | 'bank'; maxPrice?: number; pollIntervalMs?: number; pollWindowMs?: number; rateLimit?: string; watchedFrom?: string; creating?: string

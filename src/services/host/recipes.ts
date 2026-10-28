@@ -41,6 +41,7 @@ export interface HostRecipe {
   imageSource?: string
   install?: string
   weightFile?: string
+  chatTemplateFile?: string
   mmproj?: string
   include?: string
   weightManifest?: HostWeightManifest

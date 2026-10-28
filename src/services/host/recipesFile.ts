@@ -65,6 +65,7 @@ const hostRecipeObject = z.object({
   imageSource: z.string().regex(httpsUrl).optional(),
   install: z.string().optional(),
   weightFile: z.string().optional(),
+  chatTemplateFile: hostWeightPathSchema.refine(path => !/^[A-Za-z]:/.test(path)).optional(),
   mmproj: z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._/-]+$/).optional(),
   include: z.string().optional(),
   weightManifest: hostWeightManifestSchema.optional(),

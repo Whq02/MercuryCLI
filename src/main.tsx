@@ -935,6 +935,15 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
+  const { registerTuneDoor } = await import('./cli/tuneDoor.js')
+  registerTuneDoor(program, gracefulShutdown)
+  program.command('extension-api').description('JSON operations for external programs')
+    .option('--json', 'Read a JSON request from stdin')
+    .action(async options => {
+      const { extensionApiCli } = await import('./cli/extensionApi.js')
+      await gracefulShutdown(await extensionApiCli(options))
+    })
+
   const sessions = program
     .command('sessions')
     .description('Saved sessions: list, delete')

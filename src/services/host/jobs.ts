@@ -113,7 +113,7 @@ export function hostLogTail(record: HostRecord): string {
 }
 export async function sweepHostJobs(options: { stallMs?: number; launch?: (record: HostRecord) => Promise<void>; alive?: (record: HostRecord) => boolean; records?: HostRecord[] } = {}): Promise<void> {
   for (const record of options.records ?? hostRecords()) {
-    if (!record.jobState || record.jobState === 'stopped') continue
+    if (record.externalJob || !record.jobState || record.jobState === 'stopped') continue
     const watch = record.jobKind === 'watch'
     const bank = record.jobKind === 'bank'
     const bankWords = (detail: string): string => record.name + ' · ' + (record.bankTask === 'verify' ? 'bank verification' : 'banking') + ' ' + detail + ' · nothing was rented · /llmhost → Bank to try again'
