@@ -107,6 +107,19 @@ try {
   assert.ok(emptyRows.includes('done: 1 Local models'))
   assert.ok(emptyRows.includes('not done: nothing'))
   console.log('PASS empty Bank lists Local models in exactly one summary section')
+  const skippedEvents: string[] = []
+  let skippedSummary: SetupSummary | undefined
+  for await (const event of runLocalSetupRoad(row => row.label === '1' ? 'skip' : 'stop', { ...io, repo: undefined })) {
+    skippedEvents.push(event.type === 'step' ? `step ${event.plan.label}` : event.type === 'result' ? `result ${event.result.label} ${event.result.outcome}` : event.type === 'done' ? `done ${event.summary.reason}` : event.type)
+    if (event.type === 'done') skippedSummary = event.summary
+  }
+  assert.deepEqual(skippedEvents, ['step 1', 'result 1 skipped', 'step 2', 'done stopped'])
+  assert.deepEqual(skippedSummary!.skipped, ['1'])
+  assert.deepEqual(skippedSummary!.ran, [])
+  const skippedRows = localSetupSummaryRows(setupSummaryOf(skippedSummary!), { '1': 'Local models', '2': 'Hugging Face' })
+  assert.ok(skippedRows.includes('skipped: 1 Local models'), skippedRows.join(' | '))
+  assert.ok(skippedRows.includes('done: nothing'), skippedRows.join(' | '))
+  console.log('PASS s on the source choice skips to the Hugging Face road, step 2 asks for the repository id, and the summary lists step 1 as skipped')
   const denied = await run(() => 'stop')
   assert.equal(denied.reason, 'stopped')
   assert.equal(downloads, 0)

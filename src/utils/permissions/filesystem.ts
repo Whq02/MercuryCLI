@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { homedir, tmpdir } from 'node:os'
-import { sep as platformSep, posix as posixPath } from 'node:path'
+import { isAbsolute, sep as platformSep, posix as posixPath } from 'node:path'
 import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getCwd, getStartingCwd } from '../cwd.js'
@@ -142,10 +142,12 @@ export function pathInWorkingPath(path: string, workingPath: string): boolean {
 let workingDirResolutionCache = new Map<string, string[]>()
 
 export function getResolvedWorkingDirPaths(path: string): string[] {
-  const cached = workingDirResolutionCache.get(path)
+  const base = getCwd()
+  const key = isAbsolute(path) ? path : `${base}\0${path}`
+  const cached = workingDirResolutionCache.get(key)
   if (cached) return cached
-  const resolved = getPathsForPermissionCheck(path)
-  workingDirResolutionCache.set(path, resolved)
+  const resolved = getPathsForPermissionCheck(path, base)
+  workingDirResolutionCache.set(key, resolved)
   return resolved
 }
 getResolvedWorkingDirPaths.clearCache = (): void => {
@@ -839,7 +841,7 @@ export function checkWritePermissionForTool(
   }
   const remote = checkUncPathPermission(path, context, 'edit')
   if (remote && remote.behavior !== 'allow') return remote
-  const resolutionSet = [...new Set([...(precomputedPathsToCheck ?? []), ...getPathsForPermissionCheck(path)])]
+  const resolutionSet = [...new Set([...(precomputedPathsToCheck ?? []), ...getPathsForPermissionCheck(path, getCwd())])]
   for (const resolved of resolutionSet) {
     const remote = checkUncPathPermission(resolved, context, 'edit')
     if (remote && remote.behavior !== 'allow') return remote

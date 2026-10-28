@@ -246,7 +246,7 @@ function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: 
 
 const MAX_SYMLINK_HOPS = 40
 
-export function getPathsForPermissionCheck(inputPath: string): string[] {
+export function getPathsForPermissionCheck(inputPath: string, baseDir?: string): string[] {
   const fsImpl = getFsImplementation()
   const home = homedir().normalize('NFC')
   let path = inputPath
@@ -256,6 +256,10 @@ export function getPathsForPermissionCheck(inputPath: string): string[] {
   const results = new Set<string>()
   results.add(path)
   if (isUncLikePath(path)) return [...results]
+  if (baseDir !== undefined && !isAbsolute(path)) {
+    path = resolve(baseDir, path)
+    results.add(path)
+  }
 
   try {
     const visited = new Set<string>()

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LOCAL_SETUP_CHOOSE_LINE, LOCAL_SETUP_CHOOSE_TITLE, LOCAL_SETUP_CURSOR, LOCAL_SETUP_PULL_TITLE } from '../commands/localsetup/words.js'
 import { Box, Text, useInput } from '../ink.js'
-import { usePopupListNavigation } from './CustomSelect/popup-list.js'
+import { POPUP_PAGE_HINT, usePopupListNavigation } from './CustomSelect/popup-list.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { truncateStartToWidth, truncateToWidth } from '../utils/truncate.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -11,6 +11,8 @@ import TextInput from './TextInput.js'
 
 export const LOCAL_SETUP_POPUP_WIDTH = 120
 export const LOCAL_SETUP_POPUP_ROWS = 33
+export const LOCAL_SETUP_SKIP_VERB = 's skip'
+export const LOCAL_SETUP_CLOSE_HINT = 'click outside closes'
 export const LOCAL_SETUP_POPUP_HINT = '↵ run · s skip · esc stop · ←→ line tail · ↑↓ scroll · pgup/pgdn page · click outside closes'
 export const LOCAL_SETUP_OPENING_LINE = 'local models · Hugging Face · Bank · Ollama · running server'
 export const LOCAL_SETUP_KEYS = '↵ run · s skip · esc stop'
@@ -329,6 +331,18 @@ export function localSetupScrollFor(total: number, budget: number, row: number):
   return Math.max(0, row - (budget - 3))
 }
 
+export function localSetupSkippable(step: LocalSetupStepState | undefined): boolean {
+  return step !== undefined && step.input === undefined && step.keys.includes(LOCAL_SETUP_SKIP_VERB)
+}
+
+export function localSetupHint(state: LocalSetupState): string {
+  const asking = localSetupAsking(state)
+  if (asking?.input !== undefined) return `${asking.keys} · ${LOCAL_SETUP_CLOSE_HINT}`
+  if (localSetupIsChoice(asking)) return `${asking.keys} · ${POPUP_PAGE_HINT} · ${LOCAL_SETUP_CLOSE_HINT}`
+  if (asking) return `${asking.keys} · ←→ line tail · ↑↓ scroll · ${POPUP_PAGE_HINT} · ${LOCAL_SETUP_CLOSE_HINT}`
+  return `${state.ended ? 'esc closes' : 'esc stop'} · ↑↓ scroll · ${POPUP_PAGE_HINT} · ${LOCAL_SETUP_CLOSE_HINT}`
+}
+
 export function localSetupLine(state: LocalSetupState): string {
   if (state.error !== undefined) return `failed · ${state.error}`
   if (state.summary?.ready) return `done · ${state.summary.ready.model} ready · ${state.summary.ready.window} window`
@@ -346,6 +360,7 @@ export function LocalSetupDialog({
   width,
   rowBudget,
   onLine,
+  onHint,
   onOwnsEscape,
   onClose,
 }: {
@@ -353,6 +368,7 @@ export function LocalSetupDialog({
   width: number
   rowBudget: number
   onLine?: (line: string) => void
+  onHint?: (hint: string | null) => void
   onOwnsEscape?: (owns: boolean) => void
   onClose?: (summary?: string) => void
 }): React.ReactNode {
@@ -409,6 +425,11 @@ export function LocalSetupDialog({
   useLayoutEffect(() => {
     onLine?.(line)
   }, [line, onLine])
+  const hint = localSetupHint(state)
+  useLayoutEffect(() => {
+    onHint?.(hint)
+    return () => onHint?.(null)
+  }, [hint, onHint])
   useEffect(() => {
     onOwnsEscape?.(true)
     return () => onOwnsEscape?.(false)
@@ -467,7 +488,7 @@ export function LocalSetupDialog({
     }
     if (input === 's') {
       event.stopImmediatePropagation()
-      if (!pastOpenEvent() || localSetupIsChoice(localSetupAsking(stateRef.current))) return
+      if (!pastOpenEvent() || !localSetupSkippable(localSetupAsking(stateRef.current))) return
       answer('skip')
     }
   })

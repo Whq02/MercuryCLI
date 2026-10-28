@@ -39,11 +39,12 @@ const env = {
   GIT_COMMITTER_EMAIL: 'proof@local',
 }
 const plain = (args: string[], cwd = root): string => execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+const posix = (path: string): string => path.replaceAll('\\', '/')
 const marker = (name: string) => join(home, `${name}.marker`)
 const clear = (...names: string[]) => names.forEach(name => rmSync(marker(name), { force: true }))
 const marked = (name: string) => existsSync(marker(name))
 const script = (path: string, name: string, body: string): void => {
-  writeFileSync(path, `#!/bin/sh\nprintf '%s\\n' "$0 $*" >> ${JSON.stringify(marker(name))}\n${body}\n`)
+  writeFileSync(path, `#!/bin/sh\nprintf '%s\\n' "$0 $*" >> ${JSON.stringify(posix(marker(name)))}\n${body}\n`)
   if (process.platform !== 'win32') execFileSync('chmod', ['+x', path])
 }
 const forbidden = ['diff', 'textconv', 'monitor', 'local']
@@ -70,13 +71,13 @@ try {
   script(join(home, 'external.sh'), 'external', 'case "$1" in clean) sed "s/^/external:/" ;; smudge) sed "s/^external://" ;; esac')
   script(join(home, 'network.sh'), 'network', 'exit 1')
   script(join(home, 'credential.sh'), 'credential', 'printf "username=proof\\npassword=proof\\n"\nexit 0')
-  plain(['config', 'diff.external', join(home, 'diff.sh')])
-  plain(['config', 'diff.txt.textconv', join(home, 'textconv.sh')])
-  plain(['config', 'core.fsmonitor', join(home, 'monitor.sh')])
+  plain(['config', 'diff.external', posix(join(home, 'diff.sh'))])
+  plain(['config', 'diff.txt.textconv', posix(join(home, 'textconv.sh'))])
+  plain(['config', 'core.fsmonitor', posix(join(home, 'monitor.sh'))])
   plain(['config', 'filter.local.clean', './helpers/local.sh clean'])
   plain(['config', 'filter.local.smudge', './helpers/local.sh smudge'])
-  plain(['config', 'filter.external.clean', `${join(home, 'external.sh')} clean`])
-  plain(['config', 'filter.external.smudge', `${join(home, 'external.sh')} smudge`])
+  plain(['config', 'filter.external.clean', `${posix(join(home, 'external.sh'))} clean`])
+  plain(['config', 'filter.external.smudge', `${posix(join(home, 'external.sh'))} smudge`])
   writeFileSync(join(root, 'local.txt'), 'one\ntwo\nthree\n')
   writeFileSync(join(root, 'external.txt'), 'red\nblue\ngreen\n')
 
@@ -140,7 +141,7 @@ try {
   check('conflict resolution still stages the selected content', plain(['show', ':local.txt'], conflict) === 'main\n', plain(['show', ':local.txt'], conflict))
 
   plain(['remote', 'add', 'origin', 'ssh://127.0.0.1:1/repository'])
-  plain(['config', 'core.sshCommand', join(home, 'network.sh')])
+  plain(['config', 'core.sshCommand', posix(join(home, 'network.sh'))])
   clear('network')
   try { plain(['ls-remote', 'origin']) } catch {}
   check('plain ls-remote honors the repository SSH command', marked('network'))
@@ -160,7 +161,7 @@ try {
     resolvePort(typeof address === 'object' && address !== null ? address.port : 0)
   }))
   plain(['remote', 'set-url', 'origin', `http://127.0.0.1:${credentialPort}/repository`])
-  plain(['config', 'credential.helper', join(home, 'credential.sh')])
+  plain(['config', 'credential.helper', posix(join(home, 'credential.sh'))])
   clear('credential')
   await new Promise<void>(resolveControl => {
     execFile('git', ['ls-remote', 'origin'], { cwd: root, env: { ...env, GIT_TERMINAL_PROMPT: '0' }, timeout: 5_000 }, () => resolveControl())
@@ -170,11 +171,11 @@ try {
   await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
   check('Mercury ls-remote does not use the repository credential helper', !marked('credential'))
   check('before a repository askPass program is set, the network settings name none', !gitArgs(['ls-remote', 'origin'], root).some(word => word.startsWith('core.askPass=')))
-  plain(['config', 'core.askPass', join(home, 'askpass.sh')])
+  plain(['config', 'core.askPass', posix(join(home, 'askpass.sh'))])
   check('a repository-scoped askPass program is replaced by the user\'s own, else none, on ls-remote, fetch and remote', ['ls-remote', 'fetch', 'remote'].every(command => gitArgs([command, 'origin'], root).includes('core.askPass=')))
 } finally {
   credentialServer.close()
-  rmSync(home, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 })
 }
 
 console.log(failures === 0 ? 'GIT SPAWN SETTINGS: ALL GREEN' : `GIT SPAWN SETTINGS: ${failures} FAILURE(S)`)

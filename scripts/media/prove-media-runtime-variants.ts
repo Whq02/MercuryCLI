@@ -1,6 +1,7 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { zipSync } from 'fflate'
+import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, delimiter, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -10,6 +11,7 @@ import { catalogue as fixtureCatalogue, proofHome, root } from './fixture.ts'
 
 const MAC = { asset: 'sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip', bytes: 37584335, sha256: '933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c' }
 const savedPath = process.env.PATH
+const savedModulePath = process.env.PSModulePath
 try {
   const bundledPath = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/catalog.json')
   const bundled = parseMediaCatalogue(JSON.parse(readFileSync(bundledPath, 'utf8')))
@@ -71,18 +73,31 @@ try {
   assert.equal(mediaRuntimeInstalled(bundled, root, metal, { tag: 'other' }, 'ok'), false)
   assert.equal(mediaRuntimeInstalled(bundled, root, metal, { tag: bundled.runtime.tag, variant: 'metal' }, 'warn'), false)
 
+
   const dir = join(proofHome, 'windows-road')
+  const windows = process.platform === 'win32'
+  process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\7\\Modules'
+  const REFUSAL = "The 'Expand-Archive' command was found in the module 'Microsoft.PowerShell.Archive', but the module could not be loaded. For more information, run 'Import-Module Microsoft.PowerShell.Archive'."
+  const EXPAND = "^try { Expand-Archive -LiteralPath '\\(.*\\)' -DestinationPath '\\(.*\\)' -Force } catch .*$"
+  const powershellCalls = join(dir, 'powershell-calls.txt')
+  const tarCalls = join(dir, 'tar-calls.txt')
   mkdirSync(join(dir, 'bin'), { recursive: true })
-  const transcript = join(dir, 'powershell-calls.txt')
-  const stub = join(dir, 'bin', 'powershell.exe')
-  writeFileSync(stub, `#!/bin/sh\n[ "$1" = "-NoProfile" ] && [ "$2" = "-NonInteractive" ] && [ "$3" = "-EncodedCommand" ] || exit 9\nscript="$(printf %s "$4" | base64 -d | iconv -f UTF-16LE -t UTF-8)"\nprintf '%s\\n\\n' "$script" >> "${transcript}"\narchive="$(printf '%s\\n' "$script" | sed -n "s/^Expand-Archive -LiteralPath '\\(.*\\)' -DestinationPath '\\(.*\\)' -Force$/\\1/p")"\ndest="$(printf '%s\\n' "$script" | sed -n "s/^Expand-Archive -LiteralPath '\\(.*\\)' -DestinationPath '\\(.*\\)' -Force$/\\2/p")"\n[ -n "$archive" ] && [ -n "$dest" ] || exit 8\nmkdir -p "$dest" && unzip -q -o "$archive" -d "$dest"\n`)
-  chmodSync(stub, 0o755)
+  mkdirSync(join(dir, 'tar'), { recursive: true })
+  if (!windows) {
+    const stub = join(dir, 'bin', 'powershell.exe')
+    writeFileSync(stub, `#!/bin/sh\n[ "$1" = "-NoProfile" ] && [ "$2" = "-NonInteractive" ] && [ "$3" = "-EncodedCommand" ] || exit 9\nif [ -n "$PSModulePath" ]; then printf '%s\\n' "${REFUSAL}" >&2; exit 1; fi\nscript="$(printf %s "$4" | base64 -d | iconv -f UTF-16LE -t UTF-8)"\nprintf '%s\\n\\n' "$script" >> "${powershellCalls}"\narchive="$(printf '%s\\n' "$script" | sed -n "s/${EXPAND}/\\1/p")"\ndest="$(printf '%s\\n' "$script" | sed -n "s/${EXPAND}/\\2/p")"\n[ -n "$archive" ] && [ -n "$dest" ] || exit 8\nmkdir -p "$dest" && unzip -q -o "$archive" -d "$dest"\n`)
+    chmodSync(stub, 0o755)
+    const tar = join(dir, 'tar', 'tar.exe')
+    writeFileSync(tar, `#!/bin/sh\n[ "$1" = "-xf" ] && [ "$3" = "-C" ] || exit 9\nprintf '%s\\n' "$*" >> "${tarCalls}"\nunzip -q -o "$2" -d "$4" >/dev/null 2>&1 || { printf '%s\\n' "tar: Error opening archive: Unrecognized archive format" >&2; exit 1; }\n`)
+    chmodSync(tar, 0o755)
+    const refused = spawnSync(stub, ['-NoProfile', '-NonInteractive', '-EncodedCommand', 'AA=='], { encoding: 'utf8', env: process.env })
+    assert.equal(refused.status, 1)
+    assert.equal(refused.stderr.trim(), REFUSAL, "the stub is the box: with PowerShell 7's PSModulePath inherited, 5.1's Expand-Archive refuses")
+  }
   const zip = (name: string, members: Record<string, string>): string => {
-    const stage = join(dir, `${name}-members`)
-    mkdirSync(stage, { recursive: true })
-    for (const [file, text] of Object.entries(members)) writeFileSync(join(stage, file), text)
-    execFileSync('zip', ['-q', '-j', join(dir, name), ...Object.keys(members).map(file => join(stage, file))])
-    return join(dir, name)
+    const archive = join(dir, name)
+    writeFileSync(archive, zipSync(Object.fromEntries(Object.entries(members).map(([file, text]) => [file, new TextEncoder().encode(text)]))))
+    return archive
   }
   const engineZip = zip('engine.zip', { 'sd-server.exe': 'engine', 'ggml-cuda.dll': 'backend', 'stable-diffusion.cpp.txt': 'MIT' })
   const cudartZip = zip('cudart.zip', { 'cudart64_12.dll': 'runtime', 'cublas64_12.dll': 'blas', 'cublasLt64_12.dll': 'lt' })
@@ -91,29 +106,68 @@ try {
     { variant: 'cuda12', binary: 'sd-server.exe', files: [{ asset: 'engine.zip', bytes: statSync(engineZip).size, sha256: 'a'.repeat(64) }, { asset: 'cudart.zip', bytes: statSync(cudartZip).size, sha256: 'b'.repeat(64) }] },
   ] } }
   process.env.MEDIA_ROOT = root
-  process.env.PATH = `${join(dir, 'bin')}${delimiter}${savedPath ?? ''}`
-  const engine = await import(pathToFileURL(resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/setup.js')).href) as { setup: (...args: unknown[]) => Promise<{ ok: boolean; runtime?: { installed: boolean; variant: string | null } }> }
+  type Unpack = { command: string; args: string[]; env?: NodeJS.ProcessEnv }
+  const engine = await import(pathToFileURL(resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/setup.js')).href) as {
+    setup: (...args: unknown[]) => Promise<{ ok: boolean; runtime?: { installed: boolean; variant: string | null } }>
+    unpackCommand: (archive: string, dir: string, platform?: string, env?: NodeJS.ProcessEnv) => Unpack
+    unpack: (archive: string, dir: string, signal?: AbortSignal, platform?: string, env?: NodeJS.ProcessEnv) => Promise<void>
+  }
   const pulled: string[] = []
   const pull = async (url: string, target: string, spec: { bytes: number }, emit: (event: Record<string, unknown>) => void) => { pulled.push(basename(url)); mkdirSync(join(target, '..'), { recursive: true }); writeFileSync(target, readFileSync(join(dir, basename(target)))); emit({ event: 'done', file: target, bytes: spec.bytes, total: spec.bytes }); return 'downloaded' }
+  const runtimeDir = join(root, 'runtime', 'fixture-tag', 'cuda12')
+
+  if (!windows) process.env.PATH = [join(dir, 'tar'), join(dir, 'bin'), savedPath ?? ''].join(delimiter)
+  const viaTar = engine.unpackCommand(join(root, 'runtime', 'engine.zip'), runtimeDir, 'win32')
+  assert.equal(basename(viaTar.command), 'tar.exe')
+  if (windows) assert.match(viaTar.command, /\\System32\\tar\.exe$/i, 'the tar.exe Windows ships, found through SystemRoot before PATH')
+  else assert.equal(viaTar.command, join(dir, 'tar', 'tar.exe'))
+  assert.deepEqual(viaTar.args, ['-xf', join(root, 'runtime', 'engine.zip'), '-C', runtimeDir])
   const events: Record<string, unknown>[] = []
   assert.equal((await engine.setup('pull-runtime', undefined, root, (event: Record<string, unknown>) => events.push(event), { ...fixtureCatalogue, runtime: table }, undefined, pull, { platform: 'win32', arch: 'x64', variant: 'cuda12' })).ok, true)
   assert.deepEqual(pulled, ['engine.zip', 'cudart.zip'])
   assert.deepEqual(events.at(-1), { event: 'done', command: 'pull-runtime', tag: 'fixture-tag', variant: 'cuda12' })
   const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag: string; variant: string; binary: string; archives: string[] }
   assert.equal(record.variant, 'cuda12')
-  assert.equal(record.binary, join(root, 'runtime', 'fixture-tag', 'cuda12', 'sd-server.exe'))
+  assert.equal(record.binary, join(runtimeDir, 'sd-server.exe'))
   assert.deepEqual(record.archives, ['engine.zip', 'cudart.zip'])
-  for (const file of ['sd-server.exe', 'ggml-cuda.dll', 'cudart64_12.dll', 'cublas64_12.dll', 'cublasLt64_12.dll']) assert.ok(existsSync(join(root, 'runtime', 'fixture-tag', 'cuda12', file)), file)
-  const calls = readFileSync(transcript, 'utf8').split('\n\n').filter(Boolean)
-  assert.equal(calls.length, 2)
-  assert.equal(calls[0], `$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\nExpand-Archive -LiteralPath '${join(root, 'runtime', 'engine.zip')}' -DestinationPath '${join(root, 'runtime', 'fixture-tag', 'cuda12')}' -Force`)
-  assert.equal(calls[1], `$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\nExpand-Archive -LiteralPath '${join(root, 'runtime', 'cudart.zip')}' -DestinationPath '${join(root, 'runtime', 'fixture-tag', 'cuda12')}' -Force`)
+  for (const file of ['sd-server.exe', 'ggml-cuda.dll', 'cudart64_12.dll', 'cublas64_12.dll', 'cublasLt64_12.dll']) assert.ok(existsSync(join(runtimeDir, file)), file)
+  if (!windows) {
+    assert.deepEqual(readFileSync(tarCalls, 'utf8').trim().split('\n'), [`-xf ${join(root, 'runtime', 'engine.zip')} -C ${runtimeDir}`, `-xf ${join(root, 'runtime', 'cudart.zip')} -C ${runtimeDir}`])
+    assert.equal(existsSync(powershellCalls), false, 'powershell.exe is never asked while tar.exe exists')
+  }
   const status = await engine.setup('status', undefined, root, () => {}, { ...fixtureCatalogue, runtime: table }, undefined, pull, { platform: 'win32', arch: 'x64' })
   assert.deepEqual(status.runtime, { installed: true, tag: 'fixture-tag', variant: 'cuda12' })
   assert.equal(mediaRuntimeInstalled(parseMediaCatalogue({ ...fixtureCatalogue, runtime: table }), root, { variant: 'cuda12', binary: 'sd-server.exe', words: 'CUDA 12', bytes: 1, args: [] }, undefined, 'ok'), true, 'the product reads the variant the engine recorded')
   await assert.rejects(engine.setup('pull-runtime', undefined, root, () => {}, { ...fixtureCatalogue, runtime: table }, undefined, pull, { platform: 'win32', arch: 'arm64' }), { message: 'There is no runtime variant for this platform (win32-arm64). Install a compatible local runtime for this platform.' })
-  console.log('media runtime variants: table and old row parse; variant per platform, arch and GPU; row words per variant; pull plan with --variant; docs sizes; the vendored Windows unpack road through powershell.exe -EncodedCommand with a fixture archive; runtime.json carries the variant')
+
+  const fallbackDir = join(dir, 'fallback')
+  const script = `$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\ntry { Expand-Archive -LiteralPath '${engineZip}' -DestinationPath '${fallbackDir}' -Force } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }\n`
+  const noTar = windows ? { ...process.env, PATH: '', SystemRoot: '', windir: '' } : { ...process.env, PATH: [join(dir, 'bin'), savedPath ?? ''].join(delimiter) }
+  const fallback = engine.unpackCommand(engineZip, fallbackDir, 'win32', noTar)
+  assert.equal(fallback.command, 'powershell.exe')
+  assert.deepEqual(fallback.args.slice(0, 3), ['-NoProfile', '-NonInteractive', '-EncodedCommand'])
+  assert.equal(Buffer.from(fallback.args[3]!, 'base64').toString('utf16le'), script)
+  assert.equal(Object.keys(fallback.env ?? {}).some(key => key.toLowerCase() === 'psmodulepath'), false, "the child never inherits the launching shell's PSModulePath")
+  mkdirSync(fallbackDir, { recursive: true })
+  if (windows) {
+    const real = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== 'psmodulepath'))
+    const ran = spawnSync(fallback.command, fallback.args, { env: real, encoding: 'utf8', windowsHide: true })
+    assert.equal(ran.status, 0, `the real powershell.exe without PSModulePath: ${ran.stderr}`)
+  } else {
+    await engine.unpack(engineZip, fallbackDir, undefined, 'win32', noTar)
+    const calls = readFileSync(powershellCalls, 'utf8').split('\n\n').filter(Boolean)
+    assert.deepEqual(calls, [script.trimEnd()])
+  }
+  assert.ok(existsSync(join(fallbackDir, 'sd-server.exe')), 'the fallback unpacked the fixture archive')
+
+  const bogus = join(dir, 'bogus.zip')
+  writeFileSync(bogus, 'not an archive\n')
+  mkdirSync(join(dir, 'bogus'), { recursive: true })
+  await assert.rejects(engine.unpack(bogus, join(dir, 'bogus'), undefined, 'win32'), (error: Error) => { assert.match(error.message, /^tar\.exe exited \d+: tar: /, error.message); return true })
+  console.log('media runtime variants: table and old row parse; variant per platform, arch and GPU; row words per variant; pull plan with --variant; docs sizes; the vendored Windows unpack road through tar.exe with fixture archives, the powershell.exe fallback without PSModulePath, and a failed unpack naming the child\'s last stderr line; runtime.json carries the variant')
 } finally {
   process.env.PATH = savedPath
+  if (savedModulePath === undefined) delete process.env.PSModulePath
+  else process.env.PSModulePath = savedModulePath
   rmSync(proofHome, { recursive: true, force: true })
 }

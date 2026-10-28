@@ -17,24 +17,31 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
   const io = resolveSetupIo(seam)
   const signal = io.signal ?? new AbortController().signal
   const ran: SetupStepLabel[] = []
+  const skipped: SetupStepLabel[] = []
   let current: SetupStepLabel = '1'
   let started: Awaited<ReturnType<typeof startGgufServer>> | undefined
   let keptServer = false
   const plan = (label: SetupStepLabel, title: string, found = '', willRun = ''): SetupStepPlan => ({ step: Number(label[0]) as SetupStepPlan['step'], label, kind: 'choose', title, found, willRun, needsSudo: false, keys: '↵ run · esc stop', skippable: false })
   const ask = async (row: SetupStepPlan): Promise<Awaited<ReturnType<SetupConsentFn>>> => { current = row.label; signal.throwIfAborted(); return consent(row) }
-  const done = (reason: SetupSummary['reason'], words: string, ready?: SetupSummary['ready']): SetupEvent => ({ type: 'done', summary: { ran, skipped: [], failed: reason === 'ended' && !ran.includes(current) ? [current] : [], notDone: [], reason, words, ...(ready ? { ready, model: ready.model } : { kept: io.currentModel() ?? undefined }) } })
+  const done = (reason: SetupSummary['reason'], words: string, ready?: SetupSummary['ready']): SetupEvent => ({ type: 'done', summary: { ran, skipped, failed: reason === 'ended' && !ran.includes(current) ? [current] : [], notDone: [], reason, words, ...(ready ? { ready, model: ready.model } : { kept: io.currentModel() ?? undefined }) } })
   const result = (label: SetupStepLabel, words: string): SetupEvent => { ran.push(label); return { type: 'result', result: { step: Number(label[0]) as SetupStepPlan['step'], label, kind: 'choose', outcome: 'ran', lastLine: words } } }
   try {
     let source = 'Hugging Face'
     if (!seam.repo) {
-      const row = { ...plan('1', 'Local models', 'Choose where to get the model'), keys: choiceKeys, rows: [{ tag: 'Hugging Face', on: 'pull' as const, words: 'pull a GGUF by repository id' }, { tag: 'Bank', on: 'server' as const, words: 'use downloaded GGUF weights' }, { tag: 'Ollama / running server', on: 'server' as const, words: 'choose a server model or install Ollama' }] }
+      const row = { ...plan('1', 'Local models', 'Choose where to get the model'), keys: '↑↓ choose · ↵ pick · s skip · esc keeps your model', skippable: true, rows: [{ tag: 'Hugging Face', on: 'pull' as const, words: 'pull a GGUF by repository id' }, { tag: 'Bank', on: 'server' as const, words: 'use downloaded GGUF weights' }, { tag: 'Ollama / running server', on: 'server' as const, words: 'choose a server model or install Ollama' }] }
       yield { type: 'step', plan: row }
-      const picked = pickOf(await ask(row))
-      if (!picked) { yield done('stopped', ''); return }
-      if (!row.rows.some(row => row.tag === picked)) throw new Error('Choose a model source from the list.')
-      source = picked
-      yield result('1', source)
-      if (source === 'Ollama / running server') { yield* runSetupRoad(consent, seam); return }
+      const answer = await ask(row)
+      if (answer === 'skip') {
+        skipped.push('1')
+        yield { type: 'result', result: { step: 1, label: '1', kind: 'choose', outcome: 'skipped', lastLine: '' } }
+      } else {
+        const picked = pickOf(answer)
+        if (!picked) { yield done('stopped', ''); return }
+        if (!row.rows.some(row => row.tag === picked)) throw new Error('Choose a model source from the list.')
+        source = picked
+        yield result('1', source)
+        if (source === 'Ollama / running server') { yield* runSetupRoad(consent, seam); return }
+      }
     }
     let folder = bankFolder() ?? join(io.home, 'mercury-model-bank')
     let model: GgufModel

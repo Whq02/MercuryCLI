@@ -214,7 +214,19 @@ const choiceLines = (name: string, m: Mounted, label: string, kept: string, coun
   const foundAt = lines.findIndex(line => line.startsWith(label))
   const between = keysAt > foundAt && foundAt >= 0 ? lines.slice(foundAt + 1, keysAt) : []
   check(`${name}: the step shows its found line, then one row per model, then the choice keys — nothing else between`, foundAt >= 0 && keysAt === foundAt + count + 1 && between.every(line => /^\s{4}[›\s] qwen/.test(line)), `found at ${foundAt} · keys at ${keysAt} · ${between.length} rows between`)
-  check(`${name}: only one step asks at a time`, lines.filter(line => line.trim() === KEYS).length === 0 && lines.filter(line => line.trim().startsWith(CHOOSE_KEYS)).length === 1)
+  check(`${name}: only one step asks at a time`, lines.filter(line => line.trim() === KEYS).length === 0 && lines.filter(line => line.trim() === `${CHOOSE_KEYS} ${kept}`).length === 1)
+  check(`${name}: the footer carries the choice keys and only the frame verbs that fire on a choice step`, footerIs(m, `${CHOOSE_KEYS} ${kept} · pgup/pgdn page · click outside closes`) && !lines.some(line => line.includes('s skip')), footerOf(m))
+}
+function footerIs(m: Mounted, expected: string): boolean {
+  const rows = m.lines().map(bodyOf).map(line => line.trim())
+  const end = rows.findLastIndex(row => row.endsWith('click outside closes'))
+  if (end < 0) return false
+  return [1, 2, 3].some(count => rows.slice(Math.max(0, end - count + 1), end + 1).join(' · ') === expected)
+}
+const footerOf = (m: Mounted): string => {
+  const rows = m.lines().map(bodyOf).map(line => line.trim())
+  const end = rows.findLastIndex(row => row.endsWith('click outside closes'))
+  return end < 0 ? '' : rows.slice(Math.max(0, end - 2), end + 1).join(' / ')
 }
 
 check('the words module names the command and the one offer line', words !== null && words.LOCAL_SETUP_COMMAND === '/localsetup' && words.LOCAL_SETUP_OFFER === 'or /localsetup sets one up')
@@ -265,6 +277,18 @@ if (dialog !== null) {
   check('a long will-run line clips in its own cell and → shows its tail', narrow.every(row => stringWidth(row.text) <= 74) && narrow[1]?.text.endsWith('…') && tailRows[1]?.text.endsWith(CHAT_TAIL) && tailRows[1]?.text.includes('will run  …'), `${narrow[1]?.text} / ${tailRows[1]?.text}`)
   const window = dialog.localSetupWindow
   check('the row window follows the newest rows and its markers never hide a row they count', JSON.stringify(window(20, 12, null)) === JSON.stringify({ start: 9, end: 20, above: 9, below: 0 }) && JSON.stringify(window(20, 12, 0)) === JSON.stringify({ start: 0, end: 11, above: 0, below: 9 }) && JSON.stringify(window(20, 12, 4)) === JSON.stringify({ start: 4, end: 14, above: 4, below: 6 }) && JSON.stringify(window(5, 12, null)) === JSON.stringify({ start: 0, end: 5, above: 0, below: 0 }))
+  const hint = dialog.localSetupHint
+  const skips = dialog.localSetupSkippable
+  const runStep = reduce(dialog.LOCAL_SETUP_INITIAL, ask('2b', 'brew present', 'brew install ollama'))
+  const plainStep = reduce(dialog.LOCAL_SETUP_INITIAL, { kind: 'ask', ask: { step: '5', found: 'fits', willRun: 'llama-server', keys: '↵ run · esc stop' } })
+  const textStep = reduce(dialog.LOCAL_SETUP_INITIAL, { kind: 'ask', ask: { step: '2', found: 'Repository id', willRun: '', keys: 'type repository id · ↵ list files · esc keeps your model', input: 'author/model-GGUF' } })
+  const skippableChoice = reduce(dialog.LOCAL_SETUP_INITIAL, { kind: 'ask', ask: { step: '1', found: 'Choose where', willRun: '', keys: '↑↓ choose · ↵ pick · s skip · esc keeps your model', rows: SERVER_ROWS } })
+  check('s fires exactly where the step keys row names s skip: a run step with the default keys, a choice step that names it; never a text field or a step whose keys leave it out', skips(dialog.localSetupAsking(runStep)) && skips(dialog.localSetupAsking(skippableChoice)) && !skips(dialog.localSetupAsking(plainStep)) && !skips(dialog.localSetupAsking(textStep)) && !skips(dialog.localSetupAsking(choice)) && !skips(undefined))
+  check('the footer is the step keys plus the frame verbs that fire there: a run step keeps the popup hint', hint(runStep) === dialog.LOCAL_SETUP_POPUP_HINT, hint(runStep))
+  check('an unskippable run step drops s skip from the footer', hint(plainStep) === '↵ run · esc stop · ←→ line tail · ↑↓ scroll · pgup/pgdn page · click outside closes', hint(plainStep))
+  check('a choice step footer carries its choice keys, pages and the click, never ↵ run, s skip or ↑↓ scroll', hint(choice) === `${CHOOSE_KEYS} ${BIG} · pgup/pgdn page · click outside closes`, hint(choice))
+  check('a text field footer carries the field keys and the click only', hint(textStep) === 'type repository id · ↵ list files · esc keeps your model · click outside closes', hint(textStep))
+  check('while a step runs the footer says esc stop; after the end, esc closes', hint(reduce(runStep, { kind: 'consent', answer: 'run' })) === 'esc stop · ↑↓ scroll · pgup/pgdn page · click outside closes' && hint(reduce(dialog.LOCAL_SETUP_INITIAL, { kind: 'ended' })) === 'esc closes · ↑↓ scroll · pgup/pgdn page · click outside closes', hint(reduce(runStep, { kind: 'consent', answer: 'run' })))
 }
 
 if (command !== null) {
@@ -395,6 +419,7 @@ try {
     check(`${tag}: step 1 asks first`, await untilAsk(m, '1 · find a server'))
     keep(`opening-step-1-${tag}`, m, cols, rows)
     threeLines(`${tag} step 1`, m, '1 · find a server')
+    check(`${tag}: the footer on a run step with the default keys is the popup hint`, footerIs(m, KEYS + ' · ←→ line tail · ↑↓ scroll · pgup/pgdn page · click outside closes'), footerOf(m))
     check(`${tag}: nothing ran before ↵`, record.ran.length === 0 && record.asked.join(',') === '1')
     m.push(KEY.enter)
     check(`${tag}: ↵ runs step 1 and its result lands under it`, await waitFor(() => m.screen().includes('✓ nothing answers on the four ports'), 4000) && record.consents[0]?.answer === 'run' && record.ran.join(',') === '1')
@@ -418,6 +443,9 @@ try {
     m.push(KEY.enter)
     await settle(120)
     check(`${tag}: ↵ with no row under the cursor leaves the ask standing`, record.consents.length === 4 && record.asked.join(',') === '1,2,2b,3,4' && m.lines().some(line => bodyOf(line).includes(`${CHOOSE_KEYS} ${HOSTED}`)))
+    m.push('s')
+    await settle(120)
+    check(`${tag}: s on the model choice, whose keys and footer name no skip, leaves the ask standing and records no consent`, record.consents.length === 4 && !m.screen().includes('– skipped') && m.lines().some(line => bodyOf(line).includes(`${CHOOSE_KEYS} ${HOSTED}`)), record.consents.map(c => `${c.label}:${c.answer}`).join(' '))
     for (let step = 0; step < 4; step++) m.push(KEY.down)
     check(`${tag}: four ↓ put the cursor on the 9B row and nowhere else`, await waitFor(() => cursorOn(m) === 'qwen3.5:9b', 4000), cursorOn(m) ?? 'no cursor')
     keep(`choose-model-cursor-${tag}`, m, cols, rows)
@@ -448,6 +476,7 @@ try {
     check(`${tag}: the ready row is the spec sentence`, await waitFor(() => m.screen().includes(READY_ROW), 4000), lineWith(m, 'ready') ?? '')
     check(`${tag}: step 6's result row names the session switch by the receipt's word`, m.lines().some(line => bodyOf(line).includes('✓ ready · load 9.8 s · 14 tokens in 41 s · session model switched')), lineWith(m, '✓ ready') ?? '')
     keep(`ready-row-${tag}`, m, cols, rows)
+    check(`${tag}: after the end the footer says esc closes`, footerIs(m, 'esc closes · ↑↓ scroll · pgup/pgdn page · click outside closes'), footerOf(m))
     check(`${tag}: every consent went through the road's own callback`, record.consents.map(consent => `${consent.label}:${consent.answer}`).join(' ') === '1:run 2:run 2b:run 3:run 4:pick qwen3.5:9b 4b:run 5:run 6:run', record.consents.map(consent => `${consent.label}:${consent.answer}`).join(' '))
     m.push(KEY.esc)
     check(`${tag}: esc closes the popup once the road has ended`, await waitFor(() => popup.settingsPopupRequest() === null, 4000))

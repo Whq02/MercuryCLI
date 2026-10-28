@@ -146,7 +146,7 @@ export function LocalSetupPopupBody({ geometry, road, io }: { geometry: Settings
   const frame = useSettingsPopupFrame()
   const screenSetter = useSetAppStateMaybe()
   const built = React.useMemo(() => road ?? localSetupRoadOf({ ...io, setAppState: io?.setAppState ?? screenSetter ?? undefined }), [road, io, screenSetter])
-  return <LocalSetupDialog road={built} width={geometry.inner} rowBudget={geometry.rowBudget} onLine={frame.setLine} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
+  return <LocalSetupDialog road={built} width={geometry.inner} rowBudget={geometry.rowBudget} onLine={frame.setLine} onHint={frame.setHint} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
 }
 
 export function localSetupPopupRequest(road?: LocalSetupRoad, io: LocalSetupRoadIo = {}): SettingsPopupRequest {

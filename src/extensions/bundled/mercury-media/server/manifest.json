@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "runtimeTag": "master-1015-e41fbcf",
   "files": {
     "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
@@ -11,6 +11,6 @@
     "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
     "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
     "server.js": "15fd6fc9a3f73ec4bf7bafe8373281f5a8874c9115602786aab0002420433ccf",
-    "setup.js": "21dfd0c86f7fc98907431a144960be7b9adcca66f3366ba58cdc1b47f3e857f7"
+    "setup.js": "1f36beb7e5c8bdff2ed104c8bd51abcb9f0848283aece032efc2152e642193ae"
   }
 }

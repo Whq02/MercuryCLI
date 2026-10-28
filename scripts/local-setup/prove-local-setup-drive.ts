@@ -392,6 +392,10 @@ async function drive(size: string): Promise<void> {
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, awaitStableTicks: 2, data: COMMAND },
     { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: 'Ollama / running server', awaitStableTicks: 2, mark: 'source-choice', data: DOWN },
+    { requireAwait: true, awaitText: `${CURSOR} Hugging Face`, awaitSettleTicks: 1, data: DOWN },
+    { requireAwait: true, awaitText: `${CURSOR} Bank`, awaitSettleTicks: 1, data: DOWN },
+    { requireAwait: true, awaitText: `${CURSOR} Ollama / running server`, awaitStableTicks: 2, mark: 'source-choice-cursor', data: '\r' },
     ...STEPS.flatMap((step): Send[] => [
       { requireAwait: true, awaitText: KEYS, ...(step.pattern === '' ? {} : { awaitPattern: step.pattern }), awaitStableTicks: 3, mark: step.mark, data: step.key },
       ...(step.mark === 'step3-start'

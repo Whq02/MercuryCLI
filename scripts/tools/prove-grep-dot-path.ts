@@ -12,7 +12,8 @@ const base = process.env.MERCURY_CONFIG_DIR ?? tmpdir()
 mkdirSync(base, { recursive: true })
 const proofHome = mkdtempSync(join(base, 'grep-dot-path-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
-process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
+const launchCwd = process.cwd()
+process.on('exit', () => { process.chdir(launchCwd); rmSync(proofHome, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }) })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
@@ -32,7 +33,7 @@ const { suspiciousWindowsPattern } = await import('../../src/utils/permissions/w
 const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/utils/permissions/filesystem.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
+const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
 const project = join(proofHome, 'project')
 mkdirSync(join(project, 'src'), { recursive: true })
@@ -67,22 +68,46 @@ for (const platform of ['linux', 'macos', 'windows', 'wsl'] as const) {
   })
 }
 
-section("§2 the Grep tool's road: path '.' (the tool's getPath hands the path unexpanded) is allowed on linux and darwin fixtures; a trailing-dot name still asks")
+section("§2 the Grep tool's road on this host: path '.' (the tool's getPath hands the path unexpanded), './src' and 'src/..' are allowed; a trailing-dot name still asks")
+const grepLike = { name: 'Grep', getPath: (input: { path?: string } | undefined) => input?.path || getCwd() }
+const context = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
+const verdict = (path: string) => { getResolvedWorkingDirPaths.clearCache(); return checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path }, context) }
+const host = getPlatform()
 {
-  const grepLike = { name: 'Grep', getPath: (input: { path?: string } | undefined) => input?.path || getCwd() }
-  const context = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
-  for (const platform of ['linux', 'macos'] as const) {
-    withPlatform(platform, () => {
-      const dot = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: '.' }, context)
-      check(`${platform}: Grep with path '.' is allowed (the starting folder itself)`, dot.behavior === 'allow', JSON.stringify(dot))
-      const dotSlash = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: './src' }, context)
-      check(`${platform}: Grep with path './src' is allowed`, dotSlash.behavior === 'allow', JSON.stringify(dotSlash))
-      const parent = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: 'src/..' }, context)
-      check(`${platform}: Grep with path 'src/..' is allowed (it is the starting folder)`, parent.behavior === 'allow', JSON.stringify(parent))
-      const trailing = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: 'src/name.' }, context)
-      check(`${platform}: Grep with path 'src/name.' still asks with the Windows-pattern reason`, trailing.behavior === 'ask' && JSON.stringify(trailing).includes('suspicious Windows path pattern'), JSON.stringify(trailing))
-    })
+  const dot = verdict('.')
+  check(`${host}: Grep with path '.' is allowed (the starting folder itself)`, dot.behavior === 'allow', JSON.stringify(dot))
+  const dotSlash = verdict('./src')
+  check(`${host}: Grep with path './src' is allowed`, dotSlash.behavior === 'allow', JSON.stringify(dotSlash))
+  const parent = verdict('src/..')
+  check(`${host}: Grep with path 'src/..' is allowed (it is the starting folder)`, parent.behavior === 'allow', JSON.stringify(parent))
+  const trailing = verdict('src/name.')
+  check(`${host}: Grep with path 'src/name.' still asks with the Windows-pattern reason`, trailing.behavior === 'ask' && JSON.stringify(trailing).includes('suspicious Windows path pattern'), JSON.stringify(trailing))
+}
+
+section("§3 a relative path is read against the session's folder, never the process's: the process sits elsewhere, a worktree crewmate carries an override, a Bash cd moves the logical folder")
+{
+  const elsewhere = join(proofHome, 'elsewhere')
+  mkdirSync(join(elsewhere, 'src'), { recursive: true })
+  writeFileSync(join(elsewhere, 'src', 'a.ts'), 'const needle = 2\n')
+  process.chdir(proofHome)
+  for (const path of ['.', './src', 'src']) {
+    const away = verdict(path)
+    const forms = getResolvedWorkingDirPaths(path)
+    check(`process elsewhere: Grep with path '${path}' is allowed and its real form sits under the starting folder`, away.behavior === 'allow' && forms.slice(1).every(form => form.startsWith(project)) && forms.length >= 2, `${JSON.stringify(away)} forms ${JSON.stringify(forms)}`)
   }
+  process.chdir(project)
+  runWithCwdOverride(elsewhere, () => {
+    const inWorktree = verdict('./src')
+    const forms = getResolvedWorkingDirPaths('./src')
+    check("a cwd override (a worktree crewmate): './src' resolves under the override, which is that context's starting folder, and is allowed", inWorktree.behavior === 'allow' && forms.includes(join(elsewhere, 'src')) && !forms.includes(join(project, 'src')), `${JSON.stringify(inWorktree)} forms ${JSON.stringify(forms)}`)
+  })
+  bootstrap.setCwdState(elsewhere)
+  const moved = verdict('./src')
+  const movedForms = getResolvedWorkingDirPaths('./src')
+  check("after a Bash cd out of the starting folder: './src' is the search's own root under the new folder, so it asks as outside the starting folder (process.cwd() still names the starting folder)", moved.behavior === 'ask' && JSON.stringify(moved).includes('the path is outside the starting folder') && movedForms.includes(join(elsewhere, 'src')) && !movedForms.includes(join(project, 'src')), `${JSON.stringify(moved)} forms ${JSON.stringify(movedForms)}`)
+  bootstrap.setCwdState(project)
+  const back = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: './src' }, context)
+  check("cd back: './src' is allowed again without clearing the memo (the memo is keyed by the folder for a relative spelling)", back.behavior === 'allow' && getResolvedWorkingDirPaths('./src').includes(join(project, 'src')), JSON.stringify(back))
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
