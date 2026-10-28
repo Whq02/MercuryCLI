@@ -1,0 +1,71 @@
+{
+  "php": {
+    "title": "PHP Debug",
+    "version": "1.40.2",
+    "repository": "https://github.com/xdebug/vscode-php-debug",
+    "license": "MIT",
+    "licenseFiles": ["extension/LICENSE.txt"],
+    "platforms": {
+      "any": {
+        "archive": "php-debug-1.40.2.vsix",
+        "url": "https://github.com/xdebug/vscode-php-debug/releases/download/v1.40.2/php-debug-1.40.2.vsix",
+        "bytes": 1797181,
+        "sha256": "17631993fe800083a2fc89a6782c8bf58a79603ad201ddff60d9b59ba2345d5f",
+        "entry": "extension/out/phpDebug.js"
+      }
+    }
+  },
+  "codelldb": {
+    "title": "CodeLLDB",
+    "version": "1.12.3",
+    "repository": "https://github.com/vadimcn/codelldb",
+    "license": "MIT",
+    "licenseFiles": ["extension/LICENSE"],
+    "licenseSource": "https://github.com/vadimcn/codelldb/blob/v1.12.3/LICENSE",
+    "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2016 Vadim Chugunov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n",
+    "platforms": {
+      "darwin-arm64": {
+        "archive": "codelldb-darwin-arm64.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-darwin-arm64.vsix",
+        "bytes": 45390048,
+        "sha256": "2f114a990e1b368dd1dbd33c80c0e719767af2d228391ec0df0571c957f9ac91",
+        "entry": "extension/adapter/codelldb"
+      },
+      "darwin-x64": {
+        "archive": "codelldb-darwin-x64.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-darwin-x64.vsix",
+        "bytes": 47735596,
+        "sha256": "e25cc716b94c62c07fec268ff2785d2b797245b160502baef8b9c970a0c4d8e8",
+        "entry": "extension/adapter/codelldb"
+      },
+      "linux-arm64": {
+        "archive": "codelldb-linux-arm64.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-linux-arm64.vsix",
+        "bytes": 54544514,
+        "sha256": "0887f67d440554617894266f80706b700907c36b95e6e49d23b95a0e05318101",
+        "entry": "extension/adapter/codelldb"
+      },
+      "linux-arm": {
+        "archive": "codelldb-linux-armhf.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-linux-armhf.vsix",
+        "bytes": 52535623,
+        "sha256": "20294f0ea876a73c662bb09b1814551a859dc77156564b62c75acf1088ecaf30",
+        "entry": "extension/adapter/codelldb"
+      },
+      "linux-x64": {
+        "archive": "codelldb-linux-x64.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-linux-x64.vsix",
+        "bytes": 55571094,
+        "sha256": "1cd7f386598022b51a5b93b9ffa23e812b23f519cfe1833384ec4bef4bfd1be1",
+        "entry": "extension/adapter/codelldb"
+      },
+      "win32-x64": {
+        "archive": "codelldb-win32-x64.vsix",
+        "url": "https://github.com/vadimcn/codelldb/releases/download/v1.12.3/codelldb-win32-x64.vsix",
+        "bytes": 50943475,
+        "sha256": "a916e509308dac817732f63ca604a8b93ed29cd16f38a2fa9f0b64ed58e8f51a",
+        "entry": "extension/adapter/codelldb.exe"
+      }
+    }
+  }
+}

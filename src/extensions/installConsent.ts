@@ -24,6 +24,11 @@ async function inspectInstall(target: InstallTarget) {
   return { adapter, plan, check }
 }
 
+export function installPermission(plan: { title: string; version: string; bytes: number; destination: string }): PermissionResult {
+  const message = `Install ${plan.title} ${plan.version} (${plan.bytes.toLocaleString('en-US')} bytes) to ${plan.destination}?`
+  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+}
+
 export async function bundledAppInstallPermission(tool: Tool, input: Record<string, unknown>): Promise<PermissionResult | null> {
   const target = tool.mcpInfo?.toolName === 'craft_install' ? installs.get(tool.mcpInfo.serverName) : undefined
   if (!target) return null
@@ -31,8 +36,7 @@ export async function bundledAppInstallPermission(tool: Tool, input: Record<stri
     const { adapter, plan, check } = await inspectInstall(target)
     if (check.state === 'installed') return { behavior: 'allow', updatedInput: input }
     if (check.state === 'invalid') return { behavior: 'deny', message: `The existing ${adapter.title} installation did not pass verification. It was not replaced.`, decisionReason: { type: 'other', reason: check.reason } }
-    const message = `Install ${plan.title} ${plan.version} (${plan.bytes.toLocaleString('en-US')} bytes) to ${plan.destination}?`
-    return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+    return installPermission(plan)
   } catch (error) {
     return { behavior: 'deny', message: 'The application installation request could not be verified.', decisionReason: { type: 'other', reason: String(error) } }
   }

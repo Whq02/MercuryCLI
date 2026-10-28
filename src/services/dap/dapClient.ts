@@ -5,12 +5,14 @@ import type { DapTerminalRequest, DapTerminalRunner } from './dapTerminal.js'
 import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
-import { accessSync, constants, existsSync, readFileSync } from 'node:fs'
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { parse as parseYaml } from 'yaml'
 import { createServer as createNetServer, connect as netConnect, type Socket } from 'node:net'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { debugpyVendorRoot, pythonSpawnEnv } from './debugpyResolver.js'
+import { installedOptionalAdapter, optionalAdapterPlan } from './optionalAdapters.js'
 import * as path from 'node:path'
 import type { OwnerKey } from '../run/ownerKey.js'
 import {
@@ -254,7 +256,7 @@ export function _resetGdbProbeForTesting(): void {
 }
 
 
-const NATIVE_ADAPTER_KEYS = new Set(['lldb', 'gdb'])
+const NATIVE_ADAPTER_KEYS = new Set(['lldb', 'gdb', 'codelldb'])
 let darwinDebuggerAuthMemo: string | null | undefined
 
 export function _resetDarwinDebuggerAuthForTesting(): void {
@@ -478,6 +480,60 @@ export function gdbInstallHint(platform: string = process.platform): string {
     : 'install gdb 14+ (the first release with the native -i=dap interpreter)'
 }
 
+function codelldbInstallHint(): string {
+  return 'put codelldb on PATH (github.com/vadimcn/codelldb/releases)' + (optionalAdapterPlan('codelldb') ? ', or allow the pinned CodeLLDB download at Debug launch' : '')
+}
+
+const PHP_DEBUG_HINT = 'allow the pinned PHP Debug download at Debug launch; install PHP and check php -m | grep -i xdebug; install Xdebug with pie install xdebug/xdebug (xdebug.org/docs/install) and enable zend_extension=xdebug'
+let phpModulesMemo: { key: string; at: number; error?: string } | undefined
+
+function phpDebugPreflight(): string | undefined {
+  const php = findOnPathLocal('php')
+  if (!php) return 'no php on PATH'
+  const key = [php, statSync(php).mtimeMs, process.env.PHPRC, process.env.PHP_INI_SCAN_DIR].join('|')
+  if (phpModulesMemo?.key === key && Date.now() - phpModulesMemo.at < 30_000) return phpModulesMemo.error
+  const probe = spawnSync(php, ['-m'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: subprocessEnv() })
+  const error = probe.status === 0 && /^xdebug\s*$/im.test(probe.stdout ?? '')
+    ? undefined
+    : 'PHP with Xdebug is required — check php -m | grep -i xdebug'
+  phpModulesMemo = { key, at: Date.now(), error }
+  return error
+}
+
+const BASH_DEBUG_HINT = 'provide bash-debug-adapter on PATH or unpack vscode-bash-debug under <configHome>/adapters/bash; bashdb and a compatible Bash are required (macOS /bin/bash 3.2 is unsupported); bashdb is maintained, but vscode-bash-debug last released in 2021 — no automatic download'
+let bashVersionMemo: { key: string; at: number; compatible: boolean } | undefined
+
+function bashDebugSpec(command: string, args: string[], bash: string, bashdb: string): DapAdapterSpec {
+  const key = `${bash}|${statSync(bash).mtimeMs}`
+  if (bashVersionMemo?.key !== key || Date.now() - bashVersionMemo.at >= 30_000) {
+    const probe = spawnSync(bash, ['--version'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: subprocessEnv() })
+    bashVersionMemo = { key, at: Date.now(), compatible: probe.status === 0 && Number(/version (\d+)\./.exec(probe.stdout ?? '')?.[1] ?? 0) >= 4 }
+  }
+  const directory = path.dirname(realpathSync(bashdb))
+  const library = [directory, path.resolve(directory, '../share/bashdb'), path.resolve(directory, '../lib/bashdb')].find(candidate => existsSync(path.join(candidate, 'dbg-main.sh')))
+  return {
+    command,
+    args,
+    fileTypes: ['.sh', '.bash'],
+    installHint: BASH_DEBUG_HINT,
+    preflightError: !bashVersionMemo.compatible
+      ? 'Bash 4 or newer is required; macOS /bin/bash 3.2 is not supported by vscode-bash-debug'
+      : library === undefined ? 'no bashdb library beside bashdb or under its prefix/share/bashdb; set pathBashdbLib in a custom adapter row' : undefined,
+    launchDefaults: {
+      type: 'bashdb',
+      pathBash: bash,
+      pathBashdb: bashdb,
+      pathBashdbLib: library,
+      pathCat: findOnPathLocal('cat') ?? 'cat',
+      pathMkfifo: findOnPathLocal('mkfifo') ?? 'mkfifo',
+      pathPkill: process.platform === 'darwin' ? '/usr/bin/pkill' : findOnPathLocal('pkill') ?? 'pkill',
+      argsString: '',
+      env: {},
+      terminalKind: 'debugConsole',
+    },
+  }
+}
+
 function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => DapAdapterSpec> {
   const table: Record<string, () => DapAdapterSpec> = {
     python: () => ({ ...pythonAdapterSpec(), attachShape: 'connect', fileTypes: ['.py'] }),
@@ -492,6 +548,40 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
           : lldbDapInstallHint(),
       }
     },
+  }
+  const bash = findOnPathLocal('bash')
+  const bashdb = findOnPathLocal('bashdb')
+  const bashAdapter = findOnPathLocal('bash-debug-adapter')
+  const bashEntry = join(getMercuryHome(), 'adapters', 'bash', 'extension', 'out', 'bashDebug.js')
+  if (bash && bashdb && (bashAdapter || existsSync(bashEntry))) {
+    table.bash = () => bashDebugSpec(bashAdapter ?? process.execPath, bashAdapter ? [] : [bashEntry], bash, bashdb)
+  }
+  const phpDebug = installedOptionalAdapter('php')
+  if (phpDebug) {
+    table.php = () => ({
+      command: process.execPath,
+      args: [phpDebug],
+      fileTypes: ['.php'],
+      rootMarkers: ['composer.json'],
+      installHint: PHP_DEBUG_HINT,
+      preflightError: phpDebugPreflight(),
+      launchDefaults: {
+        hostname: '127.0.0.1',
+        port: 0,
+        runtimeArgs: ['-dxdebug.start_with_request=yes'],
+        env: { XDEBUG_MODE: 'debug,develop', XDEBUG_CONFIG: 'client_host=127.0.0.1 client_port=${port}' },
+      },
+    })
+  }
+  const codelldb = findOnPathLocal('codelldb') ?? installedOptionalAdapter('codelldb')
+  if (codelldb) {
+    table.codelldb = () => ({
+      command: codelldb,
+      args: [],
+      rootMarkers: ['Cargo.toml'],
+      launchDefaults: { terminal: 'console' },
+      installHint: codelldbInstallHint(),
+    })
   }
   if (findOnPathLocal('dlv')) {
     table.go = () => ({
@@ -543,6 +633,15 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       fileTypes: ['.dart'],
       rootMarkers: ['pubspec.yaml'],
       installHint: 'dart debug_adapter ships with the Dart SDK (dart.dev/get-dart)',
+    })
+  }
+  if (findOnPathLocal('flutter')) {
+    table.flutter = () => ({
+      command: 'flutter',
+      args: ['debug-adapter'],
+      fileTypes: ['.dart'],
+      rootMarkers: ['pubspec.yaml'],
+      installHint: 'flutter debug-adapter ships with the Flutter SDK (docs.flutter.dev/install)',
     })
   }
   if (findOnPathLocal('kotlin-debug-adapter')) {
@@ -676,8 +775,8 @@ export function debugToolWithholding(): { withheld: false } | { withheld: true; 
     withheld: true,
     why:
       waiting.length > 0
-        ? `no debug adapter is reachable on this machine yet — none of debugpy beside a python, lldb-dap on PATH, dlv, js-debug, rdbg, netcoredbg or a configured adapter table, and the toolchain probe (${waiting.join(', ')}) has not answered — the tool joins at the next catalog build if it finds one`
-        : 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg or a configured adapter table — so no launch could work',
+        ? `no debug adapter is reachable on this machine yet — none of debugpy beside a python, lldb-dap on PATH, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table, and the toolchain probe (${waiting.join(', ')}) has not answered — the tool joins at the next catalog build if it finds one`
+        : 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg, dart, flutter, codelldb, php-debug, bash-debug-adapter or a configured adapter table — so no launch could work',
     remedy: `arm one — ${hints.join(' · ')} — then start a new session or /clear for the tool to join`,
   }
 }
@@ -798,6 +897,15 @@ export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Arra
       hint: 'rebuild with the vendored js-debug (bun run scripts/vendor/fetch-js-debug.ts && bun run build.ts), point MERCURY_JS_DEBUG_DAP at dapDebugServer.js, or unpack js-debug-dap to ~/.js-debug',
     })
   }
+  if (!('bash' in table)) {
+    out.push({ key: 'bash', hint: BASH_DEBUG_HINT })
+  }
+  if (!('php' in table)) {
+    out.push({ key: 'php', hint: PHP_DEBUG_HINT })
+  }
+  if (!('codelldb' in table)) {
+    out.push({ key: 'codelldb', hint: codelldbInstallHint() })
+  }
   if (!('go' in table)) {
     out.push({ key: 'go', hint: 'go install github.com/go-delve/delve/cmd/dlv@latest' })
   }
@@ -809,6 +917,9 @@ export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Arra
   }
   if (!('dart' in table)) {
     out.push({ key: 'dart', hint: 'install the Dart SDK (dart.dev/get-dart) — it ships dart debug_adapter' })
+  }
+  if (!('flutter' in table)) {
+    out.push({ key: 'flutter', hint: 'install the Flutter SDK (docs.flutter.dev/install) — it ships flutter debug-adapter' })
   }
   if (!('kotlin' in table)) {
     out.push({ key: 'kotlin', hint: KOTLIN_DEBUG_ADAPTER_HINT })
@@ -840,7 +951,32 @@ export function knownAdapterKeys(): string[] {
   return [...keys].sort()
 }
 
-export function adapterKeyForExtension(ext: string): string | null {
+function dapProjectFile(program: string, marker: string): string | null {
+  let directory = path.dirname(path.resolve(program))
+  try {
+    if (statSync(program).isDirectory()) directory = path.resolve(program)
+  } catch {}
+  for (;;) {
+    const candidate = path.join(directory, marker)
+    if (existsSync(candidate)) return candidate
+    const parent = path.dirname(directory)
+    if (parent === directory) return null
+    directory = parent
+  }
+}
+
+function isFlutterProgram(program: string): boolean {
+  const pubspec = dapProjectFile(program, 'pubspec.yaml')
+  if (pubspec === null) return false
+  try {
+    const document = parseYaml(readFileSync(pubspec, 'utf8'))
+    return document?.dependencies?.flutter !== undefined || document?.dev_dependencies?.flutter !== undefined
+  } catch {
+    return false
+  }
+}
+
+export function adapterKeyForExtension(ext: string, program?: string): string | null {
   const raw = flagEnv('MERCURY_DAP_ADAPTERS')
   if (raw) {
     try {
@@ -855,6 +991,10 @@ export function adapterKeyForExtension(ext: string): string | null {
   for (const [key, row] of Object.entries(fileAdapterTable())) {
     if (row.fileTypes?.includes(ext)) return key
   }
+  if (ext === '.sh' || ext === '.bash') return 'bash'
+  if (ext === '.php') return 'php'
+  if (ext === '.dart') return program && isFlutterProgram(program) ? 'flutter' : 'dart'
+  if (program && ['', '.exe', '.rs', '.c', '.cc', '.cpp', '.cxx'].includes(ext) && dapProjectFile(program, 'Cargo.toml') && resolveAdapter('codelldb')) return 'codelldb'
   for (const [key, make] of Object.entries(builtinAdapters())) {
     try {
       if (make().fileTypes?.includes(ext)) return key

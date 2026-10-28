@@ -109,7 +109,7 @@ export async function checkInstall(adapter, options) {
   } catch (error) { return { state: 'invalid', plan, reason: error.message } }
 }
 
-async function downloadPinned(row, destination, { signal, onProgress, fetcher = fetch } = {}) {
+export async function downloadPinned(row, destination, { signal, onProgress, fetcher = fetch } = {}) {
   abort(signal)
   const response = await fetcher(row.url, { signal, redirect: 'follow' })
   if (!response.ok || !response.body) throw new Error(`Download failed: HTTP ${response.status}`)
@@ -160,7 +160,7 @@ export function zipEntries(bytes) {
   return entries
 }
 
-async function extractArchive(archive, destination, { signal } = {}) {
+export async function extractArchive(archive, destination, { signal } = {}) {
   abort(signal)
   if (archive.endsWith('.dmg')) {
     if (process.platform !== 'darwin') throw new Error('Disk images require macOS')
@@ -180,7 +180,7 @@ async function extractArchive(archive, destination, { signal } = {}) {
       if (mounted) await exec('/usr/bin/hdiutil', ['detach', mount])
       await rm(mount, { recursive: true, force: true })
     }
-  } else if (archive.endsWith('.zip')) {
+  } else if (archive.endsWith('.zip') || archive.endsWith('.vsix')) {
     const entries = zipEntries(await readFile(archive))
     for (const entry of entries) {
       abort(signal)

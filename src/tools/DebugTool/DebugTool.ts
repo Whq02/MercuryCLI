@@ -5,6 +5,7 @@ import type { AssistantMessage } from '../../types/message.js'
 import { DapCancelledError, throwIfDapAborted } from '../../services/dap/dapCancellation.js'
 import { createDapTerminalRunner, type DapTerminalRunner } from '../../services/dap/dapTerminal.js'
 import { whichSync } from '../../utils/which.js'
+import { provisionDebugAdapter } from '../../services/dap/adapterInstallConsent.js'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
@@ -28,6 +29,7 @@ import {
   listDapSessions,
   probeGdbDap,
   removeDapSession,
+  resolveAdapter,
   type DapBreakpointSpec,
   type DapDataBreakpointSpec,
   type DapFunctionBreakpointSpec,
@@ -210,7 +212,7 @@ function lldbDapOnPath(): boolean {
   return whichSync('lldb-dap') !== null
 }
 
-function inferAdapter(program: string): string {
+function inferAdapter(program: string, cwd = getCwd()): string {
   if (program.endsWith('.py')) return 'python'
   const ext = path.extname(program).toLowerCase()
   if (mercuryUnityEnabled()) {
@@ -225,10 +227,8 @@ function inferAdapter(program: string): string {
       return 'unity'
     }
   }
-  if (ext) {
-    const declared = adapterKeyForExtension(ext)
-    if (declared) return declared
-  }
+  const declared = adapterKeyForExtension(ext, expandPath(program, cwd))
+  if (declared) return declared
   if (
     mercuryGodotEnabled() &&
     (program.endsWith('project.godot') ||
@@ -468,7 +468,7 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
   const adapterKey =
     input.adapter ??
     (program
-      ? inferAdapter(program)
+      ? inferAdapter(program, opts.cwd)
       : attach && input.port !== undefined
         ? 'python'
         : 'lldb')
@@ -1400,6 +1400,10 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
     const signal = context.abortController?.signal
     const terminalRunner = createDapTerminalRunner(context, canUseTool, assistantMessage)
     try {
+      if (input.op === 'launch') {
+        const adapter = input.adapter ?? inferAdapter(input.program ?? '')
+        if (!resolveAdapter(adapter)) await provisionDebugAdapter(adapter, DebugTool, input, context, canUseTool, assistantMessage)
+      }
       const session = getDapSession(owner, input.session ?? 'main')
       session?.setTerminalRunner(terminalRunner)
       const run = () => runOp(input, owner, signal, terminalRunner)

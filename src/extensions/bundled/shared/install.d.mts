@@ -1,0 +1,3 @@
+export function downloadPinned(row: { url: string; archive: string; bytes: number; sha256: string }, destination: string, options?: { signal?: AbortSignal; fetcher?: typeof fetch; onProgress?: (received: number, total: number, archive: string) => void }): Promise<{ archive: string; bytes: number; sha256: string; url: string }>
+export function extractArchive(archive: string, destination: string, options?: { signal?: AbortSignal }): Promise<void>
+export function treeRecord(root: string): Promise<{ entries: Array<{ path: string; kind: 'file' | 'link'; sha256: string; mode: number }>; fileCount: number; treeDigest: string }>

@@ -44,18 +44,58 @@ ends these processes and their descendants.
 
 Built-in adapter rows cover python (`debugpy`, vendored in the build with
 an installed-module fallback), js (`js-debug` for Node/TypeScript, vendored in
-the build; `MERCURY_JS_DEBUG_DAP` pins a custom copy), lldb, gdb,
-go, dotnet, ruby, dart (`dart debug_adapter` from the Dart SDK), kotlin
+the build; `MERCURY_JS_DEBUG_DAP` pins a custom copy), lldb, gdb, codelldb,
+go, dotnet, ruby, php, bash, dart (`dart debug_adapter` from the Dart SDK), flutter
+(`flutter debug-adapter` from the Flutter SDK), kotlin
 (`kotlin-debug-adapter`), elixir (the elixir-ls debug adapter) and godot; a
 row that needs a binary appears when that binary is on PATH, and `/health`
 names the install for the ones that are not. Custom adapters are one JSON row
 each (command, transport, file types, launch defaults) via
 `MERCURY_DAP_ADAPTERS` or the `dap-adapters.json` file in the config home;
-that is the road for adapters that ship only as editor-extension bundles, such
-as the PHP and bash debuggers (`node <bundle>/out/phpDebug.js`,
-`node <bundle>/out/bashDebug.js`).
+that is also the road for a custom adapter installation.
 
-On macOS, a native adapter (lldb, gdb) that starts and then never answers
+Dart files use the Dart SDK's stdio adapter. A `flutter` dependency in the
+nearest `pubspec.yaml` selects Flutter's stdio adapter instead. Install the
+[Dart SDK](https://dart.dev/get-dart) or [Flutter SDK](https://docs.flutter.dev/install)
+and put its `bin` directory on PATH; Mercury downloads neither SDK.
+Both launch requests take the program path, optional arguments and working
+directory. Custom adapter rows still override the built-in rows.
+
+`codelldb` uses [CodeLLDB](https://github.com/vadimcn/codelldb/releases)
+over stdio for Rust, C and C++. Mercury prefers it for Cargo projects when
+it is on PATH or already installed in the config home; other native programs
+keep lldb-dap as their default. An explicit `adapter: "codelldb"` launch can
+ask to download the pinned platform release once. CodeLLDB is MIT-licensed;
+its VSIX includes LLDB. The archive's size and SHA-256 are checked before
+extraction into `<configHome>/adapters/codelldb`; the MIT licence from the
+pinned upstream tag is installed beside the adapter. Nothing is added to the Mercury
+build. A refusal or non-interactive launch downloads nothing.
+
+PHP files select `php`. Mercury can download the pinned
+[PHP Debug adapter](https://github.com/xdebug/vscode-php-debug/releases)
+(MIT) once with approval, unpack its VSIX under `<configHome>/adapters/php`,
+and run `extension/out/phpDebug.js` under Node. Its licence is kept in the
+unpacked extension. The PHP runtime and Xdebug extension are separate
+prerequisites and are never installed by Mercury. Check
+`php -m | grep -i xdebug`; the [Xdebug installation guide](https://xdebug.org/docs/install)
+recommends `pie install xdebug/xdebug` and `zend_extension=xdebug` in PHP's
+configuration. The guide also documents `pecl install xdebug` as a legacy
+method. The adapter launches CLI scripts with Xdebug enabled and a local,
+automatically allocated connection port.
+
+Shell files (`.sh`, `.bash`) select `bash` when
+[vscode-bash-debug](https://github.com/rogalmic/vscode-bash-debug) and bashdb
+are installed. Put `bash-debug-adapter` on PATH or unpack the extension so
+its entry is `<configHome>/adapters/bash/extension/out/bashDebug.js`.
+Bash and bashdb must also be on PATH, with bashdb's library beside its
+script or under the installation prefix's `share/bashdb` or `lib/bashdb`.
+A custom adapter row can set `pathBashdbLib` for another layout.
+The adapter requires Bash 4 or newer; macOS's `/bin/bash` 3.2 is not
+supported. [bashdb](https://github.com/Trepan-Debuggers/bashdb) is maintained
+and its current 5.2 branch supports Bash 5.2 and newer. The adapter's latest
+release is from 2021, so choose a compatible pair; Mercury downloads neither.
+
+On macOS, a native adapter (lldb, gdb, codelldb) that starts and then never answers
 is usually waiting on the operating system: without Developer Mode,
 `task_for_pid` waits for an interactive authorisation a debug adapter
 cannot give, and the grant lasts one boot. The debugger's timeout message

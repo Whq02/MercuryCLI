@@ -116,9 +116,10 @@ check('dart launches the SDK\'s own adapter verb', (() => {
   process.env.PATH = emptyBin
   return spec?.args.join(' ') === 'debug_adapter'
 })())
-check('an unknown adapter key still resolves to nothing', dap.resolveAdapter('php') === null && dap.resolveAdapter('bash') === null)
+check('PHP and Bash remain dormant without their dependencies', dap.resolveAdapter('php') === null && dap.resolveAdapter('bash') === null && ['php', 'bash'].every(key => dormant.some(row => row.key === key)))
+check('an unknown adapter key still resolves to nothing', dap.resolveAdapter('not-an-adapter') === null)
 const prompt = readFileSync(join(ROOT, 'src/tools/DebugTool/prompt.ts'), 'utf8')
-check('the Debug tool names the three adapters and their extensions', prompt.includes('"dart" (dart debug_adapter, when the Dart SDK is on PATH)') && prompt.includes('"kotlin" (kotlin-debug-adapter, when on PATH)') && prompt.includes('"elixir" (the elixir-ls debug adapter, when on PATH)') && prompt.includes('.dart → dart; .kt → kotlin; .ex/.exs → elixir;'))
+check('the Debug tool names the adapters and their extensions', prompt.includes('"dart" (dart debug_adapter, when the Dart SDK is on PATH)') && prompt.includes('"kotlin" (kotlin-debug-adapter, when on PATH)') && prompt.includes('"elixir" (the elixir-ls debug adapter, when on PATH)') && prompt.includes('.dart → flutter when the nearest pubspec.yaml has a Flutter dependency, otherwise dart; .kt → kotlin; .ex/.exs → elixir;') && prompt.includes('"flutter" (flutter debug-adapter, when the Flutter SDK is on PATH)') && prompt.includes('"codelldb" (CodeLLDB on PATH or downloaded once with approval; preferred for Cargo projects when present)') && prompt.includes('"php" (PHP Debug downloaded once with approval; PHP with Xdebug required)') && prompt.includes('"bash" (vscode-bash-debug with bashdb and compatible Bash; no automatic download)') && prompt.includes('.php → php; .sh/.bash → bash;'))
 const readiness = readFileSync(join(ROOT, 'src/utils/readiness.ts'), 'utf8')
 check('/health carries a lane row for each, with the install when absent', ['lane:dap:dart', 'lane:dap:kotlin', 'lane:dap:elixir'].every(id => readiness.includes(`id: '${id}'`)))
 

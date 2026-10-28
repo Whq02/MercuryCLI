@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/dap/dapClient* src/services/run/ownerKey*
+# gate-watch: scripts/dap/prove-dap-dart-flutter.ts scripts/dap/prove-dap-codelldb.ts scripts/dap/prove-dap-php.ts scripts/dap/prove-dap-bash.ts
+# gate-watch: src/services/dap/optionalAdapters.ts src/services/dap/adapterInstallConsent.ts vendor/dap-adapters.lock.json
+# gate-watch: src/extensions/installConsent.ts src/extensions/bundled/shared/install.mjs
 # gate-watch: src/services/run/ownerLifecycle* src/tools/DebugTool/DebugTool*
 # gate-watch: src/services/lsp/clangdLane* src/services/lsp/mercuryLsp*
 # gate-watch: src/services/dap/debugpyResolver.ts src/services/dap/unityAdapter.ts
