@@ -39,7 +39,8 @@ const reactiveCompact: typeof import('../../services/compact/reactiveCompact.js'
 
 export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
 
-export function nothingToCompactLine(contextTokens: number): string {
+export function nothingToCompactLine(contextTokens: number, refold = true): string {
+  if (!refold) return `${NOTHING_TO_COMPACT_KEY}${formatTokens(contextTokens)} tokens (${ERROR_MESSAGE_NOT_ENOUGH_MESSAGES})`
   return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${formatTokens(contextTokens)} tokens)`
 }
 
@@ -179,10 +180,11 @@ async function callUnderFoldStatus(
 
     const summaryInput = projected
     const cacheSafeParams = await buildCompactCacheSafeParams(summaryInput, context)
-    const projection = isRefold(summaryInput) ? await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel)) : null
-    if (projection !== null && manualFoldHasNothingToFold(projection)) {
+    const refold = isRefold(summaryInput)
+    const projection = await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel))
+    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
       logForDebugging(`compact: refused before the summariser — ${projection.folds} of ${summaryInput.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`)
-      throw new Error(nothingToCompactLine(projection.context))
+      throw new Error(nothingToCompactLine(projection.context, refold))
     }
     const foldModel = foldModelFor(summaryInput, context.options.engineModel, { forced: false })
     if (foldModel.source === 'history') {

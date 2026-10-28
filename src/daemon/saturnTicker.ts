@@ -33,6 +33,7 @@ import {
   readBoxSchedules,
   refreshBoxScheduleAccount,
   saturnBoxSchedulesPath,
+  spendBoxOneShot,
   takeBoxHeldFires,
 } from './saturnBoxSchedules.js'
 import { wakeDelayOfSpelling, type SaturnOrigin } from '../utils/messages/noticeRows.js'
@@ -472,7 +473,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
         })
       } else if (schedule.action.kind === 'birth') {
-        const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now }, ports.dir)
+        const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(effect.detail !== undefined ? { detail: effect.detail } : {}) }, ports.dir)
         if (held === 'held') {
           report.held++
           rowSaturnTickReceipt(rec, by, 'schedule-held', `held: the admission refused — ${effect.detail ?? 'no detail'}`, {
@@ -501,11 +502,13 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       const releasable: Array<{ scheduleId: string; dueAt: number }> = []
       const boxRefreshOnRelease = new Map<string, ScheduleAccountV1>()
       for (const h of box.heldFires) {
+        const schedule = box.schedules.find(s => s.id === h.scheduleId)
+        if (schedule?.paused === true) continue
+        if (h.envelope.birth?.presence === 'screen-present' && !ports.screenOpen()) continue
         if (h.reason === 'admission-refused') {
           releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
           continue
         }
-        const schedule = box.schedules.find(s => s.id === h.scheduleId)
         if (schedule === undefined) continue
         const resolvedHold = resolveFireTimeAccount(ports, schedule, undefined)
         if (resolvedHold.kind === 'no-credential') continue
@@ -531,7 +534,8 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           continue
         }
         const by = `saturn:box:${h.scheduleId}`
-        let landed: { ok: boolean; sessionId?: string }
+        markBoxScheduleFired(h.scheduleId, now, ports.dir)
+        let landed: { ok: boolean; sessionId?: string; detail?: string }
         try {
           landed = await ports.birth(h.envelope.birth, { scheduleId: h.scheduleId, dueAt: h.dueAt, by, owner: 'box' })
         } catch (error) {
@@ -540,17 +544,21 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         }
         if (landed.ok) {
           report.replayed++
-          markBoxScheduleFired(h.scheduleId, now, ports.dir)
+          spendBoxOneShot(h.scheduleId, ports.dir)
           logForDebugging(`[saturn] box birth ${h.scheduleId} landed late (held since ${new Date(h.heldAt).toISOString()}) as ${landed.sessionId ?? '?'}`)
         } else {
-          holdBoxFire(h, ports.dir)
-          report.held++
+          const held = holdBoxFire({ ...h, reason: 'admission-refused', ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, box.schedules.some(s => s.id === h.scheduleId))
+          if (held === 'held') report.held++
         }
       }
     }
     const boxHeldAtStart = new Set(box.heldFires.map(h => h.scheduleId))
     for (const schedule of box.schedules) {
       if (boxHeldAtStart.has(schedule.id)) continue
+      if (schedule.when.kind === 'at' && schedule.lastFiredAt !== undefined) {
+        spendBoxOneShot(schedule.id, ports.dir)
+        continue
+      }
       const dueAt = saturnDueAtOf(schedule)
       if (dueAt === null || dueAt > now) continue
       const by = `saturn:box:${schedule.id}`
@@ -560,9 +568,10 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         continue
       }
       if (lateMs > windowMs) {
-        const marked = markBoxScheduleFired(schedule.id, now, ports.dir)
+        markBoxScheduleFired(schedule.id, now, ports.dir)
+        const spent = spendBoxOneShot(schedule.id, ports.dir)
         report.missed++
-        logForDebugging(`[saturn] box schedule ${schedule.id} missed — ~${Math.round(lateMs / 60000)}m late, beyond the ${Math.round(windowMs / 60000)}m window; not fired${marked === 'spent' ? ' (one-shot spent)' : ' (re-armed forward)'}`)
+        logForDebugging(`[saturn] box schedule ${schedule.id} missed — ~${Math.round(lateMs / 60000)}m late, beyond the ${Math.round(windowMs / 60000)}m window; not fired${spent === 'spent' ? ' (one-shot spent)' : ' (re-armed forward)'}`)
         continue
       }
       const resolvedBox = resolveFireTimeAccount(ports, schedule, undefined)
@@ -615,13 +624,14 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       const landed = await ports.birth(schedule.action.birth, { scheduleId: schedule.id, dueAt, by, owner: 'box' })
       if (landed.ok) {
         report.fired++
-        if (resolvedBox.movedFromFamily !== undefined && marked === 'marked') {
+        const spent = spendBoxOneShot(schedule.id, ports.dir)
+        if (resolvedBox.movedFromFamily !== undefined && marked === 'marked' && spent === 'kept') {
           refreshBoxScheduleAccount(schedule.id, boxAccount, ports.dir)
           logForDebugging(`[saturn] box birth ${schedule.id} fired on ${boxAccount.family} — the model's route moved after scheduling (was ${resolvedBox.movedFromFamily})`)
         }
         logForDebugging(`[saturn] box birth ${schedule.id} fired as ${landed.sessionId ?? '?'}`)
       } else {
-        const held = holdBoxFire({ scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now }, ports.dir)
+        const held = holdBoxFire({ scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, true)
         if (held === 'held') {
           report.held++
           logForDebugging(`[saturn] box birth ${schedule.id} refused by the admission (${landed.detail ?? 'no detail'}) — banked, retried each tick`)

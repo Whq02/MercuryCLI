@@ -69,10 +69,10 @@ function makeMessages(): unknown[] {
         type: 'message',
         role: 'assistant',
         model: 'fixture',
-        content: [{ type: 'text', text: `Adjusted module ${index} and its checks pass — details recorded.` }],
+        content: [{ type: 'text', text: `Adjusted module ${index} and its checks pass — details recorded. ${index === 0 ? 'The module change and its checks. '.repeat(1_500) : ''}` }],
         stop_reason: 'end_turn',
         stop_sequence: null,
-        usage: { input_tokens: 900 + index, output_tokens: 60 },
+        usage: { input_tokens: 14_000 + index, output_tokens: 60 },
       },
     })
   }

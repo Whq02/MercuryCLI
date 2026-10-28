@@ -16,6 +16,7 @@ const ROUND_THREE_SLEEP_SECONDS = 2
 const LONG_ROUND_SLEEP_SECONDS = 30
 const FOLD_MARKER = 'Write the running record of this conversation'
 const FOLD_FIRST_DELTA_MS = Number(process.argv[4] ?? 2500)
+const TURN_BODY = Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass, recorded in full.`).join(' ')
 const FOLD_DELTA_MS = 800
 const WATCHED_WORDS = [
   'the first mid-turn line',
@@ -212,7 +213,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (step === 0) return answerSleep(res, n, model, `toolu_long_c${n}`, LONG_ROUND_SLEEP_SECONDS)
       return answerText(res, n, model, `done: ${LONG_ROUND_ASK}`)
     }
-    const heard = ask === '' || tools === 0 ? 'svc' : `heard: ${trimmedAsk.split('\n').pop()} (#${n})`
+    const heard = ask === '' || tools === 0 ? 'svc' : `heard: ${trimmedAsk.split('\n').pop()} (#${n})\n${TURN_BODY}`
     answerText(res, n, model, heard)
   })
 })

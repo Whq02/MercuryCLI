@@ -60,7 +60,7 @@ section('§2 the built product: after a fold the next request carries the curren
     git('add', 'README.md')
     git('commit', '-q', '-m', 'seed')
     const FRESH = 'born-after-turn-one.txt'
-    const fixture = await startScriptedFixture(() => [{ type: 'text', text: 'answered' }])
+    const fixture = await startScriptedFixture(() => [{ type: 'text', text: `answered\n${Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass, recorded in full.`).join(' ')}` }])
     const port = Number(new URL(fixture.base).port)
     const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
     const turn = async (label: string, ask: string): Promise<Record<string, unknown> | null> => {

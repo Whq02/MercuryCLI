@@ -81,6 +81,7 @@ export interface HeldFireV1 {
   reason: 'sign-in-expired' | 'signed-out' | 'unreachable' | 'rate-limited' | 'account-mismatch' | 'parked-queued' | 'admission-refused'
   envelope: SaturnFireEnvelopeV1
   heldAt: number
+  detail?: string
   mismatchIdentity?: string
 }
 
@@ -717,15 +718,18 @@ export interface SaturnStandingV1 {
   nextFireMs: number | null
   held: number
   paused: boolean
+  refused?: string
 }
 
 export function saturnStandingOf(
   schedule: SaturnScheduleV1,
   heldFires: ReadonlyArray<HeldFireV1> | undefined,
 ): SaturnStandingV1 {
-  const held = Array.isArray(heldFires) ? heldFires.filter(h => saturnHeldRowUsable(h) && h.scheduleId === schedule.id).length : 0
+  const own = Array.isArray(heldFires) ? heldFires.filter(h => saturnHeldRowUsable(h) && h.scheduleId === schedule.id) : []
+  const held = own.length
+  const refused = own.find(h => h.reason === 'admission-refused' && typeof h.detail === 'string' && h.detail !== '')?.detail
   if (schedule.paused === true) return { nextFireMs: null, held, paused: true }
-  if (held > 0) return { nextFireMs: null, held, paused: false }
+  if (held > 0) return { nextFireMs: null, held, paused: false, ...(refused !== undefined ? { refused } : {}) }
   if (schedule.when.kind === 'at') return { nextFireMs: schedule.when.atMs, held, paused: false }
   const anchor = Math.max(schedule.createdAt, schedule.lastFiredAt ?? 0, 0)
   return { nextFireMs: saturnNextFireMs(schedule.when, anchor), held, paused: false }
@@ -746,6 +750,7 @@ export function saturnStandingFireWords(standing: SaturnStandingV1, nowMs: numbe
 }
 
 export function saturnStandingWords(standing: SaturnStandingV1, nowMs: number): string {
+  if (standing.refused !== undefined) return standing.held > 1 ? `refused · ${standing.refused} · ${standing.held} held` : `refused · ${standing.refused}`
   const fire = saturnStandingFireWords(standing, nowMs)
   return standing.held > 0 ? `${fire} · ${standing.held} held` : fire
 }

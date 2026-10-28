@@ -651,7 +651,7 @@ console.log('§S1 the box lock + atomic publish')
 
   const src = readFileSync(join(import.meta.dir, '../../src/daemon/saturnBoxSchedules.ts'), 'utf8')
   const lockWraps = (src.match(/withBoxLock\(dir, \(\) =>/g) ?? []).length
-  check('S1a all seven mutators hold the box lock across read→publish', lockWraps === 7, `wraps=${lockWraps}`)
+  check('S1a all eight mutators hold the box lock across read→publish', lockWraps === 8, `wraps=${lockWraps}`)
   check('S1a the publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome (no bare writeFileSync)', src.includes("publishInDaemonHome('the box schedules', saturnBoxSchedulesPath(dir),") && !src.includes('durableAtomicPublishSync(') && !src.includes('writeFileSync('))
 
   const lockPath = boxMod.saturnBoxLockPath(DAEMON_DIR)

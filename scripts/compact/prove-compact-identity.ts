@@ -67,10 +67,10 @@ function makeMessages(): unknown[] {
         type: 'message',
         role: 'assistant',
         model: 'fixture',
-        content: [{ type: 'text', text: `identity answer ${index}.` }],
+        content: [{ type: 'text', text: `identity answer ${index}. ${index === 0 ? 'The session keeps its identity. '.repeat(1_500) : ''}` }],
         stop_reason: 'end_turn',
         stop_sequence: null,
-        usage: { input_tokens: 400 + index, output_tokens: 40 },
+        usage: { input_tokens: 12_000 + index, output_tokens: 40 },
       },
     })
   }

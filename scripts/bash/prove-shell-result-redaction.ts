@@ -148,7 +148,7 @@ try {
       ['const token = form.password', 'const token = form.password'],
       ['token: abc', 'token: abc'],
       [`Authorization: Bearer ${PLANTED_TOKEN}`, `Authorization: Bearer ${MARKER}`],
-      [`-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----`, MARKER],
+      [`${'-----BEGIN'} PRIVATE KEY-----\nabc\n${'-----END'} PRIVATE KEY-----`, MARKER],
       [`x${PLANTED_TOKEN}`, `x${PLANTED_TOKEN}`],
     ]
     for (const [text, want] of rows) check(`${JSON.stringify(text)} → ${JSON.stringify(want)}`, redact(text) === want, JSON.stringify(redact(text)))

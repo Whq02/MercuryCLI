@@ -198,6 +198,7 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
     lines.push(`held fires: ${row.held.length}`);
     for (const h of row.held.slice(0, 3)) {
       lines.push(...wrapPlain(`· ${h.reason} — due ${formatRelativeTimeAgo(new Date(h.dueAt), { style: 'short', now: new Date(nowMs) })}`, DETAIL_W));
+      if (typeof h.detail === 'string' && h.detail !== '') lines.push(...wrapPlain(h.detail, DETAIL_W));
     }
   }
   if (s.note !== undefined) {

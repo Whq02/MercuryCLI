@@ -144,25 +144,33 @@ function publishBox(file: SaturnBoxFileV1, dir?: string): void {
   publishInDaemonHome('the box schedules', saturnBoxSchedulesPath(dir), JSON.stringify(file, null, 2), { dir })
 }
 
-export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: string): 'marked' | 'spent' | 'missing' {
+export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: string): 'marked' | 'missing' {
   return withBoxLock(dir, () => {
     const file = readBoxSchedules(dir)
     const row = file.schedules.find(s => s.id === scheduleId)
     if (!row) return 'missing'
-    if (row.when.kind === 'at') {
-      file.schedules = file.schedules.filter(s => s.id !== scheduleId)
-      publishBox(file, dir)
-      return 'spent'
-    }
     row.lastFiredAt = firedAt
     publishBox(file, dir)
     return 'marked'
   })
 }
 
-export function holdBoxFire(held: HeldFireV1, dir?: string): 'held' | 'already-held' | 'cap' {
+export function spendBoxOneShot(scheduleId: string, dir?: string): 'spent' | 'kept' | 'missing' {
   return withBoxLock(dir, () => {
     const file = readBoxSchedules(dir)
+    const row = file.schedules.find(s => s.id === scheduleId)
+    if (!row) return 'missing'
+    if (row.when.kind !== 'at') return 'kept'
+    file.schedules = file.schedules.filter(s => s.id !== scheduleId)
+    publishBox(file, dir)
+    return 'spent'
+  })
+}
+
+export function holdBoxFire(held: HeldFireV1, dir?: string, requireSchedule = false): 'held' | 'already-held' | 'cap' | 'missing' {
+  return withBoxLock(dir, () => {
+    const file = readBoxSchedules(dir)
+    if (requireSchedule && !file.schedules.some(s => s.id === held.scheduleId)) return 'missing'
     if (file.heldFires.some(h => h.scheduleId === held.scheduleId && h.dueAt === held.dueAt)) return 'already-held'
     if (file.heldFires.length >= SATURN_HELD_CAP) return 'cap'
     file.heldFires = [...file.heldFires, held]
@@ -224,7 +232,7 @@ export function addBoxSchedule(
 export function removeBoxSchedule(scheduleId: string, dir?: string): 'removed' | 'missing' {
   return withBoxLock(dir, () => {
     const file = readBoxSchedules(dir)
-    if (!file.schedules.some(s => s.id === scheduleId)) return 'missing'
+    if (!file.schedules.some(s => s.id === scheduleId) && !file.heldFires.some(h => h.scheduleId === scheduleId)) return 'missing'
     file.schedules = file.schedules.filter(s => s.id !== scheduleId)
     file.heldFires = file.heldFires.filter(h => h.scheduleId !== scheduleId)
     publishBox(file, dir)

@@ -190,6 +190,7 @@ const recordedReqs: RecordedReq[] = []
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
 const usage = { input_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 10 }
 
+const TURN_BODY = Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass, recorded in full.`).join(' ')
 function answerText(res: ServerResponse, n: number, model: string, text: string): void {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   res.end(
@@ -281,19 +282,19 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (ask.includes(ARM_PROMPT)) {
       if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH_NAME, command: WATCH_CMD, persistent: true })
       if (step === 1) return answerTool(res, n, model, `toolu_sh_${n}`, 'Bash', { description: SHELL_DESC, command: SHELL_CMD, run_in_background: true })
-      return answerText(res, n, model, 'watches and background shell armed')
+      return answerText(res, n, model, `${'watches and background shell armed'}\n${TURN_BODY}`)
     }
     if (ask.includes(AFTER_PROMPT)) {
       if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH2_NAME, command: WATCH2_CMD, persistent: true })
-      return answerText(res, n, model, 'second watch armed')
+      return answerText(res, n, model, `${'second watch armed'}\n${TURN_BODY}`)
     }
     if (ask.includes(ARM3_PROMPT)) {
       if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH3_NAME, command: WATCH3_CMD, persistent: true })
-      return answerText(res, n, model, 'third watch armed')
+      return answerText(res, n, model, `${'third watch armed'}\n${TURN_BODY}`)
     }
     if (ask.includes(ARM4_PROMPT)) {
       if (step === 0) return answerTool(res, n, model, `toolu_mon_${n}`, 'Monitor', { description: WATCH4_NAME, command: WATCH4_CMD, persistent: true })
-      return answerText(res, n, model, 'fourth watch armed')
+      return answerText(res, n, model, `${'fourth watch armed'}\n${TURN_BODY}`)
     }
     if (ask.includes(SLOW_PROMPT)) {
       setTimeout(() => answerText(res, n, model, 'the slow answer landed after the install'), SLOW_ANSWER_MS)

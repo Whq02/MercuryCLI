@@ -84,7 +84,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<{ close
       else outgoing.destroy()
     }
   })
-  try { await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, bind, () => { server.removeListener('error', reject); resolve() }) }) }
+  try { await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, options.bind ?? '127.0.0.1', () => { server.removeListener('error', reject); resolve() }) }) }
   catch (error) { await closeHandlers(); throw error }
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('MCP listener has no TCP address')

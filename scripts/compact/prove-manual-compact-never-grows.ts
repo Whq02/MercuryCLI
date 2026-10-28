@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,7 +13,9 @@ for (const ambient of [
 ]) {
   delete process.env[ambient]
 }
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'manual-compact-never-grows-'))
+const proofHome = mkdtempSync(join(tmpdir(), 'manual-compact-never-grows-'))
+process.env.MERCURY_CONFIG_DIR = proofHome
+process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 
 let failures = 0
@@ -138,11 +140,17 @@ section('B /compact straight after that fold: one line, no summariser request, t
   check('the projection says why: by one estimate the fold would not land smaller than what stands', projection !== null && manualFoldHasNothingToFold(projection) && projection.after >= projection.before, JSON.stringify(projection))
 }
 
-section('C the rule reads a conversation folded before; a conversation never folded is not refused by it, so a short one still folds as today')
+section('C a first fold that would grow the conversation refuses before the summariser')
 {
   const short = makeMessages(10, 0, 0)
-  for (const row of short) if (row.type === 'assistant') (row as { message: { usage: { input_tokens: number } } }).message.usage.input_tokens = 900
+  for (let index = 0; index < 10; index++) {
+    short[index * 2] = createUserMessage({ content: `operator ask ${index}: adjust module ${index} and run its checks` }) as AnyMsg
+    const row = short[index * 2 + 1] as { message: { content: Array<{ type: string; text: string }>; usage: { input_tokens: number } } }
+    row.message.content = [{ type: 'text', text: `Adjusted module ${index} and its checks pass.` }]
+    row.message.usage.input_tokens = 900
+  }
   const before = summaryRequests()
+  const snapshot = JSON.stringify(short)
   let threw: string | undefined
   let result: CompactCallResult | undefined
   try {
@@ -150,14 +158,21 @@ section('C the rule reads a conversation folded before; a conversation never fol
   } catch (error) {
     threw = error instanceof Error ? error.message : String(error)
   }
-  check('a never-folded conversation folds as today', threw === undefined && result?.type === 'compact' && plainOf(result).startsWith('Compacted'), `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`)
-  check('ONE summariser request went out', summaryRequests() === before + 1, `${summaryRequests()} vs ${before}`)
+  const inputTokens = estimateContextTokens(short as never)
+  const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
+  console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
+  check('the audit fixture contains 307 estimated tokens', inputTokens === 307, String(inputTokens))
+  check('a first fold refuses with existing compact words, without claiming a previous fold', result === undefined && threw === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`)
+  check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`)
+  check('the context is unchanged', JSON.stringify(short) === snapshot)
+  check('the conversation did not grow', outputTokens === inputTokens, `${inputTokens} → ${outputTokens}`)
 }
 
 section('D the line\'s shape: the key the command recognises, and the one sentence')
 {
   check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ')
   check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900))
+  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', nothingToCompactLine(960, false))
 }
 
 await fixture.close()
