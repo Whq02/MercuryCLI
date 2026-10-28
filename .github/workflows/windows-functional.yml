@@ -50,6 +50,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Fetch the pinned PDF reader pack (hash-verified)
+        run: bun run scripts/vendor/fetch-pdfjs.ts
+
       - name: Build dist (the built-seat proof in the functional suites, the journey payload)
         run: bun run build.ts
 

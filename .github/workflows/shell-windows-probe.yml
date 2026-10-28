@@ -118,6 +118,7 @@ jobs:
           bun run scripts/vendor/fetch-grammars.ts
           if ($LASTEXITCODE -ne 0) { exit 1 }
           bun run scripts/vendor/fetch-node.ts --platform win-x64
+          bun run scripts/vendor/fetch-pdfjs.ts
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Lay the engine pack (vendor/brush/win-x64) when the tree carries the pack script
