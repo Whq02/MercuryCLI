@@ -10,6 +10,7 @@ import { sideQuery } from '../utils/sideQuery.js'
 import { sleep } from '../utils/sleep.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
+import { modelReceivesImageBlocks } from '../utils/model/capabilities.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './api/recoveryBudget.js'
@@ -250,58 +251,72 @@ export function roughTokenCountEstimationForFileType(content: string, ext: strin
   return roughTokenCountEstimation(content, bytesPerTokenForFileType(ext))
 }
 
-function estimateBlock(block: unknown): number {
-  if (typeof block === 'string') return roughTokenCountEstimation(block)
-  if (typeof block !== 'object' || block === null) return 0
-  const record = block as LooseBlock
+function contentTokenWeight(content: unknown, model: string): number {
+  if (typeof content === 'string') return content.length / DEFAULT_BYTES_PER_TOKEN
+  if (Array.isArray(content)) return content.reduce((sum, part) => sum + contentTokenWeight(part, model), 0)
+  if (typeof content !== 'object' || content === null) return 0
+  const record = content as LooseBlock
   switch (record.type) {
     case 'text':
-      return roughTokenCountEstimation(String(record.text ?? ''))
+    case 'input_text':
+    case 'output_text':
+      return contentTokenWeight(String(record.text ?? ''), model)
     case 'image':
+      return modelReceivesImageBlocks(model) ? MEDIA_BLOCK_TOKENS : contentTokenWeight('[image]', model)
+    case 'image_url':
+    case 'input_image':
     case 'document':
       return MEDIA_BLOCK_TOKENS
     case 'tool_result':
-      return estimateContent(record.content)
+      return contentTokenWeight(record.content, model)
     case 'tool_use':
-      return roughTokenCountEstimation(`${String(record.name ?? '')}${jsonStringify(record.input)}`)
+      return contentTokenWeight(`${String(record.name ?? '')}${jsonStringify(record.input ?? {})}`, model)
     case 'thinking':
-      return roughTokenCountEstimation(String(record.thinking ?? ''))
+      return contentTokenWeight(String(record.thinking ?? ''), model)
     case 'redacted_thinking':
-      return roughTokenCountEstimation(String(record.data ?? ''))
+      return contentTokenWeight(String(record.data ?? ''), model)
+    case 'function_call':
+      return contentTokenWeight(`${String(record.name ?? '')}${String(record.arguments ?? '')}`, model)
+    case 'function_call_output':
+      return contentTokenWeight(record.output, model)
     default:
-      return roughTokenCountEstimation(jsonStringify(record) ?? '')
-  }
-}
-
-function estimateContent(content: unknown): number {
-  if (typeof content === 'string') return roughTokenCountEstimation(content)
-  if (!Array.isArray(content)) return 0
-  let total = 0
-  for (const block of content) total += estimateBlock(block)
-  return total
-}
-
-function roughTokenCountEstimationForMessage(message: Message): number {
-  if (message.type === 'assistant' || message.type === 'user') {
-    return estimateContent(message.message.content)
-  }
-  if (message.type === 'attachment') {
-    const normalized = normalizeAttachmentForAPI(message.attachment as never) as unknown
-    if (Array.isArray(normalized)) {
-      let total = 0
-      for (const entry of normalized) {
-        total += roughTokenCountEstimationForMessage(entry as Message)
+      if (typeof record.role === 'string') {
+        const calls = Array.isArray(record.tool_calls) ? record.tool_calls as Array<{ function?: { name?: string; arguments?: string } }> : []
+        return contentTokenWeight(record.content, model) + contentTokenWeight(record.reasoning_content, model) + calls.reduce((sum, call) => sum + contentTokenWeight(`${call.function?.name ?? ''}${call.function?.arguments ?? ''}`, model), 0)
       }
-      return total
-    }
-    if (normalized) return roughTokenCountEstimationForMessage(normalized as Message)
-    return 0
+      return contentTokenWeight(jsonStringify(record) ?? '', model)
   }
+}
+
+export function estimateContentTokens(content: unknown, model = getEngineModel()): number {
+  return Math.ceil(contentTokenWeight(content, model))
+}
+
+function messageTokenWeight(message: Message, model: string): number {
+  if (message.type === 'assistant' || message.type === 'user') return contentTokenWeight(message.message.content, model)
+  if (message.type === 'attachment') {
+    const normalized = normalizeAttachmentForAPI(message.attachment as never)
+    return normalized.reduce((sum, entry) => sum + messageTokenWeight(entry as Message, model), 0)
+  }
+  if (message.type === 'system') return contentTokenWeight('content' in message ? message.content : '', model)
   return 0
 }
 
-export function roughTokenCountEstimationForMessages(messages: Message[]): number {
-  let total = 0
-  for (const message of messages) total += roughTokenCountEstimationForMessage(message)
-  return total
+export function roughTokenCountEstimationForMessages(messages: readonly Message[], model = getEngineModel()): number {
+  return Math.ceil(messages.reduce((sum, message) => sum + messageTokenWeight(message, model), 0))
+}
+
+export function estimateRequestTokens(body: unknown, model = getEngineModel()): number {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return estimateContentTokens(body, model)
+  const request = body as { messages?: unknown[]; input?: unknown; system?: unknown; tools?: unknown[] }
+  const rows = request.messages ?? request.input
+  if (!Array.isArray(rows)) return estimateContentTokens(body, model)
+  let total = contentTokenWeight(request.system, model)
+  for (const row of rows) {
+    total += row && typeof row === 'object' && 'type' in row && ['user', 'assistant', 'attachment', 'system'].includes(String(row.type))
+      ? messageTokenWeight(row as Message, model)
+      : contentTokenWeight(row, model)
+  }
+  if (request.tools?.length) total += (JSON.stringify(request.tools).length / (declaredRouteOf(model) === 'local' ? 3.9 : DEFAULT_BYTES_PER_TOKEN))
+  return Math.ceil(total)
 }

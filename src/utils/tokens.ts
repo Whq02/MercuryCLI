@@ -183,7 +183,7 @@ export function messageContextFill(messages: readonly Message[], model?: string)
     }
   }
   if (usageIndex === -1) {
-    return { tokens: roughTokenCountEstimationForMessages(messages as never), source: 'estimate' }
+    return { tokens: roughTokenCountEstimationForMessages(messages, model), source: 'estimate' }
   }
 
   let anchor = usageIndex
@@ -207,7 +207,7 @@ export function messageContextFill(messages: readonly Message[], model?: string)
     if (!settled || !responseId || message.type !== 'assistant') return true
     return (message as AssistantMessage).message?.id !== responseId
   })
-  return { tokens: usageTotal + roughTokenCountEstimationForMessages(tail as never), source: 'usage' }
+  return { tokens: usageTotal + roughTokenCountEstimationForMessages(tail, model), source: 'usage' }
 }
 
 export function tokenCountWithEstimation(messages: readonly Message[], model?: string): number {

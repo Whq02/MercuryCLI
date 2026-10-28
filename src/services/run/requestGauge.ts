@@ -45,8 +45,8 @@ function hasMedia(value: unknown): boolean {
   return record.type === 'image' || record.type === 'document' || Object.values(record).some(hasMedia)
 }
 
-export function estimateRequestGauge(messages: readonly Message[], fixed: RequestGaugeFixed, density: RequestGaugeDensity): number {
-  const raw = roughTokenCountEstimationForMessages(messages as Message[])
+export function estimateRequestGauge(messages: readonly Message[], fixed: RequestGaugeFixed, density: RequestGaugeDensity, model?: string): number {
+  const raw = roughTokenCountEstimationForMessages(messages, model)
   return Math.ceil(fixed.tokens + raw * (hasMedia(messages) ? 1 : density.ratio))
 }
 
@@ -95,7 +95,8 @@ function requestGaugeView(messages: readonly Message[], key: string, epoch: numb
   const previous = lastAnchor(messages, key)
   const seed = foldSeed(messages)
   const density = previous?.anchor.density ?? (seed?.key === key ? seed.density : freshDensity())
-  const rawTokens = roughTokenCountEstimationForMessages(messages as Message[])
+  const model = key.slice(key.indexOf(':') + 1, key.lastIndexOf(':c'))
+  const rawTokens = roughTokenCountEstimationForMessages(messages, model)
   const digest = requestGaugeDigest(messages)
   const base: RequestGaugeView = {
     key, epoch, fixed, rawTokens, digest, density, rebase,
@@ -104,7 +105,6 @@ function requestGaugeView(messages: readonly Message[], key: string, epoch: numb
   }
   if (rebase) return { ...base, transition: 'rebased' }
   if (!previous) {
-    const model = key.slice(key.indexOf(':') + 1, key.lastIndexOf(':c'))
     const unstamped = messageContextFill(messages, model)
     return unstamped.source === 'usage' ? { ...base, tokens: unstamped.tokens, source: 'usage' } : base
   }
@@ -119,7 +119,7 @@ function requestGaugeView(messages: readonly Message[], key: string, epoch: numb
   const prefixDigest = requestGaugeDigest(prefix)
   if (previous.anchor.epoch !== epoch || (prefixDigest !== previous.anchor.digest && prefixDigest !== previous.anchor.sourceDigest)) return base
   const tail = messages.slice(first).filter(row => row.type !== 'assistant' || row.message.id !== previous.row.message.id)
-  const tailTokens = roughTokenCountEstimationForMessages(tail)
+  const tailTokens = roughTokenCountEstimationForMessages(tail, model)
   const usage = previous.row.message.usage
   const anchorTokens = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.output_tokens ?? 0)
   const fixedMatched = previous.anchor.fixed.digest === fixed.digest

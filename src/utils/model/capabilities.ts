@@ -73,7 +73,7 @@ import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../serv
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
 import { openrouterListedModel } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { localWireId } from '../../services/providers/local/localCatalogue.js'
+import { localRecordFor, localWireId } from '../../services/providers/local/localCatalogue.js'
 import { localModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 
@@ -1195,10 +1195,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
     case 'huggingface':
       return modalitiesAdmitImages(huggingfaceLiveModel(qualifiedWireId(model))?.inputModalities)
-    case 'local': {
-      const declared = localModelRecord(localWireId(model))?.visionDeclared
-      return declared === undefined || declared
-    }
+    case 'local':
+      return localRecordFor(model)?.visionDeclared === true
     case 'nous': {
       const { nousListedModel } =
         require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')

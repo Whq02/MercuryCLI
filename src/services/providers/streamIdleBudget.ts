@@ -99,9 +99,10 @@ export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; i
   return Math.min(ceiling, Math.max(idle, idle + allowance))
 }
 
-export function estimateRequestTokens(body: unknown): number {
+export function estimateRequestTokens(body: unknown, model?: string): number {
   try {
-    return Math.max(1, Math.ceil(JSON.stringify(body ?? '').length / 4))
+    const { estimateRequestTokens: estimate } = require('../tokenEstimation.js') as typeof import('../tokenEstimation.js')
+    return Math.max(1, estimate(body, model))
   } catch {
     return 1
   }

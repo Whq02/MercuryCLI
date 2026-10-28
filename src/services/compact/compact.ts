@@ -82,6 +82,7 @@ import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
+import { fitToolResultImages } from '../../utils/messages/imageRequestFit.js'
 import type { CompactProgressEvent } from '../../Tool.js'
 import {
   FOLD_STAMP_THROTTLE_MS,
@@ -1639,9 +1640,11 @@ async function prefitSummariserInput(
   context: ToolUseContext,
   ladder: FoldLadder,
 ): Promise<{ input: Message[]; shaped: boolean }> {
-  const measure = (rows: Message[]): number => Math.ceil(roughTokenCountEstimationForMessages(rows) * fit.ratio)
+  const measure = (rows: Message[]): number => Math.ceil(estimateRequestGauge(rows, { digest: '', tokens: 0 }, { ratio: fit.ratio, samples: 0, residuals: [] }, context.options.engineModel))
   const whole = measure(messages)
   if (whole <= fit.budgetTokens) return { input: messages, shaped: false }
+  const imagesFitted = fitToolResultImages(messages, rows => measure(rows) <= fit.budgetTokens)
+  if (measure(imagesFitted.messages) <= fit.budgetTokens) return { input: imagesFitted.messages, shaped: false }
   const say = (stage: string, rows: Message[]): void =>
     logForDebugging(`compact: the summariser's input is pre-fitted — ${stage}: ≈${measure(rows)} tokens against a budget of ${fit.budgetTokens} (window ${fit.window}, blocking limit ${fit.blockingLimit}, fixed material ≈${fit.fixedTokens}, the whole conversation ≈${whole})`)
   let rows = split === null ? messages : split.retiring
@@ -1692,7 +1695,7 @@ export async function projectManualFold(
   const landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals)
   const landingCount = (rows: Message[]): number => {
     const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
-    return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
+    return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)
   }
   const newestMessageFollows = (cacheSafeParams.postFoldCarry ?? []).some(row => operatorTextOf(row) !== null)
   const previousSummaries = messages.filter(row => row.type === 'user' && row.isCompactSummary === true)
@@ -1777,7 +1780,7 @@ export async function compactConversation(
     landing = ceiling === undefined ? undefined : foldLandingCeiling(ceiling, messages, gauge?.density.ratio ?? 1, gauge?.density.residuals)
     const landingCount = (rows: Message[]): number => {
       const request = [...rows, ...(cacheSafeParams.postFoldCarry ?? [])]
-      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density) : estimateContextTokens(request)
+      return gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)
     }
     if (ceiling !== undefined) {
       const obligations = selectOperatorMessages(messages)
@@ -1809,7 +1812,7 @@ export async function compactConversation(
     let proseSkippedReceipt: string | undefined
     try {
       let summaryInput = messages
-      const requestTokens = Math.ceil(roughTokenCountEstimationForMessages(messages) * fit.ratio)
+      const requestTokens = estimateRequestGauge(messages, { digest: '', tokens: 0 }, { ratio: fit.ratio, samples: 0, residuals: [] }, summaryContext.options.engineModel)
       if (overflow !== undefined || preCompactTokenCount + fit.promptTokens > fit.blockingLimit || requestTokens > fit.limitTokens) {
         let split: { retiring: Message[]; rounds: number } | null = null
         if (isMercuryCompactKeepTailEnabled()) {

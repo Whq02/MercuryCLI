@@ -7,7 +7,7 @@ import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
-import { roughTokenCountEstimation } from '../tokenEstimation.js'
+import { estimateContentTokens, roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
 import { digestClearedToolResult, isClearedOrDigested } from './microCompactDigest.js'
 import { isBelowPlaceholderFloor, isProtectedFromPruning, PROTECT_NEWEST_TOOL_OUTPUT_TOKENS, PRUNE_MINIMUM_SAVING_TOKENS } from './pruneProtections.js'
@@ -39,46 +39,8 @@ type MicrocompactResult = {
 type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
 
 
-const MEDIA_BLOCK_TOKENS = 2000
-
-function estimateToolResultTokens(content: unknown): number {
-  if (content === undefined || content === null) return 0
-  if (typeof content === 'string') return roughTokenCountEstimation(content)
-  if (!Array.isArray(content)) return 0
-  let total = 0
-  for (const item of content) {
-    const record = item as { type?: string; text?: unknown }
-    if (record.type === 'text') {
-      total += roughTokenCountEstimation(String(record.text ?? ''))
-    } else if (record.type === 'image' || record.type === 'document') {
-      total += MEDIA_BLOCK_TOKENS
-    }
-  }
-  return total
-}
-
-function estimateBlockTokens(block: unknown): number {
-  const record = block as Record<string, unknown>
-  switch (record.type) {
-    case 'text':
-      return roughTokenCountEstimation(String(record.text ?? ''))
-    case 'tool_result':
-      return estimateToolResultTokens(record.content)
-    case 'image':
-    case 'document':
-      return MEDIA_BLOCK_TOKENS
-    case 'thinking':
-      return roughTokenCountEstimation(String(record.thinking ?? ''))
-    case 'redacted_thinking':
-      return roughTokenCountEstimation(String(record.data ?? ''))
-    case 'tool_use':
-      return roughTokenCountEstimation(
-        `${String(record.name ?? '')}${JSON.stringify(record.input ?? null)}`,
-      )
-    default:
-      return roughTokenCountEstimation(JSON.stringify(record) ?? '')
-  }
-}
+const estimateToolResultTokens = estimateContentTokens
+const estimateBlockTokens = estimateContentTokens
 
 export function estimateMessageTokens(messages: Message[]): number {
   let total = 0
@@ -91,33 +53,8 @@ export function estimateMessageTokens(messages: Message[]): number {
   return Math.ceil((total * 4) / 3)
 }
 
-export function estimateContextTokens(messages: Message[]): number {
-  let total = 0
-  for (const message of messages) {
-    switch (message.type) {
-      case 'user':
-      case 'assistant': {
-        const content = (message as { message?: { content?: unknown } }).message?.content
-        if (Array.isArray(content)) {
-          for (const block of content) total += estimateBlockTokens(block)
-        } else if (typeof content === 'string') {
-          total += roughTokenCountEstimation(content)
-        }
-        break
-      }
-      case 'attachment':
-        total += roughTokenCountEstimation(JSON.stringify((message as { attachment?: unknown }).attachment ?? null))
-        break
-      case 'system': {
-        const content = (message as { content?: unknown }).content
-        total += roughTokenCountEstimation(typeof content === 'string' ? content : '')
-        break
-      }
-      default:
-        break
-    }
-  }
-  return Math.ceil((total * 4) / 3)
+export function estimateContextTokens(messages: Message[], model?: string): number {
+  return roughTokenCountEstimationForMessages(messages, model)
 }
 
 

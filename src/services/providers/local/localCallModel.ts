@@ -29,6 +29,7 @@ import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { estimateRequestTokens } from '../../tokenEstimation.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio') return record.thinkingDeclared === true
@@ -56,9 +57,9 @@ export function localPromptFitRefusal(model: string, params: LocalEstimateParams
   const guard = localGuardWindow(record)
   if (guard === undefined) return undefined
   const toolWire = localToolWireGuess(params.tools, params.messages)
-  const fixed = localPreComposeEstimate({ ...params, messages: [], toolWire })
+  const fixed = localPreComposeEstimate({ ...params, messages: [], toolWire, model })
   if (fixed <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
-  const estTokens = localPreComposeEstimate({ ...params, toolWire })
+  const estTokens = localPreComposeEstimate({ ...params, toolWire, model })
   return localFitRefusalSentence({ id: record.id, estTokens, toolCount: toolWire.schemas, window: guard.tokens, sourceWords: guard.sourceWords })
 }
 
@@ -68,7 +69,7 @@ export function localPromptFits(model: string, params: LocalEstimateParams): boo
   const guard = localGuardWindow(record)
   if (guard === undefined) return false
   const toolWire = localToolWireGuess(params.tools, params.messages)
-  return localWindowFits(guard.tokens, localPreComposeEstimate({ ...params, toolWire }))
+  return localWindowFits(guard.tokens, localPreComposeEstimate({ ...params, toolWire, model }))
 }
 
 export const LOCAL_WIRE_BYTES_PER_TOKEN = 3.9
@@ -81,7 +82,7 @@ export interface LocalToolWire {
   named: number
 }
 
-export type LocalEstimateParams = Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'> & { toolWire?: LocalToolWire }
+export type LocalEstimateParams = Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'> & { toolWire?: LocalToolWire; model?: string; options?: Pick<LocalCallParams['options'], 'model'> }
 
 function wireBytesOf(apiTools: readonly ApiShapedTool[]): number {
   return apiTools.length === 0 ? 0 : Buffer.byteLength(JSON.stringify(mapToolsToZai(apiTools)), 'utf8')
@@ -148,14 +149,9 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
 }
 
 export function localPreComposeEstimate(params: LocalEstimateParams): number {
-  let bytes = 0
-  try {
-    bytes += Buffer.byteLength(JSON.stringify(params.messages), 'utf8') + Buffer.byteLength(JSON.stringify(params.systemPrompt), 'utf8')
-  } catch {
-    bytes += 0
-  }
+  const tokens = estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, params.model ?? params.options?.model)
   const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages)
-  return Math.ceil(bytes / 4) + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
+  return tokens + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
 }
 
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
@@ -206,11 +202,9 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
           outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId),
         }
       : {}),
-    requestFitRefusal: ({ requestBytes, estTokens: estimated, toolCount }) => {
+    requestFitRefusal: ({ estTokens, toolCount }) => {
       const guard = localGuardWindow(record)
       if (guard === undefined) return undefined
-      const bytes = Number.isFinite(requestBytes) ? requestBytes : estimated * 4
-      const estTokens = Math.ceil(bytes / LOCAL_WIRE_BYTES_PER_TOKEN)
       if (estTokens <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
       return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
     },

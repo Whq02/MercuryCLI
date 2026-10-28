@@ -221,7 +221,7 @@ let beforeAfter = ''
   const real = realOf(sent.chat)
   fixedBytes = sent.chat?.bytes ?? 0
   const wire = onTip ? await tip.localToolWireOf!(params) : undefined
-  check('the pre-compose tool cost is only the captured schema bytes', wire !== undefined && estimate === Math.ceil((Buffer.byteLength(JSON.stringify(params.messages), 'utf8') + Buffer.byteLength(JSON.stringify(params.systemPrompt), 'utf8')) / 4) + Math.ceil(wire.schemaBytes / WIRE_BYTES_PER_TOKEN))
+  check('the pre-compose tool cost is only the captured schema bytes', wire !== undefined && estimate === (await import('../../src/services/tokenEstimation.ts')).estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, PERSISTED) + Math.ceil(wire.schemaBytes / WIRE_BYTES_PER_TOKEN))
   beforeAfter = `estimate ${fmt(estimate)} tokens · the request on the wire ${fmt(fixedBytes)} bytes = ${fmt(real)} tokens at ${WIRE_BYTES_PER_TOKEN} bytes/token · ${wireSchemas(sent.chat)} schemas + ${deferredNames.length} names on the wire`
   console.log(`  ${beforeAfter}`)
   check('the fresh request rode /api/chat and settled', sent.chat !== undefined && sent.error === undefined && sent.texts.some(t => t.includes('pong')), sent.errorText ?? 'no chat')
@@ -256,11 +256,11 @@ section('§2 generous: a request that fits is never refused; the refusal fires o
   const far = await drive(paramsFor(fresh('x'.repeat(1_200_000))))
   const farBytes = 1_200_000 + fixedBytes
   check('a request four and a half times the window is refused before the send, naming the window, its source and the in-app road', far.chat === undefined && far.errorText !== undefined && far.errorText.includes('65536 tokens — your setting — /config → Local model window'), far.errorText ?? 'no error')
-  check(`the refusal counts the request at the wire's ratio (≈${Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)}k tokens), not at bytes/4 (≈${Math.round(farBytes / 4 / 1000)}k)`, far.errorText !== undefined && Math.abs(Number(/≈(\d+)k tokens/.exec(far.errorText)?.[1] ?? NaN) - Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)) <= 1, far.errorText ?? 'no error')
+  check('the refusal counts tokenized request content within the rough rate of the captured wire size', far.errorText !== undefined && within(Number(/≈(\d+)k tokens/.exec(far.errorText)?.[1] ?? NaN) * 1000, farBytes / WIRE_BYTES_PER_TOKEN, 0.05), far.errorText ?? 'no error')
   const profile = callModel.localLaneProfileFor(record())
   const tolerance = tip.LOCAL_FIT_TOLERANCE ?? 1
   const boundary = Math.floor(65536 * WIRE_BYTES_PER_TOKEN * tolerance)
-  const pure = (bytes: number): string | undefined => profile.requestFitRefusal?.({ requestBytes: bytes, estTokens: Math.ceil(bytes / 4), toolCount: coreNames.length, wireModel: MODEL })
+  const pure = (bytes: number): string | undefined => profile.requestFitRefusal?.({ requestBytes: bytes, estTokens: Math.ceil(bytes / WIRE_BYTES_PER_TOKEN), toolCount: coreNames.length, wireModel: MODEL })
   check('the margin is one third of the window (LOCAL_FIT_TOLERANCE 4/3): a request would have to tokenize past 5.2 bytes per token to fit — no real prompt does', tolerance === 4 / 3, String(tolerance))
   check(`just inside the margin (${fmt(boundary - 40)} bytes ≈ ${fmt((boundary - 40) / WIRE_BYTES_PER_TOKEN)} tokens on a 65,536 window) is sent`, pure(boundary - 40) === undefined, pure(boundary - 40) ?? '')
   check(`just past it (${fmt(boundary + 400)} bytes) is refused`, pure(boundary + 400) !== undefined)

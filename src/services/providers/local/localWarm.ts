@@ -230,9 +230,9 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
     extra: { ...extra, max_tokens: LOCAL_WARM_NUM_PREDICT },
   }
   const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, context.userContext) : history
-  const estTokens = localPreComposeEstimate({ messages: estimateMessages, systemPrompt: fullSystemPrompt, tools })
+  const estTokens = localPreComposeEstimate({ messages: estimateMessages, systemPrompt: fullSystemPrompt, tools, model: modelId })
   const window = await localWarmKnobsFor(record, estTokens)
-  const requestTokens = Math.ceil(JSON.stringify(request).length / 4)
+  const requestTokens = estimateRequestTokens(request, modelId)
   const guard = window.numCtx ?? localGuardWindow(record)?.tokens
   if (guard !== undefined && requestTokens + LOCAL_WARM_OUTPUT_FLOOR > guard) return { skipped: `the prefix (~${requestTokens} tokens) does not fit the window (${guard}); the first turn refuses before sending` }
   const knobs: OllamaChatKnobs = {

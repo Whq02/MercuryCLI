@@ -100,6 +100,7 @@ import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } f
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
+import { fitToolResultImages } from '../../../utils/messages/imageRequestFit.js'
 
 const COMPAT_MAX_ATTEMPTS = 2
 const COMPAT_RETRY_BACKOFF_MS = 400
@@ -542,7 +543,7 @@ export async function* compatChatCallModel(
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-  const preparedMessages = healWalkableForWire(wireMessagesForBridge)
+  let preparedMessages = healWalkableForWire(wireMessagesForBridge)
   const statedMaxOut = operatorModelFacts(modelId)?.maxOutputTokens !== undefined ? getModelMaxOutputTokens(modelId).default : undefined
   const askedOut = options.maxOutputTokensOverride !== undefined
     ? (statedMaxOut !== undefined ? Math.max(options.maxOutputTokensOverride, statedMaxOut) : options.maxOutputTokensOverride)
@@ -553,7 +554,7 @@ export async function* compatChatCallModel(
   if (outputFit?.clamped === true) logForDebugging(outputFitWords(outputFit, modelId))
   const fittedOutputOverride = outputFit?.tokens
   const wireTools = mapToolsToZai(apiTools)
-  const mappedMessages = mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(preparedMessages), {
+  const mapForRequest = (rows: Message[]) => mapMessagesToZai(toolsInPrompt ? toolDialectSystemText(systemText, wireTools) : systemText, toBridgeMessages(rows), {
     keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel, thinkingEnabled) ?? false,
     keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
     imagesSupported,
@@ -561,6 +562,14 @@ export async function* compatChatCallModel(
     pdfFormat: profile.lane === 'mistral' ? 'document_url' : 'file',
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
+  const servedWindow = profile.servedWindowTokens?.()
+  if (servedWindow !== undefined) {
+    preparedMessages = fitToolResultImages(preparedMessages, rows => {
+      const mapped = mapForRequest(rows)
+      return estimateRequestTokens({ messages: toolsInPrompt ? renderToolDialectHistory(mapped) : mapped, tools: toolsInPrompt ? [] : wireTools }, modelId) <= servedWindow
+    }).messages
+  }
+  const mappedMessages = mapForRequest(preparedMessages)
   const effortView = effortVocabularyFor(modelId)
   const operatorEffort =
     effortView.kind === 'provider' && effortView.source === 'operator' && effortView.vocabulary.length > 0
@@ -616,7 +625,7 @@ export async function* compatChatCallModel(
     const requestBytes = JSON.stringify(request).length
     const fitRefusal = profile.requestFitRefusal({
       requestBytes,
-      estTokens: Math.ceil(requestBytes / 4),
+      estTokens: estimateRequestTokens(request, modelId),
       toolCount: apiTools.length,
       wireModel,
     })
