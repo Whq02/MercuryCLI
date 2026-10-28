@@ -883,6 +883,29 @@ export const BrowserTool = buildTool({
   async description() {
     return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
   },
+  wireDescription() {
+    return `Drive one owned browser session per agent through the bundled driver. Full usage notes arrive when loaded or first used.
+status: resolve operator pin > managed Chrome-for-Testing > unavailable; installed browsers are never driven. Does not launch.
+open: navigate an http(s) URL, launching on first use.
+click: selector or x+y; covered or disabled targets refuse.
+type: text into editable selector/focus; credential fields require secretRef, never plain text.
+scroll: selector into view or dy pixels.
+waitFor: selector, text, or navigation; selector defaults to visible, state may be attached/hidden. Prefer events over fixed pauses.
+back: history navigation.
+reload: refresh the page.
+select: native select options by value or visible label.
+press: navigation/edit key with optional modifiers; printable characters belong to type.
+hover: reveal hover controls.
+viewport: resize width/height, optional scale.
+extract: readable text or accessibility tree, selector/offset for scope and paging.
+console: logs, page errors and failed requests.
+info: current URL, title and approval.
+screenshot: viewport, fullPage or selector to a PNG.
+close: end the session and its approvals.
+provision: ask before installing Chrome-for-Testing when unavailable; never install a separate browser harness.
+Read the accessibility tree before acting; use its aria/name[role="role"], CSS, text/, xpath/, or >>> shadow selectors, never guessed classes. Wait for content when the body is empty. Selector actions auto-wait, bounded by timeoutMs.
+The first visit to each origin asks; crossing origins requires approval before further acts. Reads never ask, even across origins: name that origin when reporting, not as approved. Grants and sessions belong only to this agent. Secret fills need a separate secret+origin approval; register values out of band. Downloads and uploads are not performed here; fetch downloads separately. A new tab is closed unadopted: open its URL explicitly.`
+  },
   async prompt() {
     return `Drive a real browser through the bundled driver: one owned headless session per agent (launched on first open, reaped on close/exit — concurrent agents each drive their own, they never share a page), full provenance on every act.
 

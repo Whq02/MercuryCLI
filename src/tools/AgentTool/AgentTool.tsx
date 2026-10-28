@@ -384,6 +384,16 @@ export const AgentTool = buildTool({
   async description() {
     return 'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
   },
+  wireDescription(fullPrompt: string) {
+    return `${fullPrompt.split('## When delegating is the wrong move')[0]!.trim()}
+
+Launch: brief a new crewmate with the objective, evidence, boundaries, acceptance criteria and whether to implement or research. Use direct tools for known-file reads or small searches.
+Background: run_in_background returns immediately; completion notifies you. Do not poll. Foreground waits for the report when your next step needs it. Launch independent crewmates together.
+Isolation: isolation="worktree" needs a repository or configured hook. cwd must exist; starting outside this session's folder asks. Worktrees survive unlocked; nothing is discarded automatically.
+Model and effort: follow the operator's choice, never downgrade to obtain read-only scoping. The child receives its declared tools, not the parent conversation; session-owned processes end with it.
+Results: relay a concise summary; verify load-bearing prose claims. A valid structured output passed its schema; require evidence fields where needed, not redundant rereads.
+Full usage notes arrive when loaded or first used.`
+  },
   async prompt(options: {
     getToolPermissionContext: () => Promise<
       ReturnType<ToolUseContext['getAppState']>['toolPermissionContext']

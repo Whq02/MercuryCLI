@@ -22,7 +22,7 @@ const wanted: Array<[string, RegExp]> = [
   ['LspRead', /over Grep and Read[\s\S]*definitions and references/],
   ['Test', /over running tests in Bash/],
   ['Git', /optional[\s\S]*preview-first commit plans[\s\S]*repository commit workflow uses Bash/],
-  ['Debug', /over print debugging/],
+  ['Debug', /(?:over|instead of) print debugging/],
   ['Monitor', /over polling a log/],
   ['Checkpoint', /detour[\s\S]*keep in context/],
   ['Rewind', /detour[\s\S]*keep in context/],

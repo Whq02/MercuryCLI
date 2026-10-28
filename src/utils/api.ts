@@ -120,7 +120,7 @@ export async function toolToAPISchema(
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)
   if (base === undefined) {
-    const description = await tool.prompt({
+    const fullPrompt = await tool.prompt({
       getToolPermissionContext: options.getToolPermissionContext,
       tools: options.tools,
       agents: options.agents,
@@ -137,6 +137,7 @@ export async function toolToAPISchema(
     if (schemaLane === 'anthropic-strict' && normalized !== null) rememberRenamedArgumentKeys(tool.name, normalized.renamed)
     const input_schema = (normalized?.schema ?? rawSchema) as ToolInputSchema
 
+    const description = tool.wireDescription?.(fullPrompt) ?? fullPrompt
     const built: ApiTool = { name: tool.name, description, input_schema }
     if (fineGrainedToolStreamingEnabled()) {
       built.eager_input_streaming = true

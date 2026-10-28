@@ -96,31 +96,31 @@ Mercury's configured model. `--effort` accepts Mercury's usual effort levels.
 are `default`, `dontAsk`, `implement`, `sovereign`, `flow` and `apollo`. Omitted,
 it uses the normal headless mode resolution. A requested mode cannot exceed
 the ceiling; modes that cannot be safely ordered must match it. An existing
-client session keeps its mode. Permission requests are denied rather than
+client session keeps its mode. Permission requests are denied; they are never
 sent to the outside client for approval. Mercury's policy still applies.
 
 ## Tools
 
 All tool arguments reject unknown fields. Session ids are UUIDs.
 
-- **`mercury_run`** — `prompt` contains an outside report. Optional fields:
+- **`mercury_run`**: `prompt` contains an outside report. Optional fields:
   `session_id`, `title`, `model`, `mode`. With a run grant, Mercury reads the
   report in a fresh client-owned session, or continues a session previously
   created by that same named client. The result includes its client name,
   session id, status and SDK rows. Ownership survives server restarts.
-- **`mercury_session_rows`** — `session_id`, optional `limit` (1–200; default
+- **`mercury_session_rows`**: `session_id`, optional `limit` (1–200; default
   50) and `before`. Reads rows from a client-owned session or a send target.
   `next_before` pages backwards. `source` distinguishes SDK stream rows from
   saved transcript rows. Whole rows fit within 100,000 characters;
   `oversized_row` identifies a row too large for a response.
-- **`mercury_sessions`** — `{}` lists saved project sessions within the
+- **`mercury_sessions`**: `{}` lists saved project sessions within the
   client's reach. Client-owned sessions carry the client's name.
-- **`mercury_send`** — `session_id`, `sender`, `message`, optional `message_id`.
+- **`mercury_send`**: `session_id`, `sender`, `message`, optional `message_id`.
   The sender must equal the authenticated client's name and the target must
   be on its send list. Reuse a `message_id` UUID when retrying the same
-  delivery. Acceptance means the outside report is queued, not that work
-  started. The session reads it at a normal reading boundary.
-- **`mercury_recall`** — `query`, optional `limit` (1–20; default 12). Searches
+  delivery. Acceptance means the outside report is queued, and says nothing about
+  whether work started. The session reads it at a normal reading boundary.
+- **`mercury_recall`**: `query`, optional `limit` (1–20; default 12). Searches
   project memory for pointers. It never writes memory.
 
 Read-only resources use Inspect's `mercury://` references. File resources stay

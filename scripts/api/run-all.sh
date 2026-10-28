@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/utils/attachments/toolManuals.ts src/utils/attachments/orchestrator.ts src/utils/api.ts scripts/api/prove-quiet-wire.ts
 # gate-watch: src/components/App.tsx src/components/Spinner.tsx src/components/Spinner/liveCounterWords.ts
 # gate-watch: src/ink/ink.tsx src/ink/instances.ts
 # gate-watch: src/services/providers/openaicompat/compatPrefill.ts src/services/providers/openaicompat/compatResponsesTransport.ts
@@ -117,5 +118,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-b
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-side-question-effort.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-side-question-effort.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unrecognised-4xx-sentence.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-unrecognised-4xx-sentence.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-provider-wait-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-provider-wait-words.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-quiet-wire.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-quiet-wire.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

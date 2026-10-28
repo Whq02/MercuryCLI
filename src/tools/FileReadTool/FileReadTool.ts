@@ -190,6 +190,7 @@ export type Output =
         totalLines: number
         overCap?: OverCapNote
         lossless?: boolean
+        reminder?: string
         anchor?: string
         memoryUpdatedAt?: number
       }
@@ -220,6 +221,7 @@ const outputSchema = z.discriminatedUnion('type', [
       numLines: z.number(),
       startLine: z.number(),
       totalLines: z.number(),
+      reminder: z.string().optional(),
       anchor: z.string().optional(),
       memoryUpdatedAt: z.number().optional(),
       lossless: z.boolean().optional(),
@@ -271,7 +273,6 @@ const resultOutlineBodies = new WeakMap<object, string>()
 
 export const resultResolvedNames = new WeakMap<object, string>()
 const resultPreRenderedBody = new WeakMap<object, string>()
-const resultsWithoutReminder = new WeakSet<object>()
 
 const REMINDER_TAKEN_CAP = 256
 const reminderTakenBy = new Set<string>()
@@ -436,6 +437,10 @@ function contextCarriesReminder(messages: Message[] | undefined): boolean {
   if (!Array.isArray(messages)) return false
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
+    if (message?.type === 'attachment' && message.attachment.type === 'file') {
+      const data = message.attachment.content
+      if (data.type === 'text' && data.file.content !== '' && textCarriesReminder(data.file.reminder ?? cyberRiskReminderForCurrentModel())) return true
+    }
     if (message?.type !== 'user' || typeof message.message.content === 'string') continue
     for (const block of message.message.content) {
       if (block.type !== 'tool_result') continue
@@ -1799,8 +1804,10 @@ export const FileReadTool = buildTool({
       return notes.map(content => createUserMessage({ content, isMeta: true }))
     }
     const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {
-      if (ownRead && lane.data.type === 'text' && lane.data.file.content !== '' && !takeReminder(parentMessage, context.messages)) {
-        resultsWithoutReminder.add(lane.data)
+      if (lane.data.type === 'text' && lane.data.file.content !== '') {
+        lane.data.file.reminder = takeReminder(parentMessage, context.messages)
+          ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
+          : ''
       }
       const newMessages = [...(lane.newMessages ?? []), ...ignoredParameterNotes()]
       return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
@@ -1999,7 +2006,7 @@ export const FileReadTool = buildTool({
         return {
           tool_use_id: toolUseID,
           type: 'tool_result' as const,
-          content: `${body}${resultsWithoutReminder.has(data) ? '' : cyberRiskReminderForCurrentModel()}`,
+          content: `${body}${data.file.reminder ?? cyberRiskReminderForCurrentModel()}`,
         }
       }
     }

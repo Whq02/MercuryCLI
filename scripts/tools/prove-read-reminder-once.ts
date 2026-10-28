@@ -96,7 +96,7 @@ tally.section('C — the reminder rides the first Read result of an agent contex
   tally.check('5. after a compaction (a summary and no result) the next Read carries the block', carries(afterCompaction), JSON.stringify(afterCompaction.slice(-80)))
   const held = makeContext([createUserMessage({ content: 'the opening ask' }), resultMessage('tu_1', first)])
   const harness = await read(files[7]!, held, null)
-  tally.check('6. a harness read (no parent message) carries the block although the context holds it', carries(harness), JSON.stringify(harness.slice(-80)))
+  tally.check('6. a harness read (no parent message) does not repeat the block already in context', !carries(harness), JSON.stringify(harness.slice(-80)))
   const sub = makeContext([])
   const subFirst = await read(files[0]!, sub, { id: 'msg_sub_1' })
   tally.check('8. a second context with its own empty messages (a sub-agent) carries the block on its first Read', carries(subFirst), JSON.stringify(subFirst.slice(-80)))

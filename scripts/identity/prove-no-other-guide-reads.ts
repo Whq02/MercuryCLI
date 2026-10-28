@@ -57,6 +57,7 @@ const ROWS: Row[] = [
       ['src/utils/permissions/filesystem.ts', "a protection naming another tool's executable config (never a read)"],
       ['scripts/core-runtime/prove-boot-mcp-independence.ts', 'names its --mcp fixture files <stub>.mcp.json — files handed on the command line, any name'],
       ['src/daemon/sessionKit.ts', "a comment in the protocol lane's daemon door file (queue row posted)", 'pending'],
+      ['scripts/permissions/prove-mercury-notes-write.ts', 'names the other file as a path it proves sensitive outside .mercury/ (never a read)'],
     ],
   },
   {

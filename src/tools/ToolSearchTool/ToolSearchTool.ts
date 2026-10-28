@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { buildTool, closestToolByName, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
 import { getEngineModel } from '../../utils/model/model.js'
+import { getToolManualAttachments } from '../../utils/attachments/toolManuals.js'
+import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { declaredCapability } from '../../utils/capability/contract.js'
 import { compileToolCapabilityCard } from '../../utils/capability/manifest.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -370,7 +372,9 @@ export const ToolSearchTool = buildTool({
     return getPrompt(deferralWireFormFor(options?.model ?? getEngineModel()).form)
   },
   async call(input: Input, context: ToolUseContext) {
-    return { data: await runSearch(input, context) }
+    const data = await runSearch(input, context)
+    const manuals = await getToolManualAttachments(context, data.matches)
+    return { data, ...(manuals.length ? { newMessages: manuals.map(createAttachmentMessage) } : {}) }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     if (output.matches.length === 0) {

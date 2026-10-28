@@ -54,6 +54,7 @@ import {
 import type { Attachment } from './types.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
+import { getToolManualAttachments } from './toolManuals.js'
 
 export async function getAttachments(
   input: string | null,
@@ -63,8 +64,12 @@ export async function getAttachments(
   querySource?: QuerySource,
   options?: { localSubmission?: boolean },
 ): Promise<Attachment[]> {
+  messages ??= toolUseContext.messages
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
-    return getQueuedCommandAttachments(queuedCommands, { messages: messages ?? toolUseContext.messages, model: toolUseContext.options.engineModel })
+    return [
+      ...await getQueuedCommandAttachments(queuedCommands, { messages, model: toolUseContext.options.engineModel }),
+      ...await getToolManualAttachments({ ...toolUseContext, messages }),
+    ]
   }
 
   const abortController = createAbortController()
@@ -200,6 +205,7 @@ export async function getAttachments(
     maybe('user_context', () =>
       isMainThread ? getUserContextAttachment(messages ?? []) : Promise.resolve([]),
     ),
+    maybe('tool_manuals', () => getToolManualAttachments(context), { priority: true, inputScoped: true }),
     maybe('critical_system_reminder', () =>
       Promise.resolve(
         getCriticalSystemReminderAttachment(toolUseContext, messages ?? []),

@@ -192,6 +192,10 @@ printf '%s\n' '{"type":"prompt","content":"Summarise this repository."}' | mercu
   the session.
 - `{"type":"note","to":"<agent_id>","content":"..."}` to deliver a note to a
   running crewmate at its next tool boundary.
+- `{"type":"outside-report","sender":"<name>","content":"..."}` to deliver an
+  `outside-report` row from another agent: the session reads it as a report from the
+  named sender, never as an instruction, and it carries no authority over the
+  session's task or permissions (the `mercury mcp-server` road).
 
 Each input row accepts an optional `id`; `prompt` and `shell` rows also accept
 `priority` (`"now"`, `"next"` or `"later"`), `sent_at` and `origin`. An input

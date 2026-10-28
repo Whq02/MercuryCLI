@@ -138,7 +138,9 @@ for (const kind of kinds) {
     descriptions.set(tool.name, description)
     const resumedChildContract = 'One launched with output_schema keeps its StructuredOutput tool for the resumed turn.'
     if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
-    const callerDescription = tool.name === 'ResumeCrewmate' ? description.replace(resumedChildContract, '') : description
+    const manual = tool.wireDescription === undefined ? '' : await tool.prompt({ getToolPermissionContext: async () => permissionContext, tools: pool, agents: [], model: 'claude-opus-4-8' })
+    if (tool.wireDescription !== undefined) check(`${kind.label}: ${tool.name} keeps its full manual behind the short wire contract`, description === tool.wireDescription(manual) && manual.length > description.length)
+    const callerDescription = tool.name === 'ResumeCrewmate' ? description.replace(resumedChildContract, '') : description + '\n' + manual
     for (const name of mentionedToolNames(callerDescription)) {
       if (!offered.has(name) && !withheld.has(name)) pairs.push(`${tool.name} → ${name}`)
     }

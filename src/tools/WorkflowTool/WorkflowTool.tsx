@@ -372,6 +372,20 @@ const WorkflowToolDef = {
   maxResultSizeChars: 1e5,
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,
 
+  wireDescription() {
+    return `Run a deterministic JavaScript workflow coordinating crewmates. Full usage notes arrive when loaded or first used.
+Launch: supply script, a registered name, or scriptPath (path takes precedence); args is a JSON value, never stringified JSON. Returns a task ID immediately; completion arrives by notification.
+Resume: scriptPath + resumeFromRunId, same session only; stop the earlier run first. Unchanged calls replay from the journal; changed args invalidate replay.
+agent(prompt, opts): dispatch one crewmate; schema returns validated data, otherwise text. Failed or skipped agents return null.
+pipeline(items, ...stages): each item advances independently; a failed stage skips that item's remainder.
+parallel(thunks): concurrent barrier; failures return null slots, so filter before using results.
+phase(title): select a progress group; concurrent stages must pass opts.phase explicitly.
+log(message): show a progress line.
+workflow(nameOrRef, args): one nesting level, shared counters and budget.
+budget: shared output-token target; absent total means no target, never loop on Infinity.
+Launch only on the user's workflow/multi-agent request, an executing skill's direction, or a requested saved workflow. Otherwise ask with the estimated fleet and cost. The operator chooses each dispatch's model or tier; read mercury://models, never substitute a smaller model. Implementation workflows include independent verification before success.
+Scripts start with literal export const meta = {name, description, phases}; no TypeScript, computed meta, filesystem, network, Date.now(), Math.random(), or zero-argument new Date(). Agents do external work. At most 1000 agent calls and 4096 items per fan-out; concurrent calls queue under the capacity governor. Crewmate permissions and declared tool sets still apply.`
+  },
   async prompt() {
     return getWorkflowToolPrompt()
   },

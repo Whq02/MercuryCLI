@@ -1277,6 +1277,40 @@ export const DebugTool = buildTool({
   async description() {
     return 'Drive a real debugger over DAP: breakpoints, stepping, stacks, scopes, variables, evaluate'
   },
+  wireDescription() {
+    return `Use a real DAP debugger instead of print debugging. Full usage notes arrive when loaded or first used.
+launch: program, adapter?, args?, stopOnEntry?, file+lines breakpoints before execution.
+attach: pid, port (+host), or program; bare port selects Python.
+threads: list debuggee threads.
+stack: stopped-thread frames and native instruction pointers.
+scopes: frameId to expandable variablesReference.
+variables: expand a variablesReference.
+evaluate: expression in frameId or the last stopped frame; pause first if running. Context defaults to repl.
+continue: run to the next stop.
+next: step over.
+stepIn: enter a call.
+stepOut: leave the frame.
+pause: interrupt execution.
+restart: rerun when supported.
+output: drain program and adapter output.
+status: sessions, breakpoints and last stop.
+breakpoints: file+lines or conditional/hit-count/log rows; [] clears that file across the session tree.
+functionBreakpoints: names or conditional rows; [] clears the tree.
+loadedSources: loaded source inventory.
+modules: loaded module inventory.
+source: generated source by sourceReference.
+completions: text completion in an optional frameId.
+setVariable: variablesReference + name + value.
+exceptionBreakpoints: list filters, then set filter ids.
+disassemble: memoryReference, up to 64 instructions.
+readMemory: memoryReference, up to 4096 bytes.
+dataBreakpoints: variable accesses to stop on.
+instructionBreakpoints: instruction addresses and offsets.
+writeMemory: memoryReference + base64 data, optional offset/allowPartial.
+customRequest: permission-gated raw method + body.
+disconnect: terminate the debuggee and reap the adapter.
+Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (default 10000, longer allowed). Cancellation interrupts waits, not necessarily the debuggee; inspect status and disconnect to finish. runInTerminal uses shell permissions and session-managed processes, never an external terminal. Adapter selection follows the program extension or an explicit configured adapter; never fabricate debugger results.`
+  },
   async prompt() {
     return getDebugToolDescription()
   },
