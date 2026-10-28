@@ -1968,6 +1968,10 @@ export async function runHeadless(
   }
 
   const arms: RunnerArms = {
+    'project/query': async params => {
+      const { projectQuery } = await import('./headless/projectQuery.js')
+      return projectQuery(params, getAppState().toolPermissionContext)
+    },
     'turn/interrupt': params => {
       if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
       if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }

@@ -588,6 +588,24 @@ async function run(): Promise<void> {
     runnerCommand.addOption(option.long === '--resume' ? headlessResumeOption : option)
   }
 
+  const mcpServerCommand = program.command('mcp-server')
+    .description('Serve Mercury tools over MCP (stdio or authenticated HTTP)')
+    .addOption(new Option('--transport <transport>', 'stdio or HTTP').choices(['stdio', 'http']).default('stdio'))
+    .option('--bind <address>', 'HTTP listen address (default: 127.0.0.1)')
+    .option('--port <port>', 'HTTP listen port (default: 8787)', Number)
+    .option('--token-file <file>', 'Read the HTTP bearer token from a private file')
+    .option('--origin <url>', 'Allow this HTTPS tunnel origin')
+    .action(async (options, command) => {
+      const { mcpServerCli } = await import('./cli/mcpServer.js')
+      const session = sessionOptions(command)
+      try {
+        await mcpServerCli({ ...options, transport: options.transport as 'stdio' | 'http', mode: session.mode, model: session.model, effort: session.effort, allowSovereign: session.allowSovereign })
+      } catch (error) { failCli(error instanceof Error ? error.message : String(error)) }
+    })
+  for (const option of program.options) {
+    if (['--mode', '--model', '--effort', '--allow-sovereign'].includes(option.long ?? '')) mcpServerCommand.addOption(option)
+  }
+
   const parseProgram = () => program.parseAsync(process.argv)
 
   if (isRunArgv()) {

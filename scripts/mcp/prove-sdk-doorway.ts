@@ -54,7 +54,7 @@ const CENSUS: Record<string, { values: string[]; types: string[] }> = {
     values: ['OAuthErrorResponseSchema', 'OAuthMetadataSchema', 'OAuthTokensSchema'],
     types: [],
   },
-  server: { values: ['Server'], types: [] },
+  server: { values: ['Server', 'McpServer', 'ResourceTemplate', 'createMcpHandler', 'inputRequired', 'validateHostHeader'], types: ['ServerContext', 'McpRequestContext', 'InputRequiredResult'] },
   'server/stdio': { values: ['serveStdio'], types: [] },
 }
 

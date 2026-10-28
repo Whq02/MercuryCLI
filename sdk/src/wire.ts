@@ -438,6 +438,17 @@ export interface MethodParams {
   restart_reason?: string
   openai_catalogue?: unknown
 }
+  "project/query": {
+  op: 'sessions' | 'rows' | 'send' | 'recall' | 'resources' | 'resource'
+  session_id?: string
+  limit?: number
+  before?: number
+  sender?: string
+  message?: string
+  message_id?: string
+  query?: string
+  ref?: string
+}
   "session/facts": {
 
 }
@@ -640,6 +651,7 @@ export interface MethodResults {
   "session/claim": {
   session_id: string
 }
+  "project/query": Record<string, unknown>
   "session/facts": SessionFactsResult
   "session/set_model": {
   model: string
@@ -829,7 +841,7 @@ export interface MethodResults {
 export type MethodName = keyof MethodParams
 export type ParamsOf<M extends MethodName> = MethodParams[M]
 export type ResultOf<M extends MethodName> = MethodResults[M]
-export type HostRequestName = "initialize" | "session/claim" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "session/send_now" | "schedule/roster"
+export type HostRequestName = "initialize" | "session/claim" | "project/query" | "session/facts" | "session/set_model" | "session/set_effort" | "session/set_mode" | "session/set_spawn_switch" | "mcp/action" | "mcp/tools" | "session/set_kit" | "session/rewind" | "session/file_restore" | "session/pause_gate" | "session/quiesce" | "session/leave" | "queue/add" | "queue/withdraw" | "turn/interrupt" | "agent/stop" | "agent/resume" | "shell/background" | "session/send_now" | "schedule/roster"
 export type HostNotificationName = "credentials/changed" | "$/cancel_request"
 export type RunnerRequestName = "schedule/edit" | "permission/request" | "elicitation/request" | "fs/read_text_file" | "fs/write_text_file" | "terminal/create" | "terminal/output" | "terminal/wait_for_exit" | "terminal/kill" | "terminal/release"
 export type RunnerNotificationName = "$/cancel_request" | "row" | "session/applied" | "elicitation/complete"
@@ -1009,6 +1021,71 @@ export const METHODS: Record<MethodName, MethodSchema> = {
       "required": [
         "session_id"
       ]
+    }
+  },
+  "project/query": {
+    "from": "host",
+    "kind": "request",
+    "scope": "none",
+    "deadlineMs": 30000,
+    "params": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "sessions",
+            "rows",
+            "send",
+            "recall",
+            "resources",
+            "resource"
+          ]
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "before": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sender": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message_id": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
     }
   },
   "session/facts": {
