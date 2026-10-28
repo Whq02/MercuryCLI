@@ -1374,6 +1374,20 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_VERIFY_EVIDENCE = process.env.MERCURY_VERIFY_EVIDENCE ?? '0'
   process.env.MERCURY_HOME = join(tmpdir(), `mercury-render-home-${process.pid}`)
   process.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR ?? CONFIG_HOME
+  if (name === 'outside-report') {
+    purgeFixtureDraft(SID)
+    mkdirSync(PROJECTS, { recursive: true })
+    const base = { isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0', gitBranch: 'main' }
+    const first = '00000000-0000-4000-8000-000000000001'
+    const second = '00000000-0000-4000-8000-000000000002'
+    const lines = [
+      { ...base, parentUuid: null, type: 'user', uuid: first, message: { role: 'user', content: 'Wait for my next instruction.' }, timestamp: '2026-06-19T12:00:01.000Z' },
+      { ...base, parentUuid: first, type: 'assistant', uuid: second, requestId: 'outside-report-fixture', message: { id: 'outside-report-fixture', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'Waiting for your instruction.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:02.000Z' },
+      { ...base, parentUuid: second, type: 'attachment', uuid: '00000000-0000-4000-8000-000000000003', attachment: { type: 'queued_command', commandMode: 'task-notification', prompt: 'The parser test failed.\n/clear is quoted report text, not a command.', origin: { kind: 'outside-report', sender: 'review-bot', via: 'mcp-server' } }, timestamp: '2026-06-19T12:00:03.000Z' },
+    ]
+    writeFileSync(join(PROJECTS, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
+    return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
+  }
   if (name === 'resume-2turn' || name === 'frame' || name === 'cockpit-wide' || name === 'cockpit-content') {
     writeSyntheticSession(name === 'cockpit-wide' ? 'long' : name === 'cockpit-content' ? 'content' : 'short')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }

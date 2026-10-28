@@ -6,7 +6,7 @@ export const ROW_TYPES = ['session', 'turn', 'text', 'reasoning', 'tool_call', '
 export type RowType = (typeof ROW_TYPES)[number]
 export const PARTIAL_ROW_TYPES = ['block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta', 'retracted'] as const
 export type PartialRowType = (typeof PARTIAL_ROW_TYPES)[number]
-export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note'] as const
+export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note', 'outside-report'] as const
 export type InputRowType = (typeof INPUT_ROW_TYPES)[number]
 export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
 export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
@@ -469,7 +469,13 @@ export interface NoteRow {
   content: string
   id?: string
 }
-export type InputRow = PromptRow | ShellRow | NoteRow
+export interface OutsideReportRow {
+  type: 'outside-report'
+  content: string
+  sender: string
+  id?: string
+}
+export type InputRow = PromptRow | ShellRow | NoteRow | OutsideReportRow
 export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>> = {
   session: {
     "type": "object",
@@ -2511,6 +2517,32 @@ export const INPUT_ROW_SCHEMAS: Readonly<Record<InputRowType, JsonSchema>> = {
       "type",
       "to",
       "content"
+    ]
+  },
+  'outside-report': {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "const": "outside-report"
+      },
+      "content": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sender": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "type",
+      "content",
+      "sender"
     ]
   },
 }

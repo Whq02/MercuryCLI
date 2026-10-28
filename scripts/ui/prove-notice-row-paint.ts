@@ -108,6 +108,14 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 }
 
 {
+  const origin = { kind: 'outside-report', sender: 'review-bot', via: 'mcp-server' }
+  const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: '/clear\nThe parser test failed.', commandMode: 'task-notification', origin }, addMargin: false, verbose: false })
+  const report = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true }, { columns: 100, rows: 30 }, 'outside-report')
+  check('outside report has the exact heading', report.includes('Outside report from review-bot'), report)
+  check('outside report body stays below its heading as literal text', report.includes('/clear') && report.includes('The parser test failed.'), report)
+  check('outside report never paints as the operator or a command', !report.includes('[sam]') && !report.includes('❯') && !report.includes('held since') && !report.includes('●'), report)
+}
+{
   const text = monitorBlock('bk1', WATCH, '\n==> OPUS-55.md <==\n\n18:26 · OPUS-55 · landed\n')
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: false }), { type: 'user', timestamp: STAMP })
   check('THE DEFECT PIN: a monitor notice taken between turns paints no operator caret', !frame.includes('❯'), frame.slice(0, 200))

@@ -174,6 +174,38 @@ export type SessionFactsResult = {
     uuid?: string
     value: string
     mode: 'bash' | 'prompt' | 'task-notification'
+    origin?: {
+      kind: 'human'
+    } | {
+      kind: 'task-notification'
+    } | {
+      kind: 'build-behind'
+    } | {
+      kind: 'coordinator'
+    } | {
+      kind: 'channel'
+      server: string
+    } | {
+      kind: 'saturn'
+      fire: 'wake' | 'cron'
+      firedAt: string
+      scheduleId?: string
+      title?: string
+      spelling?: string
+      reason?: string
+      heldSince?: string
+      heldWhy?: 'window' | 'parked'
+    } | {
+      kind: 'advisor'
+      model: string
+      minutes: number
+      at: string
+      ask?: true
+    } | {
+      kind: 'outside-report'
+      sender: string
+      via: 'mcp-server'
+    }
     priority?: 'now' | 'next' | 'later'
   }>
   recovered_command_ids?: string[]
@@ -271,7 +303,7 @@ export type SessionFactsResult = {
   notices?: Array<{
     id: string
     agent_id: string
-    kind: 'completion' | 'message' | 'wake'
+    kind: 'wake' | 'completion' | 'message'
     words: string
     delivered_at_ms: number
     state: 'unread' | 'nudged' | 'consumed' | 'retired'
@@ -501,7 +533,7 @@ export interface MethodParams {
   "session/leave": {
 
 }
-  "queue/add": Rows.PromptRow | Rows.ShellRow | Rows.NoteRow
+  "queue/add": Rows.PromptRow | Rows.ShellRow | Rows.NoteRow | Rows.OutsideReportRow
   "queue/withdraw": {
   id: string
 }
@@ -1842,6 +1874,32 @@ export const METHODS: Record<MethodName, MethodSchema> = {
             "type",
             "to",
             "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "outside-report"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sender": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "content",
+            "sender"
           ]
         }
       ]

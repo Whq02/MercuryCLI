@@ -26,6 +26,7 @@ type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refuse
 import { workspaceKindOf } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { SaturnOrigin } from '../utils/messages/noticeRows.js'
+import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'
 import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
 
@@ -74,7 +75,7 @@ export interface HeldOpEnvelopeV1 {
   priority?: ConcoursePromptExtras['priority']
   content?: unknown[]
   sentAt?: string
-  origin?: SaturnOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin
 }
 
 interface DispatchFileV1 {
@@ -424,6 +425,7 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 =
 export async function buildConcoursePromptRow(prompt: string, extras?: ConcoursePromptExtras, groundNote?: string): Promise<InputRow> {
   const note = groundNote !== undefined && groundNote.length > 0 && extras?.mode !== 'bash' ? groundNote : undefined
   const id = extras?.identity !== undefined && UUID_SHAPE.test(extras.identity) ? extras.identity : randomUUID()
+  if (isOutsideReportOrigin(extras?.origin)) return { type: 'outside-report', sender: extras.origin.sender, content: prompt, id }
   if (extras?.mode === 'task-notification' && extras.agentId !== undefined) {
     return { type: 'note', to: extras.agentId, content: prompt, id }
   }
@@ -463,7 +465,7 @@ export interface ConcoursePromptExtras {
   content?: unknown[]
   identity?: string
   sentAt?: string
-  origin?: SaturnOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin
 }
 
 function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId' | 'sentAt' | 'origin'>): ConcoursePromptExtras | undefined {
@@ -605,7 +607,7 @@ export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
   sentAt?: string
-  origin?: SaturnOrigin
+  origin?: SaturnOrigin | OutsideReportOrigin
 }
 
 export type ConcourseDispatchResult = {
@@ -654,7 +656,8 @@ export function makeConcourseDispatchHandler(
   ): Promise<ConcourseDispatchResult> => {
     const workers = readSessionWorkers(deps.dir)
     let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
-    if (targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
+    const report = isOutsideReportOrigin(extras?.origin)
+    if (!report && targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
       rec.heldReason = 'session-with-you'
       rec.sessionId = target
       rec.workerId = targetRec.runnerId
@@ -672,7 +675,7 @@ export function makeConcourseDispatchHandler(
         moves: [{ verb: 'queue', label: 'it delivers on its own after you leave the session' }],
       }
     }
-    if (targetRec && targetRec.pausedAt !== undefined) {
+    if (!report && targetRec && targetRec.pausedAt !== undefined) {
       rec.heldReason = 'session-paused'
       rec.sessionId = target
       rec.workerId = targetRec.runnerId
@@ -708,7 +711,7 @@ export function makeConcourseDispatchHandler(
     }
     let reviveRefusal: { error: string; permanent: boolean } | undefined
     if (
-      targetRec &&
+      !report && targetRec &&
       (targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) &&
       targetRec.stoppedAt === undefined &&
       targetRec.attachedAt === undefined &&

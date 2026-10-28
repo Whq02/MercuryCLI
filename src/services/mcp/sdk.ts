@@ -41,6 +41,6 @@ export {
   OAuthMetadataSchema,
   OAuthTokensSchema,
 } from '@modelcontextprotocol/core'
-export { Server, McpServer, ResourceTemplate, createMcpHandler, inputRequired, validateHostHeader } from '@modelcontextprotocol/server'
-export type { ServerContext, McpRequestContext, InputRequiredResult } from '@modelcontextprotocol/server'
+export { Server, McpServer, ResourceTemplate, createMcpHandler, validateHostHeader } from '@modelcontextprotocol/server'
+export type { McpRequestContext } from '@modelcontextprotocol/server'
 export { serveStdio } from '@modelcontextprotocol/server/stdio'

@@ -10,45 +10,53 @@ import { initialPermissionModeFromCLI } from '../utils/permissions/permissionSet
 import { createMcpHandler, serveStdio, validateHostHeader } from '../services/mcp/sdk.js'
 import { AutomationBridge, type AutomationOptions } from '../services/mcp/automationBridge.js'
 import { automationServerFactory } from '../services/mcp/automationServer.js'
+import { automationAccessSchema, clientReach, launchingSession } from '../services/mcp/automationAccess.js'
 
 export const MCP_SERVER_HELP = 'Serve Mercury tools over MCP (stdio or authenticated HTTP)'
-export type McpServerOptions = AutomationOptions & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string }
+export type McpServerOptions = Omit<AutomationOptions, 'mode'> & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string; client?: string; lead?: string; coordinator?: string; maxMode?: AutomationOptions['mode'] }
 
 export async function startMcpServer(options: McpServerOptions): Promise<{ close: () => Promise<void>; url?: string }> {
-  const cwd = options.cwd ?? getOriginalCwd()
+  const cwd = await realpath(options.cwd ?? getOriginalCwd())
   if (!isPathTrusted(cwd)) throw new Error('Trust this folder in Mercury before starting mcp-server')
   const transport = options.transport ?? 'stdio'
-  if (transport === 'stdio' && (options.bind !== undefined || options.port !== undefined || options.tokenFile !== undefined || options.origin !== undefined)) throw new Error('--bind, --port, --token-file and --origin require --transport http')
-  const resolvedMode = initialPermissionModeFromCLI({ permissionModeCli: options.mode, dangerouslySkipPermissions: false })
+  if (transport === 'stdio' && (options.bind !== undefined || options.port !== undefined || options.origin !== undefined)) throw new Error('--bind, --port and --origin require --transport http')
+  const resolvedMode = initialPermissionModeFromCLI({ permissionModeCli: options.maxMode, dangerouslySkipPermissions: false })
   if (resolvedMode.notification) throw new Error(resolvedMode.notification)
-  const bridge = new AutomationBridge({ ...options, cwd, mode: resolvedMode.mode as AutomationOptions['mode'], mercury: options.mercury ?? [process.execPath, process.argv[1]!] })
-  const factory = automationServerFactory(bridge)
+  let grants: ReturnType<typeof automationAccessSchema.parse>['clients']
+  if (options.tokenFile) {
+    const location = relative(cwd, await realpath(options.tokenFile))
+    if (location !== '..' && !location.startsWith('../') && !location.startsWith('..\\') && !isAbsolute(location)) throw new Error('Keep --token-file outside the project served by MCP')
+    const info = await stat(options.tokenFile)
+    if (!info.isFile() || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) throw new Error('--token-file must be a private file (chmod 600)')
+    grants = automationAccessSchema.parse(JSON.parse(await readFile(options.tokenFile, 'utf8'))).clients
+  } else grants = [{ name: 'mcp-client', token: randomBytes(32).toString('base64url'), run: false, send: [] }]
+  const roles = { lead: options.lead ?? await launchingSession(cwd), coordinator: options.coordinator }
+  const factories = grants.map(grant => ({
+    name: grant.name,
+    expected: Buffer.from(`Bearer ${grant.token}`),
+    factory: automationServerFactory(new AutomationBridge({ ...options, cwd, mode: resolvedMode.mode as AutomationOptions['mode'], mercury: options.mercury ?? [process.execPath, process.argv[1]!] }, clientReach(grant, roles))),
+  }))
   if (transport === 'stdio') {
-    const served = serveStdio(factory.create)
-    return { close: async () => { await factory.close(); await served.close() } }
+    const selected = options.client ? factories.find(entry => entry.name === options.client) : factories.length === 1 ? factories[0] : undefined
+    if (!selected) throw new Error('Choose a client from --token-file with --client')
+    const served = serveStdio(selected.factory.create)
+    return { close: async () => { await selected.factory.close(); await served.close() } }
   }
   const bind = options.bind ?? '127.0.0.1'
   const port = options.port ?? 8787
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('--port must be an integer from 0 to 65535')
   const publicOrigin = options.origin === undefined ? undefined : new URL(options.origin)
   if (publicOrigin && (publicOrigin.protocol !== 'https:' || publicOrigin.username || publicOrigin.password || publicOrigin.pathname !== '/' || publicOrigin.search || publicOrigin.hash)) throw new Error('--origin must be an HTTPS origin, without a path or credentials')
-  let token: string
-  if (options.tokenFile) {
-    const location = relative(await realpath(cwd), await realpath(options.tokenFile))
-    if (location !== '..' && !location.startsWith('../') && !location.startsWith('..\\') && !isAbsolute(location)) throw new Error('Keep --token-file outside the project served by MCP')
-    const info = await stat(options.tokenFile)
-    if (!info.isFile() || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) throw new Error('--token-file must be a private file (chmod 600)')
-    token = (await readFile(options.tokenFile, 'utf8')).trim()
-    if (!/^[A-Za-z0-9._~+\/-]{32,}={0,2}$/.test(token)) throw new Error('--token-file must contain a bearer token of at least 32 characters')
-  } else token = randomBytes(32).toString('base64url')
-  const expected = Buffer.from(`Bearer ${token}`)
   const allowed = [...new Set(['127.0.0.1', 'localhost', bind.includes(':') ? `[${bind}]` : bind, ...(publicOrigin ? [publicOrigin.hostname] : [])])]
-  const handler = createMcpHandler(factory.create)
+  const handlers = factories.map(entry => ({ ...entry, handler: createMcpHandler(entry.factory.create) }))
+  const closeHandlers = async (): Promise<void> => { await Promise.all(handlers.map(async entry => { await entry.factory.close(); await entry.handler.close() })) }
   let localOrigin = ''
   const server = createServer(async (incoming, outgoing) => {
     const reject = (status: number, text: string): void => { outgoing.writeHead(status, { 'content-type': 'text/plain', ...(status === 401 ? { 'www-authenticate': 'Bearer' } : {}) }); outgoing.end(text) }
     const authorization = Buffer.from(incoming.headers.authorization ?? '')
-    if (authorization.length !== expected.length || !timingSafeEqual(authorization, expected)) { reject(401, 'Bearer token required'); return }
+    let selected: typeof handlers[number] | undefined
+    for (const entry of handlers) if (authorization.length === entry.expected.length && timingSafeEqual(authorization, entry.expected)) selected = entry
+    if (!selected) { reject(401, 'Bearer token required'); return }
     if (!validateHostHeader(incoming.headers.host, allowed).ok) { reject(403, 'Host not allowed'); return }
     const origin = incoming.headers.origin
     if (origin !== undefined && origin !== localOrigin && origin !== publicOrigin?.origin) { reject(403, 'Origin not allowed'); return }
@@ -67,7 +75,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<{ close
         signal: controller.signal,
         ...(incoming.method === 'GET' || incoming.method === 'HEAD' ? {} : { body: Readable.toWeb(incoming) as ReadableStream<Uint8Array>, duplex: 'half' }),
       })
-      const response = await handler.fetch(request)
+      const response = await selected.handler.fetch(request)
       outgoing.writeHead(response.status, Object.fromEntries(response.headers))
       if (response.body) await pipeline(Readable.fromWeb(response.body as import('node:stream/web').ReadableStream), outgoing)
       else outgoing.end()
@@ -76,20 +84,18 @@ export async function startMcpServer(options: McpServerOptions): Promise<{ close
       else outgoing.destroy()
     }
   })
-  try {
-    await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, bind, () => { server.removeListener('error', reject); resolve() }) })
-  } catch (error) { await handler.close(); await factory.close(); throw error }
+  try { await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, bind, () => { server.removeListener('error', reject); resolve() }) }) }
+  catch (error) { await closeHandlers(); throw error }
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('MCP listener has no TCP address')
   localOrigin = `http://${bind.includes(':') ? `[${bind}]` : bind}:${address.port}`
-  if (!options.tokenFile) process.stderr.write(`Bearer token: ${token}\n`)
+  if (!options.tokenFile) process.stderr.write(`Bearer token: ${grants[0]!.token}\n`)
   process.stderr.write(`${localOrigin}/mcp\n`)
   return {
     url: `${localOrigin}/mcp`,
     close: async () => {
       const closed = new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-      await factory.close()
-      await handler.close()
+      await closeHandlers()
       server.closeAllConnections()
       await closed
     },

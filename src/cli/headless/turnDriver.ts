@@ -180,8 +180,15 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     return wall.closed
   }
 
-  const dueQueued = (): boolean => {
+  const runnableHead = (): QueuedCommand | undefined => {
     const head = ports.peek()
+    if (head?.origin?.kind !== 'outside-report') return head
+    const candidates = queuedMainThread().filter(command => command.origin?.kind !== 'outside-report')
+    return candidates.find(command => bandOf(command) === 'now') ?? candidates.find(command => bandOf(command) === 'next') ?? candidates[0]
+  }
+
+  const dueQueued = (): boolean => {
+    const head = runnableHead()
     if (head === undefined) return false
     if (noticesAwaitOperator) return queuedMainThread().some(isOperatorWords)
     if (!isTaskNotification(head)) return true
@@ -201,7 +208,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const nextDue = (): QueuedCommand | undefined => {
     holding = false
     wallHeld = false
-    const head = ports.peek()
+    const head = runnableHead()
     if (head === undefined || holdReleased) return undefined
     if (noticesAwaitOperator) {
       const words = queuedMainThread().find(isOperatorWords)
@@ -234,7 +241,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       wallHeld = true
       return undefined
     }
-    return takeQueued()
+    if (head === ports.peek()) return takeQueued()
+    const taken = ports.dequeueCommand(head)
+    if (taken?.queueId !== undefined) settledAt.delete(taken.queueId)
+    return taken
   }
 
   const settleQueued = (): void => {
@@ -277,7 +287,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         batch.push(next)
       }
     } else if (command.mode === 'task-notification') {
-      while (isTaskNotification(ports.peek())) {
+      while (isTaskNotification(ports.peek()) && ports.peek()?.origin?.kind !== 'outside-report') {
         batch.push(takeQueued()!)
       }
       if (batch.length > 1) {

@@ -35,7 +35,7 @@ export type RowType = (typeof ROW_TYPES)[number]
 export const PARTIAL_ROW_TYPES = ['block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta', 'retracted'] as const
 export type PartialRowType = (typeof PARTIAL_ROW_TYPES)[number]
 
-export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note'] as const
+export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note', 'outside-report'] as const
 export type InputRowType = (typeof INPUT_ROW_TYPES)[number]
 
 export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'time_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
@@ -498,7 +498,9 @@ export const ShellRowSchema = lazySchema(() => z.object({ type: z.literal('shell
 export type ShellRow = z.infer<ReturnType<typeof ShellRowSchema>>
 export const NoteRowSchema = lazySchema(() => z.object({ type: z.literal('note'), to: z.string(), content: z.string(), id: z.string().optional() }))
 export type NoteRow = z.infer<ReturnType<typeof NoteRowSchema>>
-export const InputRowSchema = lazySchema(() => z.discriminatedUnion('type', [PromptRowSchema(), ShellRowSchema(), NoteRowSchema()]))
+export const OutsideReportRowSchema = lazySchema(() => z.object({ type: z.literal('outside-report'), content: z.string().min(1), sender: z.string().min(1).max(200), id: z.string().optional() }))
+export type OutsideReportRow = z.infer<ReturnType<typeof OutsideReportRowSchema>>
+export const InputRowSchema = lazySchema(() => z.discriminatedUnion('type', [PromptRowSchema(), ShellRowSchema(), NoteRowSchema(), OutsideReportRowSchema()]))
 export type InputRow = z.infer<ReturnType<typeof InputRowSchema>>
 
 export function usageOf(usage: Pick<NonNullableUsage, 'input_tokens' | 'cache_read_input_tokens' | 'cache_creation_input_tokens' | 'output_tokens'> & { output_tokens_details?: { thinking_tokens: number } | null }): Usage {

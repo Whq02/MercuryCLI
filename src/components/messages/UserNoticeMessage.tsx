@@ -29,7 +29,7 @@ export function UserNoticeMessage({
   return (
     <Box marginTop={addMargin ? 1 : 0} flexDirection="column">
       {blocks.map((block, index) => {
-        const clock = index === 0 ? <NameplateClock /> : <Text>{CLOCK_COLUMN}</Text>
+        const clock = block.kind === 'outside-report' ? null : index === 0 ? <NameplateClock /> : <Text>{CLOCK_COLUMN}</Text>
         const dot = isMutedNoticeBlock(block) ? null : <Text color={dotColor ?? accent}>● </Text>
         const plate = noticePlate(block, meta?.timestamp)
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''

@@ -1182,6 +1182,7 @@ export async function runHeadless(
   const takeMainThread = (): QueuedCommand | undefined => dequeue(isMainThreadCommand)
 
   const taskNotificationPayloads = (command: QueuedCommand): string[] => {
+    if (command.origin?.kind === 'outside-report') return []
     const texts =
       typeof command.value === 'string'
         ? [command.value]
@@ -1896,7 +1897,8 @@ export async function runHeadless(
     input:
       | { kind: 'prompt'; content: string | ContentBlockParam[]; schema?: Record<string, unknown>; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
       | { kind: 'shell'; command: string; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
-      | { kind: 'note'; to: string; content: string; id?: string },
+      | { kind: 'note'; to: string; content: string; id?: string }
+      | { kind: 'outside-report'; sender: string; content: string; id?: string },
   ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
     await options.initializeMcp?.()
     sessionInitialized = true
@@ -1916,6 +1918,18 @@ export async function runHeadless(
         return { accepted: false, reason: 'duplicate' }
       }
       receivedUuids.add(uuid)
+    }
+    if (input.kind === 'outside-report') {
+      enqueue({
+        value: input.content,
+        mode: 'task-notification',
+        origin: { kind: 'outside-report', sender: input.sender, via: 'mcp-server' },
+        priority: 'next',
+        ridesNextWords: true,
+        skipSlashCommands: true,
+        ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
+      })
+      return { accepted: true }
     }
     if (input.kind === 'note') {
       operatorPauseGate.lift(input.to)
@@ -1959,6 +1973,7 @@ export async function runHeadless(
     if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
     const schemaRefusal = promptSchemaRefusal(row)
     if (schemaRefusal !== null) throw invalidParams('queue/add', [{ path: ['schema'], message: schemaRefusal }])
+    if (row.type === 'outside-report') return acceptInput({ kind: 'outside-report', sender: row.sender, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
     if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
     const stamp = {
       ...(row.id !== undefined ? { id: row.id } : {}),
@@ -2228,6 +2243,7 @@ export async function runHeadless(
                     .join('')
                 : '',
           mode: command.mode,
+          ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.priority !== undefined ? { priority: command.priority } : {}),
         })),
         work: projectWorkRoster(state.tasks),

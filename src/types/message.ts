@@ -57,6 +57,7 @@ export type MessageOrigin =
   | { kind: 'channel'; server: string }
   | SaturnOrigin
   | AdvisorOrigin
+  | import('../utils/messages/outsideReport.js').OutsideReportOrigin
 
 export type CompactMetadata = {
   trigger: 'manual' | 'auto' | 'overflow'

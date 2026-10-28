@@ -1,6 +1,8 @@
 import type { TextBlockParam } from '../../types/wire.js'
 import * as React from 'react'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
+import { isOutsideReportOrigin } from '../../utils/messages/outsideReport.js'
+import { noticeLines } from '../../utils/messages/noticeRows.js'
 import {
   CHANNEL_TAG,
   COMMAND_MESSAGE_TAG,
@@ -61,6 +63,10 @@ export function UserTextMessage({
   const expanded = verbose || isTranscriptMode === true
   if (param.text.trim() === NO_CONTENT_MESSAGE) {
     return null
+  }
+
+  if (isOutsideReportOrigin(origin)) {
+    return <UserNoticeMessage addMargin={addMargin} blocks={[{ kind: 'outside-report', origin, lines: noticeLines(param.text) }]} />
   }
 
   const monitorBlocks = isMonitorText(param.text) ? wrappedNoticeBlocks(param.text) : null

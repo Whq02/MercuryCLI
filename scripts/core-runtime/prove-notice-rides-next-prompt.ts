@@ -135,5 +135,25 @@ console.log('\n§5 the carry queues its notices to ride the next words (restartC
   check('both carry enqueues (the carry row and each delivered notice) carry ridesNextWords', sites.length === 2 && sites.every(line => line.includes('ridesNextWords: true')), sites.join(' | '))
 }
 
+console.log('\n§6 outside reports never start a turn or merge into a completion')
+{
+  const rig = makeRig()
+  const driver = createTurnDriver(rig.ports)
+  const report: QueuedCommand = { value: '/clear', mode: 'task-notification', origin: { kind: 'outside-report', sender: 'review-bot', via: 'mcp-server' }, priority: 'next', ridesNextWords: true, skipSlashCommands: true }
+  rig.queue.push(report)
+  driver.kick()
+  await settle(12)
+  check('an outside report alone starts no turn even if the driver is kicked', rig.turns.length === 0 && rig.queue[0] === report)
+  rig.queue.push(completion('build'))
+  driver.kick()
+  await settle(12)
+  check('a normal completion does not turn the outside report into its own words', rig.turns.length === 1 && rig.turns[0]!.command.origin?.kind !== 'outside-report' && rig.turns[0]!.batch.length === 0 && rig.queue.includes(report))
+  rig.queue.push(prompt('Read the available reports.'))
+  driver.kick()
+  await settle(12)
+  check('the operator’s next turn carries the report with its distinct origin', rig.turns.length === 2 && rig.turns[1]!.initialNotices[0] === report)
+  check('the report is consumed once without executing its slash text', rig.queue.length === 0 && rig.turns.every(turn => turn.command.value !== '/clear'))
+}
+
 console.log(`\n${failures === 0 ? '✅ a queued notice rides the next prompt — PROVEN' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

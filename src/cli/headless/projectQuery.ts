@@ -60,7 +60,8 @@ export async function projectQuery(input: ParamsOf<'project/query'>, permissions
         clientMessageId: input.message_id ?? randomUUID(),
         targetSessionId: input.session_id!,
         workspaceDir: cwd,
-        prompt: `From ${JSON.stringify(input.sender)} (MCP):\n${input.message}`,
+        prompt: input.message,
+        origin: { kind: 'outside-report', sender: input.sender, via: 'mcp-server' },
         by: `mcp:${input.sender}`,
         sentAt: new Date().toISOString(),
       }, { timeoutMs: 15_000 })

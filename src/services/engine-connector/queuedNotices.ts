@@ -16,12 +16,12 @@ export function isNoticeKey(key: string): boolean {
   return key.startsWith(NOTICE_KEY_PREFIX)
 }
 
-export function createNoticeRow(value: string, atMs: number): Message {
+export function createNoticeRow(value: string, atMs: number, origin?: import('../../types/message.js').MessageOrigin): Message {
   return {
     type: 'attachment',
     uuid: randomUUID(),
     timestamp: new Date(atMs).toISOString(),
-    attachment: { type: 'queued_command', prompt: value, commandMode: 'task-notification', sentAt: new Date(atMs).toISOString() },
+    attachment: { type: 'queued_command', prompt: value, commandMode: 'task-notification', sentAt: new Date(atMs).toISOString(), ...(origin ? { origin } : {}) },
     queued: true,
   } as unknown as Message
 }

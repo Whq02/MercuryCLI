@@ -14,7 +14,7 @@ the guides by task; each page describes the installed product.
 - [SETTINGS.md](SETTINGS.md): Mercury stores settings in JSON files, edited in `/config` or through `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
 - [TRUST.md](TRUST.md): workspace trust gates project hooks, credential helpers and project MCP servers until you trust the folder, alongside permission modes, built-in command safety rules and the safety floors.
 - [AUTOMATION.md](AUTOMATION.md): drive Mercury from a program through the `mercury run --format rows` one-shot stream or the `mercury runner` JSON-RPC session protocol over standard input and output.
-- [MCP-SERVER.md](MCP-SERVER.md): let an MCP client run Mercury sessions, read rows, send messages and search project memory over stdio or authenticated HTTP.
+- [MCP-SERVER.md](MCP-SERVER.md): receive outside reports from scoped MCP clients, read session rows and search project memory over stdio or authenticated HTTP.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
 map and `/keybindings` opens your keybindings file.

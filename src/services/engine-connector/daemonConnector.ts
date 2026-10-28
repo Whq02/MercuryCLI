@@ -1218,7 +1218,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const atMs = Date.now()
       this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: atMs, state: 'queued', mode: 'prompt' }]
       this.stampArrival(key, atMs)
-      this.echoRows.set(key, createNoticeRow(entry.value, atMs))
+      this.echoRows.set(key, createNoticeRow(entry.value, atMs, entry.origin))
       connectorTrace({ ev: 'notice', sid: this.record.sessionId, state: 'queued' })
       born = true
     }

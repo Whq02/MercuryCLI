@@ -289,6 +289,7 @@ export type DaemonRequest =
     }
   | {
       op: 'sessionDispatch'
+      origin?: import('../utils/messages/outsideReport.js').OutsideReportOrigin
       proto: number
       auth?: string
       clientMessageId: string

@@ -31,6 +31,7 @@ export interface QueuedFactV1 {
   uuid?: string
   value: string
   mode: PromptInputMode
+  origin?: import('../../types/message.js').MessageOrigin
   priority?: QueuePriority
 }
 

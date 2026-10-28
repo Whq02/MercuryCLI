@@ -2,6 +2,7 @@ import { TASK_NOTIFICATION_TAG } from '../../constants/xml.js'
 import { stripTerminalControls } from '../stringUtils.js'
 import { WORKLOAD_CRON, type Workload } from '../workloadContext.js'
 import { ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } from './text.js'
+import { outsideReportHeading, type OutsideReportOrigin } from './outsideReport.js'
 
 export type SaturnOrigin = {
   kind: 'saturn'
@@ -29,6 +30,7 @@ export type NoticeBlock =
   | { kind: 'task'; plate: string; status: string; lines: string[] }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
   | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
+  | { kind: 'outside-report'; origin: OutsideReportOrigin; lines: string[] }
 
 export const MONITOR_PLATE_NAME = 'Monitor'
 export const PLAIN_NOTICE_WORD = 'notice'
@@ -129,7 +131,7 @@ export function saturnBlockOf(origin: SaturnOrigin, text: string): NoticeBlock {
 }
 
 export function isMutedNoticeBlock(block: NoticeBlock): boolean {
-  return block.kind === 'saturn' || block.kind === 'advisor' || block.kind === 'monitor'
+  return block.kind === 'saturn' || block.kind === 'advisor' || block.kind === 'monitor' || block.kind === 'outside-report'
 }
 
 export function noticeCarriesOwnClock(block: NoticeBlock): boolean {
@@ -262,6 +264,7 @@ export function hasNoticeFold(row: { type?: string; isMeta?: boolean; origin?: u
 }
 
 export function noticePlate(block: NoticeBlock, rowStamp?: string): string {
+  if (block.kind === 'outside-report') return outsideReportHeading(block.origin.sender)
   if (block.kind === 'task') return block.plate
   if (block.kind === 'notice') return PLAIN_NOTICE_WORD
   if (block.kind === 'saturn') return `[${SATURN_PLATE_NAME}] · ${saturnFirstLine(block.origin, rowStamp)}`

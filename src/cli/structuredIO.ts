@@ -40,6 +40,7 @@ export function emptyInputRow(row: InputRow): string | null {
   if (row.type === 'prompt' && (row.content === '' || (Array.isArray(row.content) && row.content.length === 0))) return 'a prompt row with no content'
   if (row.type === 'shell' && row.command.trim() === '') return 'a shell row with no command'
   if (row.type === 'note' && (row.to === '' || row.content === '')) return 'a note row with no agent or no content'
+  if (row.type === 'outside-report' && (!row.sender.trim() || /[\x00-\x1f\x7f]/.test(row.sender) || !row.content.trim())) return 'an outside report needs a sender and content'
   return null
 }
 
@@ -60,7 +61,7 @@ export function inputRefusal(parsed: unknown): string | null {
     return schema === null ? null : `input refused: ${schema}`
   }
   if (typeof type !== 'string') return 'input refused: a row needs a type (prompt, shell or note)'
-  if (type !== 'prompt' && type !== 'shell' && type !== 'note') return `input refused: unknown row type '${type}' (prompt, shell or note)`
+  if (type !== 'prompt' && type !== 'shell' && type !== 'note' && type !== 'outside-report') return `input refused: unknown row type '${type}' (prompt, shell or note)`
   return `input refused: the ${type} row is malformed — ${check.error.issues.map(issue => `${issue.path.join('.') || 'row'}: ${issue.message}`).join('; ')}`
 }
 
