@@ -212,7 +212,7 @@ section('W6 · the edges are wired (source pins)')
   const orLane = src('src/services/providers/openrouter/openrouterCallModel.ts')
   check('the OpenRouter dispatch edge refreshes the catalogue (TTL\'d, fire-and-forget)', /refreshOpenrouterCatalogue\(account\.keySource\)\.catch/.test(orLane))
   const compact = src('src/services/compact/autoCompact.ts')
-  check('shouldAutoCompact awaits the model\'s window source before reading the threshold', /await awaitContextWindowSource\(model\)\s*\n\s*const tokenCount = tokenCountWithEstimation/.test(compact))
+  check('shouldAutoCompact awaits the model\'s window source before reading the threshold', /const known = await awaitContextWindowSource\(model, \{ estTokens: tokenCount \+ snipTokensFreed \}\)[\s\S]{0,400}const threshold = getAutoCompactThreshold\(model\)/.test(compact))
   const owner = src('src/utils/model/capabilities.ts')
   check('the owner carries a Gemini arm reading geminiContextWindowFor', /geminiContextWindowFor\(normalizeForEnginePins\(model\)\)/.test(owner))
   for (const file of ['openrouter/openrouterCatalogue.ts', 'gemini/geminiCatalogue.ts', 'huggingface/huggingfaceCatalogue.ts', 'openai/openaiCatalogue.ts', 'local/localDiscovery.ts']) {

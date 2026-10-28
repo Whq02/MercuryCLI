@@ -31,6 +31,7 @@ import {
   resolveCompatApiKey,
 } from './compatAccounts.js'
 import { buildCompatSlotExtras } from './compatWire.js'
+import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 
 export const compatSlotLaneProfile: CompatLaneProfile = {
   lane: 'openai-compat',
@@ -145,7 +146,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       : {}),
     extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
-    ...(dialect === 'ollama' ? { omitsToolChoice: true } : {}),
+    ...(dialect === 'ollama' ? { omitsToolChoice: true, outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId) } : {}),
     usageForSettlement: usage => { lastUsage = usage; return usage },
     buildExtras: args => {
       const cache = dialect === 'llamacpp' ? { cache_prompt: true, ...(idSlot !== undefined ? { id_slot: idSlot } : {}) } : {}

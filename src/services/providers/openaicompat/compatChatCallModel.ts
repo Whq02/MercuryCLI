@@ -174,6 +174,7 @@ export interface CompatLaneProfile {
   omitsToolChoice?: boolean
   toolCapabilityRefusal?(wireModel: string): string | undefined
   toolsInPrompt?(wireModel: string): boolean
+  outputCeiling?(modelId: string): number | undefined
   buildExtras(args: {
     wireModel: string
     effortValue: string | undefined
@@ -542,7 +543,7 @@ export async function* compatChatCallModel(
   const statedMaxOut = operatorModelFacts(modelId)?.maxOutputTokens !== undefined ? getModelMaxOutputTokens(modelId).default : undefined
   const askedOut = options.maxOutputTokensOverride !== undefined
     ? (statedMaxOut !== undefined ? Math.max(options.maxOutputTokensOverride, statedMaxOut) : options.maxOutputTokensOverride)
-    : statedMaxOut
+    : statedMaxOut ?? profile.outputCeiling?.(modelId)
   const outputFit = askedOut === undefined
     ? undefined
     : fitOutputTokensForRequest({ asked: askedOut, messages, model: modelId, fixed: [systemText, apiTools] })

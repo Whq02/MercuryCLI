@@ -10,7 +10,8 @@ export function suspiciousWindowsPattern(path: string): string | null {
   }
   if (/~\d/.test(path)) return '8.3 short name'
   if (/^(?:\\\\\?\\|\\\\\.\\|\/\/\?\/|\/\/\.\/)/.test(path)) return 'long-path or device prefix'
-  if (/[.\s]$/.test(path)) return 'trailing dot or whitespace'
+  const last = path.split(/[/\\]/).pop() ?? ''
+  if (last !== '.' && last !== '..' && /[.\s]$/.test(path)) return 'trailing dot or whitespace'
   if (DOS_DEVICE_NAMES.has(path.split(/[./\\]/).pop()?.toLowerCase() ?? '')) return 'DOS device name'
   if (/(?:^|[/\\])\.{3,}(?:[/\\]|$)/.test(path)) return 'consecutive dots as a path component'
   return null

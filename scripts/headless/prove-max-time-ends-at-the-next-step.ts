@@ -17,7 +17,7 @@ const check = (label: string, ok: boolean, detail = ''): void => { console.log(`
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 400) ?? ''
 
 type Run = { code: number | null; out: string; err: string }
-type Outcome = { status?: string; steps?: number; answer?: string; error?: { message?: string; class?: string } }
+type Outcome = { status?: string; steps?: number; answer?: string; wall_ms?: number; error?: { message?: string; class?: string } }
 
 function spawnDist(args: string[], cwd: string, env: Record<string, string>, budgetMs: number): Promise<Run> {
   const child = spawn('node', [dist, ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -83,23 +83,24 @@ console.log('§3 the door: --max-time is in the run grammar and junk is a usage 
   }
 }
 
-console.log('§4 the limit lands at the step after the model call: a reply that asks for a tool past the deadline ends the turn before the tool runs')
+console.log('§4 the limit cuts a reply streaming past the deadline: the stream ends at the deadline, the tool call it was composing never arrives, no tool runs')
 {
   const run = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
   check('the outcome is time_limit', run.outcome?.status === 'time_limit', j(run.outcome))
   check('the error class is time_limit and the message states the limit', run.outcome?.error?.class === 'time_limit' && run.outcome?.error?.message === timeLimitSentence(1_000), j(run.outcome?.error))
   check('one step was taken', run.outcome?.steps === 1, j(run.outcome?.steps))
-  check('the tool round never started: the tool_call row is there, no tool_result follows', run.rows.some(row => row.type === 'tool_call') && !run.rows.some(row => row.type === 'tool_result'), j(run.rows.map(row => row.type)))
+  check('the stream was cut before the tool call arrived: no tool_call row, no tool_result row', !run.rows.some(row => row.type === 'tool_call') && !run.rows.some(row => row.type === 'tool_result'), j(run.rows.map(row => row.type)))
   check('no second model call was made', run.modelCalls === 1, String(run.modelCalls))
   check('the run exits 1', run.code === 1, String(run.code))
 }
 
-console.log('§5 the limit lands at the step after a tool round: results that arrive past the deadline end the turn before the next model call')
+console.log('§5 the limit cuts a tool running past the deadline: the shell is stopped at the deadline, its result row is the cut, no second model call')
 {
   const run = await mercuryRun(['wait two seconds', '--format', 'rows', '--max-time', '1s', '--allowed-tools', 'Bash(sleep *)'], [sleepTwo, answer, handoffTurn()])
   check('the outcome is time_limit', run.outcome?.status === 'time_limit', j(run.outcome))
   check('the message states the limit', run.outcome?.error?.message === timeLimitSentence(1_000), j(run.outcome?.error))
-  check('the tool ran to its end: a tool_result row is there', run.rows.some(row => row.type === 'tool_result'), j(run.rows.map(row => row.type)))
+  const result = run.rows.find(row => row.type === 'tool_result') as { status?: string; output?: string } | undefined
+  check('the tool was stopped at the deadline: its result row is an error, the two-second sleep never finished (the turn ended under two seconds)', result?.status === 'error' && typeof run.outcome?.wall_ms === 'number' && (run.outcome.wall_ms as number) < 2_000, j({ result, wall: run.outcome?.wall_ms }))
   check('no second model call was made', run.modelCalls === 1, String(run.modelCalls))
   check('the run exits 1', run.code === 1, String(run.code))
 }

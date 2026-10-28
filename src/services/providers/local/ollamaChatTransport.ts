@@ -346,6 +346,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
   unrefTimer(totalTimer)
   let idleWatchdog: StreamIdleWatchdog | null = null
   let silenceWatch: ReturnType<typeof startLocalSilenceWatch> | null = null
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let ingestMs: number | null = null
   const calls: CompatCompletedToolCall[] = []
   const seen: { model?: string } = {}
@@ -508,7 +509,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
       yield fault({ kind: 'transport-error', code: 'no-body', message: 'response had no body', retryable: true })
       return
     }
-    const reader = response.body.getReader()
+    reader = response.body.getReader()
     const splitter = new LineSplitter()
     const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs }) : null
     idleWatchdog = watchdog
@@ -537,6 +538,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
+        void reader.cancel().catch(() => {})
         yield fault(
           cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
@@ -548,7 +550,6 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
                   ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
                   : { kind: 'transport-error', code: 'read-failed', message: error instanceof Error ? error.message : String(error), retryable: true },
         )
-        void reader.cancel().catch(() => {})
         return
       }
       const text = chunk.done ? '' : Buffer.from(chunk.value!).toString('utf8')
@@ -594,6 +595,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
+    void reader?.cancel().catch(() => {})
     if (shape.ended === 'open') shape.ended = options.signal?.aborted === true ? 'cancelled' : 'abandoned'
     logForDebugging(ollamaWireDumpLine(options.request.model, shape, head, totalChars))
   }

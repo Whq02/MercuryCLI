@@ -102,6 +102,10 @@ import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
+class MaxTimeCut extends Error {
+  override readonly name = 'MaxTimeCut'
+}
+
 type CanUseTool = ToolUseContext extends never ? never : QueryParams['canUseTool']
 type GetAppState = ToolUseContext['getAppState']
 type SetAppState = ToolUseContext['setAppState']
@@ -709,7 +713,12 @@ export class Conversation {
       return rows
     }
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
+    let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
     const endTurn = async function* (this: Conversation, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
+      if (timeLimitTimer !== null) {
+        clearTimeout(timeLimitTimer)
+        timeLimitTimer = null
+      }
       const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
       const aborted = this.abortController.signal.aborted
       const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
@@ -835,6 +844,11 @@ export class Conversation {
     if (maxTimeReached()) {
       yield* endTurn('time_limit', timeLimitFacts())
       return
+    }
+    if (config.maxTime !== undefined) {
+      const sentence = OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime.limitMs })
+      timeLimitTimer = setTimeout(() => this.abortController.abort(new MaxTimeCut(sentence)), Math.max(0, config.maxTime.at - Date.now()))
+      timeLimitTimer.unref?.()
     }
 
     const queryParams: QueryParams = {
@@ -1100,6 +1114,10 @@ export class Conversation {
     }
     const aborted = terminal.reason === 'aborted_streaming' || terminal.reason === 'aborted_tools'
     const cut = aborted ? turnCutOf(this.abortController.signal.reason).kind : null
+    if (aborted && this.abortController.signal.reason instanceof MaxTimeCut) {
+      yield* endTurn('time_limit', { ...timeLimitFacts(), ...(answer !== '' ? { answer } : {}) })
+      return
+    }
     let lastAssistant: (AssistantMessage & { isApiErrorMessage?: boolean }) | undefined
     for (let i = turnMessages.length - 1; i >= 0; i--) {
       const message = turnMessages[i]!

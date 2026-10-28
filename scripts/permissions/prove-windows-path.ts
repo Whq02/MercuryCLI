@@ -27,7 +27,7 @@ for (const platform of ['windows', 'wsl', 'macos', 'linux'] as const) {
     console.log(`${ok ? 'PASS' : 'FAIL'} ${platform} ${path}: ${label}`)
     if (!ok) failed++
   }
-  for (const path of ['C:/project/file.txt', '/usr/local/file', 'a..b', 'normal']) if (suspiciousWindowsPattern(path) !== null) failed++
+  for (const path of ['C:/project/file.txt', '/usr/local/file', 'a..b', 'normal', '.', '..', './x', '../x', 'a/.', 'a/..']) if (suspiciousWindowsPattern(path) !== null) failed++
   for (const path of [String.raw`cat '\\?\C:\project\file'`, String.raw`Get-Content '\\.\C:\project\file'`, String.raw`dir \\.`, String.raw`\\??\share`]) if (containsWindowsDevicePath(path) !== (platform === 'windows')) failed++
 }
 getPlatform.cache.delete(undefined)

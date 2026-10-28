@@ -280,9 +280,13 @@ export async function shouldAutoCompact(
 ): Promise<boolean> {
   if (querySource === 'session_memory' || querySource === 'compact') return false
   if (!isAutoCompactEnabled()) return false
-  await awaitContextWindowSource(model)
   const tokenCount = tokenCountWithEstimation(messages, model) - snipTokensFreed
+  const known = await awaitContextWindowSource(model, { estTokens: tokenCount + snipTokensFreed })
   onMeasured?.(tokenCount + snipTokensFreed)
+  if (!known) {
+    logForDebugging(`autoCompact: the window of ${model} is not known yet — no decision against the default`)
+    return false
+  }
   const threshold = getAutoCompactThreshold(model)
   const effective = getEffectiveContextWindowSize(model)
   logForDebugging(

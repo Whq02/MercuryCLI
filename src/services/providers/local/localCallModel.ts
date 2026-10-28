@@ -16,6 +16,7 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
+import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
 import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
@@ -23,7 +24,7 @@ import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.j
 import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
-import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_WINDOW_HELD_WORDS, LOCAL_WINDOW_SETTING_WORDS, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
@@ -59,6 +60,15 @@ export function localPromptFitRefusal(model: string, params: LocalEstimateParams
   if (fixed <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
   const estTokens = localPreComposeEstimate({ ...params, toolWire })
   return localFitRefusalSentence({ id: record.id, estTokens, toolCount: toolWire.schemas, window: guard.tokens, sourceWords: guard.sourceWords })
+}
+
+export function localPromptFits(model: string, params: LocalEstimateParams): boolean {
+  const record = localRecordFor(model)
+  if (record === undefined) return false
+  const guard = localGuardWindow(record)
+  if (guard === undefined) return false
+  const toolWire = localToolWireGuess(params.tools, params.messages)
+  return localWindowFits(guard.tokens, localPreComposeEstimate({ ...params, toolWire }))
 }
 
 export const LOCAL_WIRE_BYTES_PER_TOKEN = 3.9
@@ -193,6 +203,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
             )
           },
           effortOnWire: ollamaEffortOnWire,
+          outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId),
         }
       : {}),
     requestFitRefusal: ({ requestBytes, estTokens: estimated, toolCount }) => {

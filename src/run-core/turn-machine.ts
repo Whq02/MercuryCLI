@@ -182,7 +182,7 @@ import { requestWaitLine, streamEndReceiptLine } from '../services/providers/str
 import { interruptedToolsLine, turnCutOf, turnCutResultText, type TurnCut } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../services/providers/toolEconomy.js'
-import { localPromptFitRefusal } from '../services/providers/local/localCallModel.js'
+import { localPromptFitRefusal, localPromptFits } from '../services/providers/local/localCallModel.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
 import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
@@ -1324,7 +1324,9 @@ async function* runEventMachine(
         estimatedTokens,
         toolUseContext.options.engineModel,
       )
-      if (level === 'blocked') {
+      const localFits = level === 'blocked' && localPromptFits(currentModel, { messages: messagesForQuery, systemPrompt: fullSystemPrompt, tools: toolUseContext.options.tools })
+      if (localFits) logForDebugging(`blocking preempt: the composed request fits ${currentModel}'s planned window — sent`)
+      if (level === 'blocked' && !localFits) {
         const localUnfit = localPromptFitRefusal(currentModel, { messages: messagesForQuery, systemPrompt: fullSystemPrompt, tools: toolUseContext.options.tools })
         if (localUnfit !== undefined) {
           yield emit({
