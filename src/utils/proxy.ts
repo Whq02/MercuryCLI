@@ -54,13 +54,13 @@ export function shouldBypassProxy(url: string, noProxy: string | undefined = get
 
 export type TransportKnobs = {
   connectTimeoutMs: number
-  maxConnections: number
+  maxConnections: number | null
   headersTimeoutMs: number
   bodyTimeoutMs: number
   keepAliveTimeoutMs: number
 }
 
-function positiveIntFromFlag(name: string, fallback: number): number {
+function positiveIntFromFlag<T>(name: string, fallback: T): number | T {
   const raw = flagEnv(name)
   if (raw === undefined) return fallback
   const value = Number(raw)
@@ -75,7 +75,7 @@ export function resolveTransportKnobs(): TransportKnobs {
   const budget = apiBudgetMs()
   return {
     connectTimeoutMs: positiveIntFromFlag('MERCURY_CONNECT_TIMEOUT_MS', 30_000),
-    maxConnections: positiveIntFromFlag('MERCURY_MAX_CONNECTIONS', 16),
+    maxConnections: positiveIntFromFlag('MERCURY_MAX_CONNECTIONS', null),
     headersTimeoutMs: budget,
     bodyTimeoutMs: budget,
     keepAliveTimeoutMs: 30_000,
@@ -84,7 +84,7 @@ export function resolveTransportKnobs(): TransportKnobs {
 
 type AgentOptions = {
   connect: { timeout: number; cert?: string; key?: string; passphrase?: string; ca?: string[] }
-  connections: number
+  connections: number | null
   headersTimeout: number
   bodyTimeout: number
   keepAliveTimeout: number
@@ -120,7 +120,7 @@ export function getApiDispatcher(): Dispatcher {
     const options = buildApiAgentOptions()
     apiDispatcher = new Agent(options as never)
     logForDebugging(
-      `api dispatcher: connect ${options.connect.timeout}ms · ${options.connections} conns/origin · headers/body ${options.headersTimeout}ms · keep-alive ${options.keepAliveTimeout}ms · HTTP/1.1`,
+      `api dispatcher: connect ${options.connect.timeout}ms · ${options.connections === null ? 'unbounded' : options.connections} conns/origin · headers/body ${options.headersTimeout}ms · keep-alive ${options.keepAliveTimeout}ms · HTTP/1.1`,
     )
   }
   return apiDispatcher
@@ -208,7 +208,7 @@ type ProxyDispatcherOptions = {
   noProxy?: string
   connect: Record<string, unknown>
   requestTls?: Record<string, unknown>
-  connections: number
+  connections: number | null
   headersTimeout: number
   bodyTimeout: number
   keepAliveTimeout: number

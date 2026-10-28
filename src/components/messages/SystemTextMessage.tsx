@@ -23,6 +23,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../MessageResponse.js'
+import { isTransportRetryNotice } from './nullRenderingAttachments.js'
 import { ResumeRecapCard } from './ResumeRecapCard.js'
 import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
@@ -285,6 +286,7 @@ export function SystemTextMessage({
       return null
 
     case 'api_error':
+      if (isTransportRetryNotice(message)) return null
       return <SystemAPIErrorMessage message={message} verbose={verbose} />
 
     default: {

@@ -23,7 +23,7 @@ All paths below are checkout paths, not paths under this skill's extracted base 
 
 | Road | Start here | Detail |
 |---|---|---|
-| HTTP transport and dispatchers | `src/utils/proxy.ts` (`buildApiAgentOptions`, `buildProxyAgentOptions`, `getApiDispatcher`, `getProxyAgent`), `src/utils/mtls.ts` (`getTLSFetchOptions`) | Pins HTTP/1.1 (`allowH2: false`, 16 connections/origin) |
+| HTTP transport and dispatchers | `src/utils/proxy.ts` (`buildApiAgentOptions`, `buildProxyAgentOptions`, `getApiDispatcher`, `getProxyAgent`), `src/utils/mtls.ts` (`getTLSFetchOptions`) | Pins HTTP/1.1 (`allowH2: false`); no connection bound unless `MERCURY_MAX_CONNECTIONS` pins one |
 | Anthropic Messages | `src/services/providers/anthropic/streamCore.ts`, `requestParams.ts`, `cacheAndUsage.ts`, `anthropicClient.ts`, `anthropicWorkspace.ts` in the same directory | `references/anthropic-messages.md` |
 | OpenAI Responses | `src/services/providers/openai/openaiCallModel.ts`, `openaiClient.ts`, `openaiWire.ts`, `responsesBridge.ts` in the same directory | `references/openai-responses.md` |
 | OpenRouter, xAI subscription, OpenCode Zen and `compat/` Responses | `src/services/providers/openrouter/openrouterResponsesTransport.ts`, `src/services/providers/openrouter/openrouterRoutingPolicy.ts`, `src/services/providers/xai/xaiResponsesTransport.ts`, `src/services/providers/zen/zenResponsesTransport.ts`, `src/services/providers/openaicompat/compatResponsesTransport.ts` | `references/openai-responses.md` |

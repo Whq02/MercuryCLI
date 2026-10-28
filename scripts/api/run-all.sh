@@ -55,6 +55,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-api-parity.t
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transport-truth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transport-truth.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-transport-lane.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-node-transport-lane.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-http2-lane.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-http2-lane.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transport-storm.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transport-storm.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-first-byte-liveness.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-byte-liveness.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ingestion-truths.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ingestion-truths.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-watchdog-posture.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-watchdog-posture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-pool-reset.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-watchdog-pool-reset.ts" "$__t" "$__rc"

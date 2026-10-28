@@ -26,7 +26,7 @@ console.log('— §1 transport knobs + dispatcher (N-01) —')
 {
   const k = proxy.resolveTransportKnobs()
   check('default connect timeout ≥30s (the 10s undici default is dead)', k.connectTimeoutMs >= 30_000, String(k.connectTimeoutMs))
-  check('connections bounded per origin by default', typeof k.maxConnections === 'number' && k.maxConnections > 0 && k.maxConnections <= 128, String(k.maxConnections))
+  check('no connection bound by default: a request never waits in the queue for a socket a streaming reply holds', k.maxConnections === null, String(k.maxConnections))
   check('headers/body timeouts align with the API budget default (600s)', k.headersTimeoutMs === 600_000 && k.bodyTimeoutMs === 600_000)
   check('keep-alive tuned above the undici 4s default', k.keepAliveTimeoutMs >= 10_000)
 
