@@ -334,12 +334,12 @@ function staticImports(src: string): {
 
   const launchSites = [...mainSrc.matchAll(/await launchChat\(/g)].map(m => m.index!)
   check('launch-graph: ONE interactive launchChat call site (T15 collapse)', launchSites.length === 1, String(launchSites.length))
-  at('await withMcpLaunchBudget(connectMcpBatch(regularMcpConfigs')
+  at('await withMcpLaunchBudget(connectMcpBatch(configs')
   check(
     'launch-graph: interactive MCP never rides a background-node connect (the Chat registry owns it)',
     !mainSrc.includes("registerBackgroundNode('mcp-discovery'"),
   )
-  const batchCalls = [...mainSrc.matchAll(/connectMcpBatch\((regularMcpConfigs|surviving)/g)].map(m => m.index!)
+  const batchCalls = [...mainSrc.matchAll(/connectMcpBatch\((configs|surviving)/g)].map(m => m.index!)
   check(
     'launch-graph: every connectMcpBatch call sits AFTER the interactive launch site (print-path only)',
     batchCalls.length > 0 && launchSites[0] !== undefined && batchCalls.every(i => i > launchSites[0]!),
@@ -613,7 +613,6 @@ function staticImports(src: string): {
   const { App } = await import('../../src/components/App.js')
   const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
   const { Chat } = await import('../../src/screens/Chat.js')
-  const { SeededMCPConnectionManager } = await import('../../src/services/mcp/MCPConnectionManager.js')
 
   const calls: Array<{ root: unknown; element: React.ReactElement }> = []
   const fakeRender = async (root: unknown, element: never): Promise<void> => {
@@ -658,10 +657,8 @@ function staticImports(src: string): {
     props: { initialState?: unknown; children?: { type: unknown; props: Record<string, unknown> } }
   }
   check('launch: element is App', el?.type === App)
-  check('launch: App wraps the MCP owner', el?.props?.children?.type === SeededMCPConnectionManager)
-  const mcpOwned = el?.props?.children?.props as { children?: { type: unknown; props: Record<string, unknown> } }
-  check('launch: the MCP owner wraps SurfaceRouter', mcpOwned?.children?.type === SurfaceRouter)
-  const routed = mcpOwned?.children?.props as { children?: { type: unknown; props: Record<string, unknown> } }
+  check('launch: App wraps SurfaceRouter without a second MCP owner', el?.props?.children?.type === SurfaceRouter)
+  const routed = el?.props?.children?.props as { children?: { type: unknown; props: Record<string, unknown> } }
   check('launch: SurfaceRouter wraps Chat', routed?.children?.type === Chat)
   check(
     'launch: chatProps forwarded untouched',

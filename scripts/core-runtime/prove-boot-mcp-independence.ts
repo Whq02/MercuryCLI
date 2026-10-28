@@ -24,14 +24,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-let documentedDefectArms = 0
-function checkDocumentedDefect(label: string, lawCount: number, brokenCount: number, actual: number): void {
-  documentedDefectArms++
-  check(
-    `DOCUMENTED DEFECT (the boot-spine unconditional connect — post-gate fix queued, one-owner law ruled): ${label} — the law says ${lawCount}, the defect holds EXACTLY at ${brokenCount}`,
-    actual === brokenCount,
-    `${actual} spawn(s) — ANY drift from the documented ${brokenCount} means the defect moved; re-adjudicate, never re-count`,
-  )
+function checkOwnerCount(label: string, expected: number, actual: number): void {
+  check(label, actual === expected, `${actual} spawn(s), expected ${expected}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -265,7 +259,7 @@ if (driver.kind !== 'posix-pty') {
       `the first frame painted within the bound (tick ${r.readyAt ?? '∅'} ≤ ${FIRST_FRAME_BOUND_TICKS})`,
       r.readyAt !== null && r.readyAt <= FIRST_FRAME_BOUND_TICKS,
     )
-    checkDocumentedDefect('the SCREEN spawns for the face (no chat exists yet — the runner of the session ↵ births owns MCP)', 0, 1, markerCount(marker))
+    checkOwnerCount('the screen spawns nothing on the boot face', 0, markerCount(marker))
   }
 
   section("I1b — interactive · --only-mcp · the born session's runner spawns the --mcp server exactly once")
@@ -275,7 +269,7 @@ if (driver.kind !== 'posix-pty') {
     const cfg = mcpConfigFile(w.dir, { name: 'alpha', args: ['--spawn-marker', marker] })
     const r = ptyBoot('i1b', ['--mcp', cfg, '--only-mcp'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
     check('the drive delivered the first message (the budget leg ran whole)', r.status === 0, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
-    checkDocumentedDefect("one owner: the born session's runner spawns 'alpha' (↵ spawns it; the first message respawns nothing) — the boot spine adds its own", 1, 2, markerCount(marker))
+    checkOwnerCount('the session runner alone spawns alpha, once', 1, markerCount(marker))
   }
 
   section('I2 — interactive · --only-mcp · the user-scope server is never spawned; the --mcp server once (the runner)')
@@ -288,7 +282,7 @@ if (driver.kind !== 'posix-pty') {
     const r = ptyBoot('i2', ['--mcp', cfg, '--only-mcp'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
     check('the drive delivered the first message', r.status === 0, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
     check("strict honoured: the user-scope server 'beta' was NEVER spawned", markerCount(markerB) === 0, `${markerCount(markerB)} spawn(s)`)
-    checkDocumentedDefect("one owner: the --mcp server 'alpha' spawns once — the boot spine adds its own", 1, 2, markerCount(markerA))
+    checkOwnerCount('the session runner alone spawns the explicit server, once', 1, markerCount(markerA))
   }
 
   section("I3 — interactive · no --mcp · a user-scope server is spawned exactly once (the runner)")
@@ -298,7 +292,24 @@ if (driver.kind !== 'posix-pty') {
     addUserScopeServer(w.home, { name: 'disc', args: ['--spawn-marker', marker] })
     const r = ptyBoot('i3', [], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
     check('the drive delivered the first message', r.status === 0, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
-    checkDocumentedDefect("one owner: 'disc' spawns once (never a second background-node connect) — the boot spine adds its own", 1, 2, markerCount(marker))
+    checkOwnerCount('the session runner alone spawns the discovered server, once', 1, markerCount(marker))
+  }
+  section('I4 — project MCP, default warm pool, repeated popup reads')
+  {
+    const w = world('i4')
+    const marker = join(w.dir, 'project.marker')
+    mkdirSync(join(w.cwd, '.mercury'))
+    writeFileSync(join(w.cwd, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
+    writeFileSync(join(w.cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { project: stubConfig({ name: 'project', args: ['--spawn-marker', marker] }) } }))
+    const r = ptyBoot('i4', [], bootEnv(w.home, { MERCURY_WARM_RUNNER: '1' }), w.cwd, w.dir, {
+      sends: [FACE_ENTER, { awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '/mcp\r' }, { afterPrevTicks: 30, data: '\u001b' }, { afterPrevTicks: 10, data: '/mcp\r' }],
+      ready: null,
+      totalTicks: RUNNER_TICKS,
+    })
+    const frame = JSON.parse(readFileSync(join(w.dir, 'i4.grid.json'), 'utf8')) as { grid: Array<Array<{ c?: string }>> }
+    const lines = frame.grid.map(row => row.map(cell => cell.c ?? ' ').join(''))
+    check('the popup reads the connected project server from its runner', r.status === 0 && lines.some(line => line.includes('project') && line.includes('connected')), lines.join('\n'))
+    checkOwnerCount('the screen and spare warm runner spawn no project server; the claimed runner spawns one', 1, markerCount(marker))
   }
 }
 
@@ -309,7 +320,4 @@ if (failures > 0) {
   console.log(`❌ boot/MCP independence: ${failures} check(s) failed`)
   process.exit(1)
 }
-if (documentedDefectArms > 0) {
-  console.log(`⚠ DOCUMENTED DEFECT HELD (${documentedDefectArms} arm(s)): the boot spine still dials MCP unconditionally — the one-owner law STANDS, the post-gate fix retires these arms consciously`)
-}
-console.log('✅ boot/MCP independence: the first frame never waits on an MCP answer; strict honoured; the one-owner defect held at its documented counts')
+console.log('PASS boot/MCP independence: one connection owner per session')

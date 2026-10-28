@@ -18,6 +18,7 @@ const {
   runQuietUpdateCheck,
   updateNoticeCachePath,
   updateNoticeText,
+  faceUpdateNoticeText,
   UPDATE_NOTICE_DAILY_MS,
   writeUpdateNoticeCache,
 } = await import('../../src/services/privateChannel/quietUpdateNotice.ts')
@@ -139,6 +140,21 @@ section('§4 a version that does not parse keeps the any-difference reading on b
   })
   check('the check road under a running version outside the grammar notifies any different version', result === 'notified' && notices[0] === updateNoticeText(OLDER), `${result} ${JSON.stringify(notices)}`)
   check('the face road reads the same fallback', decideFaceNotice(cached(OLDER, 'dev'), 'dev') === OLDER)
+}
+
+for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'], ['1.0.0', '1.0.1']] as const) {
+  const notices: string[] = []
+  const result = await runQuietUpdateCheck({
+    check: async () => ({ state: 'update-available', installed: from, tag: `v${to}`, version: to, assetName: 'x', channelRepo: 'r', road: 'anonymous', assetUrl: null, checksumUrl: null }),
+    readCache: () => null,
+    writeCache: () => {},
+    notify: text => notices.push(text),
+    now: () => NOW,
+    runningVersion: from,
+  })
+  check(`${from} offers ${to} with the existing notice words`, result === 'notified' && notices.join() === `v${to} available — mercury update`, JSON.stringify(notices))
+  check(`${to} uses the existing boot-face notice words`, faceUpdateNoticeText(to) === `v${to} available · mercury update`)
+  check(`${from} is not offered after ${to}`, decideFaceNotice(cached(from, to), to) === null)
 }
 
 rmSync(scratch, { recursive: true, force: true })

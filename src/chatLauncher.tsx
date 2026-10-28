@@ -66,19 +66,14 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
     Chat
   } = await import('./screens/Chat.js');
   const {
-    SeededMCPConnectionManager
-  } = await import('./services/mcp/MCPConnectionManager.js');
-  const {
     seedDynamicMcpConfig
   } = await import('./services/mcp/dynamicMcpSeed.js');
   seedDynamicMcpConfig(mcpSeed?.dynamicMcpConfig, mcpSeed?.isStrictMcpConfig ?? false);
   surfaceRoute.initializeSurfaceRoute(initialSurface.effective);
   profileCheckpoint('launch_chat_after_paint_imports');
   await renderAndRun(root, <App {...appProps}>
-      <SeededMCPConnectionManager>
-        <SurfaceRouter>
-          <Chat {...chatProps} />
-        </SurfaceRouter>
-      </SeededMCPConnectionManager>
+      <SurfaceRouter>
+        <Chat {...chatProps} />
+      </SurfaceRouter>
     </App>);
 }

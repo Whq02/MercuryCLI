@@ -8,7 +8,7 @@ export function registerCleanup(fn: () => Promise<void>): () => void {
 }
 
 export async function runCleanupFunctions(): Promise<void> {
-  const results = await Promise.allSettled([...cleanupFunctions].map(fn => fn()))
+  const results = await Promise.allSettled([...cleanupFunctions].map(fn => Promise.resolve().then(fn)))
   const firstRejection = results.find(r => r.status === 'rejected')
   if (firstRejection) throw (firstRejection as PromiseRejectedResult).reason
 }

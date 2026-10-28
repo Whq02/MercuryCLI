@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/utils/exitCliffDrain.ts src/utils/gracefulShutdown.ts
+# gate-watch: src/utils/exitCliffDrain.ts src/utils/gracefulShutdown.ts src/utils/cleanupRegistry.ts src/utils/scratchpad.ts scripts/core-runtime/mcp-stub-server.mjs
 # gate-watch: src/utils/sessionStorage/writer.ts src/cli/run.ts
 # gate-watch: src/query/scriptedStream.ts
 # gate-watch: scripts/lib/firstRunSeed.ts src/main.tsx src/substrate/flagRegistry.ts src/utils/proxy.ts
-# gate-watch: src/utils/ripgrep.ts
+# gate-watch: src/utils/ripgrep.ts src/utils/Shell.ts src/utils/config.ts
 # gate-watch: scripts/mcp/_fixture-stdio-server.mjs src/services/mcp/client.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

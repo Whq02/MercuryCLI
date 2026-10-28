@@ -118,7 +118,7 @@ export function selectRelease(
   if (newer.length === 0) return { state: 'current' }
 
   const pick = newer[0]!
-  if (!pick.r.isPrerelease) {
+  if (pick.v.label !== '' && !pick.r.isPrerelease) {
     return {
       state: 'malformed-release',
       tag: pick.r.tagName,

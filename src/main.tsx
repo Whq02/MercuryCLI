@@ -2255,13 +2255,22 @@ async function runLaunch(args: {
       )
     }
   }
-  profileCheckpoint('before_connectMcp')
-  if ((await withMcpLaunchBudget(connectMcpBatch(regularMcpConfigs, store.setState), mcpLaunchBudgetMs())) === 'timeout') {
-    logForDebugging(`MCP servers were not all ready within ${mcpLaunchBudgetMs()}ms; continuing — late servers serve later calls`)
-  }
-  profileCheckpoint('after_connectMcp')
-  await connectAnthropicConnectors(store)
-  profileCheckpoint('after_connectMcp_claudeai')
+  const awaitingMcpClaim = sessionRunner && !opts.continue && !opts.resume && !typedString(opts.sessionId)
+  let mcpFlight: Promise<void> | undefined
+  const initializeMcp = (): Promise<void> => mcpFlight ??= (async () => {
+    const dynamic = Object.fromEntries(Object.entries(regularMcpConfigs).filter(([, config]) => config.scope === 'dynamic' && config.extensionSource === undefined))
+    const configs = awaitingMcpClaim && !opts.onlyMcp && !isBareMode()
+      ? { ...(await getMercuryMcpConfigs(dynamic)).servers, ...dynamic }
+      : regularMcpConfigs
+    profileCheckpoint('before_connectMcp')
+    if ((await withMcpLaunchBudget(connectMcpBatch(configs, store.setState), mcpLaunchBudgetMs())) === 'timeout') {
+      logForDebugging(`MCP servers were not all ready within ${mcpLaunchBudgetMs()}ms; continuing — late servers serve later calls`)
+    }
+    profileCheckpoint('after_connectMcp')
+    await connectAnthropicConnectors(store)
+    profileCheckpoint('after_connectMcp_claudeai')
+  })()
+  if (!awaitingMcpClaim) await initializeMcp()
 
   const { runHeadless } = await import('./cli/run.js')
   const { seedDynamicMcpConfig } = await import('./services/mcp/dynamicMcpSeed.js')
@@ -2302,6 +2311,7 @@ async function runLaunch(args: {
         workload: typedString(opts.meterTag),
         advise: opts.advise === true,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
+        initializeMcp,
         door: args.door,
         subscribeAppState: store.subscribe,
         sessionStartHooksPromise,

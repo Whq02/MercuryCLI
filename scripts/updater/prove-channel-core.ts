@@ -120,6 +120,11 @@ check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1
   check('newest sound release wins despite older malformed sibling', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
 }
 
+for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'], ['1.0.0', '1.0.1'], ['1.0.0', '1.1.0']] as const) {
+  const picked = selectRelease([rel(`v${to}`, { isPrerelease: to.includes('-') })], v(from), 'linux', 'x64')
+  check(`${from} updates to ${to}`, picked.state === 'update-available' && picked.tag === `v${to}`, JSON.stringify(picked))
+}
+
 console.log('── §4b the bridge gate\'s previous reader (clean channel ⇒ first release) ──')
 {
   const prevOf = (list: Array<{ tagName: string; isDraft: boolean }>, candidate = '1.0.0-beta.4') => selectBridgePrevious(list, candidate)

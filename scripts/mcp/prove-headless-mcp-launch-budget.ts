@@ -83,7 +83,7 @@ section('§3 THE WIRE OPTION')
 section('§4 THE PRINT PATH (source pins)')
 {
   const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  check('the batch is raced against the launch budget', main.includes('withMcpLaunchBudget(connectMcpBatch(regularMcpConfigs, store.setState), mcpLaunchBudgetMs())'))
+  check('the batch is raced against the launch budget', main.includes('withMcpLaunchBudget(connectMcpBatch(configs, store.setState), mcpLaunchBudgetMs())'))
   check('the run proceeds on timeout — late servers serve later calls', main.includes("=== 'timeout') {") && main.includes('late servers serve later calls'))
   check('the helpers are static imports from the one MCP owner', /import \{[^}]*mcpLaunchBudgetMs[^}]*withMcpLaunchBudget[^}]*\} from '\.\/services\/mcp\/client\.js'/s.test(main))
   const print = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')

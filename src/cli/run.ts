@@ -322,6 +322,7 @@ type HeadlessOptions = {
   workload?: string
   advise?: boolean
   bootSessionIdPinned?: boolean
+  initializeMcp?: () => Promise<void>
   door?: 'rows' | 'wire'
   subscribeAppState?: (listener: () => void) => () => void
   sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
@@ -657,6 +658,7 @@ export async function runHeadless(
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  let mcpInitialized = !awaitingSessionClaim
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
   let sessionFactsHoldSpent = false
   let sessionFactsHold: Promise<void> | null = null
@@ -1852,7 +1854,7 @@ export async function runHeadless(
   const liveMcp = watchLiveMcpConfig({
     hosted: isConcourseWorker,
     initial: Object.fromEntries(getAppState().mcp.clients.filter(client => ['user', 'local', 'project', 'enterprise'].includes(client.config.scope) || client.config.extensionSource !== undefined).map(client => [client.name, client.config])),
-    ready: () => !awaitingSessionClaim,
+    ready: () => !awaitingSessionClaim && mcpInitialized,
     approve: async (name, config) => {
       const written = mcpConfigAsWritten(config)
       const target = written.url ?? written.command
@@ -1896,6 +1898,7 @@ export async function runHeadless(
       | { kind: 'shell'; command: string; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
       | { kind: 'note'; to: string; content: string; id?: string },
   ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
+    await options.initializeMcp?.()
     sessionInitialized = true
     const missionSync = await import('../guards/mission.js')
     missionSync.syncMissionFromCard(String(getSessionId()))
@@ -2114,9 +2117,12 @@ export async function runHeadless(
       await armSessionRunnerWiring(sid)
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       if (params.resume === true) await hydrateResumedRun()
+      void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
+        mcpInitialized = true
+        return liveMcp.refresh()
+      }).catch(logError)
       awaitingSessionClaim = false
       settleClearBirth()
-      void liveMcp.refresh()
       sessionFactsHoldSpent = false
       sessionFactsHold = null
       releaseQueueUntilClaimed?.()
