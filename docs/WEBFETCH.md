@@ -6,7 +6,7 @@ WebFetch reads a public page as Markdown. Omit `prompt` for the page's own words
 
 A failed request names its network cause, such as a connection reset, timeout, DNS failure or TLS failure, or its HTTP status. It also states whether the hosted reader was attempted and why. The reader renders sparse successful HTML; it does not bypass network failures or site refusals. Private addresses and preapproved documentation never go to the hosted reader.
 
-Host cooldowns are shared by agents in the same parent session. Connection failures, HTTP 403, 406, 429 and server errors start a cooldown. Later requests from sibling agents wait for that cooldown to expire rather than contacting the host again. A server's `Retry-After` is respected. Other parent sessions have separate pacing state.
+Host cooldowns are shared by agents in the same parent session. Connection failures, HTTP 403, 406, 429 and server errors start a cooldown. Later requests from sibling agents wait for that cooldown to expire before contacting the host again. A server's `Retry-After` is respected. Other parent sessions have separate pacing state.
 
 WebFetch honours `robots.txt`. HTTP 404 or 410 means no rules are present. Unreachable, invalid or cross-host rules stop the page fetch because Mercury cannot verify access. A disallowed path is not fetched or sent to the hosted reader. This tool has no geocoding or routing road.
 

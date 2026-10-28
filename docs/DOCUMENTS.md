@@ -1,5 +1,7 @@
 # Reading documents
 
+`Read` opens PDFs, office documents and scanned pages as text on every model, `Grep` searches them, and a fetched PDF comes back with its first page; this page says how each road reads.
+
 ## PDFs
 
 `Read` opens a PDF's text layer on every model, without a separate PDF utility.
@@ -86,8 +88,7 @@ when an engine is installed. A failed extraction leaves the saved file intact
 and names the problem instead of claiming there was text.
 
 An arXiv abstract result includes the paper's PDF link. Fetch that link for
-the saved PDF and first-page preview, rather than treating the abstract as
-the whole paper. Other binary downloads remain saved files without previews.
+the saved PDF and first-page preview; the abstract is not the whole paper. Other binary downloads remain saved files without previews.
 
 ## Native PDF input
 
@@ -113,4 +114,4 @@ also applies before OCR when `ocr: true` is set. The normal image-output
 budget still applies, so a large crop may be downscaled to fit.
 
 The crop coordinates, original dimensions and scale are metadata inside the
-image's tool result, not a separate user message.
+image's tool result instead of a separate user message.

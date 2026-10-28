@@ -23,6 +23,7 @@ reply to the clipboard (`/copy`).
 ## Working in a session
 
 - [DOCUMENTS.md](DOCUMENTS.md): reading PDF text, page pictures and document structure with `Read`.
+- [DOCUMENT-TOOL.md](DOCUMENT-TOOL.md): the `Document` tool: creating DOCX, PDF, PPTX, XLSX, HTML and Markdown, converting and assembling PDFs, reference lists and structure inspection.
 
 - [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md): read anchors, atomic file edits, change receipts and recovery.
 - [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): AstSearch and AstEdit patterns across the packaged language grammars.
@@ -35,6 +36,8 @@ reply to the clipboard (`/copy`).
 - [MEMORY-FINDINGS.md](MEMORY-FINDINGS.md): what the handoff note does and what it costs, measured on 1.0.0-beta.32 over 250 sessions in chains of five, with a control.
 - [VOICE.md](VOICE.md): on-device Whisper dictation with `/voice on` and `/voice off`, hold-to-talk capture, model selection and microphone setup.
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
+- [BROWSER.md](BROWSER.md): the `Browser` tool: one browser per agent, origin approvals, the idle lease and the session cap, frames and covered targets.
+- [WEBFETCH.md](WEBFETCH.md): the `WebFetch` tool: public pages as Markdown, failures and retries, robots rules, host back-off and batch fetches.
 
 ## Loading, extending and delegating
 

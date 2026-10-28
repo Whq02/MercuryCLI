@@ -74,7 +74,7 @@ const api = await startFixtureApi([
   { kind: 'error', status: 400, errorType: 'invalid_request_error', message: FOLD_REFUSAL, whenBody: 'running record of this conversation' },
   { kind: 'error', status: 400, errorType: 'invalid_request_error', message: FOLD_REFUSAL, whenBody: 'running record of this conversation' },
   { kind: 'error', status: 400, errorType: 'invalid_request_error', message: FOLD_REFUSAL, whenBody: 'running record of this conversation' },
-  { kind: 'text', text: 'alpha is ready.', whenModel: 'opus', whenBody: 'say alpha' },
+  { kind: 'text', text: `alpha is ready.\n${Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass, recorded in full.`).join(' ')}`, whenModel: 'opus', whenBody: 'say alpha' },
   { kind: 'text', text: 'beta is ready.', whenModel: 'opus', whenBody: 'say beta' },
   { kind: 'text', text: 'Spare one.', whenModel: 'opus' },
   { kind: 'text', text: 'Spare two.', whenModel: 'opus' },

@@ -161,7 +161,7 @@ section('C a first fold that would grow the conversation refuses before the summ
   const inputTokens = estimateContextTokens(short as never)
   const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
-  check('the audit fixture contains 307 estimated tokens', inputTokens === 307, String(inputTokens))
+  check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens))
   check('a first fold refuses with existing compact words, without claiming a previous fold', result === undefined && threw === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`)
   check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`)
   check('the context is unchanged', JSON.stringify(short) === snapshot)

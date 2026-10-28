@@ -10,7 +10,7 @@ A browser closes after five minutes without an operation. This leaves time to re
 
 ## Frames
 
-`extract` lists child-frame indices and URLs. Pass `frame: 1` for the first child frame, `frame: 0` for the main frame, or a unique URL substring such as `frame: "/embedded-form"`. Use this with click, type, scroll, waitFor, select, hover, extract or an element screenshot. CSS, accessible-name, text, XPath and `>>>` shadow selectors resolve inside the selected frame. Missing or ambiguous frames fail rather than targeting the main page.
+`extract` lists child-frame indices and URLs. Pass `frame: 1` for the first child frame, `frame: 0` for the main frame, or a unique URL substring such as `frame: "/embedded-form"`. Use this with click, type, scroll, waitFor, select, hover, extract or an element screenshot. CSS, accessible-name, text, XPath and `>>>` shadow selectors resolve inside the selected frame. A missing or ambiguous frame fails the act; the main page is never targeted by mistake.
 
 Frame acts require approval for the frame's own origin. The embedding page's approval does not cover a different origin; secret fills keep their separate secret-origin approval. An opaque sandboxed frame cannot borrow the embedding page's origin for a secret fill.
 

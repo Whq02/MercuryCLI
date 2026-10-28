@@ -16,6 +16,8 @@ process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { registerBundledSkill } = await import('../../src/skills/bundledSkills.ts')
 const { getSkillToolCommands } = await import('../../src/commands.ts')
 const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/utils/attachments/skillListing.ts')

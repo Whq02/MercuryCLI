@@ -135,6 +135,7 @@ const BUNDLED_SKILLS = [
   'extension-maker',
   'mcp-smithy',
   'provider-apis',
+  'research',
   'skill-forge',
 ]
 const BUNDLED_SKILL_MODULES = `^src/skills/bundled/(?:${BUNDLED_SKILLS.join('|')})(?:Content)?\\.ts$`

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +11,7 @@ const GROUND_A = join(SCRATCH, 'repo-a')
 const GROUND_B = join(SCRATCH, 'repo-b')
 mkdirSync(join(GROUND_A, '.mercury', 'skills'), { recursive: true })
 mkdirSync(join(GROUND_B, '.mercury', 'skills'), { recursive: true })
+writeFileSync(join(process.env.MERCURY_CONFIG_DIR, '.mercury.json'), JSON.stringify({ projects: Object.fromEntries([GROUND_A, GROUND_B, realpathSync(GROUND_A), realpathSync(GROUND_B)].map(ground => [ground, { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true }])) }))
 process.chdir(GROUND_A)
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI

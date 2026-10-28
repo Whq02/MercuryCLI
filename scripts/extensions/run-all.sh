@@ -17,6 +17,9 @@
 # gate-watch: src/utils/settings/settings.ts
 # gate-watch: scripts/lib/removeScratch.ts src/tools.ts src/utils/permissions/decision/engine.ts
 # gate-watch: scripts/lib/rows.ts src/query/scriptedStream.ts
+# gate-watch: scripts/lib/hermetic.ts src/cli/extensionApi.ts src/cli/tuneDoor.ts src/entrypoints/cli.tsx src/services/extensions/complete.ts
+# gate-watch: src/services/host/bank.ts src/services/host/idle.ts src/services/host/jobs.ts src/services/host/recipes.ts src/services/host/recipesFile.ts src/services/host/ssh.ts src/services/host/store.ts
+# gate-watch: src/services/localSetup/ggufModels.ts src/services/localSetup/ggufServer.ts src/utils/thinking.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
