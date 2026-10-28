@@ -136,12 +136,15 @@ section('§3 refusals: an application the ask denied; a tree over the cap is tru
   check('kept depth 1 stops at the windows, with the cut said', depthLines.length === 4 && !byDepth.result.includes('AXButton') && byDepth.result.includes('truncated:'), byDepth.result)
   const whole = await call({ action: 'tree', limit: 400, depth: 2, all: true }, context)
   check('depth 2 reaches all 300 buttons through the dropped groups', whole.result.split('\n').filter(l => /^\s*\[\d+\]/.test(l)).length === 304 && !whole.result.includes('truncated'), whole.result.slice(0, 200))
+  for (const input of [{ action: 'tree', depth: TREE_DEPTH_CAP + 1 }, { action: 'tree', limit: TREE_LIMIT_CAP + 1 }]) {
+    const validation = await ComputerTool.validateInput!(input as never, context)
+    const read = await call(input, context)
+    check('excess tree budgets clamp instead of refusing', validation.result && read.outcome === 'succeeded' && read.result.includes('clamped:'), read.result)
+  }
   for (const [input, words] of [
-    [{ action: 'tree', depth: TREE_DEPTH_CAP + 1 }, `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP}`],
     [{ action: 'tree', depth: -1 }, `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP}`],
     [{ action: 'tree', depth: 1.5 }, `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP}`],
     [{ action: 'tree', limit: 0 }, `tree takes limit as a whole number from 1 to ${TREE_LIMIT_CAP}`],
-    [{ action: 'tree', limit: TREE_LIMIT_CAP + 1 }, `tree takes limit as a whole number from 1 to ${TREE_LIMIT_CAP}`],
     [{ action: 'tree', x: 1 }, 'tree does not take x'],
     [{ action: 'screenshot', depth: 2 }, 'screenshot does not take depth'],
     [{ action: 'click', x: 1, y: 1, limit: 2 }, 'click does not take limit'],
@@ -188,11 +191,13 @@ section('§6 Accessibility not granted: the read says so with the remedy and rea
 section('§7 the words and the road')
 {
   const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => ({}) as never, tools: [], agents: [] } as never)
-  check('the prompt teaches refs, outline options, kept budgets and scopes', prompt.split('\n').includes(`tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}; scope:window|app; find(target).`) && prompt.includes('No clipboard or input.'), prompt)
-  check('the prompt says tree asks like an act', /never ask; tree asks like an act\./.test(prompt))
+  check('the prompt teaches refs, outline options, kept budgets and scopes', prompt.split('\n').includes(`tree: [n] role "title" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows ${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}, caps ${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}, larger budgets clamp; scope:window default, app includes menus/windows; find(target). Targets use caps by default.`), prompt)
+  check('the prompt teaches tree budgets, scopes and explicit clipboard consent', [`${TREE_DEPTH_DEFAULT}/${TREE_LIMIT_DEFAULT}`, `${TREE_DEPTH_CAP}/${TREE_LIMIT_CAP}`, 'scope:window', 'find(target)', 'clipboard:true', 'separate consent'].every(words => prompt.includes(words)), prompt)
+  check('the prompt puts tree reads under the application grant', prompt.includes('first act in an application asks') && prompt.includes('tree/find/read/wait-until share its grant'))
   const tool = sourceText('src/tools/ComputerTool/ComputerTool.ts')
   const addon = sourceText('native/desktop/src/mac.rs')
-  check('the tool reads no clipboard and the macOS reader touches no pasteboard', !/pbpaste|NSPasteboard|clipboardy|readClipboard|getClipboard/i.test(tool) && !/NSPasteboard|UIPasteboard|pbpaste/.test(addon))
+  const treeReader = addon.slice(addon.indexOf('pub fn accessibility_tree'), addon.indexOf('fn parent_of'))
+  check('tree still reads no clipboard; explicit read uses a separate native road', !/NSPasteboard|UIPasteboard|pbpaste/.test(treeReader) && tool.includes("input.action === 'read' && input.clipboard === true") && addon.includes('pub fn read_clipboard()'))
   check('the macOS reader walks the Accessibility API (AXUIElement, AXChildren, AXRole, AXTitle, AXValue, AXPosition, AXSize) and posts no event', /AXUIElementCreateApplication\(pid\)/.test(addon.slice(addon.indexOf('pub fn accessibility_tree'))) && ['"AXChildren"', '"AXRole"', '"AXTitle"', '"AXValue"', '"AXPosition"', '"AXSize"'].every(key => addon.includes(key)) && !/CGEventPost/.test(addon.slice(addon.indexOf('pub fn accessibility_tree'), addon.indexOf('fn parent_of'))))
   check('the native driver reads the tree on the same subprocess road as the frontmost read, with a kill timeout', /accessibilityTree\(Number\(process\.argv\[2\]\)/.test(sourceText('src/services/desktop/nativeDriver.ts')) && /TREE_SUBPROCESS_TIMEOUT_MS/.test(sourceText('src/services/desktop/nativeDriver.ts')))
   check('the addon contract carries accessibilityTree among its required exports', (await import('../../src/services/desktop/pack.ts')).DESKTOP_ADDON_EXPORTS.includes('accessibilityTree' as never))

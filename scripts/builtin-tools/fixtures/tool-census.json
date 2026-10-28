@@ -424,7 +424,9 @@
         "frontmost",
         "tree",
         "find",
-        "sequence"
+        "sequence",
+        "read",
+        "focusApp"
       ],
       "units": [
         "desktop-drive"
@@ -458,7 +460,9 @@
           "frontmost",
           "tree",
           "find",
-          "sequence"
+          "sequence",
+          "read",
+          "focusApp"
         ],
         "execution": {
           "kind": "desktop-session",

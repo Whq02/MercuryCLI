@@ -114,9 +114,11 @@ export function ComputerPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
+  const input = toolUseConfirm.input as { action?: string; clipboard?: boolean }
+  const clipboard = input.action === 'read' && input.clipboard === true
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
-  const options = computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).map(choice => ({ label: choice.label, value: choice.value }))
+  const options = computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).filter(choice => !clipboard || choice.value === 'yes' || choice.value === 'no' || choice.value === 'sovereign').map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
     const effect = applyComputerAskChoice(value, conversationIdHere())
@@ -143,10 +145,10 @@ export function ComputerPermissionRequest({
         ) : (
           <Text>{useMessage}</Text>
         )}
-        <Text>{computerAskAppLine(judged)}</Text>
-        <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
-        <Text dimColor>{COMPUTER_ASK_NOTE}</Text>
-        <Text bold>{COMPUTER_ASK_QUESTION}</Text>
+        {!clipboard && <Text>{computerAskAppLine(judged)}</Text>}
+        {!clipboard && <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />}
+        {!clipboard && <Text dimColor>{COMPUTER_ASK_NOTE}</Text>}
+        <Text bold>{clipboard ? 'Allow Mercury to read the clipboard text?' : COMPUTER_ASK_QUESTION}</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>
     </PermissionDialog>

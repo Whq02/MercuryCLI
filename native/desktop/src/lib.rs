@@ -420,6 +420,40 @@ pub fn accessibility_tree(pid: u32, max_depth: u32, max_count: u32, scope: Optio
     }
 }
 
+#[napi(object)]
+pub struct ElementText {
+    pub text: String,
+    pub role: String,
+    pub title: Option<String>,
+    pub truncated: bool,
+}
+
+#[cfg(target_os = "macos")]
+#[napi]
+pub fn read_element(pid: u32, element: TreeElement) -> Result<Option<ElementText>> {
+    input_preflight().map_err(reason)?;
+    imp::read_element(pid as i32, &element).map_err(reason)
+}
+
+#[cfg(target_os = "macos")]
+#[napi]
+pub fn read_clipboard() -> Result<String> {
+    desktop_session(&imp::permissions(false)).map_err(reason)?;
+    imp::read_clipboard().map_err(reason)
+}
+
+#[cfg(target_os = "macos")]
+#[napi]
+pub fn find_application(name: String) -> ApplicationAnswer {
+    imp::find_application(&name)
+}
+
+#[cfg(target_os = "macos")]
+#[napi]
+pub fn activate_application(pid: u32, identity: String) -> Result<()> {
+    input_preflight().map_err(reason)?;
+    imp::activate_application(pid as i32, &identity).map_err(reason)
+}
 #[napi]
 pub fn cursor() -> CursorAnswer {
     match imp::cursor() {

@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 70 built-in production tools · 184 operations · 70 with a declared capability contract.
+Census version 1 — 70 built-in production tools · 186 operations · 70 with a declared capability contract.
 
 ## Summary
 
@@ -30,7 +30,7 @@ Census version 1 — 70 built-in production tools · 184 operations · 70 with a
 | Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
-| Computer | execution | desktop-drive | 17 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
+| Computer | execution | desktop-drive | 19 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | Crewmate | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |

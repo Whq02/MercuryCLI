@@ -424,6 +424,67 @@ class NativeDesktopDriver implements DesktopDriver {
     } catch (error) { return fail(classifyThrown(error)) }
   }
 
+  private async queryDesktop<T>(method: 'readElement' | 'readClipboard' | 'findApplication' | 'activateApplication', args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
+    const closed = this.closedRefusal<T>()
+    if (closed) return closed
+    if (signal.aborted) return desktopAbortedAnswer()
+    if (process.platform !== 'darwin' || !this.addon[method]) return fail({ kind: 'unavailable', note: `${method} needs the macOS desktop pack's ${method} export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+    const permissions = this.readPermissions()
+    if (!permissions.ok) return fail(permissions.error)
+    const refusal = needsInput ? inputRefusal(permissions.value) : sessionRefusal(permissions.value)
+    if (refusal) return this.refuseAndRequestGrants(refusal)
+    try {
+      const value = await new Promise<T>((resolve, reject) => {
+        const script = 'const a=require(process.argv[1]); Promise.resolve(a[process.argv[2]](...JSON.parse(process.argv[3]))).then(v=>process.stdout.write(JSON.stringify(v??null)))'
+        const child = execFile(process.execPath, ['-e', script, this.addonPath, method, JSON.stringify(args)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+          signal.removeEventListener('abort', onAbort)
+          if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+          if (error) return reject(new Error(`${method} failed: ${error.message}`))
+          try { resolve(JSON.parse(stdout)) } catch { reject(new Error(`${method} returned an unreadable record`)) }
+        })
+        const onAbort = () => { child.kill('SIGKILL') }
+        signal.addEventListener('abort', onAbort, { once: true })
+        if (signal.aborted) onAbort()
+      })
+      return signal.aborted ? desktopAbortedAnswer() : { ok: true, value }
+    } catch (error) { return fail(classifyThrown(error)) }
+  }
+
+  async readElement(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
+    if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
+    const answer = await this.queryDesktop<DesktopFocusedText | null>('readElement', [app.pid, element], signal, true)
+    if (answer.ok && answer.value !== null && (typeof answer.value.text !== 'string' || typeof answer.value.role !== 'string')) return fail(contractDefect('read element', 'invalid text or role'))
+    return answer
+  }
+
+  async readClipboard(signal: AbortSignal): Promise<DesktopAnswer<string>> {
+    const answer = await this.queryDesktop<string>('readClipboard', [], signal)
+    return answer.ok && typeof answer.value !== 'string' ? fail(contractDefect('clipboard', 'not text')) : answer
+  }
+
+  async findApplication(name: string): Promise<DesktopAnswer<DesktopApplication>> {
+    const answer = await this.queryDesktop<DesktopAddonApplication>('findApplication', [name], new AbortController().signal)
+    if (!answer.ok) return answer
+    const raw = answer.value
+    if (!raw || typeof raw.identity !== 'string' || !raw.identity) return fail({ kind: 'input', note: raw?.reason ?? `no running application named ${name}` })
+    return { ok: true, value: application(raw, raw.identity) }
+  }
+
+  async activateApplication(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopApplication>> {
+    if (!app.pid || !Number.isInteger(app.pid)) return fail({ kind: 'input', note: `${app.name} has no process id` })
+    const answer = await this.queryDesktop<null>('activateApplication', [app.pid, app.identity], signal, true)
+    if (!answer.ok) return answer
+    const deadline = Date.now() + 1500
+    while (!signal.aborted) {
+      const front = await this.frontmostApplication()
+      if (signal.aborted) return desktopAbortedAnswer()
+      if (front.ok && front.value.identity === app.identity && front.value.pid === app.pid) return front
+      if (Date.now() >= deadline) break
+      await new Promise<void>(resolve => { const timer = setTimeout(done, 50); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve() } signal.addEventListener('abort', done, { once: true }) })
+    }
+    return signal.aborted ? desktopAbortedAnswer() : fail({ kind: 'display', note: `${app.name} did not come to the front` })
+  }
+
   async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
     const closed = this.closedRefusal<DesktopTree>()
     if (closed !== null) return closed

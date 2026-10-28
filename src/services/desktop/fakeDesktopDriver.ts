@@ -581,6 +581,23 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer(tree)
   }
 
+  async readElement(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<import('./driver.js').DesktopFocusedText | null>> {
+    const tree = await this.accessibilityTree(app, { depth: 32, count: 2000, scope: 'window' }, signal)
+    if (!tree.ok) return tree
+    const matches = tree.value.elements.filter(row => row.role === element.role && row.title === element.title && JSON.stringify(row.frame) === JSON.stringify(element.frame))
+    if (tree.value.truncated || matches.length !== 1) return refusal(inputError('the element is no longer unique in a complete window tree — read tree again'))
+    const selected = matches[0]!
+    if (selected.role.includes('Secure')) return refusal(inputError('secure fields cannot be read'))
+    let text = selected.value ?? ''
+    if (selected.value === null && !/^AX(TextField|TextArea|SearchField)/.test(selected.role)) {
+      const start = tree.value.elements.indexOf(selected)
+      let end = start + 1
+      while (end < tree.value.elements.length && tree.value.elements[end]!.depth > selected.depth) end++
+      text = tree.value.elements.slice(start, end).filter(row => !row.role.includes('Secure')).map(row => row.title && row.value && row.title !== row.value ? `${row.title}: ${row.value}` : row.value ?? row.title ?? '').filter(Boolean).join('\n')
+    }
+    return answer({ text: text.slice(0, 20000), role: selected.role, title: selected.title, truncated: text.length > 20000 })
+  }
+
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {
     return answer({ x: this.cursorAt.x, y: this.cursorAt.y, display: this.displayAt(this.cursorAt) })
   }

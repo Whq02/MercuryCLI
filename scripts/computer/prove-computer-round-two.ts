@@ -66,7 +66,7 @@ driver.accessibilityTree = async () => ({ ok: true, value: { ...unchanged, webCo
 const absentPage = await call({ action: 'find', target: { text: 'Unexposed page' } })
 check('missing page content is distinguished from a missing element', absentPage.result.includes('exposes no page content'), absentPage.result)
 const absentWait = await call({ action: 'wait', until: { text: 'Unexposed page' }, durationMs: 20, capture: false })
-check('a timed-out page wait names missing page content', absentWait.outcome === 'failed' && absentWait.result.includes('exposes no page content'), absentWait.result)
+check('a timed-out page wait names its condition and last tree size', absentWait.outcome === 'failed' && absentWait.result.includes('timed out') && absentWait.result.includes('Unexposed page') && absentWait.result.includes('last tree: 1 elements'), absentWait.result)
 const absentClick = await call({ action: 'click', target: { text: 'Unexposed page' }, capture: false })
 check('a missing page target names the same screenshot remedy', absentClick.outcome === 'failed' && absentClick.result.includes('exposes no page content'), absentClick.result)
 

@@ -1140,3 +1140,160 @@ pub fn type_char(c: char) -> Result<(), String> {
         result
     }
 }
+pub fn find_application(wanted: &str) -> ApplicationAnswer {
+    autoreleasepool(|_| unsafe {
+        let Some(class) = AnyClass::get(c"NSWorkspace") else { return ApplicationAnswer::refused("the application layer is not loaded"); };
+        let workspace: *mut AnyObject = msg_send![class, sharedWorkspace];
+        if workspace.is_null() { return ApplicationAnswer::refused("the shared workspace is not available"); }
+        let apps: *mut AnyObject = msg_send![&*workspace, runningApplications];
+        if apps.is_null() { return ApplicationAnswer::refused("running applications could not be read"); }
+        let count: usize = msg_send![&*apps, count];
+        let mut found = Vec::new();
+        for index in 0..count {
+            let app: *mut AnyObject = msg_send![&*apps, objectAtIndex: index];
+            if app.is_null() { continue; }
+            let (identity, name, pid, policy) = app_facts(&*app);
+            if policy != ACTIVATION_POLICY_REGULAR { continue; }
+            if identity.as_deref().is_some_and(|value| value.eq_ignore_ascii_case(wanted)) || name.as_deref().is_some_and(|value| value.eq_ignore_ascii_case(wanted)) {
+                if let Some(identity) = identity {
+                    found.push(ApplicationAnswer::found(identity, name, Some(pid as u32), None, None));
+                }
+            }
+        }
+        if found.len() == 1 { found.remove(0) }
+        else { ApplicationAnswer::refused(&format!("{} running applications named {} — use a unique application name or bundle id", found.len(), wanted)) }
+    })
+}
+
+pub fn activate_application(pid: i32, identity: &str) -> Result<(), String> {
+    autoreleasepool(|_| unsafe {
+        let Some(class) = AnyClass::get(c"NSRunningApplication") else { return Err("the application layer is not loaded".to_string()); };
+        let app: *mut AnyObject = msg_send![class, runningApplicationWithProcessIdentifier: pid];
+        if app.is_null() { return Err("the application is no longer running".to_string()); }
+        let (current, _, _, _) = app_facts(&*app);
+        if current.as_deref() != Some(identity) { return Err("the application's identity changed before focus".to_string()); }
+        let activated: bool = msg_send![&*app, activateWithOptions: 2usize];
+        if activated { Ok(()) } else { Err("the application did not accept focus".to_string()) }
+    })
+}
+
+pub fn read_clipboard() -> Result<String, String> {
+    autoreleasepool(|_| unsafe {
+        let Some(class) = AnyClass::get(c"NSPasteboard") else { return Err("the clipboard is unavailable".to_string()); };
+        let board: *mut AnyObject = msg_send![class, generalPasteboard];
+        if board.is_null() { return Err("the clipboard is unavailable".to_string()); }
+        let kind = NSString::from_str("public.utf8-plain-text");
+        let text: Option<Retained<NSString>> = msg_send![&*board, stringForType: &*kind];
+        text.map(|text| text.to_string()).ok_or_else(|| "the clipboard has no text".to_string())
+    })
+}
+
+fn matching_element(candidate: &TreeElement, wanted: &TreeElement) -> bool {
+    candidate.role == wanted.role && candidate.title == wanted.title && match (&candidate.frame, &wanted.frame) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height,
+        _ => false,
+    }
+}
+
+pub fn read_element(pid: i32, wanted: &TreeElement) -> Result<Option<crate::ElementText>, String> {
+    autoreleasepool(|_| unsafe {
+        if !AXIsProcessTrusted() { return Err("Accessibility is not granted".to_string()); }
+        let app = AXUIElementCreateApplication(pid);
+        if app.is_null() { return Err("the application has no accessibility element".to_string()); }
+        AXUIElementSetMessagingTimeout(app, TREE_MESSAGING_TIMEOUT_S);
+        let window = ax_attribute(app, "AXFocusedWindow");
+        CFRelease(app);
+        if window.is_null() { return Err("the focused window is unavailable".to_string()); }
+        let started = std::time::Instant::now();
+        let budget = std::time::Duration::from_millis(TREE_BUDGET_MS);
+        let mut stack = vec![(window, 1u32)];
+        let mut matches: Vec<CFTypeRef> = Vec::new();
+        let mut count = 0;
+        let mut complete = true;
+        while let Some((element, depth)) = stack.pop() {
+            if count >= 2000 || started.elapsed() > budget {
+                complete = false;
+                CFRelease(element);
+                break;
+            }
+            count += 1;
+            let row = tree_element(element, depth, ptr::null());
+            if matching_element(&row, wanted) { matches.push(CFRetain(element)); }
+            if depth < 32 {
+                for child in ax_children(element).into_iter().rev() { stack.push((child, depth + 1)); }
+            } else if ax_child_count(element) > 0 { complete = false; }
+            CFRelease(element);
+        }
+        for (rest, _) in stack { CFRelease(rest); }
+        if !complete || matches.len() != 1 {
+            for matched in matches { CFRelease(matched); }
+            return Err("the element is no longer unique in a complete window tree — read tree again".to_string());
+        }
+        let selected = matches[0];
+        let role = wanted.role.clone();
+        let title = ax_string(selected, "AXTitle").or_else(|| ax_string(selected, "AXDescription"));
+        if role.contains("Secure") { CFRelease(selected); return Err("secure fields cannot be read".to_string()); }
+        let direct = ax_string(selected, "AXValue");
+        let mut text = String::new();
+        let mut truncated = false;
+        if let Some(value) = direct { text = value; }
+        else if !["AXTextField", "AXTextArea", "AXSearchField"].iter().any(|prefix| role.starts_with(prefix)) {
+            let mut pending = vec![(CFRetain(selected), 0u32)];
+            let mut rows = 0;
+            while let Some((element, depth)) = pending.pop() {
+                if rows >= 2000 || started.elapsed() > budget || text.chars().count() > 20000 {
+                    truncated = true;
+                    CFRelease(element);
+                    break;
+                }
+                rows += 1;
+                let subrole = ax_string(element, "AXSubrole").unwrap_or_default();
+                if !subrole.contains("Secure") {
+                    let label = ax_string(element, "AXTitle").or_else(|| ax_string(element, "AXDescription"));
+                    let value = ax_string(element, "AXValue");
+                    let line = match (label, value) {
+                        (Some(label), Some(value)) if label != value => format!("{label}: {value}"),
+                        (Some(value), _) | (_, Some(value)) => value,
+                        _ => String::new(),
+                    };
+                    if !line.trim().is_empty() { if !text.is_empty() { text.push('\n'); } text.push_str(&line); }
+                    if depth < 32 {
+                        for child in ax_children(element).into_iter().rev() { pending.push((child, depth + 1)); }
+                    } else if ax_child_count(element) > 0 { truncated = true; }
+                }
+                CFRelease(element);
+            }
+            for (rest, _) in pending { CFRelease(rest); }
+        }
+        CFRelease(selected);
+        truncated |= text.chars().count() > 20000;
+        text = text.chars().take(20000).collect();
+        Ok(Some(crate::ElementText { text, role, title, truncated }))
+    })
+}
+
+#[cfg(test)]
+mod read_element_tests {
+    use super::*;
+
+    #[test]
+    fn a_value_change_does_not_change_the_addressed_control() {
+        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: Some("old".into()), frame: None, focused: None };
+        let mut current = original.clone();
+        current.value = Some("new".into());
+        assert!(matching_element(&current, &original));
+        current.title = Some("Another field".into());
+        assert!(!matching_element(&current, &original));
+    }
+
+    #[test]
+    fn a_moved_control_is_not_the_old_target() {
+        let original = TreeElement { depth: 1, role: "AXTextField".into(), title: Some("URL".into()), value: None, frame: Some(BoundsRecord { x: 10.0, y: 20.0, width: 40.0, height: 30.0 }), focused: None };
+        let mut current = original.clone();
+        current.frame.as_mut().unwrap().x += 1.0;
+        assert!(!matching_element(&current, &original));
+        current.frame = None;
+        assert!(!matching_element(&current, &original));
+    }
+}

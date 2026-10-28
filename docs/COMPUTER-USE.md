@@ -14,10 +14,13 @@ Read `tree` when a control's name answers the question; use a screenshot when
 pixels matter. Mouse actions accept `target: { role, name, text }` instead of
 `x` and `y`: role and name match exactly, ignoring case and repeated whitespace;
 text matches a substring of the title or value. Supply only the fields needed
-to identify one element. A missing, ambiguous or truncated match, or an element
-without bounds, refuses with a remedy. Targets, `find` and `wait` with `until`
+to identify one element. An ambiguous match lists up to eight numbered
+candidates and `nth: 2` on the target picks the second of them; a missing match
+names the three nearest by text; a truncated match or an element without
+bounds refuses with a remedy. Targets, `find` and `wait` with `until`
 are resolved afresh before the act at depth 32 and 2000 elements unless you
-pass smaller `depth` or `limit` values. `find` accepts the same target and
+pass smaller `depth` or `limit` values; larger values clamp to those caps with
+a note in the result. `find` accepts the same target and
 returns matching numbered rows without an image. `ref: 7` on a mouse action
 uses row `[7]` from the latest `tree` or `find`. References are checked again
 before input; a missing element or a new tree read makes the old reference
@@ -37,16 +40,18 @@ A result says when page content is still starting or unavailable. Use a longer
 `wait` with `until` while it starts; use a screenshot when no page tree is exposed.
 An incomplete tree never establishes that a target is unique or absent.
 
-`settleMs` caps post-action settling time (default 300 ms, cap 5000 ms) and
-finishes early as soon as two consecutive captures match. A mouse act checks
-only the region around its target so unrelated animation elsewhere does not
-delay it, while the final screenshot still covers the requested display or
-capture region. The result reports which region was checked and whether it
-stabilized or kept changing until the cap. Target stability does not mean a
-page has finished loading; use `wait` with `until` to wait for a specific
-control. Intermediate frames are neither saved nor sent to the model,
-`capture: false` skips capture and settling, and any act accepts an optional
-`label`.
+`settleMs` caps post-action settling time (default 300 ms, cap 5000 ms); a
+captured act finishes early as soon as two consecutive captures match, and a
+mouse act checks only the region around its target so unrelated animation
+elsewhere does not delay it. An act's result ends with a second line read once
+after the act settles, for example
+`changed · now: window "Automations" · dialog "Webhook" · focus AXTextField "Name" · url example.test/automations`:
+`changed` when the window title or the focused control differs from before the
+act, `unchanged` when nothing moved within `settleMs`. That line tracks the
+title and the focus; a page can still be loading behind an unchanged title, so
+use `wait` with `until` to wait for a specific control. Intermediate frames are neither saved nor sent to the model,
+`capture: false` skips the capture, and any act accepts an optional `label`.
+With `capture: true`, `scale`, `full` and `display` describe that capture.
 
 Passing `verify: true` on an act compares the tree and front window before and
 after the action, reports whether a change was observed (or if the result is
@@ -54,11 +59,19 @@ unknown), names the focused control when available, and suggests the next read.
 Verification does not prove that a save or form submission succeeded and never
 retries an act automatically.
 
-`wait` accepts `until: { role, name, text }` to poll the application's tree
-until a matching element appears, bounded by `durationMs` (default 1000 ms,
-cap 10000 ms). If the deadline passes or the front window changes, the call
-reports that failure instead of succeeding. `capture: false` makes this an
-image-free check.
+`wait` accepts `until` with `{ role, name, text }` for an element, `{ title }`
+for the window title, `{ url }` for the address a browser window shows, or
+`gone: true` beside one of those to wait for it to leave, bounded by
+`durationMs` (default 1000 ms, cap 10000 ms). The result names the condition
+that passed, or that the time ran out with the size of the last tree read; if
+the front window changes the call reports that instead of succeeding.
+`capture: false` makes this an image-free check.
+
+`read` with `target` or `ref` returns that element's labelled value or text
+(up to 20,000 characters), and `read` with `clipboard: true` returns the text
+copied last, under its own permission card. `focusApp: { name }` brings a
+running application to the front by name or bundle id. Both are macOS reads
+today; on other platforms they say so.
 
 A screenshot, or the screenshot after an act, can take
 `region: { x, y, width, height }` in pixels of the last screenshot. The saved
@@ -67,8 +80,9 @@ and transmitted image contains only that rectangle; its top-left becomes
 and crops the image before saving and sending it, which reduces image size
 without changing display capture time.
 
-`sequence` takes `steps`, an ordered array of acts and `tree`, `find` or `wait`
-reads. A fast browser interaction, after reading the control names, is:
+`sequence` takes `steps`, an ordered array of acts, `tree`, `find`, `read` or
+`wait` reads, and `screenshot` steps that capture at that point. A fast browser
+interaction, after reading the control names, is:
 
 ```json
 {
@@ -88,12 +102,14 @@ Use the roles and names your tree actually returned; the example's `cmd+a` is
 the macOS select-all chord (`ctrl+a` on other platforms). Each step goes through
 the same permission and safety checks as an individual call, including each read.
 A refusal, timeout or interruption stops the sequence and reports how many steps
-completed; completed acts are not undone. One screenshot follows the final step.
-Set `capture: false` on the sequence to keep the interaction image-free. Set
+completed; completed acts are not undone. One screenshot follows the final step
+unless that step is a screenshot, and the after-state line of the last step
+closes the result. Set `capture: false` on the sequence to keep the interaction
+image-free. Set
 `capture`, `region` and `settleMs` on the sequence itself; steps do not take them.
 Nested sequences are refused.
 
-`find` and `wait` with `until` read the tree and therefore ask like `tree`.
+`find`, `read` and `wait` with `until` read the tree and therefore ask like `tree`.
 A timed wait without `until` remains a never-ask read. Targeted mouse actions
 keep their existing act permission class. The access types and sovereign mode
 work identically for individual acts and sequences.

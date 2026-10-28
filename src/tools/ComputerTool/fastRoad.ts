@@ -1,12 +1,13 @@
 import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
-import { boundsOfPixels, type ScreenMap } from './screenMap.js'
+import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
 
 interface ElementTarget {
   role?: string
   name?: string
   text?: string
+  nth?: number
 }
 
 export type CaptureRegion = DesktopBounds
@@ -14,7 +15,7 @@ export type CaptureRegion = DesktopBounds
 const normalized = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase()
 
 export function targetWords(target: ElementTarget): string {
-  return [target.role, target.name === undefined ? undefined : JSON.stringify(target.name), target.text === undefined ? undefined : `text=${JSON.stringify(target.text)}`].filter(Boolean).join(' ')
+  return [target.role, target.name === undefined ? undefined : JSON.stringify(target.name), target.text === undefined ? undefined : `text=${JSON.stringify(target.text)}`, target.nth === undefined ? undefined : `nth=${target.nth}`].filter(Boolean).join(' ')
 }
 
 export function targetMatches(tree: DesktopTree, target: ElementTarget): DesktopTreeElement[] {
@@ -25,11 +26,52 @@ export function targetMatches(tree: DesktopTree, target: ElementTarget): Desktop
   )
 }
 
-export function targetPoint(tree: DesktopTree, target: ElementTarget): { x: number; y: number } | { refusal: string } {
+function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null): string {
+  return elements.map((element, index) => {
+    const frame = element.frame
+    const point = frame ? { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 } : null
+    const at = point && map ? pixelOfPoint(map, point) : point
+    return `[${index + 1}] ${element.role} ${JSON.stringify(element.title ?? element.value ?? '')}${at ? ` (${Math.round(at.x)},${Math.round(at.y)})${map ? 'px' : 'pt'}` : ''}`
+  }).join('\n')
+}
+
+function textDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 0; i < a.length; i++) {
+    const row = [i + 1]
+    for (let j = 0; j < b.length; j++) row.push(Math.min(row[j]! + 1, previous[j + 1]! + 1, previous[j]! + (a[i] === b[j] ? 0 : 1)))
+    previous = row
+  }
+  return previous[b.length]!
+}
+
+export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): DesktopTreeElement | { refusal: string } {
   const matches = targetMatches(tree, target)
-  if (matches.length !== 1) return { refusal: `${targetWords(target)}: ${matches.length} matches${matches.length > 1 ? ' (ambiguous)' : ''}${tree.truncated ? ' in a truncated tree' : ''} — read tree and use a unique role/name/text or screenshot pixels` }
+  const interactive = matches.filter(element => /^(AX)?(Button|CheckBox|ComboBox|Link|MenuButton|MenuItem|PopUpButton|RadioButton|SearchField|Slider|Tab|TextArea|TextField|ToggleButton)$/i.test(element.role))
+  const parent = interactive.length === 1 ? interactive[0] : undefined
+  const start = parent ? tree.elements.indexOf(parent) : -1
+  let end = start + 1
+  if (parent) while (end < tree.elements.length && tree.elements[end]!.depth > parent.depth) end++
+  const ownsMatches = parent && matches.every(element => { const index = tree.elements.indexOf(element); return index >= start && index < end })
+  const selected = target.nth !== undefined ? matches[target.nth - 1] : matches.length === 1 ? matches[0] : ownsMatches ? parent : undefined
+  if (!selected) {
+    if (matches.length) return { refusal: `${targetWords(target)}: ${matches.length} matches${target.nth === undefined ? ' (ambiguous)' : `; nth ${target.nth} is outside them`} — choose target.nth (1-based)\n${candidateWords(matches.slice(0, 8), map)}` }
+    const wanted = normalized(target.name ?? target.text ?? target.role ?? '').slice(0, 120)
+    const nearby = tree.elements.filter(element => (element.title ?? element.value ?? '').trim()).map(element => {
+      const text = normalized(element.title ?? element.value ?? '').slice(0, 120)
+      const distance = Math.min(textDistance(wanted, text), ...text.split(' ').map(word => textDistance(wanted, word))) + Math.abs(wanted.length - text.length) / 100
+      return { element, distance }
+    }).sort((a, b) => a.distance - b.distance).slice(0, 3).map(item => item.element)
+    return { refusal: `${targetWords(target)}: 0 matches${tree.truncated ? ' in a truncated tree' : ''}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
+  }
   if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — raise depth/limit or use screenshot pixels` }
-  const frame = matches[0]!.frame
+  return selected
+}
+
+export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): { x: number; y: number } | { refusal: string } {
+  const element = targetElement(tree, target, map)
+  if ('refusal' in element) return element
+  const frame = element.frame
   if (frame === null || ![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) || frame.width <= 0 || frame.height <= 0) {
     return { refusal: `${targetWords(target)} has no usable bounds — take a screenshot and use its pixels` }
   }

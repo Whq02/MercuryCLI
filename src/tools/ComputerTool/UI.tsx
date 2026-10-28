@@ -6,6 +6,7 @@ import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js'
 import { Box, Text } from '../../ink.js'
 import type { Input, Output } from './ComputerTool.js'
 import { targetWords } from './fastRoad.js'
+import { waitConditionWords } from './waitCondition.js'
 
 export function userFacingName(): string {
   return 'Computer'
@@ -43,7 +44,15 @@ export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: bo
       parts.push(`${input.key ?? ''} ${input.durationMs ?? 0}ms`)
       break
     case 'wait':
-      parts.push(input.until ? `until ${targetWords(input.until)}` : `${input.durationMs ?? 1000}ms`)
+      parts.push(input.until ? `until ${waitConditionWords(input.until)}` : `${input.durationMs ?? 1000}ms`)
+      break
+    case 'focusApp':
+      parts.push(input.focusApp?.name ?? '')
+      break
+    case 'read':
+      if (input.clipboard) parts.push('clipboard')
+      else if (input.ref !== undefined) parts.push(`ref ${input.ref}`)
+      else if (input.target) parts.push(targetWords(input.target))
       break
     case 'find':
       if (input.target) parts.push(targetWords(input.target))
