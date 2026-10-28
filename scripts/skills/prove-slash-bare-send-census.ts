@@ -47,6 +47,8 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
 const { builtinCommands, getCommands, isCommandEnabled, getCommandName } = await import('../../src/commands.ts')
@@ -104,9 +106,9 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 {
   const kinds = new Set(roster.map(command => command.type))
   check('the roster carries the three kinds and no other', [...kinds].every(kind => kind === 'local' || kind === 'local-jsx' || kind === 'prompt'), [...kinds].join(','))
-  check('the eleven bundled skills register', bundled.length === 11, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
+  check('the twelve bundled skills register', bundled.length === 12, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
   console.log(`  ${builtGenerated.size} generated wrappers were compiled with the build's text loader, so their description and hint are the ones the build ships: ${[...builtGenerated.keys()].join(' ')}`)
-  check('the four generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 4 && builtGenerated.size === 4 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
+  check('the five generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 5 && builtGenerated.size === 5 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
   check('every built wrapper registers the description and hint its SKILL.md declares (extension-maker alone declares no hint)', [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && builtGenerated.get(name)?.description === fields.description && builtGenerated.get(name)?.argumentHint === fields.argumentHint && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}=${builtGenerated.get(name)?.argumentHint ?? 'none'}`).join(' '))
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (existsSync(dist)) {

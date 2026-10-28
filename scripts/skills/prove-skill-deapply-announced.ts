@@ -30,6 +30,8 @@ console.log('============================================================')
 console.log(' skill de-apply announced — the fourth removal arm')
 console.log('============================================================')
 
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 

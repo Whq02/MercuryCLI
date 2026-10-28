@@ -16,6 +16,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
+const { setSessionTrustAccepted } = await import(join(SRC, 'bootstrap/state.ts'))
+setSessionTrustAccepted(true)
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
 const health = await import(join(SRC, 'utils/healthReport.ts'))

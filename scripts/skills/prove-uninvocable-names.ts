@@ -24,6 +24,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
+const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { parseSlashCommand } = await import('../../src/utils/slashCommandParsing.ts')
 const { getCommands } = await import('../../src/commands.ts')
 const skillsMod = (await import('../../src/skills/loadSkillsDir.ts')) as unknown as {
