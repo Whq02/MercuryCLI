@@ -9,7 +9,7 @@ import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { storeArtifact } from '../../utils/artifacts/store.js'
 import {
-  latestRun,
+  latestRunAtRoot,
   persistTestRun,
   pythonTestsEnabled,
   type RunnerFramework,
@@ -427,6 +427,9 @@ function relIfUnder(root: string, p: string): string {
   return p
 }
 
+function failureMessage(lines: string[]): string {
+  return lines.map(line => line.replace(/\x1b\[[0-9;]*m/g, '').trim()).filter(Boolean).join(' · ').slice(0, 300)
+}
 export function parseRunnerCases(runner: RunnerFramework, out: string, root: string): TestCaseResult[] {
   const cases: TestCaseResult[] = []
   const push = (c: TestCaseResult): void => {
@@ -439,24 +442,43 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
         const m = /^\s*not ok \d+ - (.+?)(?: #.*)?$/.exec(lines[i]!)
         if (!m) continue
         const row: TestCaseResult = { id: m[1]!.trim(), outcome: 'failed' }
-        for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+        const fields = new Map<string, string[]>()
+        let indent: number | undefined
+        for (let j = i + 1; j < lines.length; j++) {
           const line = lines[j]!
-          if (/^\s*(not )?ok \d+ /.test(line)) break
+          if (/^\s*(?:(?:not )?ok \d+ |\.\.\.)/.test(line)) break
+          const start = /^(\s*)---\s*$/.exec(line)
+          if (start) indent = start[1]!.length
           const loc = /location:\s*'([^']+):(\d+):\d+'/.exec(line)
           if (loc) {
             row.file = relIfUnder(root, loc[1]!)
             row.line = Number(loc[2])
           }
-          if (row.message === undefined) {
-            const inline = /error:\s*['"](.+?)['"]\s*$/.exec(line)
-            if (inline) {
-              row.message = inline[1]!.slice(0, 300)
-            } else if (/^\s*error:\s*[|>][+-]?\s*$/.test(line)) {
-              const next = lines[j + 1]?.trim()
-              if (next) row.message = next.slice(0, 300)
+          const field = /^(\s+)(error|actual|expected|diff):\s*(.*)$/.exec(line)
+          if (!field || (indent !== undefined && field[1]!.length !== indent)) continue
+          const value = field[3]!
+          const parts: string[] = []
+          if (value && !/^[|>][+-]?$/.test(value)) {
+            parts.push(value.replace(/^(['"])(.*)\1$/, '$2'))
+          } else {
+            let size = 0
+            while (j + 1 < lines.length) {
+              const next = lines[j + 1]!
+              if (next.trim() && next.search(/\S/) <= field[1]!.length) break
+              j++
+              if (size < 300 && next.trim()) {
+                const part = next.trim().slice(0, 300 - size)
+                parts.push(part)
+                size += part.length
+              }
             }
           }
+          fields.set(field[2]!, parts)
         }
+        const error = fields.get('error') ?? []
+        const values = ['actual', 'expected'].flatMap(key => fields.has(key) ? [`${key}: ${failureMessage(fields.get(key)!).slice(0, 70)}`] : [])
+        const message = failureMessage([error[0]?.slice(0, values.length ? 100 : 300) ?? '', ...values, ...error.slice(1), ...(fields.get('diff') ?? [])])
+        if (message) row.message = message
         push(row)
       }
       return cases
@@ -467,14 +489,14 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
         const name = sections[i]!
         const body = sections[i + 1]!
         const row: TestCaseResult = { id: name, outcome: 'failed' }
-        const modern = /panicked at ([^\s:]+\.rs):(\d+):\d+:\n?([^\n]*)/.exec(body)
+        const modern = /panicked at ([^\s:]+\.rs):(\d+):\d+:\n?([^]*?)(?=\n(?:note:|stack backtrace:|failures:|test result:)|$)/.exec(body)
         const legacy = /panicked at '([^']*)',\s*([^\s:]+\.rs):(\d+):\d+/.exec(body)
         if (modern) {
           row.file = relIfUnder(root, modern[1]!)
           row.line = Number(modern[2])
-          if (modern[3]?.trim()) row.message = modern[3]!.trim().slice(0, 300)
+          if (modern[3]?.trim()) row.message = failureMessage(modern[3]!.split('\n'))
         } else if (legacy) {
-          row.message = legacy[1]!.slice(0, 300)
+          row.message = failureMessage(legacy[1]!.split('\n'))
           row.file = relIfUnder(root, legacy[2]!)
           row.line = Number(legacy[3])
         }
@@ -493,7 +515,10 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
           if (loc) {
             row.file = loc[1]!
             row.line = Number(loc[2])
-            if (loc[3]?.trim()) row.message = loc[3]!.trim().slice(0, 300)
+            const detail = [loc[3]!]
+            while (j + 1 < lines.length && /^\s+\S/.test(lines[j + 1]!) && !/^\s*--- /.test(lines[j + 1]!)) detail.push(lines[++j]!)
+            const message = failureMessage(detail)
+            if (message) row.message = message
             break
           }
         }
@@ -506,7 +531,14 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
       for (let i = 0; i < lines.length; i++) {
         const m = /^\s*(?:×|✕|FAIL)\s+(\S+\.[cm]?[jt]sx?) > (.+)$/.exec(lines[i]!.replace(/\x1b\[[0-9;]*m/g, ''))
         if (!m) continue
-        push({ id: m[2]!.trim(), outcome: 'failed', file: relIfUnder(root, m[1]!) })
+        const detail: string[] = []
+        for (let j = i + 1; j < lines.length; j++) {
+          const line = lines[j]!
+          if (/^\s*(?:FAIL |❯ |at |Test Files |Tests |[─━]{3})/.test(line)) break
+          detail.push(line)
+        }
+        const message = failureMessage(detail)
+        push({ id: m[2]!.trim(), outcome: 'failed', file: relIfUnder(root, m[1]!), ...(message ? { message } : {}) })
       }
       return cases
     }
@@ -521,14 +553,20 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
           continue
         }
         const row: TestCaseResult = { id: header.replace(/ › /g, ' > '), outcome: 'failed' }
-        for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
-          const loc = /at .*\(([^)]+?\.[cm]?[jt]sx?):(\d+):\d+\)/.exec(lines[j]!)
+        const detail: string[] = []
+        for (let j = i + 1; j < lines.length; j++) {
+          const line = lines[j]!
+          if (/^\s*(?:● |Test Suites:|Tests:)/.test(line)) break
+          const loc = /at .*\(([^)]+?\.[cm]?[jt]sx?):(\d+):\d+\)/.exec(line)
           if (loc) {
             row.file = relIfUnder(root, loc[1]!)
             row.line = Number(loc[2])
             break
           }
+          detail.push(line)
         }
+        const message = failureMessage(detail)
+        if (message) row.message = message
         push(row)
       }
       return cases
@@ -968,7 +1006,7 @@ export function buildNodeTestDebugShim(
     name = nodeId.slice(sep + 2)
   } else {
     name = nodeId
-    const latest = latestRun(from)
+    const latest = latestRunAtRoot(root)
     if (latest && latest.framework === 'node-test') {
       const hit = latest.cases.find(c => c.id === name && typeof c.file === 'string')
       if (hit?.file !== undefined) file = hit.file

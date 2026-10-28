@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 
     section('E4 terminated, no frameId: the refusal names the state, nothing hits the wire')
     const cont = await call({ op: 'continue' })
-    check('continue runs the debuggee to its end', /debuggee terminated/.test(cont.data.result), cont.data.result.split('\n')[0])
+    check('continue runs the debuggee to its end', cont.data.result.startsWith('continue: debuggee exited (code 0)'), cont.data.result.split('\n')[0])
     const dead = await call({ op: 'evaluate', expression: 'obj' })
     check('the refusal is typed and names terminated', dead.data.outcome === 'failed' && /evaluate needs a stopped frame: the debuggee is terminated and no frameId was given/.test(dead.data.result), `${dead.data.outcome}: ${dead.data.result}`)
     await call({ op: 'disconnect' })

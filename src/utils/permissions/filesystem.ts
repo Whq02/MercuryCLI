@@ -170,7 +170,7 @@ export function pathInAllowedWorkingPath(
 
 
 const MERCURY_CONFIG_DIRECTORIES: ReadonlySet<string> = new Set(['hooks', 'agents', 'skills', 'extensions'])
-const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
+const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'dap-adapters.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
 
 function isHomeConfigEstate(prefix: string): boolean {
   if (prefix === '') return false

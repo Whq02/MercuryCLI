@@ -1,5 +1,5 @@
 {
-  "base": "873ad499f247c2604660035d01dda8957ca6a442",
+  "base": "a4d19ec49ae1a4e2d34247457f6c6ee1b0cd8abb",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -86,7 +86,7 @@
     },
     {
       "name": "Bash",
-      "description": "Runs one shell command and returns its output: stdout and stderr merged, in the order written. It comes back to you; the operator does not reliably see it, so put what they need in your reply.\n\nWhen `timeout` passes, the result shows the command's output so far and a task id. TaskStop with that id ends it and the processes under it (ToolSearch `select:TaskStop` loads TaskStop when it is deferred). So to bound a command that may hang, pass a short `timeout`, then TaskStop it; no watchdog script is needed.\n\nOutput: up to 30000 characters come back whole. A longer output is saved to a file, and you get its size, its path and about 2000 characters from its start and end. A smaller `max_output_chars` narrows that inline budget. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: that is a result with a label such as `no matches found (exit code 1)`.\n\nBackground: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls. A process that must stay up after the run that started it (a server something checks once the run has ended) is a `Service` with lifecycle project (ToolSearch `select:Service` loads it when deferred), not a background shell.\n\nShell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.\n\nPrefer the dedicated tools when they fit: Glob to find files, Grep to search contents, Read to read a file, Edit to change one, Write to create one. Chain dependent commands with `&&` (`;` only when an earlier failure does not matter); a bare newline does not separate commands.\n\nTo drive a web page, use the `Browser` tool (ToolSearch `select:Browser` loads it when deferred); never install a browser driver for a one-off check.",
+      "description": "Runs one shell command and returns its output: stdout and stderr merged, in the order written. It comes back to you; the operator does not reliably see it, so put what they need in your reply.\n\nUse `Test` for typed failures and rerunning only failed tests, and `Debug` to inspect a wrong runtime value instead of print debugging; `Test` op:\"debug\" stops inside one failing test.\n\nWhen `timeout` passes, the result shows the command's output so far and a task id. TaskStop with that id ends it and the processes under it (ToolSearch `select:TaskStop` loads TaskStop when it is deferred). So to bound a command that may hang, pass a short `timeout`, then TaskStop it; no watchdog script is needed.\n\nOutput: up to 30000 characters come back whole. A longer output is saved to a file, and you get its size, its path and about 2000 characters from its start and end. A smaller `max_output_chars` narrows that inline budget. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: that is a result with a label such as `no matches found (exit code 1)`.\n\nBackground: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls. A process that must stay up after the run that started it (a server something checks once the run has ended) is a `Service` with lifecycle project (ToolSearch `select:Service` loads it when deferred), not a background shell.\n\nShell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.\n\nPrefer the dedicated tools when they fit: Glob to find files, Grep to search contents, Read to read a file, Edit to change one, Write to create one. Chain dependent commands with `&&` (`;` only when an earlier failure does not matter); a bare newline does not separate commands.\n\nTo drive a web page, use the `Browser` tool (ToolSearch `select:Browser` loads it when deferred); never install a browser driver for a one-off check.",
       "input_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1338,6 +1338,362 @@
           },
           "text": {
             "description": "input: the line to write to the service stdin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op"
+        ],
+        "additionalProperties": false
+      },
+      "eager_input_streaming": true
+    },
+    {
+      "name": "Debug",
+      "description": "Use this over print debugging: drive a real debugger over the Debug Adapter Protocol (DAP) — breakpoints, stepping, stacks, scopes, variables and evaluate.\n\nThe debugging loop:\n1. op:\"launch\" with program (and optional adapter/args/stopOnEntry) plus optional file+lines to set breakpoints before the first instruction runs. op:\"attach\" (pid, port [+host], or program) joins an already-running debuggee instead — same session lifecycle from there; a bare port auto-picks the python adapter (the debugpy listen socket is the common shape).\n2. Inspect: op:\"stack\" (frames for the stopped thread, depth sets how many, default 20; native frames carry [ip <memoryReference>]), op:\"scopes\" (frameId from the stack), op:\"variables\" (variablesReference from scopes/variables — nested structures expand by reference), op:\"evaluate\" (expression, optional frameId; runs in the debuggee). evaluate runs in the top frame of the thread that stopped last unless frameId is given (nothing stopped: op:\"pause\" first or pass frameId), takes context \"repl\" (default) | \"watch\" | \"hover\" | \"clipboard\" | \"variables\", and an expandable result carries [variablesReference N] — pass N to op:\"variables\" to list its members.\n3. Move: op:\"continue\" | \"next\" | \"stepIn\" | \"stepOut\" — each waits for the next stop. op:\"pause\" interrupts a running debuggee. op:\"restart\" re-runs the debuggee (capability-gated).\n4. op:\"output\" drains buffered program/adapter output; op:\"status\" summarizes sessions, breakpoints, and last stop.\n5. Breakpoint richness: the breakpoints op takes file + lines, OR file + breakpoints:[{line, condition?, hitCondition?, logMessage?}] for conditional/hit-count/log breakpoints (each feature capability-gated). file + lines: [] (or breakpoints: []) clears every breakpoint in that file on every session of the tree. op:\"functionBreakpoints\" (functions: [names]) breaks on entry by symbol name — no line number needed. functions also takes {name, condition?, hitCondition?} rows (condition and hit count capability-gated); the set reaches every session of the tree and a child session started later, and functions: [] clears it everywhere.\n6. Deeper inspection (each capability-gated): op:\"loadedSources\" and op:\"modules\" list what the debuggee actually loaded; op:\"source\" retrieves generated/in-memory source by sourceReference; op:\"completions\" (text, optional frameId) completes debug-console expressions; op:\"setVariable\" (variablesReference + name + value) mutates debuggee state; op:\"exceptionBreakpoints\" lists the adapter's exception filters (re-run with filters: [ids] to arm break-on-throw); op:\"disassemble\" (memoryReference from a frame's [ip …], optional instructionCount ≤64) decodes machine code; op:\"readMemory\" (memoryReference, count ≤4096) hex-dumps debuggee memory.\n7. Precision stops and memory writes (each capability-gated): op:\"dataBreakpoints\" (dataBreakpoints: [{name, variablesReference from scopes/variables, accessType?: \"read\" | \"write\" | \"readWrite\"}]) stops on the write (or read) of that variable instead of on a guessed line; op:\"instructionBreakpoints\" (instructionBreakpoints: [{instructionReference from a frame's [ip …] or a disassemble address, offset?}]) stops at that machine instruction; op:\"writeMemory\" (memoryReference from a variable's [memory …] or a frame's [ip …], data as base64, optional offset, allowPartial) patches debuggee memory.\n8. op:\"customRequest\" (method + optional body JSON) sends any DAP request verbatim and returns the raw response — the escape hatch for adapter-specific commands (permission-gated).\n9. Finish with op:\"disconnect\" — it terminates the debuggee and reaps the adapter.\n\nStop waits use timeoutMs (milliseconds, default 10000; longer waits are allowed). Cancelling interrupts pending requests and waits; a started program may keep running — status inspects it, disconnect ends it. Adapter runInTerminal requests use Bash permissions and session-managed processes for both integrated and external kinds; no terminal window opens, and bounded stdout/stderr appears in output tagged [debuggee].\n\nAdapters: \"python\" (debugpy — pip install debugpy), \"lldb\" (lldb-dap, native binaries: C/C++/Rust/Swift), \"gdb\" (gdb -i=dap — present only when a DAP-capable gdb 14+ is on PATH), \"go\" (dlv dap over a loopback socket — present when dlv is on PATH), \"js\" (the js-debug DAP server — present when MERCURY_JS_DEBUG_DAP points at dapDebugServer.js or ~/.js-debug holds the unpacked release), \"dotnet\" (netcoredbg, when on PATH), \"ruby\" (rdbg, when on PATH), \"dart\" (dart debug_adapter, when the Dart SDK is on PATH), \"kotlin\" (kotlin-debug-adapter, when on PATH), \"elixir\" (the elixir-ls debug adapter, when on PATH). adapter is inferred from the program extension when omitted (.py → python; .go → go; .js/.ts → js; .cs → dotnet; .rb → ruby; .dart → dart; .kt → kotlin; .ex/.exs → elixir; else lldb, or gdb when lldb-dap is absent and gdb 14+ is present). Custom adapters register via the MERCURY_DAP_ADAPTERS env, <configHome>/dap-adapters.json, or .mercury/dap-adapters.json in the trusted working directory (JSON rows keyed by adapter: command, args, connect \"stdio\"|\"tcp\", fileTypes, rootMarkers, launchDefaults, attachDefaults; \"${port}\" in args takes a free loopback port on tcp rows).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "breakpoints",
+              "threads",
+              "stack",
+              "scopes",
+              "variables",
+              "evaluate",
+              "continue",
+              "next",
+              "stepIn",
+              "stepOut",
+              "pause",
+              "output",
+              "status",
+              "disconnect",
+              "loadedSources",
+              "modules",
+              "exceptionBreakpoints",
+              "source",
+              "completions",
+              "setVariable",
+              "attach",
+              "functionBreakpoints",
+              "disassemble",
+              "readMemory",
+              "dataBreakpoints",
+              "instructionBreakpoints",
+              "writeMemory",
+              "restart",
+              "customRequest"
+            ],
+            "description": "The debug operation to perform"
+          },
+          "session": {
+            "description": "Named session (default \"main\"); a re-launch on the same name replaces it",
+            "type": "string"
+          },
+          "adapter": {
+            "description": "Adapter key for launch (python | lldb | MERCURY_DAP_ADAPTERS key); inferred from the program extension when omitted",
+            "type": "string"
+          },
+          "program": {
+            "description": "Program path for launch",
+            "type": "string"
+          },
+          "args": {
+            "description": "Program arguments for launch",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stopOnEntry": {
+            "description": "Stop at the first instruction (launch)",
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "description": "Deadline in milliseconds for a stop wait (default 10000; longer waits are allowed)",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "file": {
+            "description": "Source file for breakpoints",
+            "type": "string"
+          },
+          "lines": {
+            "description": "Breakpoint lines (replaces the set for the file; [] clears the file's breakpoints on every session)",
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "breakpoints": {
+            "description": "Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed; [] clears the file's breakpoints on every session)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "condition": {
+                  "description": "Condition expression (capability-gated)",
+                  "type": "string"
+                },
+                "hitCondition": {
+                  "description": "Hit count, e.g. \"3\" (capability-gated)",
+                  "type": "string"
+                },
+                "logMessage": {
+                  "description": "Log instead of stopping — a logpoint (capability-gated)",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "line"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "pid": {
+            "description": "attach: the running process id (or give port/program instead)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "port": {
+            "description": "attach: the debuggee's listening debug port",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 65535
+          },
+          "host": {
+            "description": "attach: the debug host (default 127.0.0.1)",
+            "type": "string"
+          },
+          "method": {
+            "description": "customRequest: the DAP request command to send verbatim",
+            "type": "string"
+          },
+          "body": {
+            "description": "customRequest: the request arguments as JSON text",
+            "type": "string"
+          },
+          "functions": {
+            "description": "functionBreakpoints: functions to break on entry of — names, or {name, condition?, hitCondition?} rows (replaces the set on every session of the tree; [] clears it)",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The function to break on entry of"
+                    },
+                    "condition": {
+                      "description": "Condition expression (capability-gated)",
+                      "type": "string"
+                    },
+                    "hitCondition": {
+                      "description": "Hit count, e.g. \"3\" (capability-gated)",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "dataBreakpoints": {
+            "description": "dataBreakpoints: variables to stop on when accessed (replaces the data-breakpoint set; an empty array clears it)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The variable to watch"
+                },
+                "variablesReference": {
+                  "description": "The scope or structure holding the variable (from scopes/variables)",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "frameId": {
+                  "description": "Frame for an expression-style name, when the adapter resolves by frame",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "accessType": {
+                  "description": "Stop on read, write (default) or both",
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "write",
+                    "readWrite"
+                  ]
+                },
+                "condition": {
+                  "description": "Condition expression (capability-gated)",
+                  "type": "string"
+                },
+                "hitCondition": {
+                  "description": "Hit count, e.g. \"3\" (capability-gated)",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "instructionBreakpoints": {
+            "description": "instructionBreakpoints: machine addresses to stop at (replaces the instruction-breakpoint set; an empty array clears it)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "instructionReference": {
+                  "type": "string",
+                  "description": "A stack frame's [ip …] or an address from disassemble"
+                },
+                "offset": {
+                  "description": "Byte offset from the reference",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "condition": {
+                  "description": "Condition expression (capability-gated)",
+                  "type": "string"
+                },
+                "hitCondition": {
+                  "description": "Hit count, e.g. \"3\" (capability-gated)",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "instructionReference"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "memoryReference": {
+            "description": "disassemble/readMemory/writeMemory: a memory reference (a stack frame's [ip …] or a variable's [memory …])",
+            "type": "string"
+          },
+          "count": {
+            "description": "readMemory: byte count (bounded to 4096)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "offset": {
+            "description": "disassemble/readMemory/writeMemory: byte offset from the memory reference",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "description": "writeMemory: the bytes to write, base64-encoded",
+            "type": "string"
+          },
+          "allowPartial": {
+            "description": "writeMemory: accept a partial write when only part of the range is writable",
+            "type": "boolean"
+          },
+          "instructionCount": {
+            "description": "disassemble: instructions to decode (bounded to 64, default 16)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "granularity": {
+            "description": "next/stepIn: step granularity — \"instruction\" steps one machine instruction (capability-gated)",
+            "type": "string",
+            "enum": [
+              "statement",
+              "instruction"
+            ]
+          },
+          "threadId": {
+            "description": "Thread for stack/continue/step/pause (defaults to the stopped thread)",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "frameId": {
+            "description": "Frame for scopes/evaluate (from stack); evaluate defaults to the top frame of the thread that stopped last",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "depth": {
+            "description": "stack: number of frames to return (default 20)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "variablesReference": {
+            "description": "Reference from scopes/variables/evaluate to expand (variables/setVariable)",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "expression": {
+            "description": "Expression for evaluate (runs in the debuggee)",
+            "type": "string"
+          },
+          "context": {
+            "description": "evaluate: the context the adapter evaluates in (default \"repl\"; \"watch\" for a side-effect-free read, \"hover\" for a symbol under the cursor, \"clipboard\" for a copyable value, \"variables\" for a variables-view value)",
+            "type": "string",
+            "enum": [
+              "repl",
+              "watch",
+              "hover",
+              "clipboard",
+              "variables"
+            ]
+          },
+          "filters": {
+            "description": "exceptionBreakpoints: filter ids to arm (omit to LIST the adapter's available filters)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceReference": {
+            "description": "source: the sourceReference from a stack frame or loadedSources (>0)",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "description": "setVariable: the variable name inside variablesReference",
+            "type": "string"
+          },
+          "value": {
+            "description": "setVariable: the new value expression",
+            "type": "string"
+          },
+          "text": {
+            "description": "completions: the partial expression to complete (frameId optional)",
             "type": "string"
           }
         },
@@ -2783,7 +3139,7 @@
     },
     {
       "name": "Computer",
-      "description": "Call Computer directly, not through Eval; coordinates are pixels of its last screenshot in the conversation, renewed after compaction/frame changes. target:{role?,name?,text?}: exact role/name, text substring, unique match. Acts use tree caps unless depth/limit is given.\n\nask for a screenshot when you need to see.\nscreenshot: front window; full:true or display:N for a display. region:{x,y,width,height}: last screenshot pixels. screenshot/wait/sequence take scale:0.25–1 of native pixels (window default 0.5, region/display 1). Results name px/pt and origin.\nTerminal bundle IDs: screenshot/tree return AX text (visible range when available, else whole; cut at 15000 chars). pixels:true bypasses text. No clipboard or input.\nclick(x,y OR target,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX,toY OR toTarget; scroll adds dx/dy wheel notches, positive down/right.\ntype(text) ≤4000 chars; newline/tab only controls. key(key); hold(key,durationMs) 50–5000ms. Keys: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by +.\ntree(depth?,limit?,scope?): roles, titles, values, frames, focus; budgets 8/200, caps 32/2000. scope:window default; app includes other windows/menus. find(target) filters.\nwait(durationMs?,until?) pauses/polls for a tree target (1000 default, 10000 max). Image only with capture:true or a matched until; capture:false overrides. cursor/displays/frontmost read facts.\nsequence(steps:[acts,tree,find,wait]): each step checked; first failure stops; no nesting. One final image unless capture:false. Put capture/region/scale/settleMs on the sequence.\nActs: no image/settle unless capture:true. label?; verify:true checks tree change, not task success. settleMs 300 default, 5000 cap; local stability is not page readiness. Use wait-until.\n\nThe first act in an application asks; later acts ride its grant. Other reads never ask; tree asks like an act. find/wait-until use tree's permission. Sovereign runs without asks. One session drives at a time. Never type into this session's terminal: only the application-switch chord is allowed there; clicks stay outside its window. esc/ctrl+c interrupts and releases input. Acts pause for operator typing, refusing if it continues.\nNever solve a captcha: send captcha:true for a visual challenge and hand it to the operator; named tree challenges also refuse. Screenshots leave saved history.",
+      "description": "Call Computer directly, not through Eval. Coordinates are pixels of its last screenshot; renew after compaction/frame changes. target:{role?,name?,text?,nth?}: exact role/name, text substring; nth selects a 1-based match.\nscreenshot: front window; full:true/display:N for a display. region:{x,y,width,height} uses last-shot pixels. scale:0.25–1 (window .5, display/region 1). These capture options also work on acts with capture:true.\nTerminal screenshot/tree reads AX text, cut at 15000; pixels:true gets an image.\nclick(x,y OR target OR ref,count? 1–3,modifiers?) · doubleClick · rightClick · move. drag adds toX/toY OR toTarget; scroll adds dx/dy notches, positive down/right.\ntype(text) ≤4000, newline/tab only controls. key(key); hold(key,durationMs) 50–5000ms. Keys: Enter, Escape, Tab, Space, Backspace, Delete, Home, End, PageUp, PageDown, ArrowUp/Down/Left/Right, F1–F12 or one character, with cmd/ctrl/alt/shift joined by +.\ntree: [n] role \"title\" value; ref:n until reread. root:n|{role,name}; all:true hidden; points:true pixels. Depth/rows 12/400, caps 32/2000, larger budgets clamp; scope:window default, app includes menus/windows; find(target). Targets use caps by default.\nwait(durationMs?,until?) 1000 default/10000 max: until:{text}, {role,name}, {title} or {url} (substrings); gone:true waits for an element to leave. Image on match/capture:true; capture:false overrides. cursor/displays/frontmost read facts.\nread(target|ref) returns labelled text/value, up to 20000 chars; clipboard:true reads copied text with separate consent. focusApp:{name} brings a running app forward (name or bundle id).\nsequence(steps): acts/reads/screenshot, no nesting; first failure stops. Screenshot steps capture there; one final image unless capture:false. Put capture/region/scale/settleMs on the sequence.\nActs: image only with capture:true; label?; verify:true compares trees, not task success. settleMs 300/5000 max; changed/unchanged tracks title/focus, not page readiness; use wait-until for readiness.\nAfter the same act twice with an unchanged result, read the screen before acting again.\nThe first act in an application asks; tree/find/read/wait-until share its grant. Other reads never ask. Sovereign skips asks. One driving session. Own terminal: only app-switch keys or focusApp; clicks outside its window. esc/ctrl+c releases input. Operator typing pauses/refuses acts. Never solve captchas: captcha:true hands them to the operator. Screenshots leave saved history.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2806,7 +3162,9 @@
               "frontmost",
               "tree",
               "find",
-              "sequence"
+              "sequence",
+              "read",
+              "focusApp"
             ]
           },
           "x": {
@@ -2889,8 +3247,68 @@
               },
               "text": {
                 "type": "string"
+              },
+              "nth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
               }
             },
+            "additionalProperties": false
+          },
+          "ref": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "nth": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "all": {
+            "type": "boolean"
+          },
+          "points": {
+            "type": "boolean"
+          },
+          "clipboard": {
+            "type": "boolean"
+          },
+          "focusApp": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
             "additionalProperties": false
           },
           "toTarget": {
@@ -2904,6 +3322,11 @@
               },
               "text": {
                 "type": "string"
+              },
+              "nth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
               }
             },
             "additionalProperties": false
@@ -2919,6 +3342,15 @@
               },
               "text": {
                 "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "gone": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false
@@ -2988,7 +3420,9 @@
                     "frontmost",
                     "tree",
                     "find",
-                    "sequence"
+                    "sequence",
+                    "read",
+                    "focusApp"
                   ]
                 },
                 "x": {
@@ -3071,8 +3505,68 @@
                     },
                     "text": {
                       "type": "string"
+                    },
+                    "nth": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
+                  "additionalProperties": false
+                },
+                "ref": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "root": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "nth": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "all": {
+                  "type": "boolean"
+                },
+                "points": {
+                  "type": "boolean"
+                },
+                "clipboard": {
+                  "type": "boolean"
+                },
+                "focusApp": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
                   "additionalProperties": false
                 },
                 "toTarget": {
@@ -3086,6 +3580,11 @@
                     },
                     "text": {
                       "type": "string"
+                    },
+                    "nth": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
                   "additionalProperties": false
@@ -3101,6 +3600,15 @@
                     },
                     "text": {
                       "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "gone": {
+                      "type": "boolean"
                     }
                   },
                   "additionalProperties": false

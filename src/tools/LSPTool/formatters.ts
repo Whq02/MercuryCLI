@@ -1,4 +1,9 @@
-import { relative } from 'node:path'
+import { isAbsolute, relative } from 'node:path'
+import { stat } from 'node:fs/promises'
+import type { Tool, ToolUseContext } from '../../Tool.js'
+import { controlCharacterPathRefusal } from '../../utils/path.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { readFileInRange } from '../../utils/readFileInRange.js'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
@@ -157,53 +162,86 @@ export function boundWorkspaceSymbols(
   return { shown, total: deduped.length, truncated: deduped.length > shown.length }
 }
 
+export async function readLocationSourceLines(locations: Locationish[], tool: Pick<Tool, 'name' | 'getPath'>, context: ToolUseContext): Promise<Map<Locationish, string>> {
+  const snippets = new Map<Locationish, string>()
+  const reads = new Map<string, string>()
+  for (const location of validLocations(locations).slice(0, 50)) {
+    const { uri, range } = locationParts(location)
+    const line = range?.start.line
+    if (!uri || !Number.isInteger(line) || line! < 0 || (!uri.startsWith('file://') && !isAbsolute(uri))) continue
+    const filePath = uriToPath(uri)
+    if (controlCharacterPathRefusal(filePath)) continue
+    if (checkReadPermissionForTool(tool, { filePath }, context.getAppState().toolPermissionContext).behavior !== 'allow') continue
+    const key = `${filePath}\u0000${line}`
+    try {
+      if (!reads.has(key)) {
+        const info = await stat(filePath)
+        if (!info.isFile() || info.size > 10_000_000) continue
+        const read = await readFileInRange(filePath, line, 1, undefined, context.abortController.signal)
+        reads.set(key, read.content.trim().slice(0, 160))
+      }
+      const text = reads.get(key)!
+      if (text) snippets.set(location, text)
+    } catch {
+      if (context.abortController.signal.aborted) throw context.abortController.signal.reason
+    }
+  }
+  return snippets
+}
 
 export function formatGoToDefinitionResult(
   result: Locationish | Locationish[] | null,
   workingDirectory?: string,
+  sourceLines?: ReadonlyMap<Locationish, string>,
 ): string {
   const list = result === null ? [] : Array.isArray(result) ? result : [result]
   const valid = validLocations(list)
   if (valid.length === 0) {
     return 'No definition found. The cursor may not be on a symbol, or the definition may be in an external library that is not indexed.'
   }
+  const source = (location: Locationish): string => sourceLines?.has(location) ? `\n    ${sourceLines.get(location)}` : ''
   if (valid.length === 1) {
-    return `Defined in ${formatLocation(valid[0]!, workingDirectory)}`
+    return `Defined in ${formatLocation(valid[0]!, workingDirectory)}${source(valid[0]!)}`
   }
   const lines = [`Found ${valid.length} definitions:`]
-  for (const location of valid) {
-    lines.push(`  ${formatLocation(location, workingDirectory)}`)
+  for (const location of valid.slice(0, 50)) {
+    lines.push(`  ${formatLocation(location, workingDirectory)}${source(location)}`)
   }
+  if (valid.length > 50) lines.push(`${valid.length - 50} more definitions.`)
   return lines.join('\n')
 }
 
 export function formatFindReferencesResult(
   result: Location[] | null,
   workingDirectory?: string,
+  sourceLines?: ReadonlyMap<Locationish, string>,
 ): string {
   const valid = validLocations(result ?? []) as Location[]
   if (valid.length === 0) {
     return 'No references found. The symbol may have no usages, or the workspace may not be fully indexed yet.'
   }
+  const source = (location: Locationish): string => sourceLines?.has(location) ? `\n    ${sourceLines.get(location)}` : ''
   if (valid.length === 1) {
-    return `Found 1 reference:\n  ${formatLocation(valid[0]!, workingDirectory)}`
+    return `Found 1 reference:\n  ${formatLocation(valid[0]!, workingDirectory)}${source(valid[0]!)}`
   }
   const byFile = new Map<string, Location[]>()
-  for (const location of valid) {
+  for (const location of valid.slice(0, 50)) {
     const path = displayPath(uriToPath(location.uri), workingDirectory)
     const list = byFile.get(path) ?? []
     list.push(location)
     byFile.set(path, list)
   }
-  const lines = [`Found ${valid.length} references in ${byFile.size} files:`]
+  const fileCount = new Set(valid.map(location => location.uri)).size
+  const lines = [`Found ${valid.length} references in ${fileCount} files:`]
   for (const [path, locations] of byFile) {
     lines.push('', `${path}:`)
     for (const location of locations) {
       lines.push(
-        `  Line ${location.range.start.line + 1}:${location.range.start.character + 1}`,
+        `  Line ${location.range.start.line + 1}:${location.range.start.character + 1}${source(location)}`,
       )
     }
   }
+  if (valid.length > 50) lines.push(`${valid.length - 50} more references.`)
   return lines.join('\n')
 }
 

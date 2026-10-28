@@ -13,10 +13,13 @@ const CHILD_SILENT = process.env.MOCK_MULTI_CHILD_SILENT === '1'
 const LAZY_VERIFY = process.env.MOCK_MULTI_LAZY_VERIFY === '1'
 const ROOT_HOSTS = process.env.MOCK_MULTI_ROOT_HOSTS === '1'
 const NO_CONDITIONS = process.env.MOCK_MULTI_NO_CONDITIONS === '1'
+const EXIT_CODE = Number(process.env.MOCK_MULTI_EXIT_CODE ?? '0')
+const PRINTED_EXIT = process.env.MOCK_MULTI_PRINTED_EXIT === '1'
 
 let childrenExpected = CHILDREN + (GRANDCHILD ? 1 : 0)
 let childrenTerminated = 0
 let parentSession = null
+let lastStack = null
 
 function onChildTerminated() {
   childrenTerminated++
@@ -117,7 +120,8 @@ function makeSession(write, onDisconnect) {
       setTimeout(() => {
         event('output', { category: 'stdout', output: 'mock-child: ran\n' })
         event('terminated')
-        event('exited', { exitCode: 0 })
+        if (PRINTED_EXIT) event('output', { category: 'stdout', output: `Process exited with code ${EXIT_CODE}\n` })
+        else event('exited', { exitCode: EXIT_CODE })
         onChildTerminated()
       }, 30)
     }
@@ -213,12 +217,16 @@ function makeSession(write, onDisconnect) {
       case 'threads':
         respond(req, { threads: [{ id: 11, name: 'mock-child' }] })
         break
+      case 'mock/lastStack':
+        respond(req, lastStack ?? {})
+        break
       case 'stackTrace':
+        lastStack = req.arguments
         respond(req, {
           stackFrames: [
             { id: 210, name: 'childMain', line: 3, source: { path: '/tmp/demo.js' } },
             { id: 211, name: 'childCaller', line: 9, source: { path: '/tmp/demo.js' } },
-          ],
+          ].slice(0, req.arguments?.levels ?? 2),
           totalFrames: 2,
         })
         break
@@ -247,7 +255,8 @@ function makeSession(write, onDisconnect) {
         setTimeout(() => {
           event('output', { category: 'stdout', output: 'mock-child: done\n' })
           event('terminated')
-          event('exited', { exitCode: 0 })
+          if (PRINTED_EXIT) event('output', { category: 'stdout', output: `Process exited with code ${EXIT_CODE}\n` })
+        else event('exited', { exitCode: EXIT_CODE })
           onChildTerminated()
         }, 20)
         break

@@ -6,6 +6,7 @@ import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
+import { debugSteeringLine } from '../../services/projectIntel/steering.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
@@ -56,6 +57,8 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   sections.push(
     'Runs one shell command and returns its output: stdout and stderr merged, in the order written. It comes back to you; the operator does not reliably see it, so put what they need in your reply.',
   )
+  const debugSteering = debugSteeringLine(offered)
+  if (debugSteering) sections.push(debugSteering)
   sections.push(buildTimeoutParagraph(brush, offers))
   sections.push(buildOutputParagraph())
   sections.push(

@@ -69,3 +69,17 @@ export function editSteeringLine(offered: OfferedTools = null): string | null {
   if (parts.length === 0) return null
   return `Semantic shortcut: ${parts.join('; ')}.`
 }
+
+export function debugSteeringLine(offered: OfferedTools = null): string | null {
+  if (!projectIntelEnabled() || (offered !== null && (!offered.has('Test') || !offered.has('Debug')))) return null
+  try {
+    if (offered === null) {
+      const { pythonTestsEnabled } = require('../ide/pythonTests.js') as typeof import('../ide/pythonTests.js')
+      const { isDapToolCatalogEnabled } = require('../dap/dapClient.js') as typeof import('../dap/dapClient.js')
+      if (!pythonTestsEnabled() || !isDapToolCatalogEnabled()) return null
+    }
+    return 'Use `Test` for typed failures and rerunning only failed tests, and `Debug` to inspect a wrong runtime value instead of print debugging; `Test` op:"debug" stops inside one failing test.'
+  } catch {
+    return null
+  }
+}

@@ -6,7 +6,7 @@
 # gate-watch: src/services/dap/debugpyResolver.ts src/services/dap/unityAdapter.ts
 # gate-watch: src/services/lsp/builtinServers.ts src/services/resources/adapters/execution.ts
 # gate-watch: src/services/run/resolveOwner.ts src/tools/DebugTool/UI.tsx src/utils/* src/services/providers/toolCallGate.ts src/tools/DebugTool/prompt.ts
-# gate-watch: src/Tool.ts src/guards/guards.ts src/tools/BashTool/BashTool.tsx
+# gate-watch: src/Tool.ts src/guards/guards.ts src/tools/BashTool/BashTool.tsx src/bootstrap/state.ts src/utils/config/globalConfig.ts src/utils/config/trust.ts src/utils/permissions/filesystem.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

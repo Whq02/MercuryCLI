@@ -28,6 +28,8 @@ function clearKnobs(): void {
   delete process.env.MOCK_MULTI_GRANDCHILD
   delete process.env.MOCK_MULTI_CHILD_SILENT
   delete process.env.MOCK_MULTI_LAZY_VERIFY
+  delete process.env.MOCK_MULTI_EXIT_CODE
+  delete process.env.MOCK_MULTI_PRINTED_EXIT
 }
 
 async function main(): Promise<void> {
@@ -304,6 +306,15 @@ async function main(): Promise<void> {
     check('tool launch breakpoint note is the MERGED truth naming the verifier', launch.includes('line 3 verified by child-1'))
     const stack = await call({ op: 'stack' })
     check('tool stack routes to the stopped child', stack.includes('#0 childMain'))
+    const schema = DebugTool.inputSchema
+    check('stack accepts a positive depth and rejects zero and fractions', schema.safeParse({ op: 'stack', depth: 1 }).success && !schema.safeParse({ op: 'stack', depth: 0 }).success && !schema.safeParse({ op: 'stack', depth: 1.5 }).success)
+    const defaultStack = await call({ op: 'customRequest', method: 'mock/lastStack' })
+    check('stack keeps the default 20-frame request', JSON.parse(defaultStack.slice(defaultStack.indexOf('\n') + 1)).levels === 20, defaultStack)
+    const oneFrame = await call({ op: 'stack', depth: 1 })
+    check('stack depth 1 asks for and returns just one frame', oneFrame.includes('#0 childMain') && !oneFrame.includes('#1'), oneFrame)
+    await call({ op: 'stack', depth: 37 })
+    const deepStack = await call({ op: 'customRequest', method: 'mock/lastStack' })
+    check('an explicit stack depth is not capped at the default', JSON.parse(deepStack.slice(deepStack.indexOf('\n') + 1)).levels === 37, deepStack)
     const evald = await call({ op: 'evaluate', expression: 'a+b', frameId: 210 })
     check('tool evaluate routes to the child: 42', evald.includes('42'))
     const bps = await call({ op: 'breakpoints', file: '/tmp/demo.js', lines: [3, 9] })
@@ -311,7 +322,7 @@ async function main(): Promise<void> {
     const status = await call({ op: 'status' })
     check('tool status paints the tree', status.includes("child 'child-1': stopped"), status)
     const cont = await call({ op: 'continue' })
-    check('tool continue reports tree termination', cont.includes('debuggee terminated'))
+    check('tool continue reports the clean exit code', cont.startsWith('continue: debuggee exited (code 0)'), cont)
     const disc = await call({ op: 'disconnect' })
     check('tool disconnect reaps the tree', disc.includes('disconnected'))
 
@@ -332,6 +343,23 @@ async function main(): Promise<void> {
       murkyThreads,
     )
     await call({ op: 'disconnect' })
+  }
+
+  section('7b. non-zero child exit codes reach the Debug result')
+  {
+    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+    const call = async (input: Record<string, unknown>): Promise<string> =>
+      ((await DebugTool.call(input as never, {} as never)) as { data: { result: string } }).data.result
+    for (const printed of [false, true]) {
+      clearKnobs()
+      process.env.MOCK_MULTI_PARENT_LINGERS = '1'
+      process.env.MOCK_MULTI_EXIT_CODE = '1'
+      if (printed) process.env.MOCK_MULTI_PRINTED_EXIT = '1'
+      await call({ op: 'launch', adapter: 'mockmulti', program: '/tmp/demo.js', file: '/tmp/demo.js', lines: [3] })
+      const ended = await call({ op: 'continue' })
+      check(`a child exit 1 is reported (${printed ? 'adapter output' : 'DAP exited event'}), never clean exit`, ended.includes('debuggee exited (code 1)') && !ended.includes('clean exit'), ended)
+      await call({ op: 'disconnect' })
+    }
   }
 
   section('8. lazy verifiers: breakpoint-changed events fold into the map')

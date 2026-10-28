@@ -127,7 +127,7 @@ section('(1) the journey — the wrong value mid-computation, caught on its writ
   check('an empty set clears the instruction breakpoints', /instruction breakpoints cleared/.test(clearedI.data.result), clearedI.data.result)
 
   const done = await call({ op: 'continue', session: 'mem' })
-  check('the program finishes with the patched total', /terminated/.test(done.data.result) && /total=42/.test(done.data.result), done.data.result)
+  check('the program finishes with the patched total', done.data.result.startsWith('continue: debuggee exited (code 0)') && /total=42/.test(done.data.result), done.data.result)
   const disc = await call({ op: 'disconnect', session: 'mem' })
   check('disconnect reaps', /disconnected/.test(disc.data.result))
 }

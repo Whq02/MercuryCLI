@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -87,6 +87,64 @@ console.log('— A. the adapter config file —')
   check('the env table outranks the file table', overridden?.command === '/env/wins', JSON.stringify(overridden))
   delete process.env.MERCURY_DAP_ADAPTERS
   check('builtins still resolve beside the file', resolveAdapter('lldb') !== null)
+}
+
+console.log('— A2. project adapters follow the project trust grant —')
+{
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const trust = await import('../../src/utils/config/trust.ts')
+  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const debug = await import('../../src/utils/debug.ts')
+  const { isMercuryConfigSegment } = await import('../../src/utils/permissions/filesystem.ts')
+  check('project adapter files are protected executable configuration', isMercuryConfigSegment('dap-adapters.json'))
+  enableConfigs()
+  debug.enableDebugLogging()
+  delete process.env.MERCURY_DAP_ADAPTERS_FILE
+  const userFile = path.join(process.env.MERCURY_CONFIG_DIR!, 'dap-adapters.json')
+  writeFileSync(userFile, JSON.stringify({ shared: { command: '/user/adapter' } }))
+  const project = path.join(scratch, 'project')
+  mkdirSync(path.join(project, '.mercury'), { recursive: true })
+  const projectFile = path.join(project, '.mercury', 'dap-adapters.json')
+  const projectRows = {
+    projectMock: { command: process.execPath, args: [mock2], fileTypes: ['.project-dap'] },
+    shared: { command: '/project/adapter' },
+  }
+  writeFileSync(projectFile, JSON.stringify(projectRows))
+  bootstrap.setIsInteractive(false)
+  bootstrap.setSessionTrustAccepted(false)
+  trust.resetTrustDialogAcceptedCacheForTesting()
+  await runWithCwdOverride(project, async () => {
+    check('an untrusted project file contributes no adapters', !trust.checkHasTrustDialogAccepted() && resolveAdapter('projectMock') === null && !knownAdapterKeys().includes('projectMock'))
+    check('the user adapter remains available without project trust', resolveAdapter('shared')?.command === '/user/adapter')
+    trust.setPathTrusted(project)
+    check('the trusted project file is loaded and its extensions resolve', resolveAdapter('projectMock')?.command === process.execPath && knownAdapterKeys().includes('projectMock') && adapterKeyForExtension('.project-dap') === 'projectMock')
+    check('the project adapter overrides the user row', resolveAdapter('shared')?.command === '/project/adapter')
+    const other = path.join(scratch, 'untrusted-other')
+    mkdirSync(path.join(other, '.mercury'), { recursive: true })
+    writeFileSync(path.join(other, '.mercury', 'dap-adapters.json'), JSON.stringify({ foreign: { command: '/foreign/adapter' } }))
+    check('trust does not leak into another working directory', runWithCwdOverride(other, () => resolveAdapter('foreign')) === null)
+    process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ shared: { command: '/env/adapter' } })
+    check('an explicit environment row overrides the project', resolveAdapter('shared')?.command === '/env/adapter')
+    delete process.env.MERCURY_DAP_ADAPTERS
+    const allowed = bootstrap.getAllowedSettingSources()
+    bootstrap.setAllowedSettingSources(['userSettings'])
+    check('disabled project settings do not load project adapters', resolveAdapter('projectMock') === null && resolveAdapter('shared')?.command === '/user/adapter')
+    bootstrap.setAllowedSettingSources(allowed)
+    await debug.flushDebugLogs()
+    const log = (await import('node:fs')).existsSync(debug.getDebugLogPath()) ? readFileSync(debug.getDebugLogPath(), 'utf8') : ''
+    check('the trusted load names its file in the existing debug log', log.includes(projectFile) && log.includes('trusted project'))
+    const program = path.join(project, 'program.project-dap')
+    writeFileSync(program, 'fixture\n')
+    const launch = await runOp({ op: 'launch', adapter: 'projectMock', program, file: program, lines: [3], session: 'project' })
+    check('a trusted project adapter drives a real DAP stop', launch.data.debuggee === 'stopped', launch.data.result)
+    await runOp({ op: 'disconnect', session: 'project' })
+    writeFileSync(projectFile, '{broken')
+    check('a malformed project file falls back without replacing user rows', resolveAdapter('shared')?.command === '/user/adapter' && resolveAdapter('projectMock') === null)
+  })
+  bootstrap.setSessionTrustAccepted(false)
+  trust.resetTrustDialogAcceptedCacheForTesting()
+  process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 }
 
 console.log('— P. attach by port/host —')

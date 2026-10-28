@@ -54,8 +54,8 @@ const VITEST_TEST = [
   '',
 ].join('\n')
 
-function nodeProject(runner: 'vitest' | 'jest', withModules: boolean): string {
-  const root = scratch(runner)
+function nodeProject(runner: 'vitest' | 'jest', withModules: boolean, parent = tmpdir()): string {
+  const root = mkdtempSync(path.join(parent, `runner-debug-${runner}-`))
   writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'fixture', private: true, type: 'module', devDependencies: { [runner]: '*' } }) + '\n')
   writeFileSync(path.join(root, 'bun.lock'), '{}\n')
   mkdirSync(path.join(root, 'src'))
@@ -106,7 +106,9 @@ section('B. the jest shim')
 
 section('C. a bare name is placed by the latest run\'s case rows (the reporter carries the file)')
 {
-  const root = nodeProject('vitest', true)
+  const parent = scratch('python-marker')
+  writeFileSync(path.join(parent, 'requirements.txt'), '')
+  const root = nodeProject('vitest', true, parent)
   const report = readFileSync(path.join(import.meta.dir, 'fixtures', 'runners', 'vitest-report.json'), 'utf8').split('/work/project').join(root)
   const bin = path.join(root, 'node_modules', '.bin', 'vitest')
   writeFileSync(bin, ['#!/usr/bin/env node', `const out = process.argv.slice(2).find(a => a.startsWith('--outputFile='))`, `if (out) require('fs').writeFileSync(out.slice('--outputFile='.length), ${JSON.stringify(report)})`, 'process.exit(1)', ''].join('\n'))
@@ -115,8 +117,22 @@ section('C. a bare name is placed by the latest run\'s case rows (the reporter c
   const run = await runners.runRunnerProfile(profile, { from: root })
   check('C1 the run recorded the failing case with its file', run.state === 'ok' && run.record.cases.some(c => c.id === 'calc adds two numbers' && c.file === 'src/calc.test.mjs'), JSON.stringify(run.state === 'ok' ? run.record.cases : run))
   const shim = runWithCwdOverride(root, () => plans.buildNodeRunnerDebugShim('vitest', 'calc adds two numbers', { from: root }))
-  check('C2 the bare full name resolves to that file and its line', !('state' in shim) && shim.stop?.file === path.join(root, 'src', 'calc.test.mjs') && shim.stop.line === 7 && shim.args[1] === 'src/calc.test.mjs', JSON.stringify(shim))
-  rmSync(root, { recursive: true, force: true })
+  check('C2 the bare full name resolves below a Python marker', !('state' in shim) && shim.stop?.file === path.join(root, 'src', 'calc.test.mjs') && shim.stop.line === 7 && shim.args[1] === 'src/calc.test.mjs', JSON.stringify(shim))
+  const nodeRoot = path.join(parent, 'node-package')
+  mkdirSync(path.join(nodeRoot, 'test'), { recursive: true })
+  writeFileSync(path.join(nodeRoot, 'package.json'), '{"type":"module","scripts":{"test":"node --test"}}')
+  const testFile = path.join(nodeRoot, 'test', 'invoice.test.mjs')
+  writeFileSync(testFile, "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\ntest('invoice', () => assert.equal(453.5, 107));\n")
+  const nodeProfile = runners.discoverRunnerProfiles(nodeRoot).profiles.find(p => p.runner === 'node-test')!
+  const nodeRun = await runners.runRunnerProfile(nodeProfile, { from: nodeRoot })
+  check('C3 node-test writes the failed case at its own package root', nodeRun.state === 'ok' && nodeRun.record.cases.some(c => c.id === 'invoice' && c.file === 'test/invoice.test.mjs'), JSON.stringify(nodeRun))
+  const { findPythonProjectRoot } = await import('../../src/services/ide/pythonProject.ts')
+  check('C4 the Python and runner roots really differ', findPythonProjectRoot(nodeRoot).root === parent && runners.findRunnerRoot(nodeRoot) === nodeRoot)
+  for (const from of [nodeRoot, path.join(nodeRoot, 'test')]) {
+    const nodeShim = runWithCwdOverride(from, () => runners.buildNodeTestDebugShim('invoice', { from }))
+    check('C5 a node-test bare name resolves from the package and its subdirectory', !('state' in nodeShim) && nodeShim.program === testFile && nodeShim.cwd === nodeRoot, JSON.stringify(nodeShim))
+  }
+  rmSync(parent, { recursive: true, force: true })
 }
 
 section('D. the Test tool: vitest and jest debug ride js-debug; an absent runner is an honest unavailable with its remedy')

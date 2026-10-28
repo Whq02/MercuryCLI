@@ -13,6 +13,7 @@ const {
   resolveTestLane,
   runRunnerProfile,
   rerunRunnerFailures,
+  parseRunnerCases,
 } = await import('../../src/services/ide/projectRunners.ts')
 const { latestRun } = await import('../../src/services/ide/pythonTests.ts')
 const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.ts')
@@ -215,6 +216,70 @@ section('U. runner profiles join the Launch discovery')
   const dv = await runWithCwdOverride(vitestDir, () => discoverLaunchProfiles(vitestDir))
   const unavailable = dv.profiles.find(p => p.source === 'runners' && p.label.includes('unavailable'))
   check('U3 availability-honest labels', !!unavailable)
+}
+
+section('V. assertion values survive runner normalization')
+{
+  const tap = `not ok 1 - invoice
+  ---
+  location: '${tsDir}/test/calc.test.mjs:6:3'
+  error: |-
+    Expected values to be strictly equal:
+
+    453.5 !== 107
+
+  expected: 107
+  actual: 453.5
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (test/calc.test.mjs:8:10)
+  ...`
+  const message = parseRunnerCases('node-test', tap, tsDir)[0]?.message ?? ''
+  check('V1 TAP retains the assertion block and both values', message.includes('453.5 !== 107') && message.includes('actual: 453.5') && message.includes('expected: 107'), message)
+  const diff = parseRunnerCases('node-test', `not ok 1 - object
+  ---
+  error: 'objects differ'
+  actual:
+    rate: 7
+  expected:
+    rate: 0.07
+  diff: |-
+    + rate: 7
+    - rate: 0.07
+  ...`, tsDir)[0]?.message ?? ''
+  check('V2 TAP retains object values and a separate diff block', diff.includes('actual: rate: 7') && diff.includes('expected: rate: 0.07') && diff.includes('+ rate: 7') && diff.includes('- rate: 0.07'), diff)
+  const long = parseRunnerCases('node-test', tap.replace('453.5 !== 107', 'x'.repeat(1000)), tsDir)[0]?.message ?? ''
+  check('V3 TAP messages remain bounded without losing scalar values', long.length <= 300 && long.includes('actual: 453.5') && long.includes('expected: 107'), long)
+  const rust = parseRunnerCases('cargo', `---- invoice stdout ----
+thread 'invoice' panicked at src/lib.rs:6:3:
+assertion \`left == right\` failed
+  left: 453.5
+ right: 107
+note: run with RUST_BACKTRACE=1
+
+failures:
+    invoice`, cargoDir)[0]?.message ?? ''
+  check('V4 cargo retains left and right, not the backtrace hint', rust.includes('left: 453.5') && rust.includes('right: 107') && !rust.includes('RUST_BACKTRACE'), rust)
+  const goText = `--- FAIL: TestInvoice (0.00s)
+    invoice_test.go:6: values differ
+        expected: 107
+        actual: 453.5
+FAIL`
+  const goMessage = parseRunnerCases('go', goText, goDir)[0]?.message ?? ''
+  check('V5 Go text fallback retains multiline values', goMessage.includes('expected: 107') && goMessage.includes('actual: 453.5'), goMessage)
+  const { parseGoTestJson, parseJsonReporter } = await import('../../src/services/ide/runnerReporters.ts')
+  const events = ['    invoice_test.go:6: values differ\n', '        expected: 107\n', '        actual: 453.5\n'].map(Output => ({ Action: 'output', Package: 'invoice', Test: 'TestInvoice', Output }))
+  const goJson = [...events, { Action: 'fail', Package: 'invoice', Test: 'TestInvoice' }].map(e => JSON.stringify(e)).join('\n')
+  const goStructured = parseGoTestJson(goJson, goDir)?.cases[0]?.message ?? ''
+  check('V6 Go JSON retains multiline assertion values', goStructured.includes('expected: 107') && goStructured.includes('actual: 453.5'), goStructured)
+  for (const runner of ['vitest', 'jest'] as const) {
+    const head = runner === 'vitest' ? ' FAIL test/calc.test.mjs > invoice' : '  ● invoice'
+    const body = `${head}\n\n    AssertionError: values differ\n    Expected: 107\n    Received: 453.5\n\n    at Object.<anonymous> (test/calc.test.mjs:6:3)`
+    const fallback = parseRunnerCases(runner, body, tsDir)[0]?.message ?? ''
+    check(`V7 ${runner} text fallback retains values`, fallback.includes('Expected: 107') && fallback.includes('Received: 453.5'), fallback)
+    const structured = parseJsonReporter(JSON.stringify({ numTotalTests: 1, testResults: [{ name: 'test/calc.test.mjs', assertionResults: [{ fullName: 'invoice', status: 'failed', failureMessages: [body.split('\n').slice(1).join('\n')] }] }] }), tsDir)?.cases[0]?.message ?? ''
+    check(`V8 ${runner} JSON already retains values`, structured.includes('Expected: 107') && structured.includes('Received: 453.5'), structured)
+  }
 }
 
 console.log('')

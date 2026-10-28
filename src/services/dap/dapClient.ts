@@ -22,6 +22,11 @@ import { projectExternalState } from '../primitives/externalProjection.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { getCwd } from '../../utils/cwd.js'
+import { isPathTrusted } from '../../utils/config/trust.js'
+import { getOriginalCwd, getSessionTrustAccepted } from '../../bootstrap/state.js'
+import { projectConfigDirs } from '../../utils/projectConfig.js'
+import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../utils/processGroup.js'
 import {
   findGodotProjectRoot,
@@ -728,10 +733,7 @@ function decodeAdapterRow(spec: unknown): DapAdapterSpec | null {
   return out
 }
 
-function fileAdapterTable(): Record<string, DapAdapterSpec> {
-  const pinned = flagEnv('MERCURY_DAP_ADAPTERS_FILE')
-  const filePath =
-    pinned && pinned.length > 0 ? pinned : join(getMercuryHome(), 'dap-adapters.json')
+function readAdapterFile(filePath: string): Record<string, DapAdapterSpec> {
   let raw: string
   try {
     raw = readFileSync(filePath, 'utf8')
@@ -753,6 +755,23 @@ function fileAdapterTable(): Record<string, DapAdapterSpec> {
     else logForDebugging(`dap: adapter-config row '${key}' invalid — skipped`)
   }
   return out
+}
+
+function fileAdapterTable(): Record<string, DapAdapterSpec> {
+  const pinned = flagEnv('MERCURY_DAP_ADAPTERS_FILE')
+  if (pinned) return readAdapterFile(pinned)
+  const user = readAdapterFile(join(getMercuryHome(), 'dap-adapters.json'))
+  try {
+    const cwd = getCwd()
+    const trusted = isPathTrusted(cwd) || (getSessionTrustAccepted() && path.resolve(cwd) === path.resolve(getOriginalCwd()))
+    if (!isSettingSourceEnabled('projectSettings') || !trusted) return user
+    const projectFile = join(projectConfigDirs(cwd)[0], 'dap-adapters.json')
+    const project = readAdapterFile(projectFile)
+    if (Object.keys(project).length > 0) logForDebugging(`dap: loaded trusted project adapter file ${projectFile}`)
+    return { ...user, ...project }
+  } catch {
+    return user
+  }
 }
 
 export function resolveAdapter(key: string): DapAdapterSpec | null {

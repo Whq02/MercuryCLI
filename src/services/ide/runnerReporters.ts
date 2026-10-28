@@ -199,7 +199,7 @@ export function parseGoTestJson(text: string, _root: string): ReporterRead | nul
       failed++
       failures.push(row.id)
       const located = row.output.map(l => GO_LOCATION.exec(l)).find((m): m is RegExpExecArray => m !== null)
-      const message = located?.[3]?.trim() || row.output.map(l => l.trim()).filter(l => l && !/^(=== |--- )/.test(l)).join(' · ')
+      const message = row.output.flatMap(l => l.split('\n')).map(l => (GO_LOCATION.exec(l)?.[3] ?? l).trim()).filter(l => l && !/^(=== |--- )/.test(l)).join(' · ')
       rows.push({
         id: row.id,
         outcome: 'failed',

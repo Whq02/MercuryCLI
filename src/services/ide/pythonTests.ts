@@ -435,7 +435,10 @@ async function persistRun(root: string, record: TestRunRecord): Promise<void> {
 }
 
 export function latestRun(from: string = getCwd()): TestRunRecord | null {
-  const { root } = findPythonProjectRoot(from)
+  return latestRunAtRoot(findPythonProjectRoot(from).root)
+}
+
+export function latestRunAtRoot(root: string): TestRunRecord | null {
   try {
     return JSON.parse(readFileSync(path.join(runsDir(root), 'latest.json'), 'utf8')) as TestRunRecord
   } catch {

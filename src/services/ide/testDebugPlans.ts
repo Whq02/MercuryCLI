@@ -6,7 +6,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { escapeRegExp } from '../../utils/stringUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../dap/dapClient.js'
-import { latestRun } from './pythonTests.js'
+import { latestRunAtRoot } from './pythonTests.js'
 import { loadTs, parseSource, resolveStructureTypescript } from '../structure/tsFacility.js'
 import { jsTestNamePattern } from './runnerReporters.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
@@ -256,8 +256,8 @@ function splitNode(nodeId: string): { file: string | null; name: string } {
   return sep === -1 ? { file: null, name: nodeId } : { file: nodeId.slice(0, sep), name: nodeId.slice(sep + 2) }
 }
 
-function fileFromLatestRun(from: string, framework: string, name: string): string | null {
-  const latest = latestRun(from)
+function fileFromLatestRun(root: string, framework: string, name: string): string | null {
+  const latest = latestRunAtRoot(root)
   if (!latest || latest.framework !== framework) return null
   const hit = latest.cases.find(c => c.id === name && typeof c.file === 'string')
   return hit?.file ?? null
@@ -335,7 +335,7 @@ export function buildNodeRunnerDebugShim(
   if (name.length === 0) {
     return { state: 'unavailable', reason: `node '${nodeId}' names no test`, remedy: `spell the node as file::name (or a bare name from the latest ${runner} run)` }
   }
-  const file = spelled ?? fileFromLatestRun(from, runner, name)
+  const file = spelled ?? fileFromLatestRun(root, runner, name)
   if (file === null) {
     return {
       state: 'unavailable',
@@ -355,7 +355,7 @@ export function buildNodeRunnerDebugShim(
       remedy: 'install the project dependencies with the declared package manager',
     }
   }
-  const latest = latestRun(from)
+  const latest = latestRunAtRoot(root)
   const recorded = latest?.framework === runner ? latest.cases.filter(c => c.file && path.resolve(root, c.file) === testFile && (c.id === name || c.nameParts?.at(-1) === name)) : []
   const hit = recorded.length === 1 ? recorded[0] : undefined
   const source = sourceJsTest(testFile, hit?.id ?? name)

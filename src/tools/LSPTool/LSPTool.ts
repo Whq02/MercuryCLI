@@ -20,7 +20,7 @@ import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { runMercuryLspOp, type MercuryLspOpInput, type MercuryLspOpOutput } from './mercuryOps.js'
-import { boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type Locationish } from './formatters.js'
+import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolResult, formatFindReferencesResult, formatGoToDefinitionResult, formatHoverResult, formatIncomingCallsResult, formatOutgoingCallsResult, formatWorkspaceSymbolResult, uriToPath, type Locationish } from './formatters.js'
 import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from './prompt.js'
 import { LSP_INPUT_JSON_SCHEMAS, lspInputSchema, readArguments, readArgumentError, type LspInput } from './schemas.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage } from './UI.js'
@@ -314,13 +314,13 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
       case 'goToDefinition':
       case 'goToImplementation': {
         const list = Array.isArray(finalResponse) ? finalResponse as Locationish[] : finalResponse ? [finalResponse as Locationish] : []
-        result = formatGoToDefinitionResult(list, cwd)
+        result = formatGoToDefinitionResult(list, cwd, await readLocationSourceLines(list, tool, context))
         counts = locationCounts(list.map(location => ({ uri: 'targetUri' in (location as Record<string, unknown>) ? (location as { targetUri?: string }).targetUri : (location as { uri?: string }).uri })))
         break
       }
       case 'findReferences': {
         const list = Array.isArray(finalResponse) ? finalResponse as Array<{ uri?: string }> : []
-        result = formatFindReferencesResult(list as never[], cwd)
+        result = formatFindReferencesResult(list as never[], cwd, await readLocationSourceLines(list as never[], tool, context))
         counts = locationCounts(list)
         break
       }

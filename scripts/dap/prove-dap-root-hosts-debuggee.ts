@@ -114,7 +114,7 @@ async function main(): Promise<void> {
     const evald = await callTool({ op: 'evaluate', expression: 'a+b' })
     check('evaluate labels the debuggee running, never terminated', evald.result === 'evaluate needs a stopped frame: the debuggee is running and no frameId was given — op:"pause" first, or give frameId from op:"stack"' && evald.debuggee === 'running', evald.result)
     const cont = await callTool({ op: 'continue' })
-    check("continue routes to the root and the root's own exit is the termination", cont.result.includes('debuggee terminated') && cont.debuggee === 'terminated', cont.result.split('\n')[0])
+    check("continue routes to the root and the root's own exit is the termination", cont.result.startsWith('continue: debuggee exited (code 0)') && cont.debuggee === 'terminated', cont.result.split('\n')[0])
     const gone = await callTool({ op: 'disconnect' })
     check('disconnect reaps', gone.result.includes('disconnected'))
   }

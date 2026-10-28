@@ -2,6 +2,7 @@
 import type { Dirent } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { readLocationSourceLines, type Locationish } from './formatters.js'
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { createHash, type UUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -1769,7 +1770,7 @@ async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, env.absolutePath)
   await syncFileFromDisk(env.manager, env.absolutePath)
   const uri = pathToFileURL(resolve(env.absolutePath)).href
-  type Location = { uri?: string; targetUri?: string; range?: LspRangeLike; targetRange?: LspRangeLike }
+  type Location = { uri?: string; targetUri?: string; range?: LspRangeLike; targetRange?: LspRangeLike; targetSelectionRange?: LspRangeLike }
   let response: Location | Location[] | null | undefined
   try {
     response = await env.manager.sendRequest<Location | Location[] | null>(
@@ -1815,24 +1816,32 @@ async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
   const rows: string[] = []
   const displays = new Set<string>()
+  const sourceLines = await readLocationSourceLines(list as Locationish[], env.tool, env.context)
+  let total = 0
   for (const location of list) {
     const locationUri = location.targetUri ?? location.uri
     if (locationUri === undefined) continue
-    const range = location.targetRange ?? location.range
+    const range = location.targetSelectionRange ?? location.targetRange ?? location.range
     const locationDisplay = displayPathFor(env.cwd, locationUri)
     displays.add(locationDisplay)
     const line = (range?.start.line ?? 0) + 1
     const character = (range?.start.character ?? 0) + 1
-    rows.push(`  ${locationDisplay}:${line}:${character}`)
+    total++
+    if (total <= 50) {
+      rows.push(`  ${locationDisplay}:${line}:${character}`)
+      const source = sourceLines.get(location as Locationish)
+      if (source) rows.push(`    ${source}`)
+    }
   }
+  if (total > 50) rows.push(`${total - 50} more type definitions.`)
   return {
-    result: `${rows.length} type definition(s):\n${rows.join('\n')}`,
-    resultCount: rows.length,
+    result: `${total} type definition(s):\n${rows.join('\n')}`,
+    resultCount: total,
     fileCount: displays.size,
     effect: {
       outcome: 'succeeded',
       changedPaths: [],
-      evidence: `${rows.length} location(s)`,
+      evidence: `${total} location(s)`,
     },
   }
 }

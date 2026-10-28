@@ -157,6 +157,7 @@ const inputSchema = lazySchema(() =>
       .describe('next/stepIn: step granularity — "instruction" steps one machine instruction (capability-gated)'),
     threadId: semanticNumber(z.number().int().optional()).describe('Thread for stack/continue/step/pause (defaults to the stopped thread)'),
     frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate (from stack); evaluate defaults to the top frame of the thread that stopped last'),
+    depth: semanticNumber(z.number().int().positive().optional()).describe('stack: number of frames to return (default 20)'),
     variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables/evaluate to expand (variables/setVariable)'),
     expression: z.string().optional().describe('Expression for evaluate (runs in the debuggee)'),
     context: z
@@ -312,7 +313,7 @@ async function reportStop(root: DapSession, label: string, sinceStamp = 0, timeo
     await root.drainOutput(200, 1_000, signal)
     const tail = root.output.slice(-8).join('\n')
     return {
-      result: `${label}: debuggee terminated (${root.exitDetail || 'clean exit'})${tail ? `\noutput:\n${tail}` : ''}`,
+      result: `${label}: ${root.debuggeeEndDetail()}${tail ? `\noutput:\n${tail}` : ''}`,
       outcome: 'succeeded',
       debuggee: 'terminated',
     }
@@ -640,7 +641,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       const threadId = await resolveThreadId(r.target, input.threadId)
-      return { result: await formatStackTop(r.target, threadId, 20), outcome: 'no-change' }
+      return { result: await formatStackTop(r.target, threadId, input.depth ?? 20), outcome: 'no-change' }
     }
     case 'scopes': {
       const r = requireTarget(owner, sessionId)

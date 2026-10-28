@@ -70,7 +70,48 @@ try {
     const refusedPipe = await door.drive({ operation: 'diagnostics', filePath: pipe })
     check('directory support never admits a blocking special file', refusedPipe.isError && /not a regular file/.test(refusedPipe.text), refusedPipe.text)
   }
+  const race = writeProject(project, 'race', {
+    'package.json': '{"type":"module"}',
+    'jsconfig.json': '{"compilerOptions":{"allowJs":true},"include":["*.mjs"]}',
+    'cache.mjs': 'export function cache() { return {} }\n',
+    'label.mjs': "import { cache } from './cache.mjs';\n\nexport function label(region) {\n  const pct = 7;\n\n  cache()[region] = pct;\n}\n",
+    'many.mjs': "import { cache } from './cache.mjs';\n" + Array.from({ length: 55 }, (_, i) => `cache().value${i} = ${i};`).join('\n'),
+  })
+  const reference = await door.drive({ operation: 'findReferences', filePath: join(race, 'label.mjs'), line: 6, character: 3 })
+  check('the shared-table writer is readable beside its reference', reference.text.includes('cache()[region] = pct;'), reference.text)
+  check('references stop at 50 hits and count the remainder', reference.text.includes('9 more references.') && (reference.text.match(/  Line /g) ?? []).length === 50 && reference.text.length < 12_000, reference.text)
+  const definition = await door.drive({ operation: 'goToDefinition', filePath: join(race, 'label.mjs'), line: 6, character: 3 })
+  check('definitions carry their trimmed source line', definition.text.includes('export function cache() { return {} }'), definition.text)
   const outside = writeProject(scratch, 'outside', { 'outside.ts': 'export const outside = 1\n' })
+  const manager = door.manager()!
+  const send = manager.sendRequest.bind(manager)
+  const { pathToFileURL } = await import('node:url')
+  const hit = (file: string, line = 0) => ({ uri: pathToFileURL(file).href, range: { start: { line, character: 0 }, end: { line, character: 1 } } })
+  try {
+    manager.sendRequest = async () => [hit(join(outside, 'outside.ts'))] as never
+    const concealed = await door.drive({ operation: 'findReferences', filePath: lib, line: 1, character: 14 })
+    check('an outside target keeps its position but not unread source', concealed.text.includes('outside.ts:1:1') && !concealed.text.includes('export const outside'), concealed.text)
+    const linked = join(project, 'linked.ts')
+    symlinkSync(join(outside, 'outside.ts'), linked)
+    manager.sendRequest = async () => [hit(linked)] as never
+    const escaped = await door.drive({ operation: 'goToDefinition', filePath: lib, line: 1, character: 14 })
+    check('source-line permission follows an escaping symlink', !escaped.text.includes('export const outside'), escaped.text)
+    manager.sendRequest = async () => [hit(join(project, 'gone.ts'))] as never
+    const absent = await door.drive({ operation: 'goToDefinition', filePath: lib, line: 1, character: 14 })
+    check('an unreadable definition still has its position', !absent.isError && absent.text.includes('gone.ts:1:1'), absent.text)
+    writeFileSync(join(project, 'long.ts'), '  ' + 'x'.repeat(300) + '\n')
+    manager.sendRequest = async () => Array.from({ length: 55 }, () => hit(join(project, 'long.ts'))) as never
+    const capped = await door.drive({ operation: 'goToDefinition', filePath: lib, line: 1, character: 14 })
+    check('definition source lines trim to 160 characters and stop at 50 hits', capped.text.includes('5 more definitions.') && capped.text.split('\n').filter(line => line.trim() === 'x'.repeat(160)).length === 50 && !capped.text.includes('x'.repeat(161)), capped.text)
+    const types = await door.drive({ operation: 'typeDefinition', filePath: lib, line: 1, character: 14 })
+    check('type definitions use the same bounded source-line road', types.text.includes('5 more type definitions.') && types.text.split('\n').filter(line => line.trim() === 'x'.repeat(160)).length === 50, types.text)
+    const target = hit(join(race, 'label.mjs'), 5)
+    manager.sendRequest = async () => [{ targetUri: target.uri, targetRange: hit(lib).range, targetSelectionRange: target.range }] as never
+    const selection = await door.drive({ operation: 'goToDefinition', filePath: lib, line: 1, character: 14 })
+    check('a definition link reads the selected line, not the enclosing range', selection.text.includes('label.mjs:6:1') && selection.text.includes('cache()[region] = pct;'), selection.text)
+  } finally {
+    manager.sendRequest = send
+  }
   const denied = await door.driveNamed('LspRead', { operation: 'diagnostics', paths: [main, join(outside, 'outside.ts')] }, 'deny')
   check('every paths entry takes read permission, not just the working directory', denied.isError && denied.asks.length > 0, denied.text)
 } finally {
