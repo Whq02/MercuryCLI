@@ -34,6 +34,7 @@ import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } from './Notifications.js'
+import { standsUntilRemoved } from '../../context/notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
@@ -249,7 +250,8 @@ export function PromptInputFooterLeftSide({
       )
     }
   }
-  const noticeStands = noticeText !== null || noticeBlock !== null
+  const noticeYields = currentNotice !== null && standsUntilRemoved(currentNotice) && parts.length > 0
+  const noticeStands = !noticeYields && (noticeText !== null || noticeBlock !== null)
   const hintsShow = !vimInsert && !noticeStands && parts.length > 0
   const idleHintShows =
     parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge && !noticeStands
@@ -258,7 +260,7 @@ export function PromptInputFooterLeftSide({
   const cluster = (
     <Box
       flexDirection="row"
-      height={isFullscreenActive() ? Math.max(1, blockRows) : undefined}
+      height={isFullscreenActive() ? Math.max(1, noticeStands ? blockRows : 0) : undefined}
       overflow="hidden"
     >
       {searchField ?? null}
@@ -320,7 +322,7 @@ export function PromptInputFooterLeftSide({
           </Text>
         </Box>
       ) : null}
-      {noticeText !== null ? (
+      {noticeStands && noticeText !== null ? (
         <Box flexShrink={1} minWidth={0} flexWrap="wrap" height={1} overflow="hidden">
           <Text dimColor wrap="truncate-end">
             {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
@@ -334,7 +336,7 @@ export function PromptInputFooterLeftSide({
           ) : null}
         </Box>
       ) : null}
-      {noticeBlock !== null ? (
+      {noticeStands && noticeBlock !== null ? (
         <Box flexShrink={1} minWidth={0} height={blockRows} overflow="hidden">
           {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
           {noticeBlock}

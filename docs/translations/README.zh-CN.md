@@ -67,7 +67,7 @@ Mercury 的安装仅属于当前用户，无需管理员权限。安装命令可
 
 npm 启动器使用与安装程序相同的版本目录结构，并把每次运行交给已安装的版本。因此，`mercury update` 会通过 Mercury 自身的更新通道，就地更新 npm 安装。`npm update -g mercury-tech-cli` 只会改变该包在首次运行时安装的版本。使用 mise 时同样适用。
 
-`--check` 对所有安装方式都读取同一份版本列表，并告诉你如何更新自己的安装。有可用更新时，首页右下角会显示一次 `vX.Y.Z available · mercury update`，对话中也会出现一条临时通知。设置 `MERCURY_UPDATE_NOTICE=0` 可同时隐藏两者。
+`--check` 对所有安装方式都读取同一份版本列表，并告诉你如何更新自己的安装。有可用更新时，首页右下角会显示一次 `vX.Y.Z available · mercury update`，对话中也会一直显示同一条通知，直到你更新为止。设置 `MERCURY_UPDATE_NOTICE=0` 可同时隐藏两者。
 
 安装和更新请求会以匿名方式获取公开的版本列表和压缩包，因此无需账户或 token 即可运行。如果匿名请求被拒绝，Mercury 会查询已登录的 GitHub CLI（`gh`）。
 

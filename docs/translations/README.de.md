@@ -67,7 +67,7 @@ Bei Homebrew fragt Mercury nach, bevor es `brew upgrade Whq02/mercury/mercury` a
 
 Der npm-Launcher verwendet dasselbe Release-Layout wie die Installer und leitet jeden Lauf an das installierte Release weiter. `mercury update` aktualisiert daher eine npm-Installation direkt über den eigenen Update-Kanal von Mercury. `npm update -g mercury-tech-cli` ändert nur das Release, das das Paket bei seinem ersten Lauf installiert. Dasselbe gilt bei Verwendung von mise.
 
-`--check` liest für jede Installationsmethode dieselbe Release-Liste und sagt Ihnen, wie Sie Ihre Installation aktualisieren. Wenn ein Update verfügbar ist, zeigt der Startbildschirm `vX.Y.Z available · mercury update` einmal in der unteren rechten Ecke an, und der Chat zeigt einen vorübergehenden Hinweis. Setzen Sie `MERCURY_UPDATE_NOTICE=0`, um beides auszublenden.
+`--check` liest für jede Installationsmethode dieselbe Release-Liste und sagt Ihnen, wie Sie Ihre Installation aktualisieren. Wenn ein Update verfügbar ist, zeigt der Startbildschirm `vX.Y.Z available · mercury update` einmal in der unteren rechten Ecke an, und der Chat zeigt denselben Hinweis, bis Sie aktualisieren. Setzen Sie `MERCURY_UPDATE_NOTICE=0`, um beides auszublenden.
 
 Installations- und Update-Anfragen laden die öffentliche Release-Liste und die Archive anonym. Sie können sie ohne Konto oder Token ausführen. Wird eine anonyme Anfrage abgelehnt, greift Mercury auf die angemeldete GitHub CLI (`gh`) zurück.
 

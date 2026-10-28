@@ -67,7 +67,7 @@ Với Homebrew, lệnh hỏi trước khi chạy `brew upgrade Whq02/mercury/mer
 
 Trình khởi chạy npm dùng cùng cấu trúc phát hành với trình cài đặt và chuyển mỗi lần chạy cho bản phát hành đã cài. Vì vậy `mercury update` cập nhật một bản cài đặt npm tại chỗ thông qua kênh cập nhật của chính Mercury. `npm update -g mercury-tech-cli` chỉ thay đổi bản phát hành mà gói cài đặt trong lần chạy đầu tiên. Điều này cũng áp dụng khi dùng mise.
 
-`--check` đọc cùng một danh sách phát hành cho mọi phương thức cài đặt và cho bạn biết cách cập nhật bản cài đặt của mình. Khi có bản cập nhật, màn hình chính hiển thị `vX.Y.Z available · mercury update` một lần ở góc dưới bên phải, và cuộc trò chuyện hiển thị một thông báo tạm thời. Đặt `MERCURY_UPDATE_NOTICE=0` để ẩn cả hai.
+`--check` đọc cùng một danh sách phát hành cho mọi phương thức cài đặt và cho bạn biết cách cập nhật bản cài đặt của mình. Khi có bản cập nhật, màn hình chính hiển thị `vX.Y.Z available · mercury update` một lần ở góc dưới bên phải, và cuộc trò chuyện hiển thị cùng thông báo đó cho đến khi bạn cập nhật. Đặt `MERCURY_UPDATE_NOTICE=0` để ẩn cả hai.
 
 Các yêu cầu cài đặt và cập nhật tải danh sách phát hành công khai và các gói lưu trữ một cách ẩn danh. Bạn có thể chạy chúng mà không cần tài khoản hay token. Nếu một yêu cầu ẩn danh bị từ chối, Mercury sẽ dùng GitHub CLI (`gh`) đã đăng nhập.
 

@@ -50,6 +50,54 @@ section('§1 the door — enqueue displays, dedupes, immediate pre-empts')
   check('immediate pre-empts and re-queues the displaced entry', store.get().notifications.current?.key === 'c' && store.get().notifications.queue.some(e => e.key === 'a'))
 }
 
+section('§1b a standing entry (timeoutMs: Infinity) — no expiry, yields the row to any later entry, returns after it')
+{
+  const realSetTimeout = globalThis.setTimeout
+  const realClearTimeout = globalThis.clearTimeout
+  const armed: Array<{ fire: () => void; delayMs: number }> = []
+  globalThis.setTimeout = ((fn: () => void, delay?: number) => {
+    const handle = { fire: fn, delayMs: delay ?? 0 }
+    armed.push(handle)
+    return handle
+  }) as unknown as typeof setTimeout
+  globalThis.clearTimeout = ((handle: unknown) => {
+    const at = armed.indexOf(handle as never)
+    if (at !== -1) armed.splice(at, 1)
+    else realClearTimeout(handle as never)
+  }) as unknown as typeof clearTimeout
+  const fire = (key: number): void => {
+    const [timer] = armed.splice(key, 1)
+    timer?.fire()
+  }
+  try {
+    const store = makeStore()
+    const current = (): string | null => store.get().notifications.current?.key ?? null
+    const queued = (): string[] => store.get().notifications.queue.map(e => e.key)
+    enqueueNotification(store.set as never, { key: 'u', text: 'standing', priority: 'high', timeoutMs: Infinity })
+    check('a standing entry is displayed at once', current() === 'u', JSON.stringify(store.get().notifications))
+    check('…and arms NO expiry timer', armed.length === 0, `timers armed: ${armed.map(t => t.delayMs).join(', ')}`)
+    enqueueNotification(store.set as never, { key: 'u', text: 'standing again', priority: 'high', timeoutMs: Infinity })
+    check('a same-key re-post of the standing entry drops (one line per session)', current() === 'u' && queued().length === 0, JSON.stringify(store.get().notifications))
+    enqueueNotification(store.set as never, { key: 'r', text: 'a receipt', priority: 'low', timeoutMs: 60_000 })
+    check('a later LOW entry takes the row from the standing entry, which waits behind it', current() === 'r' && queued().join(',') === 'u', JSON.stringify(store.get().notifications))
+    check('…the receipt arms its own expiry', armed.length === 1 && armed[0]?.delayMs === 60_000, `timers armed: ${armed.map(t => t.delayMs).join(', ')}`)
+    fire(0)
+    check('when the receipt expires the standing entry returns, still with no timer', current() === 'u' && queued().length === 0 && armed.length === 0, JSON.stringify(store.get().notifications))
+    enqueueNotification(store.set as never, { key: 'i', text: 'now', priority: 'immediate', timeoutMs: 5_000 })
+    check('an immediate entry pre-empts the standing entry and re-queues it', current() === 'i' && queued().join(',') === 'u')
+    enqueueNotification(store.set as never, { key: 'u2', text: 'another standing', priority: 'high', timeoutMs: Infinity })
+    enqueueNotification(store.set as never, { key: 'r2', text: 'a late receipt', priority: 'low', timeoutMs: 60_000 })
+    check('behind the immediate: two standing entries queued before a low receipt', current() === 'i' && queued().join(',') === 'u,u2,r2', JSON.stringify(store.get().notifications))
+    fire(0)
+    check('the low receipt is promoted ahead of both standing entries (a standing entry ranks last)', current() === 'r2' && queued().join(',') === 'u,u2', JSON.stringify(store.get().notifications))
+    fire(0)
+    check('after it, the earlier standing entry returns and the other waits', current() === 'u' && queued().join(',') === 'u2' && armed.length === 0, JSON.stringify(store.get().notifications))
+  } finally {
+    globalThis.setTimeout = realSetTimeout
+    globalThis.clearTimeout = realClearTimeout
+  }
+}
+
 section('§2 the killswitch drive — the mode flip says why')
 {
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { disableSovereignMode: true } }))

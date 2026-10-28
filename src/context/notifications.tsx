@@ -36,9 +36,14 @@ const PRIORITY_RANK: Record<Priority, number> = {
   low: 3,
 }
 
+export function standsUntilRemoved(entry: Notification): boolean {
+  return entry.timeoutMs === Infinity
+}
+
 function getNext(queue: Notification[]): Notification | undefined {
   if (queue.length === 0) return undefined
-  return queue.reduce((best, candidate) =>
+  const transient = queue.filter(entry => !standsUntilRemoved(entry))
+  return (transient.length > 0 ? transient : queue).reduce((best, candidate) =>
     PRIORITY_RANK[candidate.priority] < PRIORITY_RANK[best.priority]
       ? candidate
       : best,
@@ -58,6 +63,7 @@ function cancelExpiry(): void {
 
 function armExpiry(entry: Notification, setAppState: SetAppState): void {
   cancelExpiry()
+  if (standsUntilRemoved(entry)) return
   expiryTimer = setTimeout(() => {
     expiryTimer = null
     setAppState(prev => {
@@ -145,6 +151,8 @@ export function enqueueNotification(
     const invalidatesCurrent =
       current !== null && incoming.invalidates?.includes(current.key) === true
     if (invalidatesCurrent) cancelExpiry()
+    const yields =
+      current !== null && !invalidatesCurrent && standsUntilRemoved(current) && !standsUntilRemoved(incoming)
     const filtered = queue.filter(
       entry =>
         entry.priority !== 'immediate' &&
@@ -153,8 +161,8 @@ export function enqueueNotification(
     return {
       ...prev,
       notifications: {
-        current: invalidatesCurrent ? null : current,
-        queue: [...filtered, incoming],
+        current: invalidatesCurrent || yields ? null : current,
+        queue: [...filtered, incoming, ...(yields ? [current as Notification] : [])],
       },
     }
   })

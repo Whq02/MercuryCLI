@@ -50,7 +50,7 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
-import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
+import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
@@ -1373,7 +1373,7 @@ export function Chat({
 
   useEffect(() => {
     const disarm = scheduleQuietUpdateNotice(text =>
-      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'low', timeoutMs: UPDATE_NOTICE_STAY_MS }),
+      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
     );
     return disarm;
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -67,7 +67,7 @@ For Homebrew spør den før den kjører `brew upgrade Whq02/mercury/mercury`. St
 
 npm-launcheren bruker det samme utgivelsesoppsettet som installasjonsprogrammene og delegerer hver kjøring til den installerte utgivelsen. `mercury update` oppdaterer derfor en npm-installasjon på stedet, gjennom Mercurys egen oppdateringskanal. `npm update -g mercury-tech-cli` endrer bare utgivelsen pakken installerer ved første kjøring. Dette gjelder også ved bruk av mise.
 
-`--check` leser den samme utgivelseslisten for alle installasjonsmetoder og forteller deg hvordan du oppdaterer din. Når en oppdatering er tilgjengelig, viser hjemskjermen `vX.Y.Z available · mercury update` én gang nederst til høyre, og chatten viser en midlertidig melding. Sett `MERCURY_UPDATE_NOTICE=0` for å skjule begge.
+`--check` leser den samme utgivelseslisten for alle installasjonsmetoder og forteller deg hvordan du oppdaterer din. Når en oppdatering er tilgjengelig, viser hjemskjermen `vX.Y.Z available · mercury update` én gang nederst til høyre, og chatten viser den samme meldingen til du oppdaterer. Sett `MERCURY_UPDATE_NOTICE=0` for å skjule begge.
 
 Forespørsler om installasjon og oppdatering henter den offentlige utgivelseslisten og arkivene anonymt. Du kan kjøre dem uten konto eller token. Hvis en anonym forespørsel avvises, bruker Mercury i stedet den innloggede GitHub CLI-en (`gh`).
 

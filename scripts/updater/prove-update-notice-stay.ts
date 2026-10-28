@@ -128,7 +128,8 @@ console.error = (...args: unknown[]): void => {
 const React = await import('react')
 const { App } = await import('../../src/components/App.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { useAppState } = await import('../../src/state/AppState.tsx')
+const { useAppState, useSetAppState } = await import('../../src/state/AppState.tsx')
+const { enqueueNotification } = await import('../../src/context/notifications.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.tsx')
 const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
@@ -139,6 +140,8 @@ const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await impo
 const pending = await import('../../src/input-core/pending-input.ts')
 const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
 const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
 const notice = await import('../../src/services/privateChannel/quietUpdateNotice.ts')
 enableConfigs()
@@ -150,15 +153,18 @@ const stayMs = (notice as Record<string, unknown>).UPDATE_NOTICE_STAY_MS
 const cachePath = notice.updateNoticeCachePath()
 const seedNewer = (): void => notice.writeUpdateNoticeCache({ schema: 1, checkedAtMs: Date.now(), runningVersion: RUNNING, available: { version: NEWER, tag: `v${NEWER}` } }, cachePath)
 const rowsWith = (m: Mounted, word: string): string => m.lines().filter(line => line.includes(word)).join(' | ')
+const WARNING_FG = '38;2;219;161;61'
+const FAINT_FG = '38;2;113;128;123'
+const fgAcross = (m: Mounted, x0: number, y: number, width: number): string[] => [...new Set(Array.from({ length: width }, (_, i) => m.styleAt(x0 + i, y)?.fg ?? 'none'))]
 
 console.log('============================================================')
-console.log(' the quiet update notice stays for five minutes wherever it appears')
+console.log(' the quiet update notice is painted in the warning tone on both surfaces; the chat line stays for the whole session')
 console.log('============================================================')
 
-section('§0 the one constant both surfaces read')
-check('quietUpdateNotice.ts exports UPDATE_NOTICE_STAY_MS = 5 minutes (300 000 ms)', stayMs === FIVE_MINUTES_MS, `UPDATE_NOTICE_STAY_MS reads ${String(stayMs)}`)
+section("§0 the splash's constant")
+check('quietUpdateNotice.ts exports UPDATE_NOTICE_STAY_MS = 5 minutes (300 000 ms) — the splash line\'s own stay', stayMs === FIVE_MINUTES_MS, `UPDATE_NOTICE_STAY_MS reads ${String(stayMs)}`)
 
-section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER)}" stays five minutes while the splash is up`)
+section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER)}" is painted in the warning tone and stays five minutes while the splash is up`)
 {
   const faceLine = notice.faceUpdateNoticeText(NEWER)
   seedNewer()
@@ -168,6 +174,11 @@ section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER
   const bottom = (): string => face.lines()[39] ?? ''
   check('the face painted its hint row', painted, face.lines().slice(0, 6).join(' | '))
   check(`the bottom row carries the line at its appearance`, bottom().includes(faceLine), JSON.stringify(bottom()))
+  const lineAt = bottom().indexOf(faceLine)
+  const lineTones = lineAt === -1 ? [] : fgAcross(face, lineAt, 39, faceLine.length)
+  check(`every cell of the line is painted in the warning tone rgb(219, 161, 61) (the base tree paints it faint)`, lineTones.length === 1 && lineTones[0] === WARNING_FG, `tones across the line: ${lineTones.join(' ')}`)
+  const hintTones = fgAcross(face, 2, 39, 2)
+  check('the key-map hint beside it keeps the faint tone', hintTones.length === 1 && hintTones[0] === FAINT_FG, `tones across the hint: ${hintTones.join(' ')}`)
   check('the cache records the version announced on the face (the unchanged once-only law)', notice.readUpdateNoticeCache(cachePath)?.faceAnnounced === NEWER, JSON.stringify(notice.readUpdateNoticeCache(cachePath)))
   console.log(`  long timers armed since the face mounted: ${armedWords()}`)
   await advance(FIVE_MINUTES_MS - 1_000)
@@ -191,43 +202,135 @@ section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER
   resetClock()
 }
 
-section(`§2 the notice-area line in the chat (178x51): "${notice.updateNoticeText(NEWER)}" is armed for UPDATE_NOTICE_STAY_MS and stands past 20 s`)
-{
-  const noticeText = notice.updateNoticeText(NEWER)
-  seedNewer()
+type SetApp = Parameters<typeof enqueueNotification>[0]
+type Seen = { key: string; priority: string; color: string | undefined; timeoutMs: number | undefined }
+const probe = { setApp: null as SetApp | null, armedEntry: null as Seen | null, live: null as { key: string } | null }
+function Probe(): null {
+  const current = useAppState(state => state.notifications.current)
+  probe.setApp = useSetAppState() as SetApp
+  React.useEffect(() => {
+    probe.live = current === null ? null : { key: current.key }
+    if (current !== null && current.key === notice.UPDATE_NOTICE_KEY && probe.armedEntry === null) {
+      probe.armedEntry = { key: current.key, priority: current.priority, color: 'text' in current ? current.color : undefined, timeoutMs: current.timeoutMs }
+    }
+  }, [current])
+  return null
+}
+type SeatLive = typeof IDLE_LIVE
+function seatFixture(): { setLive: (next: SeatLive) => void } {
+  const listeners = new Set<() => void>()
+  let live: SeatLive = IDLE_LIVE
+  const tailStore = createStreamingTailStore()
+  const seat = Object.assign(new NoSessionConnector(), {
+    sessionId: () => 'proof-session',
+    turnActive: () => live.inFlight,
+    live: () => live,
+    subscribeLive: (listener: () => void) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    status: () => ({ title: 'a chat', projectLabel: 'proof', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+    tail: () => tailStore,
+    setLive: (next: SeatLive): void => {
+      live = next
+      for (const listener of listeners) listener()
+    },
+  })
+  slot.setFocusedSessionConnector(seat)
+  return seat
+}
+const TURN_LIVE: SeatLive = { ...IDLE_LIVE, inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: Date.now() }
+async function mountChat(): Promise<Mounted & { setLive: (next: SeatLive) => void }> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')
-  slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => 'proof-session' }))
-  let armedEntry: { key: string; timeoutMs: number | undefined } | null = null
-  let live: { key: string } | null = null
-  function Probe(): null {
-    const current = useAppState(state => state.notifications.current)
-    React.useEffect(() => {
-      live = current === null ? null : { key: current.key }
-      if (current !== null && current.key === notice.UPDATE_NOTICE_KEY && armedEntry === null) armedEntry = { key: current.key, timeoutMs: current.timeoutMs }
-    }, [current])
-    return null
-  }
-  const chat = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(SurfaceRouter, null, h(Chat, { commands: [], initialTools: [] })), h(Probe)), 178, 51)
+  const seat = seatFixture()
+  probe.armedEntry = null
+  probe.live = null
+  const app = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(SurfaceRouter, null, h(Chat, { commands: [], initialTools: [] })), h(Probe))
+  return { ...(await mountOffscreen(app, 178, 51)), setLive: seat.setLive }
+}
+const noticeRow = (m: Mounted, text: string): { x: number; y: number } | null => {
+  const y = m.lines().findIndex(line => line.includes(text))
+  return y === -1 ? null : { x: (m.lines()[y] ?? '').indexOf(text), y }
+}
+
+section(`§2 the notice-area line in the chat (178x51): "${notice.updateNoticeText(NEWER)}" is painted in the warning tone, never expires, and yields the row to a later receipt`)
+{
+  const noticeText = notice.updateNoticeText(NEWER)
+  seedNewer()
+  const chat = await mountChat()
   const composerRow = (): string => chat.lines().find(line => line.startsWith('│❯')) ?? ''
   const painted = await waitFor(() => composerRow().includes('Type a prompt'), 10_000)
   await settle(300)
   check('the chat painted its composer', painted, chat.lines().slice(-8).join(' | '))
-  const arrived = await waitFor(() => armedEntry !== null, notice.UPDATE_NOTICE_FIRST_DELAY_MS + 12_000)
+  const arrived = await waitFor(() => probe.armedEntry !== null, notice.UPDATE_NOTICE_FIRST_DELAY_MS + 12_000)
   await settle(400)
   const onScreen = (): boolean => chat.screen().includes(noticeText)
+  const seen = (): Seen | null => probe.armedEntry
+  const liveKey = (): string | null => probe.live?.key ?? null
   check(`after the first-check delay the cached ${NEWER} is offered on the notice surface`, arrived && onScreen(), `arrived=${arrived} · rows: ${rowsWith(chat, 'available')}`)
-  check('the notice-area line is armed with a timeout of exactly UPDATE_NOTICE_STAY_MS = 300 000 ms (5 min)', armedEntry?.timeoutMs === FIVE_MINUTES_MS && stayMs === FIVE_MINUTES_MS, `the notice expires before five minutes — timeoutMs ${String(armedEntry?.timeoutMs)} (UPDATE_NOTICE_STAY_MS ${String(stayMs)})`)
+  check("the entry rides the warning road: priority 'high', color 'warning' (the base tree posts it low and uncoloured)", seen()?.priority === 'high' && seen()?.color === 'warning', JSON.stringify(seen()))
+  check('the entry carries no expiry (timeoutMs: Infinity — the base tree arms five minutes)', seen()?.timeoutMs === Infinity, `timeoutMs ${String(seen()?.timeoutMs)}`)
   console.log(`  long timers armed since the chat mounted: ${armedWords()}`)
+  check('no five-minute or unbounded timer was armed for it', !armed.some(ms => ms === FIVE_MINUTES_MS || !Number.isFinite(ms)), armedWords())
+  const at = noticeRow(chat, noticeText)
+  const tones = at === null ? [] : fgAcross(chat, at.x, at.y, noticeText.length)
+  check('every cell of the line is painted in the warning colour rgb(219, 161, 61)', tones.length === 1 && tones[0] === WARNING_FG, `tones across the line: ${tones.join(' ')} (row ${at?.y ?? '?'})`)
   await advance(20_001)
-  check(`at ${clockLabel(clockMs)} the notice still stands`, live?.key === notice.UPDATE_NOTICE_KEY && onScreen(), `the notice expires before five minutes — gone at ${clockLabel(clockMs)} (current ${JSON.stringify(live)})`)
-  await advance(FIVE_MINUTES_MS - 1_000 - clockMs)
-  check(`at ${clockLabel(clockMs)} the notice still stands`, live?.key === notice.UPDATE_NOTICE_KEY && onScreen(), `current ${JSON.stringify(live)} · rows: ${rowsWith(chat, 'available')}`)
-  await advance(2_000)
-  check(`at ${clockLabel(clockMs)} the notice has left the notice surface`, live?.key !== notice.UPDATE_NOTICE_KEY && !onScreen(), `current ${JSON.stringify(live)} · rows: ${rowsWith(chat, 'available')}`)
+  check(`at ${clockLabel(clockMs)} the notice still stands`, liveKey() === notice.UPDATE_NOTICE_KEY && onScreen(), `gone at ${clockLabel(clockMs)} (current ${liveKey()})`)
+  await advance(FIVE_MINUTES_MS + 1_000 - clockMs)
+  check(`at ${clockLabel(clockMs)} the notice still stands (the base tree has dropped it)`, liveKey() === notice.UPDATE_NOTICE_KEY && onScreen(), `current ${liveKey()} · rows: ${rowsWith(chat, 'available')}`)
+  await advance(60 * 60 * 1000 - clockMs)
+  check(`at ${clockLabel(clockMs)} the notice still stands`, liveKey() === notice.UPDATE_NOTICE_KEY && onScreen(), `current ${liveKey()} · rows: ${rowsWith(chat, 'available')}`)
+  const interruptHint = (): boolean => chat.lines().some(line => /\binterrupt\b/.test(line))
+  check('at idle the hint row carries no turn hint beside the notice', !interruptHint(), rowsWith(chat, 'interrupt'))
+  chat.setLive(TURN_LIVE)
+  const turnPainted = await waitFor(() => interruptHint(), 5_000)
+  await settle(300)
+  check("while a turn runs the hint row shows the turn's own hint (esc interrupt) and not the notice — the entry itself still stands", turnPainted && !onScreen() && liveKey() === notice.UPDATE_NOTICE_KEY, `interrupt=${turnPainted} · current ${liveKey()} · rows: ${rowsWith(chat, 'available')}`)
+  chat.setLive(IDLE_LIVE)
+  const idleAgain = await waitFor(() => onScreen() && !interruptHint(), 5_000)
+  await settle(300)
+  check('when the turn ends the notice is back on the row and the turn hint is gone', idleAgain && liveKey() === notice.UPDATE_NOTICE_KEY, `current ${liveKey()} · rows: ${rowsWith(chat, 'available')} · ${rowsWith(chat, 'interrupt')}`)
+  const tonesAgain = (() => {
+    const row = noticeRow(chat, noticeText)
+    return row === null ? [] : fgAcross(chat, row.x, row.y, noticeText.length)
+  })()
+  check('…in the warning colour as before', tonesAgain.length === 1 && tonesAgain[0] === WARNING_FG, `tones across the line: ${tonesAgain.join(' ')}`)
+  check('the app setter reached the probe', probe.setApp !== null)
+  enqueueNotification(probe.setApp as SetApp, { key: 'proof-receipt', text: 'a receipt for the proof', priority: 'low', timeoutMs: 20_000 })
+  await settle(400)
+  check('a later low-priority receipt takes the row and the update line waits behind it', liveKey() === 'proof-receipt' && chat.screen().includes('a receipt for the proof') && !onScreen(), `current ${liveKey()} · rows: ${rowsWith(chat, 'receipt')}`)
+  await advance(20_001)
+  check('when the receipt expires the update line returns on its own', liveKey() === notice.UPDATE_NOTICE_KEY && onScreen() && !chat.screen().includes('a receipt for the proof'), `current ${liveKey()} · rows: ${rowsWith(chat, 'available')}`)
   check('the composer is still there beneath', composerRow().includes('Type a prompt') || composerRow() !== '', composerRow())
+  chat.unmount()
+  await settle(200)
+  resetClock()
+}
+
+section(`§3 after the update: the cache that offered ${NEWER} under ${RUNNING} shows nothing once ${NEWER} is the running version`)
+{
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: NEWER }
+  seedNewer()
+  const face = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(BootSplashScreen))), 120, 40)
+  const painted = await waitFor(() => face.screen().includes('↑↓ choose'), 15_000)
+  await settle(400)
+  check('the splash painted', painted, face.lines().slice(0, 6).join(' | '))
+  check('the splash paints no update line for the version now running', !face.screen().includes('available'), rowsWith(face, 'available'))
+  check('the cache records no face announcement', notice.readUpdateNoticeCache(cachePath)?.faceAnnounced === undefined, JSON.stringify(notice.readUpdateNoticeCache(cachePath)))
+  face.unmount()
+  await settle(200)
+  resetClock()
+  const chat = await mountChat()
+  const chatPainted = await waitFor(() => (chat.lines().find(line => line.startsWith('│❯')) ?? '').includes('Type a prompt'), 10_000)
+  check('the chat painted its composer', chatPainted, chat.lines().slice(-8).join(' | '))
+  const offered = await waitFor(() => probe.armedEntry !== null, notice.UPDATE_NOTICE_FIRST_DELAY_MS + 4_000)
+  check('the chat posts no update line for the version now running (the stale cache is never read as an offer)', !offered && !chat.screen().includes('available'), `offered=${offered} · ${JSON.stringify(probe.armedEntry)} · rows: ${rowsWith(chat, 'available')}`)
   chat.unmount()
   await settle(200)
   resetClock()

@@ -62,6 +62,9 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   delete process.env.MERCURY_UPDATE_NOTICE
   const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
   t('the Chat arms the notice after mount with the existing notice surface (structural)', /scheduleQuietUpdateNotice\(text =>\s*addNotification\(\{ key: UPDATE_NOTICE_KEY/.test(repl))
+  t("the Chat posts the line on the warning road with no expiry: priority 'high', color 'warning', timeoutMs: Infinity (structural)", /addNotification\(\{ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity \}\)/.test(repl))
+  const notifications = readFileSync('src/context/notifications.tsx', 'utf8')
+  t('the notification store arms no expiry for a timeoutMs: Infinity entry (structural)', /timeoutMs === Infinity/.test(notifications) && /cancelExpiry\(\)\s*\n\s*if \(standsUntilRemoved\(entry\)\) return/.test(notifications))
   const doc = readFileSync('docs/TERMINAL-RUNTIME.md', 'utf8')
   t('the runtime doc states exactly what the check sends', /sends nothing about the machine or the\s+operator/.test(doc) && /MERCURY_UPDATE_NOTICE=0/.test(doc))
 }

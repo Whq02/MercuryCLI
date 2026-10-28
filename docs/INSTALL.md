@@ -80,7 +80,8 @@ on its first run. This also applies when using mise.
 `--check` reads the same release list for every installation method and tells
 you how to update yours. When an update is available, the home screen shows
 `vX.Y.Z available · mercury update` once in its bottom-right corner, and the
-chat shows a temporary notice. Set `MERCURY_UPDATE_NOTICE=0` to hide both.
+chat shows the same notice until you update. Set `MERCURY_UPDATE_NOTICE=0` to
+hide both.
 
 Install and update requests fetch the public release list and archives
 anonymously. You can run them without an account or token. If an anonymous

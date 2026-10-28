@@ -67,7 +67,7 @@ Za Homebrew, prije pokretanja `brew upgrade Whq02/mercury/mercury` traži potvrd
 
 Npm launcher koristi isti raspored izdanja kao i instalateri i svako pokretanje prosljeđuje instaliranom izdanju. Zato `mercury update` ažurira npm instalaciju na mjestu, kroz Mercury-jev vlastiti kanal za ažuriranje. `npm update -g mercury-tech-cli` mijenja samo izdanje koje paket instalira pri prvom pokretanju. Ovo važi i kada koristite mise.
 
-`--check` čita istu listu izdanja za svaki način instalacije i kaže vam kako da ažurirate svoju. Kada je ažuriranje dostupno, početni ekran jednom prikaže `vX.Y.Z available · mercury update` u donjem desnom uglu, a razgovor prikaže privremenu obavijest. Postavite `MERCURY_UPDATE_NOTICE=0` da sakrijete oboje.
+`--check` čita istu listu izdanja za svaki način instalacije i kaže vam kako da ažurirate svoju. Kada je ažuriranje dostupno, početni ekran jednom prikaže `vX.Y.Z available · mercury update` u donjem desnom uglu, a razgovor prikazuje istu obavijest dok ne ažurirate. Postavite `MERCURY_UPDATE_NOTICE=0` da sakrijete oboje.
 
 Zahtjevi za instalaciju i ažuriranje anonimno preuzimaju javnu listu izdanja i arhive. Možete ih pokrenuti bez naloga ili tokena. Ako anonimni zahtjev bude odbijen, Mercury provjerava prijavljeni GitHub CLI (`gh`).
 

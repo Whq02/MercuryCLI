@@ -67,7 +67,7 @@ Homebrew için `brew upgrade Whq02/mercury/mercury` komutunu çalıştırmadan �
 
 npm başlatıcısı kurucularla aynı sürüm düzenini kullanır ve her çalıştırmayı kurulu sürüme devreder. Bu nedenle `mercury update`, npm kurulumunu da Mercury'nin kendi güncelleme kanalı üzerinden yerinde günceller. `npm update -g mercury-tech-cli` ise paketin ilk çalıştırmasında kurduğu sürümü değiştirir. Bu durum mise kullanıldığında da geçerlidir.
 
-`--check`, her kurulum yöntemi için aynı sürüm listesini okur ve kurulumunuzun nasıl güncelleneceğini söyler. Bir güncelleme mevcut olduğunda ana ekranda sağ alt köşede `vX.Y.Z available · mercury update` bir kez görüntülenir ve sohbette geçici bir bildirim gösterilir. İkisini de gizlemek için `MERCURY_UPDATE_NOTICE=0` ayarlayın.
+`--check`, her kurulum yöntemi için aynı sürüm listesini okur ve kurulumunuzun nasıl güncelleneceğini söyler. Bir güncelleme mevcut olduğunda ana ekranda sağ alt köşede `vX.Y.Z available · mercury update` bir kez görüntülenir ve sohbette güncelleyene kadar aynı bildirim gösterilir. İkisini de gizlemek için `MERCURY_UPDATE_NOTICE=0` ayarlayın.
 
 Kurulum ve güncelleme istekleri genel sürüm listesini ve arşivleri isimsiz olarak alır. Bunları hesap veya token olmadan çalıştırabilirsiniz. İsimsiz bir istek reddedilirse Mercury, oturumu açık bir GitHub CLI'ye (`gh`) başvurur.
 

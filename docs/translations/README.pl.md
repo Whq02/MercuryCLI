@@ -67,7 +67,7 @@ W przypadku Homebrew polecenie pyta o zgodę przed uruchomieniem `brew upgrade W
 
 Launcher npm korzysta z tego samego układu wydań co instalatory i przekazuje każde uruchomienie zainstalowanemu wydaniu. `mercury update` aktualizuje więc instalację npm w miejscu, przez własny kanał aktualizacji Mercury. `npm update -g mercury-tech-cli` zmienia tylko wydanie, które pakiet instaluje przy pierwszym uruchomieniu. Dotyczy to także mise.
 
-`--check` czyta tę samą listę wydań dla każdej metody instalacji i wskazuje, jak zaktualizować twoją. Gdy aktualizacja jest dostępna, ekran główny raz pokazuje w prawym dolnym rogu `vX.Y.Z available · mercury update`, a czat wyświetla tymczasowe powiadomienie. Ustaw `MERCURY_UPDATE_NOTICE=0`, aby ukryć oba.
+`--check` czyta tę samą listę wydań dla każdej metody instalacji i wskazuje, jak zaktualizować twoją. Gdy aktualizacja jest dostępna, ekran główny raz pokazuje w prawym dolnym rogu `vX.Y.Z available · mercury update`, a czat wyświetla to samo powiadomienie, dopóki nie zaktualizujesz. Ustaw `MERCURY_UPDATE_NOTICE=0`, aby ukryć oba.
 
 Żądania instalacji i aktualizacji pobierają publiczną listę wydań i archiwa anonimowo. Możesz je uruchomić bez konta i tokenu. Jeśli anonimowe żądanie zostanie odrzucone, Mercury sprawdza zalogowany GitHub CLI (`gh`).
 

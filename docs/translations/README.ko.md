@@ -67,7 +67,7 @@ Homebrew의 경우, `brew upgrade Whq02/mercury/mercury`를 실행하기 전에 
 
 npm 런처는 설치 프로그램과 같은 릴리스 구조를 사용하며, 각 실행을 설치된 릴리스에 위임합니다. 따라서 `mercury update`는 Mercury 자체 업데이트 채널을 통해 npm 설치도 제자리에서 업데이트합니다. `npm update -g mercury-tech-cli`는 패키지가 첫 실행 때 설치하는 릴리스만 바꿉니다. mise를 사용할 때도 마찬가지입니다.
 
-`--check`는 모든 설치 방법에서 같은 릴리스 목록을 읽고, 설치 방법에 맞는 업데이트 방법을 알려 줍니다. 업데이트가 있으면 홈 화면 오른쪽 아래 모서리에 `vX.Y.Z available · mercury update`가 한 번 표시되고, 채팅에는 임시 알림이 나타납니다. 두 표시를 모두 숨기려면 `MERCURY_UPDATE_NOTICE=0`을 설정합니다.
+`--check`는 모든 설치 방법에서 같은 릴리스 목록을 읽고, 설치 방법에 맞는 업데이트 방법을 알려 줍니다. 업데이트가 있으면 홈 화면 오른쪽 아래 모서리에 `vX.Y.Z available · mercury update`가 한 번 표시되고, 채팅에는 업데이트할 때까지 같은 알림이 나타납니다. 두 표시를 모두 숨기려면 `MERCURY_UPDATE_NOTICE=0`을 설정합니다.
 
 설치와 업데이트 요청은 공개 릴리스 목록과 아카이브를 익명으로 가져옵니다. 계정이나 토큰 없이도 실행할 수 있습니다. 익명 요청이 거부되면 Mercury는 로그인된 GitHub CLI(`gh`)를 확인합니다.
 

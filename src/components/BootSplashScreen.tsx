@@ -94,17 +94,18 @@ function bottomRowWithNotice(
 ): string | null {
   if (notice === null) return null;
   const faint = (text: string): string => core.hexFg(core.FAINT, core.T256.faint) + text + core.R;
+  const warning = (text: string): string => core.paint(core.AMBERC) + text + core.R;
   const noticeW = core.vis(notice);
   if (keyMapHint === '') {
-    return noticeW + 2 <= columns ? ' '.repeat(columns - noticeW - 2) + faint(notice) : null;
+    return noticeW + 2 <= columns ? ' '.repeat(columns - noticeW - 2) + warning(notice) : null;
   }
   const hintW = core.vis(keyMapHint);
   if (compact) {
     if (noticeW + 3 + hintW + 2 > columns) return null;
-    return ' '.repeat(columns - noticeW - 3 - hintW - 2) + faint(notice) + '   ' + faint(keyMapHint);
+    return ' '.repeat(columns - noticeW - 3 - hintW - 2) + warning(notice) + '   ' + faint(keyMapHint);
   }
   if (2 + hintW + 2 + noticeW + 2 > columns) return null;
-  return KEY_MAP_ROW(core, keyMapHint) + ' '.repeat(columns - 2 - hintW - noticeW - 2) + faint(notice);
+  return KEY_MAP_ROW(core, keyMapHint) + ' '.repeat(columns - 2 - hintW - noticeW - 2) + warning(notice);
 }
 
 export function concourseRowCtx(facts: { live: boolean; why: PlainWorldWhy | null; liveCount: number }): string {

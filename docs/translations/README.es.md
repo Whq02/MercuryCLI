@@ -67,7 +67,7 @@ Con Homebrew, pregunta antes de ejecutar `brew upgrade Whq02/mercury/mercury`. L
 
 El lanzador de npm usa la misma estructura de versiones que los instaladores y delega cada ejecución en la versión instalada. Por eso, `mercury update` actualiza una instalación de npm en el mismo sitio, a través del canal de actualización propio de Mercury. `npm update -g mercury-tech-cli` solo cambia la versión que el paquete instala en su primera ejecución. Esto también vale cuando se usa mise.
 
-`--check` lee la misma lista de versiones para todos los métodos de instalación y le indica cómo actualizar su instalación. Cuando hay una actualización disponible, la pantalla de inicio muestra `vX.Y.Z available · mercury update` una vez en la esquina inferior derecha, y el chat muestra un aviso temporal. Defina `MERCURY_UPDATE_NOTICE=0` para ocultar ambos.
+`--check` lee la misma lista de versiones para todos los métodos de instalación y le indica cómo actualizar su instalación. Cuando hay una actualización disponible, la pantalla de inicio muestra `vX.Y.Z available · mercury update` una vez en la esquina inferior derecha, y el chat muestra el mismo aviso hasta que actualice. Defina `MERCURY_UPDATE_NOTICE=0` para ocultar ambos.
 
 Las solicitudes de instalación y actualización descargan de forma anónima la lista pública de versiones y los archivos, así que puede ejecutarlas sin cuenta ni token. Si una solicitud anónima es rechazada, Mercury consulta la GitHub CLI (`gh`) con la sesión iniciada.
 
