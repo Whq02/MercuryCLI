@@ -437,6 +437,11 @@ function liveGptCanonicalId(modelId: string): string | undefined {
 }
 
 export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
+  const pin = sourceKind === 'api-key' ? gptDisplayPin(live.id) : undefined
+  if (!live.reasoningEffortsStated && live.supportedReasoningEfforts.length === 0 && pin?.supportedReasoningEfforts !== undefined) {
+    live = { ...live, supportedReasoningEfforts: [...pin.supportedReasoningEfforts], reasoningEffortsStated: true, defaultReasoningEffort: live.defaultReasoningEffort ?? pin.defaultReasoningEffort }
+  }
+  if (live.inputModalities === undefined && pin?.inputModalities !== undefined) live = { ...live, inputModalities: [...pin.inputModalities] }
   const { operatorModelFacts, modelHasRecordedFacts } = require('../../../utils/model/modelOverrides.js') as typeof import('../../../utils/model/modelOverrides.js')
   const facts = operatorModelFacts(live.id, {
     contextWindow: live.contextWindow,

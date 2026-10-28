@@ -127,7 +127,7 @@ section('4b · the FULL lineup sweeps the same consumers (provider parity)')
 {
   const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
   const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
-  check('the lineup follows developers.openai.com/api/docs/models and pricing, read 2026-10-25', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6-astra,gpt-6.1-sol,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.6-cyber,gpt-5.5,gpt-5.5-pro,gpt-5.5-cyber,gpt-5.4,gpt-5.4-pro,gpt-5.4-mini,gpt-5.4-nano', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
+  check('the lineup includes developers.openai.com/api/docs/models/gpt-6.1-terra, read 2026-10-28', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6-astra,gpt-6.1-sol,gpt-6.1-terra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.6-cyber,gpt-5.5,gpt-5.5-pro,gpt-5.5-cyber,gpt-5.4,gpt-5.4-pro,gpt-5.4-mini,gpt-5.4-nano', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
   for (const pin of GPT_DISPLAY_PINS) {
     const identity = parseGptModelId(pin.id)
     check(`${pin.id}: identity parses (canonical = the pin id)`, identity?.canonicalId === pin.id)

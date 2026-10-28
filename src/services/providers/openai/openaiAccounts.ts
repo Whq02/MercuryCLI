@@ -420,12 +420,14 @@ export async function currentSubscriptionTokens(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   now?: () => number
+  readOnly?: boolean
   force?: boolean
 }): Promise<OpenaiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
+  if (opts?.readOnly) return tokensFresh(tokens, now()) && !opts.force ? tokens : undefined
   const adoptable = (latest: OpenaiStoredTokens | undefined): boolean =>
     tokensFresh(latest, now()) && (!opts?.force || latest?.accessToken !== tokens.accessToken)
   if (adoptable(tokens)) return tokens
@@ -867,6 +869,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
   env?: NodeJS.ProcessEnv
   sourceKind?: OpenaiAccountSourceKind
   forceRefresh?: boolean
+  readOnly?: boolean
 }): Promise<OpenaiRequestAuth | undefined> {
   const env = opts?.env ?? process.env
   const account = resolveOpenaiAccount(env)
@@ -890,6 +893,7 @@ export async function resolveOpenaiRequestAuth(opts?: {
     ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
     env,
     ...(opts?.forceRefresh ? { force: true } : {}),
+    ...(opts?.readOnly ? { readOnly: true } : {}),
   })
   if (!tokens?.accessToken) return undefined
   return {

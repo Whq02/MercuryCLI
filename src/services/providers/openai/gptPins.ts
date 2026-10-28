@@ -93,6 +93,9 @@ export interface GptDisplayPin {
   source?: string
   contextWindow?: number
   outputMax?: number
+  supportedReasoningEfforts?: readonly string[]
+  defaultReasoningEffort?: string
+  inputModalities?: readonly string[]
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
@@ -136,7 +139,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     knowledgeCutoff: '2026-04-30',
     longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
-  { id: 'gpt-6.1-sol', displayName: 'GPT-6.1 Sol', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-6.1-sol.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.1, cacheWritePerMtok: 2.5, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
+  { id: 'gpt-6.1-sol', displayName: 'GPT-6.1 Sol', observedAt: '2026-10-28', source: 'https://developers.openai.com/api/docs/models/gpt-6.1-sol', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.1, cacheWritePerMtok: 2.5, supportedReasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'], defaultReasoningEffort: 'medium', inputModalities: ['text', 'image'], knowledgeCutoff: '2026-04-30', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
+  { id: 'gpt-6.1-terra', displayName: 'GPT-6.1 Terra', observedAt: '2026-10-28', source: 'https://developers.openai.com/api/docs/models/gpt-6.1-terra', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 1, costOutPerMtok: 5, cachedInPerMtok: 0.05, cacheWritePerMtok: 1.25, supportedReasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultReasoningEffort: 'medium', inputModalities: ['text', 'image'], knowledgeCutoff: '2026-06-01', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-6-sol', displayName: 'GPT-6 Sol', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-6-sol.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.2, cacheWritePerMtok: 2.5, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-6-luna', displayName: 'GPT-6 Luna', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-6-luna.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 0.1, costOutPerMtok: 0.5, cachedInPerMtok: 0.01, cacheWritePerMtok: 0.125, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   {

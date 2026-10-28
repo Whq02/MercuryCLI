@@ -405,17 +405,24 @@ export function replayableItems(
 ): OpenaiInputItem[] {
   const refusedIds = new Set(refused.filter(r => r.code !== 'duplicate-id').map(r => r.id))
   const seenCallIds = new Set<string>()
-  const kept = orderedItems.filter(item => {
-    if (item.type !== 'function_call') return true
-    if (refusedIds.has(item.call_id) || seenCallIds.has(item.call_id)) return false
-    seenCallIds.add(item.call_id)
-    return true
-  })
-  return kept.filter((item, index) => {
-    if (item.type !== 'reasoning') return true
-    const next = kept[index + 1]
-    return next !== undefined && next.type !== 'reasoning'
-  })
+  const kept: OpenaiInputItem[] = []
+  let reasoning: OpenaiInputItem[] = []
+  for (const item of orderedItems) {
+    if (item.type === 'reasoning') {
+      reasoning.push(item)
+      continue
+    }
+    if (item.type === 'function_call') {
+      if (refusedIds.has(item.call_id) || seenCallIds.has(item.call_id)) {
+        reasoning = []
+        continue
+      }
+      seenCallIds.add(item.call_id)
+    }
+    kept.push(...reasoning, item)
+    reasoning = []
+  }
+  return kept
 }
 
 const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'> = {
