@@ -97,10 +97,10 @@ try {
   await catalogue.refreshMoonshotCatalogue({ force: true })
   const decoded = catalogue.decodeMoonshotModel({ id: KIMI, supports_dynamic_tools: true }) as any
   check('the live catalogue preserves its dynamic-tools capability', decoded?.supportsDynamicTools === true)
-  check('the K2 coding alias reads text-append and defers', wire.deferralWireFormFor(KIMI).form === 'text-append' && wire.supportsToolDeferral(KIMI))
-  check('the provider-declared unsupported highspeed alias stays nondeferring', wire.deferralWireFormFor('kimi-for-coding-highspeed').form === 'text' && !wire.supportsToolDeferral('kimi-for-coding-highspeed'))
-  check('an unsupported platform K2 model stays nondeferring', !wire.supportsToolDeferral('kimi-k2.6'))
-  check('the live bare K3 id is still supported through its carrier prefix', wire.supportsToolDeferral('kimi-k3'))
+  check('the K2 coding alias reads text-append', wire.deferralWireFormFor(KIMI).form === 'text-append')
+  check('the provider-declared unsupported highspeed alias reads the text form (its admissions ride the tools term, never an appended row)', wire.deferralWireFormFor('kimi-for-coding-highspeed').form === 'text' && wire.deferralWireFormFor('kimi-for-coding-highspeed').why === 'model-without-dynamic-tools')
+  check('an unsupported platform K2 model reads the text form', wire.deferralWireFormFor('kimi-k2.6').form === 'text')
+  check('the live bare K3 id still reads the append form through its carrier prefix', wire.deferralWireFormFor('kimi-k3').form === 'text-append')
   check('dynamic tools do not widen K3 effort or preserved-thinking membership', !pins.kimiAcceptsEffort(KIMI, 'max') && !pins.KIMI_K3_MODELS.has(KIMI) && !pins.KIMI_PRESERVED_THINKING_MODELS.has(KIMI))
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
   check('the K2 search description says definitions append after the result', words.includes('appended to the conversation') && !words.includes('from that request on their complete definitions are in your tool list'))
@@ -127,9 +127,9 @@ try {
   check('later requests preserve both the tools term and admitted prefix', JSON.stringify(later.tools) === JSON.stringify(fresh.tools) && JSON.stringify(later.messages.slice(0, admitted.messages.length)) === JSON.stringify(admitted.messages))
   dynamic = false
   await catalogue.refreshMoonshotCatalogue({ force: true })
-  check('an explicit live false overrides the alias pin', !wire.supportsToolDeferral(KIMI) && wire.deferralWireFormFor(KIMI).why === 'model-without-dynamic-tools')
+  check('an explicit live false overrides the alias pin', wire.deferralWireFormFor(KIMI).form === 'text' && wire.deferralWireFormFor(KIMI).why === 'model-without-dynamic-tools')
   process.env.MOONSHOT_API_KEY = 'another-fixture-account'
-  check('capability observations never leak to a different account', wire.supportsToolDeferral(KIMI))
+  check('capability observations never leak to a different account', wire.deferralWireFormFor(KIMI).form === 'text-append')
 } finally {
   server.closeAllConnections()
   await new Promise<void>(done => server.close(() => done()))

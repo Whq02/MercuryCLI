@@ -265,6 +265,7 @@ const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/services/provid
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { openaiGatewayProbeKey, recordGatewayProbe } = await import('../../src/services/providers/deferralProbe.ts')
+const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 type Message = import('../../src/types/message.ts').Message
 type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
@@ -589,6 +590,75 @@ writeFileSync(
   `# tool-surface prefix by route\n\n${stamp}\n\n${lines.join('\n')}\n\nfixture MCP estate: ${mcpTools.length} tools / 2 servers / ${fmt(mcpSchemaBytes)} schema bytes; admitted: ${admittedNames.join(', ')}\n`,
 )
 console.log(`\nwritten: ${join(outDir, 'tool-prefix-by-route.md')}`)
+
+section('§C the three-step task on the compat road — read a file, edit it, run a check: bytes per request, deferring against the whole roster')
+interface TaskRow {
+  request: number
+  step: string
+  deferring: { bytes: number; tools: number; toolBytes: number }
+  whole: { bytes: number; tools: number; toolBytes: number }
+}
+const taskRows: TaskRow[] = []
+{
+  const TASK_MODEL = 'compat/qwen-max'
+  const NOTES = '/tmp/task/notes.txt'
+  process.env.MERCURY_MODEL = TASK_MODEL
+  const taskPool = assembleToolPool(permissionContext, mcpTools)
+  const taskStart = createUserMessage({ content: 'Read notes.txt, change beta to gamma, then run cat and wc -l on it.' }) as Message
+  const round = (id: string, name: string, input: Record<string, unknown>, result: string): Message[] => [
+    createAssistantMessage({ content: [{ type: 'tool_use', id, name, input }] as never }) as Message,
+    createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: result }] as never }) as Message,
+  ]
+  const rounds: Array<{ step: string; messages: Message[] }> = [
+    { step: 'the task', messages: [] },
+    { step: 'after Read', messages: round('toolu_task_1', 'Read', { file_path: NOTES }, '1\talpha\n2\tbeta\n(anchor: fa:0000000000)') },
+    { step: 'after Edit', messages: round('toolu_task_2', 'Edit', { file_path: NOTES, old_string: 'beta', new_string: 'gamma' }, `The file ${NOTES} has been updated: 1 occurrence replaced; changed line 2 (the file has 2 lines).`) },
+    { step: 'after Bash', messages: round('toolu_task_3', 'Bash', { command: `cat ${NOTES} && wc -l ${NOTES}` }, `alpha\ngamma\n       2 ${NOTES}`) },
+  ]
+  const captureTask = async (off: boolean): Promise<Array<{ bytes: number; tools: number; toolBytes: number }>> => {
+    if (off) process.env.MERCURY_TOOL_SEARCH = '0'
+    else delete process.env.MERCURY_TOOL_SEARCH
+    clearToolRosterLatches()
+    const nameRow = off ? undefined : getDeferredToolsDeltaAttachment(taskPool, TASK_MODEL, [taskStart])[0]
+    const opening: Message[] = [taskStart, ...(nameRow ? (normalizeAttachmentForAPI(nameRow) as Message[]) : [])]
+    const out: Array<{ bytes: number; tools: number; toolBytes: number }> = []
+    let transcript: Message[] = opening
+    for (const r of rounds) {
+      transcript = [...transcript, ...r.messages]
+      const before = captured.length
+      const stream = routedCallModel({
+        messages: transcript,
+        systemPrompt: SYSTEM_PROMPT as never,
+        thinkingConfig: { type: 'disabled' } as never,
+        tools: taskPool,
+        signal: new AbortController().signal,
+        options: { getToolPermissionContext: async () => permissionContext, model: TASK_MODEL, isNonInteractiveSession: true, querySource: 'main_thread' as never, agents: [], hasAppendSystemPrompt: false, mcpTools, hasPendingMcpServers: false } as never,
+      })
+      for await (const _ of stream) void _
+      const hit = captured.slice(before).find(c => c.route === 'openai-compat' && !c.probe)
+      const tools = hit ? toolsOfBody('openai-compat', hit.body) : []
+      out.push({ bytes: hit?.bodyBytes ?? 0, tools: tools.length, toolBytes: hit ? Buffer.byteLength(JSON.stringify(hit.body.tools ?? []), 'utf8') : 0 })
+    }
+    delete process.env.MERCURY_TOOL_SEARCH
+    return out
+  }
+  const deferring = await captureTask(false)
+  const whole = await captureTask(true)
+  rounds.forEach((r, i) => taskRows.push({ request: i + 1, step: r.step, deferring: deferring[i]!, whole: whole[i]! }))
+  delete process.env.MERCURY_MODEL
+  const taskLines = ['| request | step | deferring: bytes | tools | tool bytes | whole roster: bytes | tools | tool bytes | saved per request |', '|---:|---|---:|---:|---:|---:|---:|---:|---:|']
+  for (const r of taskRows) taskLines.push(`| ${r.request} | ${r.step} | ${fmt(r.deferring.bytes)} | ${r.deferring.tools} | ${fmt(r.deferring.toolBytes)} | ${fmt(r.whole.bytes)} | ${r.whole.tools} | ${fmt(r.whole.toolBytes)} | ${fmt(r.whole.bytes - r.deferring.bytes)} |`)
+  const totalDeferring = taskRows.reduce((a, r) => a + r.deferring.bytes, 0)
+  const totalWhole = taskRows.reduce((a, r) => a + r.whole.bytes, 0)
+  taskLines.push(`| total | ${taskRows.length} requests | ${fmt(totalDeferring)} | | | ${fmt(totalWhole)} | | | ${fmt(totalWhole - totalDeferring)} |`)
+  console.log(taskLines.join('\n'))
+  check('the task was captured on the compat road in both arms', taskRows.every(r => r.deferring.bytes > 0 && r.whole.bytes > 0))
+  check('the deferring arm carries under half the whole roster\'s tool bytes on every request of the task', taskRows.every(r => r.deferring.toolBytes * 2 < r.whole.toolBytes), taskRows.map(r => `${r.deferring.toolBytes}/${r.whole.toolBytes}`).join(' '))
+  check('the tools term never moves across the task in either arm', new Set(taskRows.map(r => r.deferring.toolBytes)).size === 1 && new Set(taskRows.map(r => r.whole.toolBytes)).size === 1)
+  writeFileSync(join(outDir, 'compat-task-bytes.json'), JSON.stringify({ stamp, model: TASK_MODEL, rows: taskRows, totalDeferring, totalWhole }, null, 2))
+  writeFileSync(join(outDir, 'compat-task-bytes.md'), `# the three-step task on the compat road\n\n${stamp}\n\n${taskLines.join('\n')}\n`)
+  console.log(`\nwritten: ${join(outDir, 'compat-task-bytes.md')}`)
+}
 
 server.close()
 console.log(`\n${checks - failures}/${checks} checks passed`)

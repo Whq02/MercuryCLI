@@ -124,9 +124,8 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
     if (plan.wireForm === 'block') check(`${route}: deferral is on and every deferrable tool rides the roster MARKED`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)))
     else if (plan.wireForm === 'openai-native') check(`${route}: the provider's own deferral form — deferral is on, every deferrable tool rides the roster MARKED, Mercury's ToolSearch stays off the wire`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     else if (plan.wireForm === 'openrouter-native') check(`${route}: deferral is on, every deferrable tool rides the roster MARKED for the server's search, Mercury's ToolSearch does not`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
-    else if (route === 'openai' || route === 'local') check(`${route}: only initial definitions and discovery are sent`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)))
     else if (plan.wireForm === 'text-append') check(`${route}: the append form sends only initial definitions and discovery (admissions ride the end of the messages)`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && plan.admissionDeclarations.length === 0)
-    else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
+    else check(`${route}: the text form sends only initial definitions and discovery (an admission joins the next request's tools term)`, plan.enabled === true && plan.wireForm === 'text' && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && DEFERRED_NAMES.every(n => plan.deferredNames.has(n)), `enabled=${plan.enabled} wire=${plan.wireForm}`)
     check(`${route}: the request builder cannot mint a tool head`, requestHeadIsPlain(route))
     check(`${route}: the first-party builder retains no retired head spelling`, FORBIDDEN_HEAD_WORDS.every(word => !requestHeadSource('anthropic').includes(word)))
     const msgs = fresh()
@@ -224,10 +223,7 @@ let rowBytes = 0
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const row = deltaRow(POOL, model, fresh())
     const routePlan = await planFor(model, fresh())
-    if (!routePlan.enabled) {
-      check(`${route}: unsupported discovery produces no announcement`, row === null)
-      continue
-    }
+    check(`${route}: deferral is on`, routePlan.enabled === true, `wire=${routePlan.wireForm}/${routePlan.wireWhy}`)
     check(`${route}: a fresh transcript's delta row names the whole deferred pool, sorted`, row !== null && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && row.removedNames.length === 0)
     check(`${route}: its lines are the fixture's sorted names byte-for-byte (no schema bytes)`, row !== null && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === nameLines.join('\n') && !row.addedLines.join('\n').includes('{'))
     const content = row ? renderedContent(row) : ''

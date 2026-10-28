@@ -46,7 +46,7 @@ const loadsInFullFor: RoutePredicate = (predicates as { loadsInFullFor?: RoutePr
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
 const { openrouterNativeTools } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { supportsToolDeferral, deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
+const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 type Tool = import('../../src/Tool.ts').Tool
@@ -105,7 +105,7 @@ for (const [label, model] of CLOUD) {
   clearToolRosterLatches()
   const plan = await planToolPayload({ model, tools: pool, messages: [first], getToolPermissionContext: async () => permissionContext, agents: [], source: 'cloud-loaded' })
   const rosterNames = new Set(plan.roster.map(tool => tool.name))
-  const deferring = supportsToolDeferral(model)
+  const deferring = plan.enabled
   const missing = FULL_NAMES.filter(name => !rosterNames.has(name))
   const marked = FULL_NAMES.filter(name => plan.deferredNames.has(name))
   const unadmitted = FULL_NAMES.filter(name => plan.isDeferredUnadmitted(name))

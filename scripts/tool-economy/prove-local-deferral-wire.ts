@@ -113,7 +113,7 @@ const { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await 
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
-const { supportsToolDeferral, deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
+const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { clearToolRosterLatches, admissionRecordText } = await import('../../src/services/providers/toolEconomy.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
@@ -185,7 +185,6 @@ section('§1 the seam — the local route defers in the text-append form the tab
 {
   const verdict = deferralWireFormFor(PERSISTED)
   check('the wire form for a local record is text-append, from the route table', verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why}`)
-  check('supportsToolDeferral admits the local route (the base answers false here)', supportsToolDeferral(PERSISTED) === true)
   const words = await ToolSearchTool.prompt({ model: PERSISTED } as never)
   check("the ToolSearch tool's words for a local model spell the text-append form (definitions appended to the conversation right after the result)", /their complete definitions are appended to the conversation right after it/.test(words))
 }

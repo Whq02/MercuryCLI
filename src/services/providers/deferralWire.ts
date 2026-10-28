@@ -172,8 +172,6 @@ export function gatewayProbeAllowedByFlag(): boolean {
   return flagEnv('MERCURY_TOOL_DEFER_PROBE') === '1'
 }
 
-const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallModelRoute>(['openai', 'local'])
-
 const SERVER_SEARCH_FORMS: ReadonlySet<DeferralWireForm> = new Set<DeferralWireForm>(['openai-native', 'openrouter-native'])
 
 export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
@@ -181,9 +179,7 @@ export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
 }
 
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
-  if (form === 'block') return true
-  if (deferralSearchIsServerSide(form)) return true
-  if (form === 'text-append') return true
-  const result = classifyModelRoute(model)
-  return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
+  if (form !== 'text') return true
+  const verdict = classifyModelRoute(model)
+  return verdict.kind === 'route' && verdict.route !== 'anthropic'
 }

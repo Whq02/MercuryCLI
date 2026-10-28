@@ -107,7 +107,7 @@ const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/too
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
-const { supportsToolDeferral, deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY } = await import('../../src/services/providers/deferralWire.ts')
+const { deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY } = await import('../../src/services/providers/deferralWire.ts')
 const { clearToolRosterLatches, admissionRecordText, planToolPayload } = await import('../../src/services/providers/toolEconomy.ts')
 await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
 type Tool = import('../../src/Tool.ts').Tool
@@ -201,9 +201,8 @@ section('§0 the seam — the Moonshot row is text-append; kimi-k3 defers; the w
   check("the table's moonshot row is 'text-append'", DEFERRAL_WIRE_CAPABILITY.moonshot === 'text-append', String(DEFERRAL_WIRE_CAPABILITY.moonshot))
   const verdict = deferralWireFormFor(KIMI)
   check(`${KIMI} reads the text-append form from the route table`, verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why}`)
-  check(`supportsToolDeferral admits ${KIMI} (the base answers false here)`, supportsToolDeferral(KIMI) === true)
   const older = deferralWireFormFor('kimi-k2.6')
-  check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form and does not defer', older.form === 'text' && supportsToolDeferral('kimi-k2.6') === false, `${older.form}/${older.why}`)
+  check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form', older.form === 'text' && older.why === 'model-without-dynamic-tools', `${older.form}/${older.why}`)
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
   check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words))
   check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','))
@@ -312,7 +311,7 @@ section('§4 THE COMPACTION BOUNDARY — a snapshot-admitted tool rides the new 
   clearToolRosterLatches()
 }
 
-section('§5 THE Z.AI ROAD — the table row decides: text-append rides a TEXT declaration row (a system row with content); text keeps the whole catalogue')
+section('§5 THE Z.AI ROAD — the table row decides: text-append rides a TEXT declaration row (a system row with content); text carries the admitted schema on the next request\'s tools term')
 {
   clearToolRosterLatches()
   process.env.MERCURY_MODEL = GLM
@@ -326,17 +325,22 @@ section('§5 THE Z.AI ROAD — the table row decides: text-append rides a TEXT d
   const nextRows = next.body ? rowsOf(next.body) : []
   check('the admitted GLM request rode the wire, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, next.error ?? `chats=${next.chats}`)
   if (zaiCapability === 'text-append') {
-    check(`zai is text-append: ${GLM} defers`, deferralWireFormFor(GLM).form === 'text-append' && supportsToolDeferral(GLM) === true)
+    check(`zai is text-append: ${GLM} reads the append form`, deferralWireFormFor(GLM).form === 'text-append')
     check('the fresh tools term is exactly the never-deferred set', freshGlmNames.join(',') === coreNames.join(','), freshGlmNames.join(','))
     check('the tools term is byte-identical across the admission', fresh.body !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(fresh.body))
     const last = nextRows[nextRows.length - 1]
     check('the last row is a system row whose CONTENT carries the admitted definitions as text (Z.AI documents content on a system row, no per-message tools field)', last !== undefined && last.role === 'system' && typeof last.content === 'string' && !('tools' in last) && admitted.every(n => String(last.content).includes(`"name":"${n}"`)))
     check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)))
   } else {
-    check(`zai stays '${String(zaiCapability)}': ${GLM} does not defer (the live measurement ruled: the cache held, but GLM never called a tool declared in a text row)`, deferralWireFormFor(GLM).form === 'text' && supportsToolDeferral(GLM) === false)
-    check('the whole catalogue rides in full, minus ToolSearch, from the first request', freshGlmNames.join(',') === poolNames.filter(n => n !== TOOL_SEARCH_TOOL_NAME).join(','), freshGlmNames.join(','))
-    check('an admission round changes nothing on the tools term', fresh.body !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(fresh.body))
-    check('no declaration row rides', next.body !== undefined && declarationRows(next.body).length === 0 && !nextRows.some(r => r.role === 'system' && typeof r.content === 'string' && String(r.content).includes('"type":"function"')))
+    check(`zai is '${String(zaiCapability)}': ${GLM} defers in the text form (the live measurement ruled out the text-row declaration: GLM never called a tool declared in a text row; the text form puts the admitted schema in the tools term instead)`, deferralWireFormFor(GLM).form === 'text')
+    check('the fresh tools term is exactly the never-deferred set, ToolSearch at its place', freshGlmNames.join(',') === coreNames.join(','), freshGlmNames.join(','))
+    const nextNames = next.body ? wireTools(next.body).map(t => t.name) : []
+    check('the request after the admission carries the fresh term followed by exactly the admitted schemas', nextNames.join(',') === [...coreNames, ...admitted].join(','), nextNames.join(','))
+    const record = nextRows.find(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_glm')
+    check("the admission record rides as text and says the schemas are in the tool list from this request on", record !== undefined && String(record.content).includes(admissionRecordText(admitted).split('\n')[0]!) && /tool list/.test(String(record.content)) && admitted.every(n => String(record.content).includes(`- ${n}`)))
+    check('no declaration row rides (the schema travels in the tools term, never in a system row)', next.body !== undefined && declarationRows(next.body).length === 0 && !nextRows.some(r => r.role === 'system' && typeof r.content === 'string' && String(r.content).includes('"type":"function"')))
+    check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)))
+    check('every other deferred tool still has no schema on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !nextNames.includes(n)))
   }
   clearToolRosterLatches()
 }

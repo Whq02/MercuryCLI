@@ -227,12 +227,10 @@ section('§1 THE TABLE AND THE LADDER — the openai row is the native capabilit
   for (const model of ['gpt-6-astra', 'gpt-6', 'gpt-6-sol', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini']) {
     const v = wire.deferralWireFormFor(model, firstParty)
     check(`${model} on first-party OpenAI ⇒ openai-native / first-party-contract`, v.form === 'openai-native' && v.why === 'first-party-contract', `${v.form}/${v.why}`)
-    check(`${model}: supportsToolDeferral`, wire.supportsToolDeferral(model, v.form) === true)
   }
   for (const model of ['gpt-5.3-codex', 'gpt-5.3', 'gpt-5.2', 'gpt-5', 'gpt-4.1']) {
     const v = wire.deferralWireFormFor(model, firstParty)
     check(`${model} (older than 5.4) ⇒ text / model-below-native-floor`, v.form === 'text' && v.why === 'model-below-native-floor', `${v.form}/${v.why}`)
-    check(`${model}: the text form still defers on the openai route`, wire.supportsToolDeferral(model, v.form) === true)
   }
   attempt('the floor is 5.4 (pure)', () => wire.gptModelCarriesNativeDeferral('gpt-5.4') && !wire.gptModelCarriesNativeDeferral('gpt-5.3') && wire.gptModelCarriesNativeDeferral('gpt-6') && !wire.gptModelCarriesNativeDeferral('gpt') && !wire.gptModelCarriesNativeDeferral('claude-sonnet-5'))
   attempt('api.openai.com and chatgpt.com are first-party hosts', () => wire.openaiGatewayHost({ MERCURY_OPENAI_API_BASE: 'https://api.openai.com/v1' }).firstParty && wire.openaiGatewayHost({ MERCURY_OPENAI_CHATGPT_BASE: 'https://chatgpt.com/backend-api/codex' }).firstParty && wire.openaiGatewayHost({}).firstParty)
