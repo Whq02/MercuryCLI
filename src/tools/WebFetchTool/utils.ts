@@ -15,7 +15,9 @@ import { readHostedPage, fetchReaderEnabled } from './reader.js'
 import { FetchRefusedError } from './fetchErrors.js'
 import { fetchPage, type RawResponse, type RedirectResult } from './fetchTransport.js'
 import { pageAccessNotice } from './pageAccess.js'
-import { resetStructuredFetchPacing, tryStructuredFetch } from './structuredHosts.js'
+import { arxivPaperUrl, resetStructuredFetchPacing, tryStructuredFetch } from './structuredHosts.js'
+import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
+import { recognisePdfPage, renderOcr } from '../../utils/ocr.js'
 export type { RedirectResult } from './fetchTransport.js'
 export { EgressBlockedError } from './fetchErrors.js'
 
@@ -95,7 +97,7 @@ export async function getURLMarkdownContent(
 
   const parsedForUpgrade = new URL(url)
   if (parsedForUpgrade.protocol === 'http:') parsedForUpgrade.protocol = 'https:'
-  const upgraded = parsedForUpgrade.toString()
+  const upgraded = arxivPaperUrl(parsedForUpgrade.toString()) ?? parsedForUpgrade.toString()
 
   const structured = await tryStructuredFetch(upgraded, abortController.signal)
   if (structured !== null) {
@@ -133,7 +135,22 @@ export async function getURLMarkdownContent(
   let cacheable = true
   if (persistedPath) {
     content = ''
-    cachedSize = 1
+    if (contentType.includes('application/pdf')) {
+      try {
+        const document = await extractPdfText(persistedPath, { signal: abortController.signal })
+        const first = document.pages[0]
+        if (first && !first.hasTextLayer) {
+          const ocr = await recognisePdfPage(persistedPath, buffer, 1, abortController.signal)
+          if (ocr.ok) content = `--- page 1 ---\n${renderOcr(ocr)}`
+          else notice = ocr.message
+        } else content = renderPdfText(document, 1, 1)
+        if (content.length > 4000) content = `${content.slice(0, 4000)}\n[First-page preview cut at 4000 characters; Read the saved file for the rest.]`
+      } catch (error) {
+        abortController.signal.throwIfAborted()
+        notice = `PDF text extraction failed: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+    cachedSize = Math.max(1, content.length)
   } else if (contentType.includes('text/html')) {
     const refusal = pageAccessNotice(decoded)
     if (refusal) throw new FetchRefusedError(403, refusal)

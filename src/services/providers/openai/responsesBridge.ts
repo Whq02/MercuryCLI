@@ -17,6 +17,7 @@ import type { OpenaiResponsesRequest } from './openaiWire.js'
 import type { EffortWireFact } from '../../../utils/effortStamp.js'
 import type { NativeWebSearchRequest } from '../../search/nativeSearchRequest.js'
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
+import { pdfBlockData } from '../pdfBlock.js'
 
 
 export interface OpenaiTurnRecord {
@@ -161,13 +162,15 @@ function toolResultOutput(
   content: unknown,
   isError: boolean,
   imagesSupported: boolean,
-): string | Array<{ type: 'input_text'; text: string } | { type: 'input_image'; image_url: string }> {
+  pdfSupported: boolean,
+): string | Array<{ type: 'input_text'; text: string } | { type: 'input_image'; image_url: string } | { type: 'input_file'; filename: string; file_data: string }> {
   const prefix = isError ? '[tool error] ' : ''
   if (typeof content === 'string') return `${prefix}${content}`
   if (content === undefined || content === null) return prefix
   if (!Array.isArray(content)) return `${prefix}${JSON.stringify(content)}`
   const texts: string[] = []
   const images: string[] = []
+  const files: string[] = []
   for (const part of content) {
     const rec = typeof part === 'object' && part !== null ? (part as Record<string, unknown>) : undefined
     if (rec?.type === 'text') texts.push(String(rec.text ?? ''))
@@ -175,13 +178,18 @@ function toolResultOutput(
       const url = imagesSupported ? imageUrlOfBlock(rec) : undefined
       if (url) images.push(url)
       else texts.push('[image]')
+    } else if (rec?.type === 'document') {
+      const data = pdfSupported ? pdfBlockData(rec) : undefined
+      if (data !== undefined) files.push(data)
+      else texts.push('[document]')
     }
   }
   const joined = `${prefix}${texts.join('')}`
-  if (images.length === 0) return joined
+  if (images.length === 0 && files.length === 0) return joined
   return [
     { type: 'input_text' as const, text: joined },
     ...images.map(image_url => ({ type: 'input_image' as const, image_url })),
+    ...files.map(data => ({ type: 'input_file' as const, filename: 'document.pdf', file_data: `data:application/pdf;base64,${data}` })),
   ]
 }
 
@@ -207,6 +215,7 @@ function mapUserMessage(
   out: OpenaiInputItem[],
   message: BridgeMessage,
   imagesSupported: boolean,
+  pdfSupported: boolean,
 ): void {
   const turn = requestTurnOf('user', message.content)
   if (turn.stringContent !== undefined) {
@@ -225,9 +234,13 @@ function mapUserMessage(
       const url = imagesSupported ? imageUrlOfBlock(item.value) : undefined
       if (url) parts.push({ type: 'input_image', image_url: url })
       else pushText('[image]')
+    } else if (item.value.type === 'document') {
+      const data = pdfSupported ? pdfBlockData(item.value) : undefined
+      if (data !== undefined) parts.push({ type: 'input_file', filename: 'document.pdf', file_data: `data:application/pdf;base64,${data}` })
+      else pushText('[document]')
     } else if (item.type === 'tool_result') {
       flushUserParts(out, parts)
-      out.push({ type: 'function_call_output', call_id: item.call_id, output: toolResultOutput(item.output, (item.value as { is_error?: boolean }).is_error === true, imagesSupported) })
+      out.push({ type: 'function_call_output', call_id: item.call_id, output: toolResultOutput(item.output, (item.value as { is_error?: boolean }).is_error === true, imagesSupported, pdfSupported) })
     } else pushText(`[${item.value.type}]`)
   }
   flushUserParts(out, parts)
@@ -264,7 +277,7 @@ export const replayPruneCensus = { items: 0, bytes: 0 }
 
 export function mapMessagesToOpenaiInput(
   messages: readonly BridgeMessage[],
-  opts?: { imagesSupported?: boolean },
+  opts?: { imagesSupported?: boolean; pdfSupported?: boolean },
 ): OpenaiInputItem[] {
   const imagesSupported = opts?.imagesSupported !== false
   const out: OpenaiInputItem[] = []
@@ -282,7 +295,7 @@ export function mapMessagesToOpenaiInput(
   while (index < messages.length) {
     const message = messages[index]!
     if (message.role === 'user') {
-      mapUserMessage(out, message, imagesSupported)
+      mapUserMessage(out, message, imagesSupported, opts?.pdfSupported === true)
       index += 1
       continue
     }
@@ -328,6 +341,7 @@ interface BuildOpenaiRequestInput {
   reasoningEffort?: string
   promptCacheKey?: string
   imagesSupported?: boolean
+  pdfSupported?: boolean
   outputFormat?: JsonOutputFormat
   nativeWebSearch?: NativeWebSearchRequest
   deferredToolNames?: ReadonlySet<string>
@@ -362,6 +376,7 @@ export function buildOpenaiResponsesRequest(
       : {}),
     input: mapMessagesToOpenaiInput(i.messages, {
       imagesSupported: i.imagesSupported !== false,
+      pdfSupported: i.pdfSupported === true,
     }),
     ...(tools ? { tools, tool_choice: i.toolChoice ?? ('auto' as const), parallel_tool_calls: true } : {}),
     reasoning: {

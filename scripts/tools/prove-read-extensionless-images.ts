@@ -13,7 +13,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const dir = mkdtempSync(join(tmpdir(), 'extensionless-images-'))
-const context = () => ({ readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
+const context = () => ({ options: { engineModel: 'claude-sonnet-5-5' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
 let failures = 0
 async function check(label: string, body: () => void | Promise<void>): Promise<void> {
   try { await body(); console.log(`PASS ${label}`) } catch (error) { failures++; console.log(`FAIL ${label}: ${error}`) }
@@ -29,7 +29,8 @@ try {
       assert.equal(result.data.type, 'image')
       const cropped = await FileReadTool.call({ file_path: path, crop: [2, 0, 6, 4] }, context() as never)
       assert.equal(cropped.data.type, 'image')
-      assert(!JSON.stringify(cropped.newMessages).includes('crop ignored'))
+      assert.equal(cropped.newMessages?.length ?? 0, 0)
+      assert.match(cropped.data.file.caption ?? '', /This image is the crop/)
       const mapped = FileReadTool.mapToolResultToToolResultBlockParam(cropped.data, 'image-proof')
       assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'))
     })

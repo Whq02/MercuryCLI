@@ -96,7 +96,7 @@ import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, 
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
 import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
-import { getModelMaxOutputTokens } from '../../../utils/model/capabilities.js'
+import { getModelMaxOutputTokens, modelSupportsPDF } from '../../../utils/model/capabilities.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
@@ -652,6 +652,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     ...(statedMaxOut !== undefined ? { maxOutputTokens: statedMaxOut } : {}),
     promptCacheKey,
     imagesSupported: imagesRide,
+    pdfSupported: imagesRide && modelSupportsPDF(modelId),
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
     ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),

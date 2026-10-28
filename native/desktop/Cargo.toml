@@ -21,6 +21,14 @@ objc2-core-foundation = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
+  "Foundation",
+  "Foundation_Collections",
+  "Data_Pdf",
+  "Graphics_Imaging",
+  "Globalization",
+  "Media_Ocr",
+  "Storage_Streams",
+  "Win32_System_WinRT",
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",

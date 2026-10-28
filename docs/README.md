@@ -21,6 +21,8 @@ map and `/keybindings` opens your keybindings file.
 
 ## Working in a session
 
+- [DOCUMENTS.md](DOCUMENTS.md): reading PDF text, page pictures and document structure with `Read`.
+
 - [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md): read anchors, atomic file edits, change receipts and recovery.
 - [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): AstSearch and AstEdit patterns across the packaged language grammars.
 - [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): compiler-backed navigation, diagnostics and previewed refactors through LSP.

@@ -75,7 +75,7 @@ import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowAsText, type ApiShapedTool, type ToolDeclarationRowBuilder } from '../zai/zaiCodec.js'
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
-import { effortVocabularyFor, getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
+import { effortVocabularyFor, getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks, modelSupportsPDF } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import { compatImageRefusalWords, compatModelImageReading, refreshCompatModelImageReading } from './compatProbe.js'
 import type { MediaRefusal } from '../../api/mediaRefusal.js'
@@ -557,6 +557,8 @@ export async function* compatChatCallModel(
     keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel, thinkingEnabled) ?? false,
     keepReasoningAfterLastUser: profile.keepsReasoningOnContinuations?.(wireModel) ?? false,
     imagesSupported,
+    pdfSupported: (profile.lane === 'gemini' || profile.lane === 'mistral') && modelSupportsPDF(modelId),
+    pdfFormat: profile.lane === 'mistral' ? 'document_url' : 'file',
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
   })
   const effortView = effortVocabularyFor(modelId)

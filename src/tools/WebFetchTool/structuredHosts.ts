@@ -203,6 +203,14 @@ function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
   return null
 }
 
+export function arxivPaperUrl(rawUrl: string): string | null {
+  const parsed = new URL(rawUrl)
+  if (!parsed.pathname.startsWith('/pdf/')) return null
+  parsed.pathname = parsed.pathname.replace(/^\/pdf\//, '/abs/')
+  const target = classifyStructuredFetchUrl(parsed.href)
+  return target?.source === 'arxiv' ? `${parsed.origin}/pdf/${target.paperId}` : null
+}
+
 type ApiReadResult =
   | { ok: true; status: number; statusText: string; bytes: number; text: string; contentType: string; headers: Record<string, unknown> }
   | { ok: false; fallThrough: true; oversize?: true }
@@ -729,7 +737,7 @@ async function fetchArxivStructured(
     .slice(0, MAX_LIST_ITEMS)
 
   const lines: string[] = [`# ${title || `arXiv:${target.paperId}`}`]
-  const meta: string[] = [`arXiv ID: ${target.paperId}`]
+  const meta: string[] = [`arXiv ID: ${target.paperId}`, `PDF: https://arxiv.org/pdf/${target.paperId}`]
   if (authors.length > 0) meta.push(`Authors: ${authors.join(', ')}`)
   if (published) meta.push(`Published: ${published}`)
   if (updated && updated !== published) meta.push(`Updated: ${updated}`)

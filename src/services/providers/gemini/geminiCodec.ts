@@ -59,7 +59,9 @@ function contentParts(content: CompatMessage['content']): GeminiPart[] {
   if (turn.stringContent !== undefined) return turn.stringContent === '' ? [] : [{ text: turn.stringContent }]
   return turn.items.map(item => {
     if (item.type === 'text') return { text: item.text }
-    const url = (item.value as unknown as { image_url: { url: string } }).image_url.url
+    const part = item.value as unknown as { image_url?: { url: string }; file?: { file_data: string } }
+    const url = part.file?.file_data ?? part.image_url?.url
+    if (url === undefined) return { text: `[${item.value.type}]` }
     const data = /^data:([^;,]+);base64,([\s\S]*)$/.exec(url)
     return data ? { inlineData: { mimeType: data[1]!, data: data[2]! } } : { fileData: { fileUri: url } }
   })

@@ -145,19 +145,19 @@ check(`every rendered text is brand-free (${brandCleanCount}/${roster.length})`,
 
 const readTool = roster.find(t => t.name === 'Read')!
 const VISUAL_CLAIM = 'shown as the picture itself'
-const PLACEHOLDER_CLAIM = 'an `[image]` placeholder'
-const PDF_CLAIM = 'reads PDF files'
+const OCR_CLAIM = 'return recognised text through an installed OCR engine'
+const PDF_CLAIM = 'PDFs open as numbered text with page markers on every model'
 for (const family of FAMILIES) {
   const model = EXEMPLARS[family]!
   const caps = resolveModelCapabilities(model)
   const text = await readTool.prompt(promptOptions(model))
   check(
     `Read × ${family}: image claim tracks media.images=${caps.media.images}`,
-    caps.media.images ? text.includes(VISUAL_CLAIM) && !text.includes(PLACEHOLDER_CLAIM) : text.includes(PLACEHOLDER_CLAIM) && !text.includes(VISUAL_CLAIM),
+    caps.media.images ? text.includes(VISUAL_CLAIM) && !text.includes(OCR_CLAIM) : text.includes(OCR_CLAIM) && !text.includes(VISUAL_CLAIM),
   )
   check(
-    `Read × ${family}: PDF lines track media.pdf=${caps.media.pdf}`,
-    caps.media.pdf === text.includes(PDF_CLAIM),
+    `Read × ${family}: PDF text is readable independently of native input`,
+    text.includes(PDF_CLAIM),
   )
 }
 
@@ -182,8 +182,8 @@ const glmCaps = resolveModelCapabilities(EXEMPLARS.zai!)
 const glmText = (readOnGlm1 as { description: string }).description
 check(
   `the foreign render carries its own media truth (images=${glmCaps.media.images}, pdf=${glmCaps.media.pdf})`,
-  (glmCaps.media.images ? glmText.includes(VISUAL_CLAIM) && !glmText.includes(PLACEHOLDER_CLAIM) : glmText.includes(PLACEHOLDER_CLAIM) && !glmText.includes(VISUAL_CLAIM)) &&
-    glmCaps.media.pdf === glmText.includes(PDF_CLAIM),
+  (glmCaps.media.images ? glmText.includes(VISUAL_CLAIM) && !glmText.includes(OCR_CLAIM) : glmText.includes(OCR_CLAIM) && !glmText.includes(VISUAL_CLAIM)) &&
+    glmText.includes(PDF_CLAIM),
 )
 check('the two postures render different bytes', glmText !== (readOnClaude as { description: string }).description)
 check('same-posture renders are byte-stable (memo hit)', (readOnGlm1 as { description: string }).description === (readOnGlm2 as { description: string }).description)

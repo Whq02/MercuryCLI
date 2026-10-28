@@ -28,11 +28,9 @@ export function renderPromptTemplate(
   targetLines?: string,
 ): string {
   const imageLine = media.images
-    ? `- Image files (PNG, JPG, and similar) are shown as the picture itself.`
-    : `- Image files (PNG, JPG, and similar) cannot be shown to the current model — an image read returns an \`[image]\` placeholder, not the picture. Report that honestly rather than describing pixels you never saw.`
-  const pdfLines = media.pdf
-    ? `\n- This tool reads PDF files; PDFs with more than ${MAX_PDF_PAGES_PER_REQUEST} pages need the \`pages\` parameter.`
-    : ''
+    ? `- Image files (PNG, JPG, and similar) are shown as the picture itself; \`ocr: true\` returns recognised text instead.`
+    : `- Image files (PNG, JPG, and similar) return recognised text through an installed OCR engine; when none is available, the result names the installation needed.`
+  const pdfLines = `\n- PDFs open as numbered text with page markers on every model; offset, limit and ranges select text lines. The pages parameter selects page pictures on image-capable models, otherwise those pages as text. Scanned pages use an installed OCR engine, falling back to native PDF input when OCR cannot read them.`
   const screenshotLine = media.images
     ? `\n- A screenshot path the user supplies is read with this tool, a temporary path included.`
     : ''

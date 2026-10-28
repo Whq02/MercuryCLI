@@ -2,6 +2,7 @@ import { providerRefusedImage } from '../../api/mediaRefusal.js'
 import { requestTurnOf } from '../../../rows/request.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type { EffortWireFact } from '../../../utils/effortStamp.js'
+import { pdfBlockData } from '../pdfBlock.js'
 import type {
   ZaiChatRequest,
   ZaiCompletedToolCall,
@@ -67,13 +68,15 @@ function imageUrlOfBlock(block: unknown): string | undefined {
 interface ToolResultParts {
   text: string
   images: string[]
+  files?: string[]
 }
 
-function partsOfToolResultContent(content: unknown, imagesSupported: boolean): ToolResultParts {
+function partsOfToolResultContent(content: unknown, imagesSupported: boolean, pdfSupported: boolean): ToolResultParts {
   if (typeof content === 'string') return { text: content, images: [] }
   if (Array.isArray(content)) {
     const texts: string[] = []
     const images: string[] = []
+    const files: string[] = []
     for (const part of content) {
       if (typeof part !== 'object' || part === null) continue
       const typed = part as { type?: string; text?: unknown }
@@ -81,21 +84,27 @@ function partsOfToolResultContent(content: unknown, imagesSupported: boolean): T
         texts.push(String(typed.text ?? ''))
         continue
       }
+      const data = pdfSupported ? pdfBlockData(part) : undefined
       const url = typed.type === 'image' && imagesSupported ? imageUrlOfBlock(part) : undefined
-      if (url !== undefined) images.push(url)
+      if (data !== undefined) files.push(data)
+      else if (url !== undefined) images.push(url)
       else if (typed.type) texts.push(`[${typed.type}]`)
     }
-    return { text: texts.join(''), images }
+    return { text: texts.join(''), images, files }
   }
   if (content === undefined || content === null) return { text: '', images: [] }
   return { text: JSON.stringify(content), images: [] }
 }
 
-function userRowContent(texts: readonly string[], images: readonly string[]): string | ZaiContentPart[] {
-  if (images.length === 0) return texts.join('\n')
+function userRowContent(texts: readonly string[], images: readonly string[], files: readonly string[], pdfFormat: 'file' | 'document_url' = 'file'): string | ZaiContentPart[] {
+  if (images.length === 0 && files.length === 0) return texts.join('\n')
   const parts: ZaiContentPart[] = []
   if (texts.length > 0) parts.push({ type: 'text', text: texts.join('\n') })
   for (const url of images) parts.push({ type: 'image_url', image_url: { url } })
+  for (const data of files) {
+    const url = `data:application/pdf;base64,${data}`
+    parts.push(pdfFormat === 'document_url' ? { type: 'document_url', document_url: url } : { type: 'file', file: { filename: 'document.pdf', file_data: url } })
+  }
   return parts
 }
 
@@ -129,7 +138,7 @@ function lastUserQueryIndex(messages: readonly MessageParam[]): number {
 export function mapMessagesToZai(
   system: string | undefined,
   messages: readonly MessageParam[],
-  opts?: { keepReasoningHistory?: boolean; keepReasoningAfterLastUser?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
+  opts?: { keepReasoningHistory?: boolean; keepReasoningAfterLastUser?: boolean; imagesSupported?: boolean; pdfSupported?: boolean; pdfFormat?: 'file' | 'document_url'; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
 ): ZaiWireMessage[] {
   const out: ZaiWireMessage[] = []
   const imagesSupported = opts?.imagesSupported !== false
@@ -164,26 +173,30 @@ export function mapMessagesToZai(
     const declarationRows: ZaiWireMessage[] = []
     const userParts: string[] = []
     const userImages: string[] = []
+    const userFiles: string[] = []
     for (const item of turn.items) {
       if (item.type === 'text') userParts.push(item.text)
       else if (item.type === 'tool_result') {
-        const parts = partsOfToolResultContent(item.output, imagesSupported)
+        const parts = partsOfToolResultContent(item.output, imagesSupported, opts?.pdfSupported === true)
         const resultText = (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text
         const declaration = opts?.toolDeclarations?.get(item.call_id)
         const inResult = declaration !== undefined && 'content' in declaration && declaration.role === 'tool' && typeof declaration.content === 'string' ? declaration.content : undefined
         toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: inResult !== undefined ? `${resultText}\n\n${inResult}` : resultText })
         userImages.push(...parts.images)
+        userFiles.push(...(parts.files ?? []))
         if (declaration !== undefined && inResult === undefined) declarationRows.push(declaration)
       } else {
+        const data = opts?.pdfSupported ? pdfBlockData(item.value) : undefined
         const url = item.value.type === 'image' && imagesSupported ? imageUrlOfBlock(item.value) : undefined
-        if (url !== undefined) userImages.push(url)
+        if (data !== undefined) userFiles.push(data)
+        else if (url !== undefined) userImages.push(url)
         else userParts.push(`[${item.value.type}]`)
       }
     }
     out.push(...toolRows)
     out.push(...declarationRows)
-    if (userParts.length > 0 || userImages.length > 0) {
-      out.push({ role: 'user', content: userRowContent(userParts, userImages) })
+    if (userParts.length > 0 || userImages.length > 0 || userFiles.length > 0) {
+      out.push({ role: 'user', content: userRowContent(userParts, userImages, userFiles, opts?.pdfFormat) })
     }
   }
   return out

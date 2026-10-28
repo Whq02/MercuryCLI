@@ -36,6 +36,8 @@ const TOTAL_TIMEOUT_MS = 50 * 60_000
 export type ZaiContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } }
+  | { type: 'file'; file: { filename: string; file_data: string } }
+  | { type: 'document_url'; document_url: string }
 
 export interface ZaiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'

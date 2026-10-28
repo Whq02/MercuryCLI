@@ -52,6 +52,7 @@ export interface OpenaiMessageItem {
     | { type: 'input_text'; text: string }
     | { type: 'output_text'; text: string }
     | { type: 'input_image'; image_url: string; detail?: 'low' | 'high' | 'auto' }
+    | { type: 'input_file'; filename: string; file_data: string }
   >
   phase?: TextPhase
 }
@@ -67,6 +68,7 @@ interface OpenaiFunctionCallItem {
 type OpenaiFunctionCallOutputPart =
   | { type: 'input_text'; text: string }
   | { type: 'input_image'; image_url: string; detail?: 'low' | 'high' | 'auto' }
+  | { type: 'input_file'; filename: string; file_data: string }
 
 interface OpenaiFunctionCallOutputItem {
   type: 'function_call_output'

@@ -352,6 +352,9 @@ let rgSourceLabel = '';
   }
 }
 
+const { vendorPdfjs } = await import('./scripts/vendor/pdfjs.ts');
+vendorPdfjs(ROOT, OUT);
+
 const debugpyRelPath = 'vendor/debugpy';
 let debugpyVendored = false;
 let debugpyMeta: { version: string; wheel: string; sha256: string } | null = null;

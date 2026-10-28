@@ -15,6 +15,7 @@ dist/
 # receipt; the payloads are reproduced from it (hash-verified) and never tracked.
 vendor/debugpy/
 vendor/pyright/
+vendor/pdfjs/
 vendor/grammars/
 vendor/js-debug/
 vendor/node/

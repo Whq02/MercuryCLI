@@ -1,6 +1,7 @@
 import { closeSync, copyFileSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, join, posix } from 'node:path'
+import { officeWord, officeSlides, officeComments, officeOdf, officeRelationships, officeSheetNames, officeSlideIds, officeSpreadsheet } from './officeText.js'
 import { pathToFileURL } from 'node:url'
 import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
@@ -647,187 +648,50 @@ function readSelectedZipEntries(
   return map
 }
 
-function extractWordXmlText(xml: string): string {
-  const formatted = xml
-    .replace(/<w:tab\b[^>]*\/>/g, '\t')
-    .replace(/<w:(?:br|cr)\b[^>]*\/>/g, '\n')
-    .replace(/<\/w:tc>/g, '\t')
-    .replace(/<\/w:(?:p|tr)>/g, '\n')
-  const texts: string[] = []
-  const tokenRe = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|(\n|\t)/g
-  let m: RegExpExecArray | null
-  while ((m = tokenRe.exec(formatted)) !== null) {
-    if (m[1] !== undefined) texts.push(decodeXmlEntities(m[1]))
-    else if (m[2] !== undefined) texts.push(m[2])
-  }
-  return texts
-    .join('')
-    .replace(/\t+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+function extractDocxText(buf: Buffer, filePath: string): string {
+  const entries = readSelectedZipEntries(buf, filePath, name => /^word\/(?:document|styles|footnotes|endnotes|comments|header\d*|footer\d*)\.xml$/.test(name))
+  const order = [...[...entries.keys()].filter(k => /^word\/header\d*\.xml$/.test(k)).sort(), 'word/document.xml', 'word/footnotes.xml', 'word/endnotes.xml', 'word/comments.xml', ...[...entries.keys()].filter(k => /^word\/footer\d*\.xml$/.test(k)).sort()]
+  const styles = entries.get('word/styles.xml')?.toString('utf8')
+  return order.map(key => entries.has(key) ? officeWord(entries.get(key)!.toString('utf8'), styles) : '').filter(Boolean).join('\n\n')
 }
 
-function extractDocxText(buf: Buffer, filePath: string): string {
-  const entries = readSelectedZipEntries(
-    buf,
-    filePath,
-    name => /^word\/(?:document|footnotes|endnotes|header\d*|footer\d*)\.xml$/.test(name),
-  )
-  const parts: string[] = []
-  const order = [
-    ...[...entries.keys()].filter(k => /^word\/header\d*\.xml$/.test(k)).sort(),
-    'word/document.xml',
-    'word/footnotes.xml',
-    'word/endnotes.xml',
-    ...[...entries.keys()].filter(k => /^word\/footer\d*\.xml$/.test(k)).sort(),
-  ]
-  for (const key of order) {
-    const raw = entries.get(key)
-    if (!raw) continue
-    const text = extractWordXmlText(raw.toString('utf8'))
-    if (text) parts.push(text)
-  }
-  return parts.join('\n\n')
+function officeTarget(base: string, target: string): string {
+  return posix.normalize(target.startsWith('/') ? target.slice(1) : posix.join(base, target))
 }
 
 function extractXlsxText(buf: Buffer, filePath: string): string {
-  const entries = readSelectedZipEntries(
-    buf,
-    filePath,
-    name =>
-      name === 'xl/sharedStrings.xml' ||
-      name === 'xl/workbook.xml' ||
-      /^xl\/worksheets\/sheet\d+\.xml$/.test(name),
-  )
-  const sharedStrings: string[] = []
-  const sstRaw = entries.get('xl/sharedStrings.xml')
-  if (sstRaw) {
-    const sstXml = sstRaw.toString('utf8')
-    const siRe = /<si\b[^>]*>([\s\S]*?)<\/si>/g
-    let siMatch: RegExpExecArray | null
-    while ((siMatch = siRe.exec(sstXml)) !== null) {
-      const tParts: string[] = []
-      const tRe = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g
-      let tMatch: RegExpExecArray | null
-      while ((tMatch = tRe.exec(siMatch[1]!)) !== null) {
-        tParts.push(decodeXmlEntities(tMatch[1]!))
-      }
-      sharedStrings.push(tParts.join(''))
-    }
-  }
-
-  const sheetNames = new Map<number, string>()
-  const wbRaw = entries.get('xl/workbook.xml')
-  if (wbRaw) {
-    const wbXml = wbRaw.toString('utf8')
-    const sheetRe = /<sheet\b[^>]*name="([^"]+)"[^>]*>/g
-    let idx = 1
-    let sm: RegExpExecArray | null
-    while ((sm = sheetRe.exec(wbXml)) !== null) {
-      sheetNames.set(idx++, decodeXmlEntities(sm[1]!))
-    }
-  }
-
-  const sheetKeys = [...entries.keys()]
-    .filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k))
-    .sort((a, b) => {
-      const na = Number(/sheet(\d+)\.xml$/.exec(a)?.[1] ?? 0)
-      const nb = Number(/sheet(\d+)\.xml$/.exec(b)?.[1] ?? 0)
-      return na - nb
-    })
-
-  const out: string[] = []
-  for (let i = 0; i < sheetKeys.length; i++) {
-    const key = sheetKeys[i]!
-    const num = Number(/sheet(\d+)\.xml$/.exec(key)?.[1] ?? i + 1)
-    const title = sheetNames.get(num) ?? `Sheet${num}`
-    const xml = entries.get(key)!.toString('utf8')
-    const rows: string[] = []
-    const rowRe = /<row\b[^>]*>([\s\S]*?)<\/row>/g
-    let rm: RegExpExecArray | null
-    while ((rm = rowRe.exec(xml)) !== null) {
-      const cells: string[] = []
-      const cellRe = /<c\b([^>]*)>([\s\S]*?)<\/c>/g
-      let cm: RegExpExecArray | null
-      while ((cm = cellRe.exec(rm[1]!)) !== null) {
-        const attrs = cm[1]!
-        const inner = cm[2]!
-        const typeAttr = /\bt="([^"]+)"/.exec(attrs)?.[1]
-        if (typeAttr === 'inlineStr') {
-          const tParts: string[] = []
-          const tRe = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g
-          let tm: RegExpExecArray | null
-          while ((tm = tRe.exec(inner)) !== null) tParts.push(decodeXmlEntities(tm[1]!))
-          cells.push(tParts.join(''))
-        } else {
-          const valRaw = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(inner)?.[1] ?? ''
-          if (typeAttr === 's') {
-            const sstIdx = Number.parseInt(valRaw.trim(), 10)
-            cells.push(sharedStrings[sstIdx] ?? valRaw)
-          } else {
-            cells.push(decodeXmlEntities(valRaw))
-          }
-        }
-      }
-      if (cells.length > 0) rows.push(cells.join('\t'))
-    }
-    out.push(`## ${title}\n${rows.join('\n')}`.trim())
-  }
-  return out.join('\n\n')
+  const entries = readSelectedZipEntries(buf, filePath, name => name === 'xl/sharedStrings.xml' || name === 'xl/workbook.xml' || name === 'xl/_rels/workbook.xml.rels' || /^xl\/worksheets\/[^/]+\.xml$/.test(name))
+  const sharedStrings = [...(entries.get('xl/sharedStrings.xml')?.toString('utf8') ?? '').matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map(si => [...si[1]!.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(t => decodeXmlEntities(t[1]!)).join(''))
+  const names = officeSheetNames(entries.get('xl/workbook.xml')?.toString('utf8') ?? '')
+  const rels = officeRelationships(entries.get('xl/_rels/workbook.xml.rels')?.toString('utf8') ?? '')
+  const keys = [...entries.keys()].filter(k => /^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+  const ordered = names.length ? names.map((sheet, i) => ({ name: sheet.name, key: rels.has(sheet.id) ? officeTarget('xl', rels.get(sheet.id)!) : keys[i] })) : keys.map((key, i) => ({ key, name: `Sheet${i + 1}` }))
+  return ordered.map(({ name, key }) => key && entries.has(key) ? `## ${name}\n${officeSpreadsheet(entries.get(key)!.toString('utf8'), sharedStrings)}` : '').filter(Boolean).join('\n\n')
 }
 
 function extractPptxText(buf: Buffer, filePath: string): string {
-  const entries = readSelectedZipEntries(
-    buf,
-    filePath,
-    name => /^ppt\/slides\/slide\d+\.xml$/.test(name),
-  )
-  const slideKeys = [...entries.keys()]
-    .filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k))
-    .sort((a, b) => {
-      const na = Number(/slide(\d+)\.xml$/.exec(a)?.[1] ?? 0)
-      const nb = Number(/slide(\d+)\.xml$/.exec(b)?.[1] ?? 0)
-      return na - nb
-    })
-
-  const out: string[] = []
-  for (const key of slideKeys) {
-    const num = Number(/slide(\d+)\.xml$/.exec(key)?.[1] ?? 1)
-    const xml = entries.get(key)!.toString('utf8')
-    const paras: string[] = []
-    const pRe = /<a:p\b[^>]*>([\s\S]*?)<\/a:p>/g
-    let pm: RegExpExecArray | null
-    while ((pm = pRe.exec(xml)) !== null) {
-      const runs: string[] = []
-      const tRe = /<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g
-      let tm: RegExpExecArray | null
-      while ((tm = tRe.exec(pm[1]!)) !== null) {
-        runs.push(decodeXmlEntities(tm[1]!))
-      }
-      const line = runs.join('').trim()
-      if (line) paras.push(line)
+  const entries = readSelectedZipEntries(buf, filePath, name => name === 'ppt/presentation.xml' || name === 'ppt/_rels/presentation.xml.rels' || /^ppt\/(?:slides|notesSlides|comments)\/(?:_rels\/)?[^/]+\.(?:xml|rels)$/.test(name))
+  const presentationRels = officeRelationships(entries.get('ppt/_rels/presentation.xml.rels')?.toString('utf8') ?? '')
+  const ids = officeSlideIds(entries.get('ppt/presentation.xml')?.toString('utf8') ?? '')
+  const keys = ids.length ? ids.map(id => officeTarget('ppt', presentationRels.get(id) ?? '')).filter(key => entries.has(key)) : [...entries.keys()].filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+  return keys.map((key, i) => {
+    const rels = officeRelationships(entries.get(`ppt/slides/_rels/${posix.basename(key)}.rels`)?.toString('utf8') ?? '')
+    const parts = [`## Slide ${i + 1}`, officeSlides(entries.get(key)!.toString('utf8'))]
+    for (const target of rels.values()) {
+      const path = officeTarget('ppt/slides', target)
+      const content = entries.get(path)?.toString('utf8')
+      if (!content) continue
+      if (path.startsWith('ppt/notesSlides/')) parts.push(`### Notes\n${officeSlides(content)}`)
+      if (path.startsWith('ppt/comments/')) parts.push(`### Comments\n${officeComments(content)}`)
     }
-    out.push(`## Slide ${num}\n${paras.join('\n')}`.trim())
-  }
-  return out.join('\n\n')
+    return parts.filter(Boolean).join('\n')
+  }).join('\n\n')
 }
 
 function extractOdfText(buf: Buffer, filePath: string): string {
   const entries = readSelectedZipEntries(buf, filePath, name => name === 'content.xml')
-  const contentRaw = entries.get('content.xml')
-  if (!contentRaw) return ''
-  const xml = contentRaw.toString('utf8')
-  const withBreaks = xml
-    .replace(/<text:tab\b[^>]*\/>/g, '\t')
-    .replace(/<text:line-break\b[^>]*\/>/g, '\n')
-    .replace(/<text:s\b[^>]*\/>/g, ' ')
-    .replace(/<\/table:table-cell>/g, '\t')
-    .replace(/<\/(?:text:p|text:h|table:table-row)>/g, '\n')
-    .replace(/<[^>]+>/g, '')
-  return decodeXmlEntities(withBreaks)
-    .replace(/\t+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  const content = entries.get('content.xml')
+  return content ? officeOdf(content.toString('utf8')) : ''
 }
 
 function stripHtmlToText(html: string): string {
@@ -1031,7 +895,11 @@ function extractRtfText(rtf: string): string {
 
 export function renderDocumentTarget(filePath: string, ext: string): string {
   statBoundedContainer(filePath)
-  const buf = readFileSync(filePath)
+  return renderDocumentBytes(readFileSync(filePath), ext, filePath)
+}
+
+export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `document.${ext}`): string {
+  if (buf.length > RICH_CONTAINER_MAX_BYTES) throw new Error(`Container file (${formatFileSize(buf.length)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${filePath}`)
   let body = ''
   switch (ext) {
     case 'docx':

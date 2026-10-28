@@ -60,7 +60,10 @@ import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/pe
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
-import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../../utils/pdf.js'
+import { extractPDFPages, readPDF, removePDFPages } from '../../utils/pdf.js'
+import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
+import { recogniseImage, recognisePdfPage, renderOcr } from '../../utils/ocr.js'
+import { extractDocumentText } from '../../utils/documentText.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
@@ -88,7 +91,6 @@ import {
   isRichFormatReadable,
   parseRichFormatTarget,
   renderArchiveTarget,
-  renderDocumentTarget,
   renderSqliteTarget,
   type ParsedRichTarget,
   type RichRender,
@@ -117,6 +119,7 @@ const MAX_RANGES_PER_READ = 32
 
 const stockFields = () => ({
   file_path: z.string().describe('Absolute path of the file to open'),
+  ocr: semanticBoolean(z.boolean().optional()).describe('For an image, return recognised text instead of the picture. Automatic on models without image input; scanned PDF pages use OCR when read as text.'),
   lossless: semanticBoolean(z.boolean().optional()).describe('With offset + limit or ranges, show complete text lines within the existing total output budget.'),
   offset: semanticNumber(z.number().int().optional()).describe(
     'The line number reading starts from (a negative integer -N starts N lines from the end of the file); pass it only when the whole file is too large for a single read',
@@ -137,6 +140,7 @@ const stockFields = () => ({
     .describe(
       `Page range for PDF files (e.g., "2-6", "9", "12-24"). Only applicable to PDF files. Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`,
     ),
+  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale an image crop by this factor before reading it, for example 2. Requires crop; the existing image output budget still applies.'),
   crop: z
     .array(semanticNumber(z.number().int().min(0)))
     .length(4)
@@ -202,6 +206,7 @@ export type Output =
         type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
         originalSize: number
         dimensions?: ImageDimensions
+        caption?: string
       }
     }
   | { type: 'notebook'; file: { filePath: string; cells: unknown[] } }
@@ -236,6 +241,7 @@ const outputSchema = z.discriminatedUnion('type', [
       base64: z.string(),
       type: z.enum(['image/jpeg', 'image/png', 'image/gif', 'image/webp']),
       originalSize: z.number(),
+      caption: z.string().optional(),
       dimensions: z
         .object({
           originalWidth: z.number().optional(),
@@ -576,7 +582,7 @@ type ImageOutput = Extract<Output, { type: 'image' }>
 
 type CropBox = readonly [number, number, number, number]
 
-async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string): Promise<{ buffer: Buffer; full: { width: number; height: number } }> {
+async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale = 1): Promise<{ buffer: Buffer; full: { width: number; height: number } }> {
   const [x1, y1, x2, y2] = crop
   const box = `[${crop.join(', ')}]`
   if (crop.length !== 4 || crop.some(value => !Number.isInteger(value) || value < 0)) throw new Error(`crop refused: ${box} must be four non-negative integers in the image's own pixels (x1, y1, x2, y2)`)
@@ -590,7 +596,12 @@ async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string):
   const height = metadata.height ?? header?.height
   if (width === undefined || height === undefined) throw new Error(`crop refused: the size of ${filePath} could not be read, so ${box} cannot be checked against it`)
   if (x2 > width || y2 > height) throw new Error(`crop refused: ${box} reaches outside the image, which is ${width}x${height} px`)
-  const cropped = await sharp(buffer).extract({ left: x1, top: y1, width: x2 - x1, height: y2 - y1 }).png({ compressionLevel: 6 }).toBuffer()
+  if (!Number.isFinite(scale) || scale < 1) throw new Error('scale must be a finite number of at least 1.')
+  const cropWidth = x2 - x1
+  const cropHeight = y2 - y1
+  let processor = sharp(buffer).extract({ left: x1, top: y1, width: cropWidth, height: cropHeight })
+  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false })
+  const cropped = await processor.png({ compressionLevel: 6 }).toBuffer()
   return { buffer: cropped, full: { width, height } }
 }
 
@@ -599,6 +610,7 @@ export async function readImageWithTokenBudget(
   maxTokens: number = IMAGE_TOKEN_BUDGET_DEFAULT,
   maxBytes?: number,
   crop?: CropBox,
+  scale = 1,
 ): Promise<ImageOutput & { cropped?: { box: CropBox; full: { width: number; height: number } } }> {
   const fsImpl = getFsImplementation()
   const file = fsImpl.readFileBytesSync
@@ -607,7 +619,7 @@ export async function readImageWithTokenBudget(
   if (file.length === 0) {
     throw new Error(`Empty image file (zero bytes): ${filePath}`)
   }
-  const cut = crop === undefined ? null : await cropImageBuffer(file, crop, filePath)
+  const cut = crop === undefined ? null : await cropImageBuffer(file, crop, filePath, scale)
   const buffer = cut === null ? file : cut.buffer
   const detected = detectImageFormatFromBuffer(buffer)
   const detectedSubtype = detected.split('/')[1] || 'png'
@@ -729,20 +741,20 @@ async function readImageLane(
   context: ToolUseContext,
   limits: FileReadingLimits,
   crop?: CropBox,
+  scale = 1,
 ): Promise<LaneResult> {
-  const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop)
+  const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  const newMessages: Message[] = []
+  const captions: string[] = []
   if (cropped !== undefined) {
-    newMessages.push(createUserMessage({ content: `This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale; the coordinates below are the crop's own.`, isMeta: true }))
+    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
   }
   if (data.file.dimensions) {
     const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
-    if (metadataText) {
-      newMessages.push(createUserMessage({ content: metadataText, isMeta: true }))
-    }
+    if (metadataText) captions.push(metadataText)
   }
-  return { data, newMessages: newMessages.length > 0 ? newMessages : undefined }
+  if (captions.length) data.file.caption = captions.join('\n')
+  return { data }
 }
 
 async function readPdfLane(
@@ -750,9 +762,36 @@ async function readPdfLane(
   keyPath: string,
   input: Input,
   context: ToolUseContext,
+  declared: FileReadingLimits,
+  ownRead: boolean,
+  reserve: () => FileReadingLimits,
 ): Promise<LaneResult> {
   const pages = selectedPages(input.pages)
-  if (pages !== undefined) {
+  const turnModel = context.options.engineModel
+  const caps = resolveModelCapabilities(turnModel)
+  const document = await extractPdfText(resolvedPath, { signal: context.abortController.signal })
+  const selection = pages === undefined ? undefined : parsePDFPageRange(pages)
+  if (selection && selection.firstPage > document.pageCount) throw new Error(`This PDF has ${document.pageCount} pages; page ${selection.firstPage} does not exist.`)
+  if (pages === undefined || !caps.media.images) {
+    const selected = document.pages.filter(page => page.pageNumber >= (selection?.firstPage ?? 1) && page.pageNumber <= (selection?.lastPage ?? document.pageCount)).map(page => ({ ...page }))
+    let readable = selected.some(page => page.hasTextLayer)
+    let ocrFailure: string | undefined
+    if (selected.some(page => !page.hasTextLayer)) {
+      const bytes = await (await import('node:fs/promises')).readFile(resolvedPath)
+      for (const page of selected) {
+        if (page.hasTextLayer) continue
+        const ocr = await recognisePdfPage(resolvedPath, bytes, page.pageNumber, context.abortController.signal)
+        if (ocr.ok) { page.text = renderOcr(ocr); readable = true }
+        else { page.text = `[${ocr.message}]`; ocrFailure = ocr.message }
+      }
+    }
+    if (readable) {
+      const ranges = input.ranges ? parseLineRangesList(input.ranges) : null
+      return readRichFormatLane(resolvedPath, { kind: 'document', containerPath: resolvedPath, ext: 'pdf' }, input, Array.isArray(ranges) ? ranges : null, context, declared, ownRead, reserve, { text: renderPdfText({ ...document, pages: selected }), ownBytes: false })
+    }
+    if (!caps.media.pdf && ocrFailure) throw new Error(ocrFailure)
+  }
+  if (pages !== undefined && caps.media.images) {
     const range = parsePDFPageRange(pages)
     const extraction = await extractPDFPages(resolvedPath, {
       firstPage: range?.firstPage,
@@ -801,14 +840,13 @@ async function readPdfLane(
     return { data }
   }
 
-  const pageCount = await getPDFPageCount(resolvedPath)
+  const pageCount = document.pageCount
   if (pageCount !== null && pageCount > MAX_PDF_PAGES_PER_REQUEST) {
     throw new Error(
       `This PDF has ${pageCount} pages. Use the \`pages\` parameter to read up to ${MAX_PDF_PAGES_PER_REQUEST} pages at a time (e.g. pages: "1-${MAX_PDF_PAGES_PER_REQUEST}").`,
     )
   }
   const stats = await stat(resolvedPath)
-  const turnModel = context.options.engineModel
   const pdfSupported = isPDFSupported(turnModel)
   if (!pdfSupported || stats.size > PDF_TARGET_RAW_SIZE) {
     const extraction = await extractPDFPages(resolvedPath).catch(() => undefined)
@@ -1191,15 +1229,18 @@ async function readRichFormatLane(
   declared: FileReadingLimits,
   ownRead: boolean,
   reserve: () => FileReadingLimits = () => declared,
+  renderingOverride?: RichRender,
 ): Promise<LaneResult> {
   const stats = await stat(resolvedContainerPath)
   let rendering: RichRender
-  if (rich.kind === 'archive') {
+  if (renderingOverride !== undefined) {
+    rendering = renderingOverride
+  } else if (rich.kind === 'archive') {
     rendering = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
   } else if (rich.kind === 'sqlite') {
     rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
   } else {
-    rendering = { text: renderDocumentTarget(resolvedContainerPath, rich.ext), ownBytes: false }
+    rendering = { text: await extractDocumentText(resolvedContainerPath, context.abortController.signal), ownBytes: false }
   }
   const extracted = rendering.text
   const ownBytes = rendering.ownBytes
@@ -1684,6 +1725,7 @@ export const FileReadTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (input.scale !== undefined && selectedCrop(input.crop) === undefined) return { result: false as const, message: 'scale requires an image crop.', errorCode: 1 }
     if (input.lossless && (input.outline || (!(input.ranges?.length) && (input.offset === undefined || input.limit === undefined)))) {
       return { result: false as const, message: 'lossless requires offset + limit or ranges, without outline.', errorCode: 1 }
     }
@@ -1920,8 +1962,18 @@ export const FileReadTool = buildTool({
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
       image = IMAGE_EXTENSIONS.has(ext) || (ext === '' && !ideReadTextAvailable() && hasImageSignature(resolvedPath))
-      if (image) return readImageLane(resolvedPath, resolvedPath, context, reserve(), selectedCrop(effectiveInput.crop))
-      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context)
+      if (image) {
+        const crop = selectedCrop(effectiveInput.crop)
+        if (effectiveInput.ocr || !resolveModelCapabilities(context.options?.engineModel ?? getEngineModel()).media.images) {
+          let bytes: Buffer = await (await import('node:fs/promises')).readFile(resolvedPath)
+          if (crop) bytes = (await cropImageBuffer(bytes, crop, resolvedPath, effectiveInput.scale)).buffer
+          const ocr = await recogniseImage(bytes, context.abortController.signal)
+          if (!ocr.ok) throw new Error(ocr.message)
+          return readRichFormatLane(resolvedPath, { kind: 'document', containerPath: resolvedPath, ext }, effectiveInput, Array.isArray(parsedRanges) ? parsedRanges : null, context, declaredLimits, ownRead, reserve, { text: renderOcr(ocr), ownBytes: false })
+        }
+        return readImageLane(resolvedPath, resolvedPath, context, reserve(), crop, effectiveInput.scale)
+      }
+      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, ownRead, reserve)
       if (richTarget !== null) {
         return readRichFormatLane(
           resolvedPath,
@@ -1968,6 +2020,7 @@ export const FileReadTool = buildTool({
           tool_use_id: toolUseID,
           type: 'tool_result' as const,
           content: [
+            ...(data.file.caption ? [{ type: 'text' as const, text: data.file.caption }] : []),
             {
               type: 'image' as const,
               source: {

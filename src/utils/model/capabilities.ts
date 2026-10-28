@@ -1141,8 +1141,11 @@ export function getModelKnowledgeCutoff(modelId: string): string | null {
 
 
 export function modelSupportsPDF(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return false
-  return !model.toLowerCase().includes('claude-3-haiku')
+  const route = declaredRouteOf(model)
+  if (route === 'anthropic') return !model.toLowerCase().includes('claude-3-haiku')
+  if (route === 'openai' || route === 'mistral') return catalogueDeclaresImages(model, route)
+  if (route === 'gemini' && qualifiedWireId(model).startsWith('gemini-')) return catalogueDeclaresImages(model, route)
+  return false
 }
 
 function baseModelReceivesImageBlocks(model: string): boolean {

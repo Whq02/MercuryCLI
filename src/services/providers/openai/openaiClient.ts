@@ -98,6 +98,7 @@ export async function* streamOpenaiResponses(
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
+      options.signal?.throwIfAborted()
       const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {

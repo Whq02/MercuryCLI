@@ -18,5 +18,6 @@ export function getDescription(offered: ReadonlySet<string> | null = null): stri
 
 Usage:
 - Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code); lookaround and backreferences fall back to PCRE2
-- \`literal: true\` matches the pattern as exact text (rg -F): \`foo(bar[0])\`, \`$VAR\` or \`a.b\` need no escaping${steeringSuffix(offered)}`
+- \`literal: true\` matches the pattern as exact text (rg -F): \`foo(bar[0])\`, \`$VAR\` or \`a.b\` need no escaping
+- PDFs and office/EPUB/RTF documents are searched as extracted text under Read permissions, with page or section labels. A folder search extracts at most 20 documents and counts skipped files; narrow path or glob for the rest. Type and glob filters apply to documents too.${steeringSuffix(offered)}`
 }

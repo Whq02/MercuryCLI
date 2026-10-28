@@ -42,6 +42,8 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
 import { getDescription, GREP_TOOL_NAME } from './prompt.js'
+import { documentTypeArgs, searchDocuments } from './documentSearch.js'
+import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
 import {
   getToolUseSummary,
   isResultTruncated,
@@ -367,7 +369,7 @@ function respellRoot(line: string, real: string, given: string): string {
 
 async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string, withholdEnvFiles: boolean): Promise<string[]> {
   const mode = input.output_mode ?? 'files_with_matches'
-  const args: string[] = ['--hidden']
+  const args: string[] = ['--hidden', ...documentTypeArgs()]
   for (const dir of VCS_EXCLUDED_DIRECTORIES) {
     args.push('--glob', `!${dir}`)
   }
@@ -571,9 +573,12 @@ export const GrepTool = buildTool({
     const args = await buildArgs(input, context, searchRoot, withholding)
     const offset = input.offset ?? 0
 
-    const { answer, engine } = await answerWithPcre2Fallback(input.pattern, args, searchRoot, context.abortController.signal)
+    const nativeArgs = [...args, ...SEARCHABLE_DOCUMENT_EXTENSIONS.flatMap(ext => ['--iglob', `!*.${ext}`])]
+    const { answer, engine } = isSearchableDocument(searchRoot) ? { answer: { lines: [], complete: true } as RipgrepAnswer, engine: undefined } : await answerWithPcre2Fallback(input.pattern, nativeArgs, searchRoot, context.abortController.signal)
+    const documents = await searchDocuments({ root: searchRoot, args, pattern: input.literal ? input.pattern : quoteTolerantPattern(input.pattern), mode, permission, signal: context.abortController.signal, search: (args, path) => answerWithPcre2Fallback(input.pattern, args, path, context.abortController.signal) })
+    answer.lines.push(...documents.lines)
     const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot), mode === 'content') : { lines: answer.lines, withheld: undefined }
-    const withheld = kept.withheld
+    const withheld = [kept.withheld, documents.note].filter(Boolean).join(' ') || undefined
     let lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
@@ -594,6 +599,7 @@ export const GrepTool = buildTool({
             const m = /^(.+?):(\d+):/.exec(line)
             if (!m) continue
             const file = m[1]!
+            if (isSearchableDocument(file)) continue
             if (!generations.has(file)) generations.set(file, fileGeneration(file))
             const generation = generations.get(file)
             if (generation == null) continue

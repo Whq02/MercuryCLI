@@ -10,6 +10,10 @@ use napi_derive::napi;
 
 mod keys;
 mod png;
+#[cfg(target_os = "macos")]
+mod ocr_mac;
+#[cfg(windows)]
+mod ocr_win;
 
 #[cfg(target_os = "macos")]
 mod mac;
@@ -768,4 +772,36 @@ pub fn release_all() -> HeldAnswer {
 #[napi]
 pub fn cancel() {
     CANCEL.store(true, Ordering::SeqCst);
+}
+
+#[cfg(any(target_os = "macos", windows))]
+pub struct OcrTask {
+    bytes: Vec<u8>,
+    page: Option<u32>,
+}
+#[cfg(any(target_os = "macos", windows))]
+impl Task for OcrTask {
+    type Output = String;
+    type JsValue = String;
+    fn compute(&mut self) -> Result<String> {
+        #[cfg(target_os = "macos")]
+        { ocr_mac::recognise(&self.bytes, self.page).map_err(reason) }
+        #[cfg(windows)]
+        { ocr_win::recognise(&self.bytes, self.page).map_err(reason) }
+    }
+    fn resolve(&mut self, _env: Env, output: String) -> Result<String> { Ok(output) }
+}
+#[cfg(any(target_os = "macos", windows))]
+#[napi(ts_return_type = "Promise<string>")]
+pub fn recognise_text(bytes: Buffer, page: Option<u32>) -> AsyncTask<OcrTask> {
+    AsyncTask::new(OcrTask { bytes: bytes.to_vec(), page })
+}
+
+#[cfg(any(target_os = "macos", windows))]
+#[napi]
+pub fn ocr_languages() -> Result<Vec<String>> {
+    #[cfg(target_os = "macos")]
+    { ocr_mac::languages().map_err(reason) }
+    #[cfg(windows)]
+    { ocr_win::languages().map_err(reason) }
 }

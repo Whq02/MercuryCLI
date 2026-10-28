@@ -1,0 +1,60 @@
+import { parentPort, workerData } from 'node:worker_threads'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+function pageLines(items) {
+  const rows = []
+  for (const item of items.filter(item => item.str.trim())) {
+    const y = item.transform[5] ?? 0
+    const height = Math.max(1, item.height)
+    let row = rows.find(r => Math.abs(r.y - y) <= Math.min(r.height, height) * 0.3)
+    if (!row) { row = { y, height, items: [] }; rows.push(row) }
+    row.items.push(item)
+  }
+  rows.sort((a, b) => b.y - a.y)
+  return rows.map(row => {
+    const rtl = row.items.filter(i => i.dir === 'rtl').length > row.items.length / 2
+    row.items.sort((a, b) => (a.transform[4] - b.transform[4]) * (rtl ? -1 : 1))
+    let line = ''
+    let previous
+    for (const item of row.items) {
+      if (previous) {
+        const gap = rtl ? previous.transform[4] - item.transform[4] - item.width : item.transform[4] - previous.transform[4] - previous.width
+        if (gap > row.height * 1.5) line += '\t'
+        else if (gap > row.height * 0.15 && !line.endsWith(' ') && !item.str.startsWith(' ')) line += ' '
+      }
+      line += item.str
+      previous = item
+    }
+    return line.trim()
+  }).join('\n')
+}
+
+const diagnostics = []
+console.log = console.warn = (...args) => diagnostics.push(args.map(String).join(' '))
+try {
+  const { root, bytes } = workerData
+  const api = await import(pathToFileURL(join(root, 'legacy/build/pdf.mjs')).href)
+  api.GlobalWorkerOptions.workerSrc = pathToFileURL(join(root, 'legacy/build/pdf.worker.mjs')).href
+  const task = api.getDocument({ data: bytes, verbosity: 0, isEvalSupported: false, useWorkerFetch: false, useSystemFonts: false, cMapUrl: `${root}/cmaps/`, cMapPacked: true, standardFontDataUrl: `${root}/standard_fonts/`, disableFontFace: true, isOffscreenCanvasSupported: false, isImageDecoderSupported: false })
+  try {
+    const doc = await task.promise
+    const metadata = {}
+    const meta = await doc.getMetadata()
+    for (const [key, value] of Object.entries(meta.info ?? {})) if (typeof value === 'string') metadata[key] = value
+    const pages = []
+    const imageOps = new Set(Object.entries(api.OPS).filter(([key]) => /paint.*Image/.test(key)).map(([, value]) => value))
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i)
+      try {
+        const content = await page.getTextContent()
+        const text = pageLines(content.items.filter(item => typeof item.str === 'string'))
+        const operators = await page.getOperatorList()
+        pages.push({ pageNumber: i, text, hasTextLayer: text.trim().length > 0, hasImages: operators.fnArray.some(op => imageOps.has(op)) })
+      } finally { page.cleanup() }
+    }
+    parentPort.postMessage({ result: { pageCount: doc.numPages, pages, metadata }, diagnostics })
+  } finally { await task.destroy() }
+} catch (error) {
+  parentPort.postMessage({ error: error instanceof Error ? error.message : String(error) })
+}

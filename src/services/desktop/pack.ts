@@ -248,6 +248,8 @@ export interface DesktopAddonTree {
 
 export interface DesktopAddon {
   packVersion(): string
+  recogniseText?(bytes: Buffer, page?: number): Promise<string>
+  ocrLanguages?(): string[]
   keyboardIdleMs?(): number | null
   permissions(): DesktopAddonPermissions
   requestPermissions(): DesktopAddonPermissions

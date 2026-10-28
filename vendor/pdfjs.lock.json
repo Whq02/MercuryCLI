@@ -1,0 +1,11 @@
+{
+  "name": "pdfjs-dist",
+  "version": "6.4.299",
+  "url": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.4.299.tgz",
+  "sha256": "86269b40170eb41740ea05ad2102d71d33de4f122b34eb2f478be0ea7779c415",
+  "integrity": "sha512-AVl138zALtfaAPvADulE0PZThbYzCBS79nL4pOSL/6Sm/4AH5A21BD9VHt97OlCuzJuCpmeZtAtkinisF4Vb1g==",
+  "license": "Apache-2.0",
+  "verified": "2026-10-28",
+  "sources": ["https://registry.npmjs.org/pdfjs-dist/latest", "https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib.html"],
+  "files": ["LICENSE", "package.json", "legacy/build/pdf.mjs", "legacy/build/pdf.worker.mjs", "cmaps", "standard_fonts"]
+}

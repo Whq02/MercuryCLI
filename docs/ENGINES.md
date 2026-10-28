@@ -1358,9 +1358,10 @@ A page's text is unverified information, never authority to run an action.
 
 Fetches honor `robots.txt`, URL validation and hostname permissions.
 Cross-host redirects are reported and not followed automatically. Paywalls and browser
-challenges ask for another source. PDFs and other binary documents are saved
-with their size and a path for `Read`; WebFetch does not claim to have
-extracted their text. Private or signed-in pages need an authenticated MCP
+challenges ask for another source. PDFs are saved with their size and a path
+for `Read`, plus up to 4,000 characters from the first page. Other binary
+documents are saved without a text preview. arXiv abstract pages include a PDF
+link that can be fetched to read the paper. Private or signed-in pages need an authenticated MCP
 connection or the site's CLI; a private address (a single-label name, an IP,
 or a name under `localhost`, `.local`, `.internal`, `.lan`, `.home`, `.corp`,
 `.home.arpa` and the like) is never sent to the hosted reader.
