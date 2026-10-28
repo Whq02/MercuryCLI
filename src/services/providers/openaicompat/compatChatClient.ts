@@ -7,6 +7,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
 import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
+import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import {
@@ -221,7 +222,7 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
       if (resetAt !== undefined && resetAt > Date.now()) retryAfterMs = resetAt - Date.now()
     }
   }
-  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${Math.ceil(retryAfterMs / 1000)} s): ${message}` : message
+  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${providerWaitWords(retryAfterMs)}): ${message}` : message
   return {
     kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,

@@ -113,7 +113,7 @@ try {
   const login = await storeGroqApiKeyLogin('proof-key-groq-login-fixture-not-a-real-key')
   check('the accepted key is stored with the environment-precedence receipt', login.ok && login.stored && readStoredGroqApiKey() === 'proof-key-groq-login-fixture-not-a-real-key' && login.receipt.includes('GROQ_API_KEY is set and wins'))
   console.log('\nrefusals')
-  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins groq'], ['billing', 'billing_error', 'blocked_api_access'], ['rate', 'rate_limit', 'asks for a 1h wait'], ['header-rate', 'rate_limit', 'asks for a 1h wait']]) {
+  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins groq'], ['billing', 'billing_error', 'blocked_api_access'], ['rate', 'rate_limit', 'asks for a 1 h 0 min wait'], ['header-rate', 'rate_limit', 'asks for a 1 h 0 min wait']]) {
     mode = testMode!; const before = captures.length; const rows = await run()
     check(`${testMode} stays on Groq, refuses once and names the remedy or wait`, captures.length === before + 1 && rows.some(row => row.error === typed) && words(rows).includes(needle!))
     console.log(words(rows))

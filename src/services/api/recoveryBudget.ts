@@ -160,6 +160,23 @@ export function settleRecoveryWait(
   return refund
 }
 
+export function providerWaitWords(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  if (s < 60) return `${s} s`
+  const minutes = Math.round(s / 60)
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} h ${minutes % 60} min`
+  return `${Math.floor(hours / 24)} d ${hours % 24} h`
+}
+
+const STATED_RESET_SENTENCE = /\b(?:will\s+)?resets?\s+(at\s+\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|in\s+\d+\s*(?:hours?|minutes?|seconds?|[hms])(?:\s*\d+\s*(?:hours?|minutes?|seconds?|[hms]))*)\b/i
+
+export function statedResetWordsOf(message: string): string | undefined {
+  const match = STATED_RESET_SENTENCE.exec(message)
+  return match === null ? undefined : match[1]!.replace(/\s+/g, ' ').trim()
+}
+
 export function retrySeconds(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))
   if (s < 60) return `${s} s`

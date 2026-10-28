@@ -63,16 +63,32 @@ try {
   tally.check('resume: the next prompt is answered', resumed.code === 0 && resumed.frames.find(isOutcome)?.status === 'completed', JSON.stringify({ code: resumed.code, stderr: resumed.stderr }))
   tally.check('resume: the refusal is never the summary — it rides only inside the one line that names the cause; the folded stretch left the wire with its oldest fact', !withoutCause(wire).includes(refusal) && wire.includes(JSON.stringify(skippedLine).slice(1, -1)) && !wire.includes('FIRST_SENTINEL_14_TESTS'), JSON.stringify({ refusalOutsideTheCause: withoutCause(wire).includes(refusal), causeLine: wire.includes(JSON.stringify(skippedLine).slice(1, -1)), oldestFact: wire.includes('FIRST_SENTINEL_14_TESTS') }))
   tally.check('resume: the recent tail remains available', wire.includes('RECENT_SENTINEL_11'))
+  const work = async (from: string, label: string): Promise<string> => {
+    let id = from
+    for (let step = 1; step <= 12; step++) {
+      fixture.script(() => ({ text: `${label} step ${step}: ${Array.from({ length: 160 }, (_, n) => `fact ${step}-${n} of the verification log reads ${(n * 7919 + step * 104729).toString(36)}.`).join(' ')}` }))
+      const turn = await run(`${label}: carry step ${step}`, id)
+      const turnOutcome = turn.frames.find(isOutcome)
+      if (turn.code !== 0 || typeof turnOutcome?.session_id !== 'string') throw new Error(`${label} step ${step} did not settle: ${JSON.stringify({ code: turn.code, stderr: turn.stderr.slice(-300) })}`)
+      id = turnOutcome.session_id
+    }
+    return id
+  }
+  const refoldStraightAfter = await run('/compact', resumedId)
+  const refoldOutcome = refoldStraightAfter.frames.find(isOutcome)
+  tally.check('a /compact straight after the fold, with nothing new to fold, is refused in one line and asks the summariser nothing', refoldStraightAfter.code === 1 && refoldOutcome?.status === 'failed' && /Nothing to compact: the last fold already holds this conversation \(\d+(\.\d+)?k? tokens\)$/.test(String(refoldOutcome?.error?.message ?? '')), JSON.stringify(refoldOutcome).slice(0, 300))
+  const workedId = await work(resumedId, 'first stretch')
   const firstSummary = 'The synthetic modules are implemented. FIRST_SENTINEL_14_TESTS records the earlier result; RECENT_SENTINEL_11 is the recent result. Continue with the pending checks.'
   fixture.script(() => ({ text: `<summary>${firstSummary}</summary>` }))
-  const recovered = await run('/compact', resumedId)
+  const recovered = await run('/compact', workedId)
   const recoveredOutcome = recovered.frames.find(isOutcome)
-  tally.check('recovery: a new fold can land after the refusal', recovered.code === 0 && recoveredOutcome?.status === 'completed', JSON.stringify({ code: recovered.code, outcome: recoveredOutcome }))
+  tally.check('recovery: a new fold can land after the refusal once there is work to fold', recovered.code === 0 && recoveredOutcome?.status === 'completed', JSON.stringify({ code: recovered.code, outcome: recoveredOutcome }))
   const firstFoldId = typeof recoveredOutcome?.session_id === 'string' ? recoveredOutcome.session_id : 'missing-first-fold-session'
+  const workedAgainId = await work(firstFoldId, 'second stretch')
   const beforeSecond = fixture.captured.length
   const secondSummary = 'The pending checks are ready. The earlier parser result is FIRST_SENTINEL_14_TESTS, and the recent result is RECENT_SENTINEL_11. Resume CLI verification.'
   fixture.script(() => ({ text: `<summary>${secondSummary}</summary>` }))
-  const secondFold = await run('/compact', firstFoldId)
+  const secondFold = await run('/compact', workedAgainId)
   const secondOutcome = secondFold.frames.find(isOutcome)
   const secondWire = JSON.stringify(fixture.captured.slice(beforeSecond).map(request => request.body.messages))
   tally.check('second fold: the first summary is input to a successful new fold', secondFold.code === 0 && secondOutcome?.status === 'completed' && secondWire.includes(firstSummary), JSON.stringify({ code: secondFold.code, outcome: secondOutcome, carriesFirstSummary: secondWire.includes(firstSummary) }))

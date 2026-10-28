@@ -61,6 +61,7 @@ import {
   overflowRecoveryNotice,
   overflowRefusalText,
   requestSizeWarning,
+  requestSizeWarningApplies,
   foldRemedyIsHeadless,
   splitCarriedOperatorTail,
   type OverflowEpisode,
@@ -1986,7 +1987,7 @@ async function* runEventMachine(
       }
 
       if (lastMessage?.isApiErrorMessage) {
-        const sizeWarning = requestSizeWarning(messagesForQuery, iter.currentModel)
+        const sizeWarning = requestSizeWarningApplies(lastMessage) ? requestSizeWarning(messagesForQuery, iter.currentModel) : null
         if (sizeWarning !== null) {
           yield emit({ kind: 'notice', message: createSystemMessage(sizeWarning, 'warning') })
         }

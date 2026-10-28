@@ -239,6 +239,7 @@ function reference(node: Node, scope: Scope, insideString: boolean): Reference {
   if (scope.has(name)) {
     const tracked = scope.get(name) as string
     if (!isKnown(tracked)) {
+      if (node.type === 'expansion') refuseNode(node)
       if (insideString) return { value: tracked, unknown: true }
       refuse(`value of $${name} is not statically known`, node.type)
     }
@@ -253,6 +254,7 @@ function reference(node: Node, scope: Scope, insideString: boolean): Reference {
     return { value: tracked, unknown: false }
   }
 
+  if (node.type === 'expansion') refuseNode(node)
   if (insideString) {
     if (SHELL_VARIABLES.has(name)) return { value: UNKNOWN_VALUE, unknown: true }
     if (nameNode.type === 'special_variable_name' && (SPECIAL_VARIABLES.has(name) || /^[0-9]+$/.test(name))) {
@@ -367,6 +369,18 @@ function assign(scope: Scope, assignment: Assignment): void {
 }
 
 const VARIABLE_WRITERS: ReadonlySet<string> = new Set(['read', 'printf', 'getopts', 'wait'])
+const FOR_LITERAL_ITEMS_CAP = 64
+
+function plainExpansion(node: Node): boolean {
+  return node.type === 'expansion' && node.children.length === 3 && node.children[0]!.type === '${' && node.children[1]!.type === 'variable_name' && node.children[2]!.type === '}'
+}
+
+function commandMayWriteVariables(node: Node): boolean {
+  const nameNode = childOfKind(node, 'command_name')
+  const inner = nameNode?.children.length === 1 ? (nameNode.children[0] as Node) : undefined
+  if (inner === undefined || inner.type !== 'word' || inner.children.length > 0) return true
+  return VARIABLE_WRITERS.has(inner.text) || inner.text === 'time' || EVALUATING_BUILTINS.has(inner.text)
+}
 const LOOKUP_VARIABLE = /^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|HOME|TMPDIR|PWD|OLDPWD|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH|GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PAGER|GIT_EXTERNAL_DIFF|GIT_DIR|GIT_WORK_TREE|GIT_OBJECT_DIRECTORY|GIT_ALTERNATE_OBJECT_DIRECTORIES|GIT_INDEX_FILE|GIT_COMMON_DIR|GIT_NAMESPACE)$/
 
 function writtenVariables(argv: string[]): string[] {
@@ -420,7 +434,13 @@ class Walk {
       const name = childOfKind(node, 'variable_name')?.text
       if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
     }
-    if (node.type === 'command') {
+    if (node.type === 'unset_command') {
+      for (const child of node.children) {
+        if (child.type === 'variable_name') scope.set(child.text, UNKNOWN_VALUE)
+        else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
+      }
+    }
+    if (node.type === 'command' && commandMayWriteVariables(node)) {
       const changed = new Map(scope)
       try {
         new Walk().command(node, changed)
@@ -438,8 +458,10 @@ class Walk {
   node(node: Node, scope: Scope): void {
     switch (node.type) {
       case 'program':
-      case 'list':
         this.statements(node.children, scope)
+        return
+      case 'list':
+        this.chain(node, scope)
         return
       case 'pipeline':
         this.pipeline(node, scope)
@@ -489,28 +511,53 @@ class Walk {
   }
 
   statements(children: Node[], scope: Scope): void {
-    const forks = children.some(child => child.type === '||' || child.type === '&&')
-    const snapshot = forks ? new Map(scope) : null
-    let current = scope
+    const chain = children.some(child => child.type === '||' || child.type === '&&')
+    if (chain) {
+      this.chain({ type: 'list', text: children.map(child => child.text).join(' '), startIndex: children[0]?.startIndex ?? 0, endIndex: children.at(-1)?.endIndex ?? 0, children }, scope)
+      return
+    }
     for (const child of children) {
       switch (child.type) {
-        case '&&':
-          current = new Map(current)
-          break
         case ';':
         case '\n':
           break
         case '&':
           refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
-        case '||':
-          current = new Map(snapshot as Scope)
-          for (const branch of children) this.invalidateAssignments(branch, current)
-          break
         default:
-          this.node(child, current)
+          this.node(child, scope)
       }
     }
-    if (forks) for (const child of children) this.invalidateAssignments(child, scope)
+  }
+
+  chain(node: Node, scope: Scope): void {
+    const items: Node[] = []
+    const operators: string[] = []
+    const flatten = (list: Node): void => {
+      for (const child of list.children) {
+        if (child.type === 'list') flatten(child)
+        else if (child.type === '&&' || child.type === '||') operators.push(child.type)
+        else if (child.type === '&') refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
+        else if (child.type !== '\n' && child.type !== ';' && child.type !== 'comment') items.push(child)
+      }
+    }
+    flatten(node)
+    if (items.length !== operators.length + 1) refuse('the shell parser cannot establish the order of this list; split it into explicit commands, or approve', node.type)
+    const after: Scope[] = []
+    for (let index = 0; index < items.length; index++) {
+      let current: Scope
+      if (index === 0) current = new Map(scope)
+      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1] as Scope)
+      else {
+        current = new Map(after[0] as Scope)
+        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier] as Node, current)
+      }
+      this.node(items[index] as Node, current)
+      after.push(current)
+    }
+    const settled = new Map(after[0] as Scope)
+    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index] as Node, settled)
+    scope.clear()
+    for (const [name, value] of settled) scope.set(name, value)
   }
 
   pipeline(node: Node, scope: Scope): void {
@@ -605,6 +652,8 @@ class Walk {
           }
           break
         }
+        case 'expansion':
+          if (!plainExpansion(child)) refuseNode(child)
         case 'simple_expansion': {
           const resolved = reference(child, scope, true)
           value += resolved.value
@@ -661,6 +710,9 @@ class Walk {
       case 'arithmetic_expansion':
         arithmetic(node)
         return UNKNOWN_VALUE
+      case 'expansion':
+        if (!plainExpansion(node)) refuseNode(node)
+        return reference(node, scope, false).value
       case 'simple_expansion':
         return reference(node, scope, false).value
       default:
@@ -728,6 +780,8 @@ class Walk {
           this.substitution(child, scope)
           value = UNKNOWN_SUBSTITUTION
           break
+        case 'expansion':
+          if (!plainExpansion(child)) refuseNode(child)
         case 'simple_expansion':
           value = reference(child, scope, true).value
           break
@@ -782,6 +836,7 @@ class Walk {
         case 'string':
         case 'concatenation':
         case 'arithmetic_expansion':
+        case 'expansion':
         case 'simple_expansion':
           argv.push(this.argument(child, scope, operand))
           break
@@ -964,13 +1019,21 @@ class Walk {
   loop(node: Node, scope: Scope): void {
     let variable: string | null = null
     let body: Node | null = null
+    let sawIn = false
+    let literal = true
+    const items: string[] = []
 
     for (const child of node.children) {
       switch (child.type) {
         case 'for':
-        case 'select':
-        case 'in':
         case ';':
+        case '\n':
+          break
+        case 'select':
+          literal = false
+          break
+        case 'in':
+          sawIn = true
           break
         case 'variable_name':
           variable = child.text
@@ -980,19 +1043,41 @@ class Walk {
           break
         case 'command_substitution':
           this.substitution(child, scope)
+          literal = false
           break
-        default:
-          this.argument(child, scope)
+        default: {
+          const value = this.argument(child, scope)
+          if (isKnown(value) && !value.includes('~')) items.push(value)
+          else literal = false
           break
+        }
       }
     }
 
     if (variable === null || body === null) refuse('loop is missing its variable or body', node.type)
     if (variable === 'IFS' || variable === 'PS4') refuse(`loop variable ${variable} cannot be analyzed safely`, node.type)
+    if (LOOKUP_VARIABLE.test(variable)) {
+      refuse(`loop variable ${variable} changes shell lookup, path expansion or startup code; use a different variable, or approve`, node.type)
+    }
 
-    this.invalidateAssignments(body, scope)
+    const bound = sawIn && literal && items.length > 0 && items.length <= FOR_LITERAL_ITEMS_CAP
+    const probe = new Map(scope)
+    for (const item of bound ? items : [UNKNOWN_VALUE]) {
+      probe.set(variable, item)
+      this.invalidateAssignments(body, probe)
+    }
+    for (const [name, value] of probe) if (name !== variable && value !== scope.get(name)) scope.set(name, value)
     scope.set(variable, UNKNOWN_VALUE)
-    this.body(body, new Map(scope))
+    if (!bound) {
+      this.body(body, new Map(scope))
+      return
+    }
+    let iteration: Scope = new Map(scope)
+    for (const item of items) {
+      iteration = new Map(iteration)
+      iteration.set(variable, item)
+      this.body(body, iteration)
+    }
   }
 
   body(group: Node, scope: Scope): void {

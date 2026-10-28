@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { sep as platformSep, posix as posixPath } from 'node:path'
 import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
@@ -167,6 +167,21 @@ export function pathInAllowedWorkingPath(
 }
 
 
+const MERCURY_CONFIG_DIRECTORIES: ReadonlySet<string> = new Set(['hooks', 'agents', 'skills', 'extensions'])
+const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
+
+function isHomeConfigEstate(prefix: string): boolean {
+  if (prefix === '') return false
+  const homes = new Set(protectedPathForms(homedir()))
+  return protectedPathForms(prefix).some(form => homes.has(form))
+}
+
+export function isMercuryConfigSegment(segment: string): boolean {
+  const name = segment.toLowerCase()
+  if (MERCURY_CONFIG_DIRECTORIES.has(name) || MERCURY_CONFIG_FILES.has(name)) return true
+  return (name.startsWith('settings') && name.endsWith('.json')) || name.startsWith('guard') || name.includes('.local.')
+}
+
 function isDangerousFileOrDirectory(expandedPath: string): boolean {
 
   const segments = expandedPath.split(platformSep)
@@ -176,7 +191,10 @@ function isDangerousFileOrDirectory(expandedPath: string): boolean {
   }
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i]?.toLowerCase() ?? ''
-    if (segment === MERCURY_PROJECT_DIR && segments[i + 1]?.toLowerCase() === 'worktrees') {
+    if (segment === MERCURY_PROJECT_DIR) {
+      if (segments[i + 1]?.toLowerCase() === 'worktrees') continue
+      if (isHomeConfigEstate(segments.slice(0, i).join(platformSep))) return true
+      if (segments.slice(i + 1).some(isMercuryConfigSegment)) return true
       continue
     }
     if (DANGEROUS_DIRECTORIES.some(name => name.toLowerCase() === segment)) {

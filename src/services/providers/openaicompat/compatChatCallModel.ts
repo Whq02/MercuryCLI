@@ -22,10 +22,9 @@ import type {
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, measuredPrefillMs, retryNoticeWait, retryReasonWords, requestWaitLine, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, streamReconnectSpentLine, streamReconnectWait, typedStreamEndOf } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { providerWaitIsWindow, providerWaitWords, retrySeconds, stampProviderWait, statedResetWordsOf } from '../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../api/backupEngines.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, streamReconnectCause, type ReconnectLadder } from '../../api/reconnectLadder.js'
-import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
@@ -337,11 +336,15 @@ export function compatTerminalFaultText(
     case 'billing_error':
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} reports the account out of credit (${detail}) — ${profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.'}`
     case 'rate_limit': {
-      const asked =
-        fault.retryAfterMs !== undefined
-          ? ` — the provider asks for a ${patienceSeconds(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched crewmate pauses until then' : ''}`
-          : ''
-      return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})${asked} — retry in a moment, or /model picks another model meanwhile.`
+      const head = `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})`
+      if (fault.retryAfterMs !== undefined) {
+        const asked = ` — the provider asks for a ${providerWaitWords(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched crewmate pauses until then' : ''}`
+        if (fault.retryAfterMs < 60_000) return `${head}${asked} — retry in a moment, or /model picks another model meanwhile.`
+        return `${head}${asked}, or /model picks another model meanwhile.`
+      }
+      const stated = statedResetWordsOf(fault.message ?? '')
+      if (stated !== undefined) return `${head} — the provider says the limit resets ${stated}, or /model picks another model meanwhile.`
+      return `${head} — retry in a moment, or /model picks another model meanwhile.`
     }
     default: {
       const refusal = compatEngineRefusalText(profile.dialect, fault)

@@ -341,7 +341,7 @@ try {
   check('C1 the runner is ALIVE after the cap', rec2 !== undefined && alive(rec2.pid) && rec2.pid === pid1, `pid ${rec2?.pid} (was ${pid1}) alive=${alive(rec2?.pid)}`)
   check('C1 the record carries no crash, stop or park stamp', rec2 !== undefined && rec2.crash === undefined && rec2.stoppedAt === undefined && rec2.parkedAt === undefined, JSON.stringify(rec2))
   const wall = lastAssistantText(sid)
-  check('C1 the wall row is a typed API error carrying the provider words and Retry-After clock', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && wall === `API Error: Anthropic is rate limited (${RESET_IN_SECONDS} s wait): This request would exceed your account's rate limit.`, wall)
+  check('C1 the wall row is a typed API error carrying the provider words and Retry-After clock', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && wall === `API Error: Anthropic is rate limited (${RESET_IN_SECONDS / 3600} h 0 min wait): This request would exceed your account's rate limit.`, wall)
   check('C1 the refusal carries no Mercury-side model-switch door', !wall.includes('/model'), wall)
   const capAt = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)?.at ?? 0
   const modelsReads = wire().filter(c => c.kind === 'models')

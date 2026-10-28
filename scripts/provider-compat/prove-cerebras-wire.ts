@@ -114,7 +114,7 @@ try {
   const login = await storeCerebrasApiKeyLogin('proof-key-cerebras-login-fixture-not-a-real-key')
   check('the accepted key is stored with the environment-precedence receipt', login.ok && login.stored && readStoredCerebrasApiKey() === 'proof-key-cerebras-login-fixture-not-a-real-key' && login.receipt.includes('CEREBRAS_API_KEY is set and wins'))
   console.log('\nrefusals')
-  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins cerebras'], ['billing', 'billing_error', 'PaymentRequired'], ['rate', 'rate_limit', 'asks for a 1h wait']]) {
+  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins cerebras'], ['billing', 'billing_error', 'PaymentRequired'], ['rate', 'rate_limit', 'asks for a 1 h 0 min wait']]) {
     mode = testMode!; const before = captures.length; const rows = await run()
     check(`${testMode} stays on Cerebras, refuses once and names the remedy or wait`, captures.length === before + 1 && rows.some(row => row.error === typed) && words(rows).includes(needle!))
     console.log(words(rows))

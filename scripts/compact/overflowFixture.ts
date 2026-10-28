@@ -7,7 +7,7 @@ type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
   | { text: string; usage?: { input: number; output: number; cost?: number }; finishReason?: string; reasoning?: ScriptedReasoning }
   | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning; finishReason?: string }
-  | { error: { status: number; body: unknown } }
+  | { error: { status: number; body: unknown; headers?: Record<string, string> } }
   | { cut: { reasoning?: ScriptedReasoning; text?: string; calls?: ScriptedCall[] } }
   | { refusal: true; text?: string; usage?: { input: number; output: number } }
 export type Captured = { dialect: Dialect; path: string; body: Record<string, unknown> }
@@ -232,7 +232,7 @@ export async function startOverflowFixture(options: { stream?: (request: Capture
         const turn = typeof turns === 'function' ? turns({ dialect, path, body }) : turns[ordinal] ?? { text: 'script exhausted' }
         const n = ordinal++
         if ('error' in turn) {
-          res.writeHead(turn.error.status, { 'content-type': 'application/json' })
+          res.writeHead(turn.error.status, { 'content-type': 'application/json', ...(turn.error.headers ?? {}) })
           res.end(JSON.stringify(turn.error.body))
           return
         }

@@ -558,7 +558,7 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     const text = fold
       ? '<analysis>the walk</analysis><summary>1. Operator Intent: the operator kept talking. 2. Technical Ground: none. 3. Files and Code Touched: none. 4. Errors and Corrections: none. 5. Problems Worked: none. 6. Operator Messages: the words so far. 7. Open Work: none. 8. Where Work Stands: idle. 9. Next Move (optional): none. 10. Agents in flight: none.</summary>'
-      : `heard ${ask.trim().split('\n').pop()} (#${n})`
+      : `heard ${ask.trim().split('\n').pop()} (#${n})${ask.trim().startsWith('carry ') ? ` ${Array.from({ length: 160 }, (_, k) => `fact ${n}-${k} of the carried log reads ${(k * 7919 + n * 104729).toString(36)}.`).join(' ')}` : ''}`
     if (!fold) replies.push(text)
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
     res.end(
@@ -724,6 +724,7 @@ try {
   await say(WORDS[3]!)
   await say(WORDS[4]!)
   await say(WORDS[5]!)
+  for (let step = 1; step <= 12; step++) await say(`carry step ${step}`)
   await compact('the second fold', 2)
   await say(WORDS[6]!)
   await say(WORDS[7]!)

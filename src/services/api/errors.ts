@@ -25,7 +25,7 @@ import {
   formatAPIError as formatConnectionFallback,
 } from './errorUtils.js'
 import { retryAfterHeaderMs } from './retryAfter.js'
-import { stampProviderWait } from './recoveryBudget.js'
+import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
 import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
@@ -454,7 +454,7 @@ function composeAssistantMessageFromError(
   if (refusal === 'rate-limit' && retryAfterMs !== undefined) {
     const detail = extract429Detail(message)?.text ?? message
     return stampProviderWait(createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited (${Math.ceil(retryAfterMs / 1000)} s wait): ${detail}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited (${providerWaitWords(retryAfterMs)} wait): ${detail}`,
       error: 'rate_limit',
       errorDetails: message,
     }), retryAfterMs)

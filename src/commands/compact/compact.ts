@@ -9,6 +9,9 @@ import {
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
   type CompactionResult,
+  isRefold,
+  manualFoldHasNothingToFold,
+  projectManualFold,
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
@@ -33,6 +36,12 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logError } from '../../utils/log.js'
 
 const reactiveCompact: typeof import('../../services/compact/reactiveCompact.js') | null = null
+
+export const NOTHING_TO_COMPACT_KEY = 'Nothing to compact: '
+
+export function nothingToCompactLine(contextTokens: number): string {
+  return `${NOTHING_TO_COMPACT_KEY}the last fold already holds this conversation (${formatTokens(contextTokens)} tokens)`
+}
 
 async function buildCompactCacheSafeParams(
   messages: Message[],
@@ -170,6 +179,11 @@ async function callUnderFoldStatus(
 
     const summaryInput = projected
     const cacheSafeParams = await buildCompactCacheSafeParams(summaryInput, context)
+    const projection = isRefold(summaryInput) ? await projectManualFold(summaryInput, context, cacheSafeParams, getAutoCompactThreshold(context.options.engineModel)) : null
+    if (projection !== null && manualFoldHasNothingToFold(projection)) {
+      logForDebugging(`compact: refused before the summariser — ${projection.folds} of ${summaryInput.length} messages would fold (${projection.workingRoundsFolded} working rounds), the fold would land at ${projection.after} tokens against ${projection.before} by the same estimate`)
+      throw new Error(nothingToCompactLine(projection.context))
+    }
     const foldModel = foldModelFor(summaryInput, context.options.engineModel, { forced: false })
     if (foldModel.source === 'history') {
       logForDebugging(
@@ -210,7 +224,8 @@ async function callUnderFoldStatus(
     if (
       hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||
       hasExactErrorMessage(error, ERROR_MESSAGE_INCOMPLETE_RESPONSE) ||
-      hasExactErrorMessage(error, ERROR_MESSAGE_FOLD_TIMEOUT)
+      hasExactErrorMessage(error, ERROR_MESSAGE_FOLD_TIMEOUT) ||
+      (error instanceof Error && error.message.startsWith(NOTHING_TO_COMPACT_KEY))
     ) {
       throw error
     }

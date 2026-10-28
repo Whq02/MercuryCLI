@@ -1,5 +1,5 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
-import type { Message } from '../../types/message.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
 import {
@@ -148,6 +148,18 @@ export function requestSizeWarning(messages: readonly Message[], model: string):
     ? 'Mercury folds it before the next request'
     : '/compact folds it by hand'
   return `the request failed and this conversation is near the window (${size}) — a request this size can be refused; ${next}`
+}
+
+const SIZE_WARNING_SILENT_CLASSES: ReadonlySet<string> = new Set(['rate_limit', 'billing_error', 'authentication_failed', 'invalid_request', 'max_output_tokens'])
+const UNCLASSIFIED_RATE_LIMIT_FRAME = new RegExp(`^${API_ERROR_MESSAGE_PREFIX} \\(429[,)]`)
+
+export function requestSizeWarningApplies(row: Pick<AssistantMessage, 'error' | 'overflowSignal' | 'providerWaitEndsAtMs' | 'message'>): boolean {
+  if (row.overflowSignal !== undefined) return true
+  if (row.providerWaitEndsAtMs !== undefined) return false
+  if (row.error !== undefined && SIZE_WARNING_SILENT_CLASSES.has(row.error)) return false
+  const content = row.message.content
+  const text = typeof content === 'string' ? content : (content.find(block => block.type === 'text') as { text?: string } | undefined)?.text ?? ''
+  return !UNCLASSIFIED_RATE_LIMIT_FRAME.test(text)
 }
 
 export function overflowRecoveryNotice(

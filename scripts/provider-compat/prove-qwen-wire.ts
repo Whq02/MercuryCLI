@@ -344,7 +344,7 @@ try {
   mode = 'rate'
   before = captures.length
   const rate = await run()
-  check('a 429 with retry-after names the wait and stays on the lane', captures.length === before + 1 && rate.some(row => row.isApiErrorMessage && row.error === 'rate_limit') && words(rate).includes('asks for a 1h wait'))
+  check('a 429 with retry-after names the wait and stays on the lane', captures.length === before + 1 && rate.some(row => row.isApiErrorMessage && row.error === 'rate_limit') && words(rate).includes('asks for a 1 h 0 min wait'))
   mode = 'busy'
   before = captures.length
   await run()

@@ -218,20 +218,20 @@ for (const scene of SCENES) {
 }
 
 if (!ONLY || ONLY.has('sovereign')) {
-  section('sovereign — an edit to .mercury/HANDOFF.md under the bypass posture paints NO card')
+  section('sovereign — an edit to .mercury/guard.mjs under the bypass posture paints NO card')
   const SHORT_BEFORE = 'alpha line one\nbeta line two\n'
   const SHORT_AFTER = 'alpha line one\ngamma line two\n'
   const run = await runArtifactArena({
     cols: 110,
     rows: 40,
     turns: cwd => [
-      { kind: 'tool_use', preText: 'Reading the handoff.\n', name: 'Read', input: { file_path: join(cwd, '.mercury', 'HANDOFF.md') } },
-      { kind: 'tool_use', preText: 'Editing the handoff.\n', name: 'Edit', input: { file_path: join(cwd, '.mercury', 'HANDOFF.md'), old_string: SHORT_BEFORE, new_string: SHORT_AFTER } },
+      { kind: 'tool_use', preText: 'Reading the hook.\n', name: 'Read', input: { file_path: join(cwd, '.mercury', 'guard.mjs') } },
+      { kind: 'tool_use', preText: 'Editing the hook.\n', name: 'Edit', input: { file_path: join(cwd, '.mercury', 'guard.mjs'), old_string: SHORT_BEFORE, new_string: SHORT_AFTER } },
       { kind: 'text', text: 'Done.' },
     ],
     seedHome: (configDir, cwd) => {
       mkdirSync(join(cwd, '.mercury'), { recursive: true })
-      writeFileSync(join(cwd, '.mercury', 'HANDOFF.md'), SHORT_BEFORE)
+      writeFileSync(join(cwd, '.mercury', 'guard.mjs'), SHORT_BEFORE)
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true } }))
     },
     extraEnv: { MERCURY_SKIP_PERMISSIONS: '1' },
@@ -243,7 +243,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   const rows = final!.rows
   dump('sovereign', 'final', rows)
   printFrame('sovereign final', rows)
-  const edited = existsSync(join(run.paths.cwd, '.mercury', 'HANDOFF.md')) ? readFileSync(join(run.paths.cwd, '.mercury', 'HANDOFF.md'), 'utf8') : ''
+  const edited = existsSync(join(run.paths.cwd, '.mercury', 'guard.mjs')) ? readFileSync(join(run.paths.cwd, '.mercury', 'guard.mjs'), 'utf8') : ''
   check('sovereign: the turn settled (the fixture\'s closing text landed)', rowsHaving(rows, 'Done.'), run.driverOut.slice(-300))
   check('sovereign: NO consent card painted (no question row)', !rowsHaving(rows, 'Do you want to'))
   check('sovereign: NO consent card painted (no card title)', !rowsHaving(rows, '⦿ Edit file'))

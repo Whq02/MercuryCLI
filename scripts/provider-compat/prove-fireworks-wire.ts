@@ -119,7 +119,7 @@ try {
   const login = await storeFireworksApiKeyLogin('proof-key-fireworks-login-fixture-not-a-real-key')
   check('the accepted key is stored with the environment-precedence receipt', login.ok && login.stored && readStoredFireworksApiKey() === 'proof-key-fireworks-login-fixture-not-a-real-key' && login.receipt.includes('FIREWORKS_API_KEY is set and wins'))
   console.log('\nrefusals')
-  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins fireworks'], ['billing', 'billing_error', 'payment_required'], ['rate', 'rate_limit', 'asks for a 1h wait']]) {
+  for (const [testMode, typed, needle] of [['auth', 'authentication_failed', '/logins fireworks'], ['billing', 'billing_error', 'payment_required'], ['rate', 'rate_limit', 'asks for a 1 h 0 min wait']]) {
     mode = testMode!; const before = captures.length; const rows = await run()
     check(`${testMode} stays on Fireworks, refuses once and names the remedy or wait`, captures.length === before + 1 && rows.some(row => row.error === typed) && words(rows).includes(needle!))
     console.log(words(rows))

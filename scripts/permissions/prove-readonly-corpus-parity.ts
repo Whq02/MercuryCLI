@@ -112,6 +112,9 @@ pinWrapped('bash -c "git push origin topic"', { kind: 'form', part: 'git push or
 const wrappedExpansion = 'the expansion "${a}" supplies a value at runtime; spell out the value, or approve'
 pinWrapped("bash -c 'sleep ${a} & sleep ${b}'", { kind: 'screen', part: 'sleep ${a} & sleep ${b}', detail: wrappedExpansion }, `the command could not be verified as read-only — ${wrappedExpansion}`)
 bindingRepins.set('bash -c "true"', [stable({ behavior: 'allow' }), '', 'null', ''])
+const errpathSite = '/private/tmp/mercury-501/-private-tmp-mw-lead29-drives-switch-sonnet55-to-k3-project/6411e36f-9b82-44ba-99a0-4526b3ecf3de/scratchpad/errpath-site'
+pinWrapped(`S=${errpathSite} && mkdir -p "$S" && cp index.html quiz.js score.js styles.css "$S"/ && ls -1 "$S"`, { kind: 'not-on-list', part: cutPart(`mkdir -p ${errpathSite}`), word: 'mkdir' }, '`mkdir` is not a command Mercury can verify as read-only')
+pinWrapped('for f in index.html styles.css quiz.js score.js questions.json; do printf \'%-16s\' "$f"; curl -sS -o /dev/null -D - "http://127.0.0.1:8765/$f" | awk \'NR==1{status=$2} tolower($1)=="content-type:"{ct=$2" "$3} END{print status, ct}\'; done', { kind: 'not-on-list', part: 'printf %-16s index.html', word: 'printf' }, '`printf` is not a command Mercury can verify as read-only')
 
 const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { verdicts: [], rows: [] }
 
