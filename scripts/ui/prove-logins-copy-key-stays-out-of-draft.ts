@@ -250,7 +250,7 @@ console.log('L1 — the /logins card: c copies and never lands in the paste fiel
       ...FACE_TO_CARD('anthropic'),
       g('Anthropic — Claude subscription', ENTER, { mark: 'card', awaitPattern: '❯ Anthropic — Claude subscription', awaitStableTicks: 3 }),
       g('Sign in / re-login', ENTER, { mark: 'account', awaitPattern: '❯ 1. Sign in / re-login', awaitStableTicks: 3 }),
-      g('Usage-based billing — Anthropic Console', ENTER, { mark: 'pick', awaitPattern: '1. Claude subscription — browser sign-in', awaitStableTicks: 3 }),
+      g('Anthropic API key — usage-based billing', ENTER, { mark: 'pick', awaitPattern: '1. Claude subscription — browser sign-in', awaitStableTicks: 3 }),
       g('finish signing in there', 'c', { mark: 'waiting-early' }),
       g(CARD_HINT, 'c', { mark: 'prompt' }),
       ...COPY_BEAT(),
@@ -267,7 +267,7 @@ console.log('L1 — the /logins card: c copies and never lands in the paste fiel
   const closed = markText(c, 'closed')
   const before = failures
   check('L1 the drive walked every screen (the card reached its paste prompt)', marksLanded(c, ['card', 'account', 'pick', 'prompt', 'after-c', 'ack-gone', 'typed', 'closed']) && prompt.includes(CARD_HINT) && prompt.includes(CARD_FIELD), `exit ${c.status}`)
-  check('L1 the Anthropic row opened the arm pick with both roads before the flow', pick.includes('Claude subscription — browser sign-in') && pick.includes('Usage-based billing — Anthropic Console'))
+  check('L1 the Anthropic row opened the arm pick with its three roads before the flow', pick.includes('Claude subscription — browser sign-in') && pick.includes('Anthropic Console — browser sign-in') && pick.includes('Anthropic API key — usage-based billing'))
   check('L1 c before the prompt left nothing in the field', fieldAfter(prompt, CARD_FIELD) === '', JSON.stringify(fieldAfter(prompt, CARD_FIELD)))
   check('L1 c on the prompt copies — the ack paints', afterC.includes(CARD_ACK))
   check('L1 THE LAW: the c never lands in the paste field (a leak paints one character)', fieldAfter(afterC, CARD_FIELD) === '', JSON.stringify(fieldAfter(afterC, CARD_FIELD)))
@@ -290,7 +290,7 @@ console.log('L2 — the face’s logins layer: c copies and the masked draft sta
       ...FACE_TO_ROSTER(),
       g(ROSTER_LEGEND, DOWN, { mark: 'roster', awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: ENTER },
-      g('Usage-based billing — Anthropic Console', ENTER, { mark: 'pick', awaitSettleTicks: 3 }),
+      g('Anthropic API key — usage-based billing', ENTER, { mark: 'pick', awaitSettleTicks: 3 }),
       g('the paste fallback appears in a moment', 'c', { mark: 'waiting-early' }),
       g(FACE_HINT, 'c', { mark: 'prompt' }),
       ...COPY_BEAT(),
@@ -308,7 +308,7 @@ console.log('L2 — the face’s logins layer: c copies and the masked draft sta
   const back = markText(c, 'back')
   const before = failures
   check('L2 the drive walked every screen (the roster opened, the flow reached its paste prompt)', marksLanded(c, ['roster', 'pick', 'waiting-early', 'prompt', 'after-c', 'ack-gone', 'typed', 'back']) && roster.includes('Anthropic — Claude subscription') && prompt.includes(FACE_HINT), `exit ${c.status}`)
-  check('L2 the Anthropic row opened the arm pick with both roads before the flow', pick.includes('Claude subscription — browser sign-in') && pick.includes('Usage-based billing — Anthropic Console'))
+  check('L2 the Anthropic row opened the arm pick with its three roads before the flow', pick.includes('Claude subscription — browser sign-in') && pick.includes('Anthropic Console — browser sign-in') && pick.includes('Anthropic API key — usage-based billing'))
   check('L2 c before the prompt left nothing behind (the draft line is empty)', draftDots(prompt, 'code:') === 0, String(draftDots(prompt, 'code:')))
   check('L2 c on the prompt copies — the ack paints', afterC.includes(FACE_ACK))
   check('L2 THE LAW: the draft line stays `code: ▌` after the c', draftDots(afterC, 'code:') === 0, String(draftDots(afterC, 'code:')))

@@ -483,6 +483,7 @@ export class ResponsesStreamFold {
   private usage: OpenaiUsage | undefined
   private streamedTextChars = 0
   private settledTextChars = 0
+  private reasoningTextStreamed = new Set<string>()
 
   fold(parsed: unknown): OpenaiStreamEvent[] {
     const out: OpenaiStreamEvent[] = []
@@ -509,6 +510,13 @@ export class ResponsesStreamFold {
       }
       case 'response.reasoning_summary_text.delta': {
         if (typeof o.delta === 'string' && o.delta !== '') {
+          out.push({ type: 'reasoning-delta', text: o.delta })
+        }
+        break
+      }
+      case 'response.reasoning_text.delta': {
+        if (typeof o.delta === 'string' && o.delta !== '') {
+          if (typeof o.item_id === 'string') this.reasoningTextStreamed.add(o.item_id)
           out.push({ type: 'reasoning-delta', text: o.delta })
         }
         break
@@ -576,6 +584,16 @@ export class ResponsesStreamFold {
           const reasoning = parseReasoningItem(item)
           this.reasoningItems.push(reasoning)
           this.orderedItems.push(reasoning)
+          const itemId = typeof item.id === 'string' ? item.id : ''
+          if (!this.reasoningTextStreamed.has(itemId)) {
+            for (const part of Array.isArray(item.content) ? item.content : []) {
+              const rec = asRecord(part)
+              if (rec?.type === 'reasoning_text' && typeof rec.text === 'string' && rec.text !== '') {
+                out.push({ type: 'reasoning-delta', text: rec.text })
+              }
+            }
+          }
+          if (itemId) this.reasoningTextStreamed.delete(itemId)
         } else if (itemType === 'message') {
           const content = Array.isArray(item.content) ? item.content : []
           const itemTexts: string[] = []

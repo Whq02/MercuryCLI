@@ -93,7 +93,19 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
       { status: 200, headers: { 'content-type': 'text/event-stream' } },
     )
   }
-  if (spelled.includes('/v1/models')) {
+  if (spelled === 'http://127.0.0.1:1/chat/completions') {
+    const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+    chatBodies.push(body)
+    const model = String(body.model ?? '')
+    return new Response(
+      sse({ id: 'chatcmpl-k31-key', object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { role: 'assistant', reasoning_content: 'thinking' } }] }) +
+        sse({ id: 'chatcmpl-k31-key', object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { content: 'key answer' } }] }) +
+        sse({ id: 'chatcmpl-k31-key', object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 9, completion_tokens: 3 } }) +
+        'data: [DONE]\n\n',
+      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+    )
+  }
+  if (spelled.includes('/models')) {
     return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
   }
   throw new Error(`unexpected request: ${spelled}`)
@@ -198,13 +210,56 @@ section('§3 the Kimi sign-in road: the plan ids route by the live list and carr
     signal: new AbortController().signal,
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue },
   }) as never
-  for (const [model, asked, expected] of [['k3.1-pro', 'max', 'max'], ['k3.1-pro-highspeed', 'medium', 'low']] as const) {
+  for (const [model, asked, expected] of [['k3.1-pro', 'max', 'max'], ['k3.1-pro-highspeed', 'medium', 'high']] as const) {
     chatBodies.length = 0
     let apiError = false
     for await (const item of moonshotCallModel(params(model, asked))) {
       if ((item as { type?: string }).type === 'assistant' && (item as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) apiError = true
     }
-    check(`a ${model} turn asked ${asked} puts reasoning_effort ${expected} on the wire with model ${model}, no temperature, and settles clean`, chatBodies.length === 1 && chatBodies[0]?.model === model && chatBodies[0]?.reasoning_effort === expected && !('temperature' in (chatBodies[0] ?? {})) && !apiError, JSON.stringify(chatBodies[0]))
+    check(`a ${model} turn asked ${asked} puts reasoning_effort ${expected} on the wire with model ${model} (kimi.com/code/docs/en/kimi-code/models.html, 2026-10-28: medium maps to high), no temperature, and settles clean`, chatBodies.length === 1 && chatBodies[0]?.model === model && chatBodies[0]?.reasoning_effort === expected && !('temperature' in (chatBodies[0] ?? {})) && !apiError, JSON.stringify(chatBodies[0]))
+  }
+  accounts.writeMoonshotTokens(null)
+  catalogue.__resetMoonshotCatalogueForTest()
+}
+
+section('§4 the request body per level on both roads (platform.kimi.ai/docs/guide/use-reasoning-effort.md, 2026-10-28: the top-level reasoning_effort word is the only reasoning control, low·high·max, default max; no thinking object, no budget field)')
+{
+  const turnParams = (model: string, effortValue: string | undefined): Parameters<typeof moonshotCallModel>[0] => ({
+    messages: [createUserMessage({ content: 'say hi' })],
+    systemPrompt: ['fixture system prompt'],
+    thinkingConfig: { type: 'enabled', budget_tokens: 1024 },
+    tools: [],
+    signal: new AbortController().signal,
+    options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], ...(effortValue !== undefined ? { effortValue } : {}) },
+  }) as never
+  const captured = async (model: string, asked: string | undefined): Promise<Record<string, unknown> | undefined> => {
+    chatBodies.length = 0
+    let apiError = false
+    for await (const item of moonshotCallModel(turnParams(model, asked))) {
+      if ((item as { type?: string }).type === 'assistant' && (item as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) apiError = true
+    }
+    return apiError || chatBodies.length !== 1 ? undefined : chatBodies[0]
+  }
+  const bodyLaw = (body: Record<string, unknown> | undefined, model: string, asked: string | undefined): boolean =>
+    body !== undefined && body.model === model && (asked === undefined ? !('reasoning_effort' in body) : body.reasoning_effort === asked) && !('thinking' in body) && !('temperature' in body) && !('max_completion_tokens' in body)
+  process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key-not-real'
+  for (const asked of ['low', 'high', 'max', undefined] as const) {
+    const body = await captured('kimi-k3.1-pro', asked)
+    check(`API key road · kimi-k3.1-pro asked ${asked ?? 'nothing'}: reasoning_effort ${asked ?? 'absent (the provider default, max, governs)'}, no thinking object, no temperature, no output ceiling`, bodyLaw(body, 'kimi-k3.1-pro', asked), JSON.stringify(body))
+  }
+  for (const [asked, rides] of [['xhigh', 'max'], ['medium', 'high'], ['minimal', 'low']] as const) {
+    const body = await captured('kimi-k3.1-pro', asked)
+    const truth = resolveStampedEffortTruth('kimi-k3.1-pro', asked as never)
+    check(`API key road · kimi-k3.1-pro asked ${asked} rides as ${rides} — the step Kimi documents (kimi.com/code/docs/en/kimi-code/models.html, 2026-10-28), and the chip says ${rides} too`, bodyLaw(body, 'kimi-k3.1-pro', rides) && truth.wire === rides && truth.label === rides && (asked === 'minimal' ? truth.adjustedFrom === undefined : truth.adjustedFrom === asked), `${JSON.stringify(body)} · ${JSON.stringify({ wire: truth.wire, label: truth.label, adjustedFrom: truth.adjustedFrom })}`)
+  }
+  delete process.env.MOONSHOT_API_KEY
+  accounts.writeMoonshotTokens({ accessToken: 'fixture-access-plan', refreshToken: 'fixture-refresh-plan', accessTokenExpiresAtMs: Date.now() + 86400000 }, 'global')
+  recordSignIn('moonshot', 'oauth')
+  catalogue.__resetMoonshotCatalogueForTest()
+  await catalogue.refreshMoonshotCatalogue({ force: true })
+  for (const asked of ['low', 'high', 'max', undefined] as const) {
+    const body = await captured('k3.1-pro', asked)
+    check(`Kimi sign-in road · k3.1-pro asked ${asked ?? 'nothing'}: reasoning_effort ${asked ?? 'absent'}, no thinking object, no temperature, no output ceiling`, bodyLaw(body, 'k3.1-pro', asked), JSON.stringify(body))
   }
   accounts.writeMoonshotTokens(null)
   catalogue.__resetMoonshotCatalogueForTest()

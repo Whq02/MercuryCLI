@@ -62,7 +62,7 @@ section('§23 the effort toast\'s glyph follows the applied tier')
   const { getEffortNotificationText } = await import('../../src/components/EffortIndicator.ts')
   const figures = await import('../../src/constants/figures.ts')
   const medium = getEffortNotificationText('medium', 'kimi-k3') ?? ''
-  check("medium on kimi-k3 (applied low): the LOW glyph beside the word low (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_LOW} effort: low`), medium)
+  check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), medium)
   const xhigh = getEffortNotificationText('xhigh', 'glm-5.3') ?? ''
   check('xhigh on glm-5.3 (applied high): the HIGH glyph beside the word high', xhigh.startsWith(`${figures.EFFORT_HIGH} effort: high`), xhigh)
   const src = read('src/components/EffortIndicator.ts')

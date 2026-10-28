@@ -144,11 +144,12 @@ async function mount(opts: { models: ModelChoice[]; current: string; top: string
   stream.resume()
   const stdout = Object.assign(stream, { columns: opts.columns, rows: opts.height }) as unknown as NodeJS.WriteStream
   const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
-  const node = React.createElement(
-    StdinContext.Provider,
-    { value: context },
-    React.createElement(Box, { flexDirection: 'column' }, React.createElement(MercuryModelPicker, {
-      models: opts.models,
+  let relist: (models: ModelChoice[]) => void = () => {}
+  function Host({ initial }: { initial: ModelChoice[] }): React.ReactNode {
+    const [models, setModels] = React.useState(initial)
+    relist = setModels
+    return React.createElement(MercuryModelPicker, {
+      models,
       current: opts.current,
       ctxPct: 22,
       efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -158,7 +159,12 @@ async function mount(opts: { models: ModelChoice[]; current: string; top: string
       expandRows: (group: string) => (group === OPENROUTER ? openrouterFull : []),
       onSelect: (id: string, door?: string) => { selected.push(id); selectedDoors.push(door) },
       onClose: () => { closed++ },
-    } as never)),
+    } as never)
+  }
+  const node = React.createElement(
+    StdinContext.Provider,
+    { value: context },
+    React.createElement(Box, { flexDirection: 'column' }, React.createElement(Host, { initial: opts.models })),
   )
   let painted = (): void => {}
   const firstFrame = new Promise<void>(resolve => { painted = resolve })
@@ -176,6 +182,10 @@ async function mount(opts: { models: ModelChoice[]; current: string; top: string
     },
     async type(text: string): Promise<void> {
       for (const ch of text) await this.key(ch, ch)
+    },
+    async relist(models: ModelChoice[]): Promise<void> {
+      relist(models)
+      await settle()
     },
     close() { instance.unmount(); instance.cleanup(); stream.destroy() },
   }
@@ -371,6 +381,10 @@ section('§8 the pure composition (the module the picker derives its lines from)
     check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK, XAI, META].join(' > '), ordered.map(group => group.group).join(' > '))
     const folds = pure.initialPickerFolds(ordered, ANTHROPIC, 'claude-fable-5-1@' + LOGIN)
     check('the fold rule: over twelve rows opens folded unless top; the rest open', folds[GEMINI] === 'folded' && folds[ANTHROPIC] === 'top' && folds[OPENROUTER] === 'folded' && folds[OPENAI] === 'top', JSON.stringify(folds))
+    const lineupGroups = pure.groupPickerRows([...openai.slice(0, 2), ...Array.from({ length: 13 }, (_, k) => row(`gpt-7.${k}`, `GPT-7.${k}`, '400k ctx', OPENAI, { gated: true, gatedReason: 'not served by the connected ChatGPT subscription' })), ...gemini.map(model => ({ ...model, gated: true, gatedReason: 'no API key attached' }))])
+    const lineupFolds = pure.initialPickerFolds(lineupGroups, ANTHROPIC)
+    const liveSize = typeof pure.groupLiveSize === 'function' ? pure.groupLiveSize(lineupGroups[0]!) : undefined
+    check('the bound counts live rows: two live rows among thirteen unavailable open, fourteen unavailable rows open too', lineupFolds[OPENAI] === 'top' && lineupFolds[GEMINI] === 'top' && liveSize === 2 && pure.groupSize(lineupGroups[0]!) === 15, JSON.stringify({ lineupFolds, live: liveSize, size: pure.groupSize(lineupGroups[0]!) }))
     const lines = pure.composePickerLines(ordered, folds, '', group => (group === OPENROUTER ? openrouterFull : undefined))
     check('a folded group composes to its heading alone', lines.filter(line => line.kind !== 'heading' && 'group' in line && line.group === GEMINI).length === 0)
     check('the door row never composes as a row', !lines.some(line => line.kind === 'row' && line.row.expand !== undefined))
@@ -380,6 +394,29 @@ section('§8 the pure composition (the module the picker derives its lines from)
     check('the columns at the ratified width: alias 22 · id 32 · state 13 · ctx 11 · tail 14 (each cell two spaces short of its width)', JSON.stringify(pure.pickerColumns(92)) === JSON.stringify({ alias: 22, id: 32, state: 13, ctx: 11, tail: 14 }), JSON.stringify(pure.pickerColumns(92)))
     check('the hint row is the owner\'s line', pure.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes')
   }
+}
+
+section('§9 the fold bound counts the rows a user can pick: a lineup of unavailable rows never folds the live ones away, and rows that land while the picker is open show in place')
+{
+  const connect: ModelChoice = { id: '__mercury_gpt_connect__', name: 'GPT — connecting…', tag: '', ctx: '', group: OPENAI, action: true }
+  const lineup = (from: number): ModelChoice[] => Array.from({ length: 15 - from }, (_, k) => row(`gpt-7.${from + k}`, `GPT-7.${from + k}`, '400k ctx', OPENAI, { gated: true, gatedReason: 'not served by the connected ChatGPT subscription' }))
+  const pending: ModelChoice[] = [...anthropicLogin, ...anthropicKey, connect, ...lineup(0), ...moonshot]
+  const landed: ModelChoice[] = [...anthropicLogin, ...anthropicKey, ...openai.slice(0, 2), ...lineup(2), ...moonshot]
+  const board = await mount({ models: pending, current: 'claude-fable-5-1', top: ANTHROPIC, columns: 178, height: 51 })
+  save('pending', 178, 51, board.frame())
+  check('while the catalogue is pending the group is open: the connect row shows, fifteen unavailable rows do not fold it', inner(lineWith(board.lines(), 'OPENAI')).trim().startsWith('▾ OPENAI') && board.frame().includes('GPT — connecting…'), inner(lineWith(board.lines(), 'OPENAI')).trim())
+  await board.relist(landed)
+  save('landed', 178, 51, board.frame())
+  const openaiAt = board.lines().findIndex(line => line.includes('OPENAI'))
+  check('the live rows land in place: both show, first under the heading, the connect row is gone', inner(lineWith(board.lines(), 'OPENAI')).trim().startsWith('▾ OPENAI') && board.lines()[openaiAt + 1]?.includes('gpt-6-astra') === true && board.lines()[openaiAt + 2]?.includes('gpt-6-sol') === true && !board.frame().includes('connecting'), board.lines().slice(openaiAt, openaiAt + 3).map(inner).join(' | '))
+  check('the thirteen unavailable rows stay visible behind the live ones, as the lineup', board.lines()[openaiAt + 3]?.includes('gpt-7.2') === true && /unavailable/.test(board.lines()[openaiAt + 3] ?? ''), inner(board.lines()[openaiAt + 3] ?? ''))
+  check('the cursor stayed on the current row', rowOf(board.lines(), 'claude-fable-5-1').includes('current') && board.lines()[board.lines().indexOf(rowOf(board.lines(), 'claude-fable-5-1')) - 1]?.includes('╭') === true)
+  await board.key('left')
+  await board.key('left')
+  check('← ← folds the seat\'s own provider by hand', !board.frame().includes('claude-fable-5-1') && inner(lineWith(board.lines(), 'ANTHROPIC')).trim().startsWith('❯ ANTHROPIC'), inner(lineWith(board.lines(), 'ANTHROPIC')).trim())
+  await board.relist([...landed, row('kimi-k3.5', 'Kimi K3.5', '262k ctx', MOONSHOT)])
+  check('a later landing keeps the fold the user chose and the group that was open', !board.frame().includes('claude-fable-5-1') && board.frame().includes('gpt-6-astra') && board.frame().includes('kimi-k3.5'), `${inner(lineWith(board.lines(), 'ANTHROPIC')).trim()} | ${inner(lineWith(board.lines(), 'OPENAI')).trim()}`)
+  board.close()
 }
 
 rmSync(scratch, { recursive: true, force: true })

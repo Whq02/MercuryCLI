@@ -111,6 +111,11 @@ export function groupSize<T extends PickerRow>(group: PickerGroup<T>): number {
   return group.door !== undefined ? Math.max(listed, group.door.expand?.total ?? 0) : listed
 }
 
+export function groupLiveSize<T extends PickerRow>(group: PickerGroup<T>): number {
+  const live = liveCount(group.rows)
+  return group.door !== undefined ? Math.max(live, group.door.expand?.total ?? 0) : live
+}
+
 export function orderPickerGroups<T extends PickerRow>(
   groups: readonly PickerGroup<T>[],
   opts: { top?: string; recentAt?: (group: string) => number | undefined },
@@ -138,7 +143,7 @@ export function initialPickerFolds<T extends PickerRow>(groups: readonly PickerG
   const folds: Record<string, FoldState> = {}
   for (const group of groups) {
     const isTop = group.group === top
-    folds[group.group] = isTop || groupSize(group) <= PICKER_FOLD_BOUND ? 'top' : 'folded'
+    folds[group.group] = isTop || groupLiveSize(group) <= PICKER_FOLD_BOUND ? 'top' : 'folded'
     if (currentKey !== undefined) {
       const index = group.rows.findIndex(row => rowKey(row) === currentKey)
       if (index >= 0) folds[group.group] = index < PICKER_TOP_ROWS ? 'top' : 'full'

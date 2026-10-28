@@ -164,6 +164,22 @@ export function kimiAcceptsEffort(model: string, effort: string): boolean {
   return kimiEffortsFor(model).includes(effort)
 }
 
+export const KIMI_EFFORT_STEPS: Readonly<Record<string, string>> = {
+  ultra: 'max',
+  xhigh: 'max',
+  medium: 'high',
+  minimal: 'low',
+  minimum: 'low',
+  light: 'low',
+}
+
+export function kimiWireEffort(model: string, effort: string): string | undefined {
+  const dial = kimiEffortsFor(model)
+  if (dial.includes(effort)) return effort
+  const stepped = KIMI_EFFORT_STEPS[effort]
+  return stepped !== undefined && dial.includes(stepped) ? stepped : undefined
+}
+
 export const KIMI_PRESERVED_THINKING_MODELS: ReadonlySet<string> = new Set(
   KIMI_PINS.filter(pin => pin.thinking === 'always-on').map(pin => pin.id),
 )

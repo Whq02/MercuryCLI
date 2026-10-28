@@ -277,11 +277,6 @@ export async function main(): Promise<void> {
     stopCapturingEarlyInput()
   }
   setIsInteractive(!isNonInteractive)
-  if (!stdoutTty && !runFlag && process.stdin.isTTY) {
-    writeErr(
-      'stdout is not attached to a terminal, so this run is non-interactive. Pass run to silence this note, or attach a terminal to get the interactive session.',
-    )
-  }
 
   if (!process.env.MERCURY_ENTRYPOINT) {
     const mcpIndex = process.argv.indexOf('mcp')
@@ -1235,6 +1230,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const runMode = Boolean(opts.runMode)
   const runnerDoor = opts.runner === true
 
+  if (!runMode && !runnerDoor && !process.stdout.isTTY && process.stdin.isTTY) {
+    writeErr(
+      'stdout is not attached to a terminal, so this run is non-interactive. Pass run to silence this note, or attach a terminal to get the interactive session.',
+    )
+  }
   if (!runMode && !process.stdin.isTTY) {
     if (!isNonInteractiveSession) {
       failCli(`Mercury needs a terminal: stdin is not one, so a chat cannot take your keys; for scripts use ${cliName} run -- "<prompt>"`)

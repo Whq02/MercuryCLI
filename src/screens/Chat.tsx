@@ -72,7 +72,7 @@ import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
 import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
-import { useNotifications } from '../context/notifications.js';
+import { splitWayOut, useNotifications } from '../context/notifications.js';
 import { transitionPermissionMode } from '../utils/permissions/permissionSetup.js';
 import { permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
@@ -1388,7 +1388,7 @@ export function Chat({
         if (!alive) return;
         const paint = (): void => {
           const line = hs.lastDaemonHandshake()?.line ?? null;
-          if (line !== null) addNotification({ key, text: line, priority: 'high', color: 'warning', timeoutMs: 60_000 });
+          if (line !== null) addNotification({ key, ...splitWayOut(line), priority: 'high', color: 'warning', timeoutMs: 60_000 });
           else removeNotification(key);
         };
         paint();

@@ -71,7 +71,7 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)
-  sections.push(buildToolsParagraph(embedded))
+  sections.push(buildToolsParagraph(embedded, offers))
   if (embedded) {
     sections.push(
       "The embedded `find` implementation's `-regex` uses leftmost-first alternation (unlike GNU find's leftmost-longest), so list the longest alternative first: prefer `'.*\\.tsx?'` written as `.tsx|.ts`, not `.ts|.tsx`.",
@@ -99,9 +99,16 @@ function buildOutputParagraph(): string {
   return `Output: up to ${getMaxOutputLength()} characters come back whole. A longer output is saved to a file, and you get its size, its path and about ${PREVIEW_SIZE_CHARS} characters from its start and end. A smaller \`max_output_chars\` narrows that inline budget. A non-zero exit comes back as an error ending \`Exited with code N\`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, \`[\`, which or \`command -v\`: that is a result with a label such as \`no matches found (exit code 1)\`.`
 }
 
-function buildToolsParagraph(embedded: boolean): string {
-  const search = embedded ? '' : `${GLOB_TOOL_NAME} to find files, ${GREP_TOOL_NAME} to search contents, `
-  return `Prefer the dedicated tools when they fit: ${search}${FILE_READ_TOOL_NAME} to read a file, ${FILE_EDIT_TOOL_NAME} to change one, ${FILE_WRITE_TOOL_NAME} to create one. Chain dependent commands with \`&&\` (\`;\` only when an earlier failure does not matter); a bare newline does not separate commands.`
+function buildToolsParagraph(embedded: boolean, offers: (name: string) => boolean): string {
+  const roads: Array<[string, string]> = [
+    ...(embedded ? [] : [[GLOB_TOOL_NAME, 'to find files'], [GREP_TOOL_NAME, 'to search contents']] as Array<[string, string]>),
+    [FILE_READ_TOOL_NAME, 'to read a file'],
+    [FILE_EDIT_TOOL_NAME, 'to change one'],
+    [FILE_WRITE_TOOL_NAME, 'to create one'],
+  ]
+  const named = roads.filter(([name]) => offers(name)).map(([name, road]) => `${name} ${road}`)
+  const prefer = named.length > 0 ? `Prefer the dedicated tools when they fit: ${named.join(', ')}. ` : ''
+  return `${prefer}Chain dependent commands with \`&&\` (\`;\` only when an earlier failure does not matter); a bare newline does not separate commands.`
 }
 
 function brushShellParagraphs(): string[] {

@@ -63,7 +63,7 @@ try {
     check(`${tag}: the pane's first interior row is the berth card's top edge, never a title`, top >= 0 && /^\s*╭/.test((lines[top + 1] ?? '').slice(left + 1, rightEdge)), lines[top + 1] ?? '')
     check(`${tag}: the view's bottom border sits directly above the status row`, bottom > top && status === bottom + 1, `pane bottom ${bottom}, status row ${status}`)
     const statusRow = lines[status] ?? ''
-    check(`${tag}: the status row rests on the state words (ready, or not signed in · /logins on a keyless capture) · the model · the effort and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready|not signed in · /logins) · [^·]+ · [^·]+ {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), statusRow)
+    check(`${tag}: the status row rests on the state words · the model · the effort (ready · the model · its effort; or, on a keyless capture, not signed in · /logins · choose a model, which carries no effort) and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready · [^·]+ · [^·]+|not signed in · /logins · choose a model) {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), statusRow)
     const below = lines.slice(bottom + 1).filter(line => (/[│╭╮╰╯]/.test(line.slice(0, left)) || /[│╭╮╰╯]/.test(line.slice(rightEdge + 1))) && !(line.length === cols && /^[╭│╰].*[╮│╯]$/.test(line)))
     check(`${tag}: nothing of the rails paints below the pane's bottom border (the rails end where the view ends)`, below.length === 0, below[0] ?? '')
   }

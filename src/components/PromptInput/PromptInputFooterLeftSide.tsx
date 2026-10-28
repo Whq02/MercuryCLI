@@ -33,7 +33,7 @@ import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snap
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
-import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } from './Notifications.js'
+import { NoticeWords, noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText, noticeRowWayOut } from './Notifications.js'
 import { standsUntilRemoved } from '../../context/notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -100,6 +100,7 @@ export function PromptInputFooterLeftSide({
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
   const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
+  const noticeWayOut = noticeText !== null ? noticeRowWayOut(currentNotice) : null
   const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
   const blockRows = noticeBlock === null ? 0 : noticeBlockRows(currentNotice)
   const prStatus = usePrStatus(
@@ -324,10 +325,7 @@ export function PromptInputFooterLeftSide({
       ) : null}
       {noticeStands && noticeText !== null ? (
         <Box flexShrink={1} minWidth={0} flexWrap="wrap" height={1} overflow="hidden">
-          <Text dimColor wrap="truncate-end">
-            {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
-            {noticeText}
-          </Text>
+          <NoticeWords seam={rowHasContent} words={noticeText} wayOut={noticeWayOut} muted={tokens.textMuted} />
           {noticeDetail !== null ? (
             <Text dimColor wrap="truncate-end">
               <Text color={tokens.textMuted}> · </Text>

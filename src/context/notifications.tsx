@@ -17,6 +17,7 @@ type BaseNotification = {
 
 type TextNotification = BaseNotification & {
   text: string
+  wayOut?: string
   detail?: string
   color?: keyof Theme
 }
@@ -26,6 +27,14 @@ type JSXNotification = BaseNotification & {
 }
 
 export type Notification = TextNotification | JSXNotification
+
+export const NOTICE_SEAM = ' · '
+
+export function splitWayOut(line: string): { text: string; wayOut?: string } {
+  const at = line.lastIndexOf(NOTICE_SEAM)
+  if (at <= 0 || at + NOTICE_SEAM.length >= line.length) return { text: line }
+  return { text: line.slice(0, at), wayOut: line.slice(at + NOTICE_SEAM.length) }
+}
 
 const DEFAULT_TIMEOUT_MS = 8000
 

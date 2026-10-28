@@ -394,7 +394,7 @@ export function olderDaemonRefusalLine(verb: string, needs: number, daemon: { pr
     daemon === null
       ? 'the daemon is an older build'
       : `the daemon is an older build (protocol ${daemon.proto}${daemon.version !== null ? `, v${daemon.version}` : ''}; this Mercury speaks ${MERCURY_DAEMON_PROTO})`
-  return `${who}: \`${verb}\` needs protocol ${needs}; ${restartDaemonWords()}`
+  return `${who}: \`${verb}\` needs protocol ${needs} · ${restartDaemonWords()}`
 }
 
 function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {

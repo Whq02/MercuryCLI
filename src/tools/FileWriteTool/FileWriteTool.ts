@@ -30,6 +30,7 @@ import {
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { controlCharacterPathRefusal, expandPath, hasControlCharacter } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
@@ -218,16 +219,18 @@ export const FileWriteTool = buildTool({
     const expandedPath = expandPath(input.file_path)
     const parentDir = dirname(expandedPath)
 
-    try {
-      const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
-      const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
-      for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
-      if (fresh.length > 0) {
-        void Promise.resolve(addSkillDirectories(fresh)).catch(() => undefined)
+    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+      try {
+        const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
+        const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
+        for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
+        if (fresh.length > 0) {
+          void Promise.resolve(addSkillDirectories(fresh)).catch(() => undefined)
+        }
+        activateConditionalSkillsForPaths([expandedPath], getCwd())
+      } catch (err) {
+        logError(err)
       }
-      activateConditionalSkillsForPaths([expandedPath], getCwd())
-    } catch (err) {
-      logError(err)
     }
     context.nestedMemoryAttachmentTriggers?.add(expandedPath)
 

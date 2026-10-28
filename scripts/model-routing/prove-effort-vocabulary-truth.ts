@@ -47,7 +47,7 @@ console.log('the effort truth names the tier the wire carries — documented-voc
 section('§1 Kimi K3: the truth steps through the wire\'s vocabulary (low | high | max)')
 {
   const medium = effort.resolveEffortTruth('kimi-k3', 'medium')
-  check("MEDIUM DISPATCHES LOW, AND THE TRUTH SAYS SO (the base displayed 'medium')", medium.wire === 'low' && medium.label === 'low' && medium.applied === 'low', JSON.stringify(medium))
+  check("MEDIUM DISPATCHES HIGH, AND THE TRUTH SAYS SO (the base displayed 'medium'; kimi.com/code/docs/en/kimi-code/models.html, 2026-10-28, maps medium to high)", medium.wire === 'high' && medium.label === 'high' && medium.applied === 'high', JSON.stringify(medium))
   check('…with adjustedFrom naming the request', medium.adjustedFrom === 'medium')
   check('…and the wire builder agrees byte for byte', moonshotWire('medium') === medium.wire, `wire builder: ${String(moonshotWire('medium'))}`)
   for (const level of LEVELS) {
@@ -102,7 +102,7 @@ section('§3 GLM per model: glm-5.3 steps, glm-5.2 keeps its set, an undocumente
 
 section('§4 the projections every surface reads agree with the truth')
 {
-  check("the chip's word for medium on kimi-k3 is low", effort.getDisplayedEffortLevel('kimi-k3', 'medium') === 'low')
+  check("the chip's word for medium on kimi-k3 is high (the step Kimi documents)", effort.getDisplayedEffortLevel('kimi-k3', 'medium') === 'high')
   check("the chip's word for xhigh on glm-5.3 is high", effort.getDisplayedEffortLevel('glm-5.3', 'xhigh') === 'high')
   check('the applied value follows the wire', effort.resolveAppliedEffort('deepseek-flash', 'medium') === 'low')
   check('the selectable stops on kimi-k3 carry no medium', !effort.selectableEffortLevels('kimi-k3').includes('medium'))

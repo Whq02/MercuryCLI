@@ -34,6 +34,7 @@ import {
   isGlmModelId,
 } from '../../services/providers/zai/glmPins.js'
 import {
+  KIMI_EFFORT_STEPS,
   isKimiModelId,
   kimiDefaultEffort,
   kimiDisplayPin,
@@ -262,6 +263,7 @@ export type EffortVocabularyView =
       defaultEffort?: string
       thinkingGated: boolean
       thinkingOffWire?: string
+      steps?: Readonly<Record<string, string>>
     }
   | { kind: 'offered'; source: 'gpt-unstated' | 'gpt-unavailable'; defaultEffort?: string }
   | {
@@ -339,7 +341,7 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
     const vocabulary = kimiEffortsFor(model)
     const defaultEffort = kimiDefaultEffort(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'kimi', vocabulary: [...vocabulary], ...(defaultEffort !== undefined ? { defaultEffort } : {}), thinkingGated: false }
+      ? { kind: 'provider', source: 'kimi', vocabulary: [...vocabulary], ...(defaultEffort !== undefined ? { defaultEffort } : {}), thinkingGated: false, steps: KIMI_EFFORT_STEPS }
       : { kind: 'none', source: 'kimi' }
   }
   if (isDeepseekModelId(model) || route === 'deepseek') {

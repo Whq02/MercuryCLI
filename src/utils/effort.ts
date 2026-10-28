@@ -309,7 +309,9 @@ function resolveEffortTruthWithEnv(
         ? undefined
         : vocabulary.includes(request)
           ? request
-          : nearestSupportedWireEffort(request, [...vocabulary])
+          : view.steps?.[request] !== undefined && vocabulary.includes(view.steps[request]!)
+            ? view.steps[request]
+            : nearestSupportedWireEffort(request, [...vocabulary])
     const adjustedFrom =
       !thinkingOff && request !== undefined && isEffortLevel(request) && request !== wire ? request : undefined
     const applied = wire !== undefined && isEffortLevel(wire) ? wire : undefined

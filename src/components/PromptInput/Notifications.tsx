@@ -52,6 +52,32 @@ export function noticeRowDetail(current: Notification | null): React.ReactNode |
   return current.color === undefined ? current.detail : <Text color={current.color}>{current.detail}</Text>
 }
 
+export function noticeRowWayOut(current: Notification | null): React.ReactNode | null {
+  if (current === null || 'jsx' in current || current.wayOut === undefined || current.wayOut === '') return null
+  return current.color === undefined ? current.wayOut : <Text color={current.color}>{current.wayOut}</Text>
+}
+
+export function NoticeWords({ seam, words, wayOut, muted }: { seam: boolean; words: React.ReactNode; wayOut: React.ReactNode | null; muted: string }): React.ReactNode {
+  return (
+    <Box flexShrink={1} minWidth={0}>
+      <Box flexShrink={1} minWidth={0}>
+        <Text dimColor wrap="truncate-end">
+          {seam ? <Text color={muted}> · </Text> : null}
+          {words}
+        </Text>
+      </Box>
+      {wayOut !== null ? (
+        <Box flexShrink={0} maxWidth="100%">
+          <Text dimColor wrap="truncate-end">
+            <Text color={muted}> · </Text>
+            {wayOut}
+          </Text>
+        </Box>
+      ) : null}
+    </Box>
+  )
+}
+
 const NOTICE_BLOCK_MAX_ROWS = 3
 
 function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {

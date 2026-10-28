@@ -1,5 +1,5 @@
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
-import { kimiAcceptsEffort, kimiEffortsFor } from '../moonshot/kimiPins.js'
+import { kimiEffortsFor, kimiWireEffort } from '../moonshot/kimiPins.js'
 import {
   deepseekAcceptsEffort,
   DEEPSEEK_EFFORTS,
@@ -49,9 +49,7 @@ export function buildMoonshotExtras(args: LaneExtrasArgs): Record<string, unknow
   const vocabulary = kimiEffortsFor(args.wireModel)
   const wireEffort =
     args.effortValue !== undefined && vocabulary.length > 0
-      ? kimiAcceptsEffort(args.wireModel, args.effortValue)
-        ? args.effortValue
-        : nearestSupportedWireEffort(args.effortValue, [...vocabulary])
+      ? kimiWireEffort(args.wireModel, args.effortValue) ?? nearestSupportedWireEffort(args.effortValue, [...vocabulary])
       : undefined
   return {
     stream_options: { include_usage: true },
