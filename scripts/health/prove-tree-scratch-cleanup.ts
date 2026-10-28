@@ -30,7 +30,10 @@ writeFileSync(join(repo, 'big.heapsnapshot'), 'x'.repeat(1024 * 1024))
 
 const slowBin = join(world, 'bin')
 mkdirSync(slowBin)
-writeFileSync(join(slowBin, 'git'), `#!/bin/sh\nif [ "$1" = "add" ]; then sleep 30; exit 0; fi\nexec ${JSON.stringify(realGit)} "$@"\n`)
+writeFileSync(
+  join(slowBin, 'git'),
+  `#!/bin/sh\nsub=""; for w in "$@"; do case "$w" in -c|-C|--exec-path|--git-dir|--work-tree|--namespace|--config-env) skip=1; continue;; esac; if [ "\${skip:-0}" = 1 ]; then skip=0; continue; fi; case "$w" in -*) continue;; esac; sub="$w"; break; done\nif [ "$sub" = "add" ]; then sleep 30; exit 0; fi\nexec ${JSON.stringify(realGit)} "$@"\n`,
+)
 chmodSync(join(slowBin, 'git'), 0o755)
 
 const scratchStores = (): string[] => (existsSync(scratchTmp) ? readdirSync(scratchTmp).filter(name => name.startsWith('gate-tree-')) : [])
