@@ -136,7 +136,8 @@ for (const [cols, rows] of sizes) {
     const out = join(scratch, `${tag}-grid.json`)
     const cfgPath = join(scratch, `${tag}-vshot.json`)
     const sends = [
-      { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
+      { atTick: 40, awaitText: FACE_READY, minTick: 3, requireAwait: true, data: '' },
+      { atTick: 40, awaitText: '❯', awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 120, awaitText: CHAT_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
     ]
     writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: fixtureCwd, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
