@@ -369,13 +369,13 @@ section('P6 the automatic road (the seat and the cockpit over the fixture projec
   })
   turns.set('auto fold turn', async onMessage => {
     onMessage(turnRow())
+    check('the automatic turn is in flight before its fold starts', await until(() => live().inFlight), j(live()))
     await withFoldStatus(
       foldContext() as never,
       async scoped => {
         scoped.onCompactProgress?.({ type: 'compact_start' })
-        await until(() => live().phase === 'compacting')
+        check('the automatic fold reaches the cockpit before it is released', await until(() => live().phase === 'compacting' && fold()?.trigger === 'auto' && fold()?.exit === undefined), j({ live: live(), fold: fold() }))
         during = live()
-        await sleep(60)
         return 'auto folded'
       },
       { trigger: 'auto', sessionMemory: false, microcompaction: false },
