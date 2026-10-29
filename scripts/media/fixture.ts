@@ -79,6 +79,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5r8AAAAASUVORK5CYII=';
 let recipe = null;
 let image = png;
+let sampleParams = {};
 const server = createServer(async (req, res) => {
   let text = '';
   for await (const chunk of req) text += chunk;
@@ -98,8 +99,8 @@ const server = createServer(async (req, res) => {
     const width = source.readUInt32BE(16) * scale ** body.repeats, height = source.readUInt32BE(20) * scale ** body.repeats;
     result = { images: [{ b64_json: sizedPng(width, height) }], upscaler: body.upscaler, scale, repeats: body.repeats, width, height, output_format: 'png' };
   }
-  else if (route === 'img_gen') { image = ${options.sizedImages === true} ? sizedPng(body.width, body.height) : png; result = { id: 'fixture-job' }; }
-  else if (route === 'jobs/fixture-job') result = { status: 'completed', result: { images: [{ b64_json: image }] } };
+  else if (route === 'img_gen') { image = ${options.sizedImages === true} ? sizedPng(body.width, body.height) : png; sampleParams = { sample_method: body.sample_params.sample_method ?? 'euler_a', scheduler: body.sample_params.scheduler ?? 'discrete' }; result = { id: 'fixture-job' }; }
+  else if (route === 'jobs/fixture-job') result = { status: 'completed', result: { images: [{ b64_json: image, generation_info: { schema: 'sdcpp.generation/v1', sample_params: sampleParams } }] } };
   else { res.statusCode = 404; result = { error: route }; }
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify(result));
