@@ -23,7 +23,9 @@ export function mediaGenerationDetails(kind: MediaKind, input: Record<string, un
   const output = config.outputs ?? join(typeof input.cwd === 'string' ? input.cwd : cwd, 'media')
   const length = kind === 'video' ? ` · ${input.seconds !== undefined ? `${input.seconds} s` : `${input.frames ?? model.frames ?? (minimax ? 56 : 49)} frames`} · ${input.fps ?? model.fps ?? 24} fps` : ''
   const reference = input.reference_image ?? input.image
-  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
+  const downsize = Number(input.downsize ?? model.downsize ?? 1)
+  const saved = kind === 'image' && downsize > 1 ? ` · saved at ${Math.round(Number(width) / downsize)}×${Math.round(Number(height) / downsize)}` : ''
+  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
 }
 
 export async function readMediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, cwd: string): Promise<string> {

@@ -25,14 +25,14 @@ try {
   const rows = mediaRows(shipped, root, machine, 100 * 1024 ** 3)
   const pixel = rows.find(row => row.model.id === 'pixel-party-xl')!
   const base = rows.find(row => row.model.id === 'sdxl-base-1.0')!
-  assert.equal(pixel.words, 'pull 7.1 GB · 7.1 GB disk · 11.3 GiB memory · 96.1 s/image · fits', 'the row keeps the shape of every other row')
-  assert.equal(base.words, 'pull 7.1 GB · 7.1 GB disk · 11.3 GiB memory · — s/image · fits')
+  assert.equal(pixel.words, 'pull 7.1 GB · 7.1 GB disk · 14.2 GB during the download · 11.3 GiB memory · 96.1 s/image · fits', 'the row keeps the shape of every other row and names what the download needs while it runs')
+  assert.equal(base.words, 'pull 7.1 GB · 7.1 GB disk · 14.2 GB during the download · 11.3 GiB memory · — s/image · fits')
   assert.equal(pixel.bytes, 7105317250)
   assert.equal(pixel.pullBytes, 7105317250)
   assert.equal(pixel.model.license, 'CreativeML OpenRAIL-M')
   assert.equal(base.model.license, 'CreativeML Open RAIL++-M')
   const tight = mediaRows(shipped, root, machine, 12 * 1e9).find(row => row.model.id === 'pixel-party-xl')!
-  assert.equal(tight.words, 'pull 7.1 GB · 7.1 GB disk · 11.3 GiB memory · 96.1 s/image · needs disk space', 'the download and the join both have to fit: 14.2 GB during the download')
+  assert.equal(tight.words, 'pull 7.1 GB · 7.1 GB disk · 14.2 GB during the download · 11.3 GiB memory · 96.1 s/image · needs disk space', 'the download and the join both have to fit: 14.2 GB during the download')
   assert.equal(tight.fit.diskFits, false)
   assert.equal(mediaRows(shipped, root, machine, 15 * 1e9).find(row => row.model.id === 'pixel-party-xl')!.fit.diskFits, true)
   assert.equal(mediaRows(shipped, root, { totalMemoryBytes: 16 * 1024 ** 3, usableMemoryBytes: 12 * 1024 ** 3 }, 100 * 1024 ** 3).find(row => row.model.id === 'pixel-party-xl')!.fit.fits, false)
@@ -62,7 +62,7 @@ try {
   assert.equal(plan.source, 'huggingface.co/pixelparty/pixel-party-xl, huggingface.co/stabilityai/stable-diffusion-xl-base-1.0, huggingface.co/madebyollin/sdxl-vae-fp16-fix')
   assert.equal(mediaPullPlan(snapshot, 'sdxl-base-1.0').license, 'CreativeML Open RAIL++-M')
   const details = mediaGenerationDetails('image', { model: 'pixel-party-xl', prompt: 'cute dragon' }, shipped, { imageModel: 'z-image-turbo' }, root)
-  assert.equal(details, `pixel-party-xl\n1024×1024 · 25 steps\nOutput: ${root}/media\nPrompt: cute dragon`)
+  assert.equal(details, `pixel-party-xl\n1024×1024 · 25 steps · saved at 128×128\nOutput: ${root}/media\nPrompt: cute dragon`)
   const unlisted = parseMediaCatalogue({ ...bundled, runtime: { ...bundled.runtime, families: [] } })
   assert.equal(unlisted.models.map(model => model.id).includes('pixel-party-xl'), false, 'a runtime that lists no family keeps the rows off every screen')
   assert.throws(() => mediaGenerationDetails('image', { model: 'pixel-party-xl', prompt: 'cute dragon' }, unlisted, { imageModel: 'z-image-turbo' }, root), /Choose the image model in \/imagesetup/)

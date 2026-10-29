@@ -8,7 +8,7 @@ const FileSchema = z.object({ path: z.string().min(1), bytes: positive, repo: z.
 const ModelSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i), kind: z.enum(['image', 'video']), license: z.string().trim().min(1),
   recipe: z.string().optional(), steps: positive, multiple: positive,
-  width: positive.optional(), height: positive.optional(), fps: positive.optional(), frames: positive.optional(),
+  width: positive.optional(), height: positive.optional(), fps: positive.optional(), frames: positive.optional(), downsize: positive.optional(),
   residentBytes: positive.optional(), peakBytes: positive.optional(), peakMetalBytes: positive.optional(), secondsPerImage: z.number().finite().nonnegative().optional(),
   licenseNotice: z.string().optional(), paramsBackend: z.string().optional(),
   checkpoint: z.object({ bytes: positive.optional() }).passthrough().optional(),
