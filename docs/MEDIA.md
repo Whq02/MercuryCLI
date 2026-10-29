@@ -475,3 +475,64 @@ the request fields are the runtime's
 [`img_gen` fields](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1img_gen):
 `clip_skip`, `strength`, `seed`, `sample_params.guidance.txt_cfg`, the
 `lora` array and the `init_image`, `mask_image` and `control_image` inputs.
+
+## Pipelines
+
+Save an editable image pipeline as `<name>.pipeline.json` in your project,
+beside its `media/` folder. Named steps can use local files or the outputs of
+earlier steps. A run writes its images and a record under the project's
+`media/`, even when another output folder is configured. It leaves the
+pipeline file unchanged.
+
+```json
+{
+  "version": 1,
+  "name": "Small landscape",
+  "steps": [
+    {"id": "draw", "kind": "generate", "inputs": {"prompt": "a small landscape", "seed": 7}},
+    {"id": "small", "kind": "downsize", "inputs": {"image": {"step": "draw", "output": "image"}, "factor": 2}},
+    {"id": "save", "kind": "output", "inputs": {"image": {"step": "small", "output": "image"}}}
+  ]
+}
+```
+
+| Tool | What it does |
+| --- | --- |
+| `pipeline_describe` | Without a pipeline, lists project pipeline files, the schema and step kinds. With `pipeline`, describes its steps and outputs. |
+| `pipeline_validate` | Checks a pipeline and returns every error with its step id and field. |
+| `pipeline_run` | Runs the whole pipeline, or starts at `step`. `dry: true` returns the plan without rendering or writing files. |
+| `pipeline_import_workflow` | Reads `workflow`, a ComfyUI file, and returns an editable pipeline. Optional `name` sets its name; `destination` saves it without overwriting a file. |
+| `pipeline_export_workflow` | Writes `pipeline` to `destination` as a ComfyUI API workflow. Refuses every unmappable step by id and kind; never overwrites a file. |
+
+`pipeline` accepts a file path or the document itself. `cwd` defaults to the
+session's project. For example, `{"pipeline":"landscape.pipeline.json","dry":true}`
+plans a run; `{"pipeline":"landscape.pipeline.json","step":"small","wait":true}`
+runs from `small` and waits for its image. Otherwise the run returns a job id;
+use `media_jobs` and `media_result` for progress and results.
+
+The step kinds are `generate`, `edit`, `control`, `upscale`, `downsize`,
+`palette`, `sheet`, `file`, `output` and `workflow-import`. Generation steps
+accept the image settings from `image_generate`; edit needs a reference,
+and control needs its control image and kind. `file` copies a local image
+into the run; `output` selects an image to return. `workflow-import` expands
+a ComfyUI file into inspectable steps through the workflow mapper.
+
+Every step offers `image`, a single path, and `images`, an array of paths.
+Use `{"step":"draw","output":"image"}` as an image input, or an `images`
+reference for a sheet. References must name an earlier step and the right
+output type. Unsupported kinds, fields and references are refused by step
+id rather than omitted.
+
+A run from `step` reuses earlier outputs only while their inputs and saved
+file hashes still match. Changed or missing ancestors run again; the chosen
+step and later steps always run again. `resume` selects an earlier run record
+explicitly; otherwise Mercury uses the latest compatible record. A whole
+run does not reuse earlier results.
+
+The Local image card includes `Pipeline: <name> · step <id>`. Results carry
+the selected `outputs`, every step's saved paths in `steps[].files`, and
+`recordPath`, the saved `media/pipeline-<run-id>.json`. The record retains the
+pipeline document and hash, step settings, models,
+seeds, saved file hashes and failures. Editing the source does not change
+that record. A pipeline with several renders or post-processing that ComfyUI
+cannot express is refused on export, with the affected step ids.
