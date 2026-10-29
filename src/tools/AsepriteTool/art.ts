@@ -48,6 +48,10 @@ const artSchema = () => z.discriminatedUnion('op', [
 export type ArtResult = { result: string; preview?: { path: string; base64: string; width: number; height: number; frames: number[] } }
 export function isArtOp(op: string): boolean { return (ART_OPS as readonly string[]).includes(op) }
 export function isArtRead(op: string): boolean { return op === 'render' || op === 'describe' || op === 'palette-check' }
+export function artInputError(input: unknown): string | undefined {
+  const parsed = artSchema().safeParse(input)
+  return parsed.success ? undefined : parsed.error.issues.map(issue => `${issue.path.join('.') || 'input'}: ${issue.message}`).join('; ')
+}
 export function artAsk(input: unknown): string {
   const p = artSchema().parse(input)
   if (p.op !== 'draw' && p.op !== 'parts') throw new Error('not a mutation')

@@ -23,7 +23,7 @@ import {
   userFacingName,
 } from './UI.js'
 
-import { ART_OPS, artAsk, artFields, isArtOp, isArtRead, runArt, type ArtResult } from './art.js'
+import { ART_OPS, artAsk, artFields, artInputError, isArtOp, isArtRead, runArt, type ArtResult } from './art.js'
 
 const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
 
@@ -423,6 +423,10 @@ export const AsepriteTool = buildTool({
     return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
   },
   async checkPermissions(input: Input) {
+    if (isArtOp(input.op)) {
+      const error = artInputError(input)
+      if (error) return { behavior: 'deny' as const, message: error, decisionReason: { type: 'other' as const, reason: error } }
+    }
     if (isArtRead(input.op)) return { behavior: 'allow' as const, updatedInput: input }
     if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
     if (input.op === 'status' || input.op === 'info') {
@@ -450,6 +454,10 @@ export const AsepriteTool = buildTool({
     }
   },
   async validateInput(input: Input) {
+    if (isArtOp(input.op)) {
+      const error = artInputError(input)
+      if (error) return { result: false as const, message: error, errorCode: 1 }
+    }
     if (!input.op || String(input.op).trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }
     }
@@ -464,7 +472,7 @@ export const AsepriteTool = buildTool({
         result = `${input.op}: aseprite is unavailable — ${resolution.note}\n${ASEPRITE_INSTALL_REMEDY}`
       } else result = await runOp(input)
     } catch (err) {
-      result = `${input.op} failed: ${(err as Error).message}\n${ASEPRITE_INSTALL_REMEDY}`
+      result = `${input.op} failed: ${(err as Error).message}${isArtOp(input.op) ? '' : `\n${ASEPRITE_INSTALL_REMEDY}`}`
     }
     const output: Output = { op: input.op, result }
     return { data: output }
