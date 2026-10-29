@@ -933,7 +933,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const alwaysLoad = meta['anthropic/alwaysLoad'] === true
   const qualifiedName = buildMcpToolName(serverName, toolName)
   const modelFacingName = wireSafeMcpToolName(serverName, toolName)
-  const rawDescription = sdkTool.description ?? ''
+  const rawDescription = (sdkTool.description ?? '') + (serverName === 'ext:mercury-media:engine' && toolName === 'pipeline_describe' ? ' Without a pipeline, also lists project .pipeline.json files.' : '')
   const description = withMcpToolCardHeader(serverName, rawDescription, annotations)
   const inputJSONSchema = sdkTool.inputSchema
   const effectiveMaxPermission = (client.config as ToolWithPermissions).toolPermissions?.[toolName]
@@ -975,10 +975,14 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       parentMessage: AssistantMessage,
       onProgress?: (progress: unknown) => void,
     ) => {
+      const pipeline = serverName === 'ext:mercury-media:engine' && toolName.startsWith('pipeline_') ? await import('../media/pipeline.js') : undefined
+      const restored = restoreRenamedArgumentKeys(modelFacingName, args)
+      const input = pipeline ? pipeline.mediaPipelineArguments(serverName, toolName, restored, getCwd()) : restored
+      const discovery = pipeline ? await pipeline.mediaPipelineDiscoveryContent(serverName, toolName, input, getCwd()) : []
       const invoke = () => callMCPToolWithUrlElicitationRetry({
         client,
         tool: toolName,
-        args: restoreRenamedArgumentKeys(modelFacingName, args),
+        args: input,
         toolDefinition: sdkTool,
         signal: context.abortController.signal,
         parentMessage,
@@ -995,7 +999,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       const result = await (isMercuryServer(client.name)
         ? withMercuryLeaseHolder(context.agentId, invoke)
         : invoke())
-      return { data: result.content }
+      return { data: discovery.length ? [...(Array.isArray(result.content) ? result.content : typeof result.content === 'string' ? [{ type: 'text' as const, text: result.content }] : []), ...discovery] : result.content }
     },
     userFacingName: () => displayName,
   } as unknown as Tool

@@ -10,7 +10,7 @@ import { mediaConfigModule, mediaRoot, mediaWorkflowModule, readMediaSettings, M
 
 export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | undefined {
   if (tool.mcpInfo?.serverName !== MEDIA_SERVER_NAME) return undefined
-  return tool.mcpInfo.toolName === 'image_generate' ? 'image' : tool.mcpInfo.toolName === 'video_generate' ? 'video' : undefined
+  return ['image_generate', 'pipeline_run'].includes(tool.mcpInfo.toolName) ? 'image' : tool.mcpInfo.toolName === 'video_generate' ? 'video' : undefined
 }
 
 export function mediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, catalogue: MediaCatalogue, config: MediaConfig, cwd: string): string {
@@ -60,7 +60,7 @@ export async function readMediaGenerationDetails(kind: MediaKind, input: Record<
 
 export type MediaTestImage = { path: string; png: Buffer }
 export async function generateMediaTestImage(model: string, context: LocalJSXCommandContext, controller: AbortController, onStart?: () => void): Promise<MediaTestImage> {
-  const tool = (context.options.refreshTools?.() ?? context.options.tools).find(tool => mediaGenerationKind(tool) === 'image')
+  const tool = (context.options.refreshTools?.() ?? context.options.tools).find(tool => mediaGenerationKind(tool) === 'image' && tool.mcpInfo?.toolName === 'image_generate')
   if (!tool || !context.canUseTool) throw new Error('Turn on Local media in /config, then reopen /imagesetup in a session.')
   const input = { model, prompt: 'A red apple on a wooden table, soft daylight', width: 256, height: 256, wait: true, cwd: getCwd() }
   const id = randomUUID()
