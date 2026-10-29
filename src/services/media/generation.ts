@@ -15,7 +15,7 @@ export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | un
 export function mediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, catalogue: MediaCatalogue, config: MediaConfig, cwd: string): string {
   const slot = kind === 'image' ? 'imageModel' : 'videoModel'
   const id = typeof input.model === 'string' ? input.model : config[slot]
-  const model = catalogue.models.find(row => row.id === id && row.kind === kind)
+  const model = catalogue.models.find(row => row.id === id && row.kind === kind && !row.control)
   if (!model) throw new Error(`Choose the ${kind} model in /imagesetup.`)
   const minimax = (model.recipe ?? model.id) === 'minimax-h3-fl2va'
   const width = input.width ?? model.width ?? (kind === 'image' ? 1024 : minimax ? 864 : 1280)
@@ -25,7 +25,7 @@ export function mediaGenerationDetails(kind: MediaKind, input: Record<string, un
   const reference = input.reference_image ?? input.image
   const downsize = Number(input.downsize ?? model.downsize ?? 1)
   const saved = kind === 'image' && downsize > 1 ? ` · saved at ${Math.round(Number(width) / downsize)}×${Math.round(Number(height) / downsize)}` : ''
-  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
+  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}${kind === 'image' ? ` · strength ${input.strength ?? 0.75}${typeof input.mask === 'string' ? ` · mask ${input.mask}` : ''}` : ''}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
 }
 
 export async function readMediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, cwd: string): Promise<string> {

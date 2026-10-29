@@ -65,7 +65,7 @@ export function MediaConfigPicker({ menu, media, rows, width, onClose }: { menu:
   const kind = menu === 'media-image' ? 'image' : 'video'
   const key = kind === 'image' ? 'imageModel' : 'videoModel'
   const current = media.settings[key] ?? media.config[key]
-  const models = media.catalogue?.models.filter(model => model.kind === kind) ?? []
+  const models = media.catalogue?.models.filter(model => model.kind === kind && !model.control) ?? []
   if (!models.length) return <Box flexDirection="column"><Text>{media.error || 'Open /imagesetup to choose a model.'}</Text><Select options={[{ label: 'Back', value: 'back' }]} onChange={onClose} onCancel={onClose} /></Box>
   return <Select visibleOptionCount={Math.max(1, rows)} options={models.map(model => ({ label: `${model.id} · ${model.license}`, value: model.id }))} {...(current ? { defaultValue: current, defaultFocusValue: current } : {})} onChange={model => { media.change({ [key]: model }); onClose() }} onCancel={onClose} />
 }

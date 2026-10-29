@@ -66,7 +66,7 @@ export async function saveMediaSettings(patch: MediaSettings): Promise<void> {
     const catalogue = await readMediaCatalogue(next)
     for (const kind of ['image', 'video'] as const) {
       const model = patch[kind === 'image' ? 'imageModel' : 'videoModel']
-      if (model !== undefined && !catalogue.models.some(row => row.id === model && row.kind === kind)) throw new Error(`Choose a ${kind} model from /imagesetup.`)
+      if (model !== undefined && !catalogue.models.some(row => row.id === model && row.kind === kind && !row.control)) throw new Error(`Choose a ${kind} model from /imagesetup.`)
     }
   }
   const slots: MediaConfig = {

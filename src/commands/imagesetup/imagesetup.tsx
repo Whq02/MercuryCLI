@@ -6,7 +6,7 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import { imageToCells } from '../../services/visual/imageDisplay.js'
 import { gibWords } from '../../services/localServer/localServerMemory.js'
-import { mediaPullPlan, mediaProgressWords, mediaRuntimeRowWords, mediaSizeWords, pullMedia, readMediaSnapshot, runMediaSetup, MediaSetupPaused, type MediaPullPlan, type MediaSnapshot } from '../../services/media/setup.js'
+import { mediaAddPlan, mediaAddSource, mediaPullPlan, mediaProgressWords, mediaRuntimeRowWords, mediaSizeWords, pullMedia, readMediaSnapshot, runMediaSetup, MediaSetupPaused, type MediaPullPlan, type MediaSnapshot } from '../../services/media/setup.js'
 import { saveMediaSettings, readMediaSettings } from '../../services/media/settings.js'
 import { generateMediaTestImage, type MediaTestImage } from '../../services/media/generation.js'
 import { openSettingsPopup, closeSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
@@ -28,7 +28,7 @@ export function imageSetupIo(context: LocalJSXCommandContext): ImageSetupIo {
     read: () => readMediaSnapshot(),
     pull: async (args, onProgress, signal, settings) => {
       await runMediaSetup(args, onProgress, signal, settings)
-      if (args[0] !== 'pull-model' || readMediaSettings().enabled) return
+      if (!['pull-model', 'add-model'].includes(args[0] ?? '') || readMediaSettings().enabled) return
       await saveMediaSettings({ enabled: true })
       const pending = reloadExtensions({ onServersChanged: () => context.setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })) })
       noteReloaded(pending)
@@ -40,7 +40,7 @@ export function imageSetupIo(context: LocalJSXCommandContext): ImageSetupIo {
   }
 }
 
-export function ImageSetupBody({ geometry, io, preview, initialError }: { geometry: SettingsPopupGeometry; io: ImageSetupIo; preview?: MediaTestImage; initialError?: string }): React.ReactNode {
+export function ImageSetupBody({ geometry, io, preview, initialError, initialSource }: { geometry: SettingsPopupGeometry; io: ImageSetupIo; preview?: MediaTestImage; initialError?: string; initialSource?: string }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const tokens = useMercuryTokens()
   const pastOpen = useOpenEventGate()
@@ -94,6 +94,25 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
       if (alive.current) { setBusy(''); setAsk(null) }
     })
   }
+  const added = React.useRef(false)
+  const pendingSource = React.useRef(initialSource)
+  const addSource = (source: string): void => {
+    if (!snapshot) return
+    perform(source, async signal => {
+      const settings = { ...readMediaSettings(), root: snapshot.root }
+      const run = (args: string[], progress: Parameters<typeof runMediaSetup>[1], signal?: AbortSignal) => io.pull(args, progress, signal, settings)
+      const plan = await mediaAddPlan(source, snapshot.root, run, signal)
+      const progress: Parameters<typeof runMediaSetup>[1] = event => { if (alive.current) setBusy(mediaProgressWords(event) || plan.title) }
+      if (plan.remote) await pullMedia(plan, plan => new Promise(resolve => { consent.current = resolve; setAsk(plan) }), run, progress, signal)
+      else await run(plan.args, progress, signal)
+      pendingSource.current = undefined
+    })
+  }
+  React.useEffect(() => {
+    if (!snapshot || !initialSource || added.current) return
+    added.current = true
+    addSource(initialSource)
+  }, [snapshot, initialSource, io])
   const row = snapshot?.rows[cursor - 1]
   useInput((input, key, event) => {
     if (key.escape) {
@@ -117,14 +136,15 @@ export function ImageSetupBody({ geometry, io, preview, initialError }: { geomet
     if (!pastOpen()) return
     if (input === 'p') {
       try {
+        if (pendingSource.current) { addSource(pendingSource.current); return }
         const plan = mediaPullPlan(snapshot, row?.model.id)
         perform(plan.title, async signal => {
           await pullMedia(plan, plan => new Promise(resolve => { consent.current = resolve; setAsk(plan) }), (args, progress, signal) => io.pull(args, progress, signal, { ...readMediaSettings(), root: plan.root }), progress => { if (alive.current) setBusy(mediaProgressWords(progress) || plan.title) }, signal)
         })
       } catch (error) { setError(String(error instanceof Error ? error.message : error)) }
-    } else if (input === 'd' && !key.ctrl && !key.meta && row) {
+    } else if (input === 'd' && !key.ctrl && !key.meta && row && !row.model.control) {
       perform(row.model.id, () => io.setDefault(row.model.kind, row.model.id))
-    } else if (input === 't' && row?.model.kind === 'image') {
+    } else if (input === 't' && row?.model.kind === 'image' && !row.model.control) {
       if (!readMediaSettings().enabled) { setError('Turn on Local media in /config.'); return }
       if (!row.installed || !snapshot.runtimeInstalled) { setError('Select the runtime and model, then press p to pull.'); return }
       closeSettingsPopup()
@@ -160,11 +180,13 @@ function ImageTestProgress({ model, controller }: { model: string; controller: A
   return <Box flexDirection="column"><Text>{model} · 256×256</Text><Text>A red apple on a wooden table, soft daylight</Text></Box>
 }
 
-export function imageSetupPopupRequest(io: ImageSetupIo, preview?: MediaTestImage, initialError?: string): SettingsPopupRequest {
-  return { view: 'imagesetup', width: columns => Math.min(110, columns), rows: 30, line: 'Local images and video', hint: IMAGE_SETUP_HINT, bodyOwnsEscape: true, body: geometry => <ImageSetupBody geometry={geometry} io={io} {...(preview ? { preview } : {})} {...(initialError ? { initialError } : {})} /> }
+export function imageSetupPopupRequest(io: ImageSetupIo, preview?: MediaTestImage, initialError?: string, initialSource?: string): SettingsPopupRequest {
+  return { view: 'imagesetup', width: columns => Math.min(110, columns), rows: 30, line: 'Local images and video', hint: IMAGE_SETUP_HINT, bodyOwnsEscape: true, body: geometry => <ImageSetupBody geometry={geometry} io={io} {...(preview ? { preview } : {})} {...(initialError ? { initialError } : {})} {...(initialSource ? { initialSource } : {})} /> }
 }
 
-export async function call(_args: string, context: LocalJSXCommandContext): Promise<LocalCommandResult> {
-  openSettingsPopup(imageSetupPopupRequest(imageSetupIo(context)))
+export async function call(args: string, context: LocalJSXCommandContext): Promise<LocalCommandResult> {
+  const io = imageSetupIo(context)
+  try { openSettingsPopup(imageSetupPopupRequest(io, undefined, undefined, mediaAddSource(args))) }
+  catch (error) { openSettingsPopup(imageSetupPopupRequest(io, undefined, error instanceof Error ? error.message : String(error))) }
   return { type: 'skip' }
 }

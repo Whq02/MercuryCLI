@@ -56,6 +56,35 @@ peak memory and runtime depend on dimensions, video length and other work on
 your computer. The table's image timings are catalogue observations, not
 promised completion times. It has no download-time estimate.
 
+## Your own checkpoints and LoRAs
+
+Use `/imagesetup add "/path/to/model.safetensors"` to register a local
+checkpoint, or name a `.gguf` file. Complete SD 1.x, SD 2.x, SDXL and SD 3
+checkpoints are recognised from their tensors, including compatible smaller
+UNets, inpainting checkpoints and SD 1.x/SDXL image-editing variants. Separate
+UNets, encoders and VAEs need a component catalogue entry instead. The row
+uses the existing controls and shows `your own file` as its licence label;
+your file still carries its publisher's terms. Disk size comes from the file;
+memory is estimated. Local files are copied into the media folder unless
+already there, leaving the original unchanged.
+
+The same command accepts a Hugging Face `resolve` link or a Civitai model
+download link. Mercury reads the header first and refuses unsupported files
+before pulling their weights. The existing download card asks for confirmation.
+The first completed pull records a SHA-256; later pulls and checkpoint loads
+check that hash. Registered rows appear on the next `media_models` call
+without reconnecting.
+
+Give `image_generate` a `loras` array to apply local LoRAs or download links:
+
+```json
+{"prompt":"A cottage beside a river","loras":[{"path":"/path/to/style.safetensors","weight":0.8}]}
+```
+
+Each LoRA must match the selected model's family. The result names the files
+and weights applied. Omit `loras`, or pass an empty array, for an image without
+LoRAs. LoRA links use the same download and hash checks as checkpoints.
+
 ## The two default slots
 
 The initial image slot is `z-image-turbo`; the initial video slot is
@@ -92,6 +121,15 @@ estimate from component sizes.
 | `minimax-h3-fl2va` | Video with audio | 35.45 GB | 33.02 GiB estimate | Unmeasured | MiniMax H3 Community |
 | `sdxl-base-1.0` | Image | 7.11 GB | 11.27 GiB estimate | Unmeasured | CreativeML Open RAIL++-M |
 | `pixel-party-xl` | Image, pixel art | 7.11 GB | 11.27 GiB | 96.11 s | CreativeML OpenRAIL-M |
+| `controlnet-sd1-canny` | Image control | 0.72 GB | 2.67 GiB estimate | Unmeasured | CreativeML OpenRAIL-M |
+| `controlnet-sd1-depth` | Image control | 0.72 GB | 2.67 GiB estimate | Unmeasured | CreativeML OpenRAIL-M |
+| `controlnet-sd1-pose` | Image control | 0.72 GB | 2.67 GiB estimate | Unmeasured | CreativeML OpenRAIL-M |
+| `controlnet-sdxl-canny` | Image control | 2.50 GB | 4.33 GiB estimate | Unmeasured | CreativeML Open RAIL++-M |
+| `controlnet-sdxl-depth` | Image control | 2.50 GB | 4.33 GiB estimate | Unmeasured | CreativeML Open RAIL++-M |
+| `controlnet-sdxl-pose` | Image control | 2.50 GB | 4.33 GiB estimate | Unmeasured | Apache-2.0 |
+
+ControlNet memory figures cover the control component; the image model also
+needs memory. Timings depend on the chosen image model and dimensions.
 
 Image timings are for 1024×1024: Z-Image at 9 steps, Klein at 4, Qwen Turbo
 at its fixed 8-step schedule, Qwen Base at 40 and Pixel Party XL at 25.
@@ -137,7 +175,7 @@ own terms.
 | `media_models` | Lists models, licences, installed sizes and defaults without loading weights. |
 | `media_status` | Reads both engines, their models, state and memory without starting them. |
 | `media_set_default` | Saves an image or video default without loading it. |
-| `image_generate` | Generates a PNG from a prompt, with a reference image when the model supports editing. |
+| `image_generate` | Generates a PNG from a prompt, with an optional reference image, denoising strength and mask. |
 | `video_generate` | Generates video from a prompt and optional starting image. Use frames or seconds, never both. |
 | `media_jobs` | Lists jobs and their generation progress. |
 | `media_result` | Reads a job's result, saved path and image or video poster; it can wait for completion. |
@@ -156,6 +194,68 @@ The **Local image** or **Local video** permission card names the effective
 model, dimensions, steps and output folder, plus the prompt and any reference.
 Video details include length and fps. An omitted model is identified as the
 default for that kind.
+
+## Reference images and masks
+
+Give `image_generate` a local PNG or JPEG as `reference_image` to start from
+an existing image. WebP is also accepted. This works with SD 1.x, SDXL,
+Z-Image, Qwen and Klein. `strength` is the denoising strength from 0 to 1,
+defaulting to 0.75; lower values keep more of the original. Klein and Qwen
+also use the image for reference conditioning. The result names the reference
+and strength.
+
+Add `mask` to repaint part of the image: a local PNG with white where you
+want paint and black where you want to keep the content. It must have the
+same dimensions as the reference. These families can use their ordinary
+weights for masked denoising; a separate inpainting checkpoint is not
+required. The engine centre-crops the reference to the requested aspect
+ratio and resizes it to the render size, using nearest-neighbour sampling;
+the mask follows the same crop with nearest-exact sampling. A changed
+reference size is reported in the result. The Local image permission card
+keeps the inputs together: `Reference: dragon.png · strength 0.6 · mask mask.png`.
+
+For example, ask to turn a horse blue using its saved PNG at strength 0.35,
+or supply a mask over its head to change just that part. Paths can be
+absolute or relative to the project's `cwd`. Both mask and strength need a
+reference image.
+
+The engine's [image preprocessing](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/docs/image_preprocessing.md)
+and [native image API](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1img_gen)
+describe the resize and mask inputs.
+
+## Guided images, batches and pixel-art palettes
+
+`image_generate` accepts `control: { image, kind, strength }` with an SD 1.5
+or SDXL checkpoint. Use `kind: "canny"` for edges computed from a PNG;
+`"depth"` and `"pose"` need a prepared depth map or pose drawing, not a photo
+that needs detection. Strength defaults to `0.9`. Pull the matching
+`controlnet-sd1-*` or `controlnet-sdxl-*` row in `/imagesetup` before the first
+render. A missing control returns the row to pull; it does not download
+weights silently. Control rows are not image defaults.
+
+The SD 1.5 rows use [lllyasviel's Canny](https://huggingface.co/lllyasviel/control_v11p_sd15_canny),
+[depth](https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth) and
+[pose](https://huggingface.co/lllyasviel/control_v11p_sd15_openpose) weights,
+about 723 MB each under CreativeML OpenRAIL-M. SDXL uses
+[Diffusers Canny](https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0)
+and [depth](https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0), under
+CreativeML Open RAIL++-M, and [Xinsir pose](https://huggingface.co/xinsir/controlnet-openpose-sdxl-1.0),
+under Apache-2.0, about 2.50 GB each. A pull prepares the weights locally,
+then removes the downloaded source; allow room for both files plus 1 GiB.
+The pull card shows the source and licence.
+
+`count` takes 1 to 16. Frames render one after another with `seed`, `seed+1`
+and so on, and each is saved. Add `sheet: { columns: 2 }` to arrange them in
+a PNG grid, left to right and then down. Columns cannot exceed the count.
+The result lists every frame path and seed; the sheet also stores the seeds
+in its PNG text metadata. `downsize` applies to each frame before the grid.
+
+`palette: 16` keeps the 16 most-used colours and maps other pixels to the
+nearest colour, without dithering. A `.gpl` or `.hex` file path uses a fixed
+palette of 2 to 256 colours instead. A `.hex` file has one `RRGGBB` colour
+per line, optionally prefixed with `#`. Palette mapping follows downsizing
+and preserves alpha. For a four-frame pixel-art sheet, use `count: 4`,
+`downsize: 4`, `palette: 16` and `sheet: { columns: 2 }`.
 
 ## Files and settings
 
@@ -195,8 +295,8 @@ for MiniMax-H3. Z-Image and Klein dimensions must be divisible by 16;
 Qwen-Image and video dimensions by 32. On Metal, video uses CPU VAE decoding
 by default while diffusion remains on the GPU.
 
-To add another local model, put entries in `<media.root>/catalog.json` and
-reconnect the extension. Each entry needs an id, kind, licence, supported
+For component models, put entries in `<media.root>/catalog.json`.
+Each entry needs an id, kind, licence, supported
 engine recipe, generation defaults and component slots; files name relative
 paths under `models/` and byte sizes. Supply memory budgets for the fit
 calculation. Place the weights at those paths yourself; adding a catalogue

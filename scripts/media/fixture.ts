@@ -78,7 +78,7 @@ const server = createServer(async (req, res) => {
   await appendFile(join(root, 'engine-calls.jsonl'), JSON.stringify({ route, body, pid: process.pid }) + '\\n');
   let result;
   if (route === 'models/status') result = { state: recipe ? 'ready' : 'empty', recipe };
-  else if (route === 'recipes') result = { recipes: [{ id: 'fixture-recipe' }] };
+  else if (route === 'recipes') result = { recipes: ['fixture-recipe', 'sd1-checkpoint', 'sd1-controlnet', 'sdxl-controlnet'].map(id => ({ id })) };
   else if (route === 'model-files') result = { files: (await readdir(join(root, 'models'))).map(path => ({ id: path, relative_path: path })) };
   else if (route === 'models/load') { recipe = body.recipe; result = { state: 'ready' }; }
   else if (route === 'models/unload') { recipe = null; result = { state: 'empty' }; }

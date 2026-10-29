@@ -8,6 +8,7 @@ const FileSchema = z.object({ path: z.string().min(1), bytes: positive, repo: z.
 const ModelSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i), kind: z.enum(['image', 'video']), license: z.string().trim().min(1),
   recipe: z.string().optional(), steps: positive, multiple: positive,
+  control: z.object({ family: z.enum(['sd1', 'sdxl']), kind: z.string().regex(/^[a-z][a-z0-9-]*$/) }).optional(),
   width: positive.optional(), height: positive.optional(), fps: positive.optional(), frames: positive.optional(), downsize: positive.optional(),
   residentBytes: positive.optional(), peakBytes: positive.optional(), peakMetalBytes: positive.optional(), secondsPerImage: z.number().finite().nonnegative().optional(),
   licenseNotice: z.string().optional(), paramsBackend: z.string().optional(),
@@ -46,17 +47,18 @@ export function mediaModelSupported(catalogue: Pick<MediaCatalogue, 'recipes' | 
   return !family || catalogue.runtime.families.includes(family.id)
 }
 
-export function mediaModelJoined(catalogue: Pick<MediaCatalogue, 'recipes' | 'runtime'>, model: Pick<MediaModel, 'id' | 'recipe'>): boolean {
+export function mediaModelJoined(catalogue: Pick<MediaCatalogue, 'recipes' | 'runtime'>, model: Pick<MediaModel, 'id' | 'recipe' | 'control' | 'checkpoint'>): boolean {
+  if (model.control && model.checkpoint) return true
   const family = catalogue.recipes.find(recipe => recipe.id === (model.recipe ?? model.id))
   return !!family?.checkpoint && catalogue.runtime.families.includes(family.id) && !catalogue.runtime.componentFamilies.includes(family.id)
 }
 
-export function mediaCheckpointFile(model: Pick<MediaModel, 'id' | 'checkpoint'>): { path: string; bytes?: number } {
-  return { path: `checkpoints/${model.id}.safetensors`, ...(model.checkpoint?.bytes === undefined ? {} : { bytes: model.checkpoint.bytes }) }
+export function mediaCheckpointFile(model: Pick<MediaModel, 'id' | 'checkpoint' | 'control'>): { path: string; bytes?: number } {
+  return { path: `${model.control ? 'controlnet' : 'checkpoints'}/${model.id}.safetensors`, ...(model.checkpoint?.bytes === undefined ? {} : { bytes: model.checkpoint.bytes }) }
 }
 
-export function mediaCheckpointInstalled(root: string, catalogue: Pick<MediaCatalogue, 'recipes'>, model: Pick<MediaModel, 'id' | 'recipe' | 'checkpoint'>): boolean {
-  if (!catalogue.recipes.find(recipe => recipe.id === (model.recipe ?? model.id))?.checkpoint) return false
+export function mediaCheckpointInstalled(root: string, catalogue: Pick<MediaCatalogue, 'recipes'>, model: Pick<MediaModel, 'id' | 'recipe' | 'checkpoint' | 'control'>): boolean {
+  if (!(model.control && model.checkpoint) && !catalogue.recipes.find(recipe => recipe.id === (model.recipe ?? model.id))?.checkpoint) return false
   const file = mediaCheckpointFile(model)
   try { const stat = statSync(modelFilePath(root, file.path)); return stat.isFile() && (file.bytes === undefined ? stat.size > 0 : stat.size === file.bytes) } catch { return false }
 }

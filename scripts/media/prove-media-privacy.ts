@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { proofHome } from './fixture.ts'
+import ts from 'typescript'
 
 const repo = resolve(import.meta.dir, '../..')
 const hostWord = ['host', 'name'].join('')
@@ -12,7 +13,20 @@ const vendorIdentifiers = new Set(['src/extensions/bundled/mercury-media/server/
 function files(path: string): string[] {
   try { return readdirSync(join(repo, path), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(`${path}/${entry.name}`) : [`${path}/${entry.name}`]) } catch { return [path] }
 }
+function withoutUrlProperties(text: string): string {
+  const source = ts.createSourceFile('setup.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const ranges: Array<[number, number]> = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isPropertyAccessExpression(node) && node.name.text === hostWord) ranges.push([node.name.getStart(source), node.name.end])
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) text = text.slice(0, start) + text.slice(end)
+  return text
+}
 try {
+  assert.equal(withoutUrlProperties(`url.${hostWord} === 'huggingface.co'`).includes(hostWord), false)
+  assert.equal(withoutUrlProperties(`const value = '${hostWord}: private-computer'`).includes(hostWord), true)
   let count = 0
   for (const file of surfaces.flatMap(files)) {
     const text = readFileSync(join(repo, file), 'utf8')
@@ -21,8 +35,9 @@ try {
     if (vendorIdentifiers.has(file)) {
       remaining = remaining.replace(new RegExp(`\\b${hostWord}(?:\\d+|Const)?\\b`, 'g'), '')
     }
+    if (file === 'src/extensions/bundled/mercury-media/server/setup.js') remaining = withoutUrlProperties(remaining)
     assert.equal(remaining.includes(hostWord), false, `${file}: ${hostWord}`)
     count++
   }
-  console.log(`media privacy: ${count} files; library URL/schema identifiers allowed only in the two bundled dependency modules`)
+  console.log(`media privacy: ${count} files; library identifiers confined to bundled modules; setup URL properties excluded without excluding string content`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

@@ -105,8 +105,25 @@ export function mediaPullPlan(snapshot: MediaSnapshot, id?: string): MediaPullPl
   const row = snapshot.rows.find(row => row.model.id === id)
   if (!row) throw new Error('Choose a model from the catalogue.')
   const files = mediaModelFiles(snapshot.catalogue, row.model)
-  if (files.some(file => !file.repo || !file.source || !file.sha256)) throw new Error('Add local model files to the models folder, then reopen /imagesetup.')
-  return { args: ['pull-model', id], title: id, bytes: row.pullBytes, license: mediaLicenseWords(row.model), source: [...new Set(files.map(file => `huggingface.co/${file.repo}`))].join(', '), root: snapshot.root }
+  if (files.some(file => (!file.url && (!file.repo || !file.source)) || !file.sha256)) throw new Error('Add local model files to the models folder, then reopen /imagesetup.')
+  return { args: ['pull-model', id], title: id, bytes: row.pullBytes, license: mediaLicenseWords(row.model), source: [...new Set(files.map(file => typeof file.url === 'string' ? file.url : `huggingface.co/${file.repo}`))].join(', '), root: snapshot.root }
+}
+
+export function mediaAddSource(args: string): string | undefined {
+  if (!args.trim()) return undefined
+  const source = args.trim().match(/^add\s+(.+)$/s)?.[1]?.trim()
+  if (!source) throw new Error('Add local model files to the models folder, then reopen /imagesetup.')
+  return source.length > 1 && ((source.startsWith('"') && source.endsWith('"')) || (source.startsWith("'") && source.endsWith("'"))) ? source.slice(1, -1) : source
+}
+
+export async function mediaAddPlan(source: string, root: string, run: MediaSetupRunner, signal?: AbortSignal): Promise<MediaPullPlan & { remote: boolean }> {
+  let info: { name: string; bytes: number; remote: boolean } | undefined
+  await run(['inspect-model', source], event => {
+    const model = event.model as { name?: unknown; bytes?: unknown; remote?: unknown } | undefined
+    if (event.event === 'done' && model && typeof model.name === 'string' && typeof model.bytes === 'number' && Number.isSafeInteger(model.bytes) && model.bytes > 0 && typeof model.remote === 'boolean') info = { name: model.name, bytes: model.bytes, remote: model.remote }
+  }, signal)
+  if (!info) throw new Error('Media setup returned an unreadable response.')
+  return { args: ['add-model', source], title: stripTerminalControls(info.name), bytes: info.remote ? info.bytes : 0, license: 'your own file', source: stripTerminalControls(source), root, remote: info.remote }
 }
 
 export async function pullMedia(plan: MediaPullPlan, consent: (plan: MediaPullPlan) => Promise<boolean>, run: MediaSetupRunner, onProgress: (event: MediaProgress) => void, signal?: AbortSignal): Promise<boolean> {

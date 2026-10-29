@@ -111,6 +111,19 @@ try {
   check('§1 the popup frame is a modal elevated surface, so a click outside reaches it as esc', overlays.anyModalOverlayActive() && overlays.overlayStackSnapshot().some(entry => entry.id === 'elevated-surface'), JSON.stringify(overlays.overlayStackSnapshot()))
   await press(m, KEY.down, 250)
   check('§1 ↓ moves the selection to the first model', selectedRow(m).includes(catalogue.models[0]!.id), selectedRow(m))
+  const controlIndex = catalogue.models.findIndex(model => model.control)
+  check('§1 the control rows are present', controlIndex >= 0)
+  for (let index = 0; index < controlIndex; index++) await press(m, KEY.down, 120)
+  const controlRow = catalogue.models[controlIndex]!
+  const beforeControlKeys = m.screen()
+  await press(m, 'd', 200)
+  await press(m, 't', 200)
+  check('§1 control rows do not select a default or start an image test', m.screen() === beforeControlKeys, selectedRow(m))
+  keepFrame('01-control-row', m)
+  await press(m, 'p', 300)
+  check('§1 control rows use the existing pull card', m.screen().includes('y download · n back') && m.screen().includes(controlRow.id) && m.screen().includes(controlRow.license), selectedRow(m))
+  keepFrame('01-control-pull-card', m)
+  await press(m, KEY.esc, 250)
   await press(m, KEY.esc, 250)
   const closedByEsc = await waitFor(() => !popup.isSettingsPopupOpen(), 1500)
   await settle(300)
@@ -154,6 +167,59 @@ try {
   check('§5 one ctrl+c leaves /config open too', popup.isSettingsPopupOpen())
   await press(m, KEY.esc, 250)
   check('§5 esc closes /config', await waitFor(() => !popup.isSettingsPopupOpen(), 1500))
+  const { imageSetupPopupRequest } = await import('../../src/commands/imagesetup/imagesetup.js')
+  const { mediaRows, MediaSetupPaused } = await import('../../src/services/media/setup.js')
+  const userModel = { ...catalogue.models[0]!, id: 'user-fixture', license: 'your own file' }
+  const machine = { totalMemoryBytes: 32 * 1024 ** 3, usableMemoryBytes: 24 * 1024 ** 3 }
+  let installed = false
+  let pulls = 0
+  let pauseOnce = false
+  const io = {
+    read: async () => {
+      const data = { ...catalogue, models: installed ? [userModel] : [] }
+      return { root: proofHome, catalogue: data, rows: mediaRows(data, proofHome, machine, 64 * 1024 ** 3, () => true), config: {}, runtimeInstalled: true, runtime: mediaRuntimeChoice(data), freeBytes: 64 * 1024 ** 3, ...machine }
+    },
+    pull: async (args: string[], report: (event: import('../../src/services/media/setup.js').MediaProgress) => void, signal?: AbortSignal) => {
+      if (args[0] === 'inspect-model') { report({ event: 'done', model: { name: 'fixture.safetensors', bytes: 1234, remote: args[1]!.startsWith('https:') } }); return }
+      if (args[0] !== 'add-model') throw new Error(`Unexpected setup command: ${args[0]}`)
+      pulls++
+      if (pauseOnce) {
+        pauseOnce = false
+        await new Promise<void>((_resolve, reject) => signal!.addEventListener('abort', () => reject(new MediaSetupPaused({ event: 'cancelled', bytes: 12 })), { once: true }))
+      }
+      installed = true
+      report({ event: 'done' })
+    },
+    setDefault: async () => {},
+    test: async () => { throw new Error('No test image in the add fixture') },
+  }
+  popup.openSettingsPopup(imageSetupPopupRequest(io, undefined, undefined, join(proofHome, 'fixture.safetensors')))
+  check('§6 a local add reuses the table row and licence slot', await waitFor(() => m.screen().includes('user-fixture') && m.screen().includes('your own file'), 8000), m.screen())
+  check('§6 a local file adds once without a download card', pulls === 1 && !m.screen().includes('y download'))
+  keepFrame('04-local-add', m)
+  await press(m, KEY.esc, 250)
+  installed = false
+  const source = 'https://huggingface.co/fixture/model/resolve/main/fixture.safetensors'
+  popup.openSettingsPopup(imageSetupPopupRequest(io, undefined, undefined, source))
+  check('§7 a link reuses the existing download card', await waitFor(() => m.screen().includes('y download · n back') && m.screen().includes('1.2 KB'), 8000), m.screen())
+  check('§7 reading a header does not start a download', pulls === 1)
+  keepFrame('05-link-card', m)
+  await press(m, 'n', 250)
+  check('§7 declining the card leaves the file unregistered', pulls === 1 && !installed && !m.screen().includes('y download'))
+  await press(m, KEY.esc, 250)
+  pauseOnce = true
+  popup.openSettingsPopup(imageSetupPopupRequest(io, undefined, undefined, source))
+  await waitFor(() => m.screen().includes('y download · n back'), 8000)
+  await press(m, 'y', 300)
+  check('§8 accepting the card starts one import', pulls === 2)
+  await press(m, KEY.esc, 300)
+  check('§8 esc pauses that import without closing the table', await waitFor(() => m.screen().includes('p resumes'), 3000) && popup.isSettingsPopupOpen())
+  await press(m, 'p', 300)
+  check('§8 p resumes the same source, not the runtime row', await waitFor(() => m.screen().includes('y download · n back') && m.screen().includes('fixture.safetensors'), 3000))
+  await press(m, 'y', 300)
+  check('§8 the resumed import completes in the original row shape', await waitFor(() => m.screen().includes('user-fixture') && !m.screen().includes('y download'), 3000) && pulls === 3)
+  keepFrame('06-resumed-add', m)
+  await press(m, KEY.esc, 250)
 } finally {
   m.unmount()
 }
