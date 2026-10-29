@@ -8,7 +8,7 @@
 # gate-watch: src/services/primitives/owner.ts src/services/resources/adapters/transcript.ts
 # gate-watch: src/services/resources/registry.ts src/services/run/resolveOwner.ts
 # gate-watch: src/services/run/runContinuationCapsule.ts src/tools/GrepTool/GrepTool.ts
-# gate-watch: src/utils/attachments/contextCapsule.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/attachments/contextCapsule.ts src/utils/attachments/orchestrator.ts src/state/AppStateStore.ts src/tools/FileReadTool/FileReadTool.ts src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/processUserInput/processUserInput.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/verification/verificationState.ts
 # gate-watch: src/services/structure/tsFacility.ts src/tools/BashTool/prompt.ts

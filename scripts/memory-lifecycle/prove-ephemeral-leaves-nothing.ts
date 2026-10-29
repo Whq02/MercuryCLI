@@ -40,7 +40,7 @@ const { JOURNAL_ASK, journalPath } = await import('../../src/mneme/journal.ts')
 const { JOURNAL_DESCRIPTION, JOURNAL_PROMPT } = await import('../../src/tools/JournalTool/prompt.ts')
 const { ENTRY_PAGE_HEADING, FIRST_SESSION_LINE } = await import('../../src/mneme/entryPage.ts')
 const { mnemeProjectKeyFor, lineagePath } = await import('../../src/mneme/paths.ts')
-const { readLedger } = await import('../../src/mneme/ledger.ts')
+const { readLedger, recordHandoff } = await import('../../src/mneme/ledger.ts')
 
 section('§0 the note\'s content law: the asks name the user\'s own words, never Mercury\'s standing instructions as the user\'s constraints')
 for (const [name, text] of [['JOURNAL_ASK', JOURNAL_ASK], ['JOURNAL_DESCRIPTION', JOURNAL_DESCRIPTION], ['JOURNAL_PROMPT', JOURNAL_PROMPT]] as const) {
@@ -133,15 +133,18 @@ if (!existsSync(DIST)) {
 } else if (!nodeBin) {
   check('a node binary on PATH', false)
 } else {
-  section('§1 the control: a plain run joins the lineage — a ledger row, the ask put, the note stored')
+  section('§1 the control: a plain run joins the lineage — a ledger row, closed with no note (an unattended run makes no ask); a note left on its entry through the ledger stands as the last one')
   const one = await session(SID1, 'first probe', [
     { kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' },
     { kind: 'text', text: 'NOTE-ONE', whenBody: HANDOFF_ASK_MARK },
   ])
   check('the control run exits 0 and answers', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE'), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)}`)
-  check('the ask was put (two requests)', one.requests.length === 2 && one.requests.some(r => j(r.body).includes(HANDOFF_ASK_MARK)), String(one.requests.length))
+  check('no ask was put: the turn is the only request (the fixture\'s note turn stayed unserved)', one.requests.length === 1 && !one.requests.some(r => j(r.body).includes(HANDOFF_ASK_MARK)), String(one.requests.length))
+  const closedControl = readLedger(projectKey)
+  check('the ledger holds the control session, closed with no note', closedControl.length === 1 && closedControl[0]!.sessionId === SID1 && closedControl[0]!.endedAt !== null && closedControl[0]!.handoff === null, j(closedControl))
+  recordHandoff(projectKey, SID1, 'NOTE-ONE')
   const afterControl = readLedger(projectKey)
-  check('the ledger holds the control session with its note', afterControl.length === 1 && afterControl[0]!.sessionId === SID1 && afterControl[0]!.handoff?.text === 'NOTE-ONE', j(afterControl))
+  check('a note left on the control\'s entry through the ledger (the road an attended session\'s ask writes by) is the control\'s note', afterControl.length === 1 && afterControl[0]!.sessionId === SID1 && afterControl[0]!.handoff?.text === 'NOTE-ONE', j(afterControl))
   const ledgerBytesBefore = readFileSync(ledgerFile, 'utf8')
   const journalBefore = existsSync(journalFile) ? readFileSync(journalFile, 'utf8') : null
   const transcriptsBefore = transcriptFiles().length

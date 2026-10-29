@@ -206,7 +206,7 @@ const outcome = (run: Run): Row | undefined => run.rows.find(row => row.type ===
 const places = (run: Run): string => retryRows(run).map(row => `${row.attempt} of ${row.of}`).join(', ')
 const wire = (run: Run): string => run.seen.map(s => `#${s.n}${s.stream ? '' : '(collected)'}${s.ask ? '(the closing ask)' : ''}${s.empty ? ' empty' : ' answered'}`).join(', ')
 const turnSeen = (run: Run): Seen[] => run.seen.filter(s => !s.ask)
-const askFollowed = (run: Run): boolean => run.seen.filter(s => s.ask).length === 1 && run.seen.at(-1)?.ask === true && run.seen.at(-1)?.empty === false
+const noAskFollowed = (run: Run): boolean => run.seen.every(s => !s.ask)
 const tail = (run: Run): string => run.stderr.split('\n').filter(line => line.trim() !== '').slice(-3).join(' | ')
 const emptyNotices = (run: Run): Row[] => run.notices.filter(notice => notice.noticeKind === 'api_error' && String((notice.errorDetail as { message?: string } | undefined)?.message ?? '').includes(MARKER))
 const label: Record<Road, string> = { anthropic: 'Anthropic', deepseek: 'DeepSeek' }
@@ -220,7 +220,7 @@ async function proveAnswered(road: Road, emptyTries: number): Promise<void> {
   check('the turn settles with the answer, exit 0', run.exit === 0 && outcome(run)?.answer === ANSWER, `exit ${String(run.exit)} answer=${JSON.stringify(outcome(run)?.answer ?? outcome(run)?.error)} ${tail(run)}`)
   check('the transcript holds ONE answer and the rows paint it once', run.answers.length === 1 && run.answers[0] === ANSWER && textRows(run).length === 1, `transcript answers ${JSON.stringify(run.answers)} · text rows ${JSON.stringify(textRows(run))}`)
   check(`${emptyTries + 1} requests of the turn reached the provider, every one a stream — no collected fallback request`, turnSeen(run).length === emptyTries + 1 && turnSeen(run).every(s => s.stream), wire(run))
-  check('the closing ask followed the answer as its own request, once, and was answered', askFollowed(run), wire(run))
+  check('no closing ask followed the answer (an unattended run leaves no note)', noAskFollowed(run), wire(run))
   check(`the retry rows say ${places_} — the capacity retries' row, no new row type`, places(run) === places_ && retryRows(run).every(row => row.type === 'wait' && row.state === 'retry'), `rows: ${places(run) || '(none)'} · wire ${wire(run)}`)
   const delays = retryRows(run).map(row => Number(row.delay_ms))
   check('each wait is the capacity ladder\'s first rung with its jitter: 750 ms to 1250 ms', delays.length === emptyTries && delays.every(ms => ms >= 750 && ms <= 1250), JSON.stringify(delays))
@@ -255,12 +255,12 @@ async function proveMidAnswer(road: Road): Promise<void> {
   check('no retry row of this law (none says "of 3")', retryRows(run).every(row => row.of !== TRIES) && emptyNotices(run).length === 0, `${places(run) || '(none)'} · ${emptyNotices(run).length} empty-stream notices`)
   check('the turn still settles with the answer, exit 0', run.exit === 0 && outcome(run)?.answer === ANSWER, `exit ${String(run.exit)} ${JSON.stringify(outcome(run)?.answer ?? outcome(run)?.error)} ${tail(run)}`)
   if (road === 'anthropic') {
-    check('the second request of the turn is the collected (non-streamed) recovery, as today', turnSeen(run).length === 2 && turnSeen(run)[1]?.stream === false && askFollowed(run), wire(run))
+    check('the second request of the turn is the collected (non-streamed) recovery, as today, and no closing ask follows it', turnSeen(run).length === 2 && turnSeen(run)[1]?.stream === false && noAskFollowed(run), wire(run))
     check('its notice is the recovery notice of today: attempt 1 of 1', places(run) === '1 of 1', places(run) || '(none)')
   } else {
     const cut = run.notices.filter(notice => notice.noticeKind === 'stream_cut').map(notice => String(notice.content ?? notice.text ?? ''))
     check('the partial words stand and the continuation notice of today follows (continuation 1 of 1)', textRows(run)[0] === PARTIAL && cut.length === 1 && /continuation 1 of 1/.test(cut[0] ?? ''), `${JSON.stringify(textRows(run))} · ${JSON.stringify(cut)}`)
-    check('two streamed requests of the turn: the cut one and the continuation; then the closing ask', turnSeen(run).length === 2 && turnSeen(run).every(s => s.stream) && askFollowed(run), wire(run))
+    check('two streamed requests of the turn: the cut one and the continuation; no closing ask follows', turnSeen(run).length === 2 && turnSeen(run).every(s => s.stream) && noAskFollowed(run), wire(run))
   }
   if (failures === before) rmSync(run.home, { recursive: true, force: true })
   else console.log(`  [forensics] the world stays at ${run.home}\n${run.debug.split('\n').filter(l => /ERROR|WARN/.test(l)).slice(-8).join('\n')}`)

@@ -129,7 +129,7 @@ check('turn 2 completed', r2.stdout.includes('S16-SECOND-REPLY'), JSON.stringify
 check('the effect did NOT replay across restart', readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE')
 
 const allRequests = fixture.messageRequests()
-check('one marked closing ask follows the completed tool turn, before the resume', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, true, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
+check('no marked closing ask rides either process (an unattended run leaves no note; the fixture\'s note turn stayed unserved)', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
 const msgs = allRequests.filter(q => !isHandoffRequest(q))
 check('three model calls total (tool round = 2, resume = 1)', msgs.length === 3, String(msgs.length))
 const resumeBody = JSON.stringify(msgs[2]?.body ?? {})

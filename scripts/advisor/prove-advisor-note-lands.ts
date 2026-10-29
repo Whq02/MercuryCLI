@@ -76,7 +76,7 @@ const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSO
 const bodyText = (body: Raw): string => JSON.stringify(body.messages ?? '')
 function agentTurnRequests() {
   const all = wire.filter(w => w.kind === 'agent' || w.kind === 'handoff')
-  check('one marked closing ask follows the last agent request on the agent model, apart from the advisor', all.filter(isHandoffRequest).length === 1 && all.at(-1)?.kind === 'handoff' && all.at(-1)?.model === AGENT_MODEL, j(all.map(w => [w.model, isHandoffRequest(w)])))
+  check('no marked closing ask follows the agent requests on the agent model (an unattended run leaves no note); the advisor rides apart', all.length > 0 && all.every(w => w.kind === 'agent' && w.model === AGENT_MODEL && !isHandoffRequest(w)), j(all.map(w => [w.model, isHandoffRequest(w)])))
   return all.filter(w => !isHandoffRequest(w))
 }
 function agentReply(model: string, text: string): string {
@@ -439,7 +439,14 @@ section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back
   writeFileSync(memory, `${aged.map(r => j(r)).join('\n')}\n`)
   wire.length = 0
   agentReplies = 0
-  const resumed = await runSession(arena, SID, ['/advise', 'operator line 3', 'operator line 4'], { results: 3, label: 'three results' }, 60_000, next => next !== 2 || wire.some(w => w.kind === 'advisor'), 'resume')
+  const resumedNotes = (): number => rawRecordsOf(memory).filter(r => r.kind === 'note' && r.text === NOTE).length
+  let resumedReleasedAt = 0
+  const resumed = await runSession(arena, SID, ['/advise', 'operator line 3', 'operator line 4'], { results: 3, label: 'three results' }, 60_000, next => {
+    if (next !== 2) return true
+    if (resumedNotes() < 2) return false
+    if (resumedReleasedAt === 0) resumedReleasedAt = Date.now()
+    return Date.now() - resumedReleasedAt >= 400
+  }, 'resume')
   check(`the resumed life took bare /advise and two turns, exit 0`, resumed.exit === 0 && resumed.results === 3, j({ exit: resumed.exit, results: resumed.results, stderr: resumed.stderr.slice(-300) }))
   check("bare /advise on the resumed session says on for this chat — nobody said /advise on in this life", adviseLineOf(resumed) === `advisor on for this chat · ${ADVISOR_MODEL} · ${CADENCE}`, adviseLineOf(resumed))
   const advisorRequests = wire.filter(w => w.kind === 'advisor')

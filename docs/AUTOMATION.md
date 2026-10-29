@@ -96,13 +96,12 @@ The output row types, by their `type` field:
 - `step`: one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome`: the turn's result, described below.
-- `close`: the note left for the next session at close: `state` (`stored`,
-  `skipped` or `none`), `note_chars`, and the `usage` and `models` of the model calls that
-  wrote it, so a reader summing every row's usage reaches the outcome's. With
-  the prompt given as an argument the note is asked inside the last turn, so
-  `close` precedes that turn's `outcome` and the close ask's usage is counted
-  in the outcome's totals; with `--input rows` it follows the last `outcome` once `stdin`
-  closes.
+- `close`: on a `mercury runner` session, the note left for the next session
+  when the host closes its end without `session/leave`: `state` (`stored`,
+  `skipped` or `none`) and the `usage` of the model calls that wrote it. It
+  follows the last `outcome`, whose totals do not include it. A `mercury run`
+  ends on the model's final answer and leaves no note, so its stream carries
+  no `close` row.
 - `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.

@@ -218,7 +218,7 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   const allRequests = fixture.captured.filter(c => c.dialect === route.dialect)
   const requests = allRequests.filter(c => !isHandoffRequest(c))
   const substantiveCount = route.route === 'zai' ? 2 : 3
-  check(`${route.route}: the marked closing ask follows the substantive requests exactly once`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([...Array(substantiveCount).fill(false), true]), JSON.stringify(allRequests.map(isHandoffRequest)))
+  check(`${route.route}: the substantive requests are the only ones; no marked closing ask follows them (an unattended run leaves no note)`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify(Array(substantiveCount).fill(false)), JSON.stringify(allRequests.map(isHandoffRequest)))
   const tail = stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
   check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail}`)
   if (route.route === 'zai') {

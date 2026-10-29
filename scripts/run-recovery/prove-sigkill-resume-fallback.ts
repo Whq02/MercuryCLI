@@ -197,7 +197,7 @@ async function resumeAndAssert(label: string, w: KilledWorld): Promise<void> {
     JSON.stringify(resumed.stdout.slice(0, 200)))
 
   const allRequests = w.fixture.messageRequests()
-  check(`${label}: the first process left one marked closing ask after its completed turn, before the resume`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, true, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
+  check(`${label}: no marked closing ask rides either process (an unattended run leaves no note; the fixture's note turn stayed unserved)`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
   const msgs = allRequests.filter(q => !isHandoffRequest(q))
   const resumeBody = JSON.stringify(msgs[msgs.length - 1]?.body ?? {})
   check(`${label}: the resume request carries the turn-1 prompt exactly once`,

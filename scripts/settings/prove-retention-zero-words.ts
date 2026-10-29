@@ -142,14 +142,15 @@ console.log('§4 the built product: a run under retentionDays 0 writes no transc
       .filter(e => e.isFile() && (e.parentPath ?? e.path).endsWith('lineage'))
       .map(e => join(e.parentPath ?? e.path, e.name))
   }
-  check('…and no lineage entry: a run under 0 leaves no lineage file (the closing ask has nothing to write into)', lineageFiles(zero.configDir).length === 0, lineageFiles(zero.configDir).join(','))
+  check('…and no lineage entry: a run under 0 leaves no lineage file (no ledger for the run to join)', lineageFiles(zero.configDir).length === 0, lineageFiles(zero.configDir).join(','))
   check('…and the engine was asked once (the turn) — never for a note', api.messageRequests().length === 1, String(api.messageRequests().length))
 
   const plain = mkWorld('plain', null)
   const p = await run(plain, ['run', '--format', 'text', 'hello by default'])
   check('the default run answers (exit 0, the scripted text)', p.code === 0 && /Answered by default\./.test(p.out), `${p.code} · ${p.out.trim().slice(0, 120)}`)
   check('…and writes one transcript', transcripts(plain.configDir).length === 1, transcripts(plain.configDir).join(','))
-  check('…and by default a lineage entry is written and the note asked for (the second request)', lineageFiles(plain.configDir).length === 1 && api.messageRequests().length === 3, `${lineageFiles(plain.configDir).join(',')} · ${api.messageRequests().length} requests`)
+  const plainLedger = lineageFiles(plain.configDir).map(file => readFileSync(file, 'utf8').split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line) as { endedAt?: string | null; handoff?: unknown }).at(-1))
+  check('…and by default a lineage entry is written and closes with no note: the engine was asked once (the turn), never for a note (an unattended run leaves none)', lineageFiles(plain.configDir).length === 1 && plainLedger[0]?.endedAt != null && plainLedger[0].handoff === null && api.messageRequests().length === 2, `${lineageFiles(plain.configDir).join(',')} · ${api.messageRequests().length} requests · ${JSON.stringify(plainLedger)}`)
   await api.close()
 }
 

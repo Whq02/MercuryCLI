@@ -132,7 +132,7 @@ check('resume exit 0 (an interrupted predecessor is recoverable, not fatal)', r2
 check('turn 2 completed', r2.stdout.includes('S17-SECOND-REPLY'), JSON.stringify(r2.stdout.slice(0, 160)))
 
 const allRequests = fixture.messageRequests()
-check('the marked closing ask comes only after the resumed answer, never before the kill', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(allRequests.map(isHandoffRequest)))
+check('no marked closing ask rides either process: not before the kill, not after the resumed answer (an unattended run leaves no note)', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
 const msgs = allRequests.filter(q => !isHandoffRequest(q))
 check('exactly two model calls (killed turn + resumed turn — no replay storm)', msgs.length === 2, String(msgs.length))
 const resumeBody = JSON.stringify(msgs[1]?.body ?? {})

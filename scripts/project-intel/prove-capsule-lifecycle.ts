@@ -151,8 +151,37 @@ async function main(): Promise<void> {
   fs.rmSync(copyB, { recursive: true, force: true })
   const producerSrc = fs.readFileSync('src/utils/attachments/contextCapsule.ts', 'utf8')
   check('producer rides getProjectSnapshotAsync', producerSrc.includes('getProjectSnapshotAsync(') && !/const read = getProjectSnapshot\(/.test(producerSrc))
-  const orchSrc = fs.readFileSync('src/utils/attachments/orchestrator.ts', 'utf8')
-  check('orchestrator skips the capsule on localSubmission', /localSubmission\s*\?\s*Promise\.resolve\(\[\]\)/.test(orchSrc))
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
+  const { getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
+  const { createUserMessage } = await import('../../src/utils/messages/factories.js')
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
+  const state = bootstrap as unknown as { setProjectRoot?: (p: string) => void; setCwdState?: (p: string) => void; setSessionTrustAccepted?: (v: boolean) => void }
+  state.setProjectRoot?.(dir)
+  state.setCwdState?.(dir)
+  state.setSessionTrustAccepted?.(true)
+  const orchestratorContext = (): never => {
+    let appState = getDefaultAppState()
+    return {
+      options: { commands: [], tools: [FileReadTool], engineModel: 'claude-fable-5-1', mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      getAppState: () => appState,
+      setAppState: (fn: (s: typeof appState) => typeof appState) => { appState = fn(appState) },
+      abortController: new AbortController(),
+      messages: [],
+      readFileState: createFileStateCacheWithSizeLimit(100),
+      loadedNestedMemoryPaths: new Set(),
+      nestedMemoryAttachmentTriggers: new Set(),
+    } as never
+  }
+  const openingTurn = [createUserMessage({ content: TASK })]
+  producer._resetContextCapsuleForTesting()
+  const local = await getAttachments(TASK, orchestratorContext(), [], openingTurn as never, undefined, { localSubmission: true })
+  check('orchestrator skips the capsule on localSubmission: an opening turn (no assistant row yet) submitted locally attaches no capsule', !local.some(a => a.type === 'context_capsule'), local.map(a => a.type).join(','))
+  producer._resetContextCapsuleForTesting()
+  const prompt = await getAttachments(TASK, orchestratorContext(), [], openingTurn as never)
+  check('…while the same opening turn as a prompt attaches one (the control: the skip is the submission\'s, not the turn\'s)', prompt.filter(a => a.type === 'context_capsule').length === 1, prompt.map(a => a.type).join(','))
   const inputSrc = fs.readFileSync('src/utils/processUserInput/processUserInput.ts', 'utf8')
   check('the input seam names non-prompt modes local', inputSrc.includes("localSubmission: mode !== 'prompt'"))
 

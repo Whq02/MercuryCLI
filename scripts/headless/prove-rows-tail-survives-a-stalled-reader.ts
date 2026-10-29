@@ -117,13 +117,13 @@ tally.section('a reader that stops reading for a while, then reads again: every 
   tally.check('no broken-pipe line on stderr (the reader never left)', !run.stderr.includes('stdout'), run.stderr.slice(0, 200) + run.readerLog.slice(0, 200))
 }
 
-tally.section('a reader that reads slowly, a tail written and the process exiting at once: the close and the outcome rows reach the reader, last and in order')
+tally.section('a reader that reads slowly, a tail written and the process exiting at once: the step and the outcome rows reach the reader, last and in order (an unattended run leaves no note, so no close row)')
 {
   const run = await runWithReader('slow')
   const types = run.frames.map(f => `${String(f.type)}${f.state !== undefined ? `:${String(f.state)}` : ''}`)
   console.log(`  rows: ${types.join(' ')}`)
   console.log(`  bytes received ${run.bytes} · exit ${run.exit} (${run.signal ?? 'no signal'}) at ${seconds(run.exitedAtMs, run.t0)}`)
-  tally.check('the stream ends with the close row then the outcome row', types.length >= 2 && types[types.length - 2] === 'close:stored' && types[types.length - 1] === 'outcome', types.slice(-3).join(' '))
+  tally.check('the stream ends with the step row then the outcome row, no close row anywhere', types.length >= 2 && types[types.length - 2] === 'step' && types[types.length - 1] === 'outcome' && !types.some(type => type.startsWith('close')), types.slice(-3).join(' '))
   tally.check('the outcome says completed and the answer rode it', run.frames[run.frames.length - 1]?.status === 'completed' && String(run.frames[run.frames.length - 1]?.answer ?? '').startsWith(ANSWER_HEAD), JSON.stringify(run.frames[run.frames.length - 1]))
   tally.check('every row parsed as one JSON line', !run.frames.some(f => f.type === 'unparseable'))
   tally.check('the process exited 0 on its own after the tail was delivered', run.exit === 0 && run.signal !== 'SIGKILL', `exit ${run.exit} signal ${run.signal}`)
@@ -141,7 +141,7 @@ tally.section('a reader that leaves for good: the run ends instead of waiting fo
   tally.check('stderr states the broken-stdout reason', run.stderr.includes("stdout closed before the run's output was delivered (broken pipe)"), run.stderr.slice(0, 200))
 }
 
-tally.section('a file target is unchanged: every row through close and outcome lands on disk with exit 0')
+tally.section('a file target is unchanged: every row through the step and the outcome lands on disk with exit 0')
 {
   const runHome = join(scratch, `home-${++homes}`)
   const cwd = join(runHome, 'work')
@@ -163,7 +163,7 @@ tally.section('a file target is unchanged: every row through close and outcome l
   await fixture.close()
   const lines = readFileSync(outFile, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l) as Frame)
   const types = lines.map(f => `${String(f.type)}${f.state !== undefined ? `:${String(f.state)}` : ''}`)
-  tally.check('the file target ends with close:stored then outcome and exits 0', exit === 0 && types.length >= 2 && types[types.length - 2] === 'close:stored' && types[types.length - 1] === 'outcome' && lines[lines.length - 1]?.status === 'completed', `exit ${exit} · tail ${types.slice(-3).join(' ')}`)
+  tally.check('the file target ends with step then outcome, no close row, and exits 0', exit === 0 && types.length >= 2 && types[types.length - 2] === 'step' && types[types.length - 1] === 'outcome' && !types.some(type => type.startsWith('close')) && lines[lines.length - 1]?.status === 'completed', `exit ${exit} · tail ${types.slice(-3).join(' ')}`)
 }
 
 tally.section('the seam: the exit drain waits while the reader is alive, the guard hands the caller\'s callback to the real write')

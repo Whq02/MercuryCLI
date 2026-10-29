@@ -451,7 +451,7 @@ function checkChild(tag: string, outcome: ChildOutcome, capture: Capture | undef
   )
   check(`${tag}: exactly one chat request reached the fixture`, count === 1, `count=${count}`)
   const all = captures.filter(c => c.tag === tag)
-  check(`${tag}: one marked closing ask follows the substantive request`, JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify([false, true]), JSON.stringify(all.map(isHandoffRequest)))
+  check(`${tag}: the substantive request is the only one; no marked closing ask follows it (an unattended run leaves no note)`, JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify([false]), JSON.stringify(all.map(isHandoffRequest)))
   check(
     `${tag}: the turn settled cleanly (not a vacuous capture)`,
     outcome.status === 'completed' && outcome.answer.includes(FIXTURE_TEXT),

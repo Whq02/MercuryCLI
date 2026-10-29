@@ -563,7 +563,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
       const out: Record<string, number> = {}
       const model = fixture.hitsOn('openai')
       const marks = model.map(h => isHandoffRequest({ body: null, raw: h.body }))
-      check('one marked closing ask follows the three model turns, apart from the search census', j(marks) === j([false, false, false, true]), j(marks))
+      check('the three model turns are the only model requests; no marked closing ask follows them (an unattended run leaves no note)', j(marks) === j([false, false, false]), j(marks))
       for (const h of fixture.hits) {
         if (h.lane === 'openai' && isHandoffRequest({ body: null, raw: h.body })) continue
         out[h.lane] = (out[h.lane] ?? 0) + 1

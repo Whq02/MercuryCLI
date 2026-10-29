@@ -227,8 +227,8 @@ describe the resize and mask inputs.
 
 `image_generate` accepts `control: { image, kind, strength }` with an SD 1.5
 or SDXL checkpoint. Use `kind: "canny"` for edges computed from a PNG;
-`"depth"` and `"pose"` need a prepared depth map or pose drawing, not a photo
-that needs detection. Strength defaults to `0.9`. Pull the matching
+`"depth"` and `"pose"` take a prepared depth map or pose drawing, and no
+detector turns a photo into one. Strength defaults to `0.9`. Pull the matching
 `controlnet-sd1-*` or `controlnet-sdxl-*` row in `/imagesetup` before the first
 render. A missing control returns the row to pull; it does not download
 weights silently. Control rows are not image defaults.

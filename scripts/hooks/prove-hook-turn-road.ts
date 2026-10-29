@@ -39,13 +39,12 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   const ends = join(paths.root, 'turn-ends.jsonl')
   const endPayload = join(paths.root, 'session-end.json')
   const marks = join(paths.root, 'marks.txt')
-  let orderAtHandoff = ''
   const result = await runDoor(paths, {
     prompt: 'count the beans',
     turns: [
       { kind: 'text', text: 'first answer' },
       { kind: 'text', text: 'second answer' },
-      { ...handoffTurn(), get text() { orderAtHandoff = readFileSync(marks, 'utf8').trim().split('\n').join(' '); return 'The note for the next session.' } },
+      handoffTurn(),
     ],
     hooks: {
       'session.start': [{ name: 'hello', match: 'new', run: `tee ${quote(startPayload)} > /dev/null; echo session >> ${quote(marks)}; echo the project is a bean counter` }],
@@ -66,8 +65,7 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   const answered = readLines(answers)
   check('turn.answer carries the answer text; the first fire has again false, the fire after the block has again true', answered.length === 2 && answered[0]!.answer === 'first answer' && answered[0]!.again === false && answered[1]!.answer === 'second answer' && answered[1]!.again === true, JSON.stringify(answered))
   check('the block sent the model back: the fixture served two turns', result.wire.filter(q => !isHandoffRequest(q)).length === 2, `${result.requests} requests`)
-  check('the closing ask is marked and follows the two answers exactly once', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
-  check('the marked ask is served after the two answer hooks and before turn.end', orderAtHandoff === 'session turn answer answer', orderAtHandoff)
+  check('no closing ask follows the two answers (an unattended run leaves no note; the fixture\'s note turn stayed unserved)', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, false]), JSON.stringify(result.wire.map(isHandoffRequest)))
   const ended = readLines(ends)
   const turnRow = rows.find(row => row.type === 'turn')
   const outcome = rows.find(row => row.type === 'outcome')
@@ -124,7 +122,7 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   const rows = result.rows
   const outcome = rows.find(row => row.type === 'outcome')
   check('a turn.answer stop ends the turn without a send-back: one model call, the turn completed', outcome?.status === 'completed' && result.wire.filter(q => !isHandoffRequest(q)).length === 1, JSON.stringify({ outcome, requests: result.requests }))
-  check('the closing ask follows the stopped turn once, as its own marked request', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
+  check('no closing ask follows the stopped turn (an unattended run leaves no note)', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false]), JSON.stringify(result.wire.map(isHandoffRequest)))
   const stopNotice = rows.find(row => row.type === 'notice' && String(row.text).includes('that is enough for tonight'))
   check('the stop reaches the rows stream as a notice naming the hook', stopNotice !== undefined && String(stopNotice.text).includes('enough') && stopNotice.code === 'hook_stopped', JSON.stringify(rows.filter(row => row.type === 'notice')))
   if (failures) console.log(JSON.stringify({ rows, stderr: result.stderr.slice(0, 600) }))

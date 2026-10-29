@@ -96,10 +96,11 @@ try {
     const closed = run({ ...options, ephemeral: false, model, prompt: 'close with usage' })
     const outcome = await closed.outcome
     assert.equal(outcome.status, 'completed'); assert.equal((await closed.exit).code, 0)
-    const usages = closed.rows.filter(row => (row.type === 'step' || row.type === 'close') && isMainThread(row)).map(row => 'usage' in row ? row.usage : undefined)
-    assert(closed.rows.some(row => row.type === 'close' && (row.usage?.output_tokens ?? 0) > 0))
+    const usages = closed.rows.filter(row => row.type === 'step' && isMainThread(row)).map(row => 'usage' in row ? row.usage : undefined)
+    assert(!closed.rows.some(row => row.type === 'close'))
+    assert.equal(closed.rows.at(-1)?.type, 'outcome')
     for (const key of ['input_tokens', 'cached_input_tokens', 'output_tokens'] as const) assert.equal(outcome.usage[key], usages.reduce((sum, usage) => sum + (usage?.[key] ?? 0), 0))
-    console.log(`PASS ${model}: unanswered permission exits 1, authentication fails with exit 1, close usage folds into the outcome`)
+    console.log(`PASS ${model}: unanswered permission exits 1, authentication fails with exit 1, a run ends on its answer with no close row and the step usage is the outcome's`)
   }
   assert(c.requests.every(request => request.fault === undefined && request.body.model === c.model.slice('compat/fixture/'.length)))
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'tool')))

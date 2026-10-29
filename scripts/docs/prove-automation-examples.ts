@@ -51,7 +51,7 @@ check(
   blocks.map(b => b.lang).join(','),
 )
 if (blocks.length !== 4) process.exit(1)
-check("the page says a prompt argument's close row precedes the outcome and an --input rows close follows it", /`close` precedes\s+that turn's `outcome`/.test(doc) && /follows the last `outcome` once `stdin`\s+closes/.test(doc))
+check('the page says a run leaves no note and carries no close row, and that the close row belongs to a runner whose host closes its end', /A `mercury run`\s+ends on the model's final answer and leaves no note, so its stream carries\s+no `close` row\./.test(doc) && /on a `mercury runner` session, the note left for the next session\s+when the host closes its end without `session\/leave`/.test(doc) && /It\s+follows the last `outcome`, whose totals do not include it\./.test(doc))
 check('the page says a one-shot ask nobody answers ends the turn blocked with the answer kept', /ends `blocked`\s+with its `answer` kept/.test(doc))
 check('the page says session/set_mode applies at once and the three held verbs answer at turn_end then session/applied', /`session\/set_mode` changes\s+the permission mode at once/.test(doc) && /`session\/set_spawn_switch` answer `at: "now"`/.test(doc) && /answer `at: "turn_end"` and a `session\/applied` notification/.test(doc))
 check('the page tells a reply from a request by method', /A reply\s+carries `result` or `error` and no `method`/.test(doc))
@@ -152,9 +152,7 @@ for (const [label, block] of [['TypeScript', blocks[0]!], ['Python', blocks[1]!]
     (res, _home, tap) => {
       check(`${label}: a read-only tool call goes ahead, the answer is printed and the exit is 0`, res.status === 0 && res.stdout === SUMMARY, detailOf(res))
       const types = rowsOf(tap)
-      const outcomeAt = types.indexOf('outcome')
-      const closeAt = types.indexOf('close')
-      check(`${label}: with --input rows the close row follows the outcome once stdin closes`, outcomeAt >= 0 && closeAt > outcomeAt, types.join(','))
+      check(`${label}: with --input rows the stream ends on the outcome once stdin closes, with no close row (an unattended run leaves no note)`, types.at(-1) === 'outcome' && !types.includes('close'), types.join(','))
     },
   )
   await runBlock(
@@ -169,7 +167,7 @@ for (const [label, block] of [['TypeScript', blocks[0]!], ['Python', blocks[1]!]
   )
 }
 
-section('§3 a prompt given as an argument: the close row precedes the outcome row')
+section('§3 a prompt given as an argument: the stream ends on the outcome row with no close row')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'docs-auto-arg-')))
   seedFirstRun(home, [home])
@@ -194,9 +192,7 @@ section('§3 a prompt given as an argument: the close row precedes the outcome r
       .split('\n')
       .filter(line => line.trim() !== '')
       .map(line => String((JSON.parse(line) as { type: string }).type))
-    const outcomeAt = types.indexOf('outcome')
-    const closeAt = types.indexOf('close')
-    check('the note is asked inside the last turn: close, then outcome, and the stream ends in outcome', res.status === 0 && closeAt >= 0 && outcomeAt > closeAt && types.at(-1) === 'outcome', `rc=${res.status} ${types.join(',')}`)
+    check('no note is asked: the stream ends in outcome and carries no close row (the fixture\'s note turn stayed unserved)', res.status === 0 && types.at(-1) === 'outcome' && !types.includes('close') && api.messageRequests().length === 1, `rc=${res.status} ${types.join(',')} · ${api.messageRequests().length} requests`)
   } finally {
     await api.close()
     rmSync(home, { recursive: true, force: true })

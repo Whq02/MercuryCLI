@@ -245,9 +245,11 @@ When a session ends, Mercury asks the model for one orienting handoff note for
 the next session, stored verbatim up to 8,000 characters in the session lineage
 ledger (see [On disk](#on-disk); never written into your repository as
 `.mercury/handoff.md`, and a note over 8,000 characters is refused with its
-character count). On the next session's `# Lineage` entry page, a previous
-session that left no handoff note is shown as `"The last session (...) left no
-note."`, while `Recall` (`read: "ledger:<ordinal>"`) prints `"no note left"`.
+character count). A `mercury run` ends on the model's final answer and leaves
+no note; its ledger entry closes without one. On the next session's `# Lineage`
+entry page, a previous session that left no handoff note is shown as `"The last
+session (...) left no note."`, while `Recall` (`read: "ledger:<ordinal>"`)
+prints `"no note left"`.
 If more than half of the note's sentences (and at least two sentences) repeat
 facts, rules or the previous note already on record, Mercury names the repeated
 sources (`Four of your seven sentences are already on record (rule 12, fact 19

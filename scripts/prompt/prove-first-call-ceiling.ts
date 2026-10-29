@@ -101,7 +101,7 @@ try {
     const outcome = lastOutcome(frameLines(result.stdout))
     check(`${route}: the built product completes its fixture turn — one completed outcome row carrying the answer`, result.code === 0 && answeredWith(result.stdout, 'FIRST-CALL-DONE'), `${JSON.stringify(outcome ?? null)} ${result.stderr.slice(-300)}`)
     const requests = captured.filter(request => request.route === route)
-    check(`${route}: exactly one main request is captured, then the session's closing ask for its note`, requests.length === 2 && JSON.stringify(requests[1]?.body).includes(HANDOFF_ASK_MARK) && !JSON.stringify(requests[0]?.body).includes(HANDOFF_ASK_MARK), String(requests.length))
+    check(`${route}: exactly one request is captured, the main call; no closing ask follows it (an unattended run leaves no note)`, requests.length === 1 && !JSON.stringify(requests[0]?.body).includes(HANDOFF_ASK_MARK), `${requests.length} requests, asks ${requests.filter(request => JSON.stringify(request.body).includes(HANDOFF_ASK_MARK)).length}`)
     const body = requests[0]?.body
     if (!body) continue
     const normalize = (value: string) => value.replaceAll(home, '<home>').replaceAll(cwd, '<project>')

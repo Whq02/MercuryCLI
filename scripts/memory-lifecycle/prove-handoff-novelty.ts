@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { HANDOFF_ASK_MARK, handoffTurn, isHandoffRequest, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -140,27 +141,45 @@ const seenE: Seen = { prompts: [], texts: [] }
 const twice = await askForHandoff({ cacheSafeParams: fakeParams, run: runner([REPEATING, REPEATING, 'a third'], seenE) as never })
 check('the second answer is stored whatever it is: a repeated second answer is never asked a third time', seenE.prompts.length === 2 && twice?.text === REPEATING, j({ calls: seenE.prompts.length }))
 
-section('§3 the marked road end to end: the re-ask reaches the engine as one more marked request; handoffTurn answers it; the fixture counts two')
+section('§3 the marked road end to end: an unattended run makes no ask; a hosted session whose host closes its end is asked, and its re-ask reaches the engine as one more marked request; handoffTurn answers it; the fixture counts two')
 const nodeBin = Bun.which('node')
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-novelty-project-')))
 writeFileSync(join(project, 'README.md'), 'a project under proof\n')
 seedFirstRun(configDir, [project])
 const projectKey = mnemeProjectKeyFor(project)
 type Captured = { body: unknown; raw: string }
+const sessionEnv = (url: string): Record<string, string> => ({
+  HOME: join(HOME, 'home'),
+  PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
+  TERM: 'dumb',
+  MERCURY_CONFIG_DIR: configDir,
+  MERCURY_CREDENTIAL_STORE: 'file',
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
+  ANTHROPIC_BASE_URL: url,
+  ANTHROPIC_API_KEY: 'fixture-key-000',
+  MERCURY_DAEMON_DIR: join(HOME, 'home', 'daemon'),
+  MERCURY_THINKING_BINDING: 'drop_block',
+})
+async function hostedSession(prompt: string, turns: ScriptedTurn[]): Promise<{ exit: number | null; rows: Array<Record<string, unknown>>; stderr: string; requests: Captured[] }> {
+  const fixture = await startFixtureApi(turns)
+  const host = hostRunner({ node: nodeBin!, dist: DIST, cwd: project, home: configDir, env: sessionEnv(fixture.url), argv: ['--model', 'claude-opus-4-8'] })
+  const killer = setTimeout(() => host.child.kill('SIGKILL'), 120_000)
+  try {
+    await host.initialize()
+    await host.prompt(prompt, { id: 'novelty-1' })
+    await host.waitFor('the outcome row', row => row.type === 'outcome', 60_000)
+    host.end()
+    const exit = await host.exited
+    return { exit, rows: host.rows as Array<Record<string, unknown>>, stderr: host.stderr(), requests: [...(fixture.requests as unknown as Captured[])] }
+  } finally {
+    clearTimeout(killer)
+    await host.stop()
+    await fixture.close()
+  }
+}
 async function session(sid: string, prompt: string, turns: ScriptedTurn[]): Promise<{ exit: number | null; stdout: string; stderr: string; requests: Captured[] }> {
   const fixture = await startFixtureApi(turns)
-  const env: Record<string, string> = {
-    HOME: join(HOME, 'home'),
-    PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
-    TERM: 'dumb',
-    MERCURY_CONFIG_DIR: configDir,
-    MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    ANTHROPIC_BASE_URL: fixture.url,
-    ANTHROPIC_API_KEY: 'fixture-key-000',
-    MERCURY_DAEMON_DIR: join(HOME, 'home', 'daemon'),
-    MERCURY_THINKING_BINDING: 'drop_block',
-  }
+  const env = sessionEnv(fixture.url)
   const result = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(done => {
     const child = spawn(nodeBin!, [DIST, 'run', prompt, '--model', 'claude-opus-4-8', '--format', 'rows', '--session-id', sid], { cwd: project, env })
     let stdout = ''
@@ -184,16 +203,19 @@ if (!existsSync(DIST)) {
 } else if (!nodeBin) {
   check('a node binary on PATH', false)
 } else {
-  const one = await session('11111111-0000-4000-8000-00000000b001', 'first probe', [{ kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' }, handoffTurn(NOTE_ONE)])
-  check('the first session: the turn and ONE marked ask; its note stored', one.exit === 0 && one.requests.filter(isHandoffRequest).length === 1 && readLedger(projectKey)[0]?.handoff?.text === NOTE_ONE, `exit=${one.exit} asks=${one.requests.filter(isHandoffRequest).length} ${one.stderr.slice(0, 200)}`)
-  const two = await session('22222222-0000-4000-8000-00000000b002', 'second probe', [{ kind: 'text', text: 'ANSWER-TWO', whenBody: 'second probe' }, handoffTurn(NOTE_REPEAT), handoffTurn('nothing new since the last note')])
+  const zero = await session('00000000-0000-4000-8000-00000000b000', 'unattended probe', [{ kind: 'text', text: 'ANSWER-ZERO', whenBody: 'unattended probe' }, handoffTurn(NOTE_ONE)])
+  check('an unattended run: the turn is the only request, no marked ask; its entry closes with no note (the fixture\'s note turn stayed unserved)', zero.exit === 0 && zero.requests.length === 1 && zero.requests.filter(isHandoffRequest).length === 0 && readLedger(projectKey)[0]?.handoff === null && readLedger(projectKey)[0]?.endedAt !== null, `exit=${zero.exit} requests=${zero.requests.length} asks=${zero.requests.filter(isHandoffRequest).length} ${j(readLedger(projectKey)[0]?.handoff)} ${zero.stderr.slice(0, 200)}`)
+  const one = await hostedSession('first probe', [{ kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' }, handoffTurn(NOTE_ONE)])
+  check('the first hosted session: the turn and ONE marked ask once the host closed its end; its note stored', one.exit === 0 && one.requests.filter(isHandoffRequest).length === 1 && readLedger(projectKey)[1]?.handoff?.text === NOTE_ONE, `exit=${one.exit} asks=${one.requests.filter(isHandoffRequest).length} ${one.stderr.slice(0, 200)}`)
+  const two = await hostedSession('second probe', [{ kind: 'text', text: 'ANSWER-TWO', whenBody: 'second probe' }, handoffTurn(NOTE_REPEAT), handoffTurn('nothing new since the last note')])
   const asks = two.requests.filter(isHandoffRequest)
-  check('the second session: a note repeating three of its four sentences brings ONE re-ask — two marked requests, both answered by handoffTurn', two.exit === 0 && asks.length === 2, `exit=${two.exit} asks=${asks.length} ${two.stderr.slice(0, 200)}`)
+  check('the second hosted session: a note repeating three of its four sentences brings ONE re-ask — two marked requests, both answered by handoffTurn', two.exit === 0 && asks.length === 2, `exit=${two.exit} asks=${asks.length} ${two.stderr.slice(0, 200)}`)
   const reaskBody = asks[1]?.raw ?? ''
   check('the re-ask request carries the first ask, the first answer and the count in words', reaskBody.includes('Three of your four sentences are already on record (the previous note)') && reaskBody.includes(NOTE_REPEAT.split('\n')[0]!), reaskBody.slice(-400))
   const ledger = readLedger(projectKey)
-  check('the second answer is the note in the ledger, as written', ledger[1]?.handoff?.text === 'nothing new since the last note' && ledger[1]?.endedAt !== null, j(ledger.map(e => e.handoff?.text)))
-  check('the run exits 0 and the outcome row answers the prompt, not the note', two.exit === 0 && two.stdout.includes('ANSWER-TWO') && !two.stdout.includes('nothing new since'), two.stdout.slice(0, 300))
+  check('the second answer is the note in the ledger, as written', ledger[2]?.handoff?.text === 'nothing new since the last note' && ledger[2]?.endedAt !== null, j(ledger.map(e => e.handoff?.text)))
+  const answers = two.rows.filter(row => row.type === 'outcome').map(row => String(row.answer ?? ''))
+  check('the session exits 0 and the outcome row answers the prompt, not the note', two.exit === 0 && answers.length === 1 && answers[0] === 'ANSWER-TWO', j(answers))
 }
 
 console.log('\n============================================================')

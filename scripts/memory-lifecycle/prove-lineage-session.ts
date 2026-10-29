@@ -48,10 +48,11 @@ const NO_NOTE_LEFT: string = entryModule?.NO_NOTE_LEFT ?? 'left no note'
 const mnemeProjectKeyFor: (root: string) => string = (pathsModule as { mnemeProjectKeyFor?: (root: string) => string }).mnemeProjectKeyFor ?? absent('mnemeProjectKeyFor')
 const lineagePath: (key: string) => string = (pathsModule as { lineagePath?: (key: string) => string }).lineagePath ?? (() => join(configDir, 'projects', '(no lineage path in this tree)'))
 const readLedger: (key: string) => Array<{ ordinal: number; sessionId: string; endedAt: string | null; outcome: string | null; engines: Array<{ model: string; at: string }>; handoff: { text: string; at: string } | null }> = ledgerModule?.readLedger ?? (() => [])
+const recordHandoff: (key: string, sessionId: string, text: string) => unknown = ledgerModule?.recordHandoff ?? absent('recordHandoff')
 check('the lineage modules are in the tree (ledger, entry page, handoff ask)', handoffModule !== null && entryModule !== null && ledgerModule !== null)
 check('the ask carries the mark the proof fixtures answer to (scripts/lib/fixtureApi.ts HANDOFF_ASK_MARK) — the two cannot drift apart', HANDOFF_ASK.includes(HANDOFF_ASK_MARK), HANDOFF_ASK)
 
-console.log('a headless session reads the entry page at its start and leaves its note at its end, in the ledger of the scratch home')
+console.log('a headless session reads the entry page at its start and leaves no note at its end (an unattended run makes no closing call); the ledger of the scratch home keeps its entry, and the page shows the last note that exists')
 
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'lineage-session-project-')))
 writeFileSync(join(project, 'README.md'), 'a project under proof\n')
@@ -119,33 +120,31 @@ if (!existsSync(DIST)) {
 } else if (!nodeBin) {
   check('a node binary on PATH', false)
 } else {
-  section('§1 the first session: no record at the start; asked for its note at the end; the note stored exactly as written; the answer untouched')
+  section('§1 the first session: no record at the start; no ask at the end (the fixture\'s note turn stays unserved); the entry closes with no note; the answer untouched')
   const one = await session(SID1, 'first probe', [
     { kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' },
     { kind: 'text', text: NOTE_ONE, whenBody: 'Leave one note for the next session' },
   ])
   check('the run exits 0 and its outcome row answers the operator\'s prompt, not the note', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE') && !answeredWith(one.stdout, NOTE_ONE), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)}`)
-  check('two requests reached the engine: the turn, then the ask', one.requests.length === 2, `${one.requests.length}`)
+  check('one request reached the engine: the turn; no ask followed it', one.requests.length === 1 && !j(one.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${one.requests.length}`)
   const firstSystem = systemText(one.requests[0]?.body ?? {}).join('\n')
   check('the first session\'s page says first session, no record', firstSystem.includes(`${ENTRY_PAGE_HEADING}\nFirst session of this work; no record.`), firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 120))
-  const askBody = one.requests[1]?.body
-  const askMessages = askBody?.messages ?? []
-  const lastUser = askMessages[askMessages.length - 1]
-  const askText = lastUser ? userTexts(askBody!, askMessages.length - 1).join('\n') : ''
-  check('the ask is the harness\'s own user turn, after the whole transcript, carrying the constitution\'s record law', lastUser?.role === 'user' && askText.includes(HANDOFF_ASK) && askMessages.length >= 3, j(askText.slice(0, 160)))
-  check('the ask\'s request carries the answer the seat gave (the note is written with the work in view)', j(askMessages).includes('ANSWER-ONE'))
   let entries = readLedger(projectKey)
   check('the ledger of the scratch home holds one closed entry for the session', existsSync(ledgerFile) && entries.length === 1 && entries[0]!.sessionId === SID1 && entries[0]!.endedAt !== null, j(entries))
-  check('the note is stored exactly as the seat wrote it, every line', entries[0]?.handoff?.text === NOTE_ONE, j(entries[0]?.handoff))
+  check('the entry closes with no note (an unattended run leaves none)', entries[0]?.handoff === null, j(entries[0]?.handoff))
   check('the entry carries the engine the session ran on and the outcome', entries[0]?.engines[0]?.model === 'claude-opus-4-8' && entries[0]?.outcome === 'closed', j(entries[0]))
   check('the ledger lives under the home, never under the project', ledgerFile.startsWith(configDir) && !existsSync(join(project, 'lineage')) && !existsSync(join(project, '.mercury')))
+  recordHandoff(projectKey, SID1, NOTE_ONE)
+  entries = readLedger(projectKey)
+  check('a note left on the entry through the ledger (the road an attended session\'s ask writes by) is stored exactly as written, every line', entries.length === 1 && entries[0]?.handoff?.text === NOTE_ONE && entries[0]?.endedAt !== null, j(entries[0]?.handoff))
 
-  section('§2 the second session: the page composed from the ledger rides the system prompt, apart from the operator\'s words')
+  section('§2 the second session: the page composed from the ledger rides the system prompt, apart from the operator\'s words; the session leaves no note of its own')
   const two = await session(SID2, 'second probe', [
     { kind: 'text', text: 'ANSWER-TWO', whenBody: 'second probe' },
     { kind: 'text', text: 'NOTE-TWO', whenBody: 'Leave one note for the next session' },
   ])
   check('the second run answers its own prompt', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-TWO'), `exit=${two.exit} stderr=${two.stderr.slice(0, 300)}`)
+  check('one request reached the engine: the turn; no ask followed it', two.requests.length === 1 && !j(two.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${two.requests.length}`)
   const first = two.requests.find(r => j(r.body).includes('second probe'))
   check('the first request of the second session was captured', first !== undefined)
   const system = first ? systemText(first.body) : []
@@ -165,16 +164,16 @@ if (!existsSync(DIST)) {
   check('the first user message ends with the operator\'s own words, untouched', userText[userText.length - 1] === 'second probe', j(userText))
   check('the page appears once in the request', system.join('\n').split(ENTRY_PAGE_HEADING).length === 2)
   entries = readLedger(projectKey)
-  check('the ledger now holds two closed entries in order, the second with its own note', entries.length === 2 && entries[1]!.ordinal === 2 && entries[1]!.sessionId === SID2 && entries[1]!.handoff?.text === 'NOTE-TWO' && entries[1]!.endedAt !== null, j(entries.map(e => [e.ordinal, e.sessionId, e.handoff?.text, e.endedAt !== null])))
+  check('the ledger now holds two closed entries in order, the second with no note of its own (the fixture\'s note turn stayed unserved)', entries.length === 2 && entries[1]!.ordinal === 2 && entries[1]!.sessionId === SID2 && entries[1]!.handoff === null && entries[1]!.endedAt !== null, j(entries.map(e => [e.ordinal, e.sessionId, e.handoff?.text, e.endedAt !== null])))
 
-  section('§3 a session whose ask gets no answer ends with "no note left" — never an invented note')
+  section('§3 a session that leaves no note ends with "no note left" — never an invented note; the last note that exists stays on the page')
   const three = await session(SID3, 'third probe', [{ kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' }])
-  check('the run still answers and exits 0 when the ask is refused by the engine', three.exit === 0 && answeredWith(three.stdout, 'ANSWER-THREE'), `exit=${three.exit} stderr=${three.stderr.slice(0, 300)}`)
-  check('the ask was put', three.requests.length === 2, `${three.requests.length}`)
+  check('the run answers and exits 0', three.exit === 0 && answeredWith(three.stdout, 'ANSWER-THREE'), `exit=${three.exit} stderr=${three.stderr.slice(0, 300)}`)
+  check('no ask was put: the turn is the only request', three.requests.length === 1, `${three.requests.length}`)
   entries = readLedger(projectKey)
   check('the entry closes with handoff null', entries.length === 3 && entries[2]!.handoff === null && entries[2]!.endedAt !== null, j(entries[2]))
   const next = entryModule?.composeEntryPage(projectKey, 'next-session') ?? ''
-  check('the next session\'s page says the last session left no note and shows the last note that exists', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 2, ') && next.includes('NOTE-TWO'), next)
+  check('the next session\'s page says the last session left no note and shows the last note that exists (session 1\'s)', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 1, ') && next.includes(NOTE_ONE.split('\n').map(line => `${HANDOFF_GRADE} ${line}`).join('\n')), next)
 }
 
 console.log('\n============================================================')
