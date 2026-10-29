@@ -142,9 +142,9 @@ export function ImageSetupBody({ geometry, io, preview, initialError, initialSou
           await pullMedia(plan, plan => new Promise(resolve => { consent.current = resolve; setAsk(plan) }), (args, progress, signal) => io.pull(args, progress, signal, { ...readMediaSettings(), root: plan.root }), progress => { if (alive.current) setBusy(mediaProgressWords(progress) || plan.title) }, signal)
         })
       } catch (error) { setError(String(error instanceof Error ? error.message : error)) }
-    } else if (input === 'd' && !key.ctrl && !key.meta && row && !row.model.control) {
+    } else if (input === 'd' && !key.ctrl && !key.meta && row && !row.model.control && !row.model.upscaler) {
       perform(row.model.id, () => io.setDefault(row.model.kind, row.model.id))
-    } else if (input === 't' && row?.model.kind === 'image' && !row.model.control) {
+    } else if (input === 't' && row?.model.kind === 'image' && !row.model.control && !row.model.upscaler) {
       if (!readMediaSettings().enabled) { setError('Turn on Local media in /config.'); return }
       if (!row.installed || !snapshot.runtimeInstalled) { setError('Select the runtime and model, then press p to pull.'); return }
       closeSettingsPopup()

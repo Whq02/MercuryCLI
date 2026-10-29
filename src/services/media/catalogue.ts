@@ -9,6 +9,7 @@ const ModelSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i), kind: z.enum(['image', 'video']), license: z.string().trim().min(1),
   recipe: z.string().optional(), steps: positive, multiple: positive,
   control: z.object({ family: z.enum(['sd1', 'sdxl']), kind: z.string().regex(/^[a-z][a-z0-9-]*$/) }).optional(),
+  upscaler: z.object({ scale: z.number().int().min(2) }).optional(),
   width: positive.optional(), height: positive.optional(), fps: positive.optional(), frames: positive.optional(), downsize: positive.optional(),
   residentBytes: positive.optional(), peakBytes: positive.optional(), peakMetalBytes: positive.optional(), secondsPerImage: z.number().finite().nonnegative().optional(),
   licenseNotice: z.string().optional(), paramsBackend: z.string().optional(),

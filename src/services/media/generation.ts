@@ -15,7 +15,7 @@ export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | un
 export function mediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, catalogue: MediaCatalogue, config: MediaConfig, cwd: string): string {
   const slot = kind === 'image' ? 'imageModel' : 'videoModel'
   const id = typeof input.model === 'string' ? input.model : config[slot]
-  const model = catalogue.models.find(row => row.id === id && row.kind === kind && !row.control)
+  const model = catalogue.models.find(row => row.id === id && row.kind === kind && !row.control && !row.upscaler)
   if (!model) throw new Error(`Choose the ${kind} model in /imagesetup.`)
   const minimax = (model.recipe ?? model.id) === 'minimax-h3-fl2va'
   const width = input.width ?? model.width ?? (kind === 'image' ? 1024 : minimax ? 864 : 1280)

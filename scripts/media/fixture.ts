@@ -9,7 +9,7 @@ export const root = join(proofHome, 'media')
 const engine = join(proofHome, 'engine')
 export const serverPath = join(engine, 'dist', 'server.js')
 export const catalogue: MediaCatalogue = {
-  runtime: { tag: 'fixture-1', families: [], platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) }] }] } },
+  runtime: { tag: 'fixture-1', families: [], componentFamilies: [], platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) }] }] } },
   recipes: [],
   files: [
     { path: 'image.gguf', bytes: 8, repo: 'fixture/images', source: 'image.gguf', sha256: 'b'.repeat(64) },
@@ -53,7 +53,7 @@ console.log(JSON.stringify({ event: 'done' }));
 `)
 }
 
-export function installLiveFixture(): void {
+export function installLiveFixture(options: { sizedImages?: boolean } = {}): void {
   installFixture()
   const setup = readFileSync(join(dirname(serverPath), 'setup.js'), 'utf8')
   cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })
@@ -67,9 +67,18 @@ import { createServer } from 'node:http';
 import { readdir, appendFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { crc32, deflateSync } from 'node:zlib';
+function sizedPng(width, height) {
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) raw.set([x & 255, y & 255, (x + y) & 255], y * (width * 3 + 1) + 1 + x * 3);
+  const chunk = (type, data) => { const head = Buffer.alloc(8); head.writeUInt32BE(data.length); head.write(type, 4, 'latin1'); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(data, crc32(head.subarray(4)))); return Buffer.concat([head, data, crc]); };
+  const header = Buffer.alloc(13); header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
+  return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]).toString('base64');
+}
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5r8AAAAASUVORK5CYII=';
 let recipe = null;
+let image = png;
 const server = createServer(async (req, res) => {
   let text = '';
   for await (const chunk of req) text += chunk;
@@ -83,8 +92,14 @@ const server = createServer(async (req, res) => {
   else if (route === 'models/load') { recipe = body.recipe; result = { state: 'ready' }; }
   else if (route === 'models/unload') { recipe = null; result = { state: 'empty' }; }
   else if (route === 'models/refresh') result = { errors: [] };
-  else if (route === 'img_gen') result = { id: 'fixture-job' };
-  else if (route === 'jobs/fixture-job') result = { status: 'completed', result: { images: [{ b64_json: png }] } };
+  else if (route === 'upscale') {
+    const source = Buffer.from(body.image.split(',').at(-1), 'base64');
+    const scale = body.upscaler.includes('x2plus') ? 2 : 4;
+    const width = source.readUInt32BE(16) * scale ** body.repeats, height = source.readUInt32BE(20) * scale ** body.repeats;
+    result = { images: [{ b64_json: sizedPng(width, height) }], upscaler: body.upscaler, scale, repeats: body.repeats, width, height, output_format: 'png' };
+  }
+  else if (route === 'img_gen') { image = ${options.sizedImages === true} ? sizedPng(body.width, body.height) : png; result = { id: 'fixture-job' }; }
+  else if (route === 'jobs/fixture-job') result = { status: 'completed', result: { images: [{ b64_json: image }] } };
   else { res.statusCode = 404; result = { error: route }; }
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify(result));
