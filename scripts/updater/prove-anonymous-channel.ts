@@ -127,7 +127,7 @@ console.log('── §1 no gh: check → update → status → rollback → forw
 
   const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent', env: { GH_TOKEN: 'ghp_FAKELEAKSECRET0000' } })
   check('update exits 0 and reports from → to over the anonymous road', u.code === 0 && u.stdout.includes(`updated: ${V_OLD} → ${V_NEW} (read anonymously`), u.all.slice(0, 400))
-  check('the signature verdict is SAID at activation (unsigned fixture) on the result and the progress', u.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)') && u.stderr.includes('signature: unsigned —'), u.all.slice(0, 400))
+  check('the unsigned choice stays on the result without verification progress narration', u.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)') && !u.stderr.includes('signature: unsigned') && !u.stderr.includes('unsigned payload accepted by explicit'), u.all.slice(0, 400))
   check('pointer switched, previous retained', pointer('current') === V_NEW && pointer('previous') === V_OLD && existsSync(join(versionsDir, V_OLD, 'mercury.mjs')))
   check('the full payload landed (the enter-screen pair rides the update)', existsSync(join(versionsDir, V_NEW, 'splash.mjs')) && existsSync(join(versionsDir, V_NEW, 'splash-core.mjs')))
   const receipt = readReceipt()

@@ -16,7 +16,7 @@
    │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ If nothing opened, visit:                  │
    │ ❯ Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ https://auth.kimi.ai/activate?user_cod     │
    │                                                                │  │ e=ABCD-1234                                │
-   │ available                                                      │  │ waiting (3 checks) · expires in 5m         │
+   │ available                                                      │  │ waiting · expires in 5m                    │
    │   OpenRouter — browser sign-in or API key        not signed in │  │ the Kimi host did not answer (socket       │
    │   Google Gemini — Google sign-in, API key        not signed in │  │ hangup) — still trying until the code…     │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ c copies the URL · esc cancels             │

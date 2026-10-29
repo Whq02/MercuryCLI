@@ -187,6 +187,7 @@ export class EvalKernelManager {
   private exitHookInstalled = false
   private sweepTimer: ReturnType<typeof setInterval> | null = null
   private reapedIdle = new Map<string, { idleMs: number; owner: string }>()
+  private interruptedKernels = new Map<string, string>()
 
   constructor(private readonly tuning: { idleTtlMs?: number; idleSweepMs?: number; pyTransport?: KernelTransport } = {}) {}
 
@@ -309,6 +310,7 @@ export class EvalKernelManager {
       this.syncSweepTimer()
       annotations.push('the retained kernel had died and was replaced before execution')
     }
+    if (this.interruptedKernels.delete(key)) annotations.push(`the ${language} kernel was recreated after the interrupted cell; its bindings are gone, re-run your setup cell`)
     const reapNote = this.reapedIdle.get(key)
     if (reapNote !== undefined) {
       this.reapedIdle.delete(key)
@@ -331,6 +333,7 @@ export class EvalKernelManager {
     const entries = [...this.kernels.values()]
     this.kernels.clear()
     this.reapedIdle.clear()
+    this.interruptedKernels.clear()
     this.syncSweepTimer()
     await Promise.all(entries.map(entry => entry.kernel.dispose()))
   }
@@ -345,6 +348,7 @@ export class EvalKernelManager {
     for (const [key, note] of this.reapedIdle) {
       if (note.owner === owner) this.reapedIdle.delete(key)
     }
+    for (const [key, heldOwner] of this.interruptedKernels) if (heldOwner === owner) this.interruptedKernels.delete(key)
     this.syncSweepTimer()
     if (removed.length === 0) return Promise.resolve()
     return Promise.all(removed.map(entry => entry.kernel.dispose())).then(() => undefined)
@@ -354,6 +358,7 @@ export class EvalKernelManager {
     for (const entry of this.kernels.values()) entry.kernel.killNow()
     this.kernels.clear()
     this.reapedIdle.clear()
+    this.interruptedKernels.clear()
     this.syncSweepTimer()
   }
 
@@ -378,6 +383,7 @@ export class EvalKernelManager {
       if (input.reset) {
         await this.disposeKey(key)
         this.reapedIdle.delete(key)
+        this.interruptedKernels.delete(key)
         annotations.push(`the ${input.language} kernel was reset before this cell (other languages keep their state)`)
       }
       try {
@@ -535,6 +541,7 @@ export class EvalKernelManager {
 
     if (end.kind === 'kernel-exit') {
       if (interruptRequested !== null) {
+        this.interruptedKernels.set(key, owner)
         annotations.push(
           escalated
             ? 'the interrupt was not honoured in time (stuck native code?) — the kernel was killed and will be recreated on the next call'
@@ -566,6 +573,7 @@ export class EvalKernelManager {
       annotations.push(cancelReasonNote(interruptRequested ?? 'abort', timeoutSeconds))
       if (input.language === 'js') {
         await this.disposeKey(key)
+        this.interruptedKernels.set(key, owner)
         annotations.push('the JS kernel was recreated after the interrupt: kernel state was reset (re-run your setup cell)')
       } else {
         annotations.push('the kernel survived: variables are intact; pass reset:true if you want a clean runtime')

@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
 import { logForDebugging } from './debug.js'
 import { PDF_MAX_EXTRACT_SIZE } from '../constants/apiLimits.js'
+import { normaliseForMatch } from './text/normaliseForMatch.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 
 export interface PdfTextPage {
   pageNumber: number
   text: string
+  rawText?: string
   hasTextLayer: boolean
   hasImages: boolean
 }
@@ -35,7 +37,7 @@ export async function parsePdfText(bytes: Uint8Array, maxBytes = PDF_MAX_EXTRACT
     worker.once('message', (message: { result?: PdfTextDocument; error?: string; diagnostics?: string[] }) => {
       for (const diagnostic of message.diagnostics ?? []) logForDebugging(diagnostic)
       settled = true
-      if (message.result) accept(message.result)
+      if (message.result) accept({ ...message.result, pages: message.result.pages.map(page => ({ ...page, rawText: page.rawText ?? page.text, text: normaliseForMatch(page.text) })) })
       else reject(new Error(message.error ?? 'PDF text extraction failed.'))
       void worker.terminate()
     })
@@ -53,7 +55,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   if (info.size > max) throw new Error(`The PDF file exceeds the ${max}-byte limit for text extraction.`)
   const bytes = await readFile(filePath, { signal: options.signal })
   const digest = createHash('sha256').update(bytes).digest('hex')
-  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v1-${digest}.json`)
+  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v2-${digest}.json`)
   try {
     const cached = JSON.parse(await readFile(path, 'utf8')) as PdfTextDocument
     if (cached.pages.length === cached.pageCount && cached.pages.every(p => typeof p.text === 'string' && typeof p.hasTextLayer === 'boolean')) return cached

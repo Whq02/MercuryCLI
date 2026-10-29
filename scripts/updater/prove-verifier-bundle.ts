@@ -97,7 +97,7 @@ else {
   const plain = await runVerifier(['--dir', payload])
   check(`plain: the verdict line prints and the process left in ${plain.ms} ms with the same code`, /artifact provenance \(fast\)/.test(plain.out) && plain.code === EXIT_BY_STATE[state] && plain.signal === null, `code=${String(plain.code)} out=${plain.out.slice(0, 160)}`)
   const launcher = await runVerifier(['--launcher', '--dir', payload])
-  check(`--launcher: exit 0 always, one stderr line unless signed, left in ${launcher.ms} ms`, launcher.code === 0 && launcher.signal === null && (state === 'signed' ? launcher.err === '' : /^mercury: provenance — /.test(launcher.err)), `code=${String(launcher.code)} err=${launcher.err.slice(0, 160)}`)
+  check(`--launcher: exit 0 always, one stderr line unless signed, left in ${launcher.ms} ms`, launcher.code === 0 && launcher.signal === null && (state === 'signed' ? launcher.err === '' : state === 'unsigned' ? launcher.err === 'mercury: this installation is unsigned — mercury health\n' : /^mercury: provenance — /.test(launcher.err)), `code=${String(launcher.code)} err=${launcher.err.slice(0, 160)}`)
   const beside = join(payload, 'verify-artifact.mjs')
   const selfDir = await new Promise<Run>(resolveRun => {
     const started = Date.now()

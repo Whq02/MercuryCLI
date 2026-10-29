@@ -64,7 +64,9 @@ function cliMain(): void {
     let notice = ''
     if (state !== 'signed' && (!once || !provenanceNoticeSaid(dir, state))) {
       const onceWords = once && provenanceNoticeMarkerPath(dir) !== null ? 'said once for this install; ' : ''
-      notice = `mercury: provenance — ${line} (${onceWords}\`mercury health\` shows the full record)\n`
+      notice = state === 'unsigned'
+        ? 'mercury: this installation is unsigned — mercury health\n'
+        : `mercury: provenance — ${line} (${onceWords}\`mercury health\` shows the full record)\n`
       if (once) recordProvenanceNotice(dir, state)
     }
     sayAndLeave(process.stderr, notice, 0)

@@ -114,7 +114,7 @@ try {
   check('/health deep row: ok + whole-tree bind stated', signedDeepRow.status === 'ok' && signedDeepRow.evidence.includes('whole payload tree bound'))
 
   const unsignedRow = artifactSignatureCheck(asManaged(unsignedDir), 'fast', roster)
-  check('/health unsigned row: warn + the word unsigned, the fix naming the signed releases and the way to one', unsignedRow.status === 'warn' && unsignedRow.evidence.includes('unsigned') && (unsignedRow.fix ?? '').includes('signed at packaging') && (unsignedRow.fix ?? '').includes('mercury update'))
+  check('/health unsigned row keeps the recovery sentence', unsignedRow.status === 'warn' && unsignedRow.evidence.includes('unsigned') && unsignedRow.fix === 'Run `mercury update`, or download a signed release from github.com/Whq02/MercuryCLI/releases.')
 
   const tamperedRow = artifactSignatureCheck(asManaged(tamperedDir), 'fast', roster)
   check('/health tampered row: FAIL + TAMPERED in the evidence', tamperedRow.status === 'fail' && tamperedRow.evidence.includes('TAMPERED'))
@@ -158,7 +158,7 @@ try {
     const marker = join(versions, 'provenance-noted-9.9.9-beta.1.txt')
     const first = run(['--dir', vdir, '--launcher'])
     const second = run(['--dir', vdir, '--launcher'])
-    check('managed layout: the first launch says the unsigned line once, naming the once-per-install fact', first.status === 0 && first.stderr.trim().split('\n').length === 1 && first.stderr.includes('unsigned') && first.stderr.includes('said once for this install'))
+    check('managed layout: the first launch says the approved unsigned line', first.status === 0 && first.stderr === 'mercury: this installation is unsigned — mercury health\n')
     check('the marker sits beside the version pointer and records the verdict said', existsSync(marker) && readFileSync(marker, 'utf8').startsWith('unsigned\n'))
     check('the second launch says nothing (exit 0, no stderr, no stdout)', second.status === 0 && second.stderr === '' && second.stdout === '')
     cpSync(signedDir, vdir, { recursive: true })

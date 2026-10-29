@@ -421,11 +421,9 @@ async function acquireAndActivate(
       }
     }
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
-    progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
     const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
     if (refusal) return refusal
     const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
-    if (unsignedOverride) progress('verifying', 'unsigned payload accepted by explicit --allow-unsigned')
 
     sweepUpdaterResidue(roots)
     progress('staging')
@@ -604,12 +602,10 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
   }
   try {
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
-    progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
     const allowUnsigned = opts.allowUnsigned === true
     const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
     if (refusal) return refusal
     const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
-    if (unsignedOverride) progress('verifying', 'unsigned payload accepted by explicit --allow-unsigned')
     sweepUpdaterResidue(roots)
     const installed = installPayload(roots, payloadDir, payload.version, () => progress('staging', payload.version))
     if (installed.state === 'failed') {

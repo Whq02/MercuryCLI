@@ -56,8 +56,8 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import { foldToolChoiceForModel } from 'src/utils/model/capabilities.js'
-import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
+import { foldToolChoiceForModel, getContextWindowForModel } from 'src/utils/model/capabilities.js'
+import { ANTHROPIC_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
 import { getAttributionHeader } from '../../../constants/system.js'
 import {
   getEmptyToolPermissionContext,
@@ -197,7 +197,7 @@ import {
   cleanupStream,
   updateUsage,
 } from './cacheAndUsage.js'
-import { stripExcessMediaItems } from './media.js'
+import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import {
   coldPrefixOf,
@@ -554,10 +554,6 @@ async function* queryModel(
     (a, b) => getCanonicalName(a) === getCanonicalName(b),
   )
 
-  messagesForAPI = stripExcessMediaItems(
-    messagesForAPI,
-    API_MAX_MEDIA_PER_REQUEST,
-  )
   const retiredScreenshots = retireOlderScreenshots(messagesForAPI, undefined, undefined, rosterOwnerKey)
   messagesForAPI =
     retiredScreenshots.firstEdited === -1
@@ -744,7 +740,7 @@ async function* queryModel(
     const wireMessages = wireParts.messages
     const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
 
-    const params = {
+    const params = fitWireImages({
       model: normalizeModelStringForAPI(options.model),
       messages: wireMessages as ReturnType<typeof addCacheBreakpoints>,
       system: wireParts.system as typeof system,
@@ -759,7 +755,7 @@ async function* queryModel(
       ...(Object.keys(outputConfig).length > 0 && {
         output_config: outputConfig,
       }),
-    }
+    }, { ...ANTHROPIC_IMAGE_LIMITS, maxImagesPerRequest: getContextWindowForModel(options.model) <= 200_000 ? 100 : ANTHROPIC_IMAGE_LIMITS.maxImagesPerRequest }).request
     const verdict = judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
       system: params.system,
       tools: params.tools,

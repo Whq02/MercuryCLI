@@ -79,9 +79,9 @@ Før en release aktiveres, kontrollerer Mercury arkivet mod `SHA256SUMS.txt`. De
 
 Brug `--allow-unsigned` for at acceptere en usigneret nyttelast. Mercury afviser stadig ukendte signeringsnøgler, ugyldige signeringsblokke og manipuleret indhold. Kommandoens resultat og den lokale optegnelse viser begge, at du tillod en usigneret nyttelast.
 
-Fra 1.0.0-beta.3 signeres arkiver under pakningen, og deres signaturer verificeres før udgivelsen. En verificeret installation tilføjer ingen signaturmeddelelse ved opstart. `mercury health` rapporterer signeringsnøglen `627b54b734ca0e72`.
+Releasearkiver er signerede. Kør `mercury health` for at undersøge den installerede releases signatur.
 
-Arkiverne for 1.0.0-beta.2 er usignerede. Disse installationer rapporterer én gang pr. installation en usigneret herkomst, når du starter Mercury interaktivt uden en kommando eller et flag. Health-checket viser fortsat den status. Det betyder, at arkivmanifestet ikke har nogen signatur; downloadet kontrolleres stadig mod `SHA256SUMS.txt`.
+Et arkiv uden en releasesignatur markeres som usigneret. Installation og opdatering afviser det, medmindre du angiver `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) forklarer verificeringsresultaterne og hvordan du kontrollerer et arkiv manuelt. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) dækker verificering ved opstart.
 
@@ -89,7 +89,7 @@ Arkiverne for 1.0.0-beta.2 er usignerede. Disse installationer rapporterer én g
 
 Der findes releasearkiver til alle platforme, der er nævnt ovenfor. Enhver anden maskine bygger fra kildekoden.
 
-Arkiver til Intel-Mac findes fra 1.0.0-beta.3. De krydspakkes på en Apple silicon-runner og testes ved opstart under Rosetta, før de udgives. Intel-Mac'er, der bruger 1.0.0-beta.2, skal bygges fra kildekoden.
+Releasearkiver til Intel-Mac er tilgængelige.
 
 </details>
 

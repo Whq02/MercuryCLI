@@ -1,4 +1,5 @@
 import type { UUID } from 'crypto'
+import { isDeepStrictEqual } from 'node:util'
 import {
   closeSync,
   fstatSync,
@@ -932,7 +933,7 @@ class Project {
     if (!cleaned) return
     const settled = { ...cached.entry, ...cleaned } as Entry
     const semanticLine = jsonStringify(settled) + '\n'
-    if (semanticLine === cached.semanticLine) return
+    if (semanticLine === cached.semanticLine || isDeepStrictEqual(jsonParse(semanticLine), jsonParse(cached.semanticLine))) return
     const line = encodeTranscriptLine(
       cached.file,
       settled as Record<string, unknown>,

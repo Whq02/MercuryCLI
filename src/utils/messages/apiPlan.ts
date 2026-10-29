@@ -34,7 +34,7 @@ import { normalizeToolInputForAPI } from '../api.js'
 import { toolMatchesName } from '../../Tool.js'
 import { validateImagesForAPI } from '../imageValidation.js'
 import { LOCAL_COMMAND_CAVEAT_TAG } from '../../constants/xml.js'
-
+import { IMAGE_ELIDED_TEXT } from './imageRequestFit.js'
 const CAVEAT_MARK = `<${LOCAL_COMMAND_CAVEAT_TAG}>`
 
 function leadingTextOf(message: UserMessage): string {
@@ -133,9 +133,9 @@ export function applyStripTargets(
   if (!typesToStrip || !message.isMeta) return message
   const content = message.message.content
   if (!Array.isArray(content)) return message
-  const filtered = content.filter(block => !typesToStrip.has(block.type))
+  const filtered = content.flatMap(block => !typesToStrip.has(block.type) ? [block] : block.type === 'image' ? [{ type: 'text' as const, text: IMAGE_ELIDED_TEXT }] : [])
   if (filtered.length === 0) return null
-  if (filtered.length < content.length) {
+  if (filtered.some((block, index) => block !== content[index]) || filtered.length < content.length) {
     return { ...message, message: { ...message.message, content: filtered } }
   }
   return message
@@ -170,11 +170,11 @@ function contentCarriesImage(content: unknown): boolean {
 function contentWithoutImages(content: unknown[]): unknown[] {
   const out: unknown[] = []
   for (const block of content as Array<{ type?: string; content?: unknown }>) {
-    if (block.type === 'image') continue
+    if (block.type === 'image') { out.push({ type: 'text', text: IMAGE_ELIDED_TEXT }); continue }
     if (block.type === 'tool_result' && Array.isArray(block.content)) {
-      const kept = (block.content as Array<{ type?: string }>).filter(nested => nested.type !== 'image')
-      if (kept.length === block.content.length) out.push(block)
-      else out.push({ ...block, content: kept.length > 0 ? kept : [{ type: 'text', text: '[image]' }] })
+      const kept = (block.content as Array<{ type?: string }>).map(nested => nested.type === 'image' ? { type: 'text', text: IMAGE_ELIDED_TEXT } : nested)
+      if (kept.every((nested, index) => nested === (block.content as unknown[])[index])) out.push(block)
+      else out.push({ ...block, content: kept })
       continue
     }
     out.push(block)

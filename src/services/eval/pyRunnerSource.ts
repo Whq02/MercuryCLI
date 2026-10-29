@@ -354,7 +354,8 @@ def pipeline(items, *stages, width=None):
 
 
 def read_file(path, **kwargs):
-    return _bridge("tool", {"name": "Read", "input": {"file_path": os.path.abspath(path), **kwargs}})
+    value = _bridge("read_file", {"file_path": os.path.abspath(path), **kwargs})
+    return base64.b64decode(value) if kwargs.get("bytes") else value
 
 
 def write_file(path, content):

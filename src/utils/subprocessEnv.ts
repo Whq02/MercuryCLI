@@ -134,10 +134,10 @@ function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[]): void {
   }
 }
 
-export function subprocessEnv(): NodeJS.ProcessEnv {
+export function subprocessEnv(options: { stripProviderCredentials?: boolean } = {}): NodeJS.ProcessEnv {
   const env = process.env
   const scrubForCI = isEnvTruthy(process.env.MERCURY_SUBPROCESS_ENV_SCRUB)
-  const isolateCredentials = isEnvTruthy(process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION)
+  const isolateCredentials = options.stripProviderCredentials === true || isEnvTruthy(process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION)
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
   const hasOtelVar = Object.keys(env).some(key => nameKey(key).startsWith('OTEL_'))
   const hasBrowserSecret = Object.keys(env).some(key => nameKey(key).startsWith(BROWSER_SECRET_PREFIX))

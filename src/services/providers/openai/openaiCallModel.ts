@@ -135,7 +135,8 @@ import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
-
+import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
+import { OPENAI_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
 
 let openaiLiveProof: { at: number; model: string } | null = null
 export function openaiLiveProofState(): { at: number; model: string } | null {
@@ -650,7 +651,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   })
   const statedMaxOut = auth.account.kind === 'api-key' && operatorModelFacts(modelId)?.maxOutputTokens !== undefined ? getModelMaxOutputTokens(modelId).default : undefined
   const cacheSourceKind = auth.account.kind
-  const buildRequest = (wireEffort: string | undefined) => ({ ...buildOpenaiResponsesRequest({
+  const buildRequest = (wireEffort: string | undefined) => fitWireImages({ ...buildOpenaiResponsesRequest({
     model: modelId,
     instructions: renderedInstructions,
     messages: bridge.rows,
@@ -664,7 +665,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
     ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),
     ...(options.toolChoice?.type === 'none' ? { toolChoice: 'none' as const } : {}),
-  }), ...openaiCacheRetention(modelId, cacheSourceKind) })
+  }), ...openaiCacheRetention(modelId, cacheSourceKind) }, OPENAI_IMAGE_LIMITS).request
   let request = buildRequest(profile.wireEffort)
   const effortOnWire = (): EffortStampV1 => effortStampOf(effortTruth.requested, openaiEffortWireFact(request, effortTruth.supportsEffort))
   const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire() })

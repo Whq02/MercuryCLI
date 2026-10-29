@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/Tool.ts src/utils/fileStateCache.ts src/utils/ocr.ts src/services/desktop/pack.ts native/desktop/**
-# gate-watch: src/tools/GrepTool/** src/utils/documentText.ts src/utils/cwd.ts src/tools/WebFetchTool/**
+# gate-watch: src/tools/GrepTool/** src/utils/documentText.ts src/utils/cwd.ts src/tools/WebFetchTool/** src/utils/text/normaliseForMatch.ts src/utils/toolResultStorage.ts
 # gate-watch: src/services/providers/callModelRouter.ts src/services/providers/mistral/** src/utils/config.ts src/utils/systemPromptType.ts
 # gate-watch: src/services/providers/openai/** src/services/providers/gemini/** src/services/providers/zai/** src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/pdfBlock.ts src/utils/model/capabilities.ts
 # gate-watch: src/tools/FileReadTool/** src/utils/pdf* vendor/pdfjs.lock.json scripts/vendor/pdfjs.ts scripts/vendor/fetch-pdfjs.ts build.ts package.json

@@ -13,7 +13,7 @@
 # gate-watch: src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/components/mercury-ui/toolGlyphs.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/envUtils.ts src/utils/zodToJsonSchema.ts
 # gate-watch: src/utils/hooks/hooksConfigSnapshot.ts src/utils/hooks/sessionHooks.ts
-# gate-watch: src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/attachments/orchestrator.ts src/tasks.ts src/utils/messages/factories.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -21,6 +21,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── session-persistence proofs ──"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-output-once.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-output-once.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sessionstorage-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sessionstorage-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-storage-row-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-storage-row-vocabulary.ts" "$__t" "$__rc"

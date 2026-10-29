@@ -45,6 +45,7 @@ export function MCPServerApprovalDialog({
       </Text>
       <Text>MCP servers may execute code or access external systems.</Text>
       <Select
+        defaultFocusValue="enable"
         options={[
           {
             label: 'Use this and all future MCP servers in this project',

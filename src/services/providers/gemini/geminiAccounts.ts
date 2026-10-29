@@ -157,7 +157,7 @@ export function geminiOauthClientConfig(
 }
 
 export const GEMINI_CLIENT_STORED_UNVERIFIED_NOTE =
-  'Stored as given — proved at the next Google sign-in: invalid_client in the browser tab means a wrong id (esc the wait, reopen this prompt; it starts from the stored id).'
+  'If Google shows invalid_client, press esc and correct the client ID here.'
 
 export function writeGeminiOauthClientConfig(config: GeminiOauthClientConfig | null): void {
   writeAuthFile(file => {

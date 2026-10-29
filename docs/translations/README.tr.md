@@ -79,9 +79,9 @@ Bir sürümü etkinleştirmeden önce Mercury, arşivini `SHA256SUMS.txt` ile de
 
 İmzasız bir payload'ı kabul etmek için `--allow-unsigned` kullanın. Mercury yine de bilinmeyen imzalama anahtarlarını, bozuk imza bloklarını ve kurcalanmış içerikleri reddeder. Komutun sonucu ve yerel kaydı, imzasız bir payload'a izin verdiğinizi gösterir.
 
-1.0.0-beta.3 sürümünden itibaren arşivler paketleme sırasında imzalanır ve yayımlanmadan önce imzaları doğrulanır. Doğrulanmış bir kurulum, başlangıçta herhangi bir imza bildirimi göstermez. `mercury health`, `627b54b734ca0e72` imzalama anahtarını bildirir.
+Sürüm arşivleri imzalıdır. Kurulu sürümün imzasını incelemek için `mercury health` komutunu çalıştırın.
 
-1.0.0-beta.2 arşivleri imzasızdır. Bu kurulumlar, Mercury'yi komut veya bayrak olmadan etkileşimli olarak başlattığınızda, kurulum başına bir kez imzasız köken bildirir. Sağlık denetimi bu durumu göstermeye devam eder. Bu, arşiv manifest'inde imza bulunmadığı anlamına gelir; indirme yine de `SHA256SUMS.txt` ile denetlenir.
+Sürüm imzası olmayan bir arşiv imzasız olarak işaretlenir. `--allow-unsigned` belirtmediğiniz sürece kurulum ve güncelleme bunu reddeder.
 
 [docs/TRUST.md](../TRUST.md) doğrulama sonuçlarını ve bir arşivin elle nasıl denetleneceğini açıklar. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) başlangıç doğrulamasını ele alır.
 
@@ -89,7 +89,7 @@ Bir sürümü etkinleştirmeden önce Mercury, arşivini `SHA256SUMS.txt` ile de
 
 Yukarıda listelenen her platform için sürüm arşivleri vardır. Diğer tüm makineler kaynaktan derlenir.
 
-Intel Mac arşivleri 1.0.0-beta.3 sürümünden itibaren kullanılabilir. Bunlar bir Apple silicon çalıştırıcısında çapraz paketlenir ve yayımlanmadan önce Rosetta altında başlangıçta test edilir. 1.0.0-beta.2 kullanan Intel Mac'ler için kaynaktan derleme gerekir.
+Intel Mac için sürüm arşivleri mevcuttur.
 
 </details>
 

@@ -147,7 +147,7 @@ export function artifactSignatureCheck(
       return {
         status: 'warn',
         evidence,
-        fix: 'releases from 1.0.0-beta.3 on are signed at packaging — an unsigned payload is 1.0.0-beta.2 (shipped without the key) or a build made without it; `mercury update`, or a fresh download from github.com/Whq02/MercuryCLI/releases, brings a signed release',
+        fix: 'Run `mercury update`, or download a signed release from github.com/Whq02/MercuryCLI/releases.',
       }
     case 'unrecognized-key':
       return {

@@ -104,15 +104,9 @@ unknown signing keys, malformed signing blocks and tampered contents. The
 command result and its local record both show that you allowed an unsigned
 payload.
 
-From 1.0.0-beta.3, archives are signed during packaging and their signatures
-are verified before publication. A verified installation adds no signature
-notice at startup. `mercury health` reports the signing key `627b54b734ca0e72`.
+Release archives are signed. Run `mercury health` to inspect the installed release's signature.
 
-The 1.0.0-beta.2 archives are unsigned. These installations report
-unsigned provenance once per install when you start Mercury interactively
-without a command or flag. The health check continues to show that status. It means
-the archive manifest has no signature; the download is still checked against
-`SHA256SUMS.txt`.
+An archive without a release signature is marked unsigned. Install and update refuse it unless you pass `--allow-unsigned`.
 
 [TRUST.md](TRUST.md) explains the verification results and how to
 check an archive manually.
@@ -123,9 +117,7 @@ check an archive manually.
 Release archives exist for every platform listed above. Any other machine
 builds from source.
 
-Intel Mac archives are available from 1.0.0-beta.3. They are cross-packaged on
-an Apple silicon runner and tested at startup under Rosetta before
-publication. Intel Macs using 1.0.0-beta.2 need a source build.
+Intel Mac release archives are available.
 
 ## Requirements
 

@@ -7,6 +7,7 @@ import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.j
 import { controlCharacterPathRefusal } from '../../utils/path.js'
 import { extractDocumentText, isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
+import { normaliseForMatch } from '../../utils/text/normaliseForMatch.js'
 import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
 
 const MAX_DOCUMENTS = 20
@@ -25,12 +26,12 @@ function discoveryArgs(args: string[], pattern: string): string[] {
   }
   return result
 }
-function textArgs(args: string[]): string[] {
+function textArgs(args: string[], pattern: string): string[] {
   const result: string[] = []
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '-e') result.push(args[i]!, args[++i]!)
+    if (args[i] === '-e') result.push(args[i]!, normaliseForMatch(args[++i]!))
     else if (['--glob', '--iglob', '--type', '--type-add', '--max-depth'].includes(args[i]!)) i++
-    else result.push(args[i]!)
+    else result.push(args[i] === pattern ? normaliseForMatch(pattern) : args[i]!)
   }
   return result
 }
@@ -56,9 +57,9 @@ export async function searchDocuments(options: {
     if (controlCharacterPathRefusal(path) !== null || checkReadPermissionForTool({ name: 'Read', getPath: () => path }, { file_path: path }, permission).behavior !== 'allow') { skipped++; continue }
     const scratch = join(ensureScratchpadDir(), `document-search-${randomUUID()}.txt`)
     try {
-      const text = await extractDocumentText(path, signal)
+      const text = normaliseForMatch(await extractDocumentText(path, signal))
       await writeFile(scratch, text, { mode: 0o600 })
-      const result = await options.search(textArgs(args), scratch)
+      const result = await options.search(textArgs(args, pattern), scratch)
       if (!result.answer.complete) { skipped++; continue }
       const sections: string[] = []
       let section = ''

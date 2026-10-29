@@ -79,9 +79,9 @@ Før en utgivelse aktiveres, sjekker Mercury arkivet mot `SHA256SUMS.txt`. Den k
 
 Bruk `--allow-unsigned` for å godta en usignert nyttelast. Mercury avviser fortsatt ukjente signeringsnøkler, feilformede signeringsblokker og manipulert innhold. Kommandoresultatet og den lokale loggen viser begge at du tillot en usignert nyttelast.
 
-Fra 1.0.0-beta.3 signeres arkiver under pakking, og signaturene verifiseres før publisering. En verifisert installasjon viser ingen signaturmelding ved oppstart. `mercury health` rapporterer signeringsnøkkelen `627b54b734ca0e72`.
+Utgivelsesarkiver er signert. Kjør `mercury health` for å undersøke signaturen til den installerte utgivelsen.
 
-Arkivene for 1.0.0-beta.2 er usignerte. Disse installasjonene rapporterer usignert opprinnelse én gang per installasjon når du starter Mercury interaktivt uten kommando eller flagg. Helsesjekken fortsetter å vise den statusen. Det betyr at arkivmanifestet ikke har noen signatur; nedlastingen kontrolleres likevel mot `SHA256SUMS.txt`.
+Et arkiv uten utgivelsessignatur merkes som usignert. Installasjon og oppdatering avviser det med mindre du angir `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) forklarer verifiseringsresultatene og hvordan du sjekker et arkiv manuelt. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) dekker verifisering ved oppstart.
 
@@ -89,7 +89,7 @@ Arkivene for 1.0.0-beta.2 er usignerte. Disse installasjonene rapporterer usigne
 
 Det finnes utgivelsesarkiver for alle plattformene som er oppført over. Enhver annen maskin bygger fra kildekoden.
 
-Arkiver for Intel-Mac finnes fra 1.0.0-beta.3. De krysspakkes på en Apple silicon-runner og testes ved oppstart under Rosetta før publisering. Intel-Mac-er som bruker 1.0.0-beta.2, trenger et bygg fra kildekoden.
+Utgivelsesarkiver for Intel-Mac er tilgjengelige.
 
 </details>
 

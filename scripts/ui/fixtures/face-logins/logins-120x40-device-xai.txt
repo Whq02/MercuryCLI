@@ -15,7 +15,7 @@
    │   Anthropic — Claude subscription or Cons…      op@example.com │  │     GROK-TEST                              │
    │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ If nothing opened, visit:                  │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ https://accounts.x.ai/device               │
-   │                                                                │  │ waiting (1 check) · expires in 5m          │
+   │                                                                │  │ waiting · expires in 5m                    │
    │ available                                                      │  │ c copies the URL · esc cancels             │
    │   OpenRouter — browser sign-in or API key        not signed in │  │                                            │
    │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │

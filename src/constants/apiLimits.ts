@@ -25,8 +25,8 @@ export const ANTHROPIC_IMAGE_LIMITS: ImageLimits = {
   maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 2576 },
   toolResultRejectsAboveNative: true,
-  maxImagesPerRequest: 100,
-  maxRequestBytes: 32 * MiB,
+  maxImagesPerRequest: 600,
+  maxRequestBytes: 128 * MiB,
 }
 
 export const OPENAI_IMAGE_LIMITS: ImageLimits = {

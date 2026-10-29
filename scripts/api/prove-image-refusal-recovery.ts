@@ -104,7 +104,7 @@ section('§1 the limits at their one home: the provider\'s rule per family')
   check('openai: 30,000 patches of 32 px per image', OPENAI.maxPatchesPerImage?.patchPx === 32 && OPENAI.maxPatchesPerImage.count === 30_000, j(OPENAI.maxPatchesPerImage))
   check('openai: 512 MB per request · 1,500 images per request', OPENAI.maxRequestBytes === 512 * MiB && OPENAI.maxImagesPerRequest === 1500)
   check('openai: the images-vision guide is cited', OPENAI.doc === 'https://developers.openai.com/api/docs/guides/images-vision')
-  check('anthropic: unchanged — 10 MB base64 per image, no patch rule, 100 images, 32 MB request', ANTHROPIC.maxBase64Bytes === 10 * MiB && (ANTHROPIC.maxPatchesPerImage ?? null) === null && ANTHROPIC.maxImagesPerRequest === 100 && ANTHROPIC.maxRequestBytes === 32 * MiB)
+  check('anthropic: 10 MB base64 per image, no patch rule, up to 600 images, 128 MB request', ANTHROPIC.maxBase64Bytes === 10 * MiB && (ANTHROPIC.maxPatchesPerImage ?? null) === null && ANTHROPIC.maxImagesPerRequest === 600 && ANTHROPIC.maxRequestBytes === 128 * MiB)
   check('the strictest per-image base64 ceiling is still the generic family\'s 5 MB', limitsMod.STRICTEST_IMAGE_MAX_BASE64_BYTES === 5 * MiB, String(limitsMod.STRICTEST_IMAGE_MAX_BASE64_BYTES))
   check('the 6000x6000 fixture really is over the patch rule (35,344 patches)', patches(6000, 6000) === 35_344 && patches(6000, 6000) > 30_000)
 }
@@ -340,7 +340,7 @@ section('§7 the OpenAI route: a pasted image and an attached file leave the req
   const stripped = stripper?.(toolRound) as AnyMsg[] | undefined
   const resultRow = stripped?.[2]
   const resultBlocks = (resultRow?.message as { content?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> } | undefined)?.content
-  check('the owner strips a refused image nested in a tool result, the text kept', resultBlocks?.[0]?.type === 'tool_result' && resultBlocks[0].content?.length === 1 && resultBlocks[0].content[0]?.type === 'text', j(resultBlocks ?? null).slice(0, 300))
+  check('a refused tool-result image leaves its marker and original text', resultBlocks?.[0]?.type === 'tool_result' && resultBlocks[0].content?.length === 2 && resultBlocks[0].content[0]?.text === 'the photo' && resultBlocks[0].content[1]?.text === 'image elided from this request; Read it again if needed', j(resultBlocks ?? null).slice(0, 300))
   const untouched = stripper?.([pasted, userRow('plain')]) as AnyMsg[] | undefined
   check('without a stamped row nothing changes (the same rows by reference)', untouched !== undefined && untouched[0] === pasted)
 }

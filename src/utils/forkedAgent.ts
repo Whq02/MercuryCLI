@@ -299,7 +299,8 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
   let lastRecordedUuid: UUID | undefined
   if (!skipTranscript) {
     try {
-      await recordSidechainTranscript(messages, agentId)
+      const replay = cacheSafeParams.forkContextMessages.map(message => ({ ...message, replayOf: message.uuid }))
+      await recordSidechainTranscript([...replay, ...promptMessages], agentId)
       const last = messages[messages.length - 1] as { uuid?: UUID } | undefined
       lastRecordedUuid = last?.uuid
     } catch (err) {

@@ -79,9 +79,9 @@ Prije aktiviranja izdanja Mercury provjerava njegovu arhivu u odnosu na `SHA256S
 
 Koristite `--allow-unsigned` da prihvatite nepotpisani paket. Mercury i dalje odbija nepoznate ključeve za potpisivanje, neispravne blokove potpisa i izmijenjen sadržaj. Rezultat naredbe i njen lokalni zapis pokazuju da ste dozvolili nepotpisani paket.
 
-Od verzije 1.0.0-beta.3 arhive se potpisuju tokom pakovanja, a njihovi potpisi se provjeravaju prije objave. Provjerena instalacija ne dodaje obavijest o potpisu pri pokretanju. `mercury health` prijavljuje ključ za potpisivanje `627b54b734ca0e72`.
+Arhive izdanja su potpisane. Pokrenite `mercury health` da pregledate potpis instaliranog izdanja.
 
-Arhive 1.0.0-beta.2 nisu potpisane. Ove instalacije prijavljuju nepotpisano porijeklo jednom po instalaciji, kada pokrenete Mercury interaktivno bez naredbe ili zastavice. Provjera stanja i dalje prikazuje taj status. To znači da manifest arhive nema potpis; preuzimanje se ipak provjerava u odnosu na `SHA256SUMS.txt`.
+Arhiva bez potpisa izdanja označena je kao nepotpisana. Instalacija i ažuriranje je odbijaju osim ako proslijedite `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) objašnjava rezultate provjere i kako ručno provjeriti arhivu. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) pokriva provjeru pri pokretanju.
 
@@ -89,7 +89,7 @@ Arhive 1.0.0-beta.2 nisu potpisane. Ove instalacije prijavljuju nepotpisano pori
 
 Arhive izdanja postoje za svaku platformu navedenu iznad. Svaka druga mašina gradi iz izvornog koda.
 
-Arhive za Intel Mac računare dostupne su od verzije 1.0.0-beta.3. Pakuju se unakrsno na runneru s Apple silicon čipom i prije objave se testiraju pri pokretanju pod Rosettom. Intel Mac računari koji koriste verziju 1.0.0-beta.2 trebaju izgradnju iz izvornog koda.
+Arhive izdanja za Intel Mac računare su dostupne.
 
 </details>
 

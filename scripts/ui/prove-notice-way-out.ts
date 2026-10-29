@@ -112,6 +112,23 @@ section('§3 a notice that fits is painted whole, with no seam of its own')
   board.close()
 }
 
+section('§4 compact summary keeps the notice command')
+{
+  const { CompactWorkSummary } = await import('../../src/components/tasks/CompactWorkSummary.js')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  for (const columns of [80, 100]) {
+    const state = getDefaultAppState()
+    state.notifications.current = { key: 'compact-notice', priority: 'high', ...split(honest) }
+    const board = await paint(React.createElement(AppStateProvider, { initialState: state }, React.createElement(Box, { width: columns }, React.createElement(CompactWorkSummary, { columns, focused: false, onFocus() {} }))), columns, ROWS)
+    const painted = board.lines().find(line => line.trim() !== '') ?? ''
+    check(`compact ${columns}: command stays whole`, painted.includes('/daemon restart when ready'), JSON.stringify(painted))
+    check(`compact ${columns}: one row inside its width`, board.lines().filter(line => line.trim() !== '').length === 1 && stringWidth(painted) <= columns, JSON.stringify(painted))
+    console.log(painted)
+    board.close()
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\nprove-notice-way-out: ${failures === 0 ? 'green' : `${failures} failed`}`)
 process.exit(failures === 0 ? 0 : 1)

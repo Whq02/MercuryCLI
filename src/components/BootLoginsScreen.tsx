@@ -846,23 +846,20 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
     ? ['On the sign-in page, enter this code:', `    ${d.userCode ?? ''}`, ...wrapHard(d.verificationUri ?? '', DETAIL_W), d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels']
     : ['Connect OrcaRouter', 'esc cancels'];
   if (d.phase === 'starting') {
-    return [`Connect ${deviceFamilyWords(d.family, d.regionWords)}`, '', 'Requesting a device code…', '', 'esc cancels — nothing is stored'];
+    return [`Connect ${deviceFamilyWords(d.family, d.regionWords)}`, '', 'Opening sign-in…', '', 'esc cancels — nothing is stored'];
   }
   if (d.phase === 'finishing') {
     return [
       `Connect ${deviceFamilyWords(d.family, d.regionWords)}`,
       '',
-      d.family === 'moonshot'
-        ? 'Authorized — storing the sign-in and'
-        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : d.family === 'nous' ? 'Approved — storing the sign-in' : d.family === 'meta' ? 'Authorized — minting the Muse Code key' : 'Authorized — reading your Hub identity',
-      d.family === 'moonshot' ? 'reading your usage…' : d.family === 'nous' ? 'and reading your account…' : d.family === 'meta' ? 'and reading your plan…' : 'and the live catalogue…',
+      'Finishing sign-in…',
     ];
   }
   const lines: string[] = ['On the sign-in page, enter this code:'];
   lines.push(`    ${d.userCode ?? ''}`);
   lines.push('If nothing opened, visit:');
   lines.push(...wrapHard(d.verificationUri ?? '', DETAIL_W));
-  lines.push(`waiting${d.polls > 0 ? ` (${d.polls} check${d.polls === 1 ? '' : 's'})` : ''}${expiryWords(d.expiresAtMs, nowMs)}`);
+  lines.push(`waiting${expiryWords(d.expiresAtMs, nowMs)}`);
   if (d.note !== undefined) {
     const wrapped = wrapPlain(d.note, DETAIL_W);
     lines.push(...(wrapped.length > 2 ? [...wrapped.slice(0, 1), wrapped[1]!.slice(0, DETAIL_W - 1) + '…'] : wrapped));
@@ -884,10 +881,7 @@ export interface HandlesWaitStateV1 {
 
 export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[] {
   if (h.phase === 'exchanging') {
-    const words =
-      h.leg === 'openrouter-browser' || h.leg === 'openrouter-headless'
-        ? 'Exchanging the authorization code — OpenRouter mints the key…'
-        : 'Exchanging the authorization code…';
+    const words = 'Finishing sign-in…';
     return [...wrapPlain(words, DETAIL_W), '', 'esc cancels'];
   }
   const opening =
@@ -897,7 +891,7 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): s
         ? `${geminiGuideStep(6).title}: ${geminiGuideStep(6).detail}`
         : h.leg === 'gemini-plan'
           ? `${GEMINI_PLAN_LEG_TITLE}: ${GEMINI_PLAN_LEG_DETAIL}`
-          : 'A browser window should be opening; the loopback listener completes automatically.';
+          : 'Finish signing in in the browser.';
   const lines: string[] = [...wrapPlain(opening, DETAIL_W)];
   if (h.listenerNote !== undefined) {
     const wrapped = wrapPlain(h.listenerNote, DETAIL_W);
@@ -928,7 +922,7 @@ export interface OpenaiDeviceStateV1 {
 
 export function openaiDevicePaneLines(d: OpenaiDeviceStateV1): string[] {
   if (d.userCode === undefined) {
-    return ['Requesting a device code…', '', 'esc cancels — nothing is stored'];
+    return ['Opening sign-in…', '', 'esc cancels — nothing is stored'];
   }
   const lines: string[] = ['On any signed-in browser, enter this', 'one-time code:'];
   lines.push(`    ${d.userCode}`);
@@ -1051,11 +1045,11 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
       return pane.storing ? 'checking the key' : `paste ${keyLegTitle(pane.leg)}`;
     case 'device':
       return pane.device.family === 'orcarouter' ? 'OrcaRouter sign-in' : pane.device.phase === 'finishing'
-        ? 'authorized — settling the sign-in'
+        ? 'Finishing sign-in…'
         : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : pane.device.family === 'meta' ? 'Meta' : 'Hub'} device code`;
     case 'handles':
       return pane.handles.phase === 'exchanging'
-        ? 'exchanging the authorization code'
+        ? 'Finishing sign-in…'
         : pane.handles.leg === 'gemini-oauth' || pane.handles.leg === 'gemini-plan'
           ? 'waiting on the Google sign-in'
           : pane.handles.leg === 'openai-browser'

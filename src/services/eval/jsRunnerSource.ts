@@ -231,9 +231,10 @@ async function pipeline(items, ...stages) {
   return current
 }
 
-function readFile(path, extra) {
+async function readFile(path, extra) {
   const abs = isAbsolute(path) ? path : resolvePath(process.cwd(), path)
-  return bridge('tool', { name: 'Read', input: Object.assign({ file_path: abs }, extra || {}) })
+  const value = await bridge('read_file', Object.assign({ file_path: abs }, extra || {}))
+  return extra && extra.bytes ? Buffer.from(value, 'base64') : value
 }
 
 function writeFile(path, content) {

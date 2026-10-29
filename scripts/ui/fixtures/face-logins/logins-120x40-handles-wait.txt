@@ -11,14 +11,14 @@
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │                                                                │  │ ❯ OpenAI — ChatGPT subscription or API key │
    │ signed in                                                      │  │                                            │
-   │ ❯ OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ A browser window should be opening;        │
-   │   Anthropic — Claude subscription or Cons…      op@example.com │  │ the loopback listener completes            │
-   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ automatically.                             │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ If nothing opened, visit:                  │
-   │                                                                │  │ https://auth.openai.example/authorize?     │
-   │ available                                                      │  │ request=elided                             │
-   │   OpenRouter — browser sign-in or API key        not signed in │  │ paste: ▌                                   │
-   │   Google Gemini — Google sign-in, API key        not signed in │  │ c copy · d device · esc cancel             │
+   │ ❯ OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ Finish signing in in the browser.          │
+   │   Anthropic — Claude subscription or Cons…      op@example.com │  │ If nothing opened, visit:                  │
+   │   Hugging Face — sign-in or Hub token           keyed-op …k9f2 │  │ https://auth.openai.example/authorize?     │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ request=elided                             │
+   │                                                                │  │ paste: ▌                                   │
+   │ available                                                      │  │ c copy · d device · esc cancel             │
+   │   OpenRouter — browser sign-in or API key        not signed in │  │                                            │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

@@ -580,7 +580,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     return new OwnedStdioClientTransport({
       command,
       args,
-      env: { ...(scrubSessionEnvStamps(subprocessEnv()).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
+      env: { ...(scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
       stderr: 'pipe',
     })
   }

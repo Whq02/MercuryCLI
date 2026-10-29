@@ -54,7 +54,7 @@ if (!JS_ROAD) {
   check('anthropic: 10 MB base64 per image on the Claude API', A.maxBase64Bytes === 10 * MiB)
   check('anthropic: 1568 px standard tier · 2576 px high-resolution tier', A.nativeLongEdgePx.standard === 1568 && A.nativeLongEdgePx.highResolution === 2576)
   check('anthropic: tool results are validated, not downscaled', A.toolResultRejectsAboveNative === true)
-  check('anthropic: 100 images per request · 32 MB request', A.maxImagesPerRequest === 100 && A.maxRequestBytes === 32 * MiB)
+  check('anthropic: up to 600 images per request, 128 MB request', A.maxImagesPerRequest === 600 && A.maxRequestBytes === 128 * MiB)
   check('anthropic: the vision page is cited', A.doc === 'https://platform.claude.com/docs/en/build-with-claude/vision')
   const O = limitsMod.OPENAI_IMAGE_LIMITS
   check('openai: no per-side rejection · 2048 px detail box · 512 MB payload · 1500 images', O.maxSidePx === null && O.nativeLongEdgePx.standard === 2048 && O.maxRequestBytes === 512 * MiB && O.maxImagesPerRequest === 1500)

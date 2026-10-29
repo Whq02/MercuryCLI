@@ -79,9 +79,9 @@ Avant d'activer une version, Mercury vérifie son archive par rapport à `SHA256
 
 Utilisez `--allow-unsigned` pour accepter une charge utile non signée. Mercury rejette toujours les clés de signature inconnues, les blocs de signature malformés et les contenus altérés. Le résultat de la commande et son enregistrement local indiquent tous deux que vous avez accepté une charge utile non signée.
 
-À partir de la version 1.0.0-beta.3, les archives sont signées pendant leur empaquetage, et leurs signatures sont vérifiées avant publication. Une installation vérifiée n'affiche aucune notification de signature au démarrage. `mercury health` indique la clé de signature `627b54b734ca0e72`.
+Les archives de version sont signées. Exécutez `mercury health` pour examiner la signature de la version installée.
 
-Les archives de la version 1.0.0-beta.2 ne sont pas signées. Ces installations signalent une provenance non signée une fois par installation, lorsque vous lancez Mercury en mode interactif sans commande ni option. Le contrôle de santé continue d'afficher cet état. Il signifie que le manifeste de l'archive ne porte aucune signature ; le téléchargement reste toutefois vérifié par rapport à `SHA256SUMS.txt`.
+Une archive sans signature de version est marquée comme non signée. L'installation et la mise à jour la refusent, sauf si vous passez `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) explique les résultats de vérification et la manière de contrôler une archive à la main. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) traite de la vérification au démarrage.
 
@@ -89,7 +89,7 @@ Les archives de la version 1.0.0-beta.2 ne sont pas signées. Ces installations 
 
 Des archives de version existent pour chaque plateforme listée ci-dessus. Toute autre machine se compile à partir des sources.
 
-Les archives pour Mac Intel sont disponibles à partir de la version 1.0.0-beta.3. Elles sont empaquetées de façon croisée sur un runner à puce Apple, puis testées au démarrage sous Rosetta avant publication. Les Mac Intel qui utilisent la version 1.0.0-beta.2 ont besoin d'une compilation depuis les sources.
+Des archives de version pour Mac Intel sont disponibles.
 
 </details>
 

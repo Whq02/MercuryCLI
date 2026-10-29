@@ -79,9 +79,9 @@ Antes de activar una versión, Mercury comprueba su archivo con `SHA256SUMS.txt`
 
 Use `--allow-unsigned` para aceptar un contenido sin firmar. Mercury sigue rechazando las claves de firma desconocidas, los bloques de firma mal formados y el contenido manipulado. El resultado del comando y su registro local muestran que usted permitió un contenido sin firmar.
 
-A partir de 1.0.0-beta.3, los archivos se firman durante el empaquetado y sus firmas se verifican antes de la publicación. Una instalación verificada no muestra ningún aviso de firma al iniciarse. `mercury health` informa de la clave de firma `627b54b734ca0e72`.
+Los archivos de versión están firmados. Ejecute `mercury health` para inspeccionar la firma de la versión instalada.
 
-Los archivos de 1.0.0-beta.2 no están firmados. Estas instalaciones informan una vez por instalación de que su procedencia no está firmada cuando inicia Mercury de forma interactiva, sin comando ni opción. La comprobación de estado sigue mostrando ese estado. Significa que el manifiesto del archivo no tiene firma; la descarga se sigue comprobando frente a `SHA256SUMS.txt`.
+Un archivo sin firma de versión se marca como no firmado. La instalación y la actualización lo rechazan, salvo que indique `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) explica los resultados de la verificación y cómo comprobar un archivo manualmente. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) trata la verificación al iniciarse.
 
@@ -89,7 +89,7 @@ Los archivos de 1.0.0-beta.2 no están firmados. Estas instalaciones informan un
 
 Hay archivos de versión para todas las plataformas indicadas arriba. Cualquier otra máquina se compila desde el código fuente.
 
-Los archivos para Mac Intel están disponibles desde 1.0.0-beta.3. Se empaquetan de forma cruzada en un runner de Apple silicon y se prueban al iniciarse con Rosetta antes de la publicación. Los Mac Intel que usen 1.0.0-beta.2 necesitan una compilación desde el código fuente.
+Hay archivos de versión disponibles para Mac Intel.
 
 </details>
 

@@ -18,7 +18,8 @@ import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type Gemin
 import { maskGeminiSecrets } from './geminiAccounts.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-
+import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
+import { GEMINI_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
 function dumpGeminiWire(url: string, model: string, body: string): void {
   const path = flagEnv('MERCURY_GEMINI_WIRE_DUMP')?.trim()
   if (!path) return
@@ -207,7 +208,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     const stream = options.stream !== false
     const plan = options.plan
     const urls = plan ? plan.bases.map(base => geminiPlanStreamUrl(base, stream)) : [options.url.replace(/:streamGenerateContent(?:\?alt=sse)?$/, stream ? ':streamGenerateContent?alt=sse' : ':generateContent')]
-    const body = JSON.stringify(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request)
+    const body = JSON.stringify(fitWireImages(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request, GEMINI_IMAGE_LIMITS).request)
     dumpGeminiWire(urls[0]!, options.request.model, body)
     options.firstByte?.onWait?.(wait)
     firstTimer = setTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)

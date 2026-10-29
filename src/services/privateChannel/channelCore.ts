@@ -122,7 +122,7 @@ export function selectRelease(
     return {
       state: 'malformed-release',
       tag: pick.r.tagName,
-      note: 'the newest channel tag is not marked prerelease — the release workflow did not publish it; refusing to select it',
+      note: 'The release is not marked prerelease; it was not selected.',
     }
   }
   const version = formatPrivateVersion(pick.v)

@@ -12,7 +12,7 @@ Security tab, never an issue: see [SECURITY.md](SECURITY.md).
 
 ## Pull requests
 
-During the beta this repository takes issues, not pull requests. GitHub lets
+This repository takes issues, not pull requests. GitHub lets
 anyone open a pull request against a public repository; one from outside the
 collaborator set is closed with thanks and a pointer to an issue, and nothing
 merges into main without the maintainer (the branch is protected). That is a

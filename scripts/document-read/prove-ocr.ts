@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pdfFixture } from './fixtures.ts'
@@ -38,6 +38,11 @@ try {
     assert.match(textOnly.data.file.content, /MERCURY RESEARCH 42/)
     const forced = await FileReadTool.call({ file_path: pngPath, ocr: true }, ctx('claude-sonnet-5-5'))
     assert.match(forced.data.file.content, /MERCURY RESEARCH 42/)
+    const vision = await FileReadTool.call({ file_path: pngPath, crop: [0, 0, 1200, 240] }, ctx('claude-sonnet-5-5'))
+    assert.equal(vision.data.type, 'image')
+    assert.match(vision.data.file.caption ?? '', /MERCURY RESEARCH 42/)
+    const persisted = FileReadTool.outputSchema.parse(JSON.parse(JSON.stringify(vision.data)))
+    assert.match(JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(persisted, 'vision-read')), /MERCURY RESEARCH 42/)
     const pixels = await sharp(png).removeAlpha().raw().toBuffer()
     const pdfPath = join(root, 'scan.pdf')
     writeFileSync(pdfPath, pdfFixture(['q 540 0 0 108 36 600 cm /Im1 Do Q'], { width: 1200, height: 240, rgb: pixels }))
@@ -46,6 +51,14 @@ try {
     assert.match(scanned.data.file.content, /--- page 1 ---/)
     assert.match(scanned.data.file.content, /\[OCR: macOS Vision; languages:.*en-US/)
     assert.match(scanned.data.file.content, /MERCURY RESEARCH 42/)
+    const renderer = join(root, 'bin')
+    mkdirSync(renderer)
+    const jpegPath = join(root, 'rendered-page.jpg')
+    writeFileSync(jpegPath, await sharp(png).jpeg().toBuffer())
+    writeFileSync(join(renderer, 'pdftoppm'), `#!${process.execPath}\nimport { copyFileSync } from 'node:fs'; if (!process.argv.includes('-v')) copyFileSync(${JSON.stringify(jpegPath)}, process.argv.at(-1) + '-1.jpg');\n`, { mode: 0o755 })
+    process.env.PATH = `${renderer}:${process.env.PATH}`
+    const pageVision = await FileReadTool.call({ file_path: pdfPath, pages: '1' }, ctx('claude-sonnet-5-5'))
+    assert.ok(JSON.stringify(pageVision.newMessages).includes('MERCURY RESEARCH 42'))
     console.log('PASS real macOS Vision OCR: PNG, explicit OCR on a vision model and scanned PDF')
   }
 } finally { rmSync(root, { recursive: true, force: true }) }

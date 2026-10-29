@@ -753,6 +753,8 @@ async function readImageLane(
     const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
     if (metadataText) captions.push(metadataText)
   }
+  const ocr = await recogniseImage(Buffer.from(data.file.base64, 'base64'), context.abortController.signal)
+  if (ocr.ok && ocr.text.trim()) captions.push(renderOcr(ocr))
   if (captions.length) data.file.caption = captions.join('\n')
   return { data }
 }
@@ -811,6 +813,8 @@ async function readPdfLane(
       try {
         const pageBuffer = (await import('node:fs')).readFileSync(`${outputDir}/${name}`)
         const resized = await maybeResizeAndDownsampleImageBuffer(pageBuffer, pageBuffer.length, 'jpeg')
+        const ocr = await recogniseImage(pageBuffer, context.abortController.signal)
+        if (ocr.ok && ocr.text.trim()) blocks.push({ type: 'text', text: `${resolvedPath}: ${name}\n${renderOcr(ocr)}` })
         blocks.push({
           type: 'image',
           source: {

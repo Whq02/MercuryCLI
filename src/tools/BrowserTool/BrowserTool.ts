@@ -238,7 +238,13 @@ function noSessionWords(owner: OwnerKey): string {
   return sessionGoneAt(owner) === null ? NO_SESSION : BROWSER_GONE
 }
 
-export function driverFailureWords(op: string, message: string): string | null {
+export function driverFailureWords(op: string, message: string, policy?: string): string | null {
+  if (/Node is either not clickable or not an Element/i.test(message)) {
+    return `${op} refused: the target is not a clickable element. Use op:"scroll" to bring it into view or op:"waitFor" until the route settles, then extract the page again.`
+  }
+  if (/net::ERR_BLOCKED_BY_CLIENT/.test(message)) {
+    return `${op} refused: the browser blocked this request${policy === undefined ? ' and did not report which policy' : ` under its ${policy} policy`}. Use op:"console" for the request details; ask the operator before changing browser policy.`
+  }
   if (/protocolTimeout|timed out\. Increase the 'protocolTimeout'/.test(message)) {
     return `${op}: the browser did not answer within ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s — its process may be gone; op:"close" ends the session, op:"open" starts a new one`
   }
@@ -1976,12 +1982,15 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       const e = err as Error
       const interrupted = context.abortController?.signal.aborted === true
       const goneMidOp = e.name === BROWSER_GONE_ERROR || (life !== null && !life.browser.connected)
+      const chainText = errorChainText(e)
+      const blockedUrl = /net::ERR_BLOCKED_BY_CLIENT at (\S+)/.exec(chainText)?.[1] ?? input.url
+      const blocked = blockedUrl === undefined ? undefined : activeSession(owner)?.policyBlocks.get(blockedUrl.split('?')[0]!)
       result =
         interrupted || (e.name === 'AbortError' && !goneMidOp)
           ? `${input.op} interrupted by the operator — the wait was released, nothing further was done`
           : goneMidOp
             ? browserGoneMidOpWords(input.op)
-            : (driverFailureWords(input.op, errorChainText(e)) ?? `${input.op} failed: ${e.message}`)
+            : (driverFailureWords(input.op, chainText, blocked !== undefined && blocked.at >= startedAt ? blocked.reason : undefined) ?? `${input.op} failed: ${e.message}`)
       outcome = 'failed'
     } finally {
       life?.release()

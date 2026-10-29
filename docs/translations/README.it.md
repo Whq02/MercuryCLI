@@ -79,9 +79,9 @@ Prima di attivare una release, Mercury controlla il suo archivio con `SHA256SUMS
 
 Usa `--allow-unsigned` per accettare un payload non firmato. Mercury continua a rifiutare le chiavi di firma sconosciute, i blocchi di firma malformati e i contenuti manomessi. Sia il risultato del comando sia il relativo registro locale mostrano che hai consentito un payload non firmato.
 
-A partire dalla 1.0.0-beta.3, gli archivi vengono firmati durante il packaging e le firme vengono verificate prima della pubblicazione. Un'installazione verificata non mostra alcun avviso di firma all'avvio. `mercury health` riporta la chiave di firma `627b54b734ca0e72`.
+Gli archivi di release sono firmati. Esegui `mercury health` per controllare la firma della release installata.
 
-Gli archivi della 1.0.0-beta.2 non sono firmati. Queste installazioni segnalano la provenienza non firmata una volta per installazione, quando avvii Mercury in modo interattivo senza comando né flag. Il controllo di salute continua a mostrare questo stato. Significa che il manifest dell'archivio non ha firma; il download viene comunque verificato con `SHA256SUMS.txt`.
+Un archivio senza firma di release è contrassegnato come non firmato. L'installazione e l'aggiornamento lo rifiutano, a meno che tu non passi `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) spiega i risultati della verifica e come controllare manualmente un archivio. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) tratta la verifica all'avvio.
 
@@ -89,7 +89,7 @@ Gli archivi della 1.0.0-beta.2 non sono firmati. Queste installazioni segnalano 
 
 Gli archivi di release esistono per ogni piattaforma elencata sopra. Qualsiasi altra macchina compila dal codice sorgente.
 
-Gli archivi per Mac Intel sono disponibili dalla 1.0.0-beta.3. Vengono impacchettati in modo incrociato su un runner Apple silicon e testati all'avvio sotto Rosetta prima della pubblicazione. I Mac Intel che usano la 1.0.0-beta.2 richiedono una build dal codice sorgente.
+Sono disponibili archivi di release per Mac Intel.
 
 </details>
 

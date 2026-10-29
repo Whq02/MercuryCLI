@@ -1558,10 +1558,8 @@ section('§8 accounts-side refusal hygiene + the gemini no-probe gate copy')
     '../../src/services/providers/gemini/geminiAccounts.js'
   )
   check(
-    'the unverified note names the store-as-given fact, the invalid_client road, and the way back',
-    GEMINI_CLIENT_STORED_UNVERIFIED_NOTE.includes('Stored as given') &&
-      GEMINI_CLIENT_STORED_UNVERIFIED_NOTE.includes('invalid_client') &&
-      GEMINI_CLIENT_STORED_UNVERIFIED_NOTE.includes('reopen this prompt'),
+    'the client note names invalid_client and how to correct the ID',
+    GEMINI_CLIENT_STORED_UNVERIFIED_NOTE === 'If Google shows invalid_client, press esc and correct the client ID here.',
   )
   const faceSrc = src('src/components/BootLoginsScreen.tsx')
   const cardSrc = src('src/components/GeminiConnect.tsx')

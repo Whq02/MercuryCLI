@@ -13,7 +13,8 @@ function pageLines(items) {
   }
   rows.sort((a, b) => b.y - a.y)
   return rows.map(row => {
-    const rtl = row.items.filter(i => i.dir === 'rtl').length > row.items.length / 2
+    const letters = item => (item.str.match(/\p{L}/gu) ?? []).length
+    const rtl = row.items.reduce((sum, item) => sum + (item.dir === 'rtl' ? letters(item) : -letters(item)), 0) > 0
     row.items.sort((a, b) => (a.transform[4] - b.transform[4]) * (rtl ? -1 : 1))
     let line = ''
     let previous
@@ -47,10 +48,11 @@ try {
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       try {
-        const content = await page.getTextContent()
+        const content = await page.getTextContent({ disableNormalization: true })
         const text = pageLines(content.items.filter(item => typeof item.str === 'string'))
         const operators = await page.getOperatorList()
-        pages.push({ pageNumber: i, text, hasTextLayer: text.trim().length > 0, hasImages: operators.fnArray.some(op => imageOps.has(op)) })
+        const rawText = content.items.filter(item => typeof item.str === 'string').map(item => item.str).join('\n')
+        pages.push({ pageNumber: i, text, rawText, hasTextLayer: text.trim().length > 0, hasImages: operators.fnArray.some(op => imageOps.has(op)) })
       } finally { page.cleanup() }
     }
     parentPort.postMessage({ result: { pageCount: doc.numPages, pages, metadata }, diagnostics })

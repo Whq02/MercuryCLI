@@ -1,5 +1,8 @@
 
 import { randomUUID } from 'node:crypto'
+import { readFile, stat } from 'node:fs/promises'
+import { expandPath } from '../../utils/path.js'
+import { getCwd } from '../../utils/cwd.js'
 import { z } from 'zod/v4'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -168,7 +171,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
       }
     }
 
-  async function reenterTool(name: string, input: Record<string, unknown>, budget: CellBudgetHooks): Promise<BridgeAnswer> {
+  async function reenterTool(name: string, input: Record<string, unknown>, budget: CellBudgetHooks, rawFile?: { bytes: boolean }): Promise<BridgeAnswer> {
     if (toolMatchesName({ name: EVAL_TOOL_NAME }, name)) {
       return { ok: false, error: 'Eval cannot re-enter itself — run the code in this cell instead' }
     }
@@ -180,8 +183,31 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     let result: { text: string; isError: boolean } | null = null
     let screenshot: BridgeScreenshot | null = null
     let shellRun: ShellRunFact | undefined
+    let shellData: { stdout?: string; stderr?: string; persistedOutputPath?: string } | undefined
     let permissionDenied = false
-    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), nestedContext)) {
+    let rawValue: string | undefined
+    let rawMarker: string | undefined
+    const callContext = rawFile === undefined ? nestedContext : {
+      ...nestedContext,
+      options: {
+        ...nestedContext.options,
+        tools: nestedContext.options.tools.map(tool => !toolMatchesName(tool, 'Read') ? tool : {
+          ...tool,
+          async call(args: { file_path: string }, ctx: ToolUseContext) {
+            const path = expandPath(args.file_path, getCwd())
+            const bytes = await readFile(path, { signal: ctx.abortController.signal })
+            rawValue = bytes.toString(rawFile.bytes ? 'base64' : 'utf8')
+            rawMarker = `${path}: ${bytes.length} bytes read into the cell`
+            if (!rawFile.bytes) ctx.readFileState.set(path, { content: rawValue, timestamp: Math.floor((await stat(path)).mtimeMs), offset: 0, limit: undefined })
+            return { data: { type: 'text', file: { filePath: path, content: rawMarker, numLines: 1, startLine: 1, totalLines: 1 } } }
+          },
+          mapToolResultToToolResultBlockParam(_output: unknown, tool_use_id: string) {
+            return { type: 'tool_result', tool_use_id, content: rawMarker ?? '' }
+          },
+        } as typeof tool),
+      },
+    }
+    for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget, () => { permissionDenied = true }), callContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
       const extracted = extractToolResult(message as UserMessage, toolUseId, carriesScreenshot ? SCREENSHOT_NOTE : IMAGE_NOTE)
@@ -189,6 +215,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
         result = extracted
         if (carriesScreenshot) screenshot = screenshotOf(message as UserMessage)
         shellRun = update.shellRun
+        if (shellRun !== undefined && typeof message.toolUseResult === 'object' && message.toolUseResult !== null) shellData = message.toolUseResult as typeof shellData
         deps.onNested?.(toNormalizedUser(message as UserMessage))
       }
     }
@@ -197,14 +224,21 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
       const carrier = context.toolUseId
       if (carrier === undefined || carrier === '' || rekeyScreenshot(deps.owner ?? ownerFromToolUseContext(context), toolUseId, carrier)) deps.onScreenshot?.(screenshot)
     }
-    if (shellRun !== undefined) return { ok: true, value: shellCallValue(shellRun, result.text), code: shellRun.code }
+    if (shellRun !== undefined) {
+      const output = shellData?.persistedOutputPath !== undefined ? await readFile(shellData.persistedOutputPath, 'utf8') : shellRun.output
+      return { ok: true, value: shellCallValue({ ...shellRun, ...(output !== undefined ? { output } : {}) }, result.text), code: shellRun.code }
+    }
     if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed`, errorKind: cellAbort.signal.aborted ? 'cancelled' : permissionDenied ? 'permission' : 'error' }
-    return { ok: true, value: result.text }
+    return { ok: true, value: rawValue !== undefined && result.text === rawMarker ? rawValue : result.text }
   }
 
   return async function serve(frame: BridgeRequestFrame, budget: CellBudgetHooks): Promise<BridgeAnswer> {
     try {
       switch (frame.kind) {
+        case 'read_file': {
+          const parsed = z.strictObject({ file_path: z.string(), bytes: z.boolean().default(false) }).parse(frame.payload)
+          return await reenterTool('Read', { file_path: parsed.file_path }, budget, { bytes: parsed.bytes })
+        }
         case 'sample': {
           return { ok: true, value: await handleSampleCall(deps.owner ?? ownerFromToolUseContext(context), frame.payload) }
         }

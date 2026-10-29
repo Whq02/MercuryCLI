@@ -79,9 +79,9 @@ Przed aktywacją wydania Mercury sprawdza jego archiwum względem `SHA256SUMS.tx
 
 Użyj `--allow-unsigned`, aby zaakceptować niepodpisany ładunek. Mercury nadal odrzuca nieznane klucze podpisujące, uszkodzone bloki podpisu i zmienioną zawartość. Wynik polecenia i jego lokalny zapis pokazują, że zaakceptowano niepodpisany ładunek.
 
-Od wersji 1.0.0-beta.3 archiwa są podpisywane podczas pakowania, a ich podpisy są weryfikowane przed publikacją. Zweryfikowana instalacja nie wyświetla przy starcie żadnej informacji o podpisie. `mercury health` podaje klucz podpisu `627b54b734ca0e72`.
+Archiwa wydań są podpisane. Uruchom `mercury health`, aby sprawdzić podpis zainstalowanego wydania.
 
-Archiwa wersji 1.0.0-beta.2 nie są podpisane. Te instalacje zgłaszają niepodpisane pochodzenie raz na instalację, gdy uruchamiasz Mercury interaktywnie bez polecenia ani flagi. Kontrola stanu nadal pokazuje ten status. Oznacza on, że manifest archiwum nie ma podpisu; pobranie jest mimo to sprawdzane względem `SHA256SUMS.txt`.
+Archiwum bez podpisu wydania jest oznaczane jako niepodpisane. Instalacja i aktualizacja odrzucają je, chyba że podasz `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) wyjaśnia wyniki weryfikacji i sposób ręcznego sprawdzenia archiwum. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) opisuje weryfikację przy starcie.
 
@@ -89,7 +89,7 @@ Archiwa wersji 1.0.0-beta.2 nie są podpisane. Te instalacje zgłaszają niepodp
 
 Archiwa wydań istnieją dla każdej wymienionej platformy. Każda inna maszyna buduje Mercury ze źródeł.
 
-Archiwa dla Intel Mac są dostępne od wersji 1.0.0-beta.3. Są pakowane krzyżowo na runnerze z Apple silicon i testowane przy starcie w Rosetta przed publikacją. Intel Mac korzystające z wersji 1.0.0-beta.2 wymagają budowania ze źródeł.
+Archiwa wydań dla Intel Mac są dostępne.
 
 </details>
 

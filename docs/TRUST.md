@@ -283,16 +283,13 @@ Sovereign mode on nothing asks, whatever the Boot Menu's `Access type` row
 saves; with it off the row decides (`asks` by default)
 ([COMPUTER-USE.md](COMPUTER-USE.md)).
 
-## Release provenance: what "signed" means
+## Release signatures
 
-Every release archive carries a `manifest.json`, and from 1.0.0-beta.3 on that
-manifest carries a signature: an Ed25519 signature over the release record
+Every release archive carries a `manifest.json` with an Ed25519 signature over the release record
 (the version, the platform target, the packaging time, the source tree, the
 SHA-256 of the runtime bundle and a digest of every other shipped byte). The
 signing key is the Mercury release key, id `627b54b734ca0e72`, whose public
-half is compiled into every build as its trust roster. The private key is held
-privately: it never enters the repository, and it reaches the hosted
-release workflow only as a repository secret for the packaging step.
+half is compiled into every build as its trust roster.
 
 Signing is advisory at boot and in `/health` and the health check: those checks
 report the verdict without blocking a boot. It is a gate on an update or
@@ -310,14 +307,8 @@ The verdicts are:
 
 - **signed**: a valid signature under the release key; the bytes match what
   was packaged. The launcher says nothing.
-- **unsigned**: the manifest carries no signature. 1.0.0-beta.2 shipped this
-  way: the hosted workflow never held the key, and every interactive launch of
-  that release prints `mercury: provenance — unsigned …`. From 1.0.0-beta.3
-  the launcher says it on a bare interactive boot (a plain `mercury`, no verb
-  or flag) once per install (a marker beside the version pointer of the
-  managed layout records that it was said; an archive run in place says it
-  at every bare boot), and `mercury health` says it every time. Update and
-  install refuse it unless `--allow-unsigned` is explicitly passed.
+- **unsigned**: the manifest carries no signature. Update and install refuse
+  it unless `--allow-unsigned` is explicitly passed.
 - **unrecognized-key**: a valid signature under a key that is not in this
   build's roster; update and install refuse it, including with `--allow-unsigned`.
 - **malformed**: the signing block cannot be decoded; update and install

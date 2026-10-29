@@ -79,9 +79,9 @@ Antes de ativar uma release, o Mercury confere o arquivo dela com `SHA256SUMS.tx
 
 Use `--allow-unsigned` para aceitar um conteúdo não assinado. O Mercury continua rejeitando chaves de assinatura desconhecidas, blocos de assinatura malformados e conteúdo adulterado. O resultado do comando e o registro local dele mostram que você permitiu um conteúdo não assinado.
 
-A partir da 1.0.0-beta.3, os arquivos são assinados durante o empacotamento e as assinaturas são verificadas antes da publicação. Uma instalação verificada não mostra nenhum aviso de assinatura na inicialização. `mercury health` informa a chave de assinatura `627b54b734ca0e72`.
+Os arquivos de versão são assinados. Execute `mercury health` para inspecionar a assinatura da versão instalada.
 
-Os arquivos da 1.0.0-beta.2 não são assinados. Essas instalações mostram a procedência não assinada uma vez por instalação, quando você inicia o Mercury de forma interativa, sem comando nem flag. A verificação de saúde continua exibindo esse status. Isso significa que o manifesto do arquivo não tem assinatura; o download continua sendo conferido contra `SHA256SUMS.txt`.
+Um arquivo sem assinatura de versão é marcado como não assinado. A instalação e a atualização o recusam, a menos que você passe `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) explica os resultados da verificação e como conferir um arquivo manualmente. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) trata da verificação na inicialização.
 
@@ -89,7 +89,7 @@ Os arquivos da 1.0.0-beta.2 não são assinados. Essas instalações mostram a p
 
 Há arquivos de release para todas as plataformas listadas acima. Qualquer outra máquina compila a partir do código-fonte.
 
-Os arquivos para Mac Intel estão disponíveis a partir da 1.0.0-beta.3. Eles são empacotados de forma cruzada em um runner de Apple silicon e testados na inicialização sob Rosetta antes da publicação. Macs Intel que usam a 1.0.0-beta.2 precisam de uma compilação a partir do código-fonte.
+Há arquivos de versão disponíveis para Mac Intel.
 
 </details>
 

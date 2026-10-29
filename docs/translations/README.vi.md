@@ -79,9 +79,9 @@ Trước khi kích hoạt một bản phát hành, Mercury kiểm tra gói lưu 
 
 Dùng `--allow-unsigned` để chấp nhận một payload chưa ký. Mercury vẫn từ chối các khóa ký không xác định, khối chữ ký sai định dạng và nội dung bị sửa đổi. Kết quả lệnh và bản ghi cục bộ đều cho thấy bạn đã cho phép một payload chưa ký.
 
-Từ 1.0.0-beta.3 trở đi, các gói lưu trữ được ký trong quá trình đóng gói và chữ ký của chúng được xác minh trước khi công bố. Bản cài đặt đã xác minh không hiển thị thông báo chữ ký khi khởi động. `mercury health` báo cáo khóa ký `627b54b734ca0e72`.
+Các gói phát hành được ký. Chạy `mercury health` để kiểm tra chữ ký của bản phát hành đã cài đặt.
 
-Các gói lưu trữ 1.0.0-beta.2 không được ký. Những bản cài đặt này báo cáo nguồn gốc chưa ký (unsigned provenance) một lần cho mỗi lần cài đặt, khi bạn khởi động Mercury ở chế độ tương tác mà không kèm lệnh hoặc cờ nào. Health check tiếp tục hiển thị trạng thái này. Điều đó có nghĩa là manifest của gói lưu trữ không có chữ ký; tệp tải về vẫn được kiểm tra với `SHA256SUMS.txt`.
+Gói lưu trữ không có chữ ký phát hành được đánh dấu là chưa ký. Việc cài đặt và cập nhật từ chối gói đó trừ khi bạn truyền `--allow-unsigned`.
 
 [docs/TRUST.md](../TRUST.md) giải thích kết quả xác minh và cách tự kiểm tra một gói lưu trữ. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) đề cập đến xác minh khi khởi động.
 
@@ -89,7 +89,7 @@ Các gói lưu trữ 1.0.0-beta.2 không được ký. Những bản cài đặt
 
 Các gói phát hành có sẵn cho mọi nền tảng được liệt kê ở trên. Mọi máy khác đều biên dịch từ mã nguồn.
 
-Gói lưu trữ cho Mac Intel có từ 1.0.0-beta.3. Chúng được đóng gói chéo trên một runner Apple silicon và được kiểm tra khi khởi động dưới Rosetta trước khi công bố. Mac Intel đang dùng 1.0.0-beta.2 cần biên dịch từ mã nguồn.
+Có sẵn các gói phát hành cho Mac Intel.
 
 </details>
 

@@ -79,9 +79,9 @@ Bevor Mercury ein Release aktiviert, prüft es das Archiv gegen `SHA256SUMS.txt`
 
 Mit `--allow-unsigned` akzeptieren Sie eine nicht signierte Payload. Mercury lehnt weiterhin unbekannte Signaturschlüssel, fehlerhafte Signaturblöcke und manipulierte Inhalte ab. Das Ergebnis des Befehls und sein lokaler Protokolleintrag zeigen beide, dass Sie eine nicht signierte Payload zugelassen haben.
 
-Ab 1.0.0-beta.3 werden Archive beim Paketieren signiert, und ihre Signaturen werden vor der Veröffentlichung geprüft. Eine verifizierte Installation zeigt beim Start keinen Hinweis zur Signatur. `mercury health` meldet den Signaturschlüssel `627b54b734ca0e72`.
+Release-Archive sind signiert. Führen Sie `mercury health` aus, um die Signatur des installierten Releases zu prüfen.
 
-Die Archive von 1.0.0-beta.2 sind nicht signiert. Diese Installationen melden einmal pro Installation eine nicht signierte Herkunft, wenn Sie Mercury interaktiv ohne Befehl oder Flag starten. Der Health-Check zeigt diesen Status weiterhin an. Das bedeutet, dass das Archivmanifest keine Signatur hat; der Download wird trotzdem gegen `SHA256SUMS.txt` geprüft.
+Ein Archiv ohne Release-Signatur wird als nicht signiert gekennzeichnet. Installation und Update lehnen es ab, sofern Sie nicht `--allow-unsigned` angeben.
 
 [docs/TRUST.md](../TRUST.md) erläutert die Prüfergebnisse und wie Sie ein Archiv manuell prüfen. [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) behandelt die Überprüfung beim Start.
 
@@ -89,7 +89,7 @@ Die Archive von 1.0.0-beta.2 sind nicht signiert. Diese Installationen melden ei
 
 Für jede oben genannte Plattform gibt es Release-Archive. Jede andere Maschine baut aus dem Quellcode.
 
-Archive für Intel-Macs gibt es ab 1.0.0-beta.3. Sie werden auf einem Apple-silicon-Runner per Cross-Packaging erstellt und vor der Veröffentlichung beim Start unter Rosetta getestet. Intel-Macs mit 1.0.0-beta.2 benötigen einen Build aus dem Quellcode.
+Release-Archive für Intel-Macs sind verfügbar.
 
 </details>
 

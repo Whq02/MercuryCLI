@@ -3,6 +3,7 @@ import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
+import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
@@ -254,10 +255,10 @@ export function mapOpenaiHttpFailure(
     const isWindow = asked === undefined && !shortBodyWait && planNamed
     const label = typeof planType === 'string' && planType !== '' ? planType : 'usage'
     const words = isWindow
-      ? `the ${label} window is reached${waitMs !== undefined ? ` — resets in ${Math.ceil(waitMs / 1000)} s` : ' — no reset stated'}`
+      ? `the ${label} window is reached${waitMs !== undefined ? ` — resets in ${providerWaitWords(waitMs)}` : ' — no reset stated'}`
       : waitMs === 0
         ? 'rate limited — the provider says retry now'
-        : `rate limited${waitMs !== undefined ? ` — the provider asks for ${Math.ceil(waitMs / 1000)} s` : ''}`
+        : `rate limited${waitMs !== undefined ? ` — the provider asks for ${providerWaitWords(waitMs)}` : ''}`
     return {
       kind: 'usage-limit',
       code: code || errType ? `openai-${code ?? errType}` : 'http-429',

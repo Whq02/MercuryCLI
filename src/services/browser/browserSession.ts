@@ -38,6 +38,7 @@ interface Session {
   popups: { count: number; last: string }
   navFailure: { last: NavFailure | null }
   networkRefusal: { count: number; last: string | null }
+  policyBlocks: Map<string, { reason: string; at: number }>
   closeNetwork: () => void
   downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
   navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
@@ -975,6 +976,7 @@ async function launchOwnerSession(
       return q === -1 ? url : `${url.slice(0, q)}?…`
     }
     const navFailure: Session['navFailure'] = { last: null }
+    const policyBlocks: Session['policyBlocks'] = new Map()
     const downloads: Session['downloads'] = { count: 0, last: null, waiters: [] }
     const navWatch: Session['navWatch'] = { pendingUrl: null, abortedAt: 0, waiters: [] }
     const docResponses = new Map<string, string | null>()
@@ -1001,6 +1003,21 @@ async function launchOwnerSession(
     const cdp =
       typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
     if (cdp !== null) {
+      const requests = new Map<string, string>()
+      await cdp.send('Network.enable').catch(() => undefined)
+      cdp.on('Network.requestWillBeSent', event => {
+        requests.set(event.requestId, event.request.url.split('?')[0]!)
+        if (requests.size > CONSOLE_RING_CAP) requests.delete(requests.keys().next().value!)
+      })
+      cdp.on('Network.loadingFinished', event => { requests.delete(event.requestId) })
+      cdp.on('Network.loadingFailed', event => {
+        const url = requests.get(event.requestId)
+        requests.delete(event.requestId)
+        if (url === undefined || event.blockedReason === undefined) return
+        policyBlocks.set(url, { reason: event.blockedReason, at: Date.now() })
+        if (policyBlocks.size > CONSOLE_RING_CAP) policyBlocks.delete(policyBlocks.keys().next().value!)
+        capture('net', `${url} refused by browser policy: ${event.blockedReason}`)
+      })
       await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
       await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
       await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(() => undefined)
@@ -1168,6 +1185,7 @@ async function launchOwnerSession(
       popups,
       navFailure,
       networkRefusal,
+      policyBlocks,
       closeNetwork: proxy.close,
       downloads,
       navWatch,

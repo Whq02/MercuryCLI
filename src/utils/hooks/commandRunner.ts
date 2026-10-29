@@ -81,7 +81,7 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
   let command = run.command
   let extensionOptions: OptionValues | undefined
   const env: NodeJS.ProcessEnv = {
-    ...scrubSessionEnvStamps(subprocessEnv()).env,
+    ...scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env,
     MERCURY_PROJECT_DIR: toHookPath(getProjectRoot()),
     MERCURY_SESSION_ID: getHookRunContext()?.sessionId ?? getSessionId(),
     MERCURY_HOOK_EVENT: run.event,
