@@ -382,7 +382,7 @@ function exportOptionsSummary(input: Input): string {
 export const AsepriteTool = buildTool({
   name: ASEPRITE_TOOL_NAME,
   get searchHint() {
-    return 'Aseprite pixel art batch control: sprite census (layers tags frames slices), export png gif webp, sprite sheet texture atlas with json metadata, tileset, scale resize, new sprite creation, lua scripting, animation frames, ase aseprite files'
+    return 'Aseprite pixel art batch control: sprite census (layers tags frames slices), export png gif webp, sprite sheet texture atlas with json metadata, tileset, scale resize, new sprite creation, lua scripting, animation frames, ase aseprite files, draw pixel line rectangle ellipse circle flood fill, named parts groups, render back image preview, palette check colours'
   },
   capability: {
     intents: [
@@ -405,7 +405,7 @@ export const AsepriteTool = buildTool({
   },
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Drive the local Aseprite in batch mode: sprite census (layers/tags/frames), PNG/GIF/sprite-sheet exports with the real CLI options, new sprites, Lua scripts — never launches the GUI'
+    return 'Drive the local Aseprite in batch mode: sprite census (layers/tags/frames), PNG/GIF/sprite-sheet exports with the real CLI options, new sprites, batched drawing, render-back images, named parts, palette checks, Lua scripts — never launches the GUI'
   },
   async prompt() {
     return getAsepriteToolDescription()

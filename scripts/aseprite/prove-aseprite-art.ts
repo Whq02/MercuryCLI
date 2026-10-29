@@ -138,7 +138,10 @@ try {
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [] }).success, false)
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [{ ...strokes[0], x: 0.5 }] }).success, false)
   })
-  console.log('PASS Aseprite art primitives: grammar, order, one spawn, permission, fence, cleanup')
+  const doc = readFileSync(new URL('../../docs/ASEPRITE-BRIDGE.md', import.meta.url), 'utf8')
+  for (const op of ['draw', 'render', 'parts', 'describe', 'palette-check']) assert.ok(doc.includes(`| \`${op}\` |`), `documented verb: ${op}`)
+  assert.ok(!doc.includes('—'))
+  console.log('PASS Aseprite art: grammar, batches, permissions, fences, palette report, image blocks, cleanup and verb table')
 } finally {
   if (saved === undefined) delete process.env.MERCURY_ASEPRITE_BIN
   else process.env.MERCURY_ASEPRITE_BIN = saved
