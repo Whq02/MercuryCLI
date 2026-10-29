@@ -25,6 +25,23 @@ check('a provably newer version still tells the older screen to reopen', newer.h
 const older = hs.decideHandshake({kind: 'hello', reply: {...reply, version: '1.0.0-beta.27'}}, client, 100, null)
 check('a provably older version may restart when idle', older.heal === 'restart-when-idle', older.heal)
 check('the installed build outranks a version word: a daemon on the installed build keeps it even against a newer screen that is not installed', hs.decideHandshake({kind: 'hello', reply: {...reply, version: '1.0.0-beta.27'}}, client, 100, installed).heal === 'reopen')
+for (const [screenVersion, installedVersion, direction] of [
+  ['1.0.0', '1.0.0-rc.1', 'newer'],
+  ['1.0.0-rc.1', '1.0.0', 'older'],
+  ['1.0.0-rc.10', '1.0.0-rc.2', 'newer'],
+  ['1.0.0-rc.2', '1.0.0-rc.10', 'older'],
+  ['1.0.10', '1.0.2', 'newer'],
+  ['1.0.2', '1.0.10', 'older'],
+] as const) {
+  const screen = { ...client, version: screenVersion }
+  const daemon = { ...reply, version: installedVersion }
+  const verdict = hs.decideHandshake({ kind: 'hello', reply: daemon }, screen, 100, { ...installed, version: installedVersion })
+  const fix = hs.reopenWayOut(verdict)
+  check(`the installed ${installedVersion} stays running against screen ${screenVersion}`, verdict.heal === 'reopen', verdict.heal)
+  check(`the fix calls screen ${screenVersion} the ${direction} build`, fix === `Mercury v${installedVersion} is installed and the daemon runs it; this Mercury (v${screenVersion}) is the ${direction} build — ${hs.REOPEN_WORDS}`, fix)
+}
+const sameVersion = hs.decideHandshake({ kind: 'hello', reply }, client, 100, installed)
+check('equal versions keep the tree-specific way out byte-for-byte', hs.reopenWayOut(sameVersion) === `this chat's engine is the installed build (tree ${reply.buildTree}), not this Mercury's (tree ${client.buildTree}) — ${hs.OTHER_BUILD_WAY_OUT}`, hs.reopenWayOut(sameVersion))
 const statusWords = (hs as unknown as { daemonBuildStatusWords?: (v: hs.DaemonHandshakeVerdict | null) => string }).daemonBuildStatusWords
 check('the row names the daemon build instead of hiding behind ready', statusWords?.(unknown) === 'daemon build aaaaaaaaaaaa differs', statusWords?.(unknown))
 const matched = hs.decideHandshake({kind: 'hello', reply: {...reply, buildTree: client.buildTree}}, client)

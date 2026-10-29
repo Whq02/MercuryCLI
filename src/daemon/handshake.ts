@@ -285,7 +285,8 @@ export function reopenWayOut(v: DaemonHandshakeVerdict): string {
   if (d !== null && d.version === v.client.version) {
     return `this chat's engine is the installed build (tree ${d.buildTree ?? '?'}), not this Mercury's (tree ${v.client.buildTree ?? '?'}) — ${OTHER_BUILD_WAY_OUT}`
   }
-  return `Mercury v${d?.version ?? '?'} is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build — ${REOPEN_WORDS}`
+  const direction = d !== null && versionIsNewer(v.client.version, d.version) ? 'newer' : 'older'
+  return `Mercury v${d?.version ?? '?'} is installed and the daemon runs it; this Mercury (v${v.client.version}) is the ${direction} build — ${REOPEN_WORDS}`
 }
 
 export function daemonSkewLine(v: DaemonHandshakeVerdict | null): string | null {
