@@ -233,11 +233,12 @@ function capStream(s: string): { text: string; truncated: boolean } {
 export async function runAseprite(
   bin: string,
   args: string[],
-  opts: { timeoutMs: number; cwd?: string },
+  opts: { timeoutMs: number; cwd?: string; env?: NodeJS.ProcessEnv },
 ): Promise<AsepriteRunResult> {
   const r = await execFileNoThrowWithCwd(bin, ['-b', ...args], {
     timeout: opts.timeoutMs,
     cwd: opts.cwd ?? getCwd(),
+    ...(opts.env ? { env: opts.env } : {}),
   })
   const out = capStream(r.stdout ?? '')
   const err = capStream(r.stderr ?? '')

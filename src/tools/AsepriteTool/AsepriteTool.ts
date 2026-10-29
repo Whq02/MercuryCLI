@@ -23,13 +23,16 @@ import {
   userFacingName,
 } from './UI.js'
 
-const OPS = ['status', 'info', 'export', 'create', 'run-script'] as const
+import { ART_OPS, artAsk, artFields, isArtOp, runArt } from './art.js'
+
+const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
 
 const SHEET_TYPES = ['horizontal', 'vertical', 'rows', 'columns', 'packed'] as const
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('status · info · export · create · run-script'),
+    op: z.enum(OPS).describe('status · info · export · create · run-script · draw'),
+    ...artFields(),
     file: z
       .string()
       .optional()
@@ -419,6 +422,7 @@ export const AsepriteTool = buildTool({
     return input.op === 'status' || input.op === 'info'
   },
   async checkPermissions(input: Input) {
+    if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
     if (input.op === 'status' || input.op === 'info') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
@@ -452,7 +456,11 @@ export const AsepriteTool = buildTool({
   async call(input: Input) {
     let result: string
     try {
-      result = await runOp(input)
+      if (isArtOp(input.op)) {
+        const resolution = resolveAseprite()
+        if (resolution.state === 'ok') return { data: { op: input.op, ...await runArt(input, resolution.location.path, fencePath) } }
+        result = `${input.op}: aseprite is unavailable — ${resolution.note}\n${ASEPRITE_INSTALL_REMEDY}`
+      } else result = await runOp(input)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\n${ASEPRITE_INSTALL_REMEDY}`
     }
