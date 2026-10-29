@@ -8,7 +8,7 @@ const pipelineIdentity = z.object({ name: z.string().min(1), hash: z.string().re
 const stepRecord = z.object({
   id: z.string().min(1), kind: z.string(), status: z.enum(['completed', 'reused', 'failed', 'cancelled']),
   model: z.string().nullable(), seed: z.number().nullable(),
-  outputs: z.object({ image: z.string(), images: z.array(z.string()) }).optional(),
+  outputs: z.object({ image: z.string(), images: z.array(z.string()) }).passthrough().optional(),
   files: z.array(z.object({ path: z.string(), sha256: z.string() }).passthrough()).optional(),
   error: z.string().optional(),
 }).passthrough()
