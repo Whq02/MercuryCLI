@@ -40,7 +40,12 @@ const origin = (name: string, gitattributes: string): string => {
   put('.gitattributes', gitattributes)
   put('package.json', packageJson)
   put('vendor/document-libs.lock.json', readFileSync(join(ROOT, 'vendor/document-libs.lock.json')))
-  for (const source of lock.licenceSources) put(licencePath(source), readFileSync(join(ROOT, licencePath(source))))
+  for (const source of lock.licenceSources) {
+    const checkout = readFileSync(join(ROOT, licencePath(source)))
+    const locked = [checkout, Buffer.from(checkout.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].find(bytes => sha256(bytes) === source.sha256)
+    if (!locked) throw new Error(`Fixture licence differs from its lock: ${source.name}`)
+    put(licencePath(source), locked)
+  }
   git(dir, '-c', 'core.autocrlf=false', 'add', '--', '.')
   git(dir, '-c', 'core.autocrlf=false', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture')
   return dir
