@@ -66,6 +66,8 @@ jobs:
             --rev "$(git rev-parse HEAD)" --kind hosted --require-toolchain
       - name: install (lockfile held)
         run: bun install --frozen-lockfile
+      - name: Fetch the pinned PDF reader pack (hash-verified; the build refuses without it)
+        run: bun run scripts/vendor/fetch-pdfjs.ts
       - name: typecheck ratchet
         run: bun run typecheck
       - name: build
